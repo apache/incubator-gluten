@@ -123,14 +123,7 @@ class ColumnarShuffleWriter[K, V](
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
-      partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      shuffleBlockResolver.writeMetadataFileAndCommit(
-        dep.shuffleId,
-        mapId,
-        partitionLengths,
-        Array[Long](),
-        null)
-      mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+      handleEmptyInput()
       return
     }
 
@@ -194,6 +187,11 @@ class ColumnarShuffleWriter[K, V](
       cb.close()
     }
 
+    if (nativeShuffleWriter == -1L) {
+      handleEmptyInput()
+      return
+    }
+
     val startTime = System.nanoTime()
     assert(nativeShuffleWriter != -1L)
     splitResult = jniWrapper.stop(nativeShuffleWriter)
@@ -241,16 +239,28 @@ class ColumnarShuffleWriter[K, V](
     mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
   }
 
+  private def handleEmptyInput(): Unit = {
+    partitionLengths = new Array[Long](dep.partitioner.numPartitions)
+    shuffleBlockResolver.writeMetadataFileAndCommit(
+      dep.shuffleId,
+      mapId,
+      partitionLengths,
+      Array[Long](),
+      null)
+    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+  }
+
   @throws[IOException]
   override def write(records: Iterator[Product2[K, V]]): Unit = {
     internalWrite(records)
   }
 
   private def closeShuffleWriter(): Unit = {
-    if (nativeShuffleWriter != -1L) {
-      jniWrapper.close(nativeShuffleWriter)
-      nativeShuffleWriter = -1L
+    if (nativeShuffleWriter == -1L) {
+      return
     }
+    jniWrapper.close(nativeShuffleWriter)
+    nativeShuffleWriter = -1L
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {

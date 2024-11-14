@@ -43,10 +43,5 @@ public class ExpressionEvaluatorJniWrapper {
       byte[] confArray,
       boolean materializeInput);
 
-  /**
-   * Set the temp path for writing files.
-   *
-   * @param path the temp path for writing files
-   */
-  public static native void injectWriteFilesTempPath(byte[] path, byte[] filename);
+  public static native void updateQueryRuntimeSettings(byte[] settings);
 }

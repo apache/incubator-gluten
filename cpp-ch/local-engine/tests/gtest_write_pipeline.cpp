@@ -33,6 +33,7 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
+#include <Poco/StringTokenizer.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 
@@ -138,14 +139,6 @@ TEST(WritePipeline, SubstraitFileSink)
     EXPECT_TRUE(write_rel.has_named_table());
 
     const substrait::NamedObjectWrite & named_table = write_rel.named_table();
-
-    google::protobuf::StringValue optimization;
-    named_table.advanced_extension().optimization().UnpackTo(&optimization);
-    auto config = local_engine::parse_write_parameter(optimization.value());
-    EXPECT_EQ(2, config.size());
-    EXPECT_EQ("parquet", config["format"]);
-    EXPECT_EQ("1", config["isSnappy"]);
-
     EXPECT_TRUE(write_rel.has_table_schema());
     const substrait::NamedStruct & table_schema = write_rel.table_schema();
     auto block = TypeParser::buildBlockFromNamedStruct(table_schema);
@@ -194,15 +187,6 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     EXPECT_TRUE(write_rel.has_named_table());
 
     const substrait::NamedObjectWrite & named_table = write_rel.named_table();
-
-    google::protobuf::StringValue optimization;
-    named_table.advanced_extension().optimization().UnpackTo(&optimization);
-    auto config = local_engine::parse_write_parameter(optimization.value());
-    EXPECT_EQ(2, config.size());
-    EXPECT_EQ("parquet", config["format"]);
-    EXPECT_EQ("1", config["isSnappy"]);
-
-
     EXPECT_TRUE(write_rel.has_table_schema());
     const substrait::NamedStruct & table_schema = write_rel.table_schema();
     auto block = TypeParser::buildBlockFromNamedStruct(table_schema);
@@ -222,20 +206,27 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     // EXPECT_EQ(16, col_b.getInt(0));
 }
 
+/*DB::ASTPtr printColumn(const std::string& column)
+{
+    //  printf('%05d',col)
+    DB::ASTs arguments {std::make_shared<DB::ASTLiteral>("%05d"), std::make_shared<DB::ASTIdentifier>(column)};
+    return DB::makeASTFunction("printf", std::move(arguments));
+}*/
+
 TEST(WritePipeline, ComputePartitionedExpression)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
 
     auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"});
+    // auto partition_by = printColumn("s_nationkey");
 
     ASTs arguments(1, partition_by);
     ASTPtr partition_by_string = makeASTFunction("toString", std::move(arguments));
 
     Block sample_block{{STRING(), "name"}, {UINT(), "s_nationkey"}};
+
     auto syntax_result = TreeRewriter(context).analyze(partition_by_string, sample_block.getNamesAndTypesList());
     auto partition_by_expr = ExpressionAnalyzer(partition_by_string, syntax_result, context).getActions(false);
-
-
     auto partition_by_column_name = partition_by_string->getColumnName();
 
     Chunk chunk = testChunk();

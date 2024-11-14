@@ -28,6 +28,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.task.{SparkTaskUtil, TaskResources}
 
 import java.util.{Objects, Properties}
@@ -96,9 +97,10 @@ object GlutenPlanModel {
           other.withNewChildren(children)
       }
 
-    override def hashCode(node: SparkPlan): Int = Objects.hashCode(node)
+    override def hashCode(node: SparkPlan): Int = Objects.hashCode(withEqualityWrapper(node))
 
-    override def equals(one: SparkPlan, other: SparkPlan): Boolean = Objects.equals(one, other)
+    override def equals(one: SparkPlan, other: SparkPlan): Boolean =
+      Objects.equals(withEqualityWrapper(one), withEqualityWrapper(other))
 
     override def newGroupLeaf(
         groupId: Int,
@@ -115,5 +117,26 @@ object GlutenPlanModel {
       case gl: GroupLeafExec => gl.groupId
       case _ => throw new IllegalStateException()
     }
+
+    private def withEqualityWrapper(node: SparkPlan): AnyRef = node match {
+      case scan: DataSourceV2ScanExecBase =>
+        // Override V2 scan operators' equality implementation to include output attributes.
+        //
+        // Spark's V2 scans don't incorporate out attributes in equality so E.g.,
+        // BatchScan[date#1] can be considered equal to BatchScan[date#2], which is unexpected
+        // in RAS planner because it strictly relies on plan equalities for sanity.
+        //
+        // Related UT: `VeloxOrcDataTypeValidationSuite#Date type`
+        // Related Spark PRs:
+        // https://github.com/apache/spark/pull/23086
+        // https://github.com/apache/spark/pull/23619
+        // https://github.com/apache/spark/pull/23430
+        ScanV2ExecEqualityWrapper(scan, scan.output)
+      case other => other
+    }
+
+    private case class ScanV2ExecEqualityWrapper(
+        scan: DataSourceV2ScanExecBase,
+        output: Seq[Attribute])
   }
 }

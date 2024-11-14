@@ -158,7 +158,6 @@ object Memo {
         }
 
         // The new node already memorized to memo.
-
         val cachedCluster = parent.cache(cacheKey)
         if (cachedCluster == targetCluster) {
           // The new node already memorized to memo and in the target cluster.

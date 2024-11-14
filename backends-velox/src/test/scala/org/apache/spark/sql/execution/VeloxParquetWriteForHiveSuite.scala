@@ -176,4 +176,13 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
       checkAnswer(sql("SELECT * FROM t"), Row(1))
     }
   }
+
+  test("native writer support CreateHiveTableAsSelectCommand") {
+    withTable("t") {
+      withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {
+        checkNativeWrite("CREATE TABLE t STORED AS PARQUET AS SELECT 1 as c", checkNative = true)
+      }
+      checkAnswer(spark.table("t"), Row(1))
+    }
+  }
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #pragma once
-
+#include <jni.h>
 #include <Interpreters/Context.h>
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
@@ -41,7 +41,7 @@ struct PartInfo
     size_t mark_count;
     size_t disk_size;
     size_t row_count;
-    std::unordered_map<String, String> partition_values;
+    String partition_values;
     String bucket_id;
 
     bool operator<(const PartInfo & rhs) const { return disk_size < rhs.disk_size; }
@@ -52,27 +52,32 @@ struct PartInfo
 class SparkMergeTreeWriter : public NativeOutputWriter
 {
 public:
-    static std::unique_ptr<SparkMergeTreeWriter> create(
-        const MergeTreeTable & merge_tree_table,
-        const SparkMergeTreeWritePartitionSettings & write_settings_,
-        const DB::ContextMutablePtr & context);
+    static std::unique_ptr<SparkMergeTreeWriter>
+    create(const MergeTreeTable & merge_tree_table, const DB::ContextMutablePtr & context, const std::string & spark_job_id);
 
     SparkMergeTreeWriter(
-        const DB::Block & header_,
-        const SinkHelper & sink_helper_,
-        DB::QueryPipeline && pipeline_,
-        std::unordered_map<String, String> && partition_values_);
+        const DB::Block & header_, const SinkHelper & sink_helper_, DB::QueryPipeline && pipeline_, const std::string & spark_job_id_);
 
     void write(DB::Block & block) override;
-    std::string close() override;
+    void close() override;
+
+    /// visible for UTs
+    static constexpr auto CPP_UT_JOB_ID = "__UT_JOB_ID__";
 
 private:
     DB::Block header;
     const SinkHelper & sink_helper;
     DB::QueryPipeline pipeline;
     DB::PushingPipelineExecutor executor;
-    std::unordered_map<String, String> partition_values;
+    const std::string spark_job_id;
 
     std::vector<PartInfo> getAllPartInfo() const;
 };
+
+namespace SparkMergeTreeWriterJNI
+{
+void init(JNIEnv *);
+void destroy(JNIEnv *);
+}
+
 }

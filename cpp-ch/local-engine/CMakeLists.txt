@@ -63,6 +63,7 @@ add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
 add_headers_and_sources(disks Disks)
 add_headers_and_sources(disks Disks/ObjectStorages)
+add_headers_and_sources(io IO)
 
 include_directories(
   ${JNI_INCLUDE_DIRS}
@@ -81,7 +82,8 @@ include_directories(
   ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
   ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/llvm/include
   ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/utils/bazel/llvm-project-overlay/llvm/include
-)
+  ${ClickHouse_SOURCE_DIR}/contrib/libdivide
+  ${ClickHouse_SOURCE_DIR}/contrib/libdivide-cmake)
 
 add_subdirectory(Storages/Parquet)
 add_subdirectory(Storages/SubstraitSource)
@@ -100,7 +102,8 @@ add_library(
   ${operator_sources}
   ${aggregate_functions_sources}
   ${jni_sources}
-  ${disks_sources})
+  ${disks_sources}
+  ${io_sources})
 
 target_link_libraries(
   gluten_clickhouse_backend_libs

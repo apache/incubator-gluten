@@ -41,8 +41,10 @@ public:
         const auto & args = substrait_func.arguments();
         parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
         const auto * repeat_times_node = parseExpression(actions_dag, args[1].value());
-        repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, makeNullable(UINT()));
-        parsed_args.emplace_back(repeat_times_node);
+        const auto cast_or_default_args
+            = {repeat_times_node, expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeString>(), "UInt32")};
+        parsed_args.emplace_back(
+            toFunctionNode(actions_dag, "accurateCastOrDefault", repeat_times_node->result_name, cast_or_default_args));
         const auto * func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
     }

@@ -285,7 +285,6 @@ object ExpressionMappings {
     Sig[CheckOverflow](CHECK_OVERFLOW),
     Sig[MakeDecimal](MAKE_DECIMAL),
     Sig[PromotePrecision](PROMOTE_PRECISION),
-    Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     Sig[AtLeastNNonNulls](AT_LEAST_N_NON_NULLS),
     Sig[WidthBucket](WIDTH_BUCKET),
@@ -322,7 +321,8 @@ object ExpressionMappings {
     Sig[First](FIRST),
     Sig[Skewness](SKEWNESS),
     Sig[Kurtosis](KURTOSIS),
-    Sig[ApproximatePercentile](APPROX_PERCENTILE)
+    Sig[ApproximatePercentile](APPROX_PERCENTILE),
+    Sig[Percentile](PERCENTILE)
   ) ++ SparkShimLoader.getSparkShims.aggregateExpressionMappings
 
   /** Mapping Spark window expression to Substrait function name */

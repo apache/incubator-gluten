@@ -16,10 +16,10 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
+import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarWriteFilesExec, ProjectExec, RowToColumnarExec, SparkPlan}
 
 /**
  * A cost model that is supposed to drive RAS planner create the same query plan with legacy
@@ -32,11 +32,17 @@ class LegacyCostModel extends LongCostModel {
   // much as possible.
   override def selfLongCostOf(node: SparkPlan): Long = {
     node match {
+      case ColumnarWriteFilesExec.OnNoopLeafPath(_) => 0
       case ColumnarToRowExec(_) => 10L
       case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L
       case RowToColumnarLike(_) => 10L
+      case ColumnarToColumnarLike(_) => 5L
       case p if PlanUtil.isGlutenColumnarOp(p) => 10L
+      // 1. 100L << 1000L, to keep the pulled out non-offload-able projects if the main op
+      // turns into offload-able after pulling.
+      // 2. 100L >> 10L, to offload project op itself eagerly.
+      case ProjectExec(_, _) => 100L
       case p if PlanUtil.isVanillaColumnarOp(p) => 1000L
       // Other row ops. Usually a vanilla row op.
       case _ => 1000L

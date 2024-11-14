@@ -33,8 +33,7 @@ class GlutenClickHouseTPCHParquetAQESuite
   override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
@@ -369,6 +368,25 @@ class GlutenClickHouseTPCHParquetAQESuite
            |limit 100
            |
            |""".stripMargin)(df => {})
+    }
+  }
+
+  test("GLUTEN-7673: fix substrait infinite loop") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      val result = sql(
+        s"""
+           |select l_orderkey
+           |from lineitem
+           |inner join orders
+           |on l_orderkey = o_orderkey
+           |  and ((l_shipdate = '2024-01-01' and l_partkey=1
+           |  and l_suppkey>2 and o_orderpriority=-987)
+           |  or l_shipmode>o_comment)
+           |order by l_orderkey limit 1
+           |""".stripMargin
+      ).collect()
+      // check no exception
+      assert(result.length == 1)
     }
   }
 }

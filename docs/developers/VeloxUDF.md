@@ -172,22 +172,23 @@ or
 Start `spark-sql` and run query. You need to add jar "spark-hive_2.12-<spark.version>-tests.jar" to the classpath for hive udf `org.apache.spark.sql.hive.execution.UDFStringString`
 
 ```
+spark-sql (default)> create table tbl as select * from values ('hello');
+Time taken: 3.656 seconds
 spark-sql (default)> CREATE TEMPORARY FUNCTION hive_string_string AS 'org.apache.spark.sql.hive.execution.UDFStringString';
-Time taken: 0.808 seconds
-spark-sql (default)> select hive_string_string("hello", "world");
+Time taken: 0.047 seconds
+spark-sql (default)> select hive_string_string(col1, 'world') from tbl;
 hello world
-Time taken: 3.208 seconds, Fetched 1 row(s)
+Time taken: 1.217 seconds, Fetched 1 row(s)
 ```
 
 You can verify the offload with "explain".
 ```
-spark-sql (default)> explain select hive_string_string("hello", "world");
-== Physical Plan ==
-VeloxColumnarToRowExec
-+- ^(2) ProjectExecTransformer [hello world AS hive_string_string(hello, world)#8]
-   +- ^(2) InputIteratorTransformer[fake_column#9]
+spark-sql (default)> explain select hive_string_string(col1, 'world') from tbl;
+VeloxColumnarToRow
++- ^(2) ProjectExecTransformer [HiveSimpleUDF#org.apache.spark.sql.hive.execution.UDFStringString(col1#11,world) AS hive_string_string(col1, world)#12]
+   +- ^(2) InputIteratorTransformer[col1#11]
       +- RowToVeloxColumnar
-         +- *(1) Scan OneRowRelation[fake_column#9]
+         +- Scan hive spark_catalog.default.tbl [col1#11], HiveTableRelation [`spark_catalog`.`default`.`tbl`, org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe, Data Cols: [col1#11], Partition Cols: []]
 ```
 
 ## Configurations

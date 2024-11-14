@@ -583,7 +583,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     return changed_paths;
 }
 
-DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const std::map<std::string, std::string> & spark_conf_map)
+DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const SparkConfigs::ConfigMap & spark_conf_map)
 {
     DB::Context::ConfigurationPtr config;
 
@@ -618,7 +618,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const std::map<
     if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
         config->setString(MemoryConfig::CH_TASK_MEMORY, spark_conf_map.at(GLUTEN_TASK_OFFHEAP));
 
-    const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
+    const bool use_current_directory_as_tmp = config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false);
     char buffer[PATH_MAX];
     if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
         wrapDiskPathConfig(String(buffer), "", *config);
@@ -636,7 +636,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const std::map<
     return config;
 }
 
-String BackendInitializerUtil::tryGetConfigFile(const std::map<std::string, std::string> & spark_conf_map)
+String BackendInitializerUtil::tryGetConfigFile(const SparkConfigs::ConfigMap & spark_conf_map)
 {
     if (spark_conf_map.contains(CH_RUNTIME_CONFIG_FILE))
         return spark_conf_map.at(CH_RUNTIME_CONFIG_FILE);
@@ -701,7 +701,7 @@ DB::Field BackendInitializerUtil::toField(const String & key, const String & val
         return DB::Field(value);
 }
 
-void BackendInitializerUtil::initSettings(const std::map<std::string, std::string> & spark_conf_map, DB::Settings & settings)
+void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_conf_map, DB::Settings & settings)
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
@@ -709,6 +709,9 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
     settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
     settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
     settings.set("remote_filesystem_read_prefetch", false);
+    settings.set("max_parsing_threads", 1);
+    settings.set("max_download_threads", 1);
+    settings.set("input_format_parquet_enable_row_group_prefetch", false);
 
     for (const auto & [key, value] : spark_conf_map)
     {
@@ -808,17 +811,15 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         global_context->makeGlobalContext();
         global_context->setConfig(config);
 
-        auto getDefaultPath = [config] -> auto
+        auto tmp_path = config->getString("tmp_path", PathConfig::DEFAULT_TEMP_FILE_PATH);
+        if(config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
         {
-            const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
             char buffer[PATH_MAX];
-            if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
-                return std::string(buffer) + "/tmp/libch";
-            else
-                return std::string("/tmp/libch");
+            if (getcwd(buffer, sizeof(buffer)) != nullptr)
+                tmp_path =  std::string(buffer) + tmp_path;
         };
 
-        global_context->setTemporaryStoragePath(config->getString("tmp_path", getDefaultPath()), 0);
+        global_context->setTemporaryStoragePath(tmp_path, 0);
         global_context->setPath(config->getString("path", "/"));
 
         String uncompressed_cache_policy = config->getString("uncompressed_cache_policy", DEFAULT_UNCOMPRESSED_CACHE_POLICY);
@@ -928,7 +929,7 @@ void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::Configurat
 #endif
 }
 
-void BackendInitializerUtil::initBackend(const std::map<std::string, std::string> & spark_conf_map)
+void BackendInitializerUtil::initBackend(const SparkConfigs::ConfigMap & spark_conf_map)
 {
     DB::Context::ConfigurationPtr config = initConfig(spark_conf_map);
 

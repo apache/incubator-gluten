@@ -122,7 +122,7 @@ case class ExpandExecTransformer(
     val currRel =
       getRelNode(context, projections, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Expand Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ExpandExecTransformer =

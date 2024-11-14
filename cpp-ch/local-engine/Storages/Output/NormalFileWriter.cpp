@@ -23,7 +23,7 @@ namespace local_engine
 {
 
 const std::string SubstraitFileSink::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
-const std::string SubstraitPartitionedFileSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
+const std::string SparkPartitionedBaseSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
 
 NormalFileWriter::NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_) : file(file_), context(context_)
 {
@@ -62,14 +62,12 @@ void NormalFileWriter::write(DB::Block & block)
     writer->push(materializeBlock(block));
 }
 
-std::string NormalFileWriter::close()
+void NormalFileWriter::close()
 {
     /// When insert into a table with empty dataset, NormalFileWriter::consume would be never called.
     /// So we need to skip when writer is nullptr.
     if (writer)
         writer->finish();
-
-    return std::string{};
 }
 
 OutputFormatFilePtr createOutputFormatFile(

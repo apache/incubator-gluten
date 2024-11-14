@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
-import org.apache.gluten.execution.ColumnarToRowExecBase
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.Dataset
@@ -25,14 +25,15 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints}
-import org.apache.spark.sql.delta.files.{DelayedCommitProtocol, DeltaFileFormatWriter, MergeTreeCommitProtocol, TransactionalWrite}
+import org.apache.spark.sql.delta.files._
 import org.apache.spark.sql.delta.hooks.AutoCompact
 import org.apache.spark.sql.delta.schema.{InnerInvariantViolationException, InvariantViolationException}
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
-import org.apache.spark.sql.execution.{CHDelayedCommitProtocol, QueryExecution, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{QueryExecution, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, WriteFiles, WriteJobStatsTracker}
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, GlutenWriterColumnarRules, WriteFiles, WriteJobStatsTracker}
+import org.apache.spark.sql.execution.datasources.v1.MergeTreeWriterInjects
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeFileFormatWriter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
@@ -42,8 +43,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.hadoop.fs.Path
 
 import scala.collection.mutable.ListBuffer
-
-object ClickhouseOptimisticTransaction {}
 
 class ClickhouseOptimisticTransaction(
     override val deltaLog: DeltaLog,
@@ -62,31 +61,16 @@ class ClickhouseOptimisticTransaction(
     )
   }
 
-  def insertFakeRowAdaptor(queryPlan: SparkPlan): SparkPlan = queryPlan match {
-    // if the child is columnar, we can just wrap&transfer the columnar data
-    case c2r: ColumnarToRowExecBase =>
-      FakeRowAdaptor(c2r.child)
-    // If the child is aqe, we make aqe "support columnar",
-    // then aqe itself will guarantee to generate columnar outputs.
-    // So FakeRowAdaptor will always consumes columnar data,
-    // thus avoiding the case of c2r->aqe->r2c->writer
-    case aqe: AdaptiveSparkPlanExec =>
-      FakeRowAdaptor(
-        AdaptiveSparkPlanExec(
-          aqe.inputPlan,
-          aqe.context,
-          aqe.preprocessingRules,
-          aqe.isSubquery,
-          supportsColumnar = true
-        ))
-    case other => FakeRowAdaptor(other)
-  }
-
   override def writeFiles(
       inputData: Dataset[_],
       writeOptions: Option[DeltaOptions],
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
-    if (ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)) {
+
+    // TODO: update FallbackByBackendSettings for mergetree always return true
+    val onePipeline = GlutenConfig.getConf.enableNativeWriter.getOrElse(
+      false) && CHConf.get.enableOnePipelineMergeTreeWrite
+
+    if (!onePipeline && ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)) {
       hasWritten = true
 
       val spark = inputData.sparkSession
@@ -95,10 +79,15 @@ class ClickhouseOptimisticTransaction(
 
       val (queryExecution, output, generatedColumnConstraints, _) =
         normalizeData(deltaLog, writeOptions, data)
-      val partitioningColumns = getPartitioningColumns(partitionSchema, output)
 
+      val tableV2 = ClickHouseTableV2.getTable(deltaLog)
       val committer =
-        new MergeTreeCommitProtocol("delta-mergetree", outputPath.toString, None, None)
+        new MergeTreeDelayedCommitProtocol(
+          outputPath.toString,
+          None,
+          None,
+          tableV2.dataBaseName,
+          tableV2.tableName)
 
       // val (optionalStatsTracker, _) =
       //   getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
@@ -108,10 +97,11 @@ class ClickhouseOptimisticTransaction(
         Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
 
       SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
-        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, output)
-
         val queryPlan = queryExecution.executedPlan
-        val newQueryPlan = insertFakeRowAdaptor(queryPlan)
+        val (newQueryPlan, newOutput) =
+          MergeTreeWriterInjects.insertFakeRowAdaptor(queryPlan, output)
+        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, newOutput)
+        val partitioningColumns = getPartitioningColumns(partitionSchema, newOutput)
 
         val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
 
@@ -140,7 +130,7 @@ class ClickhouseOptimisticTransaction(
         spark.conf.getAll.foreach(
           entry => {
             if (
-              CHConf.startWithSettings(entry._1)
+              CHConf.startWithSettingsPrefix(entry._1)
               || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE.key)
             ) {
               options += (entry._1 -> entry._2)
@@ -148,11 +138,12 @@ class ClickhouseOptimisticTransaction(
           })
 
         try {
-          val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+          val format = tableV2.getFileFormat(protocol, metadata)
+          GlutenWriterColumnarRules.injectSparkLocalProperty(spark, Some(format.shortName()))
           MergeTreeFileFormatWriter.write(
             sparkSession = spark,
             plan = newQueryPlan,
-            fileFormat = tableV2.getFileFormat(protocol, metadata),
+            fileFormat = format,
             // formats.
             committer = committer,
             outputSpec = outputSpec,
@@ -160,14 +151,9 @@ class ClickhouseOptimisticTransaction(
             hadoopConf = spark.sessionState
               .newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
             // scalastyle:on deltahadoopconfiguration
-            orderByKeyOption = tableV2.orderByKeyOption,
-            lowCardKeyOption = tableV2.lowCardKeyOption,
-            minmaxIndexKeyOption = tableV2.minmaxIndexKeyOption,
-            bfIndexKeyOption = tableV2.bfIndexKeyOption,
-            setIndexKeyOption = tableV2.setIndexKeyOption,
-            primaryKeyOption = tableV2.primaryKeyOption,
             partitionColumns = partitioningColumns,
-            bucketSpec = tableV2.bucketOption,
+            bucketSpec =
+              tableV2.normalizedBucketSpec(output.map(_.name), spark.sessionState.conf.resolver),
             statsTrackers = optionalStatsTracker.toSeq ++ statsTrackers,
             options = options,
             constraints = constraints
@@ -181,16 +167,12 @@ class ClickhouseOptimisticTransaction(
             } else {
               throw s
             }
+        } finally {
+          GlutenWriterColumnarRules.injectSparkLocalProperty(spark, None)
         }
       }
       committer.addedStatuses.toSeq ++ committer.changeFiles
     } else {
-      // TODO: support native delta parquet write
-      // 1. insert FakeRowAdaptor
-      // 2. DeltaInvariantCheckerExec transform
-      // 3. DeltaTaskStatisticsTracker collect null count / min values / max values
-      // 4. set the parameters 'staticPartitionWriteOnly', 'isNativeApplicable',
-      //    'nativeFormat' in the LocalProperty of the sparkcontext
       super.writeFiles(inputData, writeOptions, additionalConstraints)
     }
   }
@@ -204,7 +186,7 @@ class ClickhouseOptimisticTransaction(
   }
 
   override protected def getCommitter(outputPath: Path): DelayedCommitProtocol =
-    new CHDelayedCommitProtocol("delta", outputPath.toString, None, deltaDataSubdir)
+    new FileDelayedCommitProtocol("delta", outputPath.toString, None, deltaDataSubdir)
 
   override def writeFiles(
       inputData: Dataset[_],
@@ -212,8 +194,9 @@ class ClickhouseOptimisticTransaction(
       isOptimize: Boolean,
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
 
-    if (isOptimize)
+    if (isOptimize) {
       throw new UnsupportedOperationException("Optimize is not supported for ClickHouse")
+    }
 
     hasWritten = true
 
@@ -246,7 +229,17 @@ class ClickhouseOptimisticTransaction(
       WriteFiles(logicalPlan, fileFormat, partitioningColumns, None, options, Map.empty)
 
     val queryExecution = new QueryExecution(spark, write)
-    val committer = getCommitter(outputPath)
+    val committer = fileFormat.toString match {
+      case "MergeTree" =>
+        val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+        new MergeTreeDelayedCommitProtocol2(
+          outputPath.toString,
+          None,
+          deltaDataSubdir,
+          tableV2.dataBaseName,
+          tableV2.tableName)
+      case _ => getCommitter(outputPath)
+    }
 
     // If Statistics Collection is enabled, then create a stats tracker that will be injected during
     // the FileFormatWriter.write call below and will collect per-file stats using
@@ -274,7 +267,7 @@ class ClickhouseOptimisticTransaction(
           DeltaOptimizedWriterExec(checkInvariants, metadata.partitionColumns, deltaLog)
         } else {
           checkInvariants
-        }*/
+        } */
       val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
 
       if (spark.conf.get(DeltaSQLConf.DELTA_HISTORY_METRICS_ENABLED)) {
@@ -320,10 +313,11 @@ class ClickhouseOptimisticTransaction(
          committer.addedStatuses
        })
         .filter {
-          // In some cases, we can write out an empty `inputData`. Some examples of this (though, they
-          // may be fixed in the future) are the MERGE command when you delete with empty source, or
-          // empty target, or on disjoint tables. This is hard to catch before the write without
-          // collecting the DF ahead of time. Instead, we can return only the AddFiles that
+          // In some cases, we can write out an empty `inputData`. Some examples of this (though,
+          // they may be fixed in the future) are the MERGE command when you delete with empty
+          // source, or empty target, or on disjoint tables. This is hard to catch before
+          // the write without collecting the DF ahead of time. Instead,
+          // we can return only the AddFiles that
           // a) actually add rows, or
           // b) don't have any stats so we don't know the number of rows at all
           case a: AddFile => a.numLogicalRecords.forall(_ > 0)

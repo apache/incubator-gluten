@@ -18,8 +18,20 @@
 
 #include <Core/Block.h>
 
+namespace google::protobuf
+{
+class Message;
+}
+namespace DB
+{
+class QueryPlan;
+}
 namespace debug
 {
+
+void dumpPlan(DB::QueryPlan & plan, bool force = false, LoggerPtr = nullptr);
+void dumpMessage(const google::protobuf::Message & message, const char * type, bool force = false, LoggerPtr = nullptr);
+
 void headBlock(const DB::Block & block, size_t count = 10);
 String printBlock(const DB::Block & block, size_t count = 10);
 

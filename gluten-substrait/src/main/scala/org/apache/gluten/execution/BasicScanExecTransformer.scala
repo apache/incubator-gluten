@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
+import org.apache.spark.util.SerializableConfiguration
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.NamedStruct
@@ -62,11 +63,13 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def getProperties: Map[String, String] = Map.empty
 
   /** Returns the split infos that will be processed by the underlying native engine. */
-  def getSplitInfos: Seq[SplitInfo] = {
-    getSplitInfosFromPartitions(getPartitions)
+  def getSplitInfos(serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
+    getSplitInfosFromPartitions(getPartitions, serializableHadoopConf)
   }
 
-  def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+  def getSplitInfosFromPartitions(
+      partitions: Seq[InputPartition],
+      serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
     partitions.map(
       BackendsApiManager.getIteratorApiInstance
         .genSplitInfo(
@@ -74,7 +77,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
           getPartitionSchema,
           fileFormat,
           getMetadataColumns.map(_.name),
-          getProperties))
+          getProperties,
+          serializableHadoopConf))
   }
 
   override protected def doValidateInternal(): ValidationResult = {
@@ -91,7 +95,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val validationResult = BackendsApiManager.getSettings
-      .validateScan(fileFormat, fields, getRootFilePaths)
+      .validateScanExec(fileFormat, fields, getRootFilePaths, getProperties)
     if (!validationResult.ok()) {
       return validationResult
     }
@@ -158,6 +162,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))
-    TransformContext(output, output, readNode)
+    TransformContext(output, readNode)
   }
 }

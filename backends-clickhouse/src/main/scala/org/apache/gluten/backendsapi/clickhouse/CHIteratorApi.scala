@@ -21,13 +21,12 @@ import org.apache.gluten.backendsapi.IteratorApi
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.logging.LogLevelUtil
-import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
-import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator}
+import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, NativeExpressionEvaluator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
@@ -44,6 +43,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.SerializableConfiguration
 
 import java.lang.{Long => JLong}
 import java.net.URI
@@ -133,7 +133,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = {
+      properties: Map[String, String],
+      serializableHadoopConf: SerializableConfiguration): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
         ExtensionTableBuilder
@@ -323,9 +324,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
   }
 
+  /**
+   * This function used to inject the staging write path before initializing the native plan.Only
+   * used in a pipeline model (spark 3.5) for writing parquet or orc files.
+   */
   override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
-    CHThreadGroup.registerNewThreadGroup()
-    CHNativeExpressionEvaluator.injectWriteFilesTempPath(path, fileName)
+    val settings =
+      Map(
+        RuntimeSettings.TASK_WRITE_TMP_DIR.key -> path,
+        RuntimeSettings.TASK_WRITE_FILENAME.key -> fileName)
+    NativeExpressionEvaluator.updateQueryRuntimeSettings(settings)
   }
 }
 

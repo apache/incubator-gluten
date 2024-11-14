@@ -118,7 +118,7 @@ object Validators {
 
   private class FallbackComplexExpressions(threshold: Int) extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      if (plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)) {
+      if (ExpressionUtils.hasComplexExpressions(plan, threshold)) {
         return fail(
           s"Disabled because at least one present expression exceeded depth threshold: " +
             s"${plan.nodeName}")
@@ -149,47 +149,50 @@ object Validators {
     }
   }
 
-  private class FallbackByUserOptions(conf: GlutenConfig) extends Validator {
+  private class FallbackByUserOptions(glutenConf: GlutenConfig) extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = plan match {
-      case p: SortExec if !conf.enableColumnarSort => fail(p)
-      case p: WindowExec if !conf.enableColumnarWindow => fail(p)
-      case p: SortMergeJoinExec if !conf.enableColumnarSortMergeJoin => fail(p)
-      case p: BatchScanExec if !conf.enableColumnarBatchScan => fail(p)
-      case p: FileSourceScanExec if !conf.enableColumnarFileScan => fail(p)
-      case p: ProjectExec if !conf.enableColumnarProject => fail(p)
-      case p: FilterExec if !conf.enableColumnarFilter => fail(p)
-      case p: UnionExec if !conf.enableColumnarUnion => fail(p)
-      case p: ExpandExec if !conf.enableColumnarExpand => fail(p)
-      case p: SortAggregateExec if !conf.forceToUseHashAgg => fail(p)
-      case p: ShuffledHashJoinExec if !conf.enableColumnarShuffledHashJoin => fail(p)
-      case p: ShuffleExchangeExec if !conf.enableColumnarShuffle => fail(p)
-      case p: BroadcastExchangeExec if !conf.enableColumnarBroadcastExchange => fail(p)
-      case p @ (_: LocalLimitExec | _: GlobalLimitExec) if !conf.enableColumnarLimit => fail(p)
-      case p: GenerateExec if !conf.enableColumnarGenerate => fail(p)
-      case p: CoalesceExec if !conf.enableColumnarCoalesce => fail(p)
-      case p: CartesianProductExec if !conf.cartesianProductTransformerEnabled => fail(p)
-      case p: TakeOrderedAndProjectExec
-          if !(conf.enableTakeOrderedAndProject && conf.enableColumnarSort &&
-            conf.enableColumnarShuffle && conf.enableColumnarProject) =>
+      case p: SortExec if !glutenConf.enableColumnarSort => fail(p)
+      case p: WindowExec if !glutenConf.enableColumnarWindow => fail(p)
+      case p: SortMergeJoinExec if !glutenConf.enableColumnarSortMergeJoin => fail(p)
+      case p: BatchScanExec if !glutenConf.enableColumnarBatchScan => fail(p)
+      case p: FileSourceScanExec if !glutenConf.enableColumnarFileScan => fail(p)
+      case p: ProjectExec if !glutenConf.enableColumnarProject => fail(p)
+      case p: FilterExec if !glutenConf.enableColumnarFilter => fail(p)
+      case p: UnionExec if !glutenConf.enableColumnarUnion => fail(p)
+      case p: ExpandExec if !glutenConf.enableColumnarExpand => fail(p)
+      case p: SortAggregateExec if !glutenConf.forceToUseHashAgg => fail(p)
+      case p: ShuffledHashJoinExec if !glutenConf.enableColumnarShuffledHashJoin => fail(p)
+      case p: ShuffleExchangeExec if !glutenConf.enableColumnarShuffle => fail(p)
+      case p: BroadcastExchangeExec if !glutenConf.enableColumnarBroadcastExchange => fail(p)
+      case p @ (_: LocalLimitExec | _: GlobalLimitExec) if !glutenConf.enableColumnarLimit =>
         fail(p)
-      case p: BroadcastHashJoinExec if !conf.enableColumnarBroadcastJoin =>
+      case p: GenerateExec if !glutenConf.enableColumnarGenerate => fail(p)
+      case p: CoalesceExec if !glutenConf.enableColumnarCoalesce => fail(p)
+      case p: CartesianProductExec if !glutenConf.cartesianProductTransformerEnabled => fail(p)
+      case p: TakeOrderedAndProjectExec
+          if !(glutenConf.enableTakeOrderedAndProject && glutenConf.enableColumnarSort &&
+            glutenConf.enableColumnarShuffle && glutenConf.enableColumnarProject) =>
+        fail(p)
+      case p: BroadcastHashJoinExec if !glutenConf.enableColumnarBroadcastJoin =>
         fail(p)
       case p: BroadcastNestedLoopJoinExec
-          if !(conf.enableColumnarBroadcastJoin &&
-            conf.broadcastNestedLoopJoinTransformerTransformerEnabled) =>
+          if !(glutenConf.enableColumnarBroadcastJoin &&
+            glutenConf.broadcastNestedLoopJoinTransformerTransformerEnabled) =>
         fail(p)
       case p @ (_: HashAggregateExec | _: SortAggregateExec | _: ObjectHashAggregateExec)
-          if !conf.enableColumnarHashAgg =>
+          if !glutenConf.enableColumnarHashAgg =>
         fail(p)
       case p
           if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(
-            plan) && !conf.enableColumnarWindowGroupLimit =>
+            plan) && !glutenConf.enableColumnarWindowGroupLimit =>
         fail(p)
       case p
-          if HiveTableScanExecTransformer.isHiveTableScan(p) && !conf.enableColumnarHiveTableScan =>
+          if HiveTableScanExecTransformer.isHiveTableScan(
+            p) && !glutenConf.enableColumnarHiveTableScan =>
         fail(p)
       case p: SampleExec
-          if !(conf.enableColumnarSample && BackendsApiManager.getSettings.supportSampleExec()) =>
+          if !(glutenConf.enableColumnarSample && BackendsApiManager.getSettings
+            .supportSampleExec()) =>
         fail(p)
       case _ => pass()
     }

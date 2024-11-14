@@ -27,12 +27,7 @@ import scala.collection.JavaConverters._
 class ClickhouseTable(
     @transient private val _df: Dataset[Row],
     @transient private val table: ClickHouseTableV2)
-  extends DeltaTable(_df, table) {
-
-  override def optimize(): DeltaOptimizeBuilder = {
-    DeltaOptimizeBuilder(table)
-  }
-}
+  extends DeltaTable(_df, table) {}
 
 object ClickhouseTable {
 

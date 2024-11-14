@@ -568,7 +568,7 @@ static ALWAYS_INLINE uint32_t rotl32(uint32_t x, int8_t r)
     return (x << r) | (x >> (32 - r));
 }
 
-static void SparkMurmurHash3_x86_32(const void * key, size_t len, uint32_t seed, void * out)
+static void SparkMurmurHash3_32_Impl(const void * key, size_t len, uint32_t seed, void * out)
 {
     const uint8_t * data = static_cast<const uint8_t *>(key);
     const int nblocks = static_cast<int>(len >> 2);
@@ -599,8 +599,8 @@ static void SparkMurmurHash3_x86_32(const void * key, size_t len, uint32_t seed,
     uint32_t k1 = 0;
     while (tail != data + len)
     {
-        /// Notice: we must cast uint8_t to char, otherwise k1 is wrong.
-        k1 = static_cast<char>(*tail);
+        /// Notice: we must use int8_t here, to compatible with all platforms (x86, arm...).
+        k1 = static_cast<int8_t>(*tail);
 
         k1 *= c1;
         k1 = rotl32(k1, 15);
@@ -641,7 +641,7 @@ struct SparkMurmurHash3_32
             UInt32 h;
             char bytes[sizeof(h)];
         };
-        SparkMurmurHash3_x86_32(data, size, static_cast<UInt32>(seed), bytes);
+        SparkMurmurHash3_32_Impl(data, size, static_cast<UInt32>(seed), bytes);
         return h;
     }
 };

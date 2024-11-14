@@ -6,9 +6,12 @@ package local_engine;
 option java_package = "org.apache.spark.sql.execution.datasources.v1";
 option java_multiple_files = true;
 
+//TODO : set compression codec
+
 message Write {
   message Common {
     string format = 1;
+    string job_task_attempt_id = 2; // currently used in mergetree format
   }
   message ParquetWrite{}
   message OrcWrite{}

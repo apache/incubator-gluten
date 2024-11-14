@@ -60,7 +60,6 @@
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.4</sparkbundle.version>
     <spark.version>3.4.3</spark.version>
-    <sparkshim.module.name>spark34</sparkshim.module.name>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
     <iceberg.version>1.5.0</iceberg.version>
     <delta.package.name>delta-core</delta.package.name>
@@ -293,7 +292,6 @@
       <id>spark-3.2</id>
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
-        <sparkshim.module.name>spark32</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
         <spark.version>3.2.2</spark.version>
         <iceberg.version>1.3.1</iceberg.version>
@@ -308,7 +306,6 @@
       <id>spark-3.3</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
-        <sparkshim.module.name>spark33</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
         <spark.version>3.3.1</spark.version>
         <!-- keep using iceberg v1.3.1 for parquet compatibilty. -->
@@ -324,7 +321,6 @@
       <id>spark-3.4</id>
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
-        <sparkshim.module.name>spark34</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
         <spark.version>3.4.3</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
@@ -339,14 +335,13 @@
       <id>spark-3.5</id>
       <properties>
         <sparkbundle.version>3.5</sparkbundle.version>
-        <sparkshim.module.name>spark35</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
         <spark.version>3.5.2</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>3.2.0</delta.version>
-	<delta.binary.version>32</delta.binary.version>
-	<hudi.version>0.15.0</hudi.version>
+	    <delta.binary.version>32</delta.binary.version>
+	    <hudi.version>0.15.0</hudi.version>
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
         <antlr4.version>4.9.3</antlr4.version>
@@ -539,7 +534,7 @@
       <activation>
         <os>
           <family>mac</family>
-          <arch>x86</arch>
+          <arch>x86_64</arch>
         </os>
       </activation>
       <properties>
@@ -768,6 +763,13 @@
             <groupId>com.google.protobuf</groupId>
           </exclusion>
         </exclusions>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-hive_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
         <type>test-jar</type>
         <scope>test</scope>
       </dependency>

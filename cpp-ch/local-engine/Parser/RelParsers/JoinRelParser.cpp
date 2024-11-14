@@ -45,6 +45,7 @@ namespace DB
 namespace Setting
 {
 extern const SettingsJoinAlgorithm join_algorithm;
+extern const SettingsUInt64 max_block_size;
 }
 namespace ErrorCodes
 {
@@ -313,8 +314,8 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
         JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentHeader().cloneEmpty(), -1);
         MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
-        QueryPlanStepPtr join_step
-            = std::make_unique<DB::JoinStep>(left->getCurrentHeader(), right->getCurrentHeader(), smj_join, 8192, 1, false);
+        QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+            left->getCurrentHeader(), right->getCurrentHeader(), smj_join, context->getSettingsRef()[Setting::max_block_size], 1, false);
 
         join_step->setStepDescription("SORT_MERGE_JOIN");
         steps.emplace_back(join_step.get());
@@ -679,7 +680,7 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
             and_expression_stack.pop_back();
             if (check_function("and", current_expr))
             {
-                for (const auto & arg : e.scalar_function().arguments())
+                for (const auto & arg : current_expr.scalar_function().arguments())
                     and_expression_stack.push_back(&arg.value());
             }
             else if (check_function("equals", current_expr))
@@ -772,8 +773,13 @@ DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
     LOG_INFO(getLogger("JoinRelParser"), "multi join on clauses:\n{}", DB::TableJoin::formatClauses(table_join->getClauses()));
 
     JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentHeader());
-    QueryPlanStepPtr join_step
-        = std::make_unique<DB::JoinStep>(left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), hash_join, 8192, 1, false);
+    QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+        left_plan->getCurrentHeader(),
+        right_plan->getCurrentHeader(),
+        hash_join,
+        context->getSettingsRef()[Setting::max_block_size],
+        1,
+        false);
     join_step->setStepDescription("Multi join on clause hash join");
     steps.emplace_back(join_step.get());
     std::vector<QueryPlanPtr> plans;
@@ -806,8 +812,13 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
     {
         hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentHeader().cloneEmpty());
     }
-    QueryPlanStepPtr join_step
-        = std::make_unique<DB::JoinStep>(left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), hash_join, 8192, 1, false);
+    QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+        left_plan->getCurrentHeader(),
+        right_plan->getCurrentHeader(),
+        hash_join,
+        context->getSettingsRef()[Setting::max_block_size],
+        1,
+        false);
 
     join_step->setStepDescription("HASH_JOIN");
     steps.emplace_back(join_step.get());

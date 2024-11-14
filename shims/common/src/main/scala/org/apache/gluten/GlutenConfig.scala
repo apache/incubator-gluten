@@ -75,7 +75,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
 
-  def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED)
+  def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED)
 
   def enableColumnarSortMergeJoin: Boolean = conf.getConf(COLUMNAR_SORTMERGEJOIN_ENABLED)
 
@@ -106,6 +106,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableCountDistinctWithoutExpand: Boolean =
     conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
+
+  def enableExtendedGeneratorNestedColumnAliasing: Boolean =
+    conf.getConf(ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING)
 
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
@@ -270,6 +273,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def rasCostModel: String = conf.getConf(RAS_COST_MODEL)
 
+  def rasRough2SizeBytesThreshold: Long = conf.getConf(RAS_ROUGH2_SIZEBYTES_THRESHOLD)
+
+  def rasRough2R2cCost: Long = conf.getConf(RAS_ROUGH2_R2C_COST)
+
+  def rasRough2VanillaCost: Long = conf.getConf(RAS_ROUGH2_VANILLA_COST)
+
   def enableVeloxCache: Boolean = conf.getConf(COLUMNAR_VELOX_CACHE_ENABLED)
 
   def veloxMemCacheSize: Long = conf.getConf(COLUMNAR_VELOX_MEM_CACHE_SIZE)
@@ -285,7 +294,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxSsdODirectEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
 
   def veloxConnectorIOThreads: Int = {
-    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS)
+    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS).getOrElse(numTaskSlotsPerExecutor)
   }
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
@@ -310,6 +319,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxBloomFilterNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS)
 
   def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
+
+  def castFromVarcharAddTrimNode: Boolean = conf.getConf(CAST_FROM_VARCHAR_ADD_TRIM_NODE)
 
   case class ResizeRange(min: Int, max: Int) {
     assert(max >= min)
@@ -445,6 +456,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
+  def enableColumnarPartialProject: Boolean = conf.getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
+
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 
   def awsS3RetryMode: String = conf.getConf(AWS_S3_RETRY_MODE)
@@ -466,8 +479,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 object GlutenConfig {
   import SQLConf._
 
-  var GLUTEN_ENABLE_BY_DEFAULT = true
-  val GLUTEN_ENABLE_KEY = "spark.gluten.enabled"
+  val GLUTEN_ENABLED_BY_DEFAULT = true
+  val GLUTEN_ENABLED_KEY = "spark.gluten.enabled"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
   val GLUTEN_EXECUTOR_LIB_PATH = "spark.gluten.sql.columnar.executor.libpath"
@@ -518,13 +531,17 @@ object GlutenConfig {
 
   // GCS config
   val GCS_PREFIX = "fs.gs."
-  val GCS_STORAGE_ROOT_URL = "fs.gs.storage.root.url"
-  val SPARK_GCS_STORAGE_ROOT_URL: String = HADOOP_PREFIX + GCS_STORAGE_ROOT_URL
-  val GCS_AUTH_TYPE = "fs.gs.auth.type"
-  val SPARK_GCS_AUTH_TYPE: String = HADOOP_PREFIX + GCS_AUTH_TYPE
-  val GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE = "fs.gs.auth.service.account.json.keyfile"
+  val STORAGE_ROOT_URL = "storage.root.url"
+  val AUTH_TYPE = "auth.type"
+  val AUTH_SERVICE_ACCOUNT_JSON_KEYFILE = "auth.service.account.json.keyfile"
+  val HTTP_MAX_RETRY_COUNT = "http.max.retry"
+  val HTTP_MAX_RETRY_TIME = "http.max.retry-time"
+  val SPARK_GCS_STORAGE_ROOT_URL: String = HADOOP_PREFIX + GCS_PREFIX + STORAGE_ROOT_URL
+  val SPARK_GCS_AUTH_TYPE: String = HADOOP_PREFIX + GCS_PREFIX + AUTH_TYPE
   val SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE: String =
-    HADOOP_PREFIX + GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+    HADOOP_PREFIX + GCS_PREFIX + AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+  val SPARK_GCS_MAX_RETRY_COUNT: String = HADOOP_PREFIX + GCS_PREFIX + HTTP_MAX_RETRY_COUNT
+  val SPARK_GCS_MAX_RETRY_TIME: String = HADOOP_PREFIX + GCS_PREFIX + HTTP_MAX_RETRY_TIME
 
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
@@ -555,11 +572,11 @@ object GlutenConfig {
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
-  // Enable Soft Affinity duplicate reading detection, defalut value is true
+  // Enable Soft Affinity duplicate reading detection, default value is false
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED =
     "spark.gluten.soft-affinity.duplicateReadingDetect.enabled"
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE = false
-  // Enable Soft Affinity duplicate reading detection, defalut value is 10000
+  // Enable Soft Affinity duplicate reading detection, default value is 10000
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS =
     "spark.gluten.soft-affinity.duplicateReading.maxCacheItems"
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE = 10000
@@ -736,21 +753,18 @@ object GlutenConfig {
 
     // some configs having default values
     val keyWithDefault = ImmutableList.of(
-      (SPARK_S3_ACCESS_KEY, ""),
-      (SPARK_S3_SECRET_KEY, ""),
-      (SPARK_S3_ENDPOINT, "localhost:9000"),
       (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
-      (SPARK_S3_IAM, ""),
-      (SPARK_S3_IAM_SESSION_NAME, ""),
       (SPARK_S3_RETRY_MAX_ATTEMPTS, "20"),
       (SPARK_S3_CONNECTION_MAXIMUM, "15"),
       (AWS_S3_CONNECT_TIMEOUT.key, AWS_S3_CONNECT_TIMEOUT.defaultValueString),
       (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
+        conf.getOrElse(
+          NUM_TASK_SLOTS_PER_EXECUTOR.key,
+          NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString)),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -797,28 +811,22 @@ object GlutenConfig {
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
-    // handle GCS config
-    if (conf.contains(SPARK_GCS_AUTH_TYPE)) {
-      nativeConfMap.put(SPARK_GCS_AUTH_TYPE, conf(SPARK_GCS_AUTH_TYPE))
-    }
-
-    if (conf.contains(SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE)) {
-      nativeConfMap.put(
-        SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
-        conf(SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE))
-    }
+    // put in all GCS configs
+    conf
+      .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
     nativeConfMap
   }
 
   val GLUTEN_ENABLED =
-    buildConf(GLUTEN_ENABLE_KEY)
+    buildConf(GLUTEN_ENABLED_KEY)
       .internal()
       .doc("Whether to enable gluten. Default value is true. Just an experimental property." +
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
-      .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
+      .createWithDefault(GLUTEN_ENABLED_BY_DEFAULT)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
@@ -934,7 +942,7 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED =
+  val COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")
       .internal()
       .booleanConf
@@ -1369,6 +1377,26 @@ object GlutenConfig {
       .stringConf
       .createWithDefaultString("legacy")
 
+  val RAS_ROUGH2_SIZEBYTES_THRESHOLD =
+    buildConf("spark.gluten.ras.rough2.sizeBytesThreshold")
+      .doc(
+        "Experimental: Threshold of the byte size consumed by sparkPlan, coefficient used " +
+          "to calculate cost in RAS rough2 model")
+      .longConf
+      .createWithDefault(1073741824L)
+
+  val RAS_ROUGH2_R2C_COST =
+    buildConf("spark.gluten.ras.rough2.r2c.cost")
+      .doc("Experimental: Cost of RowToVeloxColumnarExec in RAS rough2 model")
+      .longConf
+      .createWithDefault(100L)
+
+  val RAS_ROUGH2_VANILLA_COST =
+    buildConf("spark.gluten.ras.rough2.vanilla.cost")
+      .doc("Experimental: Cost of vanilla spark operater in RAS rough model")
+      .longConf
+      .createWithDefault(20L)
+
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
@@ -1426,19 +1454,15 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-  // FIXME: May cause issues when toggled on. Examples:
-  //  https://github.com/apache/incubator-gluten/issues/7161
-  //  https://github.com/facebookincubator/velox/issues/10173
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
       .doc(
-        "Experimental: The Size of the IO thread pool in the Connector." +
-          " This thread pool is used for split preloading and DirectBufferedInput." +
-          " The option is experimental. Toggling on it (setting a non-zero value) may cause some" +
-          " unexpected issues when application reaches some certain conditions.")
+        "The Size of the IO thread pool in the Connector. " +
+          "This thread pool is used for split preloading and DirectBufferedInput. " +
+          "By default, the value is the same as the maximum task slots per Spark executor.")
       .intConf
-      .createWithDefault(0)
+      .createOptional
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
@@ -1878,6 +1902,17 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val ENABLE_COLUMNAR_PARTIAL_PROJECT =
+    buildConf("spark.gluten.sql.columnar.partial.project")
+      .doc(
+        "Break up one project node into 2 phases when some of the expressions are non " +
+          "offload-able. Phase one is a regular offloaded project transformer that " +
+          "evaluates the offload-able expressions in native, " +
+          "phase two preserves the output from phase one and evaluates the remaining " +
+          "non-offload-able expressions using vanilla Spark projections")
+      .booleanConf
+      .createWithDefault(true)
+
   val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
     buildConf("spark.gluten.sql.commonSubexpressionEliminate")
       .internal()
@@ -1896,6 +1931,13 @@ object GlutenConfig {
           "When enabled, count distinct queries will fail to fallback!!!")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING =
+    buildConf("spark.gluten.sql.extendedGeneratorNestedColumnAliasing")
+      .internal()
+      .doc("Do nested column aliasing for Project(Filter(Generator))")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
@@ -2119,4 +2161,14 @@ object GlutenConfig {
         "Otherwise, throw an exception.")
       .booleanConf
       .createWithDefault(true)
+
+  val CAST_FROM_VARCHAR_ADD_TRIM_NODE =
+    buildConf("spark.gluten.velox.castFromVarcharAddTrimNode")
+      .internal()
+      .doc(
+        "If true, will add a trim node " +
+          "which has the same sementic as vanilla Spark to CAST-from-varchar." +
+          "Otherwise, do nothing.")
+      .booleanConf
+      .createWithDefault(false)
 }

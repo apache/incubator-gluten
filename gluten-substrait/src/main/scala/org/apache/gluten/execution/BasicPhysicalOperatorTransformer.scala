@@ -48,7 +48,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   // Split out all the IsNotNulls from condition.
-  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(cond).partition {
+  private val (notNullPreds, _) = splitConjunctivePredicates(cond).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
     case _ => false
   }
@@ -156,7 +156,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       context.registerEmptyRelToOperator(operatorId)
       // Since some columns' nullability will be removed after this filter, we need to update the
       // outputAttributes of child context.
-      return TransformContext(childCtx.inputAttributes, output, childCtx.root)
+      return TransformContext(output, childCtx.root)
     }
     val currRel = getRelNode(
       context,
@@ -166,15 +166,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       childCtx.root,
       validation = false)
     assert(currRel != null, "Filter rel should be valid.")
-    TransformContext(childCtx.outputAttributes, output, currRel)
-  }
-}
-
-object FilterExecTransformerBase {
-  implicit class FilterExecTransformerBaseImplicits(filter: FilterExecTransformerBase) {
-    def isNoop(): Boolean = {
-      filter.getRemainingCondition == null
-    }
+    TransformContext(output, currRel)
   }
 }
 
@@ -210,18 +202,10 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
-    if ((list == null || list.isEmpty) && childCtx != null) {
-      // The computing for this project is not needed.
-      // the child may be an input adapter and childCtx is null. In this case we want to
-      // make a read node with non-empty base_schema.
-      context.registerEmptyRelToOperator(operatorId)
-      return childCtx
-    }
-
     val currRel =
       getRelNode(context, list, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Project Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override def output: Seq[Attribute] = list.map(_.toAttribute)
@@ -273,13 +257,11 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
 
 // An alternatives for UnionExec.
 case class ColumnarUnionExec(children: Seq[SparkPlan]) extends GlutenPlan {
-  children.foreach(
-    child =>
-      child match {
-        case w: WholeStageTransformer =>
-          w.setOutputSchemaForPlan(output)
-        case _ =>
-      })
+  children.foreach {
+    case w: WholeStageTransformer =>
+      w.setOutputSchemaForPlan(output)
+    case _ =>
+  }
 
   override def supportsColumnar: Boolean = true
 

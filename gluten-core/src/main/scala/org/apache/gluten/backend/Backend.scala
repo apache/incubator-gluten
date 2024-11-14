@@ -17,7 +17,7 @@
 package org.apache.gluten.backend
 
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
-import org.apache.gluten.extension.injector.RuleInjector
+import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.PluginContext
@@ -51,7 +51,7 @@ trait Backend {
   def convFuncOverride(): ConventionFunc.Override = ConventionFunc.Override.Empty
 
   /** Query planner rules. */
-  def injectRules(injector: RuleInjector): Unit
+  def injectRules(injector: Injector): Unit
 }
 
 object Backend {

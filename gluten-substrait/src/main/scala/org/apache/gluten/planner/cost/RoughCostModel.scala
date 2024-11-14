@@ -17,11 +17,11 @@
 package org.apache.gluten.planner.cost
 
 import org.apache.gluten.execution.RowToColumnarExecBase
-import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
+import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ProjectExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarWriteFilesExec, ProjectExec, RowToColumnarExec, SparkPlan}
 import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
 
 /** A rough cost model with some empirical heuristics. */
@@ -29,6 +29,7 @@ class RoughCostModel extends LongCostModel {
 
   override def selfLongCostOf(node: SparkPlan): Long = {
     node match {
+      case ColumnarWriteFilesExec.OnNoopLeafPath(_) => 0
       case ProjectExec(projectList, _) if projectList.forall(isCheapExpression) =>
         // Make trivial ProjectExec has the same cost as ProjectExecTransform to reduce unnecessary
         // c2r and r2c.
@@ -41,6 +42,7 @@ class RoughCostModel extends LongCostModel {
       case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L
       case RowToColumnarLike(_) => 10L
+      case ColumnarToColumnarLike(_) => 5L
       case p if PlanUtil.isGlutenColumnarOp(p) => 10L
       case p if PlanUtil.isVanillaColumnarOp(p) => 1000L
       // Other row ops. Usually a vanilla row op.

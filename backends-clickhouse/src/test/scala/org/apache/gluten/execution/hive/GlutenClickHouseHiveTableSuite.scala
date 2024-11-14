@@ -17,7 +17,7 @@
 package org.apache.gluten.execution.hive
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
 import org.apache.gluten.test.AllDataTypesWithComplexType
 import org.apache.gluten.utils.UTSystemParameters
 
@@ -28,6 +28,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.Path
 
@@ -540,6 +541,37 @@ class GlutenClickHouseHiveTableSuite
         assert(txtFileScan.size == 1)
       }
     )
+  }
+
+  test("GLUTEN-7700: test hive table with partition values contain space") {
+    val tbl = "test_7700"
+    val create_table_sql =
+      s"""
+         |create table if not exists $tbl (
+         |  id int
+         |) partitioned by (itime string)
+         |stored as orc;
+         |""".stripMargin
+    val insert_sql =
+      s"""
+         |insert overwrite table $tbl partition (itime = '2024-10-24 10:02:04')
+         |select id from range(3)
+         |""".stripMargin
+    val select_sql =
+      s"""
+         |select * from $tbl
+         |""".stripMargin
+    val drop_sql = s"drop table if exists $tbl"
+
+    spark.sql(create_table_sql)
+    spark.sql(insert_sql)
+
+    compareResultsAgainstVanillaSpark(
+      select_sql,
+      compareResult = true,
+      df => assert(df.count() == 3)
+    )
+    spark.sql(drop_sql)
   }
 
   test("test hive compressed txt table") {
@@ -1417,6 +1449,54 @@ class GlutenClickHouseHiveTableSuite
     spark.sql(insertDataSql)
     runQueryAndCompare(selectSql)(df => checkOperatorCount[ProjectExecTransformer](3)(df))
     spark.sql("DROP TABLE test_tbl_7054")
+  }
+
+  test("Nested column pruning for Project(Filter(Generate))") {
+    spark.sql("drop table if exists aj")
+    spark.sql(
+      """
+        |CREATE TABLE if not exists aj (
+        |  country STRING,
+        |  event STRUCT<time:BIGINT, lng:BIGINT, lat:BIGINT, net:STRING,
+        |     log_extra:MAP<STRING, STRING>, event_id:STRING, event_info:MAP<STRING, STRING>>
+        |)
+        |USING orc
+      """.stripMargin)
+
+    spark.sql("""
+                |INSERT INTO aj VALUES
+                |  ('USA', named_struct('time', 1622547800, 'lng', -122, 'lat', 37, 'net',
+                |    'wifi', 'log_extra', map('key1', 'value1'), 'event_id', 'event1',
+                |    'event_info', map('tab_type', '5', 'action', '13'))),
+                |  ('Canada', named_struct('time', 1622547801, 'lng', -79, 'lat', 43, 'net',
+                |    '4g', 'log_extra', map('key2', 'value2'), 'event_id', 'event2',
+                |    'event_info', map('tab_type', '4', 'action', '12')))
+       """.stripMargin)
+
+    val df =
+      spark.sql("""
+                  | SELECT * FROM (
+                  |  SELECT
+                  |    game_name,
+                  |    CASE WHEN
+                  |       event.event_info['tab_type'] IN (5) THEN '1' ELSE '0' END AS entrance
+                  |  FROM aj
+                  |  LATERAL VIEW explode(split(nvl(event.event_info['game_name'],'0'),','))
+                  |    as game_name
+                  |  WHERE event.event_info['action'] IN (13)
+                  |) WHERE game_name = 'xxx'
+      """.stripMargin)
+
+    val scan = df.queryExecution.executedPlan.collect {
+      case scan: FileSourceScanExecTransformer => scan
+    }.head
+
+    val schema = scan.schema
+    assert(schema.size == 1)
+    val fieldType = schema.fields.head.dataType.asInstanceOf[StructType]
+    assert(fieldType.size == 1)
+
+    spark.sql("drop table if exists aj")
   }
 
 }

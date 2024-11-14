@@ -24,6 +24,7 @@ import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 import org.apache.spark.task.TaskResources$;
 import org.junit.Assert;
@@ -44,12 +45,53 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           final int numRows = 100;
           final ColumnarBatch batch = newArrowBatch("a boolean, b int", numRows);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(batch));
+          ColumnarBatches.checkLoaded(batch);
+          Assert.assertThrows(
+              IllegalArgumentException.class, () -> ColumnarBatches.checkOffloaded(batch));
           final ColumnarBatch offloaded =
               ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
           Assert.assertTrue(ColumnarBatches.isLightBatch(offloaded));
+          ColumnarBatches.checkOffloaded(offloaded);
+          Assert.assertThrows(
+              IllegalArgumentException.class, () -> ColumnarBatches.checkLoaded(offloaded));
           final ColumnarBatch loaded =
               ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(loaded));
+          ColumnarBatches.checkLoaded(loaded);
+          Assert.assertThrows(
+              IllegalArgumentException.class, () -> ColumnarBatches.checkOffloaded(loaded));
+          long cnt =
+              StreamSupport.stream(
+                      Spliterators.spliteratorUnknownSize(
+                          loaded.rowIterator(), Spliterator.ORDERED),
+                      false)
+                  .count();
+          Assert.assertEquals(numRows, cnt);
+          loaded.close();
+          return null;
+        });
+  }
+
+  @Test
+  public void testZeroColumnBatch() {
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final int numRows = 100;
+          final ColumnarBatch batch = new ColumnarBatch(new ColumnVector[0]);
+          batch.setNumRows(numRows);
+          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(batch));
+          ColumnarBatches.checkLoaded(batch);
+          ColumnarBatches.checkOffloaded(batch);
+          final ColumnarBatch offloaded =
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
+          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(offloaded));
+          ColumnarBatches.checkLoaded(offloaded);
+          ColumnarBatches.checkOffloaded(offloaded);
+          final ColumnarBatch loaded =
+              ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
+          Assert.assertTrue(ColumnarBatches.isZeroColumnBatch(loaded));
+          ColumnarBatches.checkLoaded(loaded);
+          ColumnarBatches.checkOffloaded(loaded);
           long cnt =
               StreamSupport.stream(
                       Spliterators.spliteratorUnknownSize(
@@ -97,7 +139,7 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
   }
 
   @Test
-  public void testOffloadAndLoadReadRow() {
+  public void testReadRow() {
     TaskResources$.MODULE$.runUnsafe(
         () -> {
           final int numRows = 20;

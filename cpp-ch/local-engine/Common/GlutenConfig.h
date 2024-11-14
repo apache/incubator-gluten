@@ -19,6 +19,7 @@
 
 #include <Interpreters/Context_fwd.h>
 #include <base/unit.h>
+#include <google/protobuf/map.h>
 
 namespace Poco::Util
 {
@@ -33,8 +34,9 @@ namespace local_engine
 
 struct SparkConfigs
 {
+    using ConfigMap = google::protobuf::Map<std::string, std::string>;
     static void updateConfig(const DB::ContextMutablePtr &, std::string_view);
-    static std::map<std::string, std::string> load(std::string_view plan, bool processStart = false);
+    static void update(std::string_view plan, const std::function<void(const ConfigMap &)> & callback, bool processStart = false);
 };
 
 struct MemoryConfig
@@ -108,15 +110,6 @@ struct ExecutorConfig
     static ExecutorConfig loadFromContext(const DB::ContextPtr & context);
 };
 
-struct HdfsConfig
-{
-    inline static const String HDFS_ASYNC = "hdfs.enable_async_io";
-
-    bool hdfs_async;
-
-    static HdfsConfig loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings);
-};
-
 struct S3Config
 {
     inline static const String S3_LOCAL_CACHE_ENABLE = "s3.local_cache.enabled";
@@ -150,5 +143,20 @@ struct GlutenJobSchedulerConfig
     size_t job_scheduler_max_threads = 10;
 
     static GlutenJobSchedulerConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+struct MergeTreeCacheConfig
+{
+    inline static const String ENABLE_DATA_PREFETCH = "enable_data_prefetch";
+
+    bool enable_data_prefetch = true;
+
+    static MergeTreeCacheConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+namespace PathConfig
+{
+inline constexpr const char * USE_CURRENT_DIRECTORY_AS_TMP = "use_current_directory_as_tmp";
+inline constexpr const char * DEFAULT_TEMP_FILE_PATH = "/tmp/libch";
 };
 }

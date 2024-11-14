@@ -45,7 +45,7 @@ class CHParquetWriterInjects extends CHFormatWriterInjects {
 
   override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = Write
     .newBuilder()
-    .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
+    .setCommon(Write.Common.newBuilder().setFormat(formatName).setJobTaskAttemptId("").build())
     .setParquet(Write.ParquetWrite.newBuilder().build())
     .build()
   override val formatName: String = "parquet"

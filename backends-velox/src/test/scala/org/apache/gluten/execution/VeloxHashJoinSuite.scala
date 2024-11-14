@@ -20,12 +20,15 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, InputIteratorTransformer}
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarSubqueryBroadcastExec, InputIteratorTransformer}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
 
 class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
+
+  import testImplicits._
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -142,6 +145,40 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
       assert(collect(df.queryExecution.executedPlan) {
         case r @ ReusedExchangeExec(_, _: ColumnarBroadcastExchangeExec) => r
       }.size == 1)
+    }
+  }
+
+  test("ColumnarBuildSideRelation transform support multiple key columns") {
+    withTable("t1", "t2") {
+      val df1 =
+        (0 until 50).map(i => (i % 2, i % 3, s"${i % 25}")).toDF("t1_c1", "t1_c2", "date").as("df1")
+      val df2 = (0 until 50)
+        .map(i => (i % 11, i % 13, s"${i % 10}"))
+        .toDF("t2_c1", "t2_c2", "date")
+        .as("df2")
+      df1.write.partitionBy("date").saveAsTable("t1")
+      df2.write.partitionBy("date").saveAsTable("t2")
+
+      val df = sql("""
+                     |SELECT t1.date, t1.t1_c1, t2.t2_c2
+                     |FROM t1
+                     |JOIN t2 ON t1.date = t2.date
+                     |WHERE t1.date=if(3 <= t2.t2_c2, if(3 < t2.t2_c1, 3, t2.t2_c1), t2.t2_c2)
+                     |ORDER BY t1.date DESC, t1.t1_c1 DESC, t2.t2_c2 DESC
+                     |LIMIT 1
+                     |""".stripMargin)
+
+      checkAnswer(df, Row("3", 1, 4) :: Nil)
+      // collect the DPP plan.
+      val subqueryBroadcastExecs = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case subqueryBroadcast: ColumnarSubqueryBroadcastExec => subqueryBroadcast
+      }
+      assert(subqueryBroadcastExecs.size == 2)
+      val buildKeysAttrs = subqueryBroadcastExecs
+        .flatMap(_.buildKeys)
+        .map(e => e.collect { case a: AttributeReference => a })
+      // the buildKeys function can accept expressions with multiple columns.
+      assert(buildKeysAttrs.exists(_.size > 1))
     }
   }
 }

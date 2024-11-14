@@ -32,6 +32,8 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.truncatedString
+import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -49,14 +51,18 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
-    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(
+      child,
+      sparkContext,
+      forBroadcast())
 
   override def simpleString(maxFields: Int): String = {
     s"$nodeName${truncatedString(output, "[", ", ", "]", maxFields)}"
   }
 
   override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance
+      .genInputIteratorTransformerMetricsUpdater(metrics, forBroadcast())
 
   override def output: Seq[Attribute] = child.output
   override def outputPartitioning: Partitioning = child.outputPartitioning
@@ -69,11 +75,19 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val operatorId = context.nextOperatorId(nodeName)
     val readRel = RelBuilder.makeReadRelForInputIterator(child.output.asJava, context, operatorId)
-    TransformContext(output, output, readRel)
+    TransformContext(output, readRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
     copy(child = newChild)
+  }
+
+  private def forBroadcast(): Boolean = {
+    child match {
+      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastQueryStageExec] => true
+      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastExchangeLike] => true
+      case _ => false
+    }
   }
 }
 
@@ -114,7 +128,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
  * generate/compile code.
  */
 case class ColumnarCollapseTransformStages(
-    glutenConfig: GlutenConfig,
+    glutenConf: GlutenConfig,
     transformStageCounter: AtomicInteger = ColumnarCollapseTransformStages.transformStageCounter)
   extends Rule[SparkPlan] {
 

@@ -49,11 +49,11 @@ public:
     DB::Block * nextColumnar();
     bool hasNext();
 
-    bool fallbackMode();
+    bool fallbackMode() const;
 
     /// Stop execution, used when task receives shutdown command or executor receives SIGTERM signal
-    void cancel();
-    void setSinks(std::function<void(DB::QueryPipelineBuilder &)> setter);
+    void cancel() const;
+    void setSinks(const std::function<void(DB::QueryPipelineBuilder &)> & setter) const;
     void execute();
     DB::Block getHeader();
     RelMetricPtr getMetric() const { return metric; }

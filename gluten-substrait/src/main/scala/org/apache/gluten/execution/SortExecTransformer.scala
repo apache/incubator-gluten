@@ -113,7 +113,7 @@ case class SortExecTransformer(
     val currRel =
       getRelNode(context, sortOrder, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Sort Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SortExecTransformer =

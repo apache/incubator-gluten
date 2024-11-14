@@ -109,28 +109,6 @@ macro(add_duckdb)
   endif()
 endmacro()
 
-macro(find_libhdfs3)
-  find_package(libhdfs3 CONFIG)
-  if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
-    set(LIBHDFS3_LIBRARY HDFS::hdfs3)
-  else()
-    find_path(libhdfs3_INCLUDE_DIR hdfs/hdfs.h)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-    find_library(libhdfs3_LIBRARY NAMES hdfs3)
-    find_package_handle_standard_args(libhdfs3 DEFAULT_MSG libhdfs3_INCLUDE_DIR
-                                      libhdfs3_LIBRARY)
-    add_library(HDFS::hdfs3 SHARED IMPORTED)
-    set_target_properties(
-      HDFS::hdfs3
-      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${libhdfs3_INCLUDE_DIR}"
-                 IMPORTED_LOCATION "${libhdfs3_LIBRARY}")
-  endif()
-
-  if(NOT libhdfs3_FOUND)
-    message(FATAL_ERROR "LIBHDFS3 Library Not Found")
-  endif()
-endmacro()
-
 macro(find_re2)
   find_package(re2 CONFIG)
   if(re2_FOUND AND TARGET re2::re2)
@@ -152,21 +130,27 @@ macro(find_re2)
 endmacro()
 
 macro(find_awssdk)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 macro(find_gcssdk)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
   find_package(google_cloud_cpp_storage REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 macro(find_azure)
   find_package(CURL REQUIRED)
   find_package(LibXml2 REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
   find_package(azure-storage-files-datalake-cpp CONFIG REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 # Build Velox backend.
@@ -184,6 +168,7 @@ set(VELOX_SRCS
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
+    operators/functions/SparkExprToSubfieldFilterParser.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
@@ -209,10 +194,6 @@ set(VELOX_SRCS
     utils/Common.cc
     utils/VeloxBatchResizer.cc)
 
-if(ENABLE_HDFS)
-  list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
-endif()
-
 if(ENABLE_S3)
   find_package(ZLIB)
 endif()
@@ -223,8 +204,8 @@ endif()
 
 add_library(velox SHARED ${VELOX_SRCS})
 
-if(ENABLE_GLUTEN_VCPKG)
-  # Hide symbols of static dependencies
+if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  # Hide some symbols to avoid conflict.
   target_link_options(
     velox PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 endif()
@@ -245,14 +226,14 @@ set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 # applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 
-if(BUILD_JEMALLOC)
+if(ENABLE_JEMALLOC_STATS)
   include(Findjemalloc_pic)
   find_jemalloc()
   if(JEMALLOC_NOT_FOUND)
     include(Buildjemalloc_pic)
     build_jemalloc()
   endif()
-  add_definitions(-DENABLE_JEMALLOC)
+  add_definitions(-DENABLE_JEMALLOC_STATS)
   target_link_libraries(velox PUBLIC jemalloc::libjemalloc)
 endif()
 
@@ -326,6 +307,19 @@ endif()
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
+set(icu_components i18n uc data)
+foreach(component ${icu_components})
+  find_library(ICU_${component}_LIB NAMES icu${component})
+  if(NOT ICU_${component}_LIB)
+    message(FATAL_ERROR "icu${component} library not found")
+  endif()
+  message(STATUS "Found ICU::${component}: ${ICU_${component}_LIB}")
+  add_library(ICU::${component} UNKNOWN IMPORTED)
+  set_target_properties(ICU::${component} PROPERTIES IMPORTED_LOCATION
+                                                     ${ICU_${component}_LIB})
+  target_link_libraries(velox PUBLIC ICU::${component})
+endforeach()
+
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
@@ -336,8 +330,6 @@ endif()
 
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
-  find_libhdfs3()
-  target_link_libraries(velox PUBLIC HDFS::hdfs3)
 endif()
 
 if(ENABLE_S3)

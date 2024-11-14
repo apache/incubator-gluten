@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.heuristic
 
-import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, ColumnarRuleCall, SkipCondition}
+import org.apache.gluten.extension.columnar.{ColumnarRuleApplier, ColumnarRuleExecutor}
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 
@@ -32,30 +32,26 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 class HeuristicApplier(
     session: SparkSession,
-    skipConditions: Seq[SkipCondition],
-    transformBuilders: Seq[ColumnarRuleBuilder],
-    fallbackPolicyBuilders: Seq[ColumnarRuleBuilder],
-    postBuilders: Seq[ColumnarRuleBuilder],
-    finalBuilders: Seq[ColumnarRuleBuilder])
+    transformBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
+    fallbackPolicyBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
+    postBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
+    finalBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]])
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
   private val adaptiveContext = AdaptiveContext(session)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    if (skipConditions.exists(_.skip(session, plan))) {
-      return plan
-    }
     val call = new ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
     makeRule(call).apply(plan)
   }
 
   private def makeRule(call: ColumnarRuleCall): Rule[SparkPlan] = {
     plan =>
-      val finalPlan = prepareFallback(plan) {
+      prepareFallback(plan) {
         p =>
           val suggestedPlan = transformPlan("transform", transformRules(call), p)
-          transformPlan("fallback", fallbackPolicies(call), suggestedPlan) match {
+          val finalPlan = transformPlan("fallback", fallbackPolicies(call), suggestedPlan) match {
             case FallbackNode(fallbackPlan) =>
               // we should use vanilla c2r rather than native c2r,
               // and there should be no `GlutenPlan` any more,
@@ -64,23 +60,21 @@ class HeuristicApplier(
             case plan =>
               transformPlan("post", postRules(call), plan)
           }
+          transformPlan("final", finalRules(call), finalPlan)
       }
-      transformPlan("final", finalRules(call), finalPlan)
   }
 
   private def transformPlan(
       phase: String,
       rules: Seq[Rule[SparkPlan]],
-      plan: SparkPlan): SparkPlan = {
-    val executor = new ColumnarRuleApplier.Executor(phase, rules)
-    executor.execute(plan)
-  }
+      plan: SparkPlan): SparkPlan =
+    new ColumnarRuleExecutor(phase, rules).execute(plan)
 
-  private def prepareFallback[T](plan: SparkPlan)(f: SparkPlan => T): T = {
+  private def prepareFallback[T](p: SparkPlan)(f: SparkPlan => T): T = {
     adaptiveContext.setAdaptiveContext()
-    adaptiveContext.setOriginalPlan(plan)
+    adaptiveContext.setOriginalPlan(p)
     try {
-      f(plan)
+      f(p)
     } finally {
       adaptiveContext.resetOriginalPlan()
       adaptiveContext.resetAdaptiveContext()

@@ -28,9 +28,7 @@ var gluten_root = "/PATH/TO/GLUTEN"
 // e.g. hdfs://hostname:8020
 var paq_file_root = "/ROOT_PATH"
 
-var tpcds_queries_path = "/gluten-core/src/test/resources/tpcds-queries/"
-var queries_no_decimal = "tpcds.queries.no-decimal"
-var queries_original = "tpcds.queries.original"
+var tpcds_queries_path = "/tools/gluten-it/common/src/main/resources/tpcds-queries/"
 
 def time[R](block: => R): R = {
     val t0 = System.nanoTime()
@@ -102,8 +100,7 @@ def getListOfFiles(dir: String): List[File] = {
          List[File]()
      }
 }
-val fileLists =
-  getListOfFiles(gluten_root + tpcds_queries_path + queries_no_decimal)
+val fileLists = getListOfFiles(gluten_root + tpcds_queries_path)
 val sorted = fileLists.sortBy {
        f => f.getName match {
        case name =>

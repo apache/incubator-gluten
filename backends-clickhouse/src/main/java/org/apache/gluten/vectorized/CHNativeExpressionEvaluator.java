@@ -25,7 +25,6 @@ import org.apache.gluten.utils.ConfigUtil;
 
 import org.apache.spark.sql.internal.SQLConf;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -56,11 +55,6 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
 
   private static Map<String, String> getNativeBackendConf() {
     return GlutenConfig.getNativeBackendConf(Backend.get().name(), SQLConf.get().getAllConfs());
-  }
-
-  public static void injectWriteFilesTempPath(String path, String fileName) {
-    ExpressionEvaluatorJniWrapper.injectWriteFilesTempPath(
-        path.getBytes(StandardCharsets.UTF_8), fileName.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and

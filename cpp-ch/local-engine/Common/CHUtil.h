@@ -27,6 +27,7 @@
 #include <base/types.h>
 #include <substrait/algebra.pb.h>
 #include <Common/CurrentThread.h>
+#include <Common/GlutenConfig.h>
 
 namespace DB
 {
@@ -158,8 +159,8 @@ public:
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
-    static void initBackend(const std::map<std::string, std::string> & spark_conf_map);
-    static void initSettings(const std::map<std::string, std::string> & spark_conf_map, DB::Settings & settings);
+    static void initBackend(const SparkConfigs::ConfigMap & spark_conf_map);
+    static void initSettings(const SparkConfigs::ConfigMap & spark_conf_map, DB::Settings & settings);
 
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
 
@@ -199,8 +200,8 @@ private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
 
-    static DB::Context::ConfigurationPtr initConfig(const std::map<std::string, std::string> & spark_conf_map);
-    static String tryGetConfigFile(const std::map<std::string, std::string> & spark_conf_map);
+    static DB::Context::ConfigurationPtr initConfig(const SparkConfigs::ConfigMap & spark_conf_map);
+    static String tryGetConfigFile(const SparkConfigs::ConfigMap & spark_conf_map);
     static void initLoggers(DB::Context::ConfigurationPtr config);
     static void initEnvs(DB::Context::ConfigurationPtr config);
 

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers}
+import org.apache.gluten.extension.columnar.heuristic.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.logging.LogLevelUtil
@@ -29,7 +29,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.aggregate.{ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.sql.execution.exchange.Exchange
@@ -38,6 +38,18 @@ import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
+/**
+ * Rule to offload Spark query plan to Gluten query plan using a search algorithm and a defined cost
+ * model.
+ *
+ * The effect of this rule is similar to
+ * [[org.apache.gluten.extension.columnar.heuristic.HeuristicTransform]], except that the 3 stages
+ * in the heuristic version, known as rewrite, validate, offload, will take place together
+ * individually for each Spark query plan node in RAS rule
+ * [[org.apache.gluten.extension.columnar.enumerated.RasOffload]].
+ *
+ * The feature requires enabling RAS to function.
+ */
 case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   extends Rule[SparkPlan]
   with LogLevelUtil {
@@ -62,16 +74,14 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     Seq(
       RasOffload.from[Exchange](OffloadExchange()),
       RasOffload.from[BaseJoinExec](OffloadJoin()),
-      RasOffloadHashAggregate,
-      RasOffloadFilter,
-      RasOffloadProject,
+      RasOffload.from[FilterExec](OffloadOthers()),
+      RasOffload.from[ProjectExec](OffloadOthers()),
       RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()),
       RasOffload.from[DataSourceScanExec](OffloadOthers()),
       RasOffload
-        .from(
-          (node: SparkPlan) => HiveTableScanExecTransformer.isHiveTableScan(node),
-          OffloadOthers()),
+        .from(HiveTableScanExecTransformer.isHiveTableScan, OffloadOthers()),
       RasOffload.from[CoalesceExec](OffloadOthers()),
+      RasOffload.from[HashAggregateExec](OffloadOthers()),
       RasOffload.from[SortAggregateExec](OffloadOthers()),
       RasOffload.from[ObjectHashAggregateExec](OffloadOthers()),
       RasOffload.from[UnionExec](OffloadOthers()),
@@ -81,12 +91,11 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
       RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()),
       RasOffload.from[WindowExec](OffloadOthers()),
       RasOffload
-        .from(
-          (node: SparkPlan) => SparkShimLoader.getSparkShims.isWindowGroupLimitExec(node),
-          OffloadOthers()),
+        .from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec, OffloadOthers()),
       RasOffload.from[LimitExec](OffloadOthers()),
       RasOffload.from[GenerateExec](OffloadOthers()),
-      RasOffload.from[EvalPythonExec](OffloadOthers())
+      RasOffload.from[EvalPythonExec](OffloadOthers()),
+      RasOffload.from[SampleExec](OffloadOthers())
     ).map(RasOffload.Rule(_, validator))
 
   private val optimization = {
