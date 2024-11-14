@@ -92,6 +92,11 @@ public class LocalFilesNode implements SplitInfo {
     return paths;
   }
 
+  public void setPaths(List<String> newPaths) {
+    paths.clear();
+    paths.addAll(newPaths);
+  }
+
   public void setFileSchema(StructType schema) {
     this.fileSchema = schema;
   }

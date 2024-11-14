@@ -25,7 +25,7 @@ import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater}
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
-import org.apache.gluten.substrait.rel.{RelNode, SplitInfo}
+import org.apache.gluten.substrait.rel.{LocalFilesNode, RelNode, SplitInfo}
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark._
@@ -40,9 +40,12 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
+import org.apache.hadoop.fs.{FileSystem, Path}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -126,6 +129,10 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
+
+  val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
+    sparkContext.hadoopConfiguration)
+
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   @transient
@@ -287,6 +294,26 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
+
+      allScanSplitInfos.foreach {
+        splitInfos =>
+          splitInfos.foreach {
+            case splitInfo: LocalFilesNode =>
+              val paths = splitInfo.getPaths.asScala
+              if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
+                // Convert the viewfs path into hdfs
+                val newPaths = paths.map {
+                  viewfsPath =>
+                    val viewPath = new Path(viewfsPath)
+                    val viewFileSystem =
+                      FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
+                    viewFileSystem.resolvePath(viewPath).toString
+                }
+                splitInfo.setPaths(newPaths.asJava)
+              }
+          }
+      }
+
       val inputPartitions =
         BackendsApiManager.getIteratorApiInstance.genPartitions(
           wsCtx,
