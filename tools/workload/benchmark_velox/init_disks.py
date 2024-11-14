@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# To set up the virtual environment required to run this script,
+# refer to the `Format and mount disks` subsection under `System Setup` in initialize.ipynb.
 import sys
 import subprocess
 import questionary
@@ -26,7 +28,7 @@ def yes_or_no(question):
         elif user_input.lower() == 'no':
             return False
         elif user_input.lower() == 'quit':
-            sys.exit(0)
+            sys.exit(1)
         else:
             continue
 
@@ -34,9 +36,14 @@ def filter_empty_str(l):
     return [x for x in l if x]
 
 def run_and_log(cmd):
-    print('\033[92m' + '>>> Running command: ' + repr(cmd) + '\033[0m')
+    # Print command in yellow
+    print('\033[93m' + '>>> Running command: ' + repr(cmd) + '\033[0m')
     result = subprocess.run(cmd, check=True, shell=True, capture_output=True, text=True)
+    # Print stdout in green
+    print('\033[92m' + '==========stdout==========' + '\033[0m')
     print(result.stdout)
+    # Print stderr in red
+    print('\033[91m' + '==========stderr==========' + '\033[0m')
     print(result.stderr)
 
 def init_disks():

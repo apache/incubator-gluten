@@ -23,7 +23,7 @@ papermill tpc_workload.ipynb --inject-output-path -f params.yaml gluten_tpch.ipy
 ```
 After execution, the output notebook will be saved as `gluten_tpch.ipynb`.
 
-If you want to use different parameters, you can specify them via the `-f` option. It will overwrite the previously defined parameters in `params.yaml`. e.g. To switch to the TPC-DS workload, run:
+If you want to use different parameters, you can specify them via the `-p` option. It will overwrite the previously defined parameters in `params.yaml`. e.g. To switch to the TPC-DS workload, run:
 
 ```bash
 papermill tpc_workload.ipynb --inject-output-path -f params.yaml -p workoad tpcds gluten_tpcds.ipynb
