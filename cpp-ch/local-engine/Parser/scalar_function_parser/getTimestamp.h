@@ -61,14 +61,14 @@ public:
         
         const auto & args = substrait_func.arguments();
         String fmt_str;
-        UInt32 scale = 0;
+        UInt32 s_count = 0;
         if(args[1].value().has_literal())
         {
             const auto & literal_expr = args[1].value().literal();
             if (literal_expr.has_string())
             {
                 fmt_str = literal_expr.string();
-                scale = std::count(fmt_str.begin(), fmt_str.end(), 'S');
+                s_count = std::count(fmt_str.begin(), fmt_str.end(), 'S');
             }
             else
                 throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second of function {} must be const String.", name);
@@ -80,40 +80,38 @@ public:
         const auto * fmt_arg = parsed_args[1];
         const DateLUTImpl * date_lut = &DateLUT::instance();
         const auto * time_zone_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), date_lut->getTimeZone());
-        const auto * scale_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt8>(), scale);
-        String timeParserPolicy;
+        String time_parser_policy;
         const ContextPtr context = getContext();
         if (context->getSettingsRef().has(TIMER_PARSER_POLICY))
-            timeParserPolicy = toString(context->getSettingsRef().get(TIMER_PARSER_POLICY));
-        boost::to_lower(timeParserPolicy);
-        if (timeParserPolicy == "legacy")
+            time_parser_policy = toString(context->getSettingsRef().get(TIMER_PARSER_POLICY));
+        boost::to_lower(time_parser_policy);
+        if (time_parser_policy == "legacy")
         {
-            if (scale < 3)
+            if (s_count < 3)
             {
-                if (scale == 0)
+                if (s_count == 0)
                 {
                     const auto * index_begin_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt64>(), 1);
                     const auto * index_end_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt64>(), fmt_str.size());
                     const auto * substr_node = toFunctionNode(actions_dag, "substringUTF8", {expr_arg, index_begin_node, index_end_node});
                     const auto * fmt_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), fmt_str);
-                    const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {substr_node, scale_node, fmt_node, time_zone_node});
+                    const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {substr_node, fmt_node, time_zone_node});
                     return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
                 }
                 else
-                    for (size_t i = 0; i < 3 - scale; ++i)
+                    for (size_t i = 0; i < 3 - s_count; ++i)
                         fmt_str += 'S';
             }
             else
-                fmt_str = fmt_str.substr(0, fmt_str.size() - (scale - 3));
+                fmt_str = fmt_str.substr(0, fmt_str.size() - (s_count - 3));
             
             const auto * fmt_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), fmt_str);
-            const auto * new_scale_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt8>(), 3);
-            const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, new_scale_node, fmt_node, time_zone_node});
+            const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_node, time_zone_node});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
         }
         else
         {
-            const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, scale_node, fmt_arg, time_zone_node});
+            const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
         }
     }
