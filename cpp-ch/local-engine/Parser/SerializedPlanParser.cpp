@@ -297,12 +297,9 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         settings,
         0);
     const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
-    return query_plan.buildQueryPipeline(
-        optimization_settings,
-        BuildQueryPipelineSettings{
-            .actions_settings
-            = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
-            .process_list_element = query_status});
+    BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings::fromContext(context);
+    build_settings.process_list_element = query_status;
+    return query_plan.buildQueryPipeline(optimization_settings,build_settings);
 }
 
 std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)

@@ -79,6 +79,9 @@ namespace Setting
 {
 extern const SettingsUInt64 prefer_external_sort_block_bytes;
 extern const SettingsUInt64 max_bytes_before_external_sort;
+extern const SettingsBool query_plan_merge_filters;
+extern const SettingsBool compile_expressions;
+extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
 }
 namespace ErrorCodes
 {
@@ -712,6 +715,14 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("max_parsing_threads", 1);
     settings.set("max_download_threads", 1);
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
+
+    /// update per https://github.com/ClickHouse/ClickHouse/pull/71539
+    /// if true, we can't get correct metrics for the query
+    settings[Setting::query_plan_merge_filters] = false;
+    /// We now set BuildQueryPipelineSettings according to config.
+    settings[Setting::compile_expressions] = true;
+    settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
+    ///
 
     for (const auto & [key, value] : spark_conf_map)
     {
