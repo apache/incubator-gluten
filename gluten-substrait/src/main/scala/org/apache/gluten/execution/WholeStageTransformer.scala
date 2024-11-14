@@ -40,7 +40,6 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -129,10 +128,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
-
-  val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
-    sparkContext.hadoopConfiguration)
-
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   @transient
@@ -294,33 +289,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
-      if (GlutenConfig.getConf.enableHdfsViewfs) {
-        allScanSplitInfos.foreach {
-          splitInfos =>
-            splitInfos.foreach {
-              case splitInfo: LocalFilesNode =>
-                val paths = splitInfo.getPaths.asScala
-                if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
-                  // Convert the viewfs path into hdfs
-                  val newPaths = paths.map {
-                    viewfsPath =>
-                      val viewPath = new Path(viewfsPath)
-                      val viewFileSystem =
-                        FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
-                      viewFileSystem.resolvePath(viewPath).toString
-                  }
-                  splitInfo.setPaths(newPaths.asJava)
-                }
-            }
-        }
-      }
-
       val inputPartitions =
         BackendsApiManager.getIteratorApiInstance.genPartitions(
           wsCtx,
           allScanSplitInfos,
           basicScanExecTransformers)
-
       val rdd = new GlutenWholeStageColumnarRDD(
         sparkContext,
         inputPartitions,
@@ -424,8 +397,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     //  p1n  |  p2n    => substraitContext.setSplitInfo([p1n, p2n])
     val allScanSplitInfos =
       allScanPartitions.zip(basicScanExecTransformers).map {
-        case (partition, transformer) =>
-          transformer.getSplitInfosFromPartitions(partition)
+        case (partition, transformer) => transformer.getSplitInfosFromPartitions(partition)
       }
     val partitionLength = allScanSplitInfos.head.size
     if (allScanSplitInfos.exists(_.size != partitionLength)) {

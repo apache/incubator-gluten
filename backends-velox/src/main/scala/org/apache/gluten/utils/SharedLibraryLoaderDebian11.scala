@@ -44,5 +44,6 @@ class SharedLibraryLoaderDebian11 extends SharedLibraryLoader {
     loader.loadAndCreateLink("libsnappy.so.1", "libsnappy.so", false)
     loader.loadAndCreateLink("libcurl.so.4", "libcurl.so", false)
     loader.loadAndCreateLink("libprotobuf.so.32", "libprotobuf.so", false)
+    loader.loadAndCreateLink("libhdfs3.so.1", "libhdfs3.so", false)
   }
 }
