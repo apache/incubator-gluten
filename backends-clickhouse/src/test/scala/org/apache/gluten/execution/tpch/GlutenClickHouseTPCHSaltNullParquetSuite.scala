@@ -3066,6 +3066,14 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
             |order by n_regionkey, n_nationkey
             |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+
+    sql = """
+            |select x, n_regionkey, n_nationkey,
+            |sum(n_regionkey), count(n_name), max(n_regionkey), min(n_regionkey)
+            |from (select '123' as x, * from nation) group by x, n_regionkey, n_nationkey with cube
+            |order by x, n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
   }
 
   test("GLUTEN-7647 lazy expand for avg and sum") {
