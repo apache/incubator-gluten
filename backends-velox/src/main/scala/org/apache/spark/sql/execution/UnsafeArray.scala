@@ -24,9 +24,6 @@ import org.apache.spark.unsafe.{Platform, UnsafeAlignedOffset}
 import org.apache.spark.unsafe.memory.MemoryBlock
 import org.apache.spark.util.collection.unsafe.sort.UnsafeSorterSpillWriter
 
-import java.util
-import java.util.LinkedList
-
 class UnsafeArray(taskMemoryManager: TaskMemoryManager)
   extends MemoryConsumer(taskMemoryManager, MemoryMode.OFF_HEAP) {
 
