@@ -353,7 +353,7 @@ case class LazyAggregateExpandRule(session: SparkSession) extends Rule[SparkPlan
         s"resultExpressions:${partialAggregate.resultExpressions}")
     partialAggregate.copy(
       groupingExpressions = groupingExpressions,
-      resultExpressions = resultExpressions,
+      resultExpressions = resultExpressions.distinct,
       child = expand.child)
   }
 
