@@ -68,7 +68,7 @@ private:
 class SerializedPlanParser
 {
 private:
-    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan);
+    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan) const;
 
 public:
     explicit SerializedPlanParser(std::shared_ptr<const ParserContext> parser_context_);
@@ -118,7 +118,7 @@ public:
 
 private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
-    void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel) const;
+    static void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::Plan & plan);
 
     std::vector<jobject> input_iters;
     std::vector<std::string> split_infos;
