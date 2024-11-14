@@ -94,8 +94,12 @@ class UnsafeArray(taskMemoryManager: TaskMemoryManager)
     var spillOffset = page.getBaseOffset
     var numRecords: Int = UnsafeAlignedOffset.getSize(spillBase, spillOffset) // probably wrong
     val writeMetrics = new ShuffleWriteMetrics
-    val spillWriter = new UnsafeSorterSpillWriter(if (SparkEnv.get != null) SparkEnv.get.blockManager
-    else null, 32 * 1024, writeMetrics, numRecords)
+    val spillWriter = new UnsafeSorterSpillWriter(
+      if (SparkEnv.get != null) SparkEnv.get.blockManager else null,
+      32 * 1024,
+      writeMetrics,
+      numRecords
+    )
     val uaoSize: Int = UnsafeAlignedOffset.getUaoSize
     while (numRecords > 0) {
       val length = UnsafeAlignedOffset.getSize(spillBase, spillOffset)
