@@ -16,10 +16,12 @@
  */
 
 #include "GroupLimitRelParser.h"
+#include <Columns/IColumn.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/IDataType.h>
+#include <DataTypes/Serializations/ISerialization.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/AggregateDescription.h>
 #include <Operator/GraceMergingAggregatedStep.h>
@@ -29,25 +31,14 @@
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <Common/AggregateUtil.h>
+#include <Common/ArrayJoinHelper.h>
 #include <Common/CHUtil.h>
+#include <Common/SortUtils.h>
 
 namespace DB::ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
-}
-
-namespace DB::Setting
-{
-extern const SettingsUInt64 group_by_two_level_threshold_bytes;
-extern const SettingsUInt64 max_rows_to_group_by;
-extern const SettingsOverflowModeGroupBy group_by_overflow_mode;
-extern const SettingsUInt64 group_by_two_level_threshold;
-extern const SettingsBool empty_result_for_aggregation_by_empty_set;
-extern const SettingsMaxThreads max_threads;
-extern const SettingsUInt64 min_free_disk_space_for_temporary_data;
-extern const SettingsUInt64 max_block_size;
-extern const SettingsBool optimize_group_by_constant_keys;
-extern const SettingsFloat min_hit_rate_to_use_consecutive_keys_optimization;
 }
 
 namespace local_engine
@@ -159,21 +150,20 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
     aggregate_function_name = getAggregateFunctionName(optimization_info.window_function);
 
     if (limit < 1)
-    {
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid limit: {}", limit);
-    }
 
     prePrejectionForAggregateArguments();
     addGroupLmitAggregationStep();
     postProjectionForExplodingArrays();
 
-    throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Not implemented yet");
+    LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Final group limit plan:\n{}", PlanUtil::explainPlan(*current_plan));
+    return std::move(current_plan);
 }
 
 String AggregateGroupLimitRelParser::getAggregateFunctionName(const String & window_function_name)
 {
     if (window_function_name == "row_number")
-        return "groupArrayRowNumSorted";
+        return "rowNumGroupArraySorted";
 #if 0
     else if (window_function_name == "rank")
         return "groupArrayRankSorted";
@@ -188,14 +178,12 @@ static std::set<size_t> collectPartitionFields(const google::protobuf::RepeatedP
 {
     std::set<size_t> fields;
     for (const auto & expr : expressions)
-    {
         if (expr.has_selection())
             fields.insert(static_cast<size_t>(expr.selection().direct_reference().struct_field().field()));
         else if (expr.has_literal())
             continue;
         else
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow expression: {}", expr.DebugString());
-    }
     return fields;
 }
 
@@ -265,10 +253,12 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments()
         }
     }
     build_tuple(order_tuple_types, order_tuple_names, order_tuple_nodes, "order_tuple", order_tuple_column_name);
-    order_tuple_column_name = expression_parser->getUniqueName("order_tuple");
 
     projection_actions->removeUnusedActions(required_column_names);
-    LOG_ERROR(getLogger("AggregateGroupLimitRelParser"), "xxx pre projection:\n{}", projection_actions->dumpDAG());
+    LOG_DEBUG(
+        getLogger("AggregateGroupLimitRelParser"),
+        "Projection for building tuples for aggregate function:\n{}",
+        projection_actions->dumpDAG());
 
     auto expression_step = std::make_unique<DB::ExpressionStep>(input_header, std::move(*projection_actions));
     expression_step->setStepDescription("Pre-projection for aggregate group limit arguments");
@@ -280,14 +270,12 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments()
 DB::Array AggregateGroupLimitRelParser::parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields)
 {
     DB::Array directions;
-    static std::map<int, String> direction_map
-        = {{1, "ASC_NULLS_FIRST"}, {2, "ASC_NULLS_LAST"}, {3, "DESC_NULLS_FIRST"}, {4, "DESC_NULLS_LAST"}};
     for (const auto & sort_field : sort_fields)
     {
-        auto it = direction_map.find(sort_field.direction());
-        if (it == direction_map.end())
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow sort direction {}", sort_field.direction());
-        directions.push_back(it->second);
+        auto sort_order = magic_enum::enum_cast<SortOrder>(sort_field.direction());
+        if (!sort_order.has_value())
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow sort direction: {}", sort_field.direction());
+        directions.emplace_back(std::string(magic_enum::enum_name<SortOrder>(sort_order.value())));
     }
     return directions;
 }
@@ -316,34 +304,68 @@ void AggregateGroupLimitRelParser::addGroupLmitAggregationStep()
 {
     const auto & settings = getContext()->getSettingsRef();
     DB::AggregateDescriptions agg_descs = {buildAggregateDescription()};
-    DB::Aggregator::Params params(
-        aggregate_grouping_keys,
-        agg_descs,
-        false,
-        settings[DB::Setting::max_rows_to_group_by],
-        settings[Setting::group_by_overflow_mode],
-        settings[Setting::group_by_two_level_threshold],
-        settings[Setting::group_by_two_level_threshold_bytes],
-        0,
-        settings[Setting::empty_result_for_aggregation_by_empty_set],
-        getContext()->getTempDataOnDisk(),
-        settings[Setting::max_threads],
-        settings[Setting::min_free_disk_space_for_temporary_data],
-        true,
-        3,
-        PODArrayUtil::adjustMemoryEfficientSize(settings[Setting::max_block_size]),
-        true,
-        false,
-        settings[Setting::optimize_group_by_constant_keys],
-        settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
-        {});
+    auto params = AggregatorParamsHelper::buildParams(
+        getContext(), aggregate_grouping_keys, agg_descs, AggregatorParamsHelper::Mode::INIT_TO_COMPLETED);
     auto agg_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), current_plan->getCurrentHeader(), params, true);
     steps.push_back(agg_step.get());
     current_plan->addStep(std::move(agg_step));
+    LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Plan after add group limit:\n{}", PlanUtil::explainPlan(*current_plan));
 }
 
 void AggregateGroupLimitRelParser::postProjectionForExplodingArrays()
 {
+    auto header = current_plan->getCurrentHeader();
+
+    /// flatten the array column.
+    auto agg_result_index = header.columns() - 1;
+    auto array_join_actions_dag = ArrayJoinHelper::applyArrayJoinOnOneColumn(header, agg_result_index);
+    auto new_steps = ArrayJoinHelper::addArrayJoinStep(getContext(), *current_plan, array_join_actions_dag, false);
+    steps.insert(steps.end(), new_steps.begin(), new_steps.end());
+
+    auto array_join_output_header = current_plan->getCurrentHeader();
+    DB::ActionsDAG flatten_actions_dag(array_join_output_header.getColumnsWithTypeAndName());
+    DB::Names flatten_output_column_names;
+    for (size_t i = 0; i < array_join_output_header.columns() - 1; ++i)
+    {
+        const auto & col = array_join_output_header.getByPosition(i);
+        flatten_output_column_names.push_back(col.name);
+    }
+    auto last_column = array_join_output_header.getByPosition(array_join_output_header.columns() - 1);
+    const auto * tuple_column = typeid_cast<const DB::ColumnTuple *>(last_column.column.get());
+    const auto * tuple_datatype = typeid_cast<const DB::DataTypeTuple *>(last_column.type.get());
+    const auto & field_names = tuple_datatype->getElementNames();
+    DB::DataTypePtr tuple_index_type = std::make_shared<DB::DataTypeUInt32>();
+    const auto * tuple_node = flatten_actions_dag.getInputs().back();
+    for (size_t i = 0; i < field_names.size(); ++i)
+    {
+        DB::ActionsDAG::NodeRawConstPtrs tuple_index_args;
+        tuple_index_args.push_back(tuple_node);
+        tuple_index_args.push_back(expression_parser->addConstColumn(flatten_actions_dag, tuple_index_type, i + 1));
+        const auto * field_node = expression_parser->toFunctionNode(flatten_actions_dag, "tupleElement", tuple_index_args, field_names[i]);
+        flatten_actions_dag.addOrReplaceInOutputs(*field_node);
+        flatten_output_column_names.push_back(field_node->result_name);
+    }
+    flatten_actions_dag.removeUnusedActions(flatten_output_column_names);
+    LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Actions dag for untupling aggregate result:\n{}", flatten_actions_dag.dumpDAG());
+    auto flatten_expression_step = std::make_unique<DB::ExpressionStep>(current_plan->getCurrentHeader(), std::move(flatten_actions_dag));
+    flatten_expression_step->setStepDescription("Untuple the aggregation result");
+    steps.push_back(flatten_expression_step.get());
+    current_plan->addStep(std::move(flatten_expression_step));
+
+    auto flatten_tuple_output_header = current_plan->getCurrentHeader();
+    auto window_result_column = flatten_tuple_output_header.getByPosition(flatten_tuple_output_header.columns() - 1);
+    /// The result column is put at the end of the header.
+    auto output_header = input_header;
+    output_header.insert(window_result_column);
+    auto adjust_pos_actions_dag = DB::ActionsDAG::makeConvertingActions(
+        flatten_tuple_output_header.getColumnsWithTypeAndName(),
+        output_header.getColumnsWithTypeAndName(),
+        DB::ActionsDAG::MatchColumnsMode::Name);
+    LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Actions dag for replacing columns:\n{}", adjust_pos_actions_dag.dumpDAG());
+    auto adjust_pos_expression_step = std::make_unique<DB::ExpressionStep>(flatten_tuple_output_header, std::move(adjust_pos_actions_dag));
+    adjust_pos_expression_step->setStepDescription("Adjust position of the output columns");
+    steps.push_back(adjust_pos_expression_step.get());
+    current_plan->addStep(std::move(adjust_pos_expression_step));
 }
 
 void registerWindowGroupLimitRelParser(RelParserFactory & factory)

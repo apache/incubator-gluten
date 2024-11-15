@@ -68,7 +68,7 @@ case class ConverRowNumbertWindowToAggregateRule(spark: SparkSession)
           return filter
         }
         val limit = getLimit(condition.asInstanceOf[BinaryComparison])
-        if (limit < 1) {
+        if (limit < 1 || limit > 100) {
           return filter
         }
         val groupLimit = CHAggregateGroupLimitExecTransformer(
