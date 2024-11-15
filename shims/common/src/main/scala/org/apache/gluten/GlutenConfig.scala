@@ -472,6 +472,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
+
+  def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
 }
 
 object GlutenConfig {
@@ -2168,6 +2170,13 @@ object GlutenConfig {
         "If true, will add a trim node " +
           "which has the same sementic as vanilla Spark to CAST-from-varchar." +
           "Otherwise, do nothing.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val HDFS_VIEWFS_ENABLED =
+    buildStaticConf("spark.gluten.storage.hdfs.viewfs.enabled")
+      .internal()
+      .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala size")
       .booleanConf
       .createWithDefault(false)
 }

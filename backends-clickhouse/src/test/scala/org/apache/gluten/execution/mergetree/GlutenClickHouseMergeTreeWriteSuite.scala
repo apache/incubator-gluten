@@ -1831,7 +1831,7 @@ class GlutenClickHouseMergeTreeWriteSuite
             case scanExec: BasicScanExecTransformer => scanExec
           }
           assertResult(1)(plans.size)
-          assertResult(1)(plans.head.getSplitInfos(null).size)
+          assertResult(1)(plans.head.getSplitInfos.size)
       }
     }
   }

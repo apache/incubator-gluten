@@ -294,24 +294,25 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
-
-      allScanSplitInfos.foreach {
-        splitInfos =>
-          splitInfos.foreach {
-            case splitInfo: LocalFilesNode =>
-              val paths = splitInfo.getPaths.asScala
-              if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
-                // Convert the viewfs path into hdfs
-                val newPaths = paths.map {
-                  viewfsPath =>
-                    val viewPath = new Path(viewfsPath)
-                    val viewFileSystem =
-                      FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
-                    viewFileSystem.resolvePath(viewPath).toString
+      if (GlutenConfig.getConf.enableHdfsViewfs) {
+        allScanSplitInfos.foreach {
+          splitInfos =>
+            splitInfos.foreach {
+              case splitInfo: LocalFilesNode =>
+                val paths = splitInfo.getPaths.asScala
+                if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
+                  // Convert the viewfs path into hdfs
+                  val newPaths = paths.map {
+                    viewfsPath =>
+                      val viewPath = new Path(viewfsPath)
+                      val viewFileSystem =
+                        FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
+                      viewFileSystem.resolvePath(viewPath).toString
+                  }
+                  splitInfo.setPaths(newPaths.asJava)
                 }
-                splitInfo.setPaths(newPaths.asJava)
-              }
-          }
+            }
+        }
       }
 
       val inputPartitions =
