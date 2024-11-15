@@ -2174,9 +2174,9 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val HDFS_VIEWFS_ENABLED =
-    buildStaticConf("spark.gluten.storage.hdfs.viewfs.enabled")
+    buildStaticConf("spark.gluten.storage.hdfsViewfs.enabled")
       .internal()
-      .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala size")
+      .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala side")
       .booleanConf
       .createWithDefault(false)
 }
