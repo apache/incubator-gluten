@@ -2218,13 +2218,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     withSQLConf(("spark.sql.legacy.timeParserPolicy" -> "corrected")) {
       compareResultsAgainstVanillaSpark(
-        "select to_date('2025-07-22 10:00:00', 'yyyy-MM-dd')",
+        "select id, to_date('2025-07-22 10:00:00', 'yyyy-MM-dd') from test_tbl_3135 where id = 1",
         true,
         { _ => })
     }
     withSQLConf(("spark.sql.legacy.timeParserPolicy" -> "legacy")) {
       compareResultsAgainstVanillaSpark(
-        "select to_date('2025-07-22 10:00:00', 'yyyy-MM-dd')",
+        "select id, to_date('2025-07-22 10:00:00', 'yyyy-MM-dd') from test_tbl_3135 where id = 1",
         true,
         { _ => })
     }

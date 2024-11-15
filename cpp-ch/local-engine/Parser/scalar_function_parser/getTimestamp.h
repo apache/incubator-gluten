@@ -58,60 +58,47 @@ public:
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
-        
-        const auto & args = substrait_func.arguments();
-        String fmt_str;
-        UInt32 s_count = 0;
-        if(args[1].value().has_literal())
-        {
-            const auto & literal_expr = args[1].value().literal();
-            if (literal_expr.has_string())
-            {
-                fmt_str = literal_expr.string();
-                s_count = std::count(fmt_str.begin(), fmt_str.end(), 'S');
-            }
-            else
-                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second of function {} must be const String.", name);
-        }
-        else
-            throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second of function {} must be const String.", name);
-
         const auto * expr_arg = parsed_args[0];
         const auto * fmt_arg = parsed_args[1];
-        const DateLUTImpl * date_lut = &DateLUT::instance();
-        const auto * time_zone_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), date_lut->getTimeZone());
-        String time_parser_policy;
-        const ContextPtr context = getContext();
-        if (context->getSettingsRef().has(TIMER_PARSER_POLICY))
-            time_parser_policy = toString(context->getSettingsRef().get(TIMER_PARSER_POLICY));
+        
+        const auto & args = substrait_func.arguments();
+        bool fmt_string_literal = args[1].value().has_literal();
+        String fmt;
+        if (fmt_string_literal)
+        {
+            const auto & literal_fmt_expr = args[1].value().literal();
+            fmt_string_literal = literal_fmt_expr.has_string();
+            fmt = literal_fmt_expr.string();
+        }
+        if (!fmt_string_literal)
+            throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second of function {} must be const String.", name);
+
+        UInt32 s_count = std::count(fmt.begin(), fmt.end(), 'S');
+        String time_parser_policy = getContext()->getSettingsRef().has(TIMER_PARSER_POLICY) ? toString(getContext()->getSettingsRef().get(TIMER_PARSER_POLICY)) : "";
         boost::to_lower(time_parser_policy);
         if (time_parser_policy == "legacy")
         {
-            if (s_count < 3)
+            if (s_count == 0)
             {
-                if (s_count == 0)
-                {
-                    const auto * index_begin_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt64>(), 1);
-                    const auto * index_end_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt64>(), fmt_str.size());
-                    const auto * substr_node = toFunctionNode(actions_dag, "substringUTF8", {expr_arg, index_begin_node, index_end_node});
-                    const auto * fmt_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), fmt_str);
-                    const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {substr_node, fmt_node, time_zone_node});
-                    return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
-                }
-                else
-                    for (size_t i = 0; i < 3 - s_count; ++i)
-                        fmt_str += 'S';
+                const auto * index_begin_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt64>(), 1);
+                const auto * index_end_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt64>(), fmt.size());
+                const auto * substr_node = toFunctionNode(actions_dag, "substringUTF8", {expr_arg, index_begin_node, index_end_node});
+                const auto * fmt_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), fmt);
+                const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {substr_node, fmt_node});
+                return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
             }
+            else if (s_count < 3)
+                fmt += String(3 - s_count, 'S');
             else
-                fmt_str = fmt_str.substr(0, fmt_str.size() - (s_count - 3));
-            
-            const auto * fmt_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), fmt_str);
-            const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_node, time_zone_node});
+                fmt = fmt.substr(0, fmt.size() - (s_count - 3));
+
+            const auto * fmt_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), fmt);
+            const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_node});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
         }
         else
         {
-            const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
+            const auto * result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_arg});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
         }
     }
