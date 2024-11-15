@@ -68,7 +68,7 @@ public:
         {
             const auto & literal_fmt_expr = args[1].value().literal();
             fmt_string_literal = literal_fmt_expr.has_string();
-            fmt = literal_fmt_expr.string();
+            fmt = fmt_string_literal ? literal_fmt_expr.string() : "";
         }
         if (!fmt_string_literal)
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second of function {} must be const String.", name);
