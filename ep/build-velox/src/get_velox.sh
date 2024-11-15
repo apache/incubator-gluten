@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_11_14
+VELOX_REPO=https://github.com/jinchengchenghh/velox.git
+VELOX_BRANCH=prefixsort
 VELOX_HOME=""
 
 OS=`uname -s`
