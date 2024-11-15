@@ -38,7 +38,7 @@ namespace pb_util = google::protobuf::util;
 namespace debug
 {
 
-void dumpPlan(DB::QueryPlan & plan, bool force, LoggerPtr logger)
+void dumpPlan(DB::QueryPlan & plan, const char * type, bool force, LoggerPtr logger)
 {
     if (!logger)
     {
@@ -51,10 +51,12 @@ void dumpPlan(DB::QueryPlan & plan, bool force, LoggerPtr logger)
         return;
 
     auto out = local_engine::PlanUtil::explainPlan(plan);
+    auto task_id = local_engine::QueryContext::instance().currentTaskIdOrEmpty();
+    task_id = task_id.empty() ? "" : "(" + task_id + ")";
     if (force) // force
-        LOG_ERROR(logger, "clickhouse plan({}):\n{}", local_engine::QueryContext::instance().currentTaskIdOrEmpty(), out);
+        LOG_ERROR(logger, "{}{} =>\n{}", type, task_id, out);
     else
-        LOG_DEBUG(logger, "clickhouse plan({}):\n{}", local_engine::QueryContext::instance().currentTaskIdOrEmpty(), out);
+        LOG_DEBUG(logger, "{}{} =>\n{}", type, task_id, out);
 }
 
 void dumpMessage(const google::protobuf::Message & message, const char * type, bool force, LoggerPtr logger)
@@ -70,13 +72,15 @@ void dumpMessage(const google::protobuf::Message & message, const char * type, b
         return;
     pb_util::JsonOptions options;
     std::string json;
-    if (auto s = google::protobuf::json::MessageToJsonString(message, &json, options); !s.ok())
+    if (auto s = MessageToJsonString(message, &json, options); !s.ok())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
 
+    auto task_id = local_engine::QueryContext::instance().currentTaskIdOrEmpty();
+    task_id = task_id.empty() ? "" : "(" + task_id + ")";
     if (force) // force
-        LOG_ERROR(logger, "{}({}):\n{}", type, local_engine::QueryContext::instance().currentTaskIdOrEmpty(), json);
+        LOG_ERROR(logger, "{}{} =>\n{}", type, task_id, json);
     else
-        LOG_DEBUG(logger, "{}({}):\n{}", type, local_engine::QueryContext::instance().currentTaskIdOrEmpty(), json);
+        LOG_DEBUG(logger, "{}{} =>\n{}", type, task_id, json);
 }
 
 void headBlock(const DB::Block & block, size_t count)
