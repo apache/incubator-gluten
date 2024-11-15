@@ -241,7 +241,7 @@ class FileSystemWrapper : public facebook::velox::filesystems::FileSystem {
     return fs_->list(rewrite(path));
   }
 
-  void mkdir(std::string_view path) override {
+  void mkdir(std::string_view path, const facebook::velox::filesystems::DirectoryOptions& options = {}) override {
     fs_->mkdir(rewrite(path));
   }
 
@@ -349,7 +349,7 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     return out;
   }
 
-  void mkdir(std::string_view path) override {
+  void mkdir(std::string_view path, const facebook::velox::filesystems::DirectoryOptions& options = {}) override {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->CallVoidMethod(obj_, jniFileSystemMkdir, createJString(env, path));
