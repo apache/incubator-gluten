@@ -17,20 +17,37 @@
 
 #include "GroupLimitRelParser.h"
 #include <Core/ColumnsWithTypeAndName.h>
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/IDataType.h>
 #include <Interpreters/ActionsDAG.h>
+#include <Interpreters/AggregateDescription.h>
+#include <Operator/GraceMergingAggregatedStep.h>
 #include <Operator/WindowGroupLimitStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/wrappers.pb.h>
-#include "Interpreters/AggregateDescription.h"
+#include <Common/CHUtil.h>
 
 namespace DB::ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
+}
+
+namespace DB::Setting
+{
+extern const SettingsUInt64 group_by_two_level_threshold_bytes;
+extern const SettingsUInt64 max_rows_to_group_by;
+extern const SettingsOverflowModeGroupBy group_by_overflow_mode;
+extern const SettingsUInt64 group_by_two_level_threshold;
+extern const SettingsBool empty_result_for_aggregation_by_empty_set;
+extern const SettingsMaxThreads max_threads;
+extern const SettingsUInt64 min_free_disk_space_for_temporary_data;
+extern const SettingsUInt64 max_block_size;
+extern const SettingsBool optimize_group_by_constant_keys;
+extern const SettingsFloat min_hit_rate_to_use_consecutive_keys_optimization;
 }
 
 namespace local_engine
@@ -141,7 +158,14 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
     limit = static_cast<size_t>(win_rel_def.limit());
     aggregate_function_name = getAggregateFunctionName(optimization_info.window_function);
 
+    if (limit < 1)
+    {
+        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid limit: {}", limit);
+    }
+
     prePrejectionForAggregateArguments();
+    addGroupLmitAggregationStep();
+    postProjectionForExplodingArrays();
 
     throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Not implemented yet");
 }
@@ -273,7 +297,10 @@ DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription
     DB::AggregateDescription agg_desc;
     agg_desc.column_name = aggregate_tuple_column_name;
     agg_desc.argument_names = {aggregate_tuple_column_name, order_tuple_column_name};
-    auto parameters = parseSortDirections(win_rel_def->sorts());
+    DB::Array parameters;
+    parameters.push_back(static_cast<UInt32>(limit));
+    auto sort_directions = parseSortDirections(win_rel_def->sorts());
+    parameters.insert(parameters.end(), sort_directions.begin(), sort_directions.end());
 
     auto header = current_plan->getCurrentHeader();
     DB::DataTypes arg_types;
@@ -286,6 +313,36 @@ DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription
 }
 
 void AggregateGroupLimitRelParser::addGroupLmitAggregationStep()
+{
+    const auto & settings = getContext()->getSettingsRef();
+    DB::AggregateDescriptions agg_descs = {buildAggregateDescription()};
+    DB::Aggregator::Params params(
+        aggregate_grouping_keys,
+        agg_descs,
+        false,
+        settings[DB::Setting::max_rows_to_group_by],
+        settings[Setting::group_by_overflow_mode],
+        settings[Setting::group_by_two_level_threshold],
+        settings[Setting::group_by_two_level_threshold_bytes],
+        0,
+        settings[Setting::empty_result_for_aggregation_by_empty_set],
+        getContext()->getTempDataOnDisk(),
+        settings[Setting::max_threads],
+        settings[Setting::min_free_disk_space_for_temporary_data],
+        true,
+        3,
+        PODArrayUtil::adjustMemoryEfficientSize(settings[Setting::max_block_size]),
+        true,
+        false,
+        settings[Setting::optimize_group_by_constant_keys],
+        settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
+        {});
+    auto agg_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), current_plan->getCurrentHeader(), params, true);
+    steps.push_back(agg_step.get());
+    current_plan->addStep(std::move(agg_step));
+}
+
+void AggregateGroupLimitRelParser::postProjectionForExplodingArrays()
 {
 }
 

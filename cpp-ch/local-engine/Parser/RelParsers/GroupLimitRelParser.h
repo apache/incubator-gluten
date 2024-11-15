@@ -84,5 +84,7 @@ private:
     void addGroupLmitAggregationStep();
     DB::Array parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
     DB::AggregateDescription buildAggregateDescription();
+
+    void postProjectionForExplodingArrays();
 };
 }

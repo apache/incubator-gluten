@@ -17,6 +17,7 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.WindowFunctionsBuilder
 
@@ -66,18 +67,31 @@ case class ConverRowNumbertWindowToAggregateRule(spark: SparkSession)
               s"function: ${isSupportedWindowFunction(windowExpressions)}")
           return filter
         }
+        val limit = getLimit(condition.asInstanceOf[BinaryComparison])
+        if (limit < 1) {
+          return filter
+        }
         val groupLimit = CHAggregateGroupLimitExecTransformer(
           partitionSpec,
           orderSpec,
           extractWindowFunction(windowExpressions(0)),
           sort.child.output ++ Seq(windowExpressions(0).toAttribute),
-          evalIntLiteral(condition.asInstanceOf[BinaryComparison].right).get,
+          limit,
           sort.child
         )
         logDebug(s"xxx windowGroupLimit: $groupLimit")
         logDebug(s"xxx original window output: ${window.output}")
         logDebug(s"xxx windowGroupLimit output: ${groupLimit.output}")
         groupLimit
+    }
+  }
+
+  def getLimit(e: BinaryComparison): Int = {
+    e match {
+      case _: EqualTo => evalIntLiteral(e.right).get
+      case _: LessThanOrEqual => evalIntLiteral(e.right).get
+      case _: LessThan => evalIntLiteral(e.right).get - 1
+      case _ => throw new GlutenException(s"Unsupported comparison: $e")
     }
   }
 
