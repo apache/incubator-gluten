@@ -26,6 +26,7 @@ import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPla
 import org.apache.spark.sql.execution.ColumnarCollapseTransformStages.transformStageCounter
 
 trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
+  private lazy val transform = HeuristicTransform.static()
 
   /**
    * FileFormatWriter wraps some Project & Sort on the top of the original output spark plan, we
@@ -41,7 +42,6 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     }
 
     // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
-    val transform = HeuristicTransform()
     val transformed = transform(plan)
 
     if (!transformed.isInstanceOf[TransformSupport]) {

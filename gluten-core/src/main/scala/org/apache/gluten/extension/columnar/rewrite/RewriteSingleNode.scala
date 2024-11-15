@@ -14,19 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.injector
+package org.apache.gluten.extension.columnar.rewrite
 
-import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.execution.SparkPlan
 
-/** Injector used to inject extensible components into Spark and Gluten. */
-class Injector(extensions: SparkSessionExtensions) {
-  val control = new InjectorControl()
-  val spark: SparkInjector = new SparkInjector(control, extensions)
-  val gluten: GlutenInjector = new GlutenInjector(control)
-
-  private[extension] def inject(): Unit = {
-    // The regular Spark rules already injected with the `injectRules` of `RuleApi` directly.
-    // Only inject the Spark columnar rule here.
-    gluten.inject(extensions)
-  }
+/**
+ * Rewrites a plan node from vanilla Spark into its alternative representation.
+ *
+ * Gluten's planner will pick one that is considered the best executable plan between input plan and
+ * the output plan.
+ *
+ * Note: Only the current plan node is supposed to be open to modification. Do not access or modify
+ * the children node. Tree-walking is done by caller of this trait.
+ *
+ * TODO: Ideally for such API we'd better to allow multiple alternative outputs.
+ */
+trait RewriteSingleNode {
+  def isRewritable(plan: SparkPlan): Boolean
+  def rewrite(plan: SparkPlan): SparkPlan
 }

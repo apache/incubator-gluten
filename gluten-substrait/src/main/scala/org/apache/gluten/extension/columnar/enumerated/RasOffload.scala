@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.heuristic.OffloadSingleNode
+import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.ras.path.Pattern
@@ -50,8 +50,6 @@ object RasOffload {
     }
   }
 
-  private val rewrites = RewriteSingleNode.allRules()
-
   def from[T <: SparkPlan: ClassTag](base: OffloadSingleNode): RasOffload = {
     new RasOffload {
       override def offload(plan: SparkPlan): SparkPlan = base.offload(plan)
@@ -59,19 +57,24 @@ object RasOffload {
     }
   }
 
-  def from(identifier: TypeIdentifier, base: OffloadSingleNode): RasOffload = {
+  def from(identifier: SparkPlan => Boolean)(base: OffloadSingleNode): RasOffload = {
     new RasOffload {
       override def offload(plan: SparkPlan): SparkPlan = base.offload(plan)
-      override def typeIdentifier(): TypeIdentifier = identifier
+      override def typeIdentifier(): TypeIdentifier = new TypeIdentifier {
+        override def isInstance(node: SparkPlan): Boolean = identifier(node)
+      }
     }
   }
 
   object Rule {
-    def apply(base: RasOffload, validator: Validator): RasRule[SparkPlan] = {
-      new RuleImpl(base, validator)
+    def apply(
+        base: RasOffload,
+        validator: Validator,
+        rewrites: Seq[RewriteSingleNode]): RasRule[SparkPlan] = {
+      new RuleImpl(base, validator, rewrites)
     }
 
-    private class RuleImpl(base: RasOffload, validator: Validator)
+    private class RuleImpl(base: RasOffload, validator: Validator, rewrites: Seq[RewriteSingleNode])
       extends RasRule[SparkPlan]
       with Logging {
       private val typeIdentifier: TypeIdentifier = base.typeIdentifier()
@@ -130,7 +133,9 @@ object RasOffload {
                   offloadedPlan
                 }
               case Validator.Failed(reason) =>
-                // TODO: Tag the original plan with fallback reason.
+                // TODO: Tag the original plan with fallback reason. This is a non-trivial work
+                //  in RAS as the query plan we got here may be a copy so may not propagate tags
+                //  to original plan.
                 from
             }
         }

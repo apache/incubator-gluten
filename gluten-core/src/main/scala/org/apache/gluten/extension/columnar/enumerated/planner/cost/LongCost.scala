@@ -14,19 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.injector
+package org.apache.gluten.extension.columnar.enumerated.planner.cost
 
-import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.gluten.ras.Cost
 
-/** Injector used to inject extensible components into Spark and Gluten. */
-class Injector(extensions: SparkSessionExtensions) {
-  val control = new InjectorControl()
-  val spark: SparkInjector = new SparkInjector(control, extensions)
-  val gluten: GlutenInjector = new GlutenInjector(control)
-
-  private[extension] def inject(): Unit = {
-    // The regular Spark rules already injected with the `injectRules` of `RuleApi` directly.
-    // Only inject the Spark columnar rule here.
-    gluten.inject(extensions)
-  }
-}
+case class LongCost(value: Long) extends Cost

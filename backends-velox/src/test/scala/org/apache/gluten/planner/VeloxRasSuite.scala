@@ -17,14 +17,18 @@
 package org.apache.gluten.planner
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.velox.VeloxListenerApi
+import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
+import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
+import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LegacyCoster, LongCostModel}
+import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
 import org.apache.gluten.extension.columnar.transition.ConventionReq
-import org.apache.gluten.planner.cost.GlutenCostModel
-import org.apache.gluten.planner.property.Conv
 import org.apache.gluten.ras.{Cost, CostModel, Ras}
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
+import org.apache.gluten.test.MockVeloxBackend
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -35,6 +39,18 @@ import org.apache.spark.sql.types.StringType
 
 class VeloxRasSuite extends SharedSparkSession {
   import VeloxRasSuite._
+
+  private val api = new VeloxListenerApi()
+
+  override protected def beforeAll(): Unit = {
+    api.onExecutorStart(MockVeloxBackend.mockPluginContext())
+    super.beforeAll()
+  }
+
+  override protected def afterAll(): Unit = {
+    super.afterAll()
+    api.onExecutorShutdown()
+  }
 
   test("C2R, R2C - basic") {
     val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
@@ -140,21 +156,28 @@ class VeloxRasSuite extends SharedSparkSession {
 
 object VeloxRasSuite {
   def newRas(): Ras[SparkPlan] = {
+    newRas(Nil)
+  }
+
+  def newRas(rasRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {
     GlutenOptimization
       .builder()
-      .costModel(GlutenCostModel.find())
-      .addRules(List())
+      .costModel(sessionCostModel())
+      .addRules(rasRules)
       .create()
       .asInstanceOf[Ras[SparkPlan]]
   }
 
-  def newRas(RasRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {
-    GlutenOptimization
-      .builder()
-      .costModel(GlutenCostModel.find())
-      .addRules(RasRules)
-      .create()
-      .asInstanceOf[Ras[SparkPlan]]
+  private def legacyCostModel(): CostModel[SparkPlan] = {
+    val registry = LongCostModel.registry()
+    val coster = LegacyCoster
+    registry.overrideWith(coster)
+    registry.get(coster.kind())
+  }
+
+  private def sessionCostModel(): CostModel[SparkPlan] = {
+    val transform = EnumeratedTransform.static()
+    transform.costModel
   }
 
   val TRIVIAL_SCHEMA: Seq[AttributeReference] = List(AttributeReference("value", StringType)())
@@ -191,7 +214,7 @@ object VeloxRasSuite {
   }
 
   class UserCostModel1 extends CostModel[SparkPlan] {
-    private val base = GlutenCostModel.legacy()
+    private val base = legacyCostModel()
     override def costOf(node: SparkPlan): Cost = node match {
       case _: RowUnary => base.makeInfCost()
       case other => base.costOf(other)
@@ -201,7 +224,7 @@ object VeloxRasSuite {
   }
 
   class UserCostModel2 extends CostModel[SparkPlan] {
-    private val base = GlutenCostModel.legacy()
+    private val base = legacyCostModel()
     override def costOf(node: SparkPlan): Cost = node match {
       case _: ColumnarUnary => base.makeInfCost()
       case other => base.costOf(other)
