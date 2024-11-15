@@ -32,6 +32,7 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
+#include <Core/ServerSettings.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDateTime64.h>
@@ -79,12 +80,23 @@ namespace Setting
 {
 extern const SettingsUInt64 prefer_external_sort_block_bytes;
 extern const SettingsUInt64 max_bytes_before_external_sort;
+extern const SettingsBool query_plan_merge_filters;
+extern const SettingsBool compile_expressions;
+extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
 }
 namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
 extern const int UNKNOWN_TYPE;
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
+}
+
+namespace ServerSetting
+{
+extern const ServerSettingsUInt64 max_thread_pool_size;
+extern const ServerSettingsUInt64 thread_pool_queue_size;
+extern const ServerSettingsUInt64 max_io_thread_pool_size;
+extern const ServerSettingsUInt64 io_thread_pool_queue_size;
 }
 }
 
@@ -713,6 +725,14 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("max_download_threads", 1);
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
 
+    /// update per https://github.com/ClickHouse/ClickHouse/pull/71539
+    /// if true, we can't get correct metrics for the query
+    settings[Setting::query_plan_merge_filters] = false;
+    /// We now set BuildQueryPipelineSettings according to config.
+    settings[Setting::compile_expressions] = true;
+    settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
+    ///
+
     for (const auto & [key, value] : spark_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
@@ -757,6 +777,7 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
+
     /// Finally apply some fixed kvs to settings.
     settings.set("join_use_nulls", true);
     settings.set("input_format_orc_allow_missing_columns", true);
@@ -970,7 +991,12 @@ void BackendInitializerUtil::initBackend(const SparkConfigs::ConfigMap & spark_c
             initCompiledExpressionCache(config);
             LOG_INFO(logger, "Init compiled expressions cache factory.");
 
-            GlobalThreadPool::initialize();
+            ServerSettings server_settings;
+            server_settings.loadSettingsFromConfig(*config);
+            GlobalThreadPool::initialize(
+                server_settings[ServerSetting::max_thread_pool_size], 0, server_settings[ServerSetting::thread_pool_queue_size]);
+            getIOThreadPool().initialize(
+                server_settings[ServerSetting::max_io_thread_pool_size], 0, server_settings[ServerSetting::io_thread_pool_queue_size]);
 
             const size_t active_parts_loading_threads = config->getUInt("max_active_parts_loading_thread_pool_size", 64);
             DB::getActivePartsLoadingThreadPool().initialize(
