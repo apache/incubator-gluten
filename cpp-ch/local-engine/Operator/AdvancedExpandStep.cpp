@@ -281,7 +281,7 @@ void AdvancedExpandTransform::detectCardinality()
     std::vector<bool> is_col_low_cardinality;
     for (size_t i = 0; i < grouping_keys; ++i)
     {
-        DB::WeakHash32 hash(cardinality_detect_rows);
+        DB::WeakHash32 hash = block.getByPosition(i).column->getWeakHash32();
         std::unordered_set<UInt32> distinct_ids;
         const auto & data = hash.getData();
         for (size_t j = 0; j < cardinality_detect_rows; ++j)
