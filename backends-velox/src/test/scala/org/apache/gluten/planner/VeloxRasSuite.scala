@@ -17,7 +17,6 @@
 package org.apache.gluten.planner
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.velox.VeloxListenerApi
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
 import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
 import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LegacyCoster, LongCostModel}
@@ -28,7 +27,6 @@ import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
-import org.apache.gluten.test.MockVeloxBackend
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -39,18 +37,6 @@ import org.apache.spark.sql.types.StringType
 
 class VeloxRasSuite extends SharedSparkSession {
   import VeloxRasSuite._
-
-  private val api = new VeloxListenerApi()
-
-  override protected def beforeAll(): Unit = {
-    api.onExecutorStart(MockVeloxBackend.mockPluginContext())
-    super.beforeAll()
-  }
-
-  override protected def afterAll(): Unit = {
-    super.afterAll()
-    api.onExecutorShutdown()
-  }
 
   test("C2R, R2C - basic") {
     val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
