@@ -130,49 +130,49 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
     const auto & output_schema = root_rel.root().output_schema();
     if (output_schema.types_size())
     {
-        auto original_header = query_plan->getCurrentHeader();
-        const auto & original_cols = original_header.getColumnsWithTypeAndName();
-        if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
+        auto origin_header = query_plan->getCurrentHeader();
+        const auto & origin_columns = origin_header.getColumnsWithTypeAndName();
+
+        if (static_cast<size_t>(output_schema.types_size()) != origin_columns.size())
         {
             debug::dumpPlan(*query_plan, true);
             debug::dumpMessage(root_rel, "substrait::PlanRel", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan output schema size {}, subtrait plan name size {}.",
-                original_cols.size(),
+                origin_columns.size(),
                 output_schema.types_size(),
                 root_rel.root().names_size());
         }
+
         bool need_final_project = false;
-        ColumnsWithTypeAndName final_cols;
+        ColumnsWithTypeAndName final_columns;
         for (int i = 0; i < output_schema.types_size(); ++i)
         {
-            const auto & col = original_cols[i];
-            auto type = TypeParser::parseType(output_schema.types(i));
-            // At present, we only check nullable mismatch.
-            // intermediate aggregate data is special, no check here.
-            if (type->isNullable() != col.type->isNullable() && !typeid_cast<const DataTypeAggregateFunction *>(col.type.get()))
-            {
-                if (type->isNullable())
-                {
-                    auto wrapped = wrapNullableType(true, col.type);
-                    final_cols.emplace_back(type->createColumn(), wrapped, col.name);
-                    need_final_project = !wrapped->equals(*col.type);
-                }
-                else
-                {
-                    final_cols.emplace_back(type->createColumn(), removeNullable(col.type), col.name);
-                    need_final_project = true;
-                }
-            }
+            const auto & origin_column = origin_columns[i];
+            const auto & origin_type = origin_column.type;
+            auto final_type = TypeParser::parseType(output_schema.types(i));
+
+            /// Intermediate aggregate data is special, no check here.
+            if (typeid_cast<const DataTypeAggregateFunction *>(origin_column.type.get()) || origin_type->equals(*final_type))
+                final_columns.push_back(origin_column);
             else
             {
-                final_cols.push_back(col);
+                need_final_project = true;
+
+                bool need_const = origin_column.column && isColumnConst(*origin_column.column);
+                ColumnWithTypeAndName final_column(
+                    need_const ? final_type->createColumnConst(0, assert_cast<const ColumnConst &>(*origin_column.column).getField())
+                               : final_type->createColumn(),
+                    final_type,
+                    origin_column.name);
+                final_columns.emplace_back(std::move(final_column));
             }
         }
+
         if (need_final_project)
         {
-            ActionsDAG final_project = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
+            ActionsDAG final_project = ActionsDAG::makeConvertingActions(origin_columns, final_columns, ActionsDAG::MatchColumnsMode::Position);
             QueryPlanStepPtr final_project_step
                 = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(final_project));
             final_project_step->setStepDescription("Project for output schema");
