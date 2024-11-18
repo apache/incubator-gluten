@@ -257,7 +257,7 @@ inputs from a first stage. The steps are demonstrated as below:
 1. Start spark-shell or pyspark
 
 We need to set `spark.gluten.sql.benchmark_task.stageId` and `spark.gluten.saveDir` to dump the inputs.
-Normally, the stage id should be greater than 0. You can run the command in step 2 in advance to get the 
+Normally, the stage id should be greater than 0. You can run the command in step 2 in advance to get the
 right stage id in your case. We shall set `spark.default.parallelism` to 1 and `spark.sql.files.maxPartitionBytes`
 large enough to make sure there will be only 1 task in the first stage.
 
@@ -373,17 +373,18 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --write-path /absolute_path/<dir>
 ```
 
-
 ## Simulate task spilling
 
-You can simulate task spilling by specify memory hard limit from `--memory_limit`.
+You can simulate task spilling by specify a memory hard limit from `--memory_limit`. By default, spilled files are written to the `/tmp` directory.
+To simulate real Gluten workloads, which utilize multiple spill directories, set the environment variable GLUTEN_SPARK_LOCAL_DIRS to a comma-separated string.
+Please check [Simulate Gluten workload with multiple processes and threads](#Simulate-Gluten-workload-with-multiple-processes-and-threads) for more details.
 
-## Simulate Spark with multiple processes and threads
+## Simulate Gluten workload with multiple processes and threads
 
 You can use below command to launch several processes and threads to simulate parallel execution on
 Spark. Each thread in the same process will be pinned to the core number starting from `--cpu`.
 
-Suppose running on a baremetal machine with 48C, 2-socket, HT-on, launching below command will
+Suppose running on a bare-metal machine with 48C, 2-socket, HT-on, launching below command will
 utilize all vcores.
 
 ```shell
@@ -395,9 +396,10 @@ for ((i=0; i<${processes}; i++)); do
 done
 ```
 
-If you want to add the shuffle write process, you can specify multiple directories by setting
-environment variable `GLUTEN_SPARK_LOCAL_DIRS` to a comma-separated string for shuffle write to
-spread the I/O pressure to multiple disks.
+To include the shuffle write process or trigger spilling via `--memory-limit`,
+you can specify multiple directories by setting the `GLUTEN_SPARK_LOCAL_DIRS` environment variable
+to a comma-separated string. This will distribute the I/O load across multiple disks, similar to how it works for Gluten workloads.
+Temporary subdirectories will be created under each specified directory at runtime and will be automatically deleted if the process completes normally.
 
 ```shell
 mkdir -p {/data1,/data2,/data3}/tmp # Make sure each directory has been already created.

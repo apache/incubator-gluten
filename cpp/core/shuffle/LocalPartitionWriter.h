@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <arrow/filesystem/localfs.h>
 #include <arrow/io/api.h>
 
 #include "shuffle/PartitionWriter.h"

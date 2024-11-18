@@ -41,10 +41,10 @@ TEST_F(MyUdfTest, hivestringstring) {
     auto iter = self.find(candidate);
     std::unordered_map<std::string, std::string> values;
     const facebook::velox::core::QueryConfig config(std::move(values));
-    iter->second.factory(
-        candidate,
-        {facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()},
-         facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()}},
-        config) != nullptr;
+    return iter->second.factory(
+               candidate,
+               {facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()},
+                facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()}},
+               config) != nullptr;
   });)
 }

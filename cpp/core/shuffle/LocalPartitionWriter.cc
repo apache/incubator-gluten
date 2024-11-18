@@ -379,7 +379,7 @@ LocalPartitionWriter::LocalPartitionWriter(
 }
 
 std::string LocalPartitionWriter::nextSpilledFileDir() {
-  auto spilledFileDir = getSpilledShuffleFileDir(localDirs_[dirSelection_], subDirSelection_[dirSelection_]);
+  auto spilledFileDir = getShuffleSpillDir(localDirs_[dirSelection_], subDirSelection_[dirSelection_]);
   subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_.numSubDirs;
   dirSelection_ = (dirSelection_ + 1) % localDirs_.size();
   return spilledFileDir;

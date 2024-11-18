@@ -17,13 +17,16 @@
 
 #include <filesystem>
 #include <iostream>
-#include <string_view>
 #include <vector>
+
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 #include "Exception.h"
 #include "StringUtil.h"
 
-std::vector<std::string> gluten::splitByDelim(const std::string& s, const char delimiter) {
+namespace gluten {
+std::vector<std::string> splitByDelim(const std::string& s, const char delimiter) {
   if (s.empty()) {
     return {};
   }
@@ -41,7 +44,7 @@ std::vector<std::string> gluten::splitByDelim(const std::string& s, const char d
   return result;
 }
 
-std::vector<std::string> gluten::splitPaths(const std::string& s, bool checkExists) {
+std::vector<std::string> splitPaths(const std::string& s, bool checkExists) {
   if (s.empty()) {
     return {};
   }
@@ -61,3 +64,10 @@ std::vector<std::string> gluten::splitPaths(const std::string& s, bool checkExis
   }
   return paths;
 }
+
+std::string generateUuid() {
+  boost::uuids::random_generator generator;
+  return boost::uuids::to_string(generator());
+}
+
+} // namespace gluten
