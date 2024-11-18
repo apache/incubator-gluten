@@ -71,6 +71,7 @@ jobs:
           df -a
           cd $GITHUB_WORKSPACE/
           bash dev/ci-velox-buildstatic-centos-7.sh
+          ccache -s
       - name: "Save ccache"
         uses: actions/cache/save@v3
         id: ccache
@@ -954,6 +955,7 @@ jobs:
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
+          ccache -s
       - name: "Save ccache"
         uses: actions/cache/save@v3
         id: ccache

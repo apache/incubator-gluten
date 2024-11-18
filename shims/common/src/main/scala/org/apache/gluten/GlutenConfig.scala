@@ -50,6 +50,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
 
+  def enableColumnarHiveTableScanNestedColumnPruning: Boolean =
+    conf.getConf(COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED)
+
   def enableVanillaVectorizedReaders: Boolean = conf.getConf(VANILLA_VECTORIZED_READERS_ENABLED)
 
   def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
@@ -475,6 +478,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
+
+  def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
 }
 
 object GlutenConfig {
@@ -862,6 +867,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.hivetablescan")
       .internal()
       .doc("Enable or disable columnar hivetablescan.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED =
+    buildConf("spark.gluten.sql.columnar.enableNestedColumnPruningInHiveTableScan")
+      .internal()
+      .doc("Enable or disable nested column pruning in hivetablescan.")
       .booleanConf
       .createWithDefault(true)
 
@@ -2181,6 +2193,13 @@ object GlutenConfig {
         "If true, will add a trim node " +
           "which has the same sementic as vanilla Spark to CAST-from-varchar." +
           "Otherwise, do nothing.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val HDFS_VIEWFS_ENABLED =
+    buildStaticConf("spark.gluten.storage.hdfsViewfs.enabled")
+      .internal()
+      .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala side")
       .booleanConf
       .createWithDefault(false)
 }
