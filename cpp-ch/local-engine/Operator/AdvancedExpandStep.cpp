@@ -16,9 +16,6 @@
  */
 
 #include "AdvancedExpandStep.h"
-#include <iterator>
-#include <system_error>
-#include <unordered_set>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
 #include <Columns/IColumn.h>
@@ -33,32 +30,12 @@
 #include <Processors/Transforms/ExpressionTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/AggregateUtil.h>
 #include <Common/CHUtil.h>
 #include <Common/WeakHash.h>
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
-
-namespace DB
-{
-namespace Setting
-{
-extern const SettingsUInt64 max_bytes_before_external_group_by;
-extern const SettingsBool optimize_group_by_constant_keys;
-extern const SettingsUInt64 min_free_disk_space_for_temporary_data;
-extern const SettingsMaxThreads max_threads;
-extern const SettingsBool empty_result_for_aggregation_by_empty_set;
-extern const SettingsUInt64 group_by_two_level_threshold_bytes;
-extern const SettingsOverflowModeGroupBy group_by_overflow_mode;
-extern const SettingsUInt64 max_rows_to_group_by;
-extern const SettingsBool enable_memory_bound_merging_of_aggregation_results;
-extern const SettingsUInt64 aggregation_in_order_max_block_bytes;
-extern const SettingsUInt64 group_by_two_level_threshold;
-extern const SettingsFloat min_hit_rate_to_use_consecutive_keys_optimization;
-extern const SettingsMaxThreads max_threads;
-extern const SettingsUInt64 max_block_size;
-}
-}
 
 namespace local_engine
 {
@@ -116,27 +93,8 @@ void AdvancedExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, 
         aggregate_grouping_keys.push_back(col.name);
     }
     // partial to partial aggregate
-    DB::Aggregator::Params params(
-        aggregate_grouping_keys,
-        aggregate_descriptions,
-        false,
-        settings[DB::Setting::max_rows_to_group_by],
-        settings[DB::Setting::group_by_overflow_mode],
-        settings[DB::Setting::group_by_two_level_threshold],
-        0,
-        0,
-        settings[DB::Setting::empty_result_for_aggregation_by_empty_set],
-        nullptr,
-        settings[DB::Setting::max_threads],
-        settings[DB::Setting::min_free_disk_space_for_temporary_data],
-        true,
-        3,
-        PODArrayUtil::adjustMemoryEfficientSize(settings[DB::Setting::max_block_size]),
-        /*enable_prefetch*/ true,
-        /*only_merge*/ false,
-        settings[DB::Setting::optimize_group_by_constant_keys],
-        settings[DB::Setting::min_hit_rate_to_use_consecutive_keys_optimization],
-        /*StatsCollectingParams*/ {});
+    auto params = AggregatorParamsHelper::buildParams(
+        context, aggregate_grouping_keys, aggregate_descriptions, AggregatorParamsHelper::Mode::PARTIAL_TO_PARTIAL);
 
     auto input_header = input_headers.front();
     auto build_transform = [&](DB::OutputPortRawPtrs outputs)
