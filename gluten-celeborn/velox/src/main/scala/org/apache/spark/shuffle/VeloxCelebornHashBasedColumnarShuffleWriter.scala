@@ -55,25 +55,6 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
 
   private var splitResult: SplitResult = _
 
-  private lazy val nativeBufferSize = {
-    val bufferSize = GlutenConfig.getConf.shuffleWriterBufferSize
-    val maxBatchSize = GlutenConfig.getConf.maxBatchSize
-    if (bufferSize > maxBatchSize) {
-      logInfo(
-        s"${GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE.key} ($bufferSize) exceeds max " +
-          s" batch size. Limited to ${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key} ($maxBatchSize).")
-      maxBatchSize
-    } else {
-      bufferSize
-    }
-  }
-
-  private val memoryLimit: Long = if ("sort".equals(shuffleWriterType)) {
-    Math.min(clientSortMemoryMaxSize, clientPushBufferMaxSize * numPartitions)
-  } else {
-    availableOffHeapPerTask()
-  }
-
   private def availableOffHeapPerTask(): Long = {
     val perTask =
       SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
@@ -82,49 +63,13 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
-    if (!records.hasNext) {
-      handleEmptyIterator()
-      return
-    }
-
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
+        initShuffleWriter(cb)
         val handle = ColumnarBatches.getNativeHandle(cb)
-        if (nativeShuffleWriter == -1L) {
-          nativeShuffleWriter = jniWrapper.makeForRSS(
-            dep.nativePartitioning,
-            nativeBufferSize,
-            customizedCompressionCodec,
-            compressionLevel,
-            bufferCompressThreshold,
-            GlutenConfig.getConf.columnarShuffleCompressionMode,
-            clientPushBufferMaxSize,
-            clientPushSortMemoryThreshold,
-            celebornPartitionPusher,
-            handle,
-            context.taskAttemptId(),
-            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
-            "celeborn",
-            shuffleWriterType,
-            GlutenConfig.getConf.columnarShuffleReallocThreshold
-          )
-          runtime.addSpiller(new Spiller() {
-            override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-              if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-                return 0L
-              }
-              logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
-              // fixme pass true when being called by self
-              val pushed =
-                jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-              logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
-              pushed
-            }
-          })
-        }
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
@@ -135,8 +80,13 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
       }
     }
 
+    // If all of the ColumnarBatch have empty rows, the nativeShuffleWriter still equals -1
+    if (nativeShuffleWriter == -1L) {
+      handleEmptyIterator()
+      return
+    }
+
     val startTime = System.nanoTime()
-    assert(nativeShuffleWriter != -1L)
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
     dep
@@ -153,6 +103,38 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
 
     pushMergedDataToCeleborn()
     mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+  }
+
+  override def createShuffleWriter(columnarBatch: ColumnarBatch): Unit = {
+    nativeShuffleWriter = jniWrapper.makeForRSS(
+      dep.nativePartitioning,
+      nativeBufferSize,
+      customizedCompressionCodec,
+      compressionLevel,
+      bufferCompressThreshold,
+      GlutenConfig.getConf.columnarShuffleCompressionMode,
+      clientPushBufferMaxSize,
+      clientPushSortMemoryThreshold,
+      celebornPartitionPusher,
+      ColumnarBatches.getNativeHandle(columnarBatch),
+      context.taskAttemptId(),
+      GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
+      "celeborn",
+      shuffleWriterType,
+      GlutenConfig.getConf.columnarShuffleReallocThreshold
+    )
+    runtime.addSpiller(new Spiller() {
+      override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+        if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+          return 0L
+        }
+        logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
+        // fixme pass true when being called by self
+        val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+        logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
+        pushed
+      }
+    })
   }
 
   override def closeShuffleWriter(): Unit = {
