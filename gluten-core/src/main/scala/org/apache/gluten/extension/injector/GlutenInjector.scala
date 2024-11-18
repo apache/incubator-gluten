@@ -173,7 +173,7 @@ object GlutenInjector {
       // Build the cost model.
       val costModelRegistry = LongCostModel.registry()
       costerBuilders.foreach(cb => costModelRegistry.overrideWith(cb(call)))
-      val aliasOrClass = GlutenConfig.getConf.rasCostModel
+      val aliasOrClass = call.glutenConf.rasCostModel
       val costModel = findCostModel(costModelRegistry, aliasOrClass)
       EnumeratedTransform(costModel, rules.toSeq)
     }
