@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/JkSelf/velox.git
-VELOX_BRANCH=libhdfs3-support
+VELOX_BRANCH=static-link-libhdfs3.bak
 VELOX_HOME=""
 
 OS=`uname -s`
