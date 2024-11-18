@@ -25,7 +25,7 @@ import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater}
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
-import org.apache.gluten.substrait.rel.{RelNode, SplitInfo}
+import org.apache.gluten.substrait.rel.{LocalFilesNode, RelNode, SplitInfo}
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark._
@@ -43,7 +43,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
+import org.apache.hadoop.fs.{FileSystem, Path}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -127,8 +129,10 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
+
   val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
     sparkContext.hadoopConfiguration)
+
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   @transient
@@ -289,10 +293,28 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        */
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
       val allScanSplitInfos =
-        getSplitInfosFromPartitions(
-          basicScanExecTransformers,
-          allScanPartitions,
-          serializableHadoopConf)
+        getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
+      if (GlutenConfig.getConf.enableHdfsViewfs) {
+        allScanSplitInfos.foreach {
+          splitInfos =>
+            splitInfos.foreach {
+              case splitInfo: LocalFilesNode =>
+                val paths = splitInfo.getPaths.asScala
+                if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
+                  // Convert the viewfs path into hdfs
+                  val newPaths = paths.map {
+                    viewfsPath =>
+                      val viewPath = new Path(viewfsPath)
+                      val viewFileSystem =
+                        FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
+                      viewFileSystem.resolvePath(viewPath).toString
+                  }
+                  splitInfo.setPaths(newPaths.asJava)
+                }
+            }
+        }
+      }
+
       val inputPartitions =
         BackendsApiManager.getIteratorApiInstance.genPartitions(
           wsCtx,
@@ -384,8 +406,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   private def getSplitInfosFromPartitions(
       basicScanExecTransformers: Seq[BasicScanExecTransformer],
-      allScanPartitions: Seq[Seq[InputPartition]],
-      serializableHadoopConf: SerializableConfiguration): Seq[Seq[SplitInfo]] = {
+      allScanPartitions: Seq[Seq[InputPartition]]): Seq[Seq[SplitInfo]] = {
     // If these are two scan transformers, they must have same partitions,
     // otherwise, exchange will be inserted. We should combine the two scan
     // transformers' partitions with same index, and set them together in
@@ -404,7 +425,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     val allScanSplitInfos =
       allScanPartitions.zip(basicScanExecTransformers).map {
         case (partition, transformer) =>
-          transformer.getSplitInfosFromPartitions(partition, serializableHadoopConf)
+          transformer.getSplitInfosFromPartitions(partition)
       }
     val partitionLength = allScanSplitInfos.head.size
     if (allScanSplitInfos.exists(_.size != partitionLength)) {

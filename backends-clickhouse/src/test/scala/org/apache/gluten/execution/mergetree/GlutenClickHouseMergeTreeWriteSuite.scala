@@ -1807,7 +1807,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                 case scanExec: BasicScanExecTransformer => scanExec
               }
               assertResult(1)(plans.size)
-              assertResult(conf._2)(plans.head.getSplitInfos(null).size)
+              assertResult(conf._2)(plans.head.getSplitInfos.size)
           }
         }
       })
@@ -1831,7 +1831,7 @@ class GlutenClickHouseMergeTreeWriteSuite
             case scanExec: BasicScanExecTransformer => scanExec
           }
           assertResult(1)(plans.size)
-          assertResult(1)(plans.head.getSplitInfos(null).size)
+          assertResult(1)(plans.head.getSplitInfos.size)
       }
     }
   }
@@ -1939,7 +1939,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                 case f: BasicScanExecTransformer => f
               }
               assertResult(2)(scanExec.size)
-              assertResult(conf._2)(scanExec(1).getSplitInfos(null).size)
+              assertResult(conf._2)(scanExec(1).getSplitInfos.size)
           }
         }
       })
