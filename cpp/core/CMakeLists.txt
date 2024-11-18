@@ -66,20 +66,6 @@ macro(find_protobuf)
       CACHE PATH "Protobuf include path")
 endmacro()
 
-if(USE_AVX512)
-  # Only enable additional instruction sets if they are supported
-  message(STATUS "System processor: ${CMAKE_SYSTEM_PROCESSOR}")
-  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-    set(AVX512_FLAG "-march=skylake-avx512")
-    check_cxx_compiler_flag(${AVX512_FLAG} CXX_SUPPORTS_AVX512)
-    if(NOT CXX_SUPPORTS_AVX512)
-      message(FATAL_ERROR "AVX512 required but compiler doesn't support it.")
-    endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${AVX512_FLAG}")
-    add_definitions(-DCOLUMNAR_PLUGIN_USE_AVX512)
-  endif()
-endif()
-
 # Set up Proto
 set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
