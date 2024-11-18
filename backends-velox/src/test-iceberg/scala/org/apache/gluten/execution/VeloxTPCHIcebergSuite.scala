@@ -24,9 +24,8 @@ import org.apache.iceberg.spark.SparkWriteOptions
 import java.io.File
 
 class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
-
   protected val tpchBasePath: String = new File(
-    "../backends-velox/src/test/resources").getAbsolutePath
+    "backends-velox/src/test/resources").getAbsolutePath
 
   override protected val resourcePath: String =
     new File(tpchBasePath, "tpch-data-parquet").getCanonicalPath
