@@ -33,6 +33,7 @@
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
+#include "operators/functions/SparkExprToSubfieldFilterParser.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -40,7 +41,7 @@
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
 #include "velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h" // @manual
-#include "velox/connectors/hive/storage_adapters/gcs/RegisterGCSFileSystem.h" // @manual
+#include "velox/connectors/hive/storage_adapters/gcs/RegisterGcsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h" // @manual
 #include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h" // @manual
 #include "velox/dwio/orc/reader/OrcReader.h"
@@ -141,7 +142,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::filesystems::registerS3FileSystem();
 #endif
 #ifdef ENABLE_GCS
-  velox::filesystems::registerGCSFileSystem();
+  velox::filesystems::registerGcsFileSystem();
 #endif
 #ifdef ENABLE_ABFS
   velox::filesystems::abfs::registerAbfsFileSystem();
@@ -155,12 +156,18 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::parquet::registerParquetReaderFactory();
   velox::parquet::registerParquetWriterFactory();
   velox::orc::registerOrcReaderFactory();
+  velox::exec::ExprToSubfieldFilterParser::registerParserFactory(
+      []() { return std::make_shared<SparkExprToSubfieldFilterParser>(); });
 
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {
     // serde, for spill
     facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
+  }
+  if (!isRegisteredNamedVectorSerde(facebook::velox::VectorSerde::Kind::kPresto)) {
+    // RSS shuffle serde.
+    facebook::velox::serializer::presto::PrestoVectorSerde::registerNamedVectorSerde();
   }
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 

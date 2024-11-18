@@ -15,14 +15,14 @@ AdaptiveSparkPlan (63)
                   :     :        +- VeloxResizeBatches (5)
                   :     :           +- ^ ProjectExecTransformer (3)
                   :     :              +- ^ FilterExecTransformer (2)
-                  :     :                 +- ^ Scan parquet (1)
+                  :     :                 +- ^ ScanTransformer parquet  (1)
                   :     +- ^ InputIteratorTransformer (18)
                   :        +- ShuffleQueryStage (16), Statistics(X)
                   :           +- ColumnarExchange (15)
                   :              +- VeloxResizeBatches (14)
                   :                 +- ^ ProjectExecTransformer (12)
                   :                    +- ^ FilterExecTransformer (11)
-                  :                       +- ^ Scan parquet (10)
+                  :                       +- ^ ScanTransformer parquet  (10)
                   +- ^ FilterExecTransformer (33)
                      +- ^ ProjectExecTransformer (32)
                         +- ^ RegularHashAggregateExecTransformer (31)
@@ -33,7 +33,7 @@ AdaptiveSparkPlan (63)
                                        +- ^ ProjectExecTransformer (24)
                                           +- ^ FlushableHashAggregateExecTransformer (23)
                                              +- ^ FilterExecTransformer (22)
-                                                +- ^ Scan parquet (21)
+                                                +- ^ ScanTransformer parquet  (21)
 +- == Initial Plan ==
    HashAggregate (62)
    +- HashAggregate (61)
@@ -59,7 +59,7 @@ AdaptiveSparkPlan (63)
                               +- Scan parquet (52)
 
 
-(1) Scan parquet
+(1) ScanTransformer parquet 
 Output [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -96,7 +96,7 @@ Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 (9) InputIteratorTransformer
 Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 
-(10) Scan parquet
+(10) ScanTransformer parquet 
 Output [3]: [p_partkey#X, p_brand#X, p_container#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -142,7 +142,7 @@ Join condition: None
 Output [3]: [l_quantity#X, l_extendedprice#X, p_partkey#X]
 Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, p_partkey#X]
 
-(21) Scan parquet
+(21) ScanTransformer parquet 
 Output [2]: [l_partkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]

@@ -89,7 +89,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = true)
-    initialize(conf)
+    initialize(conf, isDriver = true)
     UdfJniWrapper.registerFunctionSignatures()
   }
 
@@ -116,12 +116,12 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = false)
-    initialize(conf)
+    initialize(conf, isDriver = false)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
 
-  private def initialize(conf: SparkConf): Unit = {
+  private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Force batch type initializations.
     VeloxBatch.getClass
     ArrowJavaBatch.getClass
@@ -157,7 +157,11 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     // Initial native backend with configurations.
-    val parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+    var parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+    // Workaround for https://github.com/apache/incubator-gluten/issues/7837
+    if (isDriver && !inLocalMode(conf)) {
+      parsed += (GlutenConfig.COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
+    }
     NativeBackendInitializer.initializeBackend(parsed)
 
     // Inject backend-specific implementations to override spark classes.

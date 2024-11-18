@@ -74,22 +74,14 @@ static DB::ColumnWithTypeAndName getColumnFromColumnVector(JNIEnv * /*env*/, job
     return block->getByPosition(column_position);
 }
 
-static std::string jstring2string(JNIEnv * env, jstring jStr)
+static std::string jstring2string(JNIEnv * env, jstring string)
 {
-    if (!jStr)
-        return "";
-
-    const jclass string_class = env->GetObjectClass(jStr);
-    const jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
-    auto * const string_jbytes
-        = static_cast<jbyteArray>(local_engine::safeCallObjectMethod(env, jStr, get_bytes, env->NewStringUTF("UTF-8")));
-    SCOPE_EXIT({
-        env->DeleteLocalRef(string_jbytes);
-        env->DeleteLocalRef(string_class);
-    });
-
-    const auto string_jbytes_a = local_engine::getByteArrayElementsSafe(env, string_jbytes);
-    return {reinterpret_cast<char *>(string_jbytes_a.elems()), static_cast<size_t>(string_jbytes_a.length())};
+    if (string == nullptr)
+        return std::string();
+    const char * chars = env->GetStringUTFChars(string, nullptr);
+    std::string ret(chars);
+    env->ReleaseStringUTFChars(string, chars);
+    return ret;
 }
 
 extern "C" {

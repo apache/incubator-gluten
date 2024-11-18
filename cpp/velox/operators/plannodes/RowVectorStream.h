@@ -46,7 +46,7 @@ class RowVectorStream {
       // As of now, non-zero running threads usually happens when:
       // 1. Task A spills task B;
       // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again.
-      facebook::velox::exec::SuspendedSection(driverCtx_->driver);
+      facebook::velox::exec::SuspendedSection ss(driverCtx_->driver);
       hasNext = iterator_->hasNext();
     }
     if (!hasNext) {
@@ -64,7 +64,7 @@ class RowVectorStream {
     {
       // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
       // driver to make the current task open to spilling.
-      facebook::velox::exec::SuspendedSection(driverCtx_->driver);
+      facebook::velox::exec::SuspendedSection ss(driverCtx_->driver);
       cb = iterator_->next();
     }
     const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, cb);

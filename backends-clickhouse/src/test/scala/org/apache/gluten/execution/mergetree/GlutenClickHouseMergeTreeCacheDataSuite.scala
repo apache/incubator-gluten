@@ -178,7 +178,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -286,7 +286,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -389,7 +389,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -478,7 +478,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -582,7 +582,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])

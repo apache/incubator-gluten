@@ -24,14 +24,14 @@ AdaptiveSparkPlan (58)
                                                       :     +- ColumnarExchange (5)
                                                       :        +- VeloxResizeBatches (4)
                                                       :           +- ^ ProjectExecTransformer (2)
-                                                      :              +- ^ Scan parquet (1)
+                                                      :              +- ^ ScanTransformer parquet  (1)
                                                       +- ^ InputIteratorTransformer (17)
                                                          +- ShuffleQueryStage (15), Statistics(X)
                                                             +- ColumnarExchange (14)
                                                                +- VeloxResizeBatches (13)
                                                                   +- ^ ProjectExecTransformer (11)
                                                                      +- ^ FilterExecTransformer (10)
-                                                                        +- ^ Scan parquet (9)
+                                                                        +- ^ ScanTransformer parquet  (9)
 +- == Initial Plan ==
    Sort (57)
    +- Exchange (56)
@@ -52,7 +52,7 @@ AdaptiveSparkPlan (58)
                                        +- Scan parquet (44)
 
 
-(1) Scan parquet
+(1) ScanTransformer parquet 
 Output [1]: [c_custkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -84,7 +84,7 @@ Input [1]: [c_custkey#X]
 (8) InputIteratorTransformer
 Input [1]: [c_custkey#X]
 
-(9) Scan parquet
+(9) ScanTransformer parquet 
 Output [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
 Batched: true
 Location: InMemoryFileIndex [*]

@@ -147,7 +147,8 @@ public:
             captured_column_names,
             lambda_function_args,
             lambda_body_node->result_type,
-            lambda_body_node->result_name);
+            lambda_body_node->result_name,
+            false);
 
         const auto * result = &actions_dag.addFunction(function_capture, lambda_children, lambda_body_node->result_name);
         return result;

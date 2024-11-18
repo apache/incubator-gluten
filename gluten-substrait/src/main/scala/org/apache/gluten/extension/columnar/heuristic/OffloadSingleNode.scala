@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension.columnar.heuristic
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -36,7 +37,7 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.hive.{HiveTableScanExecTransformer, HiveTableScanNestedColumnPruning}
 
 /**
  * Converts a vanilla Spark plan node into Gluten plan node. Gluten plan is supposed to be executed
@@ -225,7 +226,11 @@ object OffloadOthers {
         case plan: ProjectExec =>
           val columnarChild = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          ProjectExecTransformer(plan.projectList, columnarChild)
+          if (HiveTableScanNestedColumnPruning.supportNestedColumnPruning(plan)) {
+            HiveTableScanNestedColumnPruning.apply(plan)
+          } else {
+            ProjectExecTransformer(plan.projectList, columnarChild)
+          }
         case plan: HashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)

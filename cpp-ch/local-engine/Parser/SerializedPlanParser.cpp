@@ -101,8 +101,9 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
-void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel) const
+void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::Plan & plan)
 {
+    const substrait::PlanRel & root_rel = plan.relations().at(0);
     if (root_rel.root().names_size())
     {
         ActionsDAG actions_dag{blockToNameAndTypeList(query_plan->getCurrentHeader())};
@@ -110,8 +111,8 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
         const auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
         {
-            debug::dumpPlan(*query_plan, true);
-            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
+            debug::dumpPlan(*query_plan, "clickhouse plan", true);
+            debug::dumpMessage(plan, "substrait::Plan", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan name size {}.",
@@ -134,8 +135,8 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
         const auto & original_cols = original_header.getColumnsWithTypeAndName();
         if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
         {
-            debug::dumpPlan(*query_plan, true);
-            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
+            debug::dumpPlan(*query_plan, "clickhouse plan", true);
+            debug::dumpMessage(plan, "substrait::Plan", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan output schema size {}, subtrait plan name size {}.",
@@ -198,7 +199,7 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     std::list<const substrait::Rel *> rel_stack;
     auto query_plan = parseOp(first_read_rel, rel_stack);
     if (!writePipeline)
-        adjustOutput(query_plan, root_rel);
+        adjustOutput(query_plan, plan);
 
 #ifndef NDEBUG
     PlanUtil::checkOuputType(*query_plan);
@@ -283,7 +284,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     return query_plan;
 }
 
-DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan)
+DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan) const
 {
     const Settings & settings = parser_context->queryContext()->getSettingsRef();
     QueryPriorities priorities;
@@ -297,12 +298,10 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         settings,
         0);
     const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
-    return query_plan.buildQueryPipeline(
-        optimization_settings,
-        BuildQueryPipelineSettings{
-            .actions_settings
-            = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
-            .process_list_element = query_status});
+    BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings::fromContext(context);
+    build_settings.process_list_element = query_status;
+    build_settings.progress_callback = nullptr;
+    return query_plan.buildQueryPipeline(optimization_settings,build_settings);
 }
 
 std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
@@ -311,11 +310,10 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::s
     return createExecutor(parse(s_plan), s_plan);
 }
 
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan) const
 {
     Stopwatch stopwatch;
 
-    const Settings & settings = parser_context->queryContext()->getSettingsRef();
     DB::QueryPipelineBuilderPtr builder = nullptr;
     try
     {
@@ -323,7 +321,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     }
     catch (...)
     {
-        LOG_ERROR(getLogger("SerializedPlanParser"), "Invalid plan:\n{}", PlanUtil::explainPlan(*query_plan));
+        debug::dumpPlan(*query_plan, "Invalid clickhouse plan", true);
         throw;
     }
 
@@ -333,11 +331,6 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     if (root_rel.root().input().has_write())
         addSinkTransform(parser_context->queryContext(), root_rel.root().input().write(), builder);
     LOG_INFO(getLogger("SerializedPlanParser"), "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
-    LOG_DEBUG(
-        getLogger("SerializedPlanParser"),
-        "clickhouse plan [optimization={}]:\n{}",
-        settings[Setting::query_plan_enable_optimizations],
-        PlanUtil::explainPlan(*query_plan));
 
     auto config = ExecutorConfig::loadFromContext(parser_context->queryContext());
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);
@@ -355,11 +348,7 @@ NonNullableColumnsResolver::NonNullableColumnsResolver(
     expression_parser = std::make_unique<ExpressionParser>(parser_context);
 }
 
-NonNullableColumnsResolver::~NonNullableColumnsResolver()
-{
-}
-
-// make it simple at present, if the condition contains or, return empty for both side.
+// make it simple at present if the condition contains or, return empty for both side.
 std::set<String> NonNullableColumnsResolver::resolve()
 {
     collected_columns.clear();

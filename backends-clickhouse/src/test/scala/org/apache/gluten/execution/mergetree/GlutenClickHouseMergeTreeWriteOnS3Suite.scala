@@ -158,7 +158,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -289,7 +289,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -461,7 +461,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
         assertResult(6)(mergetreeScan.metrics("numFiles").value)
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -565,7 +565,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -646,7 +646,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -765,13 +765,13 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
           assertResult(1)(scanExec.size)
 
           val mergetreeScan = scanExec.head
-          assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+          assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
           val plans = collect(df.queryExecution.executedPlan) {
             case scanExec: BasicScanExecTransformer => scanExec
           }
           assertResult(1)(plans.size)
-          assertResult(1)(plans.head.getSplitInfos(null).size)
+          assertResult(1)(plans.head.getSplitInfos.size)
       }
     }
   }

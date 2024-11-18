@@ -50,6 +50,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
 
+  def enableColumnarHiveTableScanNestedColumnPruning: Boolean =
+    conf.getConf(COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED)
+
   def enableVanillaVectorizedReaders: Boolean = conf.getConf(VANILLA_VECTORIZED_READERS_ENABLED)
 
   def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
@@ -75,7 +78,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
 
-  def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED)
+  def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED)
 
   def enableColumnarSortMergeJoin: Boolean = conf.getConf(COLUMNAR_SORTMERGEJOIN_ENABLED)
 
@@ -106,6 +109,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableCountDistinctWithoutExpand: Boolean =
     conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
+
+  def enableExtendedGeneratorNestedColumnAliasing: Boolean =
+    conf.getConf(ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING)
 
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
@@ -189,6 +195,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleCompressionThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
+
+  def columnarShuffleReaderBufferSize: Long =
+    conf.getConf(COLUMNAR_SHUFFLE_READER_BUFFER_SIZE)
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
@@ -463,14 +472,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableCastAvgAggregateFunction: Boolean = conf.getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
 
-  def enableGlutenCostEvaluator: Boolean = conf.getConf(COST_EVALUATOR_ENABLED)
-
   def dynamicOffHeapSizingEnabled: Boolean =
     conf.getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 
   def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
+
+  def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
 }
 
 object GlutenConfig {
@@ -606,6 +615,9 @@ object GlutenConfig {
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
   val GLUTEN_SHUFFLE_DEFUALT_COMPRESSION_BUFFER_SIZE = 32 * 1024
 
+  // Shuffle reader buffer size.
+  val GLUTEN_SHUFFLE_READER_BUFFER_SIZE = "spark.gluten.sql.columnar.shuffle.readerBufferSize"
+
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
   // at runtime. This config is just for velox backend. And it is NOT applicable to the situation
@@ -645,6 +657,7 @@ object GlutenConfig {
     "spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction"
 
   val GLUTEN_COST_EVALUATOR_ENABLED = "spark.gluten.sql.adaptive.costEvaluator.enabled"
+  val GLUTEN_COST_EVALUATOR_ENABLED_DEFAULT_VALUE = true
 
   var ins: GlutenConfig = _
 
@@ -857,6 +870,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED =
+    buildConf("spark.gluten.sql.columnar.enableNestedColumnPruningInHiveTableScan")
+      .internal()
+      .doc("Enable or disable nested column pruning in hivetablescan.")
+      .booleanConf
+      .createWithDefault(true)
+
   val VANILLA_VECTORIZED_READERS_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
       .internal()
@@ -939,7 +959,7 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED =
+  val COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")
       .internal()
       .booleanConf
@@ -1152,6 +1172,13 @@ object GlutenConfig {
       .doubleConf
       .checkValue(v => v >= 0 && v <= 1, "Shuffle writer merge threshold must between [0, 1]")
       .createWithDefault(0.25)
+
+  val COLUMNAR_SHUFFLE_READER_BUFFER_SIZE =
+    buildConf(GLUTEN_SHUFFLE_READER_BUFFER_SIZE)
+      .internal()
+      .doc("Buffer size in bytes for shuffle reader reading input stream from local or remote.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1MB")
 
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf(GLUTEN_MAX_BATCH_SIZE_KEY)
@@ -1929,6 +1956,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING =
+    buildConf("spark.gluten.sql.extendedGeneratorNestedColumnAliasing")
+      .internal()
+      .doc("Do nested column aliasing for Project(Filter(Generator))")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
       .internal()
@@ -2106,15 +2140,15 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val COST_EVALUATOR_ENABLED =
-    buildConf(GlutenConfig.GLUTEN_COST_EVALUATOR_ENABLED)
+    buildStaticConf(GlutenConfig.GLUTEN_COST_EVALUATOR_ENABLED)
       .internal()
       .doc(
-        "If true and gluten enabled, use " +
+        "If true, use " +
           "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator as custom cost " +
           "evaluator class, else follow the configuration " +
           "spark.sql.adaptive.customCostEvaluatorClass.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(GLUTEN_COST_EVALUATOR_ENABLED_DEFAULT_VALUE)
 
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED)
@@ -2159,6 +2193,13 @@ object GlutenConfig {
         "If true, will add a trim node " +
           "which has the same sementic as vanilla Spark to CAST-from-varchar." +
           "Otherwise, do nothing.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val HDFS_VIEWFS_ENABLED =
+    buildStaticConf("spark.gluten.storage.hdfsViewfs.enabled")
+      .internal()
+      .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala side")
       .booleanConf
       .createWithDefault(false)
 }

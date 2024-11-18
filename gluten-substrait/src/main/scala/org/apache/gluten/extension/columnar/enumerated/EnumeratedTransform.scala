@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers}
+import org.apache.gluten.extension.columnar.heuristic.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.logging.LogLevelUtil
@@ -38,6 +38,18 @@ import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
+/**
+ * Rule to offload Spark query plan to Gluten query plan using a search algorithm and a defined cost
+ * model.
+ *
+ * The effect of this rule is similar to
+ * [[org.apache.gluten.extension.columnar.heuristic.HeuristicTransform]], except that the 3 stages
+ * in the heuristic version, known as rewrite, validate, offload, will take place together
+ * individually for each Spark query plan node in RAS rule
+ * [[org.apache.gluten.extension.columnar.enumerated.RasOffload]].
+ *
+ * The feature requires enabling RAS to function.
+ */
 case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   extends Rule[SparkPlan]
   with LogLevelUtil {

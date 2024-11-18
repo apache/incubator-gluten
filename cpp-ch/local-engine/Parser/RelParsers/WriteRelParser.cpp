@@ -58,15 +58,11 @@ DB::ProcessorPtr make_sink(
 {
     if (partition_by.empty())
     {
-        auto file_sink = std::make_shared<SubstraitFileSink>(context, base_path, "", filename, format_hint, input_header);
-        file_sink->setStats(stats);
-        return file_sink;
+        return std::make_shared<SubstraitFileSink>(context, base_path, "", filename, format_hint, input_header, stats);
     }
 
-    auto file_sink = std::make_shared<SubstraitPartitionedFileSink>(
-        context, partition_by, input_header, output_header, base_path, filename, format_hint);
-    file_sink->setStats(stats);
-    return file_sink;
+    return std::make_shared<SubstraitPartitionedFileSink>(
+        context, partition_by, input_header, output_header, base_path, filename, format_hint, stats);
 }
 
 DB::ExpressionActionsPtr create_rename_action(const DB::Block & input, const DB::Block & output)
@@ -148,25 +144,30 @@ void addMergeTreeSinkTransform(
     const DB::ContextPtr & context,
     const DB::QueryPipelineBuilderPtr & builder,
     const MergeTreeTable & merge_tree_table,
-    const DB::Block & output,
-    const DB::Names & /*partitionCols*/)
+    const DB::Block & header,
+    const DB::Names & partition_by)
 {
-    const DB::Settings & settings = context->getSettingsRef();
-    const auto dest_storage = merge_tree_table.getStorage(context->getGlobalContext());
-    StorageMetadataPtr metadata_snapshot = dest_storage->getInMemoryMetadataPtr();
-    ASTPtr none;
-    auto sink = dest_storage->write(none, metadata_snapshot, context, false);
+
     Chain chain;
-    chain.addSink(sink);
-    const SinkHelper & sink_helper = assert_cast<const SparkMergeTreeSink &>(*sink).sinkHelper();
     //
-    auto stats = std::make_shared<MergeTreeStats>(output, sink_helper);
+    auto stats = std::make_shared<MergeTreeStats>(header);
     chain.addSink(stats);
     //
+
+    SparkMergeTreeWriteSettings write_settings{context};
+    if (partition_by.empty())
+        write_settings.partition_settings.partition_dir = SubstraitFileSink::NO_PARTITION_ID;
+
+    auto sink = partition_by.empty() ?
+        SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getGlobalContext(), {stats}) :
+        std::make_shared<SparkMergeTreePartitionedFileSink>(header, partition_by, merge_tree_table, write_settings, context, stats);
+
+    chain.addSource(sink);
+    const DB::Settings & settings = context->getSettingsRef();
     chain.addSource(std::make_shared<ApplySquashingTransform>(
-        output, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
+        header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
     chain.addSource(std::make_shared<PlanSquashingTransform>(
-        output, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
+        header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
 
     builder->addChain(std::move(chain));
 }

@@ -141,7 +141,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
     std::string gcsEndpoint = gsStorageRootUrl.value();
 
     if (!gcsEndpoint.empty()) {
-      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSEndpoint] = gcsEndpoint;
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsEndpoint] = gcsEndpoint;
     }
   }
 
@@ -149,13 +149,13 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedErrorCountRetryPolicy
   auto gsMaxRetryCount = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry");
   if (gsMaxRetryCount.hasValue()) {
-    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSMaxRetryCount] = gsMaxRetryCount.value();
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryCount] = gsMaxRetryCount.value();
   }
 
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedTimeRetryPolicy
   auto gsMaxRetryTime = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry-time");
   if (gsMaxRetryTime.hasValue()) {
-    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSMaxRetryTime] = gsMaxRetryTime.value();
+    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsMaxRetryTime] = gsMaxRetryTime.value();
   }
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
@@ -166,7 +166,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       auto gsAuthServiceAccountJsonKeyfile =
           conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
       if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
-        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSCredentialsPath] =
+        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
             gsAuthServiceAccountJsonKeyfile.value();
       } else {
         LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "

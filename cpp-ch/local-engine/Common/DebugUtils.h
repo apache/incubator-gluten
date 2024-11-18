@@ -29,7 +29,7 @@ class QueryPlan;
 namespace debug
 {
 
-void dumpPlan(DB::QueryPlan & plan, bool force = false, LoggerPtr = nullptr);
+void dumpPlan(DB::QueryPlan & plan, const char * type = "clickhouse plan", bool force = false, LoggerPtr = nullptr);
 void dumpMessage(const google::protobuf::Message & message, const char * type, bool force = false, LoggerPtr = nullptr);
 
 void headBlock(const DB::Block & block, size_t count = 10);

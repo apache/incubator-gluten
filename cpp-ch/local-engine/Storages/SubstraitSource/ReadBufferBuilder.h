@@ -19,6 +19,7 @@
 #include <functional>
 #include <memory>
 #include <Disks/ObjectStorages/StoredObject.h>
+#include <IO/CompressionMethod.h>
 #include <IO/ReadBuffer.h>
 #include <IO/ReadBufferFromFileBase.h>
 #include <substrait/plan.pb.h>
@@ -34,6 +35,8 @@ public:
     explicit ReadBufferBuilder(DB::ContextPtr context_);
 
     virtual ~ReadBufferBuilder() = default;
+
+    virtual bool isRemote() const { return true; }
 
     /// build a new read buffer
     virtual std::unique_ptr<DB::ReadBuffer>
@@ -55,7 +58,11 @@ protected:
         size_t last_modified_time,
         size_t file_size);
 
+    std::unique_ptr<DB::ReadBuffer>
+    wrapWithParallelIfNeeded(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info);
+
     DB::ReadSettings getReadSettings() const;
+
     DB::ContextPtr context;
 
 private:

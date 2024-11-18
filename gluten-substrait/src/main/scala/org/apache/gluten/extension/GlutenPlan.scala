@@ -21,6 +21,7 @@ import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.TransformerState
+import org.apache.gluten.extension.columnar.FallbackTags.add
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.substrait.SubstraitContext
@@ -28,6 +29,7 @@ import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.RelNode
 import org.apache.gluten.test.TestStats
 
+import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution.SparkPlan
 
 import com.google.common.collect.Lists
@@ -50,6 +52,15 @@ object ValidationResult {
 
   def succeeded: ValidationResult = Succeeded
   def failed(reason: String): ValidationResult = Failed(reason)
+
+  implicit class EncodeFallbackTagImplicits(result: ValidationResult) {
+    def tagOnFallback(plan: TreeNode[_]): Unit = {
+      if (result.ok()) {
+        return
+      }
+      add(plan, result)
+    }
+  }
 }
 
 /** Every Gluten Operator should extend this trait. */

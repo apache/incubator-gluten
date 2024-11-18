@@ -71,6 +71,7 @@ jobs:
           df -a
           cd $GITHUB_WORKSPACE/
           bash dev/ci-velox-buildstatic-centos-7.sh
+          ccache -s
       - name: "Save ccache"
         uses: actions/cache/save@v3
         id: ccache
@@ -564,6 +565,12 @@ jobs:
         with:
           name: test-report-spark32
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark32
+          path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark32-slow:
     needs: build-native-lib-centos-7
@@ -633,6 +640,12 @@ jobs:
         with:
           name: test-report-spark33
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark33
+          path: /tmp/tpch-approved-plan/**
 
 
   run-spark-test-spark33-slow:
@@ -704,6 +717,12 @@ jobs:
         with:
           name: test-report-spark34
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark34
+          path: /tmp/tpch-approved-plan/**
 
 
   run-spark-test-spark34-slow:
@@ -754,19 +773,19 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.3 cython && \
+          pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.3 (other tests)
+      - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -775,6 +794,12 @@ jobs:
         with:
           name: test-report-spark35
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark35
+          path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark35-scala213:
     needs: build-native-lib-centos-7
@@ -792,15 +817,15 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5-scala2.13
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.3 cython && \
+          pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.3 with scala-2.13 (other tests)
+      - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
@@ -830,13 +855,13 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare spark.test.home for Spark 3.5.3 (slow tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
-      - name: Build and Run unit test for Spark 3.5.3 (slow tests)
+      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -862,15 +887,15 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.3 cython && \
+          pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.3 (other tests)
+      - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -899,10 +924,10 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare spark.test.home for Spark 3.5.3 (slow tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
-      - name: Build and Run unit test for Spark 3.5.3 (slow tests)
+      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
@@ -930,6 +955,7 @@ jobs:
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
+          ccache -s
       - name: "Save ccache"
         uses: actions/cache/save@v3
         id: ccache

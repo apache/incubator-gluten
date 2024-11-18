@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.rewrite
 
-import org.apache.gluten.extension.columnar.{AddFallbackTagRule, FallbackTag, FallbackTags}
+import org.apache.gluten.extension.columnar.{FallbackTag, FallbackTags}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
@@ -45,7 +45,9 @@ case class RewrittenNodeWall(originalChild: SparkPlan) extends LeafExecNode {
  *
  * Note that, this rule does not touch and tag these operators who does not need to rewrite.
  */
-class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode])
+class RewriteSparkPlanRulesManager private (
+    validateRule: Rule[SparkPlan],
+    rewriteRules: Seq[RewriteSingleNode])
   extends Rule[SparkPlan] {
 
   private def mayNeedRewrite(plan: SparkPlan): Boolean = {
@@ -96,7 +98,6 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    val addHint = AddFallbackTagRule()
     plan.transformUp {
       case origin if mayNeedRewrite(origin) =>
         // Add a wall to avoid transforming unnecessary nodes.
@@ -114,7 +115,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
           // We do not add tag and leave it to the outside `AddFallbackTagRule`.
           origin
         } else {
-          addHint.apply(rewrittenPlan)
+          validateRule.apply(rewrittenPlan)
           val tag = getFallbackTagBack(rewrittenPlan)
           if (tag.isDefined) {
             // If the rewritten plan is still not transformable, return the original plan.
@@ -136,7 +137,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
 }
 
 object RewriteSparkPlanRulesManager {
-  def apply(): Rule[SparkPlan] = {
-    new RewriteSparkPlanRulesManager(RewriteSingleNode.allRules())
+  def apply(validateRule: Rule[SparkPlan]): Rule[SparkPlan] = {
+    new RewriteSparkPlanRulesManager(validateRule, RewriteSingleNode.allRules())
   }
 }

@@ -624,7 +624,7 @@ const DB::ActionsDAG::Node * ExpressionParser::toFunctionNode(
     return &actions_dag.addFunction(function_builder, args, result_name);
 }
 
-UInt64 ExpressionParser::unique_name_counter = 0;
+std::atomic<UInt64> ExpressionParser::unique_name_counter = 0;
 String ExpressionParser::getUniqueName(const String & name) const
 {
     return name + "_" + std::to_string(unique_name_counter++);

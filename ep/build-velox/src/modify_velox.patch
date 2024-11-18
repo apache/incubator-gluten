@@ -1,66 +1,5 @@
-diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-index ddf1fac71..ef48ae9d9 100644
---- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-+++ b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-@@ -14,17 +14,13 @@
- project(Arrow)
- 
- if(VELOX_ENABLE_ARROW)
--  find_package(Thrift)
--  if(Thrift_FOUND)
--    set(THRIFT_SOURCE "SYSTEM")
--  else()
--    set(THRIFT_SOURCE "BUNDLED")
--  endif()
--
-   set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
-   set(ARROW_CMAKE_ARGS
--      -DARROW_PARQUET=OFF
--      -DARROW_DEPENDENCY_SOURCE=AUTO
-+      -DARROW_PARQUET=ON
-+      -DARROW_FILESYSTEM=ON
-+      -DARROW_PROTOBUF_USE_SHARED=OFF
-+      -DARROW_DEPENDENCY_USE_SHARED=OFF
-+      -DARROW_DEPENDENCY_SOURCE=BUNDLED
-       -DARROW_WITH_THRIFT=ON
-       -DARROW_WITH_LZ4=ON
-       -DARROW_WITH_SNAPPY=ON
-@@ -38,18 +34,16 @@ if(VELOX_ENABLE_ARROW)
-       -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}/install
-       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-       -DARROW_BUILD_STATIC=ON
--      -DThrift_SOURCE=${THRIFT_SOURCE}
-+      -DARROW_BUILD_SHARED=OFF
-       -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH})
-   set(ARROW_LIBDIR ${ARROW_PREFIX}/install/${CMAKE_INSTALL_LIBDIR})
- 
-   add_library(thrift STATIC IMPORTED GLOBAL)
--  if(NOT Thrift_FOUND)
--    set(THRIFT_ROOT ${ARROW_PREFIX}/src/arrow_ep-build/thrift_ep-install)
--    set(THRIFT_LIB ${THRIFT_ROOT}/lib/libthrift.a)
-+  set(THRIFT_ROOT ${ARROW_PREFIX}/src/arrow_ep-build/thrift_ep-install)
-+  set(THRIFT_LIB ${THRIFT_ROOT}/lib/libthrift.a)
- 
--    file(MAKE_DIRECTORY ${THRIFT_ROOT}/include)
--    set(THRIFT_INCLUDE_DIR ${THRIFT_ROOT}/include)
--  endif()
-+  file(MAKE_DIRECTORY ${THRIFT_ROOT}/include)
-+  set(THRIFT_INCLUDE_DIR ${THRIFT_ROOT}/include)
- 
-   set_property(TARGET thrift PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-                                       ${THRIFT_INCLUDE_DIR})
-@@ -68,6 +62,9 @@ if(VELOX_ENABLE_ARROW)
-     arrow_ep
-     PREFIX ${ARROW_PREFIX}
-     URL ${VELOX_ARROW_SOURCE_URL}
-+    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow.patch
-+    COMMAND patch -p1 <
-+            ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow_dataset_scan_option.patch
-     URL_HASH ${VELOX_ARROW_BUILD_SHA256_CHECKSUM}
-     SOURCE_SUBDIR cpp
-     CMAKE_ARGS ${ARROW_CMAKE_ARGS}
 diff --git a/CMake/resolve_dependency_modules/simdjson.cmake b/CMake/resolve_dependency_modules/simdjson.cmake
-index 69e7f2044..777eb5ec1 100644
+index ddd232050..b6ed2432b 100644
 --- a/CMake/resolve_dependency_modules/simdjson.cmake
 +++ b/CMake/resolve_dependency_modules/simdjson.cmake
 @@ -29,4 +29,6 @@ FetchContent_Declare(
@@ -71,40 +10,16 @@ index 69e7f2044..777eb5ec1 100644
 +
  FetchContent_MakeAvailable(simdjson)
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 7f7cbc92f..52adb1250 100644
+index 7fd99b6dc..e7e03a800 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -386,7 +391,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -428,7 +428,7 @@ velox_resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
  
- set_source(gflags)
--resolve_dependency(gflags COMPONENTS ${VELOX_GFLAGS_TYPE})
-+resolve_dependency(gflags)
+ velox_set_source(gflags)
+-velox_resolve_dependency(gflags COMPONENTS ${VELOX_GFLAGS_TYPE})
++velox_resolve_dependency(gflags)
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
-diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
-index a8b0df52a..254c56b70 100644
---- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
-+++ b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
-@@ -38,7 +38,6 @@ std::shared_ptr<FileSystem> abfsFileSystemGenerator(
- 
- void registerAbfsFileSystem() {
- #ifdef VELOX_ENABLE_ABFS
--  LOG(INFO) << "Register ABFS";
-   registerFileSystem(isAbfsFile, std::function(abfsFileSystemGenerator));
- #endif
- }
-diff --git a/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp b/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
-index 10ee508ba..027a58ecc 100644
---- a/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
-+++ b/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
-@@ -72,7 +72,7 @@ HdfsMiniCluster::HdfsMiniCluster() {
-         "Failed to find minicluster executable {}'", miniClusterExecutableName);
-   }
-   boost::filesystem::path hadoopHomeDirectory = exePath_;
--  hadoopHomeDirectory.remove_leaf().remove_leaf();
-+  hadoopHomeDirectory.remove_filename().remove_filename();
-   setupEnvironment(hadoopHomeDirectory.string());
- }
-
+   

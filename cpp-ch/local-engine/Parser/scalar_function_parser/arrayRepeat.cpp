@@ -78,7 +78,8 @@ public:
             captured_column_names,
             lambda_arguments_names_and_types,
             lambda_output->result_type,
-            lambda_output->result_name);
+            lambda_output->result_name,
+            false);
         const auto * lambda_function = &actions_dag.addFunction(function_capture, {elem_arg}, lambda_output->result_name);
 
         /// Apply arrayMap with the lambda function

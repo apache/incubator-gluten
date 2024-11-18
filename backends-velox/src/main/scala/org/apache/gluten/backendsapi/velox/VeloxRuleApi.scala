@@ -20,11 +20,11 @@ import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast, TransformPreOverrides}
+import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
-import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
+import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
-import org.apache.gluten.extension.injector.{RuleInjector, SparkInjector}
+import org.apache.gluten.extension.injector.{Injector, SparkInjector}
 import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFa
 class VeloxRuleApi extends RuleApi {
   import VeloxRuleApi._
 
-  override def injectRules(injector: RuleInjector): Unit = {
+  override def injectRules(injector: Injector): Unit = {
     injectSpark(injector.spark)
     injectLegacy(injector.gluten.legacy)
     injectRas(injector.gluten.ras)
@@ -49,7 +49,7 @@ private object VeloxRuleApi {
   }
 
   def injectLegacy(injector: LegacyInjector): Unit = {
-    // Gluten columnar: Transform rules.
+    // Legacy: Pre-transform rules.
     injector.injectTransform(_ => RemoveTransitions)
     injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
     injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
@@ -57,9 +57,11 @@ private object VeloxRuleApi {
     injector.injectTransform(_ => RewriteSubqueryBroadcast())
     injector.injectTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.injectTransform(c => ArrowScanReplaceRule.apply(c.session))
-    injector.injectTransform(_ => RewriteSparkPlanRulesManager())
-    injector.injectTransform(_ => AddFallbackTagRule())
-    injector.injectTransform(_ => TransformPreOverrides())
+
+    // Legacy: The Legacy transform rule.
+    injector.injectTransform(_ => HeuristicTransform())
+
+    // Legacy: Post-transform rules.
     injector.injectTransform(c => PartialProjectRule.apply(c.session))
     injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectTransform(c => RewriteTransformer.apply(c.session))

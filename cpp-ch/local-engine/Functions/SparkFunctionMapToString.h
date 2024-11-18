@@ -76,7 +76,10 @@ public:
                 arguments[1].type->getName(), arguments[2].type->getName());
         }
 
-        return makeNullable(std::make_shared<DataTypeString>());
+        if (arguments[0].type->isNullable())
+            return makeNullable(std::make_shared<DataTypeString>());
+        else
+            return std::make_shared<DataTypeString>();
     }
 
     ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t /*input_rows*/) const override
@@ -89,7 +92,8 @@ public:
         }
 
         const auto & col_with_type_and_name = columnGetNested(arguments[0]);
-        const IColumn & col_from = *col_with_type_and_name.column;
+        const IColumn & column = *col_with_type_and_name.column;
+        const IColumn & col_from = column.isConst() ? reinterpret_cast<const ColumnConst &>(column).getDataColumn() : column;
 
         size_t size = col_from.size();
         auto col_to = removeNullable(result_type)->createColumn();

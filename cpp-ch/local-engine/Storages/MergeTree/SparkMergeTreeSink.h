@@ -21,6 +21,7 @@
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
+#include <Storages/Output/NormalFileWriter.h>
 #include <Common/BlockTypeUtils.h>
 
 namespace local_engine
@@ -152,16 +153,83 @@ public:
     }
 };
 
+class MergeTreeStats : public WriteStatsBase
+{
+    DB::MutableColumns columns_;
+
+    enum ColumnIndex
+    {
+        part_name,
+        partition_id,
+        record_count,
+        marks_count,
+        size_in_bytes
+    };
+
+    static DB::Block statsHeader()
+    {
+        return makeBlockHeader(
+            {{STRING(), "part_name"},
+             {STRING(), "partition_id"},
+             {BIGINT(), "record_count"},
+             {BIGINT(), "marks_count"},
+             {BIGINT(), "size_in_bytes"}});
+    }
+
+    DB::Chunk final_result() override
+    {
+        size_t rows = columns_[part_name]->size();
+        return DB::Chunk(std::move(columns_), rows);
+    }
+
+public:
+    explicit MergeTreeStats(const DB::Block & input_header_)
+        : WriteStatsBase(input_header_, statsHeader()), columns_(statsHeader().cloneEmptyColumns())
+    {
+    }
+
+    String getName() const override { return "MergeTreeStats"; }
+
+    void collectStats(const std::deque<DB::MergeTreeDataPartPtr> & parts, const std::string & partition) const
+    {
+        const size_t size = parts.size() + columns_[part_name]->size();
+
+        columns_[part_name]->reserve(size);
+        columns_[partition_id]->reserve(size);
+
+        columns_[record_count]->reserve(size);
+        auto & countColData = static_cast<DB::ColumnVector<Int64> &>(*columns_[record_count]).getData();
+
+        columns_[marks_count]->reserve(size);
+        auto & marksColData = static_cast<DB::ColumnVector<Int64> &>(*columns_[marks_count]).getData();
+
+        columns_[size_in_bytes]->reserve(size);
+        auto & bytesColData = static_cast<DB::ColumnVector<Int64> &>(*columns_[size_in_bytes]).getData();
+
+        for (const auto & part : parts)
+        {
+            columns_[part_name]->insertData(part->name.c_str(), part->name.size());
+            columns_[partition_id]->insertData(partition.c_str(), partition.size());
+
+            countColData.emplace_back(part->rows_count);
+            marksColData.emplace_back(part->getMarksCount());
+            bytesColData.emplace_back(part->getBytesOnDisk());
+        }
+    }
+};
+
 class SparkMergeTreeSink : public DB::SinkToStorage
 {
 public:
-    static SinkHelperPtr create(
+    using SinkStatsOption = std::optional<std::shared_ptr<MergeTreeStats>>;
+    static SinkToStoragePtr create(
         const MergeTreeTable & merge_tree_table,
         const SparkMergeTreeWriteSettings & write_settings_,
-        const DB::ContextMutablePtr & context);
+        const DB::ContextMutablePtr & context,
+        const SinkStatsOption & stats = {});
 
-    explicit SparkMergeTreeSink(const SinkHelperPtr & sink_helper_, const ContextPtr & context_)
-        : SinkToStorage(sink_helper_->metadata_snapshot->getSampleBlock()), context(context_), sink_helper(sink_helper_)
+    explicit SparkMergeTreeSink(const SinkHelperPtr & sink_helper_, const ContextPtr & context_, const SinkStatsOption & stats)
+        : SinkToStorage(sink_helper_->metadata_snapshot->getSampleBlock()), context(context_), sink_helper(sink_helper_), stats_(stats)
     {
     }
     ~SparkMergeTreeSink() override = default;
@@ -176,89 +244,41 @@ public:
 private:
     ContextPtr context;
     SinkHelperPtr sink_helper;
-
+    std::optional<std::shared_ptr<MergeTreeStats>> stats_;
     int part_num = 1;
 };
 
 
-class MergeTreeStats : public DB::ISimpleTransform
+class SparkMergeTreePartitionedFileSink final : public SparkPartitionedBaseSink
 {
-    bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
-    const SinkHelper & sink_helper;
-
-    static DB::Block statsHeader()
-    {
-        return makeBlockHeader(
-            {{STRING(), "part_name"},
-             {STRING(), "partition_id"},
-             {BIGINT(), "record_count"},
-             {BIGINT(), "marks_count"},
-             {BIGINT(), "size_in_bytes"}});
-    }
-
-    DB::Chunk final_result() const
-    {
-        // TODO: remove it
-        const std::string NO_PARTITION_ID{"__NO_PARTITION_ID__"};
-
-        auto parts = sink_helper.unsafeGet();
-
-        const size_t size = parts.size();
-        auto file_col = STRING()->createColumn();
-        file_col->reserve(size);
-
-        auto partition_col = STRING()->createColumn();
-        partition_col->reserve(size);
-
-        auto countCol = BIGINT()->createColumn();
-        countCol->reserve(size);
-        auto & countColData = static_cast<DB::ColumnVector<Int64> &>(*countCol).getData();
-
-        auto marksCol = BIGINT()->createColumn();
-        marksCol->reserve(size);
-        auto & marksColData = static_cast<DB::ColumnVector<Int64> &>(*marksCol).getData();
-
-        auto bytesCol = BIGINT()->createColumn();
-        bytesCol->reserve(size);
-        auto & bytesColData = static_cast<DB::ColumnVector<Int64> &>(*bytesCol).getData();
-
-        for (const auto & part : parts)
-        {
-            file_col->insertData(part->name.c_str(), part->name.size());
-            partition_col->insertData(NO_PARTITION_ID.c_str(), NO_PARTITION_ID.size());
-            countColData.emplace_back(part->rows_count);
-            marksColData.emplace_back(part->getMarksCount());
-            bytesColData.emplace_back(part->getBytesOnDisk());
-        }
-        const DB::Columns res_columns{
-            std::move(file_col), std::move(partition_col), std::move(countCol), std::move(marksCol), std::move(bytesCol)};
-        return DB::Chunk(res_columns, size);
-    }
+    const SparkMergeTreeWriteSettings write_settings_;
+    MergeTreeTable table;
 
 public:
-    explicit MergeTreeStats(const DB::Block & input_header_, const SinkHelper & sink_helper_)
-        : ISimpleTransform(input_header_, statsHeader(), true), sink_helper(sink_helper_)
+    SparkMergeTreePartitionedFileSink(
+        const DB::Block & input_header,
+        const DB::Names & partition_by,
+        const MergeTreeTable & merge_tree_table,
+        const SparkMergeTreeWriteSettings & write_settings,
+        const DB::ContextPtr & context,
+        const std::shared_ptr<WriteStatsBase> & stats)
+        : SparkPartitionedBaseSink(context, partition_by, input_header, stats), write_settings_(write_settings), table(merge_tree_table)
     {
     }
-    Status prepare() override
-    {
-        if (input.isFinished() && !output.isFinished() && !has_input && !all_chunks_processed_)
-        {
-            all_chunks_processed_ = true;
-            /// return Ready to call transform() for generating filling rows after latest chunk was processed
-            return Status::Ready;
-        }
 
-        return ISimpleTransform::prepare();
-    }
-
-    String getName() const override { return "MergeTreeStats"; }
-    void transform(DB::Chunk & chunk) override
+    SinkPtr createSinkForPartition(const String & partition_id) override
     {
-        if (all_chunks_processed_)
-            chunk = final_result();
-        else
-            chunk = {};
+        SparkMergeTreeWriteSettings write_settings{write_settings_};
+
+        assert(write_settings.partition_settings.partition_dir.empty());
+        assert(write_settings.partition_settings.bucket_dir.empty());
+        write_settings.partition_settings.part_name_prefix
+            = fmt::format("{}/{}", partition_id, write_settings.partition_settings.part_name_prefix);
+        write_settings.partition_settings.partition_dir = partition_id;
+
+        return SparkMergeTreeSink::create(
+            table, write_settings, context_->getGlobalContext(), {std::dynamic_pointer_cast<MergeTreeStats>(stats_)});
     }
 };
+
 }

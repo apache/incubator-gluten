@@ -130,21 +130,27 @@ macro(find_re2)
 endmacro()
 
 macro(find_awssdk)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 macro(find_gcssdk)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-  find_package(google_cloud_cpp_storage REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_package(google_cloud_cpp_storage CONFIG 2.22.0 REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 macro(find_azure)
   find_package(CURL REQUIRED)
   find_package(LibXml2 REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
   find_package(azure-storage-files-datalake-cpp CONFIG REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 # Build Velox backend.
@@ -162,6 +168,7 @@ set(VELOX_SRCS
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
+    operators/functions/SparkExprToSubfieldFilterParser.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxRowToColumnarConverter.cc

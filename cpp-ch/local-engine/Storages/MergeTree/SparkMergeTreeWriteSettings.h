@@ -35,6 +35,6 @@ struct SparkMergeTreeWriteSettings
     size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;
 
-    void load(const DB::ContextPtr & context);
+    explicit SparkMergeTreeWriteSettings(const DB::ContextPtr & context);
 };
 }

@@ -153,7 +153,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         left.dataType.isInstanceOf[DecimalType] && right.dataType
           .isInstanceOf[DecimalType] && !SQLConf.get.decimalOperationsAllowPrecisionLoss
       ) {
-        val newName = "not_allow_precision_loss_"
+        // https://github.com/facebookincubator/velox/pull/10383
+        val newName = substraitExprName + "_deny_precision_loss"
         GenericExpressionTransformer(newName, Seq(left, right), original)
       } else {
         GenericExpressionTransformer(substraitExprName, Seq(left, right), original)

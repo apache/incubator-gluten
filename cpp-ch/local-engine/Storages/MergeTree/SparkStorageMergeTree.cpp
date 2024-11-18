@@ -513,17 +513,11 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 SinkToStoragePtr SparkWriteStorageMergeTree::write(
     const ASTPtr &, const StorageMetadataPtr & /*storage_in_memory_metadata*/, ContextPtr context, bool /*async_insert*/)
 {
-    SparkMergeTreeWriteSettings settings{.partition_settings{SparkMergeTreeWritePartitionSettings::get(context)}};
-    if (settings.partition_settings.part_name_prefix.empty())
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "empty part_name_prefix is not allowed.");
-    settings.load(context);
-    SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
 #ifndef NDEBUG
     auto dest_storage = table.getStorage(getContext());
     assert(dest_storage.get() == this);
 #endif
-
-    return std::make_shared<SparkMergeTreeSink>(sink_helper, context);
+    return SparkMergeTreeSink::create(table, SparkMergeTreeWriteSettings{context}, getContext());
 }
 
 }
