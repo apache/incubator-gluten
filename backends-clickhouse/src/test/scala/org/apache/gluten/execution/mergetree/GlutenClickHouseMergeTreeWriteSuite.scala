@@ -213,7 +213,7 @@ class GlutenClickHouseMergeTreeWriteSuite
   }
 
   test("test mergetree insert overwrite partitioned table with small table, static") {
-    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, "false")) {
+    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite2;
                    |""".stripMargin)
