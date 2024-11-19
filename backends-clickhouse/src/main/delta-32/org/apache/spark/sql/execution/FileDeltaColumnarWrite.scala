@@ -21,13 +21,31 @@ import org.apache.gluten.exception.GlutenNotSupportException
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, UnsafeProjection}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
 import org.apache.spark.sql.delta.files.{FileDelayedCommitProtocol, MergeTreeDelayedCommitProtocol2}
 import org.apache.spark.sql.execution.datasources.{ExecutedWriteSummary, WriteJobDescription, WriteTaskResult}
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.util.Utils
 
 import scala.collection.mutable.ArrayBuffer
+
+case class DeltaFileCommitInfo(committer: FileDelayedCommitProtocol)
+  extends (NativeFileWriteResult => Unit) {
+  val addedFiles: ArrayBuffer[(Map[String, String], String)] =
+    new ArrayBuffer[(Map[String, String], String)]
+  override def apply(stat: NativeFileWriteResult): Unit = {
+    if (stat.partition_id == "__NO_PARTITION_ID__") {
+      addedFiles.append((Map.empty[String, String], stat.filename))
+    } else {
+      val partitionValues = committer.parsePartitions(stat.partition_id)
+      addedFiles.append((partitionValues, stat.relativePath))
+    }
+  }
+
+  def result: Seq[(Map[String, String], String)] = addedFiles.toSeq
+}
 
 case class FileDeltaColumnarWrite(
     override val jobTrackerID: String,
@@ -45,48 +63,54 @@ case class FileDeltaColumnarWrite(
     BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, writeFileName)
   }
 
-  private def doCollectNativeResult(
-      cb: ColumnarBatch): Option[(Seq[(Map[String, String], String)], ExecutedWriteSummary)] = {
-    val basicNativeStats = BasicNativeStats(cb)
-
-    // TODO: we need close iterator here before processing the result.
+  private def doCollectNativeResult(stats: Seq[InternalRow])
+      : Option[(Seq[(Map[String, String], String)], ExecutedWriteSummary)] = {
 
     // Write an empty iterator
-    if (basicNativeStats.isEmpty) {
+    if (stats.isEmpty) {
       None
     } else {
+      val x = deltaWriteJobStatsTracker
+        .map(
+          e => {
+            val r = e._2.transform {
+              case ae: AggregateExpression
+                  if ae.aggregateFunction.isInstanceOf[DeclarativeAggregate] =>
+                ae.aggregateFunction.asInstanceOf[DeclarativeAggregate].evaluateExpression
+            }
+            val z = Seq(
+              AttributeReference("filename", StringType, nullable = false)(),
+              AttributeReference("partition_id", StringType, nullable = false)())
+            val s =
+              e._2
+                .collect {
+                  case ae: AggregateExpression
+                      if ae.aggregateFunction.isInstanceOf[DeclarativeAggregate] =>
+                    ae.aggregateFunction.asInstanceOf[DeclarativeAggregate]
+                }
+                .asInstanceOf[Seq[DeclarativeAggregate]]
+                .flatMap(_.aggBufferAttributes)
+            UnsafeProjection.create(
+              exprs = Seq(r),
+              inputSchema = z :++ s
+            )
+          })
+        .orNull
+      // stats.map(row => x.apply(row).getString(0)).foreach(println)
       // process stats
-      val addedFiles: ArrayBuffer[(Map[String, String], String)] =
-        new ArrayBuffer[(Map[String, String], String)]
-      var numWrittenRows: Long = 0
-
-      basicNativeStats.foreach {
-        stat =>
-          val absolutePath = s"${description.path}/${stat.relativePath}"
-          if (stat.partition_id == "__NO_PARTITION_ID__") {
-            addedFiles.append((Map.empty[String, String], stat.filename))
-          } else {
-            val partitionValues = committer.parsePartitions(stat.partition_id)
-            addedFiles.append((partitionValues, stat.relativePath))
-            basicWriteJobStatsTracker.newPartition(
-              new GenericInternalRow(Array[Any](stat.partition_id)))
-          }
-          basicWriteJobStatsTracker.newFile(absolutePath)
-          basicWriteJobStatsTracker.closeFile(absolutePath)
-          numWrittenRows += stat.record_count
-      }
-
+      val commitInfo = DeltaFileCommitInfo(committer)
+      val basicNativeStat = NativeBasicWriteTaskStatsTracker(description, basicWriteJobStatsTracker)
+      val basicNativeStats = Seq(commitInfo, basicNativeStat)
+      NativeStatCompute(stats)(basicNativeStats)
       Some(
         (
-          addedFiles.toSeq,
-          ExecutedWriteSummary(
-            updatedPartitions = Set.empty,
-            stats = Seq(finalStats.copy(numRows = numWrittenRows)))))
+          commitInfo.result,
+          ExecutedWriteSummary(updatedPartitions = Set.empty, stats = Seq(basicNativeStat.result))))
     }
   }
 
-  override def commitTask(batch: ColumnarBatch): Option[WriteTaskResult] = {
-    doCollectNativeResult(batch).map {
+  override def commitTask(writeResults: Seq[InternalRow]): Option[WriteTaskResult] = {
+    doCollectNativeResult(writeResults).map {
       case (addedFiles, summary) =>
         require(addedFiles.nonEmpty, "No files to commit")
 

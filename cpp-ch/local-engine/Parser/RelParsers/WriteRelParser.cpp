@@ -58,7 +58,8 @@ DB::ProcessorPtr make_sink(
 {
     if (partition_by.empty())
     {
-        return std::make_shared<SubstraitFileSink>(context, base_path, "", filename, format_hint, input_header, stats);
+        return std::make_shared<SubstraitFileSink>(
+            context, base_path, "", filename, format_hint, input_header, stats, DeltaStats{input_header.columns()});
     }
 
     return std::make_shared<SubstraitPartitionedFileSink>(
@@ -147,7 +148,6 @@ void addMergeTreeSinkTransform(
     const DB::Block & header,
     const DB::Names & partition_by)
 {
-
     Chain chain;
     //
     auto stats = std::make_shared<MergeTreeStats>(header);
@@ -158,9 +158,9 @@ void addMergeTreeSinkTransform(
     if (partition_by.empty())
         write_settings.partition_settings.partition_dir = SubstraitFileSink::NO_PARTITION_ID;
 
-    auto sink = partition_by.empty() ?
-        SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getGlobalContext(), {stats}) :
-        std::make_shared<SparkMergeTreePartitionedFileSink>(header, partition_by, merge_tree_table, write_settings, context, stats);
+    auto sink = partition_by.empty()
+        ? SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getGlobalContext(), {stats})
+        : std::make_shared<SparkMergeTreePartitionedFileSink>(header, partition_by, merge_tree_table, write_settings, context, stats);
 
     chain.addSource(sink);
     const DB::Settings & settings = context->getSettingsRef();
@@ -187,7 +187,7 @@ void addNormalFileWriterSinkTransform(
     if (write_settings.task_write_filename.empty())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject file name.");
 
-    auto stats = std::make_shared<WriteStats>(output);
+    auto stats = WriteStats::create(output, partitionCols);
 
     builder->addSimpleTransform(
         [&](const Block & cur_header, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr
