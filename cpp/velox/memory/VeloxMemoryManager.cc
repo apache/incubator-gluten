@@ -77,11 +77,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
                 kMemoryPoolTransferCapacity,
                 std::to_string(kDefaultMemoryPoolTransferCapacity)),
             velox::config::CapacityUnit::BYTE)),
-        memoryReclaimMaxWaitMs_(std::chrono::duration_cast<std::chrono::milliseconds>(velox::config::toDuration(
-            getConfig<std::string>(
-                config.extraConfigs,
-                kMemoryReclaimMaxWaitMs,
-                std::string(kDefaultMemoryReclaimMaxWaitMs)))).count()) {}
+        memoryReclaimMaxWaitMs_(
+            std::chrono::duration_cast<std::chrono::milliseconds>(velox::config::toDuration(getConfig<std::string>(
+                                                                      config.extraConfigs,
+                                                                      kMemoryReclaimMaxWaitMs,
+                                                                      std::string(kDefaultMemoryReclaimMaxWaitMs))))
+                .count()) {}
   std::string kind() const override {
     return kind_;
   }
