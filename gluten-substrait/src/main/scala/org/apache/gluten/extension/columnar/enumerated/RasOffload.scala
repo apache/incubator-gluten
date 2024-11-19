@@ -122,7 +122,7 @@ object RasOffload {
                 val offloadedNodes = offloadedPlan.collect[GlutenPlan] { case t: GlutenPlan => t }
                 val outComes = offloadedNodes.map(_.doValidate()).filter(!_.ok())
                 if (outComes.nonEmpty) {
-                  // 4. If native validation fails on at least one of the offloaded nodes, return
+                  // 5. If native validation fails on at least one of the offloaded nodes, return
                   // the original one.
                   //
                   // TODO: Tag the original plan with fallback reason. This is a non-trivial work
