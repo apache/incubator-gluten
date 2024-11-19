@@ -37,7 +37,7 @@ class MyUdfTest : public FunctionBaseTest {
 TEST_F(MyUdfTest, hivestringstring) {
   auto map = facebook::velox::exec::vectorFunctionFactories();
   const std::string candidate = {"org.apache.spark.sql.hive.execution.UDFStringString"};
-  ASSERT(map.withRLock([&candidate](auto& self) -> bool {
+  EXPECT_TRUE(map.withRLock([&candidate](auto& self) -> bool {
     auto iter = self.find(candidate);
     std::unordered_map<std::string, std::string> values;
     const facebook::velox::core::QueryConfig config(std::move(values));
@@ -46,5 +46,5 @@ TEST_F(MyUdfTest, hivestringstring) {
                {facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()},
                 facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()}},
                config) != nullptr;
-  });)
+  }));
 }
