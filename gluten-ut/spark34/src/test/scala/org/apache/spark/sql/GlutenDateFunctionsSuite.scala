@@ -26,6 +26,7 @@ import java.time.{LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
 class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTrait {
+
   import testImplicits._
 
   private def secs(millis: Long): Long = TimeUnit.MILLISECONDS.toSeconds(millis)
@@ -115,13 +116,12 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
 
           val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
           if (legacyParserPolicy == "legacy") {
-            checkAnswer(invalid,
-              Seq(Row(null), Row(null), Row(null), Row(null)))
+            checkAnswer(invalid, Seq(Row(null), Row(null), Row(null), Row(null)))
           } else {
             val e = intercept[SparkUpgradeException](invalid.collect())
             assert(e.getCause.isInstanceOf[IllegalArgumentException])
-            assert(e.getMessage.contains(
-              "You may get a different result due to the upgrading to Spark"))
+            assert(
+              e.getMessage.contains("You may get a different result due to the upgrading to Spark"))
           }
 
           // February
@@ -142,19 +142,16 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
 
     val df = Seq(("2016-04-08 00:00:00")).toDF("d")
     val fmt = "yyyy-MM-dd"
-    withSQLConf(
-      SQLConf.LEGACY_TIME_PARSER_POLICY.key -> "legacy") {
+    withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> "legacy") {
       val result = df.selectExpr(s"unix_timestamp(d, '$fmt')")
       checkAnswer(result, Seq(Row(1460041200)))
     }
 
-    withSQLConf(
-      SQLConf.LEGACY_TIME_PARSER_POLICY.key -> "correct") {
+    withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> "correct") {
       val result = df.selectExpr(s"unix_timestamp(d, '$fmt')")
       val e = intercept[SparkUpgradeException](result.collect())
       assert(e.getCause.isInstanceOf[IllegalArgumentException])
-      assert(e.getMessage.contains(
-        "You may get a different result due to the upgrading to Spark"))
+      assert(e.getMessage.contains("You may get a different result due to the upgrading to Spark"))
     }
 
   }
