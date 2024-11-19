@@ -113,16 +113,16 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
             df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd mm:HH:ss')"),
             Seq(Row(secs(ts4.getTime)), Row(null), Row(secs(ts3.getTime)), Row(null)))
 
-           val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
-           if (legacyParserPolicy == "legacy") {
-             checkAnswer(invalid,
-               Seq(Row(null), Row(null), Row(null), Row(null)))
-           } else {
-             val e = intercept[SparkUpgradeException](invalid.collect())
-             assert(e.getCause.isInstanceOf[IllegalArgumentException])
-             assert( e.getMessage.contains(
-               "You may get a different result due to the upgrading to Spark"))
-           }
+          val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
+          if (legacyParserPolicy == "legacy") {
+            checkAnswer(invalid,
+              Seq(Row(null), Row(null), Row(null), Row(null)))
+          } else {
+            val e = intercept[SparkUpgradeException](invalid.collect())
+            assert(e.getCause.isInstanceOf[IllegalArgumentException])
+            assert(e.getMessage.contains(
+              "You may get a different result due to the upgrading to Spark"))
+          }
 
           // February
           val y1 = "2016-02-29"
@@ -153,10 +153,10 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
       val result = df.selectExpr(s"unix_timestamp(d, '$fmt')")
       val e = intercept[SparkUpgradeException](result.collect())
       assert(e.getCause.isInstanceOf[IllegalArgumentException])
-      assert( e.getMessage.contains(
+      assert(e.getMessage.contains(
         "You may get a different result due to the upgrading to Spark"))
     }
-    
+
   }
 
   testGluten("to_unix_timestamp") {
