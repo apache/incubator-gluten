@@ -339,22 +339,6 @@ void updateBenchmarkMetrics(
         writerMetrics.bytesWritten, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
   }
 }
-
-class BenchmarkWorkspace {
- public:
-  explicit BenchmarkWorkspace(const std::vector<std::string>& localDirs) : localDirs_(localDirs) {}
-
-  ~BenchmarkWorkspace() {}
-
- private:
-  std::vector<std::string> localDirs_;
-  const size_t tidHash_ = std::hash<std::thread::id>{}(std::this_thread::get_id());
-
-  std::string veloxSpillDir_;
-  std::string shuffleDataDir_;
-  std::vector<std::string> shuffleSpillDirs_;
-};
-
 } // namespace
 
 using RuntimeFactory = std::function<VeloxRuntime*(MemoryManager* memoryManager)>;
