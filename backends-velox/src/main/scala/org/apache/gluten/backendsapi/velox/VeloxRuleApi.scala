@@ -41,6 +41,7 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.sql.execution.exchange.Exchange
 import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.python.EvalPythonExec
+import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 class VeloxRuleApi extends RuleApi {
@@ -137,7 +138,6 @@ object VeloxRuleApi {
         .fallbackByBackendSettings()
         .fallbackByUserOptions()
         .fallbackByTestInjects()
-        .fallbackByNativeValidation()
         .build()
     val rewrites =
       Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
@@ -151,6 +151,7 @@ object VeloxRuleApi {
       RasOffload.from[FilterExec](OffloadOthers()),
       RasOffload.from[ProjectExec](OffloadOthers()),
       RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()),
+      RasOffload.from[DataSourceScanExec](OffloadOthers()),
       RasOffload.from(HiveTableScanExecTransformer.isHiveTableScan(_))(OffloadOthers()),
       RasOffload.from[CoalesceExec](OffloadOthers()),
       RasOffload.from[HashAggregateExec](OffloadOthers()),
@@ -161,6 +162,7 @@ object VeloxRuleApi {
       RasOffload.from[WriteFilesExec](OffloadOthers()),
       RasOffload.from[SortExec](OffloadOthers()),
       RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()),
+      RasOffload.from[WindowExec](OffloadOthers()),
       RasOffload.from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec(_))(OffloadOthers()),
       RasOffload.from[LimitExec](OffloadOthers()),
       RasOffload.from[GenerateExec](OffloadOthers()),
