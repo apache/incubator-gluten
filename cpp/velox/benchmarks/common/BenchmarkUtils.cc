@@ -134,49 +134,6 @@ void setCpu(uint32_t cpuIndex) {
   }
 }
 
-void createDirOrAbort(const std::string& path) {
-  std::error_code ec;
-  if (!std::filesystem::create_directories(path)) {
-    LOG(ERROR) << fmt::format("Failed to created spill directory: {}, error code: {}", path, ec.message());
-    std::exit(EXIT_FAILURE);
-  }
-}
-
-std::vector<std::string> createLocalDirs() {
-  static const std::string kBenchmarkDirsPrefix = "generic-benchmark-";
-  std::vector<std::string> localDirs;
-
-  auto joinedDirsC = std::getenv(gluten::kGlutenSparkLocalDirs.c_str());
-  // Check if local dirs are set from env.
-  if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
-    auto joinedDirs = std::string(joinedDirsC);
-    auto dirs = gluten::splitPaths(joinedDirs);
-    for (const auto& dir : dirs) {
-      auto path = std::filesystem::path(dir) / (kBenchmarkDirsPrefix + generateUuid());
-      createDirOrAbort(path);
-      localDirs.push_back(path.string());
-    }
-  } else {
-    // Otherwise create 1 temp dir.
-    auto tempPath = std::filesystem::temp_directory_path() / (kBenchmarkDirsPrefix + generateUuid());
-    createDirOrAbort(tempPath);
-    localDirs.push_back(tempPath.string());
-  }
-  return localDirs;
-}
-
-void cleanupLocalDirs(const std::vector<std::string>& localDirs) {
-  for (const auto& localDir : localDirs) {
-    std::error_code ec;
-    std::filesystem::remove_all(localDir, ec);
-    if (ec) {
-      LOG(WARNING) << fmt::format("Failed to remove directory: {}, error message: {}", localDir, ec.message());
-    } else {
-      LOG(INFO) << "Removed local dir: " << localDir;
-    }
-  }
-}
-
 void BenchmarkAllocationListener::allocationChanged(int64_t diff) {
   if (diff > 0 && usedBytes_ + diff >= limit_) {
     LOG(INFO) << fmt::format(

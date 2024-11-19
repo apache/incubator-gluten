@@ -97,12 +97,6 @@ bool endsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuIndex);
 
-void createDirOrAbort(const std::string& path);
-
-std::vector<std::string> createLocalDirs();
-
-void cleanupLocalDirs(const std::vector<std::string>& localDirs);
-
 class BenchmarkAllocationListener final : public gluten::AllocationListener {
  public:
   BenchmarkAllocationListener(uint64_t limit) : limit_(limit) {}

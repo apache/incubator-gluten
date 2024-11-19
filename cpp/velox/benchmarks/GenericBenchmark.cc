@@ -106,6 +106,50 @@ void setUpBenchmark(::benchmark::internal::Benchmark* bm) {
   }
 }
 
+std::string generateUniqueSubdir(const std::string& parent, const std::string& prefix = "") {
+  auto path = std::filesystem::path(parent) / (prefix + generateUuid());
+  std::error_code ec{};
+  while (!std::filesystem::create_directories(path, ec)) {
+    if (ec) {
+      LOG(ERROR) << fmt::format("Failed to created spill directory: {}, error code: {}", path, ec.message());
+      std::exit(EXIT_FAILURE);
+    }
+    path = std::filesystem::path(parent) / (prefix + generateUuid());
+  }
+  return path;
+}
+
+std::vector<std::string> createLocalDirs() {
+  static const std::string kBenchmarkDirPrefix = "generic-benchmark-";
+  std::vector<std::string> localDirs;
+
+  auto joinedDirsC = std::getenv(gluten::kGlutenSparkLocalDirs.c_str());
+  // Check if local dirs are set from env.
+  if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
+    auto joinedDirs = std::string(joinedDirsC);
+    auto dirs = gluten::splitPaths(joinedDirs);
+    for (const auto& dir : dirs) {
+      localDirs.push_back(generateUniqueSubdir(dir, kBenchmarkDirPrefix));
+    }
+  } else {
+    // Otherwise create 1 temp dir.
+    localDirs.push_back(generateUniqueSubdir(std::filesystem::temp_directory_path(), kBenchmarkDirPrefix));
+  }
+  return localDirs;
+}
+
+void cleanupLocalDirs(const std::vector<std::string>& localDirs) {
+  for (const auto& localDir : localDirs) {
+    std::error_code ec;
+    std::filesystem::remove_all(localDir, ec);
+    if (ec) {
+      LOG(WARNING) << fmt::format("Failed to remove directory: {}, error message: {}", localDir, ec.message());
+    } else {
+      LOG(INFO) << "Removed local dir: " << localDir;
+    }
+  }
+}
+
 PartitionWriterOptions createPartitionWriterOptions() {
   PartitionWriterOptions partitionWriterOptions{};
   // Disable writer's merge.
@@ -296,6 +340,21 @@ void updateBenchmarkMetrics(
   }
 }
 
+class BenchmarkWorkspace {
+ public:
+  explicit BenchmarkWorkspace(const std::vector<std::string>& localDirs) : localDirs_(localDirs) {}
+
+  ~BenchmarkWorkspace() {}
+
+ private:
+  std::vector<std::string> localDirs_;
+  const size_t tidHash_ = std::hash<std::thread::id>{}(std::this_thread::get_id());
+
+  std::string veloxSpillDir_;
+  std::string shuffleDataDir_;
+  std::vector<std::string> shuffleSpillDirs_;
+};
+
 } // namespace
 
 using RuntimeFactory = std::function<VeloxRuntime*(MemoryManager* memoryManager)>;
@@ -320,10 +379,9 @@ auto BM_Generic = [](::benchmark::State& state,
     splits.push_back(getPlanFromFile("ReadRel.LocalFiles", splitFile));
   }
 
-  const size_t spillDirIndex = std::hash<std::thread::id>{}(std::this_thread::get_id()) % localDirs.size();
-  // veloxSpillDir is unique per thread.
-  const auto veloxSpillDir = std::filesystem::path(localDirs[spillDirIndex]) / "gluten-spill" / gluten::generateUuid();
-  gluten::createDirOrAbort(veloxSpillDir);
+  const auto tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
+  const auto spillDirIndex = tid % localDirs.size();
+  const auto veloxSpillDir = generateUniqueSubdir(std::filesystem::path(localDirs[spillDirIndex]) / "gluten-spill");
 
   std::vector<std::string> shuffleSpillDirs;
   std::transform(localDirs.begin(), localDirs.end(), std::back_inserter(shuffleSpillDirs), [](const auto& dir) {

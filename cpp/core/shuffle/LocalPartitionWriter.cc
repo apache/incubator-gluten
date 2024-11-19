@@ -505,6 +505,9 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
             "Merging from spill " + std::to_string(s) + " is not exhausted. pid: " + std::to_string(pid));
       }
     }
+    if (std::filesystem::exists(spill->spillFile()) && !std::filesystem::remove(spill->spillFile())) {
+      LOG(WARNING) << "Error while deleting spill file " << spill->spillFile();
+    }
     ++s;
   }
   spills_.clear();
