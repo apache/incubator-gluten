@@ -87,8 +87,8 @@ SubstraitFileSource::SubstraitFileSource(
         /// File partition keys are read from the file path
         const auto partition_keys = files[0]->getFilePartitionKeys();
         for (const auto & key : partition_keys)
-            if (to_read_header.findByName(key))
-                to_read_header.erase(key);
+            if (const auto * col = to_read_header.findByName(key, true))
+                to_read_header.erase(col->name);
     }
 }
 

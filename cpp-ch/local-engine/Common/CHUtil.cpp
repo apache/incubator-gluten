@@ -480,21 +480,7 @@ std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColum
 
 const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB::Block & in_block, const std::string & name) const
 {
-    if (case_insentive)
-    {
-        std::string final_name = name;
-        boost::to_lower(final_name);
-        const auto & cols = in_block.getColumnsWithTypeAndName();
-        auto found = std::find_if(cols.begin(), cols.end(), [&](const auto & column) { return boost::iequals(column.name, name); });
-        if (found == cols.end())
-            return nullptr;
-        return &*found;
-    }
-
-    const auto * col = in_block.findByName(name);
-    if (col)
-        return col;
-    return nullptr;
+    return in_block.findByName(name, case_insentive);
 }
 
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
