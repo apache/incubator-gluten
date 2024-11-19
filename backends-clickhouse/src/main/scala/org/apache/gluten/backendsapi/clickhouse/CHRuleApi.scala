@@ -16,11 +16,12 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
-import org.apache.gluten.extension.columnar.heuristic.ExpandFallbackPolicy
+import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.rewrite._
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
@@ -78,28 +79,23 @@ object CHRuleApi {
     injector.injectPreTransform(c => FallbackBroadcastHashJoin.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
 
-    // Legacy: The Legacy transform rule.
-    injector.injectValidator {
-      c =>
-        Validator
-          .builder()
-          .fallbackByHint()
-          .fallbackIfScanOnlyWithFilterPushed(c.glutenConf.enableScanOnly)
-          .fallbackComplexExpressions()
-          .fallbackByBackendSettings()
-          .fallbackByUserOptions()
-          .fallbackByTestInjects()
-          .fallbackByNativeValidation()
-          .build()
-    }
-    injector.injectRewriteRule(_ => RewriteIn)
-    injector.injectRewriteRule(_ => RewriteMultiChildrenCount)
-    injector.injectRewriteRule(_ => RewriteJoin)
-    injector.injectRewriteRule(_ => PullOutPreProject)
-    injector.injectRewriteRule(_ => PullOutPostProject)
-    injector.injectOffloadRule(_ => OffloadOthers())
-    injector.injectOffloadRule(_ => OffloadExchange())
-    injector.injectOffloadRule(_ => OffloadJoin())
+    // Legacy: The legacy transform rule.
+    val validatorBuilder: GlutenConfig => Validator = conf =>
+      Validator
+        .builder()
+        .fallbackByHint()
+        .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
+        .fallbackComplexExpressions()
+        .fallbackByBackendSettings()
+        .fallbackByUserOptions()
+        .fallbackByTestInjects()
+        .fallbackByNativeValidation()
+        .build()
+    val rewrites =
+      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
+    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
+    injector.injectTransform(
+      c => HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads))
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
@@ -143,7 +139,7 @@ object CHRuleApi {
   private def injectRas(injector: RasInjector): Unit = {
     // CH backend doesn't work with RAS at the moment. Inject a rule that aborts any
     // execution calls.
-    injector.inject(
+    injector.injectPreTransform(
       _ =>
         new SparkPlanRules.AbortRule(
           "Clickhouse backend doesn't yet have RAS support, please try disabling RAS and" +

@@ -71,7 +71,7 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
 
-    // Legacy: The Legacy transform rule.
+    // Legacy: The legacy transform rule.
     val validatorBuilder: GlutenConfig => Validator = conf =>
       Validator
         .builder()
@@ -151,7 +151,7 @@ object VeloxRuleApi {
       RasOffload.from[FilterExec](OffloadOthers()),
       RasOffload.from[ProjectExec](OffloadOthers()),
       RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()),
-      RasOffload.from(HiveTableScanExecTransformer.isHiveTableScan)(OffloadOthers()),
+      RasOffload.from(HiveTableScanExecTransformer.isHiveTableScan(_))(OffloadOthers()),
       RasOffload.from[CoalesceExec](OffloadOthers()),
       RasOffload.from[HashAggregateExec](OffloadOthers()),
       RasOffload.from[SortAggregateExec](OffloadOthers()),
@@ -161,7 +161,7 @@ object VeloxRuleApi {
       RasOffload.from[WriteFilesExec](OffloadOthers()),
       RasOffload.from[SortExec](OffloadOthers()),
       RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()),
-      RasOffload.from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec)(OffloadOthers()),
+      RasOffload.from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec(_))(OffloadOthers()),
       RasOffload.from[LimitExec](OffloadOthers()),
       RasOffload.from[GenerateExec](OffloadOthers()),
       RasOffload.from[EvalPythonExec](OffloadOthers()),
