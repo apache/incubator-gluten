@@ -18,8 +18,6 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.columnar.{ColumnarRuleApplier, ColumnarRuleExecutor}
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
-import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
-import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 

@@ -48,26 +48,39 @@ import org.apache.spark.sql.execution.SparkPlan
  *
  * In stage 3, query planner will convert the offload-able Spark plan nodes into Gluten plan nodes.
  */
-case class HeuristicTransform(
-    validator: Validator,
-    rewriteRules: Seq[RewriteSingleNode],
-    offloadRules: Seq[OffloadSingleNode])
+class HeuristicTransform private (all: Seq[Rule[SparkPlan]])
   extends Rule[SparkPlan]
   with LogLevelUtil {
-
-  private val validate = AddFallbackTags(validator)
-  private val rewrite = RewriteSparkPlanRulesManager(validate, rewriteRules)
-  private val offload = LegacyOffload(offloadRules)
-
   override def apply(plan: SparkPlan): SparkPlan = {
-    Seq(rewrite, validate, offload).foldLeft(plan) {
-      case (plan, stage) =>
-        stage(plan)
+    all.foldLeft(plan) {
+      case (plan, single) =>
+        single(plan)
     }
   }
 }
 
 object HeuristicTransform {
+  def withRules(all: Seq[Rule[SparkPlan]]): HeuristicTransform = {
+    new HeuristicTransform(all)
+  }
+
+  case class Single(
+      validator: Validator,
+      rewriteRules: Seq[RewriteSingleNode],
+      offloadRules: Seq[OffloadSingleNode])
+    extends Rule[SparkPlan] {
+    private val validate = AddFallbackTags(validator)
+    private val rewrite = RewriteSparkPlanRulesManager(validate, rewriteRules)
+    private val offload = LegacyOffload(offloadRules)
+
+    override def apply(plan: SparkPlan): SparkPlan = {
+      Seq(rewrite, validate, offload).foldLeft(plan) {
+        case (plan, stage) =>
+          stage(plan)
+      }
+    }
+  }
+
   // Creates a static HeuristicTransform rule for use in certain
   // places that requires to emulate the offloading of a Spark query plan.
   //

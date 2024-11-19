@@ -21,12 +21,8 @@ import org.apache.gluten.extension.GlutenColumnarRule
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.enumerated.{EnumeratedApplier, EnumeratedTransform}
-import org.apache.gluten.extension.columnar.enumerated.EnumeratedApplier.RasRuleCall
 import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LongCoster, LongCostModel}
 import org.apache.gluten.extension.columnar.heuristic.{HeuristicApplier, HeuristicTransform}
-import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
-import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
-import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.ras.CostModel
 import org.apache.gluten.ras.rule.RasRule
 
@@ -61,9 +57,7 @@ class GlutenInjector private[injector] (control: InjectorControl) {
 object GlutenInjector {
   class LegacyInjector {
     private val preTransformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
-    private val validatorBuilders = mutable.Buffer.empty[ColumnarRuleCall => Validator]
-    private val rewriteRuleBuilders = mutable.Buffer.empty[ColumnarRuleCall => RewriteSingleNode]
-    private val offloadRuleBuilders = mutable.Buffer.empty[ColumnarRuleCall => OffloadSingleNode]
+    private val transformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
     private val postTransformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
     private val fallbackPolicyBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
     private val postBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
@@ -73,16 +67,8 @@ object GlutenInjector {
       preTransformBuilders += builder
     }
 
-    def injectValidator(builder: ColumnarRuleCall => Validator): Unit = {
-      validatorBuilders += builder
-    }
-
-    def injectRewriteRule(rewriteRule: ColumnarRuleCall => RewriteSingleNode): Unit = {
-      rewriteRuleBuilders += rewriteRule
-    }
-
-    def injectOffloadRule(offloadRule: ColumnarRuleCall => OffloadSingleNode): Unit = {
-      offloadRuleBuilders += offloadRule
+    def injectTransform(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
+      transformBuilders += builder
     }
 
     def injectPostTransform(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
@@ -113,12 +99,8 @@ object GlutenInjector {
     }
 
     def createHeuristicTransform(call: ColumnarRuleCall): HeuristicTransform = {
-      val validatorComposer = Validator.builder()
-      validatorBuilders.foreach(vb => validatorComposer.add(vb(call)))
-      val validator = validatorComposer.build()
-      val rewriteRules = rewriteRuleBuilders.map(_(call))
-      val offloadRules = offloadRuleBuilders.map(_(call))
-      HeuristicTransform(validator, rewriteRules.toSeq, offloadRules.toSeq)
+      val all = transformBuilders.map(_(call))
+      HeuristicTransform.withRules(all.toSeq)
     }
   }
 
