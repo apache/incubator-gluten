@@ -46,6 +46,7 @@ namespace Setting
 {
 extern const SettingsJoinAlgorithm join_algorithm;
 extern const SettingsUInt64 max_block_size;
+extern const SettingsUInt64 min_joined_block_size_bytes;
 }
 namespace ErrorCodes
 {
@@ -778,6 +779,7 @@ DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
         right_plan->getCurrentHeader(),
         hash_join,
         context->getSettingsRef()[Setting::max_block_size],
+        context->getSettingsRef()[Setting::min_joined_block_size_bytes],
         1,
         false);
     join_step->setStepDescription("Multi join on clause hash join");
@@ -817,6 +819,7 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
         right_plan->getCurrentHeader(),
         hash_join,
         context->getSettingsRef()[Setting::max_block_size],
+        context->getSettingsRef()[Setting::min_joined_block_size_bytes],
         1,
         false);
 

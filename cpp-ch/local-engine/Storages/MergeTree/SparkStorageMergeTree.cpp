@@ -74,7 +74,7 @@ void SparkStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source
         sum_ranges += part.ranges.size();
         sum_marks += part.getMarksCount();
         sum_rows += part.getRowsCount();
-        total_marks_pk += part.data_part->index_granularity.getMarksCountWithoutFinal();
+        total_marks_pk += part.data_part->index_granularity->getMarksCountWithoutFinal();
 
         for (auto range : part.ranges)
             sum_marks_pk += range.getNumberOfMarks();
