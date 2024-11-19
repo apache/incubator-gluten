@@ -95,7 +95,7 @@ object CHRuleApi {
       Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
     val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
     injector.injectTransform(
-      c => HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads))
+      c => intercept(HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads)))
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
