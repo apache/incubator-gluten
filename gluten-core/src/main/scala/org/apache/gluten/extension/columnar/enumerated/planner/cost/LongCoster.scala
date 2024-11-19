@@ -14,19 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.injector
+package org.apache.gluten.extension.columnar.enumerated.planner.cost
 
-import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.execution.SparkPlan
 
-/** Injector used to inject extensible components into Spark and Gluten. */
-class Injector(extensions: SparkSessionExtensions) {
-  val control = new InjectorControl()
-  val spark: SparkInjector = new SparkInjector(control, extensions)
-  val gluten: GlutenInjector = new GlutenInjector(control)
+/**
+ * Costs one single Spark plan node. The coster returns none if the input plan node is not
+ * recognizable.
+ *
+ * Used by the composite cost model [[LongCosterChain]].
+ */
+trait LongCoster {
 
-  private[extension] def inject(): Unit = {
-    // The regular Spark rules already injected with the `injectRules` of `RuleApi` directly.
-    // Only inject the Spark columnar rule here.
-    gluten.inject(extensions)
-  }
+  /** The coster will be registered as part of the cost model associated with this kind. */
+  def kind(): LongCostModel.Kind
+
+  /**
+   * Calculates the long integer cost of the input query plan node. Note, this calculation should
+   * omit children's costs.
+   */
+  def selfCostOf(node: SparkPlan): Option[Long]
 }

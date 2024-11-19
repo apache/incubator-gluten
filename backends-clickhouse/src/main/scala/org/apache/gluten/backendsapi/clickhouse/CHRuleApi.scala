@@ -16,12 +16,17 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
-import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
+import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
+import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
+import org.apache.gluten.extension.columnar.rewrite._
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
+import org.apache.gluten.extension.columnar.validator.Validator
+import org.apache.gluten.extension.columnar.validator.Validators.ValidatorBuilderImplicits
 import org.apache.gluten.extension.injector.{Injector, SparkInjector}
 import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.parser.{GlutenCacheFilesSqlParser, GlutenClickhouseSqlParser}
@@ -45,8 +50,8 @@ class CHRuleApi extends RuleApi {
   }
 }
 
-private object CHRuleApi {
-  def injectSpark(injector: SparkInjector): Unit = {
+object CHRuleApi {
+  private def injectSpark(injector: SparkInjector): Unit = {
     // Inject the regular Spark rules directly.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
     injector.injectQueryStagePrepRule(spark => CHAQEPropagateEmptyRelation(spark))
@@ -64,36 +69,51 @@ private object CHRuleApi {
     injector.injectPreCBORule(spark => new CHOptimizeMetadataOnlyDeltaQuery(spark))
   }
 
-  def injectLegacy(injector: LegacyInjector): Unit = {
+  private def injectLegacy(injector: LegacyInjector): Unit = {
     // Legacy: Pre-transform rules.
-    injector.injectTransform(_ => RemoveTransitions)
-    injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
-    injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
-    injector.injectTransform(c => FallbackMultiCodegens.apply(c.session))
-    injector.injectTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectTransform(c => FallbackBroadcastHashJoin.apply(c.session))
-    injector.injectTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
+    injector.injectPreTransform(_ => RemoveTransitions)
+    injector.injectPreTransform(_ => PushDownInputFileExpression.PreOffload)
+    injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
+    injector.injectPreTransform(c => FallbackMultiCodegens.apply(c.session))
+    injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
+    injector.injectPreTransform(c => FallbackBroadcastHashJoin.apply(c.session))
+    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
 
-    // Legacy: The Legacy transform rule.
-    injector.injectTransform(_ => intercept(HeuristicTransform()))
+    // Legacy: The legacy transform rule.
+    val validatorBuilder: GlutenConfig => Validator = conf =>
+      Validator
+        .builder()
+        .fallbackByHint()
+        .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
+        .fallbackComplexExpressions()
+        .fallbackByBackendSettings()
+        .fallbackByUserOptions()
+        .fallbackByTestInjects()
+        .fallbackByNativeValidation()
+        .build()
+    val rewrites =
+      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
+    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
+    injector.injectTransform(
+      c => intercept(HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads)))
 
     // Legacy: Post-transform rules.
-    injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
-    injector.injectTransform(c => intercept(RewriteTransformer.apply(c.session)))
-    injector.injectTransform(_ => PushDownFilterToScan)
-    injector.injectTransform(_ => PushDownInputFileExpression.PostOffload)
-    injector.injectTransform(_ => EnsureLocalSortRequirements)
-    injector.injectTransform(_ => EliminateLocalSort)
-    injector.injectTransform(_ => CollapseProjectExecTransformer)
-    injector.injectTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
-    injector.injectTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.session))
-    injector.injectTransform(c => LazyAggregateExpandRule.apply(c.session))
-    injector.injectTransform(
+    injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
+    injector.injectPostTransform(c => intercept(RewriteTransformer.apply(c.session)))
+    injector.injectPostTransform(_ => PushDownFilterToScan)
+    injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
+    injector.injectPostTransform(_ => EnsureLocalSortRequirements)
+    injector.injectPostTransform(_ => EliminateLocalSort)
+    injector.injectPostTransform(_ => CollapseProjectExecTransformer)
+    injector.injectPostTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
+    injector.injectPostTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.session))
+    injector.injectPostTransform(c => LazyAggregateExpandRule.apply(c.session))
+    injector.injectPostTransform(
       c =>
         intercept(
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
             c.session)))
-    injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
+    injector.injectPostTransform(c => InsertTransitions(c.outputsColumnar))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(
@@ -105,7 +125,7 @@ private object CHRuleApi {
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => intercept(each(c.session))))
     injector.injectPost(c => ColumnarCollapseTransformStages(c.glutenConf))
-    injector.injectTransform(
+    injector.injectPost(
       c =>
         intercept(
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarPostRules)(c.session)))
@@ -116,10 +136,10 @@ private object CHRuleApi {
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
-  def injectRas(injector: RasInjector): Unit = {
+  private def injectRas(injector: RasInjector): Unit = {
     // CH backend doesn't work with RAS at the moment. Inject a rule that aborts any
     // execution calls.
-    injector.inject(
+    injector.injectPreTransform(
       _ =>
         new SparkPlanRules.AbortRule(
           "Clickhouse backend doesn't yet have RAS support, please try disabling RAS and" +

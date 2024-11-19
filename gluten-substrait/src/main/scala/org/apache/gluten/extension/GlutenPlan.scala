@@ -21,8 +21,10 @@ import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.TransformerState
+import org.apache.gluten.extension.columnar.FallbackTag
 import org.apache.gluten.extension.columnar.FallbackTags.add
 import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.PlanBuilder
@@ -32,6 +34,7 @@ import org.apache.gluten.test.TestStats
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution.SparkPlan
 
+import FallbackTag.{Appendable, Converter}
 import com.google.common.collect.Lists
 
 sealed trait ValidationResult {
@@ -40,6 +43,15 @@ sealed trait ValidationResult {
 }
 
 object ValidationResult {
+  implicit object FromValidationResult extends Converter[ValidationResult] {
+    override def from(result: ValidationResult): Option[FallbackTag] = {
+      if (result.ok()) {
+        return None
+      }
+      Some(Appendable(result.reason()))
+    }
+  }
+
   private case object Succeeded extends ValidationResult {
     override def ok(): Boolean = true
     override def reason(): String = throw new UnsupportedOperationException(
@@ -59,6 +71,13 @@ object ValidationResult {
         return
       }
       add(plan, result)
+    }
+
+    def toValidatorOutcome(): Validator.OutCome = {
+      if (result.ok()) {
+        return Validator.Passed
+      }
+      Validator.Failed(result.reason())
     }
   }
 }

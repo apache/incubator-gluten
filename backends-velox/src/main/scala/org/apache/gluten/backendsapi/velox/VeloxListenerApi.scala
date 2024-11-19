@@ -158,6 +158,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Initial native backend with configurations.
     var parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+
     // Workaround for https://github.com/apache/incubator-gluten/issues/7837
     if (isDriver && !inLocalMode(conf)) {
       parsed += (GlutenConfig.COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")

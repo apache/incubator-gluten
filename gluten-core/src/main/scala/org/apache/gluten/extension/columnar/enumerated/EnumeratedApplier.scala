@@ -64,3 +64,5 @@ class EnumeratedApplier(
     }
   }
 }
+
+object EnumeratedApplier {}

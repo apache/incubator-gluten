@@ -14,19 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.injector
+package org.apache.gluten.extension.columnar.enumerated.planner.property
 
-import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.gluten.ras._
 
-/** Injector used to inject extensible components into Spark and Gluten. */
-class Injector(extensions: SparkSessionExtensions) {
-  val control = new InjectorControl()
-  val spark: SparkInjector = new SparkInjector(control, extensions)
-  val gluten: GlutenInjector = new GlutenInjector(control)
+import org.apache.spark.sql.execution._
 
-  private[extension] def inject(): Unit = {
-    // The regular Spark rules already injected with the `injectRules` of `RuleApi` directly.
-    // Only inject the Spark columnar rule here.
-    gluten.inject(extensions)
+object GlutenPropertyModel {
+
+  def apply(): PropertyModel[SparkPlan] = {
+    PropertyModelImpl
+  }
+
+  private object PropertyModelImpl extends PropertyModel[SparkPlan] {
+    override def propertyDefs: Seq[PropertyDef[SparkPlan, _ <: Property[SparkPlan]]] =
+      Seq(ConvDef)
+
+    override def newEnforcerRuleFactory(
+        propertyDef: PropertyDef[SparkPlan, _ <: Property[SparkPlan]])
+        : EnforcerRuleFactory[SparkPlan] = (reqProp: Property[SparkPlan]) => {
+      propertyDef match {
+        case ConvDef =>
+          Seq(ConvEnforcerRule(reqProp.asInstanceOf[Conv]))
+      }
+    }
   }
 }

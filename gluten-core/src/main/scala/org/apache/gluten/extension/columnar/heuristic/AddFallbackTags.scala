@@ -14,19 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.injector
+package org.apache.gluten.extension.columnar.heuristic
 
-import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.extension.columnar.validator.Validator
 
-/** Injector used to inject extensible components into Spark and Gluten. */
-class Injector(extensions: SparkSessionExtensions) {
-  val control = new InjectorControl()
-  val spark: SparkInjector = new SparkInjector(control, extensions)
-  val gluten: GlutenInjector = new GlutenInjector(control)
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
-  private[extension] def inject(): Unit = {
-    // The regular Spark rules already injected with the `injectRules` of `RuleApi` directly.
-    // Only inject the Spark columnar rule here.
-    gluten.inject(extensions)
+// Add fallback tags when validator returns negative outcome.
+case class AddFallbackTags(validator: Validator) extends Rule[SparkPlan] {
+  def apply(plan: SparkPlan): SparkPlan = {
+    plan.foreachUp { case p => addFallbackTag(p) }
+    plan
+  }
+
+  private def addFallbackTag(plan: SparkPlan): Unit = {
+    val outcome = validator.validate(plan)
+    outcome match {
+      case Validator.Failed(reason) =>
+        FallbackTags.add(plan, reason)
+      case Validator.Passed =>
+    }
   }
 }
+
+object AddFallbackTags {}

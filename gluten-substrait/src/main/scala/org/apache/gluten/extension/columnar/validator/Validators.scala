@@ -18,34 +18,33 @@ package org.apache.gluten.extension.columnar.validator
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
+import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.execution.{BasicScanExecTransformer, ColumnarCoalesceExec, ColumnarUnionExec, ExpandExecTransformer, HashAggregateExecBaseTransformer, LimitExecTransformer, ProjectExecTransformer, ScanTransformerFactory, SortExecTransformer, TakeOrderedAndProjectExecTransformer, WindowExecTransformer, WindowGroupLimitExecTransformer, WriteFilesExecTransformer}
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.extension.columnar.offload.OffloadJoin
 import org.apache.gluten.sql.shims.SparkShimLoader
 
+import org.apache.spark.api.python.EvalPythonExecTransformer
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
-import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
+import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-
 object Validators {
-  def builder(): Builder = Builder()
-
-  class Builder private {
+  implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
     private val conf = GlutenConfig.getConf
     private val settings = BackendsApiManager.getSettings
-    private val buffer: ListBuffer[Validator] = mutable.ListBuffer()
 
     /** Fails validation if a plan node was already tagged with TRANSFORM_UNSUPPORTED. */
-    def fallbackByHint(): Builder = {
-      buffer += FallbackByHint
-      this
+    def fallbackByHint(): Validator.Builder = {
+      builder.add(FallbackByHint)
     }
 
     /**
@@ -53,57 +52,51 @@ object Validators {
      * executed by native library. By default, we use a threshold option in config to make the
      * decision.
      */
-    def fallbackComplexExpressions(): Builder = {
-      buffer += new FallbackComplexExpressions(conf.fallbackExpressionsThreshold)
-      this
+    def fallbackComplexExpressions(): Validator.Builder = {
+      builder.add(new FallbackComplexExpressions(conf.fallbackExpressionsThreshold))
     }
 
     /** Fails validation on non-scan plan nodes if Gluten is running as scan-only mode. */
-    def fallbackIfScanOnly(): Builder = {
-      buffer += new FallbackIfScanOnly(conf.enableScanOnly)
-      this
+    def fallbackIfScanOnly(): Validator.Builder = {
+      builder.add(new FallbackIfScanOnly(conf.enableScanOnly))
     }
 
     /**
      * Fails validation if native-execution of a plan node is not supported by current backend
      * implementation by checking the active BackendSettings.
      */
-    def fallbackByBackendSettings(): Builder = {
-      buffer += new FallbackByBackendSettings(settings)
-      this
+    def fallbackByBackendSettings(): Validator.Builder = {
+      builder.add(new FallbackByBackendSettings(settings))
     }
 
     /**
      * Fails validation if native-execution of a plan node is disabled by Gluten/Spark
      * configuration.
      */
-    def fallbackByUserOptions(): Builder = {
-      buffer += new FallbackByUserOptions(conf)
-      this
+    def fallbackByUserOptions(): Validator.Builder = {
+      builder.add(new FallbackByUserOptions(conf))
     }
 
-    def fallbackByTestInjects(): Builder = {
-      buffer += new FallbackByTestInjects()
-      this
+    def fallbackByTestInjects(): Validator.Builder = {
+      builder.add(new FallbackByTestInjects())
     }
 
-    /** Add a custom validator to pipeline. */
-    def add(validator: Validator): Builder = {
-      buffer += validator
-      this
+    /**
+     * Fails validation on non-scan plan nodes if Gluten is running as scan-only mode. Also, passes
+     * validation on filter for the exception that filter + scan is detected. Because filters can be
+     * pushed into scan then the filter conditions will be processed only in scan.
+     */
+    def fallbackIfScanOnlyWithFilterPushed(scanOnly: Boolean): Validator.Builder = {
+      builder.add(new FallbackIfScanOnlyWithFilterPushed(scanOnly))
     }
 
-    def build(): Validator = {
-      if (buffer.isEmpty) {
-        NoopValidator
-      } else {
-        new ValidatorPipeline(buffer.toSeq)
-      }
+    /**
+     * Attempts to offload the input query plan node and check native validation result. Fails when
+     * native validation failed.
+     */
+    def fallbackByNativeValidation(): Validator.Builder = {
+      builder.add(new FallbackByNativeValidation())
     }
-  }
-
-  private object Builder {
-    def apply(): Builder = new Builder()
   }
 
   private object FallbackByHint extends Validator {
@@ -207,21 +200,223 @@ object Validators {
     }
   }
 
-  private class ValidatorPipeline(validators: Seq[Validator]) extends Validator {
+  private class FallbackIfScanOnlyWithFilterPushed(scanOnly: Boolean) extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      val init: Validator.OutCome = pass()
-      val finalOut = validators.foldLeft(init) {
-        case (out, validator) =>
-          out match {
-            case Validator.Passed => validator.validate(plan)
-            case Validator.Failed(_) => out
-          }
+      if (!scanOnly) {
+        return pass()
       }
-      finalOut
+      // Scan-only mode
+      plan match {
+        case _: BatchScanExec => pass()
+        case _: FileSourceScanExec => pass()
+        case p if HiveTableScanExecTransformer.isHiveTableScan(p) => pass()
+        case filter: FilterExec =>
+          val childIsScan = filter.child.isInstanceOf[FileSourceScanExec] ||
+            filter.child.isInstanceOf[BatchScanExec]
+          if (childIsScan) {
+            pass()
+          } else {
+            fail(filter)
+          }
+        case other => fail(other)
+      }
     }
   }
 
-  private object NoopValidator extends Validator {
-    override def validate(plan: SparkPlan): Validator.OutCome = pass()
+  private class FallbackByNativeValidation() extends Validator with Logging {
+    override def validate(plan: SparkPlan): Validator.OutCome = {
+      try {
+        validate0(plan)
+      } catch {
+        case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
+          if (!e.isInstanceOf[GlutenNotSupportException]) {
+            logDebug("Just a warning. This exception perhaps needs to be fixed.", e)
+          }
+          fail(
+            s"${e.getMessage}, original Spark plan is " +
+              s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
+      }
+    }
+
+    private def validate0(plan: SparkPlan): Validator.OutCome = plan match {
+      case plan: BatchScanExec =>
+        val transformer =
+          ScanTransformerFactory
+            .createBatchScanTransformer(plan, validation = true)
+            .asInstanceOf[BasicScanExecTransformer]
+        transformer.doValidate().toValidatorOutcome()
+      case plan: FileSourceScanExec =>
+        val transformer =
+          ScanTransformerFactory.createFileSourceScanTransformer(plan)
+        transformer.doValidate().toValidatorOutcome()
+      case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+        HiveTableScanExecTransformer.validate(plan).toValidatorOutcome()
+      case plan: ProjectExec =>
+        val transformer = ProjectExecTransformer(plan.projectList, plan.child)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: FilterExec =>
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+          .genFilterExecTransformer(plan.condition, plan.child)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: HashAggregateExec =>
+        val transformer = HashAggregateExecBaseTransformer.from(plan)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: SortAggregateExec =>
+        val transformer = HashAggregateExecBaseTransformer.from(plan)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: ObjectHashAggregateExec =>
+        val transformer = HashAggregateExecBaseTransformer.from(plan)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: UnionExec =>
+        val transformer = ColumnarUnionExec(plan.children)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: ExpandExec =>
+        val transformer = ExpandExecTransformer(plan.projections, plan.output, plan.child)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: WriteFilesExec =>
+        val transformer = WriteFilesExecTransformer(
+          plan.child,
+          plan.fileFormat,
+          plan.partitionColumns,
+          plan.bucketSpec,
+          plan.options,
+          plan.staticPartitions)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: SortExec =>
+        val transformer =
+          SortExecTransformer(plan.sortOrder, plan.global, plan.child, plan.testSpillFrequency)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: ShuffleExchangeExec =>
+        val transformer = ColumnarShuffleExchangeExec(plan, plan.child, plan.child.output)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: ShuffledHashJoinExec =>
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+          .genShuffledHashJoinExecTransformer(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            OffloadJoin.getShjBuildSide(plan),
+            plan.condition,
+            plan.left,
+            plan.right,
+            plan.isSkewJoin)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: BroadcastExchangeExec =>
+        val transformer = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
+        transformer.doValidate().toValidatorOutcome()
+      case bhj: BroadcastHashJoinExec =>
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+          .genBroadcastHashJoinExecTransformer(
+            bhj.leftKeys,
+            bhj.rightKeys,
+            bhj.joinType,
+            bhj.buildSide,
+            bhj.condition,
+            bhj.left,
+            bhj.right,
+            isNullAwareAntiJoin = bhj.isNullAwareAntiJoin)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: SortMergeJoinExec =>
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+          .genSortMergeJoinExecTransformer(
+            plan.leftKeys,
+            plan.rightKeys,
+            plan.joinType,
+            plan.condition,
+            plan.left,
+            plan.right,
+            plan.isSkewJoin)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: CartesianProductExec =>
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+          .genCartesianProductExecTransformer(plan.left, plan.right, plan.condition)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: BroadcastNestedLoopJoinExec =>
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+          .genBroadcastNestedLoopJoinExecTransformer(
+            plan.left,
+            plan.right,
+            plan.buildSide,
+            plan.joinType,
+            plan.condition)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: WindowExec =>
+        val transformer = WindowExecTransformer(
+          plan.windowExpression,
+          plan.partitionSpec,
+          plan.orderSpec,
+          plan.child)
+        transformer.doValidate().toValidatorOutcome()
+      case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
+        val windowGroupLimitPlan = SparkShimLoader.getSparkShims
+          .getWindowGroupLimitExecShim(plan)
+          .asInstanceOf[WindowGroupLimitExecShim]
+        val transformer = WindowGroupLimitExecTransformer(
+          windowGroupLimitPlan.partitionSpec,
+          windowGroupLimitPlan.orderSpec,
+          windowGroupLimitPlan.rankLikeFunction,
+          windowGroupLimitPlan.limit,
+          windowGroupLimitPlan.mode,
+          windowGroupLimitPlan.child
+        )
+        transformer.doValidate().toValidatorOutcome()
+      case plan: CoalesceExec =>
+        ColumnarCoalesceExec(plan.numPartitions, plan.child)
+          .doValidate()
+          .toValidatorOutcome()
+      case plan: GlobalLimitExec =>
+        val (limit, offset) =
+          SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
+        val transformer = LimitExecTransformer(plan.child, offset, limit)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: LocalLimitExec =>
+        val transformer = LimitExecTransformer(plan.child, 0L, plan.limit)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: GenerateExec =>
+        val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(
+          plan.generator,
+          plan.requiredChildOutput,
+          plan.outer,
+          plan.generatorOutput,
+          plan.child)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: BatchEvalPythonExec =>
+        val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: ArrowEvalPythonExec =>
+        // When backend doesn't support ColumnarArrow or colunmnar arrow configuration not
+        // enabled, we will try offloading through EvalPythonExecTransformer
+        if (
+          !BackendsApiManager.getSettings.supportColumnarArrowUdf() ||
+          !GlutenConfig.getConf.enableColumnarArrowUDF
+        ) {
+          // Both CH and Velox will try using backend's built-in functions for calculate
+          val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
+          transformer.doValidate().toValidatorOutcome()
+        }
+        pass()
+      case plan: TakeOrderedAndProjectExec =>
+        val (limit, offset) =
+          SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
+        val transformer = TakeOrderedAndProjectExecTransformer(
+          limit,
+          plan.sortOrder,
+          plan.projectList,
+          plan.child,
+          offset)
+        transformer.doValidate().toValidatorOutcome()
+      case plan: SampleExec =>
+        val transformer =
+          BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
+            plan.lowerBound,
+            plan.upperBound,
+            plan.withReplacement,
+            plan.seed,
+            plan.child)
+        transformer.doValidate().toValidatorOutcome()
+      case _ =>
+        // Currently we assume a plan to be offload-able by default.
+        pass()
+    }
   }
 }
