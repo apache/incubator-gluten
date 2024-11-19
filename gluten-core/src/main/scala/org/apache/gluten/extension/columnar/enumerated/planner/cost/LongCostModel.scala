@@ -105,11 +105,11 @@ object LongCostModel extends Logging {
   class Registry private[LongCostModel] {
     private val lookup: mutable.Map[Kind, LongCosterChain.Builder] = mutable.Map()
 
-    // The registered coster will take the higher precedence than all the existing
+    // The registered coster will take lower precedence than all the existing
     // registered costers in cost estimation.
-    def overrideWith(coster: LongCoster): Unit = synchronized {
+    def register(coster: LongCoster): Unit = synchronized {
       val chainBuilder = builderOf(coster.kind())
-      chainBuilder.overrideWith(coster)
+      chainBuilder.register(coster)
     }
 
     def get(kind: Kind): LongCostModel = synchronized {

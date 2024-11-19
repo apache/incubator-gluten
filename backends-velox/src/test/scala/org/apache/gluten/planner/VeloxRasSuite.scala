@@ -157,7 +157,7 @@ object VeloxRasSuite {
   private def legacyCostModel(): CostModel[SparkPlan] = {
     val registry = LongCostModel.registry()
     val coster = LegacyCoster
-    registry.overrideWith(coster)
+    registry.register(coster)
     registry.get(coster.kind())
   }
 

@@ -45,20 +45,18 @@ object LongCosterChain {
   def builder(): Builder = new Builder()
 
   class Builder private[LongCosterChain] {
-    private val bufferReversed = mutable.ListBuffer[LongCoster]()
+    private val costers = mutable.ListBuffer[LongCoster]()
     private var out: Option[LongCosterChain] = None
 
-    def overrideWith(coster: LongCoster): Builder = synchronized {
-      bufferReversed += coster
+    def register(coster: LongCoster): Builder = synchronized {
+      costers += coster
       out = None
       this
     }
 
     private[cost] def build(): LongCosterChain = synchronized {
       if (out.isEmpty) {
-        // Reverse the buffer when calling 'toSeq' to make sure the last coster registered
-        // is called first.
-        out = Some(new LongCosterChain(bufferReversed.reverse.toSeq))
+        out = Some(new LongCosterChain(costers.toSeq))
       }
       return out.get
     }
