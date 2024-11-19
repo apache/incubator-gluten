@@ -3161,6 +3161,66 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table if exists test_7647")
   }
 
+  test("GLUTEN-7905 get topk of window by aggregate") {
+    def checkWindowGroupLimit(df: DataFrame): Unit = {
+      val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case e: ExpandExecTransformer
+            if (e.child.isInstanceOf[CHAggregateGroupLimitExecTransformer]) =>
+          e
+      }
+      assert(expands.size == 1)
+    }
+    spark.sql("create table test_win_top (a string, b int, c int) using parquet")
+    spark.sql("""
+                |insert into test_win_top values
+                |('a', 3, 3), ('a', 1, 5), ('a', 2, 2), ('a', null, null), ('a', null, 1),
+                |('b', 1, 1), ('b', 2, 1),
+                |('c', 2, 3)
+                |""".stripMargin)
+    compareResultsAgainstVanillaSpark(
+      """
+        |select a, b, c, row_number() over (partition by a order by b desc nulls first) as r
+        |from test_win_top
+        |""".stripMargin,
+      true,
+      checkWindowGroupLimit
+    )
+    compareResultsAgainstVanillaSpark(
+      """
+        |select a, b, c, row_number() over (partition by a order by b desc nulls last) as r
+        |from test_win_top
+        |""".stripMargin,
+      true,
+      checkWindowGroupLimit
+    )
+    compareResultsAgainstVanillaSpark(
+      """
+        |select a, b, c, row_number() over (partition by a order by b asc nulls first) as r
+        |from test_win_top
+        |""".stripMargin,
+      true,
+      checkWindowGroupLimit
+    )
+    compareResultsAgainstVanillaSpark(
+      """
+        |select a, b, c, row_number() over (partition by a order by b asc nulls last) as r
+        |from test_win_top
+        |""".stripMargin,
+      true,
+      checkWindowGroupLimit
+    )
+    compareResultsAgainstVanillaSpark(
+      """
+        |select a, b, c, row_number() over (partition by a order by b , c) as r
+        |from test_win_top
+        |""".stripMargin,
+      true,
+      checkWindowGroupLimit
+    )
+    spark.sql("drop table if exists test_win_top")
+
+  }
+
   test("GLUTEN-7759: Fix bug of agg pre-project push down") {
     val table_create_sql =
       "create table test_tbl_7759(id bigint, name string, day string) using parquet"

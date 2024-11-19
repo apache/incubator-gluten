@@ -75,14 +75,13 @@ private:
     // DB::Block output_header;
     DB::Names aggregate_grouping_keys;
     String aggregate_tuple_column_name;
-    String order_tuple_column_name;
 
     String getAggregateFunctionName(const String & window_function_name);
 
     void prePrejectionForAggregateArguments();
 
     void addGroupLmitAggregationStep();
-    DB::Array parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
+    String parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
     DB::AggregateDescription buildAggregateDescription();
 
     void postProjectionForExplodingArrays();

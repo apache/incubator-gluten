@@ -16,12 +16,14 @@
  */
 
 #include "GroupLimitRelParser.h"
+#include <unordered_map>
 #include <Columns/IColumn.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/IDataType.h>
 #include <DataTypes/Serializations/ISerialization.h>
+#include <IO/WriteBufferFromString.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/AggregateDescription.h>
 #include <Operator/GraceMergingAggregatedStep.h>
@@ -34,7 +36,6 @@
 #include <Common/AggregateUtil.h>
 #include <Common/ArrayJoinHelper.h>
 #include <Common/CHUtil.h>
-#include <Common/SortUtils.h>
 
 namespace DB::ErrorCodes
 {
@@ -238,22 +239,6 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments()
         "aggregate_data_tuple",
         aggregate_tuple_column_name);
 
-    DB::DataTypes order_tuple_types;
-    Strings order_tuple_names;
-    DB::ActionsDAG::NodeRawConstPtrs order_tuple_nodes;
-    for (const auto & sort_field : win_rel_def->sorts())
-    {
-        if (sort_field.expr().has_selection())
-        {
-            auto col_pos = sort_field.expr().selection().direct_reference().struct_field().field();
-            const auto & col = input_header.getByPosition(col_pos);
-            order_tuple_types.push_back(col.type);
-            order_tuple_names.push_back(col.name);
-            order_tuple_nodes.push_back(projection_actions->getInputs()[col_pos]);
-        }
-    }
-    build_tuple(order_tuple_types, order_tuple_names, order_tuple_nodes, "order_tuple", order_tuple_column_name);
-
     projection_actions->removeUnusedActions(required_column_names);
     LOG_DEBUG(
         getLogger("AggregateGroupLimitRelParser"),
@@ -267,33 +252,48 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments()
 }
 
 
-DB::Array AggregateGroupLimitRelParser::parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields)
+String AggregateGroupLimitRelParser::parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields)
 {
     DB::Array directions;
+    static const std::unordered_map<int, std::string> order_directions
+        = {{1, " asc nulls first"}, {2, " asc nulls last"}, {3, " desc nulls first"}, {4, " desc nulls last"}};
+    size_t n = 0;
+    DB::WriteBufferFromOwnString ostr;
     for (const auto & sort_field : sort_fields)
     {
-        auto sort_order = magic_enum::enum_cast<SortOrder>(sort_field.direction());
-        if (!sort_order.has_value())
+        auto it = order_directions.find(sort_field.direction());
+        if (it == order_directions.end())
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow sort direction: {}", sort_field.direction());
-        directions.emplace_back(std::string(magic_enum::enum_name<SortOrder>(sort_order.value())));
+        if (!sort_field.expr().has_selection())
+        {
+            throw DB::Exception(
+                DB::ErrorCodes::BAD_ARGUMENTS, "Sort field must be a column reference. but got {}", sort_field.DebugString());
+        }
+        auto ref = sort_field.expr().selection().direct_reference().struct_field().field();
+        const auto & col_name = input_header.getByPosition(ref).name;
+        if (n)
+            ostr << String(",");
+        // the col_name may contain '#' which can may ch fail to parse.
+        ostr << "`" << col_name << "`" << it->second;
+        n += 1;
     }
-    return directions;
+    LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Order by clasue: {}", ostr.str());
+    return ostr.str();
 }
 
 DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription()
 {
     DB::AggregateDescription agg_desc;
     agg_desc.column_name = aggregate_tuple_column_name;
-    agg_desc.argument_names = {aggregate_tuple_column_name, order_tuple_column_name};
+    agg_desc.argument_names = {aggregate_tuple_column_name};
     DB::Array parameters;
     parameters.push_back(static_cast<UInt32>(limit));
     auto sort_directions = parseSortDirections(win_rel_def->sorts());
-    parameters.insert(parameters.end(), sort_directions.begin(), sort_directions.end());
+    parameters.push_back(sort_directions);
 
     auto header = current_plan->getCurrentHeader();
     DB::DataTypes arg_types;
     arg_types.push_back(header.getByName(aggregate_tuple_column_name).type);
-    arg_types.push_back(header.getByName(order_tuple_column_name).type);
 
     DB::AggregateFunctionProperties properties;
     agg_desc.function = getAggregateFunction(aggregate_function_name, arg_types, properties, parameters);
