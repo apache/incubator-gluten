@@ -67,9 +67,4 @@ class EnumeratedApplier(
   }
 }
 
-object EnumeratedApplier {
-  class RasRuleCall(
-      val call: ColumnarRuleCall,
-      val validator: Validator,
-      val rewrites: Seq[RewriteSingleNode])
-}
+object EnumeratedApplier {}

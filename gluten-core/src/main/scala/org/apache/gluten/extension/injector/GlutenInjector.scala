@@ -124,9 +124,7 @@ object GlutenInjector {
 
   class RasInjector extends Logging {
     private val preTransformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
-    private val validatorBuilders = mutable.Buffer.empty[ColumnarRuleCall => Validator]
-    private val rewriteRuleBuilders = mutable.Buffer.empty[ColumnarRuleCall => RewriteSingleNode]
-    private val rasRuleBuilders = mutable.Buffer.empty[RasRuleCall => RasRule[SparkPlan]]
+    private val rasRuleBuilders = mutable.Buffer.empty[ColumnarRuleCall => RasRule[SparkPlan]]
     private val costerBuilders = mutable.Buffer.empty[ColumnarRuleCall => LongCoster]
     private val postTransformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
 
@@ -134,15 +132,7 @@ object GlutenInjector {
       preTransformBuilders += builder
     }
 
-    def injectValidator(builder: ColumnarRuleCall => Validator): Unit = {
-      validatorBuilders += builder
-    }
-
-    def injectRewriteRule(rewriteRule: ColumnarRuleCall => RewriteSingleNode): Unit = {
-      rewriteRuleBuilders += rewriteRule
-    }
-
-    def injectRasRule(builder: RasRuleCall => RasRule[SparkPlan]): Unit = {
+    def injectRasRule(builder: ColumnarRuleCall => RasRule[SparkPlan]): Unit = {
       rasRuleBuilders += builder
     }
 
@@ -163,18 +153,15 @@ object GlutenInjector {
 
     def createEnumeratedTransform(call: ColumnarRuleCall): EnumeratedTransform = {
       // Build RAS rules.
-      val validatorComposer = Validator.builder()
-      validatorBuilders.foreach(vb => validatorComposer.add(vb(call)))
-      val validator = validatorComposer.build()
-      val rewriteRules = rewriteRuleBuilders.map(_(call))
-      val rasCall = new RasRuleCall(call, validator, rewriteRules.toSeq)
-      val rules = rasRuleBuilders.map(_(rasCall))
+      val rules = rasRuleBuilders.map(_(call))
 
       // Build the cost model.
       val costModelRegistry = LongCostModel.registry()
       costerBuilders.foreach(cb => costModelRegistry.overrideWith(cb(call)))
       val aliasOrClass = call.glutenConf.rasCostModel
       val costModel = findCostModel(costModelRegistry, aliasOrClass)
+
+      // Create transform.
       EnumeratedTransform(costModel, rules.toSeq)
     }
 

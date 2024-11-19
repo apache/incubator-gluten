@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.backendsapi.velox
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.extension._
@@ -132,98 +133,49 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
 
     // Gluten RAS: The RAS rule.
+    val validatorBuilder: GlutenConfig => Validator = conf =>
+      Validator
+        .builder()
+        .fallbackByHint()
+        .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
+        .fallbackComplexExpressions()
+        .fallbackByBackendSettings()
+        .fallbackByUserOptions()
+        .fallbackByTestInjects()
+        .fallbackByNativeValidation()
+        .build()
+    val rewrites =
+      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
     injector.injectCoster(_ => LegacyCoster)
     injector.injectCoster(_ => RoughCoster)
     injector.injectCoster(_ => RoughCoster2)
-    injector.injectValidator {
-      c =>
-        Validator
-          .builder()
-          .fallbackByHint()
-          .fallbackIfScanOnlyWithFilterPushed(c.glutenConf.enableScanOnly)
-          .fallbackComplexExpressions()
-          .fallbackByBackendSettings()
-          .fallbackByUserOptions()
-          .fallbackByTestInjects()
-          .fallbackByNativeValidation()
-          .build()
-    }
-    injector.injectRewriteRule(_ => RewriteIn)
-    injector.injectRewriteRule(_ => RewriteMultiChildrenCount)
-    injector.injectRewriteRule(_ => RewriteJoin)
-    injector.injectRewriteRule(_ => PullOutPreProject)
-    injector.injectRewriteRule(_ => PullOutPostProject)
     injector.injectRasRule(_ => RemoveSort)
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[Exchange](OffloadExchange()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[BaseJoinExec](OffloadJoin()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[FilterExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[ProjectExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(
-          RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()),
-          c.validator,
-          c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(
-          RasOffload.from(HiveTableScanExecTransformer.isHiveTableScan)(OffloadOthers()),
-          c.validator,
-          c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[CoalesceExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(
-          RasOffload.from[HashAggregateExec](OffloadOthers()),
-          c.validator,
-          c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(
-          RasOffload.from[SortAggregateExec](OffloadOthers()),
-          c.validator,
-          c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(
-          RasOffload.from[ObjectHashAggregateExec](OffloadOthers()),
-          c.validator,
-          c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[UnionExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[ExpandExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(RasOffload.from[WriteFilesExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[SortExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(
-          RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()),
-          c.validator,
-          c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(
-          RasOffload.from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec)(OffloadOthers()),
-          c.validator,
-          c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[LimitExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[GenerateExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c =>
-        RasOffload.Rule(RasOffload.from[EvalPythonExec](OffloadOthers()), c.validator, c.rewrites))
-    injector.injectRasRule(
-      c => RasOffload.Rule(RasOffload.from[SampleExec](OffloadOthers()), c.validator, c.rewrites))
+    val offloads: Seq[RasOffload] = Seq(
+      RasOffload.from[Exchange](OffloadExchange()),
+      RasOffload.from[BaseJoinExec](OffloadJoin()),
+      RasOffload.from[FilterExec](OffloadOthers()),
+      RasOffload.from[ProjectExec](OffloadOthers()),
+      RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()),
+      RasOffload.from(HiveTableScanExecTransformer.isHiveTableScan)(OffloadOthers()),
+      RasOffload.from[CoalesceExec](OffloadOthers()),
+      RasOffload.from[HashAggregateExec](OffloadOthers()),
+      RasOffload.from[SortAggregateExec](OffloadOthers()),
+      RasOffload.from[ObjectHashAggregateExec](OffloadOthers()),
+      RasOffload.from[UnionExec](OffloadOthers()),
+      RasOffload.from[ExpandExec](OffloadOthers()),
+      RasOffload.from[WriteFilesExec](OffloadOthers()),
+      RasOffload.from[SortExec](OffloadOthers()),
+      RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()),
+      RasOffload.from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec)(OffloadOthers()),
+      RasOffload.from[LimitExec](OffloadOthers()),
+      RasOffload.from[GenerateExec](OffloadOthers()),
+      RasOffload.from[EvalPythonExec](OffloadOthers()),
+      RasOffload.from[SampleExec](OffloadOthers())
+    )
+    offloads.foreach(
+      offload =>
+        injector.injectRasRule(
+          c => RasOffload.Rule(offload, validatorBuilder(c.glutenConf), rewrites)))
 
     // Gluten RAS: Post rules.
     injector.injectPostTransform(_ => RemoveTransitions)
