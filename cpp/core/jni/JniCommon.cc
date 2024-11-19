@@ -109,17 +109,30 @@ std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() 
     return nullptr; // stream ended
   }
 
-  checkException(env);
-  jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext_);
-  checkException(env);
-  auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
   if (writer_ != nullptr) {
-    // save snapshot of the batch to file
-    std::shared_ptr<ArrowSchema> schema = batch->exportArrowSchema();
-    std::shared_ptr<ArrowArray> array = batch->exportArrowArray();
-    auto rb = gluten::arrowGetOrThrow(arrow::ImportRecordBatch(array.get(), schema.get()));
-    GLUTEN_THROW_NOT_OK(writer_->initWriter(*(rb->schema().get())));
-    GLUTEN_THROW_NOT_OK(writer_->writeInBatches(rb));
+    if (!writer_->closed()) {
+      // Dump all inputs.
+      do {
+        checkException(env);
+        jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext_);
+        checkException(env);
+        auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
+
+        // Save the snapshot of the batch to file.
+        std::shared_ptr<ArrowSchema> schema = batch->exportArrowSchema();
+        std::shared_ptr<ArrowArray> array = batch->exportArrowArray();
+        auto rb = gluten::arrowGetOrThrow(arrow::ImportRecordBatch(array.get(), schema.get()));
+        GLUTEN_THROW_NOT_OK(writer_->initWriter(*(rb->schema().get())));
+        GLUTEN_THROW_NOT_OK(writer_->writeInBatches(rb));
+      } while (env->CallBooleanMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorHasNext_));
+
+      GLUTEN_THROW_NOT_OK(writer_->closeWriter());
+    }
+    return writer_->retrieveColumnarBatch();
+  } else {
+    checkException(env);
+    jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext_);
+    checkException(env);
+    return ObjectStore::retrieve<ColumnarBatch>(handle);
   }
-  return batch;
 }

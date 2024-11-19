@@ -25,12 +25,12 @@
 #include <operators/writer/ArrowWriter.h>
 
 #include "benchmarks/common/BenchmarkUtils.h"
-#include "benchmarks/common/FileReaderIterator.h"
 #include "compute/VeloxBackend.h"
-#include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
+#include "operators/reader/FileReaderIterator.h"
+#include "operators/writer/VeloxArrowWriter.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
@@ -388,7 +388,8 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
-          inputIters.push_back(getInputIteratorFromFileReader(input, readerType));
+          inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
+              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get()));
         }
         std::transform(
             inputIters.begin(),
@@ -417,10 +418,11 @@ auto BM_Generic = [](::benchmark::State& state,
         ArrowSchema cSchema;
         toArrowSchema(veloxPlan->outputType(), runtime->memoryManager()->getLeafMemoryPool().get(), &cSchema);
         GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
-        ArrowWriter writer{FLAGS_save_output};
+        auto writer = std::make_shared<VeloxArrowWriter>(
+            FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
         state.PauseTiming();
         if (!FLAGS_save_output.empty()) {
-          GLUTEN_THROW_NOT_OK(writer.initWriter(*(outputSchema.get())));
+          GLUTEN_THROW_NOT_OK(writer->initWriter(*(outputSchema.get())));
         }
         state.ResumeTiming();
 
@@ -436,13 +438,13 @@ auto BM_Generic = [](::benchmark::State& state,
             LOG(WARNING) << maybeBatch.ValueOrDie()->ToString();
           }
           if (!FLAGS_save_output.empty()) {
-            GLUTEN_THROW_NOT_OK(writer.writeInBatches(maybeBatch.ValueOrDie()));
+            GLUTEN_THROW_NOT_OK(writer->writeInBatches(maybeBatch.ValueOrDie()));
           }
         }
 
         state.PauseTiming();
         if (!FLAGS_save_output.empty()) {
-          GLUTEN_THROW_NOT_OK(writer.closeWriter());
+          GLUTEN_THROW_NOT_OK(writer->closeWriter());
         }
         state.ResumeTiming();
       }
@@ -488,7 +490,8 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
   {
     ScopedTimer timer(&elapsedTime);
     for (auto _ : state) {
-      auto resultIter = getInputIteratorFromFileReader(inputFile, readerType);
+      auto resultIter = FileReaderIterator::getInputIteratorFromFileReader(
+          readerType, inputFile, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
       runShuffle(
           runtime,
           listenerPtr,

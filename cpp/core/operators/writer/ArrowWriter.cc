@@ -21,6 +21,7 @@
 #include "arrow/table.h"
 #include "arrow/util/type_fwd.h"
 
+namespace gluten {
 arrow::Status ArrowWriter::initWriter(arrow::Schema& schema) {
   if (writer_ != nullptr) {
     return arrow::Status::OK();
@@ -54,5 +55,11 @@ arrow::Status ArrowWriter::closeWriter() {
   if (writer_ != nullptr) {
     ARROW_RETURN_NOT_OK(writer_->Close());
   }
+  closed_ = true;
   return arrow::Status::OK();
 }
+
+bool ArrowWriter::closed() const {
+  return closed_;
+}
+} // namespace gluten

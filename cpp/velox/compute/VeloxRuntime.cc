@@ -36,6 +36,7 @@
 
 #ifdef ENABLE_HDFS
 
+#include "operators/writer/VeloxArrowWriter.h"
 #include "operators/writer/VeloxParquetDataSourceHDFS.h"
 
 #endif
@@ -306,6 +307,14 @@ void VeloxRuntime::dumpConf(const std::string& path) {
   }
 
   outFile.close();
+}
+
+std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(const std::string& path) {
+  int64_t batchSize = 4096;
+  if (auto it = confMap_.find(kSparkBatchSize); it != confMap_.end()) {
+    batchSize = std::atol(it->second.c_str());
+  }
+  return std::make_shared<VeloxArrowWriter>(path, batchSize, memoryManager()->getLeafMemoryPool().get());
 }
 
 } // namespace gluten
