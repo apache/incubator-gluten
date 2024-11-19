@@ -33,28 +33,36 @@ import org.apache.spark.sql.execution.exchange.Exchange
 
 // spotless:off
 /**
- * Note, this rule should only fallback to row-based plan if there is no harm. The follow case
- * should be handled carefully
+ * Note, this rule should only fallback to row-based plan if there is no harm.
+ * The follow case should be handled carefully
  *
- *   1. A BHJ and the previous broadcast exchange is columnar We should still make the BHJ columnar,
- *      otherwise it will fail if the vanilla BHJ accept a columnar broadcast exchange, e.g.,
+ * 1. A BHJ and the previous broadcast exchange is columnar
+ *    We should still make the BHJ columnar, otherwise it will fail if
+ *    the vanilla BHJ accept a columnar broadcast exchange, e.g.,
  *
- * Scan Scan \ | \ Columnar Broadcast Exchange \ / BHJ
- * \| VeloxColumnarToRow
- * \| Project (unsupport columnar)
+ *    Scan                Scan
+ *      \                  |
+ *        \     Columnar Broadcast Exchange
+ *          \       /
+ *             BHJ
+ *              |
+ *       VeloxColumnarToRow
+ *              |
+ *           Project (unsupport columnar)
  *
- * 2. The previous shuffle exchange stage is a columnar shuffle exchange We should use
- * VeloxColumnarToRow rather than vanilla Spark ColumnarToRowExec, e.g.,
+ * 2. The previous shuffle exchange stage is a columnar shuffle exchange
+ *    We should use VeloxColumnarToRow rather than vanilla Spark ColumnarToRowExec, e.g.,
  *
- * Scan
- * \| Columnar Shuffle Exchange
- * \| VeloxColumnarToRow
- * \| Project (unsupport columnar)
+ *             Scan
+ *              |
+ *    Columnar Shuffle Exchange
+ *              |
+ *       VeloxColumnarToRow
+ *              |
+ *           Project (unsupport columnar)
  *
- * @param isAdaptiveContext
- *   If is inside AQE
- * @param originalPlan
- *   The vanilla SparkPlan without apply gluten transform rules
+ * @param isAdaptiveContext If is inside AQE
+ * @param originalPlan The vanilla SparkPlan without apply gluten transform rules
  */
 // spotless:on
 case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPlan)
@@ -108,18 +116,26 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
    *
    * Spark plan before applying fallback policy:
    *
-   * ColumnarExchange ----------- | --------------- last stage HashAggregateTransformer
-   * \| ColumnarToRow
-   * \| Project
+   *        ColumnarExchange
+   *  ----------- | --------------- last stage
+   *    HashAggregateTransformer
+   *              |
+   *        ColumnarToRow
+   *              |
+   *           Project
    *
-   * To illustrate the effect if cost is not taken into account, here is spark plan after applying
-   * whole stage fallback policy (threshold = 1):
+   * To illustrate the effect if cost is not taken into account, here is spark plan
+   * after applying whole stage fallback policy (threshold = 1):
    *
-   * ColumnarExchange ----------- | --------------- last stage ColumnarToRow
-   * \| HashAggregate
-   * \| Project
+   *        ColumnarExchange
+   *  -----------  | --------------- last stage
+   *         ColumnarToRow
+   *               |
+   *         HashAggregate
+   *               |
+   *            Project
    *
-   * So by considering the cost, the fallback policy will not be applied.
+   *  So by considering the cost, the fallback policy will not be applied.
    *
    * spotless:on
    */
