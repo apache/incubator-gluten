@@ -18,13 +18,13 @@
 #pragma once
 
 #include <arrow/array.h>
-#include <arrow/filesystem/filesystem.h>
-#include <arrow/filesystem/localfs.h>
-#include <arrow/filesystem/path_util.h>
 #include <arrow/ipc/writer.h>
 #include <arrow/type.h>
 #include <arrow/util/io_util.h>
+
 #include <chrono>
+#include <filesystem>
+
 #include "utils/Compression.h"
 
 namespace gluten {
@@ -36,9 +36,7 @@ static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBuf
 static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
 static const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
 
-std::string generateUuid();
-
-std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId);
+std::string getShuffleSpillDir(const std::string& configuredDir, int32_t subDirId);
 
 arrow::Result<std::string> createTempShuffleFile(const std::string& dir);
 

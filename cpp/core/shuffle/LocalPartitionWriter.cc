@@ -379,7 +379,7 @@ LocalPartitionWriter::LocalPartitionWriter(
 }
 
 std::string LocalPartitionWriter::nextSpilledFileDir() {
-  auto spilledFileDir = getSpilledShuffleFileDir(localDirs_[dirSelection_], subDirSelection_[dirSelection_]);
+  auto spilledFileDir = getShuffleSpillDir(localDirs_[dirSelection_], subDirSelection_[dirSelection_]);
   subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_.numSubDirs;
   dirSelection_ = (dirSelection_ + 1) % localDirs_.size();
   return spilledFileDir;
@@ -504,6 +504,9 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
         return arrow::Status::Invalid(
             "Merging from spill " + std::to_string(s) + " is not exhausted. pid: " + std::to_string(pid));
       }
+    }
+    if (std::filesystem::exists(spill->spillFile()) && !std::filesystem::remove(spill->spillFile())) {
+      LOG(WARNING) << "Error while deleting spill file " << spill->spillFile();
     }
     ++s;
   }
