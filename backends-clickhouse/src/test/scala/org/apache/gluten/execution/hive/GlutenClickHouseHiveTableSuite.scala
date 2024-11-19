@@ -28,7 +28,8 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{StructType, ArrayType}
+import org.apache.spark.sql.execution.SparkPlan
 
 import org.apache.hadoop.fs.Path
 
@@ -1490,13 +1491,50 @@ class GlutenClickHouseHiveTableSuite
     val scan = df.queryExecution.executedPlan.collect {
       case scan: FileSourceScanExecTransformer => scan
     }.head
-
-    val schema = scan.schema
-    assert(schema.size == 1)
-    val fieldType = schema.fields.head.dataType.asInstanceOf[StructType]
+    val fieldType = scan.schema.fields.head.dataType.asInstanceOf[StructType]
     assert(fieldType.size == 1)
-
     spark.sql("drop table if exists aj")
+  }
+
+  test("Nested column pruning for Project(Filter(Generate)) on generator") {
+    spark.sql("drop table if exists ajog")
+    spark.sql(
+      """
+        |CREATE TABLE if not exists ajog (
+        |  country STRING,
+        |  events ARRAY<STRUCT<time:BIGINT, lng:BIGINT, lat:BIGINT, net:STRING,
+        |     log_extra:MAP<STRING, STRING>, event_id:STRING, event_info:MAP<STRING, STRING>>>
+        |)
+        |USING orc
+      """.stripMargin)
+
+    spark.sql(
+      """
+        |INSERT INTO ajog VALUES
+        |  ('USA', array(named_struct('time', 1622547800, 'lng', -122, 'lat', 37, 'net',
+        |    'wifi', 'log_extra', map('key1', 'value1'), 'event_id', 'event1',
+        |    'event_info', map('tab_type', '5', 'action', '13')))),
+        |  ('Canada', array(named_struct('time', 1622547801, 'lng', -79, 'lat', 43, 'net',
+        |    '4g', 'log_extra', map('key2', 'value2'), 'event_id', 'event2',
+        |    'event_info', map('tab_type', '4', 'action', '12'))))
+       """.stripMargin)
+
+    val df =
+      spark.sql(
+        """
+          |select
+          |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
+          |from ajog
+          |lateral view explode(events)  as event
+          |where  event.event_info['action'] in (13)
+      """.stripMargin)
+    val scan = df.queryExecution.executedPlan.collect {
+      case scan: FileSourceScanExecTransformer => scan
+    }.head
+    val fieldType = scan.schema.fields.head.dataType.asInstanceOf[ArrayType]
+      .elementType.asInstanceOf[StructType]
+    assert(fieldType.size == 1)
+    spark.sql("drop table if exists ajog")
   }
 
   test("test hive table scan nested column pruning") {
