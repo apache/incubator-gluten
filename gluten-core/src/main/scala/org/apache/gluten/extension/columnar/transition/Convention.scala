@@ -78,7 +78,7 @@ object Convention {
 
     final def ensureRegistered(): Unit = {
       if (!initialized.compareAndSet(false, true)) {
-        // Already initialized.
+        // Already registered.
         return
       }
       register()
