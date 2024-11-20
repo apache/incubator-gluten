@@ -19,9 +19,11 @@
 #include <Core/Settings.h>
 #include <IO/ReadBufferFromFile.h>
 #include <Storages/SubstraitSource/JSONFormatFile.h>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <Common/GlutenConfig.h>
 #include <Common/GlutenStringUtils.h>
 #include <Common/logger_useful.h>
+
 
 #if USE_PARQUET
 #include <Storages/SubstraitSource/ParquetFormatFile.h>
@@ -56,13 +58,18 @@ FormatFile::FormatFile(
         for (size_t i = 0; i < file_info.partition_columns_size(); ++i)
         {
             const auto & partition_column = file_info.partition_columns(i);
+
             std::string unescaped_key;
             std::string unescaped_value;
             Poco::URI::decode(partition_column.key(), unescaped_key);
             Poco::URI::decode(partition_column.value(), unescaped_value);
-            auto key = std::move(unescaped_key);
-            partition_keys.push_back(key);
-            partition_values[key] = std::move(unescaped_value);
+
+            partition_keys.push_back(unescaped_key);
+            partition_values[unescaped_key] = unescaped_value;
+
+            std::string normalized_key = unescaped_key;
+            boost::to_lower(normalized_key);
+            normalized_partition_values[normalized_key] = unescaped_value;
         }
     }
 
