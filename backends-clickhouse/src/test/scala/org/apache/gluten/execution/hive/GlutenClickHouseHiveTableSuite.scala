@@ -1496,6 +1496,19 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("Nested column pruning for Project(Filter(Generate)) on generator") {
+    def assertFieldSizeAfterPruning(df: DataFrame, expectSize: Int): Unit = {
+      val scan = df.queryExecution.executedPlan.collect {
+        case scan: FileSourceScanExecTransformer => scan
+      }.head
+
+      val fieldType =
+        scan.schema.fields.head.dataType
+          .asInstanceOf[ArrayType]
+          .elementType
+          .asInstanceOf[StructType]
+      assert(fieldType.size == expectSize)
+    }
+
     spark.sql("drop table if exists ajog")
     spark.sql(
       """
@@ -1517,7 +1530,8 @@ class GlutenClickHouseHiveTableSuite
                 |    'event_info', map('tab_type', '4', 'action', '12'))))
        """.stripMargin)
 
-    val df =
+    // Test nested column pruning on generator with single field extracted
+    val df1 =
       spark.sql("""
                   |select
                   |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
@@ -1525,12 +1539,40 @@ class GlutenClickHouseHiveTableSuite
                   |lateral view explode(events)  as event
                   |where  event.event_info['action'] in (13)
       """.stripMargin)
-    val scan = df.queryExecution.executedPlan.collect {
-      case scan: FileSourceScanExecTransformer => scan
-    }.head
-    val fieldType =
-      scan.schema.fields.head.dataType.asInstanceOf[ArrayType].elementType.asInstanceOf[StructType]
-    assert(fieldType.size == 1)
+    assertFieldSizeAfterPruning(df1, 1)
+
+    // Test nested column pruning on generator with multiple field extracted,
+    // which resolves SPARK-34956
+    val df2 =
+      spark.sql("""
+                  |select event.event_id,
+                  |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
+                  |from ajog
+                  |lateral view explode(events)  as event
+                  |where  event.event_info['action'] in (13)
+      """.stripMargin)
+    assertFieldSizeAfterPruning(df2, 2)
+
+    // Test nested column pruning with two adjacent generate operator
+    val df3 =
+      spark.sql("""
+                  |SELECT
+                  |abflag,
+                  |event.event_info,
+                  |event.log_extra
+                  |FROM
+                  |ajog
+                  |LATERAL VIEW EXPLODE(events) AS event
+                  |LATERAL VIEW EXPLODE(split(event.log_extra['abflags_v3'], ',')) AS abflag
+                  |WHERE
+                  |event.event_id = 'xx'
+                  |AND event.event_info['dispatch_id'] IS NOT NULL
+                  |AND event.event_info['dispatch_id'] != ''
+                  |AND event.log_extra['scene'] = 'xxx'
+                  |LIMIT 100;
+      """.stripMargin)
+    assertFieldSizeAfterPruning(df3, 3)
+
     spark.sql("drop table if exists ajog")
   }
 

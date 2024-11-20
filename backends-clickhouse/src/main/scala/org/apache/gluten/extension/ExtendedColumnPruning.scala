@@ -72,124 +72,82 @@ object ExtendedGeneratorNestedColumnAliasing {
         return Some(pushedThrough)
       }
 
-      if (nestedFieldsOnGenerator.size > 1) {
-        // Multiple nested column accessors.
-        // E.g. df.select(explode($"items").as("item")).select($"item.a", $"item.b")
-        pushedThrough match {
-          case p2 @ Project(_, f2 @ Filter(_, g2: Generate)) =>
-            val nestedFieldsOnGeneratorSeq = nestedFieldsOnGenerator.toSeq
-            val nestedFieldToOrdinal = nestedFieldsOnGeneratorSeq.zipWithIndex.toMap
-            val rewrittenG = g2.transformExpressions {
-              case e: ExplodeBase =>
-                val extractors = nestedFieldsOnGeneratorSeq.map(replaceGenerator(e, _))
-                val names = extractors.map {
-                  case g: GetStructField => Literal(g.extractFieldName)
-                  case ga: GetArrayStructFields => Literal(ga.field.name)
-                  case other =>
-                    throw new IllegalStateException(
-                      s"Unreasonable extractor " +
-                        "after replaceGenerator: $other")
-                }
-                val zippedArray = ArraysZip(extractors, names)
-                e.withNewChildren(Seq(zippedArray))
-            }
-            // As we change the child of the generator, its output data type must be updated.
-            val updatedGeneratorOutput = rewrittenG.generatorOutput
-              .zip(
-                rewrittenG.generator.elementSchema.map(
-                  f => AttributeReference(f.name, f.dataType, f.nullable, f.metadata)()))
-              .map {
-                case (oldAttr, newAttr) =>
-                  newAttr.withExprId(oldAttr.exprId).withName(oldAttr.name)
+      // Multiple or single nested column accessors.
+      // E.g. df.select(explode($"items").as("item")).select($"item.a", $"item.b")
+      pushedThrough match {
+        case p2 @ Project(_, f2 @ Filter(_, g2: Generate)) =>
+          val nestedFieldsOnGeneratorSeq = nestedFieldsOnGenerator.toSeq
+          val nestedFieldToOrdinal = nestedFieldsOnGeneratorSeq.zipWithIndex.toMap
+          val rewrittenG = g2.transformExpressions {
+            case e: ExplodeBase =>
+              val extractors = nestedFieldsOnGeneratorSeq.map(replaceGenerator(e, _))
+              val names = extractors.map {
+                case g: GetStructField => Literal(g.extractFieldName)
+                case ga: GetArrayStructFields => Literal(ga.field.name)
+                case other =>
+                  throw new IllegalStateException(
+                    s"Unreasonable extractor " +
+                      "after replaceGenerator: $other")
               }
-            assert(
-              updatedGeneratorOutput.length == rewrittenG.generatorOutput.length,
-              "Updated generator output must have the same length " +
-                "with original generator output."
-            )
-            val updatedGenerate = rewrittenG.copy(generatorOutput = updatedGeneratorOutput)
-
-            // Replace nested column accessor with generator output.
-            val attrExprIdsOnGenerator = attrToExtractValuesOnGenerator.keys.map(_.exprId).toSet
-            val updatedFilter = f2.withNewChildren(Seq(updatedGenerate)).transformExpressions {
-              case f: GetStructField if nestedFieldsOnGenerator.contains(f) =>
-                val attr = updatedGenerate.output
-                  .find(a => attrExprIdsOnGenerator.contains(a.exprId))
-                attr match {
-                  case Some(a) =>
-                    val ordinal = nestedFieldToOrdinal(f)
-                    GetStructField(a, ordinal, f.name)
-                  case None => f
-                }
+              val zippedArray = ArraysZip(extractors, names)
+              e.withNewChildren(Seq(zippedArray))
+          }
+          // As we change the child of the generator, its output data type must be updated.
+          val updatedGeneratorOutput = rewrittenG.generatorOutput
+            .zip(
+              rewrittenG.generator.elementSchema.map(
+                f => AttributeReference(f.name, f.dataType, f.nullable, f.metadata)()))
+            .map {
+              case (oldAttr, newAttr) =>
+                newAttr.withExprId(oldAttr.exprId).withName(oldAttr.name)
             }
+          assert(
+            updatedGeneratorOutput.length == rewrittenG.generatorOutput.length,
+            "Updated generator output must have the same length " +
+              "with original generator output."
+          )
+          val updatedGenerate = rewrittenG.copy(generatorOutput = updatedGeneratorOutput)
 
-            val updatedProject = p2.withNewChildren(Seq(updatedFilter)).transformExpressions {
-              case f: GetStructField if nestedFieldsOnGenerator.contains(f) =>
-                val attr = updatedFilter.output
-                  .find(a => attrExprIdsOnGenerator.contains(a.exprId))
-                attr match {
-                  case Some(a) =>
-                    val ordinal = nestedFieldToOrdinal(f)
-                    GetStructField(a, ordinal, f.name)
-                  case None => f
-                }
-            }
+          // Replace nested column accessor with generator output.
+          val attrExprIdsOnGenerator = attrToExtractValuesOnGenerator.keys.map(_.exprId).toSet
+          val updatedFilter = f2.withNewChildren(Seq(updatedGenerate)).transformExpressions {
+            case f: GetStructField if nestedFieldsOnGenerator.contains(f) =>
+              replaceGetStructField(
+                f,
+                updatedGenerate.output,
+                attrExprIdsOnGenerator,
+                nestedFieldToOrdinal)
+          }
 
-            Some(updatedProject)
-          case other =>
-            throw new IllegalStateException(s"Unreasonable plan after optimization: $other")
-        }
-      } else {
-        // Only one nested column accessor.
-        // E.g., df.select(explode($"items").as("item")).select($"item.a")
-        val nestedFieldOnGenerator = nestedFieldsOnGenerator.head
-        pushedThrough match {
-          case p2 @ Project(_, f2 @ Filter(_, g2: Generate)) =>
-            val rewrittenG = g2.transformExpressions {
-              case e: ExplodeBase =>
-                val extractor = replaceGenerator(e, nestedFieldOnGenerator)
-                e.withNewChildren(Seq(extractor))
-            }
-            // As we change the child of the generator, its output data type must be updated.
-            val updatedGeneratorOutput = rewrittenG.generatorOutput
-              .zip(
-                rewrittenG.generator.elementSchema.map(
-                  f => AttributeReference(f.name, f.dataType, f.nullable, f.metadata)()))
-              .map {
-                case (oldAttr, newAttr) =>
-                  newAttr.withExprId(oldAttr.exprId).withName(oldAttr.name)
-              }
-            assert(
-              updatedGeneratorOutput.length == rewrittenG.generatorOutput.length,
-              "Updated generator output must have the same length " +
-                "with original generator output."
-            )
-            val updatedGenerate = rewrittenG.copy(generatorOutput = updatedGeneratorOutput)
+          val updatedProject = p2.withNewChildren(Seq(updatedFilter)).transformExpressions {
+            case f: GetStructField if nestedFieldsOnGenerator.contains(f) =>
+              replaceGetStructField(
+                f,
+                updatedFilter.output,
+                attrExprIdsOnGenerator,
+                nestedFieldToOrdinal)
+          }
 
-            // Replace nested column accessor with generator output.
-            val attrExprIdsOnGenerator = attrToExtractValuesOnGenerator.keys.map(_.exprId).toSet
-            val updatedFilter = f2.withNewChildren(Seq(updatedGenerate)).transformExpressions {
-              case f: GetStructField if nestedFieldsOnGenerator.contains(f) =>
-                updatedGenerate.output
-                  .find(a => attrExprIdsOnGenerator.contains(a.exprId))
-                  .getOrElse(f)
-            }
-
-            val updatedProject = p2.withNewChildren(Seq(updatedFilter)).transformExpressions {
-              case f: GetStructField if nestedFieldsOnGenerator.contains(f) =>
-                updatedFilter.output
-                  .find(a => attrExprIdsOnGenerator.contains(a.exprId))
-                  .getOrElse(f)
-            }
-            Some(updatedProject)
-
-          case other =>
-            throw new IllegalStateException(s"Unreasonable plan after optimization: $other")
-        }
+          Some(updatedProject)
+        case other =>
+          throw new IllegalStateException(s"Unreasonable plan after optimization: $other")
       }
-
     case _ =>
       None
+  }
+
+  private def replaceGetStructField(
+      g: GetStructField,
+      input: Seq[Attribute],
+      attrExprIdsOnGenerator: Set[ExprId],
+      nestedFieldToOrdinal: Map[ExtractValue, Int]): Expression = {
+    val attr = input.find(a => attrExprIdsOnGenerator.contains(a.exprId))
+    attr match {
+      case Some(a) =>
+        val ordinal = nestedFieldToOrdinal(g)
+        GetStructField(a, ordinal, g.name)
+      case None => g
+    }
   }
 
   /** Replace the reference attribute of extractor expression with generator input. */
