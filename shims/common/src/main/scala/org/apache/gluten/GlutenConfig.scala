@@ -274,7 +274,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxSsdODirectEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
 
   def veloxConnectorIOThreads: Int = {
-    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS).getOrElse(numTaskSlotsPerExecutor)
+    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS)
   }
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
@@ -710,7 +710,7 @@ object GlutenConfig {
       (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        conf.getOrElse(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "-1")),
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -1331,13 +1331,19 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  // FIXME: May cause issues when toggled on. Examples:
+  //  https://github.com/apache/incubator-gluten/issues/7161
+  //  https://github.com/facebookincubator/velox/issues/10173
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
-      .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split" +
-        " preloading and DirectBufferedInput.")
+      .doc(
+        "Experimental: The Size of the IO thread pool in the Connector." +
+          " This thread pool is used for split preloading and DirectBufferedInput." +
+          " The option is experimental. Toggling on it (setting a non-zero value) may cause some" +
+          " unexpected issues when application reaches some certain conditions.")
       .intConf
-      .createOptional
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")

@@ -35,6 +35,30 @@ namespace gluten {
 
 using namespace facebook;
 
+namespace {
+
+// Added specifically for Gluten 1.2 since https://github.com/facebookincubator/velox/pull/10705 is not included.
+class SuspendedSection {
+ public:
+  SuspendedSection(velox::memory::MemoryPool* pool) : pool_(pool) {
+    pool_->enterArbitration();
+  }
+
+  virtual ~SuspendedSection() {
+    pool_->leaveArbitration();
+  }
+
+  // singleton
+  SuspendedSection(const SuspendedSection&) = delete;
+  SuspendedSection(SuspendedSection&&) = delete;
+  SuspendedSection& operator=(const SuspendedSection&) = delete;
+  SuspendedSection& operator=(SuspendedSection&&) = delete;
+
+ private:
+  velox::memory::MemoryPool* pool_;
+};
+} // namespace
+
 /// We assume in a single Spark task. No thread-safety should be guaranteed.
 class ListenableArbitrator : public velox::memory::MemoryArbitrator {
  public:
@@ -64,6 +88,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
       uint64_t targetBytes) override {
     velox::memory::ScopedMemoryArbitrationContext ctx(pool);
+    SuspendedSection ss(pool);
     VELOX_CHECK_EQ(candidatePools.size(), 1, "ListenableArbitrator should only be used within a single root pool")
     auto candidate = candidatePools.back();
     VELOX_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");

@@ -18,6 +18,7 @@
 #include "SubstraitToVeloxPlan.h"
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/HiveDataSink.h"
 #include "velox/exec/TableWriter.h"
 #include "velox/type/Filter.h"
@@ -1107,7 +1108,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
   }
 
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto node = valueStreamNodeFactory_(nextPlanNodeId(), pool_, streamIdx, outputType);
+  std::shared_ptr<ResultIterator> iterator;
+  if (!validationMode_) {
+    VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
+    iterator = inputIters_[streamIdx];
+  }
+  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;

@@ -165,6 +165,10 @@ class SubstraitToVeloxPlanConverter {
     valueStreamNodeFactory_ = std::move(factory);
   }
 
+  void setInputIters(std::vector<std::shared_ptr<ResultIterator>> inputIters) {
+    inputIters_ = std::move(inputIters);
+  }
+
   /// Used to check if ReadRel specifies an input of stream.
   /// If yes, the index of input stream will be returned.
   /// If not, -1 will be returned.
@@ -590,6 +594,8 @@ class SubstraitToVeloxPlanConverter {
   std::unordered_map<core::PlanNodeId, std::shared_ptr<SplitInfo>> splitInfoMap_;
 
   std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, int32_t, RowTypePtr)> valueStreamNodeFactory_;
+
+  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
   /// The map storing the pre-built plan nodes which can be accessed through
   /// index. This map is only used when the computation of a Substrait plan
