@@ -228,6 +228,19 @@ public:
     }
 };
 
+struct FileNameGenerator
+{
+    const bool pattern;
+    const std::string filename_or_pattern;
+
+    std::string generate() const
+    {
+        if (pattern)
+            return fmt::vformat(filename_or_pattern, fmt::make_format_args(toString(DB::UUIDHelpers::generateV4())));
+        return filename_or_pattern;
+    }
+};
+
 class SubstraitFileSink final : public DB::SinkToStorage
 {
     const std::string partition_id_;
@@ -236,7 +249,7 @@ class SubstraitFileSink final : public DB::SinkToStorage
     std::shared_ptr<WriteStats> stats_;
     DeltaStats delta_stats_;
 
-    static std::string makeFilename(const std::string & base_path, const std::string & partition_id, const std::string & relative)
+    static std::string makeAbsoluteFilename(const std::string & base_path, const std::string & partition_id, const std::string & relative)
     {
         if (partition_id.empty())
             return fmt::format("{}/{}", base_path, relative);
@@ -259,7 +272,7 @@ public:
         : SinkToStorage(header)
         , partition_id_(partition_id.empty() ? NO_PARTITION_ID : partition_id)
         , relative_path_(relative)
-        , output_format_(createOutputFormatFile(context, makeFilename(base_path, partition_id, relative), header, format_hint)
+        , output_format_(createOutputFormatFile(context, makeAbsoluteFilename(base_path, partition_id, relative), header, format_hint)
                              ->createOutputFormat(header))
         , stats_(std::dynamic_pointer_cast<WriteStats>(stats))
         , delta_stats_(delta_stats)
@@ -335,7 +348,7 @@ public:
 class SubstraitPartitionedFileSink final : public SparkPartitionedBaseSink
 {
     const std::string base_path_;
-    const std::string filename_;
+    const FileNameGenerator generator_;
     const DB::Block sample_block_;
     const std::string format_hint_;
 
@@ -346,12 +359,12 @@ public:
         const DB::Block & input_header,
         const DB::Block & sample_block,
         const std::string & base_path,
-        const std::string & filename,
+        const FileNameGenerator & generator,
         const std::string & format_hint,
         const std::shared_ptr<WriteStatsBase> & stats)
         : SparkPartitionedBaseSink(context, partition_by, input_header, stats)
         , base_path_(base_path)
-        , filename_(filename)
+        , generator_(generator)
         , sample_block_(sample_block)
         , format_hint_(format_hint)
     {
@@ -360,10 +373,11 @@ public:
     DB::SinkPtr createSinkForPartition(const String & partition_id) override
     {
         assert(stats_);
-        const auto partition_path = fmt::format("{}/{}", partition_id, filename_);
+        std::string filename = generator_.generate();
+        const auto partition_path = fmt::format("{}/{}", partition_id, filename);
         validatePartitionKey(partition_path, true);
         return std::make_shared<SubstraitFileSink>(
-            context_, base_path_, partition_id, filename_, format_hint_, sample_block_, stats_, empty_delta_stats_);
+            context_, base_path_, partition_id, filename, format_hint_, sample_block_, stats_, empty_delta_stats_);
     }
     String getName() const override { return "SubstraitPartitionedFileSink"; }
 };

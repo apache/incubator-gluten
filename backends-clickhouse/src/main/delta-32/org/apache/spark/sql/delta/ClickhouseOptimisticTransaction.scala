@@ -29,7 +29,6 @@ import org.apache.spark.sql.delta.files._
 import org.apache.spark.sql.delta.hooks.AutoCompact
 import org.apache.spark.sql.delta.schema.{InnerInvariantViolationException, InvariantViolationException}
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.execution.{QueryExecution, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, GlutenWriterColumnarRules, WriteFiles, WriteJobStatsTracker}
@@ -188,6 +187,16 @@ class ClickhouseOptimisticTransaction(
   override protected def getCommitter(outputPath: Path): DelayedCommitProtocol =
     new FileDelayedCommitProtocol("delta", outputPath.toString, None, deltaDataSubdir)
 
+  private def getCommitter2(outputPath: Path): DelayedCommitProtocol = {
+    val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+    new MergeTreeDelayedCommitProtocol2(
+      outputPath.toString,
+      None,
+      deltaDataSubdir,
+      tableV2.dataBaseName,
+      tableV2.tableName)
+  }
+
   override def writeFiles(
       inputData: Dataset[_],
       writeOptions: Option[DeltaOptions],
@@ -229,24 +238,19 @@ class ClickhouseOptimisticTransaction(
       WriteFiles(logicalPlan, fileFormat, partitioningColumns, None, options, Map.empty)
 
     val queryExecution = new QueryExecution(spark, write)
-    val committer = fileFormat.toString match {
-      case "MergeTree" =>
-        val tableV2 = ClickHouseTableV2.getTable(deltaLog)
-        new MergeTreeDelayedCommitProtocol2(
-          outputPath.toString,
-          None,
-          deltaDataSubdir,
-          tableV2.dataBaseName,
-          tableV2.tableName)
-      case _ => getCommitter(outputPath)
+    val (committer, collectStats) = fileFormat.toString match {
+      case "MergeTree" => (getCommitter2(outputPath), false)
+      case _ => (getCommitter(outputPath), true)
     }
 
     // If Statistics Collection is enabled, then create a stats tracker that will be injected during
     // the FileFormatWriter.write call below and will collect per-file stats using
     // StatisticsCollection
-    //    val (optionalStatsTracker, _) =
-    //      getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
-    val optionalStatsTracker: Option[DeltaJobStatisticsTracker] = None
+    val (optionalStatsTracker, _) = if (collectStats) {
+      getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
+    } else {
+      (None, None)
+    }
 
     val constraints =
       Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints

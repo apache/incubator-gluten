@@ -41,6 +41,12 @@ object RuntimeSettings {
       .stringConf
       .createWithDefault("")
 
+  val TASK_WRITE_FILENAME_PATTERN =
+    buildConf(runtimeSettings("gluten.task_write_filename_pattern"))
+      .doc("The pattern to generate file name for writing delta parquet in spark 3.5")
+      .stringConf
+      .createWithDefault("")
+
   val PART_NAME_PREFIX =
     buildConf(runtimeSettings("gluten.part_name_prefix"))
       .doc("The part name prefix for writing data")

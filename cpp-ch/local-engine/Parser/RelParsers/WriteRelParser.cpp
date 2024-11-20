@@ -52,18 +52,18 @@ DB::ProcessorPtr make_sink(
     const DB::Block & input_header,
     const DB::Block & output_header,
     const std::string & base_path,
-    const std::string & filename,
+    const FileNameGenerator & generator,
     const std::string & format_hint,
     const std::shared_ptr<WriteStats> & stats)
 {
     if (partition_by.empty())
     {
         return std::make_shared<SubstraitFileSink>(
-            context, base_path, "", filename, format_hint, input_header, stats, DeltaStats{input_header.columns()});
+            context, base_path, "", generator.generate(), format_hint, input_header, stats, DeltaStats{input_header.columns()});
     }
 
     return std::make_shared<SubstraitPartitionedFileSink>(
-        context, partition_by, input_header, output_header, base_path, filename, format_hint, stats);
+        context, partition_by, input_header, output_header, base_path, generator, format_hint, stats);
 }
 
 DB::ExpressionActionsPtr create_rename_action(const DB::Block & input, const DB::Block & output)
@@ -184,8 +184,13 @@ void addNormalFileWriterSinkTransform(
     if (write_settings.task_write_tmp_dir.empty())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject temp directory.");
 
-    if (write_settings.task_write_filename.empty())
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject file name.");
+    if (write_settings.task_write_filename.empty() && write_settings.task_write_filename_pattern.empty())
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject file name or file name pattern.");
+
+    FileNameGenerator generator{
+        .pattern = write_settings.task_write_filename.empty(),
+        .filename_or_pattern
+        = write_settings.task_write_filename.empty() ? write_settings.task_write_filename_pattern : write_settings.task_write_filename};
 
     auto stats = WriteStats::create(output, partitionCols);
 
@@ -194,15 +199,7 @@ void addNormalFileWriterSinkTransform(
         {
             if (stream_type != QueryPipelineBuilder::StreamType::Main)
                 return nullptr;
-            return make_sink(
-                context,
-                partitionCols,
-                cur_header,
-                output,
-                write_settings.task_write_tmp_dir,
-                write_settings.task_write_filename,
-                format_hint,
-                stats);
+            return make_sink(context, partitionCols, cur_header, output, write_settings.task_write_tmp_dir, generator, format_hint, stats);
         });
     builder->addSimpleTransform(
         [&](const Block &, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr

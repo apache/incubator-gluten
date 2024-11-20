@@ -49,8 +49,9 @@ class CHColumnarWriteFilesRDD(
   extends RDD[WriterCommitMessage](prev) {
 
   private def reportTaskMetrics(writeTaskResult: WriteTaskResult): Unit = {
-    writeTaskResult.summary.stats.headOption.map(_.asInstanceOf[BasicWriteTaskStats]).foreach {
-      stats =>
+    writeTaskResult.summary.stats.find(_.isInstanceOf[BasicWriteTaskStats]).foreach {
+      s =>
+        val stats = s.asInstanceOf[BasicWriteTaskStats]
         // Reports bytesWritten and recordsWritten to the Spark output metrics.
         // We should update it after calling `commitTask` to overwrite the metrics.
         Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
@@ -103,6 +104,7 @@ class CHColumnarWriteFilesRDD(
         val writeResults = CHExecUtil.c2r(resultColumnarBatch).map(_.copy()).toSeq
         // TODO: we need close iterator here before processing the result.
         // TODO: task commit time
+        // TODO: get the schema from result ColumnarBatch and verify it.
         assert(!iter.hasNext)
 
         val writeTaskResult = commitProtocol

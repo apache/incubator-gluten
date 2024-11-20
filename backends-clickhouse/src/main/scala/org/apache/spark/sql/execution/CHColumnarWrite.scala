@@ -23,7 +23,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GenericInternalRow}
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, BasicWriteTaskStats, ExecutedWriteSummary, PartitioningUtils, WriteJobDescription, WriteTaskResult, WriteTaskStatsTracker}
 import org.apache.spark.util.Utils
@@ -60,11 +60,10 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     .map(_.newTaskInstance())
     .get
 
-  lazy val deltaWriteJobStatsTracker: Option[(Seq[Attribute], Expression)] =
+  lazy val deltaWriteJobStatsTracker: Option[DeltaJobStatisticsTracker] =
     description.statsTrackers
       .find(_.isInstanceOf[DeltaJobStatisticsTracker])
       .map(_.asInstanceOf[DeltaJobStatisticsTracker])
-      .map(tracker => (tracker.dataCols, tracker.statsColExpr))
 
   lazy val (taskAttemptContext: TaskAttemptContext, jobId: String) = {
     // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
@@ -166,11 +165,13 @@ object NativeFileWriteResult {
 }
 
 case class NativeStatCompute(rows: Seq[InternalRow]) {
-  def apply[T](stats: Seq[T => Unit])(implicit creator: InternalRow => T): Unit = {
+  def apply[T](stats: Seq[T => Unit], extra: Option[InternalRow => Unit] = None)(implicit
+      creator: InternalRow => T): Unit = {
     rows.foreach {
       row =>
         val stat = creator(row)
         stats.foreach(agg => agg(stat))
+        extra.foreach(_(row))
     }
   }
 }
