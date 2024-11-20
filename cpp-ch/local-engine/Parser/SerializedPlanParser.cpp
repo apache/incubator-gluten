@@ -331,10 +331,6 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     if (root_rel.root().input().has_write())
         addSinkTransform(parser_context->queryContext(), root_rel.root().input().write(), builder);
     LOG_INFO(getLogger("SerializedPlanParser"), "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
-    LOG_DEBUG(
-        getLogger("SerializedPlanParser"),
-        "clickhouse plan \n{}",
-        PlanUtil::explainPlan(*query_plan));
 
     auto config = ExecutorConfig::loadFromContext(parser_context->queryContext());
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);
