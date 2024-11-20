@@ -150,8 +150,8 @@ object GlutenInjector {
     private def findCostModel(
         registry: LongCostModel.Registry,
         aliasOrClass: String): CostModel[SparkPlan] = {
-      if (LongCostModel.Kind.values.contains(aliasOrClass)) {
-        val kind = LongCostModel.Kind.values(aliasOrClass)
+      if (LongCostModel.Kind.values().contains(aliasOrClass)) {
+        val kind = LongCostModel.Kind.values()(aliasOrClass)
         val model = registry.get(kind)
         return model
       }

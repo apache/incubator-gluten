@@ -16,9 +16,14 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
+import org.apache.gluten.exception.GlutenException
+
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.util.SparkVersionUtil
 
 import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.collection.mutable
 
 /**
  * Convention of a query plan consists of the row data type and columnar data type it supports to
@@ -74,6 +79,7 @@ object Convention {
   }
 
   trait BatchType extends TransitionGraph.Vertex with Serializable {
+    import BatchType._
     private val initialized: AtomicBoolean = new AtomicBoolean(false)
 
     final def ensureRegistered(): Unit = {
@@ -84,7 +90,8 @@ object Convention {
       register()
     }
 
-    final private def register(): Unit = {
+    final private def register(): Unit = BatchType.synchronized {
+      assert(all.add(this))
       Transition.graph.addVertex(this)
       registerTransitions()
     }
@@ -117,6 +124,8 @@ object Convention {
   }
 
   object BatchType {
+    private val all: mutable.Set[BatchType] = mutable.Set()
+    def values(): Set[BatchType] = all.toSet
     // None indicates that the plan doesn't support batch-based processing.
     final case object None extends BatchType {
       override protected[this] def registerTransitions(): Unit = {}
@@ -133,7 +142,46 @@ object Convention {
     def batchType(): BatchType
   }
 
-  trait KnownRowType {
+  sealed trait KnownRowType extends KnownRowType.SupportsRowBasedCompatible {
     def rowType(): RowType
+  }
+
+  object KnownRowType {
+    // To be compatible with Spark (version < 3.3)
+    sealed trait SupportsRowBasedCompatible {
+      def supportsRowBased(): Boolean = {
+        throw new GlutenException("Illegal state: The method is not expected to be called")
+      }
+    }
+  }
+
+  trait KnownRowTypeForSpark33AndLater extends KnownRowType {
+    this: SparkPlan =>
+    import KnownRowTypeForSpark33AndLater._
+
+    final override def rowType(): RowType = {
+      if (lteSpark32()) {
+        // It's known that in Spark 3.2, one Spark plan node is considered either only having
+        // row-based support or only having columnar support at a time.
+        // Hence, if the plan supports columnar output, we'd disable its row-based support.
+        // The same for the opposite.
+        if (supportsColumnar) {
+          Convention.RowType.None
+        } else {
+          Convention.RowType.VanillaRow
+        }
+      } else {
+        rowType0()
+      }
+    }
+
+    def rowType0(): RowType
+  }
+
+  object KnownRowTypeForSpark33AndLater {
+    private def lteSpark32(): Boolean = {
+      val v = SparkVersionUtil.majorMinorVersion()
+      SparkVersionUtil.compareMajorMinorVersion(v, (3, 2)) <= 0
+    }
   }
 }

@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -178,9 +177,9 @@ case class ColumnarInputAdapter(child: SparkPlan)
   extends InputAdapterGenerateTreeStringShim
   with Convention.KnownBatchType {
   override def output: Seq[Attribute] = child.output
-  override def supportsColumnar: Boolean = true
+  override val supportsColumnar: Boolean = true
   override def batchType(): Convention.BatchType =
-    Backend.get().defaultBatchType
+    BackendsApiManager.getSettings.primaryBatchType
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = child.executeColumnar()
   override def outputPartitioning: Partitioning = child.outputPartitioning

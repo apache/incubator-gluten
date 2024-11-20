@@ -18,6 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
@@ -45,6 +46,8 @@ abstract class RowToColumnarExecBase(child: SparkPlan)
 
   final override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
+  override def rowType0(): Convention.RowType = Convention.RowType.None
+
   final override def doExecute(): RDD[InternalRow] = {
     child.execute()
   }
@@ -53,8 +56,6 @@ abstract class RowToColumnarExecBase(child: SparkPlan)
     // Require for explicit implementation, otherwise throw error.
     super.doExecuteBroadcast[T]()
   }
-
-  final override def supportsColumnar: Boolean = true
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch]
 

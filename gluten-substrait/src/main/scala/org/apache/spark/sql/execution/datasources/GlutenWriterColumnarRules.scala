@@ -62,7 +62,7 @@ case class FakeRowAdaptor(child: SparkPlan)
   override def output: Seq[Attribute] = child.output
 
   override protected def doExecute(): RDD[InternalRow] = {
-    doExecuteColumnar().map(cb => new FakeRow(cb))
+    doExecuteColumnar0().map(cb => new FakeRow(cb))
   }
 
   override def outputOrdering: Seq[SortOrder] = child match {
@@ -70,13 +70,17 @@ case class FakeRowAdaptor(child: SparkPlan)
     case _ => child.outputOrdering
   }
 
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+  private def doExecuteColumnar0(): RDD[ColumnarBatch] = {
     if (child.supportsColumnar) {
       child.executeColumnar()
     } else {
-      val r2c = Transitions.toBackendBatchPlan(child)
+      val r2c = Transitions.toBatchPlan(child, BackendsApiManager.getSettings.primaryBatchType)
       r2c.executeColumnar()
     }
+  }
+
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new UnsupportedOperationException()
   }
 
   // For spark 3.2.
