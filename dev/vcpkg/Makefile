@@ -1,4 +1,4 @@
-DOCKER_IMAGE=apache/gluten:gluten-vcpkg-builder_2024_05_22
+DOCKER_IMAGE=apache/gluten:vcpkg-centos-7
 GLUTEN_REPO=$(shell realpath -L ../..)
 
 CCACHE_DIR=$(HOME)/.ccache
