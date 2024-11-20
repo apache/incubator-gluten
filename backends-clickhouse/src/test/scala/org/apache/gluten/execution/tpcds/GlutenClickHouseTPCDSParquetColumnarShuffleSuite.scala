@@ -32,9 +32,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      // Currently, it can not support to read multiple partitioned file in one task.
-      //      .set("spark.sql.files.maxPartitionBytes", "134217728")
-      //      .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.memory.offHeap.size", "4g")
     // .set("spark.sql.planChangeLog.level", "error")
   }

@@ -137,6 +137,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     CHConf.prefixOf("delta.metadata.optimize")
   val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE_DEFAULT_VALUE: String = "true"
 
+  val GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT: String =
+    CHConf.prefixOf("convert.left.anti_semi.to.right")
+  val GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT_DEFAULT_VALUE: String = "false"
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -377,6 +381,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         true
       } else {
         t match {
+          case LeftAnti | LeftSemi
+              if (SQLConf.get
+                .getConfString(
+                  GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT,
+                  GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT_DEFAULT_VALUE)
+                .toBoolean) =>
+            true
           case LeftOuter => true
           case _ => false
         }

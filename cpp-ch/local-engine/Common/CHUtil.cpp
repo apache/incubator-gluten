@@ -1081,8 +1081,12 @@ JoinUtil::getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool i
                 return {DB::JoinKind::Left, DB::JoinStrictness::Any};
             return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
         }
+        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_SEMI:
+            return {DB::JoinKind::Right, DB::JoinStrictness::Semi};
         case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_ANTI:
             return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_ANTI:
+            return {DB::JoinKind::Right, DB::JoinStrictness::Anti};
         case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
             return {DB::JoinKind::Left, DB::JoinStrictness::All};
         case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:
