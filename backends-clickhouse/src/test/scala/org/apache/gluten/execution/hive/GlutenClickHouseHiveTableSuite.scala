@@ -24,12 +24,12 @@ import org.apache.gluten.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{StructType, ArrayType}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.types.{ArrayType, StructType}
 
 import org.apache.hadoop.fs.Path
 
@@ -1508,31 +1508,29 @@ class GlutenClickHouseHiveTableSuite
         |USING orc
       """.stripMargin)
 
-    spark.sql(
-      """
-        |INSERT INTO ajog VALUES
-        |  ('USA', array(named_struct('time', 1622547800, 'lng', -122, 'lat', 37, 'net',
-        |    'wifi', 'log_extra', map('key1', 'value1'), 'event_id', 'event1',
-        |    'event_info', map('tab_type', '5', 'action', '13')))),
-        |  ('Canada', array(named_struct('time', 1622547801, 'lng', -79, 'lat', 43, 'net',
-        |    '4g', 'log_extra', map('key2', 'value2'), 'event_id', 'event2',
-        |    'event_info', map('tab_type', '4', 'action', '12'))))
+    spark.sql("""
+                |INSERT INTO ajog VALUES
+                |  ('USA', array(named_struct('time', 1622547800, 'lng', -122, 'lat', 37, 'net',
+                |    'wifi', 'log_extra', map('key1', 'value1'), 'event_id', 'event1',
+                |    'event_info', map('tab_type', '5', 'action', '13')))),
+                |  ('Canada', array(named_struct('time', 1622547801, 'lng', -79, 'lat', 43, 'net',
+                |    '4g', 'log_extra', map('key2', 'value2'), 'event_id', 'event2',
+                |    'event_info', map('tab_type', '4', 'action', '12'))))
        """.stripMargin)
 
     val df =
-      spark.sql(
-        """
-          |select
-          |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
-          |from ajog
-          |lateral view explode(events)  as event
-          |where  event.event_info['action'] in (13)
+      spark.sql("""
+                  |select
+                  |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
+                  |from ajog
+                  |lateral view explode(events)  as event
+                  |where  event.event_info['action'] in (13)
       """.stripMargin)
     val scan = df.queryExecution.executedPlan.collect {
       case scan: FileSourceScanExecTransformer => scan
     }.head
-    val fieldType = scan.schema.fields.head.dataType.asInstanceOf[ArrayType]
-      .elementType.asInstanceOf[StructType]
+    val fieldType =
+      scan.schema.fields.head.dataType.asInstanceOf[ArrayType].elementType.asInstanceOf[StructType]
     assert(fieldType.size == 1)
     spark.sql("drop table if exists ajog")
   }
