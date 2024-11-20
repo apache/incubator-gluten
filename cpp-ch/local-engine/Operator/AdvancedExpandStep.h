@@ -78,19 +78,18 @@ private:
     bool has_input = false;
     bool has_output = false;
     size_t expand_expr_iterator = 0;
-    std::vector<bool> is_low_cardinality_expand;
-    std::vector<size_t> approximate_grouping_keys;
-    size_t cardinality_detect_rows = 0;
-    std::vector<DB::Block> cardinality_detect_blocks;
-    static constexpr size_t rows_for_detect_cardinality = 10000;
-    bool input_finished = false;
+    std::vector<bool> need_to_aggregate;
 
     std::vector<DB::OutputPort *> output_ports;
 
     DB::Chunk input_chunk;
     DB::Chunk output_chunk;
 
-    void detectCardinality();
+    size_t input_blocks = 0;
+    size_t input_rows = 0;
+    std::vector<size_t> output_blocks = {0, 0};
+    std::vector<size_t> output_rows = {0, 0};
+
     void expandInputChunk();
 };
 
