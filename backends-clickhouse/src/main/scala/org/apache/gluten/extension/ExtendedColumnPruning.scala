@@ -33,7 +33,7 @@ object ExtendedGeneratorNestedColumnAliasing {
   def unapply(plan: LogicalPlan): Option[LogicalPlan] = plan match {
     case pj @ Project(projectList, f @ Filter(condition, g: Generate))
         if canPruneGenerator(g.generator) &&
-          GlutenConfig.getConf.enableExtendedGeneratorNestedColumnAliasing &&
+          GlutenConfig.getConf.enableExtendedColumnPruning &&
           (SQLConf.get.nestedPruningOnExpressions || SQLConf.get.nestedSchemaPruningEnabled) =>
       val attrToExtractValues = NestedColumnAliasing.getAttributeToExtractValues(
         projectList ++ g.generator.children :+ condition,
