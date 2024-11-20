@@ -34,7 +34,7 @@ sealed trait Conv extends Property[SparkPlan] {
       return true
     }
     val prop = this.asInstanceOf[Prop]
-    val out = Transition.factory.satisfies(prop.prop, req.req)
+    val out = Transition.factory().satisfies(prop.prop, req.req)
     out
   }
 }
@@ -52,7 +52,7 @@ object Conv {
   def findTransition(from: Conv, to: Conv): Transition = {
     val prop = from.asInstanceOf[Prop]
     val req = to.asInstanceOf[Req]
-    val out = Transition.factory.findTransition(prop.prop, req.req, new IllegalStateException())
+    val out = Transition.factory().findTransition(prop.prop, req.req, new IllegalStateException())
     out
   }
 

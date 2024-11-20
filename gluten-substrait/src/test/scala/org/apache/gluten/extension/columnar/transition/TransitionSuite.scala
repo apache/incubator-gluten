@@ -87,23 +87,31 @@ class TransitionSuite extends SharedSparkSession {
 
 object TransitionSuite extends TransitionSuiteBase {
   object TypeA extends Convention.BatchType {
-    fromRow(RowToBatch(this, _))
-    toRow(BatchToRow(this, _))
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowToBatch(this, _))
+      toRow(BatchToRow(this, _))
+    }
   }
 
   object TypeB extends Convention.BatchType {
-    fromRow(RowToBatch(this, _))
-    toRow(BatchToRow(this, _))
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowToBatch(this, _))
+      toRow(BatchToRow(this, _))
+    }
   }
 
   object TypeC extends Convention.BatchType {
-    fromRow(RowToBatch(this, _))
-    toRow(BatchToRow(this, _))
-    fromBatch(TypeA, BatchToBatch(TypeA, this, _))
-    toBatch(TypeA, BatchToBatch(this, TypeA, _))
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowToBatch(this, _))
+      toRow(BatchToRow(this, _))
+      fromBatch(TypeA, BatchToBatch(TypeA, this, _))
+      toBatch(TypeA, BatchToBatch(this, TypeA, _))
+    }
   }
 
-  object TypeD extends Convention.BatchType {}
+  object TypeD extends Convention.BatchType {
+    override protected[this] def registerTransitions(): Unit = {}
+  }
 
   case class RowToBatch(toBatchType: Convention.BatchType, override val child: SparkPlan)
     extends RowToColumnarTransition
