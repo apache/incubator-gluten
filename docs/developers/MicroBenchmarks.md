@@ -64,7 +64,7 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --plan /home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example.json \
 --data /home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet,\
 /home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example_lineitem/part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet \
---threads 1 --iterations 1 --noprint-result --benchmark_filter=InputFromBatchStream
+--threads 1 --iterations 1 --noprint-result
 ```
 
 The output should be like:
@@ -118,12 +118,12 @@ cd /path/to/gluten/
 First, get the Stage Id from spark UI for the stage you want to simulate.
 And then re-run the query with below configurations to dump the inputs to micro benchmark.
 
-| Parameters                                  | Description                                                                                                    | Recommend Setting     |
-|---------------------------------------------|----------------------------------------------------------------------------------------------------------------|-----------------------|
-| spark.gluten.sql.benchmark_task.stageId     | Spark task stage id                                                                                            | target stage id       |
-| spark.gluten.sql.benchmark_task.partitionId | Spark task partition id, default value -1 means all the partition of this stage                                | 0                     |
-| spark.gluten.sql.benchmark_task.taskId      | If not specify partition id, use spark task attempt id, default value -1 means all the partition of this stage | target task attemp id |
-| spark.gluten.saveDir                        | Directory to save the inputs to micro benchmark, should exist and be empty.                                    | /path/to/saveDir      |
+| Parameters                                  | Description                                                                                                                                                                                                                                                                                                                                 | Recommend Setting                                          |
+|---------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
+| spark.gluten.sql.benchmark_task.taskId      | Comma-separated string to specify the Task IDs to dump. If it's set, `spark.gluten.sql.benchmark_task.stageId` and `spark.gluten.sql.benchmark_task.partitionId` will be ignored.                                                                                                                                                           | Comma-separated string of task IDs. Empty by default.      |
+| spark.gluten.sql.benchmark_task.stageId     | Spark stage ID.                                                                                                                                                                                                                                                                                                                             | Target stage ID                                            |
+| spark.gluten.sql.benchmark_task.partitionId | Comma-separated string to specify the Partition IDs in a stage to dump. Must be specified together with `spark.gluten.sql.benchmark_task.stageId`. Empty by default, meaning all partitions of this stage will be dumped. To identify the partition ID, navigate to the `Stage` tab in the Spark UI and locate it under the `Index` column. | Comma-separated string of partition IDs. Empty by default. |
+| spark.gluten.saveDir                        | Directory to save the inputs to micro benchmark, should exist and be empty.                                                                                                                                                                                                                                                                 | /path/to/saveDir                                           |
 
 Check the files in `spark.gluten.saveDir`. If the simulated stage is a first stage, you will get 3
 or 4 types of dumped file:
