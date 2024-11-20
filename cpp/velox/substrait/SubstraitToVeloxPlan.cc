@@ -1435,18 +1435,18 @@ void SubstraitToVeloxPlanConverter::extractJoinKeys(
     const ::substrait::Expression& joinExpression,
     std::vector<const ::substrait::Expression::FieldReference*>& leftExprs,
     std::vector<const ::substrait::Expression::FieldReference*>& rightExprs) {
-  std::deque<const ::substrait::Expression*> expressions;
-  expressions.emplace_back(&joinExpression);
+  std::stack<const ::substrait::Expression*> expressions;
+  expressions.push(&joinExpression);
   while (!expressions.empty()) {
-    auto visited = expressions.front();
-    expressions.pop_front();
+    auto visited = expressions.top();
+    expressions.pop();
     if (visited->rex_type_case() == ::substrait::Expression::RexTypeCase::kScalarFunction) {
       const auto& funcName = SubstraitParser::getNameBeforeDelimiter(
           SubstraitParser::findVeloxFunction(functionMap_, visited->scalar_function().function_reference()));
       const auto& args = visited->scalar_function().arguments();
       if (funcName == "and") {
-        expressions.emplace_back(&args[0].value());
-        expressions.emplace_back(&args[1].value());
+        expressions.push(&args[1].value());
+        expressions.push(&args[0].value());
       } else if (funcName == "eq" || funcName == "equalto" || funcName == "decimal_equalto") {
         VELOX_CHECK(std::all_of(args.cbegin(), args.cend(), [](const ::substrait::FunctionArgument& arg) {
           return arg.value().has_selection();
