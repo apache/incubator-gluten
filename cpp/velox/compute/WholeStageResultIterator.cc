@@ -311,15 +311,22 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
-  if (veloxCfg_->get<bool>(kDebugModeEnabled, false)) {
-    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), task_->taskStats(), true);
+  const auto& taskStats = task_->taskStats();
+  if (taskStats.executionStartTimeMs == 0) {
+    LOG(INFO) << "Skip collect task metrics since task did not call next().";
+    return;
+  }
+
+  if (veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
+      veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
+    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
     std::ostringstream oss;
     oss << "Native Plan with stats for: " << taskInfo_;
     oss << "\n" << planWithStats << std::endl;
     LOG(INFO) << oss.str();
   }
 
-  auto planStats = velox::exec::toPlanStats(task_->taskStats());
+  auto planStats = velox::exec::toPlanStats(taskStats);
   // Calculate the total number of metrics.
   int statsNum = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {

@@ -176,7 +176,7 @@ object GlutenImplicits {
         withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
           // AQE is not materialized, so the columnar rules are not applied.
           // For this case, We apply columnar rules manually with disable AQE.
-          val qe = spark.sessionState.executePlan(logicalPlan)
+          val qe = spark.sessionState.executePlan(logicalPlan, CommandExecutionMode.SKIP)
           processPlan(qe.executedPlan, concat.append, collectFallbackFunc)
         }
       } else {

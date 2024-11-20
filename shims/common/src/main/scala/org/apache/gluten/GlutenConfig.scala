@@ -1685,6 +1685,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_VELOX_SHOW_TASK_METRICS_WHEN_FINISHED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished")
+      .internal()
+      .doc("Show velox full task metrics when finished.")
+      .booleanConf
+      .createWithDefault(false)
+
   val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")
       .internal()
