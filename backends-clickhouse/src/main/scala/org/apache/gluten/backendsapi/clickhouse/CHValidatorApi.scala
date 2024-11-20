@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
+import org.apache.gluten.backendsapi.ValidatorApi
 import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.SubstraitContext
@@ -28,12 +28,14 @@ import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
 class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logging {
+  import CHValidatorApi._
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult = {
     if (CHNativeExpressionEvaluator.doValidate(plan.toProtobuf.toByteArray)) {
@@ -86,10 +88,7 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
               .doTransform(substraitContext.registeredFunction)
             node.isInstanceOf[SelectionNode]
         }
-        if (
-          allSelectionNodes ||
-          BackendsApiManager.getSettings.supportShuffleWithProject(outputPartitioning, child)
-        ) {
+        if (allSelectionNodes || supportShuffleWithProject(outputPartitioning, child)) {
           None
         } else {
           Some("expressions are not supported in HashPartitioning")
@@ -104,6 +103,36 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
           Some("do not support range partitioning columnar sort")
         }
       case _ => None
+    }
+  }
+}
+
+object CHValidatorApi {
+
+  /**
+   * A shuffle key may be an expression. We would add a projection for this expression shuffle key
+   * and make it into a new column which the shuffle will refer to. But we need to remove it from
+   * the result columns from the shuffle.
+   *
+   * Since https://github.com/apache/incubator-gluten/pull/1071.
+   */
+  def supportShuffleWithProject(
+      outputPartitioning: Partitioning,
+      child: SparkPlan): Boolean = {
+    child match {
+      case hash: HashAggregateExec =>
+        if (hash.aggregateExpressions.isEmpty) {
+          true
+        } else {
+          outputPartitioning match {
+            case hashPartitioning: HashPartitioning =>
+              hashPartitioning.expressions.exists(x => !x.isInstanceOf[AttributeReference])
+            case _ =>
+              false
+          }
+        }
+      case _ =>
+        true
     }
   }
 }

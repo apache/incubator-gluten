@@ -27,16 +27,12 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
@@ -44,7 +40,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import java.util.Locale
-
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends SubstraitBackend {
@@ -248,26 +243,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .orElse(validateBucketSpec()) match {
       case Some(reason) => ValidationResult.failed(reason)
       case _ => ValidationResult.succeeded
-    }
-  }
-
-  override def supportShuffleWithProject(
-      outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean = {
-    child match {
-      case hash: HashAggregateExec =>
-        if (hash.aggregateExpressions.isEmpty) {
-          true
-        } else {
-          outputPartitioning match {
-            case hashPartitioning: HashPartitioning =>
-              hashPartitioning.expressions.exists(x => !x.isInstanceOf[AttributeReference])
-            case _ =>
-              false
-          }
-        }
-      case _ =>
-        true
     }
   }
 
