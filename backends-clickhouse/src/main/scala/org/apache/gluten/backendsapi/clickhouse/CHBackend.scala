@@ -396,8 +396,4 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   }
 
   override def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = true
-
-  override def supportHiveTableScanNestedColumnPruning: Boolean =
-    GlutenConfig.getConf.enableColumnarHiveTableScanNestedColumnPruning
-
 }

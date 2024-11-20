@@ -98,6 +98,7 @@ object CHRuleApi {
       c => intercept(HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads)))
 
     // Legacy: Post-transform rules.
+    injector.injectPostTransform(_ => PruneNestedColumnsInHiveTableScan)
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(c => intercept(RewriteTransformer.apply(c.session)))
     injector.injectPostTransform(_ => PushDownFilterToScan)
