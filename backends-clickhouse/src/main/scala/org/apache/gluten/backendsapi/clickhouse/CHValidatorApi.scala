@@ -116,9 +116,7 @@ object CHValidatorApi {
    *
    * Since https://github.com/apache/incubator-gluten/pull/1071.
    */
-  def supportShuffleWithProject(
-      outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean = {
+  def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = {
     child match {
       case hash: HashAggregateExec =>
         if (hash.aggregateExpressions.isEmpty) {
