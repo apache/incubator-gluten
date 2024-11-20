@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 
+#include <boost/algorithm/string/case_conv.hpp>
 #include <substrait/plan.pb.h>
 #include <magic_enum.hpp>
 #include <Poco/URI.h>
@@ -337,14 +338,15 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
     if (const size_t col_num = header.columns())
     {
         res_columns.reserve(col_num);
-        const auto & partition_values = file->getFilePartitionValues();
+        const auto & normalized_partition_values = file->getFileNormalizedPartitionValues();
         for (size_t pos = 0; pos < col_num; ++pos)
         {
-            auto col_with_name_and_type = header.getByPosition(pos);
-            auto type = col_with_name_and_type.type;
-            const auto & name = col_with_name_and_type.name;
-            auto it = partition_values.find(name);
-            if (it == partition_values.end())
+            const auto & column = header.getByPosition(pos);
+            const auto & type = column.type;
+            const auto & name = column.name;
+
+            auto it = normalized_partition_values.find(boost::to_lower_copy(name));
+            if (it == normalized_partition_values.end())
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow partition column : {}", name);
 
             res_columns.emplace_back(createColumn(it->second, type, to_read_rows));
@@ -377,13 +379,13 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
     if (!rows)
         return false;
 
-    const auto read_columns = raw_chunk.detachColumns();
-    auto columns_with_name_and_type = output_header.getColumnsWithTypeAndName();
-    auto partition_values = file->getFilePartitionValues();
+    auto read_columns = raw_chunk.detachColumns();
+    const auto & columns = output_header.getColumnsWithTypeAndName();
+    const auto & normalized_partition_values = file->getFileNormalizedPartitionValues();
 
     DB::Columns res_columns;
-    res_columns.reserve(columns_with_name_and_type.size());
-    for (auto & column : columns_with_name_and_type)
+    res_columns.reserve(columns.size());
+    for (auto & column : columns)
     {
         if (to_read_header.has(column.name))
         {
@@ -392,12 +394,11 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
         }
         else
         {
-            auto it = partition_values.find(column.name);
-            if (it == partition_values.end())
-            {
+            auto it = normalized_partition_values.find(boost::to_lower_copy(column.name));
+            if (it == normalized_partition_values.end())
                 throw DB::Exception(
                     DB::ErrorCodes::LOGICAL_ERROR, "Not found column({}) from file({}) partition keys.", column.name, file->getURIPath());
-            }
+
             res_columns.push_back(createColumn(it->second, column.type, rows));
         }
     }
