@@ -44,7 +44,7 @@ GraceAggregatingTransform::GraceAggregatingTransform(
     , aggregate_columns(params_->params.aggregates_size)
     , no_pre_aggregated(no_pre_aggregated_)
     , final_output(final_output_)
-    , tmp_data_disk(std::make_unique<DB::TemporaryDataOnDisk>(context_->getTempDataOnDisk()))
+    , tmp_data_disk(context_->getTempDataOnDisk())
 {
     output_header = params->getHeader();
     auto config = GraceMergingAggregateConfig::loadFromContext(context);
@@ -302,10 +302,13 @@ void GraceAggregatingTransform::flushBuckets()
         flushBucket(i);
 }
 
-static size_t flushBlocksInfoDisk(DB::TemporaryFileStream * file_stream, std::list<DB::Block> & blocks)
+static size_t flushBlocksInfoDisk(std::optional<DB::TemporaryBlockStreamHolder>& file_stream, std::list<DB::Block> & blocks)
 {
     size_t flush_bytes = 0;
     DB::Blocks tmp_blocks;
+    if (!file_stream)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "file_stream is empty");
+    auto & tmp_stream = file_stream.value();
     while (!blocks.empty())
     {
         while (!blocks.empty())
@@ -322,11 +325,11 @@ static size_t flushBlocksInfoDisk(DB::TemporaryFileStream * file_stream, std::li
         flush_bytes += merged_block.bytes();
         if (merged_block.rows())
         {
-            file_stream->write(merged_block);
+            tmp_stream->write(merged_block);
         }
     }
     if (flush_bytes)
-        file_stream->flush();
+        tmp_stream->flush();
     return flush_bytes;
 }
 
@@ -338,7 +341,7 @@ size_t GraceAggregatingTransform::flushBucket(size_t bucket_index)
     if (!file_stream.original_blocks.empty())
     {
         if (!file_stream.original_file_stream)
-            file_stream.original_file_stream = &tmp_data_disk->createStream(header);
+            file_stream.original_file_stream = DB::TemporaryBlockStreamHolder(header, tmp_data_disk.get());
         flush_bytes += flushBlocksInfoDisk(file_stream.original_file_stream, file_stream.original_blocks);
     }
     if (!file_stream.intermediate_blocks.empty())
@@ -346,7 +349,7 @@ size_t GraceAggregatingTransform::flushBucket(size_t bucket_index)
         if (!file_stream.intermediate_file_stream)
         {
             auto intermediate_header = params->aggregator.getHeader(false);
-            file_stream.intermediate_file_stream = &tmp_data_disk->createStream(intermediate_header);
+            file_stream.intermediate_file_stream = DB::TemporaryBlockStreamHolder(header, tmp_data_disk.get());
         }
         flush_bytes += flushBlocksInfoDisk(file_stream.intermediate_file_stream, file_stream.intermediate_blocks);
     }
@@ -373,9 +376,10 @@ std::unique_ptr<AggregateDataBlockConverter> GraceAggregatingTransform::prepareB
     if (buffer_file_stream.intermediate_file_stream)
     {
         buffer_file_stream.intermediate_file_stream->finishWriting();
+        auto reader = buffer_file_stream.intermediate_file_stream->getReadStream();
         while (true)
         {
-            auto block = buffer_file_stream.intermediate_file_stream->read();
+            auto block = reader->read();
             if (!block.rows())
                 break;
             read_bytes += block.bytes();
@@ -383,7 +387,7 @@ std::unique_ptr<AggregateDataBlockConverter> GraceAggregatingTransform::prepareB
             mergeOneBlock(block, false);
             block = {};
         }
-        buffer_file_stream.intermediate_file_stream = nullptr;
+        buffer_file_stream.intermediate_file_stream.reset();
         total_read_disk_time += watch.elapsedMilliseconds();
     }
     if (!buffer_file_stream.intermediate_blocks.empty())
@@ -398,9 +402,10 @@ std::unique_ptr<AggregateDataBlockConverter> GraceAggregatingTransform::prepareB
     if (buffer_file_stream.original_file_stream)
     {
         buffer_file_stream.original_file_stream->finishWriting();
+        auto reader = buffer_file_stream.original_file_stream->getReadStream();
         while (true)
         {
-            auto block = buffer_file_stream.original_file_stream->read();
+            auto block = reader->read();
             if (!block.rows())
                 break;
             read_bytes += block.bytes();
@@ -408,7 +413,7 @@ std::unique_ptr<AggregateDataBlockConverter> GraceAggregatingTransform::prepareB
             mergeOneBlock(block, true);
             block = {};
         }
-        buffer_file_stream.original_file_stream = nullptr;
+        buffer_file_stream.original_file_stream.reset();
         total_read_disk_time += watch.elapsedMilliseconds();
     }
     if (!buffer_file_stream.original_blocks.empty())

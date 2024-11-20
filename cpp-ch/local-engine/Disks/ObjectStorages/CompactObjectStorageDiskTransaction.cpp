@@ -52,9 +52,9 @@ void CompactObjectStorageDiskTransaction::commit()
             [&](auto & item)
             {
                 DB::DiskObjectStorageMetadata metadata(object_storage->getCommonKeyPrefix(), item.first);
-                DB::ReadBufferFromFilePRead read(item.second->getAbsolutePath());
+                auto read = item.second->read();
                 int file_size = 0;
-                while (int count = read.readBig(buffer.data(), buffer.size()))
+                while (int count = read->readBig(buffer.data(), buffer.size()))
                 {
                     file_size += count;
                     out.write(buffer.data(), count);
@@ -98,12 +98,13 @@ std::unique_ptr<DB::WriteBufferFromFileBase> CompactObjectStorageDiskTransaction
             "Don't support write file in different dirs, path {}, prefix path: {}",
             path,
             prefix_path);
-    auto tmp = std::make_shared<DB::TemporaryFileOnDisk>(tmp_data);
+    auto tmp = std::make_shared<DB::TemporaryDataBuffer>(tmp_data.get());
     files.emplace_back(path, tmp);
     auto tx = disk.getMetadataStorage()->createTransaction();
     tx->createDirectoryRecursive(std::filesystem::path(path).parent_path());
     tx->createEmptyMetadataFile(path);
     tx->commit();
-    return std::make_unique<DB::WriteBufferFromFile>(tmp->getAbsolutePath(), buf_size);
+
+    return std::make_unique<TemporaryWriteBufferWrapper>(path, tmp);
 }
 }
