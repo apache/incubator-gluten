@@ -21,15 +21,7 @@ import org.apache.spark.SparkConf
 import java.io.File
 
 class VeloxTPCHHudiSuite extends VeloxTPCHSuite {
-
-  protected val tpchBasePath: String = new File(
-    "../backends-velox/src/test/resources").getAbsolutePath
-
-  override protected val resourcePath: String =
-    new File(tpchBasePath, "tpch-data").getCanonicalPath
-
-  override protected val queriesResults: String =
-    new File(tpchBasePath, "queries-output").getCanonicalPath
+  override protected val resourcePath: String = "/tpch-data-sf100"
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -45,7 +37,8 @@ class VeloxTPCHHudiSuite extends VeloxTPCHSuite {
       .map(_.name)
       .map {
         table =>
-          val tablePath = new File(resourcePath, table).getAbsolutePath
+          val tablePath =
+            new File(getClass.getResource(resourcePath).getFile, table).getAbsolutePath
           val tableDF = spark.read.format(fileFormat).load(tablePath)
           tableDF.write.format("hudi").mode("append").saveAsTable(table)
           (table, tableDF)

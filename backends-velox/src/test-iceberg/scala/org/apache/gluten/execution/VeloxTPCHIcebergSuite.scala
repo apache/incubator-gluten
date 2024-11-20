@@ -24,7 +24,7 @@ import org.apache.iceberg.spark.SparkWriteOptions
 import java.io.File
 
 class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
-  override protected val resourcePath: String = "/tpch-data-sf10"
+  override protected val resourcePath: String = "/tpch-data-sf100"
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -43,7 +43,8 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
       .map(_.name)
       .map {
         table =>
-          val tablePath = getClass.getResource(resourcePath).getFile
+          val tablePath =
+            new File(getClass.getResource(resourcePath).getFile, table).getAbsolutePath
           val tableDF = spark.read.format(fileFormat).load(tablePath)
           tableDF.write.format("iceberg").mode("overwrite").saveAsTable(table)
           (table, tableDF)

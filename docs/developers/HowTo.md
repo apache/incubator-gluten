@@ -133,14 +133,14 @@ Here we will explain how to run TPC-H on Velox backend with the Parquet file for
 1. First, prepare the datasets, you have two choices.
   - One way, generate Parquet datasets using the script under `${GLUTEN_HOME}/backends-velox/workload/tpch/gen_data/parquet_dataset`, you can get help from the above
     -mentioned `README.md`.
-  - The other way, using the small dataset under `${GLUTEN_HOME}/backends-velox/src/test/resources/tpch-data-parquet` directly, if you just want to make simple
+  - The other way, using the small dataset under `${GLUTEN_HOME}/backends-core/src/test/resources/tpch-data-sf100` directly, if you just want to make simple
     TPC-H testing, this dataset is a good choice.
 2. Second, run TPC-H on Velox backend testing.
   - Modify `${GLUTEN_HOME}/backends-velox/workload/tpch/run_tpch/tpch_parquet.scala`.
     - Set `var parquet_file_path` to correct directory. If using the small dataset directly in the step one, then modify it as below:
 
     ```scala
-    var parquet_file_path = "gluten_home/backends-velox/src/test/resources/tpch-data-parquet"
+    var parquet_file_path = "gluten_home/backends-core/src/test/resources/tpch-data-sf100"
     ```
 
     - Set `var gluten_root` to correct directory. If `${GLUTEN_HOME}` is the directory of `/home/gluten`, then modify it as below

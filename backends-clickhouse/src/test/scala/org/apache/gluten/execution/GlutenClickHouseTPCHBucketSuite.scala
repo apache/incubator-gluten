@@ -59,9 +59,9 @@ class GlutenClickHouseTPCHBucketSuite
                  |""".stripMargin)
     spark.sql(s"use $parquetSourceDB")
 
-    val parquetTablePath = basePath + "/tpch-data"
+    val parquetTablePath = basePath + "/tpch-data-sf100"
     val parquetTableDataPath: String =
-      "../../../../gluten-core/src/test/resources/tpch-data"
+      "../../../../gluten-core/src/test/resources/tpch-data-sf100"
     FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
 
     createNotNullTPCHTablesInParquet(parquetTablePath)
