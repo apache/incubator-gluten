@@ -42,4 +42,13 @@ class FilterMetricsUpdater(
       }
     }
   }
+
+  override def inheritChildMetrics(opMetrics: IOperatorMetrics): Unit = {
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      metrics("numOutputRows") += operatorMetrics.outputRows
+      metrics("outputVectors") += operatorMetrics.outputVectors
+      metrics("outputBytes") += operatorMetrics.outputBytes
+    }
+  }
 }
