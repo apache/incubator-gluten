@@ -33,8 +33,8 @@ sealed trait AdaptiveContext {
 }
 
 object AdaptiveContext {
-  def apply(session: SparkSession, aqeStackTraceIndex: Int): AdaptiveContext =
-    new AdaptiveContextImpl(session, aqeStackTraceIndex)
+  def apply(session: SparkSession): AdaptiveContext =
+    new AdaptiveContextImpl(session)
 
   private val GLUTEN_IS_ADAPTIVE_CONTEXT = "gluten.isAdaptiveContext"
 
@@ -44,8 +44,7 @@ object AdaptiveContext {
   private val localIsAdaptiveContextFlags: ThreadLocal[ListBuffer[Boolean]] =
     ThreadLocal.withInitial(() => ListBuffer.empty[Boolean])
 
-  private class AdaptiveContextImpl(session: SparkSession, aqeStackTraceIndex: Int)
-    extends AdaptiveContext {
+  private class AdaptiveContextImpl(session: SparkSession) extends AdaptiveContext {
     // Just for test use.
     override def enableAdaptiveContext(): Unit = {
       session.sparkContext.setLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT, "true")
@@ -59,19 +58,13 @@ object AdaptiveContext {
 
     override def setAdaptiveContext(): Unit = {
       val traceElements = Thread.currentThread.getStackTrace
-      assert(
-        traceElements.length > aqeStackTraceIndex,
-        s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")
       // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
       // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
-      // columnar rule will be applied in adaptive execution context. This part of code
-      // needs to be carefully checked when supporting higher versions of spark to make
-      // sure the calling stack has not been changed.
+      // columnar rule will be applied in adaptive execution context.
       localIsAdaptiveContextFlags
         .get()
         .prepend(
-          traceElements(aqeStackTraceIndex).getClassName
-            .equals(AdaptiveSparkPlanExec.getClass.getName))
+          traceElements.exists(_.getClassName.equals(AdaptiveSparkPlanExec.getClass.getName)))
     }
 
     override def resetAdaptiveContext(): Unit =
