@@ -59,6 +59,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def forceToUseHashAgg: Boolean = conf.getConf(COLUMNAR_FORCE_HASHAGG_ENABLED)
 
+  def mergeTwoPhasesAggEnabled: Boolean = conf.getConf(MERGE_TWO_PHASES_ENABLED)
+
   def enableColumnarProject: Boolean = conf.getConf(COLUMNAR_PROJECT_ENABLED)
 
   def enableColumnarFilter: Boolean = conf.getConf(COLUMNAR_FILTER_ENABLED)
@@ -895,6 +897,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.force.hashagg")
       .internal()
       .doc("Whether to force to use gluten's hash agg for replacing vanilla spark's sort agg.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val MERGE_TWO_PHASES_ENABLED =
+    buildConf("spark.gluten.sql.mergeTwoPhasesAggregate.enabled")
+      .internal()
+      .doc("Whether to merge two phases aggregate if there are no other operators between them.")
       .booleanConf
       .createWithDefault(true)
 

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension
+package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.GlutenConfig
 
@@ -42,6 +42,7 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession)
   val scanOnly: Boolean = glutenConf.enableScanOnly
   val enableColumnarHashAgg: Boolean = !scanOnly && glutenConf.enableColumnarHashAgg
   val replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
+  val mergeTwoPhasesAggEnabled: Boolean = GlutenConfig.getConf.mergeTwoPhasesAggEnabled
 
   private def isPartialAgg(partialAgg: BaseAggregateExec, finalAgg: BaseAggregateExec): Boolean = {
     // TODO: now it can not support to merge agg which there are the filters in the aggregate exprs.
@@ -59,7 +60,7 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession)
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!enableColumnarHashAgg) {
+    if (!mergeTwoPhasesAggEnabled || !enableColumnarHashAgg) {
       plan
     } else {
       plan.transformDown {

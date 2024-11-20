@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
-import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
 import org.apache.spark.sql.execution.aggregate.{ObjectHashAggregateExec, SortAggregateExec}
@@ -85,7 +84,7 @@ class GlutenReplaceHashWithSortAggSuite
     withTempView("t1", "t2") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       spark.range(50).selectExpr("id as key").createOrReplaceTempView("t2")
-      Seq(("COUNT", 0, 1, 2, 0), ("COLLECT_LIST", 2, 0, 2, 0)).foreach {
+      Seq(("COUNT", 1, 0, 1, 0), ("COLLECT_LIST", 1, 0, 1, 0)).foreach {
         aggExprInfo =>
           val query =
             s"""
@@ -99,11 +98,7 @@ class GlutenReplaceHashWithSortAggSuite
                |)
                |GROUP BY key
            """.stripMargin
-          if (BackendTestUtils.isCHBackendLoaded()) {
-            checkAggs(query, 1, 0, 1, 0)
-          } else {
-            checkAggs(query, aggExprInfo._2, aggExprInfo._3, aggExprInfo._4, aggExprInfo._5)
-          }
+          checkAggs(query, aggExprInfo._2, aggExprInfo._3, aggExprInfo._4, aggExprInfo._5)
       }
     }
   }

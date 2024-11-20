@@ -424,55 +424,54 @@ Arguments: isFinalPlan=true
 ===== Subqueries =====
 
 Subquery:1 Hosting operator id = 47 Hosting Expression = Subquery subquery#X, [id=#X]
-AdaptiveSparkPlan (136)
+AdaptiveSparkPlan (135)
 +- == Final Plan ==
-   VeloxColumnarToRow (114)
-   +- ^ ProjectExecTransformer (112)
-      +- ^ RegularHashAggregateExecTransformer (111)
-         +- ^ RegularHashAggregateExecTransformer (110)
-            +- ^ ProjectExecTransformer (109)
-               +- ^ ShuffledHashJoinExecTransformer Inner BuildRight (108)
-                  :- ^ InputIteratorTransformer (103)
-                  :  +- ShuffleQueryStage (101), Statistics(X)
-                  :     +- ColumnarExchange (100)
-                  :        +- VeloxResizeBatches (99)
-                  :           +- ^ ProjectExecTransformer (97)
-                  :              +- ^ ShuffledHashJoinExecTransformer Inner BuildRight (96)
-                  :                 :- ^ InputIteratorTransformer (91)
-                  :                 :  +- ShuffleQueryStage (89), Statistics(X)
-                  :                 :     +- ColumnarExchange (88)
-                  :                 :        +- VeloxResizeBatches (87)
-                  :                 :           +- ^ ProjectExecTransformer (85)
-                  :                 :              +- ^ FilterExecTransformer (84)
-                  :                 :                 +- ^ ScanTransformer parquet  (83)
-                  :                 +- ^ InputIteratorTransformer (95)
-                  :                    +- ShuffleQueryStage (93), Statistics(X)
-                  :                       +- ReusedExchange (92)
-                  +- ^ InputIteratorTransformer (107)
-                     +- ShuffleQueryStage (105), Statistics(X)
-                        +- ReusedExchange (104)
+   VeloxColumnarToRow (113)
+   +- ^ ProjectExecTransformer (111)
+      +- ^ RegularHashAggregateExecTransformer (110)
+         +- ^ ProjectExecTransformer (109)
+            +- ^ ShuffledHashJoinExecTransformer Inner BuildRight (108)
+               :- ^ InputIteratorTransformer (103)
+               :  +- ShuffleQueryStage (101), Statistics(X)
+               :     +- ColumnarExchange (100)
+               :        +- VeloxResizeBatches (99)
+               :           +- ^ ProjectExecTransformer (97)
+               :              +- ^ ShuffledHashJoinExecTransformer Inner BuildRight (96)
+               :                 :- ^ InputIteratorTransformer (91)
+               :                 :  +- ShuffleQueryStage (89), Statistics(X)
+               :                 :     +- ColumnarExchange (88)
+               :                 :        +- VeloxResizeBatches (87)
+               :                 :           +- ^ ProjectExecTransformer (85)
+               :                 :              +- ^ FilterExecTransformer (84)
+               :                 :                 +- ^ ScanTransformer parquet  (83)
+               :                 +- ^ InputIteratorTransformer (95)
+               :                    +- ShuffleQueryStage (93), Statistics(X)
+               :                       +- ReusedExchange (92)
+               +- ^ InputIteratorTransformer (107)
+                  +- ShuffleQueryStage (105), Statistics(X)
+                     +- ReusedExchange (104)
 +- == Initial Plan ==
-   HashAggregate (135)
-   +- HashAggregate (134)
-      +- Project (133)
-         +- SortMergeJoin Inner (132)
-            :- Sort (126)
-            :  +- Exchange (125)
-            :     +- Project (124)
-            :        +- SortMergeJoin Inner (123)
-            :           :- Sort (118)
-            :           :  +- Exchange (117)
-            :           :     +- Filter (116)
-            :           :        +- Scan parquet (115)
-            :           +- Sort (122)
-            :              +- Exchange (121)
-            :                 +- Filter (120)
-            :                    +- Scan parquet (119)
-            +- Sort (131)
-               +- Exchange (130)
-                  +- Project (129)
-                     +- Filter (128)
-                        +- Scan parquet (127)
+   HashAggregate (134)
+   +- HashAggregate (133)
+      +- Project (132)
+         +- SortMergeJoin Inner (131)
+            :- Sort (125)
+            :  +- Exchange (124)
+            :     +- Project (123)
+            :        +- SortMergeJoin Inner (122)
+            :           :- Sort (117)
+            :           :  +- Exchange (116)
+            :           :     +- Filter (115)
+            :           :        +- Scan parquet (114)
+            :           +- Sort (121)
+            :              +- Exchange (120)
+            :                 +- Filter (119)
+            :                    +- Scan parquet (118)
+            +- Sort (130)
+               +- Exchange (129)
+                  +- Project (128)
+                     +- Filter (127)
+                        +- Scan parquet (126)
 
 
 (83) ScanTransformer parquet 
@@ -581,129 +580,122 @@ Input [4]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 (110) RegularHashAggregateExecTransformer
 Input [3]: [ps_availqty#X, ps_supplycost#X, _pre_X#X]
 Keys: []
-Functions [1]: [partial_sum(_pre_X#X)]
-Aggregate Attributes [2]: [sum#X, isEmpty#X]
-Results [2]: [sum#X, isEmpty#X]
-
-(111) RegularHashAggregateExecTransformer
-Input [2]: [sum#X, isEmpty#X]
-Keys: []
-Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
+Functions [1]: [sum(_pre_X#X)]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 Results [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 
-(112) ProjectExecTransformer
+(111) ProjectExecTransformer
 Output [1]: [CheckOverflow((promote_precision(cast(sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X as decimal(38,10))) * 0.0001000000), DecimalType(38,6)) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 Input [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 
-(113) WholeStageCodegenTransformer (X)
+(112) WholeStageCodegenTransformer (X)
 Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 Arguments: false
 
-(114) VeloxColumnarToRow
+(113) VeloxColumnarToRow
 Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 
-(115) Scan parquet
+(114) Scan parquet
 Output [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_suppkey)]
 ReadSchema: struct<ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
 
-(116) Filter
+(115) Filter
 Input [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Condition : isnotnull(ps_suppkey#X)
 
-(117) Exchange
+(116) Exchange
 Input [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Arguments: hashpartitioning(ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(118) Sort
+(117) Sort
 Input [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Arguments: [ps_suppkey#X ASC NULLS FIRST], false, 0
 
-(119) Scan parquet
+(118) Scan parquet
 Output [2]: [s_suppkey#X, s_nationkey#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(120) Filter
+(119) Filter
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Condition : (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
-(121) Exchange
+(120) Exchange
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(122) Sort
+(121) Sort
 Input [2]: [s_suppkey#X, s_nationkey#X]
 Arguments: [s_suppkey#X ASC NULLS FIRST], false, 0
 
-(123) SortMergeJoin
+(122) SortMergeJoin
 Left keys [1]: [ps_suppkey#X]
 Right keys [1]: [s_suppkey#X]
 Join condition: None
 
-(124) Project
+(123) Project
 Output [3]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Input [5]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationkey#X]
 
-(125) Exchange
+(124) Exchange
 Input [3]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(126) Sort
+(125) Sort
 Input [3]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Arguments: [s_nationkey#X ASC NULLS FIRST], false, 0
 
-(127) Scan parquet
+(126) Scan parquet
 Output [2]: [n_nationkey#X, n_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,GERMANY), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(128) Filter
+(127) Filter
 Input [2]: [n_nationkey#X, n_name#X]
 Condition : ((isnotnull(n_name#X) AND (n_name#X = GERMANY)) AND isnotnull(n_nationkey#X))
 
-(129) Project
+(128) Project
 Output [1]: [n_nationkey#X]
 Input [2]: [n_nationkey#X, n_name#X]
 
-(130) Exchange
+(129) Exchange
 Input [1]: [n_nationkey#X]
 Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(131) Sort
+(130) Sort
 Input [1]: [n_nationkey#X]
 Arguments: [n_nationkey#X ASC NULLS FIRST], false, 0
 
-(132) SortMergeJoin
+(131) SortMergeJoin
 Left keys [1]: [s_nationkey#X]
 Right keys [1]: [n_nationkey#X]
 Join condition: None
 
-(133) Project
+(132) Project
 Output [2]: [ps_availqty#X, ps_supplycost#X]
 Input [4]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X, n_nationkey#X]
 
-(134) HashAggregate
+(133) HashAggregate
 Input [2]: [ps_availqty#X, ps_supplycost#X]
 Keys: []
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
-(135) HashAggregate
+(134) HashAggregate
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X]
 Results [1]: [CheckOverflow((promote_precision(cast(sum(CheckOverflow((promote_precision(ps_supplycost#X) * promote_precision(cast(ps_availqty#X as decimal(12,2)))), DecimalType(23,2)))#X as decimal(38,10))) * 0.0001000000), DecimalType(38,6)) AS (sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 
-(136) AdaptiveSparkPlan
+(135) AdaptiveSparkPlan
 Output [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 Arguments: isFinalPlan=true
