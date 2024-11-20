@@ -51,7 +51,7 @@ arrow::Status ArrowWriter::writeInBatches(std::shared_ptr<arrow::RecordBatch> ba
 }
 
 arrow::Status ArrowWriter::closeWriter() {
-  // Write file footer and close
+  // Write file footer and close.
   if (writer_ != nullptr) {
     ARROW_RETURN_NOT_OK(writer_->Close());
   }

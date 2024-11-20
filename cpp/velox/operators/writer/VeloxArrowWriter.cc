@@ -26,7 +26,11 @@ VeloxArrowWriter::VeloxArrowWriter(
     : ArrowWriter(path), batchSize_(batchSize), pool_(pool) {}
 
 std::shared_ptr<ColumnarBatch> VeloxArrowWriter::retrieveColumnarBatch() {
-  if (!reader_) {
+  if (writer_ == nullptr) {
+    // No data to read.
+    return nullptr;
+  }
+  if (reader_ == nullptr) {
     reader_ = std::make_unique<ParquetStreamReaderIterator>(path_, batchSize_, pool_);
   }
   return reader_->next();
