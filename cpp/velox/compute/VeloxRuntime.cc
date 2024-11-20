@@ -28,17 +28,14 @@
 #include "compute/VeloxPlanConverter.h"
 #include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
-#include "shuffle/VeloxHashShuffleWriter.h"
-#include "shuffle/VeloxRssSortShuffleWriter.h"
+#include "operators/writer/VeloxArrowWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
+#include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
 #ifdef ENABLE_HDFS
-
-#include "operators/writer/VeloxArrowWriter.h"
 #include "operators/writer/VeloxParquetDataSourceHDFS.h"
-
 #endif
 
 #ifdef ENABLE_S3

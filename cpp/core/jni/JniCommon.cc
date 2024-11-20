@@ -126,6 +126,7 @@ std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() 
         GLUTEN_THROW_NOT_OK(writer_->writeInBatches(rb));
       } while (env->CallBooleanMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorHasNext_));
 
+      checkException(env);
       GLUTEN_THROW_NOT_OK(writer_->closeWriter());
     }
     return writer_->retrieveColumnarBatch();
