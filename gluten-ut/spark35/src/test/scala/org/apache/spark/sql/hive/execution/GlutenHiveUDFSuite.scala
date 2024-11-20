@@ -91,7 +91,7 @@ class GlutenHiveUDFSuite
     val table = "lineitem"
     val tableDir =
       getClass.getResource("").getPath + "/../../../../../../../../../../../" +
-        "/backends-velox/src/test/resources/tpch-data-parquet/"
+        "/gluten-core/src/test/resources/tpch-data/"
     val tablePath = new File(tableDir, table).getAbsolutePath
     val tableDF = spark.read.format("parquet").load(tablePath)
     tableDF.createOrReplaceTempView(table)

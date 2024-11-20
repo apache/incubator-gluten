@@ -26,7 +26,7 @@ class VeloxTPCHDeltaSuite extends VeloxTPCHSuite {
     "../backends-velox/src/test/resources").getAbsolutePath
 
   override protected val resourcePath: String =
-    new File(tpchBasePath, "tpch-data-parquet").getCanonicalPath
+    new File(tpchBasePath, "tpch-data").getCanonicalPath
 
   override protected val queriesResults: String =
     new File(tpchBasePath, "queries-output").getCanonicalPath

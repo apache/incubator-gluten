@@ -40,7 +40,7 @@ class UDFPartialProjectSuiteRasOn extends UDFPartialProjectSuite {
 
 abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
   disableFallbackCheck
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = "/tpch-data-sf100"
   override protected val fileFormat: String = "parquet"
 
   override protected def sparkConf: SparkConf = {

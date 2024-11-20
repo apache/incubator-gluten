@@ -25,7 +25,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   // FIXME: This folder is in module backends-velox so is not accessible if profile backends-velox
   //  is not enabled during Maven build.
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = "/tpch-data"
   override protected val fileFormat: String = "parquet"
 
   override protected def sparkConf: SparkConf = {

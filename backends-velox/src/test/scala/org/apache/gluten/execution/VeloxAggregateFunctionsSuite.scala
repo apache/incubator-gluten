@@ -30,7 +30,7 @@ import java.sql.Timestamp
 abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = "/tpch-data-sf100"
   override protected val fileFormat: String = "parquet"
 
   import testImplicits._

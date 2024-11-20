@@ -28,7 +28,7 @@ import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.junit.Assert
 
 class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = "/tpch-data-sf100"
   override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {
