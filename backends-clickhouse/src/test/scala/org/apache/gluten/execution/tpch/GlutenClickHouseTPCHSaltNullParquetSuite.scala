@@ -2458,6 +2458,56 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(sql, noFallBack = true)({ _ => })
   }
 
+  test("GLUTEN-7979: fix different output schema array<void> and array<string> before union") {
+    val sql =
+      """
+        |select
+        |    a.multi_peer_user_id,
+        |    max(a.user_id) as max_user_id,
+        |    max(a.peer_user_id) as max_peer_user_id,
+        |    max(a.is_match_line) as max_is_match_line
+        |from
+        |(
+        |    select
+        |        t1.user_id,
+        |        t1.peer_user_id,
+        |        t1.is_match_line,
+        |        t1.pk_type,
+        |        t1.pk_start_time,
+        |        t1.pk_end_time,
+        |        t1.multi_peer_user_id
+        |    from
+        |    (
+        |        select
+        |            id as user_id,
+        |            id as peer_user_id,
+        |            id % 2 as is_match_line,
+        |            id % 3 as pk_type,
+        |            id as pk_start_time,
+        |            id as pk_end_time,
+        |            array() as multi_peer_user_id
+        |        from range(10)
+        |
+        |        union all
+        |
+        |        select
+        |            id as user_id,
+        |            id as peer_user_id,
+        |            id % 2 as is_match_line,
+        |            id % 3 as pk_type,
+        |            id as pk_start_time,
+        |            id as pk_end_time,
+        |            array('a', 'b', 'c') as multi_peer_user_id
+        |        from range(10)
+        |    ) t1
+        |    where t1.user_id > 0 and t1.peer_user_id > 0
+        |) a
+        |group by
+        |    a.multi_peer_user_id
+        |""".stripMargin
+    runQueryAndCompare(sql, noFallBack = true)({ _ => })
+  }
+
   test("GLUTEN-4190: crush on flattening a const null column") {
     val sql =
       """

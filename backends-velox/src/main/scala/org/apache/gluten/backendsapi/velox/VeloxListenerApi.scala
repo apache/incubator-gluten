@@ -123,9 +123,9 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Force batch type initializations.
-    VeloxBatch.getClass
-    ArrowJavaBatch.getClass
-    ArrowNativeBatch.getClass
+    VeloxBatch.ensureRegistered()
+    ArrowJavaBatch.ensureRegistered()
+    ArrowNativeBatch.ensureRegistered()
 
     // Sets this configuration only once, since not undoable.
     if (conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)) {

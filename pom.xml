@@ -530,7 +530,7 @@
 
     <!-- Profiles for different platforms -->
     <profile>
-      <id>Darwin-x86</id>
+      <id>darwin-x86</id>
       <activation>
         <os>
           <family>mac</family>
@@ -543,7 +543,7 @@
       </properties>
     </profile>
     <profile>
-      <id>Darwin-aarch64</id>
+      <id>darwin-aarch64</id>
       <activation>
         <os>
           <family>mac</family>
@@ -556,7 +556,7 @@
       </properties>
     </profile>
     <profile>
-      <id>Linux-amd64</id>
+      <id>linux-amd64</id>
       <activation>
         <os>
           <family>Linux</family>
@@ -569,7 +569,7 @@
       </properties>
     </profile>
     <profile>
-      <id>Linux-aarch64</id>
+      <id>linux-aarch64</id>
       <activation>
         <os>
           <family>Linux</family>
