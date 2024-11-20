@@ -36,7 +36,8 @@ import org.apache.spark.sql.internal.SQLConf
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-// spotless:off
+
+// format: off
 /**
  * A helper class to get the Gluten fallback summary from a Spark [[Dataset]].
  *
@@ -52,7 +53,7 @@ import scala.collection.mutable.ArrayBuffer
  *   df.fallbackSummary
  * }}}
  */
-// spotless:on
+// format: on
 object GlutenImplicits {
 
   case class FallbackSummary(
