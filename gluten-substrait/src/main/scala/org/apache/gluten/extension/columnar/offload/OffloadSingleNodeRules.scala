@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
-import org.apache.spark.sql.hive.{HiveTableScanExecTransformer, HiveTableScanNestedColumnPruning}
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 // Exchange transformation.
 case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
