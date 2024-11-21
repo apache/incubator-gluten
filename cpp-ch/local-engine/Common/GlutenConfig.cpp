@@ -141,4 +141,13 @@ MergeTreeCacheConfig MergeTreeCacheConfig::loadFromContext(const DB::ContextPtr 
     config.enable_data_prefetch = context->getConfigRef().getBool(ENABLE_DATA_PREFETCH, config.enable_data_prefetch);
     return config;
 }
+
+WindowConfig WindowConfig::loadFromContext(const DB::ContextPtr & context)
+{
+    WindowConfig config;
+    config.aggregate_topk_sample_rows = context->getConfigRef().getUInt64(WINDOW_AGGREGATE_TOPK_SAMPLE_ROWS, 5000);
+    config.aggregate_topk_high_cardinality_threshold
+        = context->getConfigRef().getDouble(WINDOW_AGGREGATE_TOPK_HIGH_CARDINALITY_THRESHOLD, 0.6);
+    return config;
+}
 }

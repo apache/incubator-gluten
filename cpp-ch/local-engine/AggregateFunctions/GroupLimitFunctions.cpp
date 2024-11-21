@@ -41,6 +41,7 @@
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
+#include "base/defines.h"
 
 namespace DB::ErrorCodes
 {
@@ -72,7 +73,6 @@ public:
             const auto & pos = sort_order.pos;
             const auto & asc = sort_order.direction;
             const auto & nulls_first = sort_order.nulls_direction;
-            LOG_ERROR(getLogger("GroupLimitFunction"), "xxx pos: {} tuple size: {} {}", pos, rhs.size(), lhs.size());
             bool l_is_null = lhs[pos].isNull();
             bool r_is_null = rhs[pos].isNull();
             if (l_is_null && r_is_null)
@@ -120,25 +120,17 @@ public:
         values[current_index] = current;
     }
 
-    ALWAYS_INLINE void addElement(const Data & data, const SortOrderFields & sort_orders, size_t max_elements)
+    ALWAYS_INLINE void addElement(const Data && data, const SortOrderFields & sort_orders, size_t max_elements)
     {
         if (values.size() >= max_elements)
         {
-            LOG_ERROR(
-                getLogger("GroupLimitFunction"),
-                "xxxx values size: {}, limit: {}, tuple size: {} {}",
-                values.size(),
-                max_elements,
-                data.size(),
-                values[0].size());
             if (!compare(data, values[0], sort_orders))
                 return;
             values[0] = data;
             heapReplaceTop(sort_orders);
             return;
         }
-        values.push_back(data);
-        LOG_ERROR(getLogger("GroupLimitFunction"), "add new element: {} {}", values.size(), values.back().size());
+        values.emplace_back(std::move(data));
         auto cmp = [&sort_orders](const Data & a, const Data & b) { return compare(a, b, sort_orders); };
         std::push_heap(values.begin(), values.end(), cmp);
     }
@@ -190,7 +182,7 @@ class RowNumGroupArraySorted final : public DB::IAggregateFunctionDataHelper<Row
 public:
     explicit RowNumGroupArraySorted(DB::DataTypePtr data_type, const DB::Array & parameters_)
         : DB::IAggregateFunctionDataHelper<RowNumGroupArraySortedData, RowNumGroupArraySorted>(
-              {data_type}, parameters_, getRowNumReultDataType(data_type))
+            {data_type}, parameters_, getRowNumReultDataType(data_type))
     {
         if (parameters_.size() != 2)
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} needs two parameters: limit and order clause", getName());
@@ -212,23 +204,14 @@ public:
     {
         auto & data = this->data(place);
         DB::Tuple data_tuple = (*columns[0])[row_num].safeGet<DB::Tuple>();
-        // const DB::Tuple & data_tuple = *(static_cast<const DB::Tuple *>(&((*columns[0])[row_num])));
-        LOG_ERROR(
-            getLogger("GroupLimitFunction"),
-            "xxx col len: {}, row num: {}, tuple size: {}, type: {}",
-            columns[0]->size(),
-            row_num,
-            data_tuple.size(),
-            (*columns[0])[row_num].getType());
-        ;
-        this->data(place).addElement(data_tuple, sort_order_fields, limit);
+        this->data(place).addElement(std::move(data_tuple), sort_order_fields, limit);
     }
 
     void merge(DB::AggregateDataPtr __restrict place, DB::ConstAggregateDataPtr rhs, DB::Arena * /*arena*/) const override
     {
         auto & rhs_values = this->data(rhs).values;
         for (auto & rhs_element : rhs_values)
-            this->data(place).addElement(rhs_element, sort_order_fields, limit);
+            this->data(place).addElement(std::move(rhs_element), sort_order_fields, limit);
     }
 
     void serialize(DB::ConstAggregateDataPtr __restrict place, DB::WriteBuffer & buf, std::optional<size_t> /* version */) const override

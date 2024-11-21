@@ -52,9 +52,6 @@ public:
 private:
     DB::QueryPlanPtr current_plan;
     String window_function_name;
-
-    std::vector<size_t> parsePartitoinFields(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions);
-    std::vector<size_t> parseSortFields(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
 };
 
 class AggregateGroupLimitRelParser : public RelParser
@@ -78,12 +75,14 @@ private:
 
     String getAggregateFunctionName(const String & window_function_name);
 
-    void prePrejectionForAggregateArguments();
+    void prePrejectionForAggregateArguments(DB::QueryPlan & plan);
 
-    void addGroupLmitAggregationStep();
+    void addGroupLmitAggregationStep(DB::QueryPlan & plan);
     String parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
-    DB::AggregateDescription buildAggregateDescription();
+    DB::AggregateDescription buildAggregateDescription(DB::QueryPlan & plan);
+    void postProjectionForExplodingArrays(DB::QueryPlan & plan);
 
-    void postProjectionForExplodingArrays();
+    void addSortStep(DB::QueryPlan & plan);
+    void addWindowLimitStep(DB::QueryPlan & plan);
 };
 }

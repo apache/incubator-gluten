@@ -359,6 +359,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  // If the partition keys are high cardinality, the aggregation method is slower.
   def enableConvertWindowGroupLimitToAggregate(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConf.runtimeConfig("enable_window_group_limit_to_aggregate"),

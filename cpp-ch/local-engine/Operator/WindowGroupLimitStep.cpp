@@ -17,6 +17,9 @@
 
 #include "WindowGroupLimitStep.h"
 
+#include <Columns/ColumnVector.h>
+#include <Core/ColumnWithTypeAndName.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
@@ -38,18 +41,34 @@ enum class WindowGroupLimitFunction
 };
 
 
+static DB::Block buildOutputHeader(const DB::Block & input_header, bool need_output_rank_values)
+{
+    if (!need_output_rank_values)
+        return input_header;
+    DB::Block output_header = input_header;
+    auto type = std::make_shared<DB::DataTypeInt32>();
+    auto col = type->createColumn();
+    output_header.insert(DB::ColumnWithTypeAndName(std::move(col), type, "rank_value"));
+    return output_header;
+}
+
 template <WindowGroupLimitFunction function>
 class WindowGroupLimitTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
     explicit WindowGroupLimitTransform(
-        const DB::Block & header_, const std::vector<size_t> & partition_columns_, const std::vector<size_t> & sort_columns_, size_t limit_)
-        : DB::IProcessor({header_}, {header_})
+        const DB::Block & header_,
+        const std::vector<size_t> & partition_columns_,
+        const std::vector<size_t> & sort_columns_,
+        size_t limit_,
+        bool need_output_rank_values_ = false)
+        : DB::IProcessor({header_}, {buildOutputHeader(header_, need_output_rank_values_)})
         , header(header_)
         , partition_columns(partition_columns_)
         , sort_columns(sort_columns_)
         , limit(limit_)
+        , need_output_rank_values(need_output_rank_values_)
 
     {
     }
@@ -95,9 +114,7 @@ public:
     void work() override
     {
         if (!has_input) [[unlikely]]
-        {
             return;
-        }
         DB::Block block = header.cloneWithColumns(input_chunk.getColumns());
         size_t partition_start_row = 0;
         size_t chunk_rows = input_chunk.getNumRows();
@@ -119,6 +136,11 @@ public:
         if (!output_columns.empty() && output_columns[0]->size() > 0)
         {
             auto rows = output_columns[0]->size();
+            if (rank_value_column)
+            {
+                output_columns.push_back(std::move(rank_value_column));
+                rank_value_column.reset();
+            }
             output_chunk = DB::Chunk(std::move(output_columns), rows);
             output_columns.clear();
             has_output = true;
@@ -134,11 +156,13 @@ private:
     std::vector<size_t> sort_columns;
     // Limitations for each partition.
     size_t limit = 0;
+    bool need_output_rank_values;
 
     bool has_input = false;
     DB::Chunk input_chunk;
     bool has_output = false;
     DB::MutableColumns output_columns;
+    DB::MutableColumnPtr rank_value_column = nullptr;
     DB::Chunk output_chunk;
 
     // We don't have window frame here. in fact all of frame are (unbounded preceding, current row]
@@ -152,6 +176,12 @@ private:
     DB::Columns peer_group_start_row_columns;
 
 
+    void tryCreateRankValueColumn()
+    {
+        if (!rank_value_column)
+            rank_value_column = DB::DataTypeInt32().createColumn();
+    }
+
     size_t advanceNextPartition(const DB::Chunk & chunk, size_t start_offset)
     {
         if (partition_start_row_columns.empty())
@@ -159,12 +189,8 @@ private:
 
         size_t max_row = chunk.getNumRows();
         for (size_t i = start_offset; i < max_row; ++i)
-        {
             if (!isRowEqual(partition_columns, partition_start_row_columns, 0, chunk.getColumns(), i))
-            {
                 return i;
-            }
-        }
         return max_row;
     }
 
@@ -198,7 +224,6 @@ private:
         // Skip the rest rows int this partition.
         if (current_row_rank_value > limit)
             return;
-
 
         size_t chunk_rows = chunk.getNumRows();
         auto has_peer_group_ended = [&](size_t offset, size_t partition_end_offset, size_t chunk_rows_)
@@ -240,7 +265,14 @@ private:
             size_t rows = end_offset - start_offset;
             size_t limit_remained = limit - current_row_rank_value + 1;
             rows = rows > limit_remained ? limit_remained : rows;
+            if (need_output_rank_values)
+            {
+                tryCreateRankValueColumn();
+                for (Int32 i = 0; i < static_cast<Int32>(rows); ++i)
+                    typeid_cast<DB::ColumnVector<Int32> *>(rank_value_column.get())->insertValue(current_row_rank_value + i);
+            }
             insertResultValue(chunk, start_offset, rows);
+
             current_row_rank_value += rows;
         }
         else
@@ -249,8 +281,13 @@ private:
             while (peer_group_start_offset < end_offset && current_row_rank_value <= limit)
             {
                 auto next_peer_group_start_offset = advanceNextPeerGroup(chunk, peer_group_start_offset, end_offset);
-
-                insertResultValue(chunk, peer_group_start_offset, next_peer_group_start_offset - peer_group_start_offset);
+                size_t group_rows = next_peer_group_start_offset - peer_group_start_offset;
+                if (need_output_rank_values)
+                {
+                    tryCreateRankValueColumn();
+                    rank_value_column->insertMany(current_row_rank_value, group_rows);
+                }
+                insertResultValue(chunk, peer_group_start_offset, group_rows);
                 try_end_peer_group(peer_group_start_offset, next_peer_group_start_offset, end_offset, chunk_rows);
                 peer_group_start_offset = next_peer_group_start_offset;
             }
@@ -261,12 +298,8 @@ private:
         if (!rows)
             return;
         if (output_columns.empty())
-        {
             for (const auto & col : chunk.getColumns())
-            {
                 output_columns.push_back(col->cloneEmpty());
-            }
-        }
         size_t i = 0;
         for (const auto & col : chunk.getColumns())
         {
@@ -279,12 +312,8 @@ private:
         if (peer_group_start_row_columns.empty())
             peer_group_start_row_columns = extractOneRowColumns(chunk, start_offset);
         for (size_t i = start_offset; i < partition_end_offset; ++i)
-        {
             if (!isRowEqual(sort_columns, peer_group_start_row_columns, 0, chunk.getColumns(), i))
-            {
                 return i;
-            }
-        }
         return partition_end_offset;
     }
 };
@@ -306,12 +335,14 @@ WindowGroupLimitStep::WindowGroupLimitStep(
     const String & function_name_,
     const std::vector<size_t> & partition_columns_,
     const std::vector<size_t> & sort_columns_,
-    size_t limit_)
-    : DB::ITransformingStep(input_header_, input_header_, getTraits())
+    size_t limit_,
+    bool need_output_rank_values_)
+    : DB::ITransformingStep(input_header_, buildOutputHeader(input_header_, need_output_rank_values_), getTraits())
     , function_name(function_name_)
     , partition_columns(partition_columns_)
     , sort_columns(sort_columns_)
     , limit(limit_)
+    , need_output_rank_values(need_output_rank_values_)
 {
 }
 
@@ -335,7 +366,7 @@ void WindowGroupLimitStep::transformPipeline(DB::QueryPipelineBuilder & pipeline
             [&](const DB::Block & header)
             {
                 return std::make_shared<WindowGroupLimitTransform<WindowGroupLimitFunction::RowNumber>>(
-                    header, partition_columns, sort_columns, limit);
+                    header, partition_columns, sort_columns, limit, need_output_rank_values);
             });
     }
     else if (function_name == "rank")

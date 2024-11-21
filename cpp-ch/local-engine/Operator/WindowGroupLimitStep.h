@@ -31,7 +31,8 @@ public:
         const String & function_name_,
         const std::vector<size_t> & partition_columns_,
         const std::vector<size_t> & sort_columns_,
-        size_t limit_);
+        size_t limit_,
+        bool need_output_rank_values_ = false);
     ~WindowGroupLimitStep() override = default;
 
     String getName() const override { return "WindowGroupLimitStep"; }
@@ -46,6 +47,7 @@ private:
     std::vector<size_t> partition_columns;
     std::vector<size_t> sort_columns;
     size_t limit;
+    bool need_output_rank_values;
 };
 
 }

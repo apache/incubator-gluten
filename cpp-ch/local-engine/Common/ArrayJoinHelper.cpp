@@ -150,6 +150,21 @@ addArrayJoinStep(DB::ContextPtr context, DB::QueryPlan & plan, const DB::Actions
         steps.emplace_back(array_join_step.get());
         plan.addStep(std::move(array_join_step));
         // LOG_DEBUG(logger, "plan2:{}", PlanUtil::explainPlan(*query_plan));
+
+        /// Post-projection after array join(Optional)
+        if (!ignore_actions_dag(splitted_actions_dags.after_array_join))
+        {
+            auto step_after_array_join
+                = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(splitted_actions_dags.after_array_join));
+            step_after_array_join->setStepDescription("Post-projection In Generate");
+            steps.emplace_back(step_after_array_join.get());
+            plan.addStep(std::move(step_after_array_join));
+            // LOG_DEBUG(logger, "plan3:{}", PlanUtil::explainPlan(*query_plan));
+        }
+    }
+    else
+    {
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Expect array join node in actions_dag");
     }
 
     return steps;
