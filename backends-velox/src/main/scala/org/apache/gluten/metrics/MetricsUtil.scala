@@ -54,9 +54,6 @@ object MetricsUtil extends Logging {
           MetricsUpdaterTree(
             smj.metricsUpdater(),
             Seq(treeifyMetricsUpdaters(smj.bufferedPlan), treeifyMetricsUpdaters(smj.streamedPlan)))
-        case t: TransformSupport if t.metricsUpdater() == MetricsUpdater.None =>
-          assert(t.children.size == 1, "MetricsUpdater.None can only be used on unary operator")
-          treeifyMetricsUpdaters(t.children.head)
         case t: TransformSupport =>
           MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
         case _ =>
@@ -219,6 +216,7 @@ object MetricsUtil extends Logging {
         })
 
     mutNode.updater match {
+      case MetricsUpdater.None =>
       case ju: HashJoinMetricsUpdater =>
         // JoinRel outputs two suites of metrics respectively for hash build and hash probe.
         // Therefore, fetch one more suite of metrics here.
