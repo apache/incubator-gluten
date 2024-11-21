@@ -131,6 +131,4 @@ trait BackendSettingsApi {
   def supportColumnarArrowUdf(): Boolean = false
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
-
-  def supportHiveTableScanNestedColumnPruning(): Boolean = false
 }
