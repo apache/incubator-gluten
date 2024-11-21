@@ -242,15 +242,6 @@ object MetricsUtil extends Logging {
           val opMetrics: OperatorMetrics = mergeMetrics(operatorMetrics)
           lu.updateNativeMetrics(opMetrics)
         }
-      case fu: FilterMetricsUpdater if operatorMetrics.size() == 0 =>
-        val childOperatorMetrics = new JArrayList[OperatorMetrics]()
-        relMap
-          .get(operatorIdx - 1)
-          .forEach(
-            _ => {
-              childOperatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
-            })
-        fu.inheritChildMetrics(mergeMetrics(childOperatorMetrics))
       case u =>
         val opMetrics: OperatorMetrics = mergeMetrics(operatorMetrics)
         u.updateNativeMetrics(opMetrics)

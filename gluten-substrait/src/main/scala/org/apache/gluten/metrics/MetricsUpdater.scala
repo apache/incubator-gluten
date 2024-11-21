@@ -27,7 +27,6 @@ import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 trait MetricsUpdater extends Serializable {
   def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {}
   def updateNativeMetrics(operatorMetrics: IOperatorMetrics): Unit = {}
-  def inheritChildMetrics(operatorMetrics: IOperatorMetrics): Unit = {}
 }
 
 object MetricsUpdater {

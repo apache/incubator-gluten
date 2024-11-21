@@ -61,8 +61,11 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     case _ => false
   }
 
-  override def metricsUpdater(): MetricsUpdater =
+  override def metricsUpdater(): MetricsUpdater = if (getRemainingCondition == null) {
+    MetricsUpdater.None
+  } else {
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
+  }
 
   def getRelNode(
       context: SubstraitContext,

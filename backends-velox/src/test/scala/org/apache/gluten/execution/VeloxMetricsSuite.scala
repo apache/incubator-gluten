@@ -263,18 +263,4 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
     }
   }
-
-  test("Metrics of filter when remainingCondition is null") {
-    runQueryAndCompare("SELECT c1, c2 FROM metrics_t2 where c1 < 100") {
-      df =>
-        val filter = find(df.queryExecution.executedPlan) {
-          case _: FilterExecTransformer => true
-          case _ => false
-        }
-        assert(filter.isDefined)
-        val metrics = filter.get.metrics
-        assert(metrics("numOutputRows").value == 100)
-        assert(metrics("outputVectors").value > 0)
-    }
-  }
 }
