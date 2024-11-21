@@ -36,21 +36,14 @@ namespace local_engine
 
 void SparkMergeTreeSink::consume(Chunk & chunk)
 {
+    CurrentThread::flushUntrackedMemory();
     assert(!sink_helper->metadata_snapshot->hasPartitionKey());
-
-    BlockWithPartition item{getHeader().cloneWithColumns(chunk.getColumns()), Row{}};
-    size_t before_write_memory = 0;
-    if (auto * memory_tracker = CurrentThread::getMemoryTracker())
     {
-        CurrentThread::flushUntrackedMemory();
-        before_write_memory = memory_tracker->get();
+        /// Reset earlier, so put it in the scope
+        BlockWithPartition item{getHeader().cloneWithColumns(chunk.getColumns()), Row{}};
+        sink_helper->writeTempPart(item, context, part_num);
+        part_num++;
     }
-    sink_helper->writeTempPart(item, context, part_num);
-    part_num++;
-    /// Reset earlier to free memory
-    item.block.clear();
-    item.partition.clear();
-
     sink_helper->checkAndMerge();
 }
 

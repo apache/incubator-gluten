@@ -55,7 +55,7 @@ public:
         deq.emplace_back(value);
     }
 
-    void emplace_back(std::vector<T> values)
+    void emplace_back(const std::vector<T>& values)
     {
         std::lock_guard<std::mutex> lock(mtx);
         deq.insert(deq.end(), values.begin(), values.end());
