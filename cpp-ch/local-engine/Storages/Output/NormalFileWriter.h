@@ -245,6 +245,7 @@ class SubstraitFileSink final : public DB::SinkToStorage
 {
     const std::string partition_id_;
     const std::string relative_path_;
+    OutputFormatFilePtr format_file_;
     OutputFormatFile::OutputFormatPtr output_format_;
     std::shared_ptr<WriteStats> stats_;
     DeltaStats delta_stats_;
@@ -272,8 +273,7 @@ public:
         : SinkToStorage(header)
         , partition_id_(partition_id.empty() ? NO_PARTITION_ID : partition_id)
         , relative_path_(relative)
-        , output_format_(createOutputFormatFile(context, makeAbsoluteFilename(base_path, partition_id, relative), header, format_hint)
-                             ->createOutputFormat(header))
+        , format_file_(createOutputFormatFile(context, makeAbsoluteFilename(base_path, partition_id, relative), header, format_hint))
         , stats_(std::dynamic_pointer_cast<WriteStats>(stats))
         , delta_stats_(delta_stats)
     {
@@ -285,15 +285,21 @@ protected:
     void consume(DB::Chunk & chunk) override
     {
         delta_stats_.update(chunk);
+        if (!output_format_) [[unlikely]]
+            output_format_ = format_file_->createOutputFormat();
         output_format_->output->write(materializeBlock(getHeader().cloneWithColumns(chunk.detachColumns())));
     }
     void onFinish() override
     {
-        output_format_->output->finalize();
-        output_format_->output->flush();
-        output_format_->write_buffer->finalize();
-        if (stats_ && delta_stats_.row_count > 0)
-            stats_->collectStats(relative_path_, partition_id_, delta_stats_);
+        if (output_format_) [[unlikely]]
+        {
+            output_format_->output->finalize();
+            output_format_->output->flush();
+            output_format_->write_buffer->finalize();
+            assert(delta_stats_.row_count > 0);
+            if (stats_)
+                stats_->collectStats(relative_path_, partition_id_, delta_stats_);
+        }
     }
 };
 

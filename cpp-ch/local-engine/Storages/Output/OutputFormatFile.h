@@ -16,10 +16,6 @@
  */
 #pragma once
 
-#include <memory>
-#include <optional>
-#include <vector>
-
 #include <Core/Block.h>
 #include <IO/WriteBuffer.h>
 #include <Interpreters/Context.h>
@@ -48,8 +44,8 @@ public:
     virtual ~OutputFormatFile() = default;
 
     virtual OutputFormatPtr createOutputFormat(const DB::Block & header_) = 0;
-
-    virtual const DB::Block getPreferredSchema() const { return preferred_schema; }
+    OutputFormatPtr createOutputFormat() { return createOutputFormat(preferred_schema); }
+    DB::Block getPreferredSchema() const { return preferred_schema; }
 
 protected:
     DB::Block createHeaderWithPreferredSchema(const DB::Block & header);
