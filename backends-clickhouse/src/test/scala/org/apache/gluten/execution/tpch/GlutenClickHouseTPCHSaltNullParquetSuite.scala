@@ -3187,7 +3187,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     )
     compareResultsAgainstVanillaSpark(
       """
-        |select a, b, c, row_number() over (partition by a order by b desc nulls last) as r
+        |select a, b, c, row_number() over (partition by a order by b desc, c nulls last) as r
         |from test_win_top
         |""".stripMargin,
       true,
