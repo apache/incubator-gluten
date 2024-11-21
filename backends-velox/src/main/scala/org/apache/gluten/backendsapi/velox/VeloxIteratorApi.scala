@@ -43,7 +43,7 @@ import org.apache.spark.util.{ExecutorManager, SparkDirectoryUtil}
 
 import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, UUID}
 
 import scala.collection.JavaConverters._
@@ -151,8 +151,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
               case _: DecimalType =>
                 pn.asInstanceOf[Decimal].toJavaBigInteger.toString
               case _: TimestampType =>
+                // Velox uses 'America/Los_Angeles' timezone by default.
                 TimestampFormatter
-                  .getFractionFormatter(ZoneOffset.UTC)
+                  .getFractionFormatter(ZoneId.of("America/Los_Angeles"))
                   .format(pn.asInstanceOf[java.lang.Long])
               case _ => pn.toString
             }
