@@ -35,7 +35,7 @@ class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
   override protected val fileFormat: String = "parquet"
 
   private val queryPath = System.getProperty("user.dir") +
-    "/tools/gluten-it/common/src/main/resources/tpcds-queries"
+    "/../tools/gluten-it/common/src/main/resources/tpcds-queries/"
 
   protected var queryTables: Map[String, DataFrame] = _
 
@@ -100,7 +100,7 @@ class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
   }
 
   test("q97") {
-    val source = Source.fromFile(queryPath + "q10.sql")
+    val source = Source.fromFile(queryPath + "q50.sql")
     val sql = source.mkString
     source.close()
     runQueryAndCompare(sql)(_ => {})
