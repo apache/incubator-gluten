@@ -27,19 +27,19 @@ object DebugUtil {
   // if specify stageId and partitionId, then only do that partition for that stage
   def saveInputToFile(): Boolean = {
     def taskIdMatches =
-      GlutenConfig.getConf.benchmarkTaskId.nonEmpty && GlutenConfig.getConf.benchmarkTaskId
-        .split(",")
-        .map(_.toLong)
-        .contains(TaskContext.get().taskAttemptId())
+      GlutenConfig.getConf.benchmarkTaskId.nonEmpty &&
+        GlutenConfig.getConf.benchmarkTaskId
+          .split(",")
+          .map(_.toLong)
+          .contains(TaskContext.get().taskAttemptId())
 
     def partitionIdMatches =
-      TaskContext
-        .get()
-        .stageId() == GlutenConfig.getConf.benchmarkStageId && (GlutenConfig.getConf.benchmarkPartitionId.isEmpty ||
-        GlutenConfig.getConf.benchmarkPartitionId
-          .split(",")
-          .map(_.toInt)
-          .contains(TaskContext.get().partitionId()))
+      TaskContext.get().stageId() == GlutenConfig.getConf.benchmarkStageId &&
+        (GlutenConfig.getConf.benchmarkPartitionId.isEmpty ||
+          GlutenConfig.getConf.benchmarkPartitionId
+            .split(",")
+            .map(_.toInt)
+            .contains(TaskContext.get().partitionId()))
 
     val saveInput = taskIdMatches || partitionIdMatches
     if (saveInput) {

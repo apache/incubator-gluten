@@ -45,7 +45,6 @@ using namespace gluten;
 
 namespace {
 
-DEFINE_bool(run_example, false, "Run the example and exit.");
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(save_output, "", "Path to parquet file for saving the task output iterator");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
@@ -594,19 +593,7 @@ int main(int argc, char** argv) {
   std::vector<std::string> splitFiles{};
   std::vector<std::string> dataFiles{};
 
-  if (FLAGS_run_example) {
-    LOG(WARNING) << "Running example...";
-    dataFiles.resize(2);
-    try {
-      substraitJsonFile = getGeneratedFilePath("example.json");
-      dataFiles[0] = getGeneratedFilePath("example_orders");
-      dataFiles[1] = getGeneratedFilePath("example_lineitem");
-    } catch (const std::exception& e) {
-      LOG(ERROR) << "Failed to run example. " << e.what();
-      ::benchmark::Shutdown();
-      std::exit(EXIT_FAILURE);
-    }
-  } else if (FLAGS_run_shuffle) {
+  if (FLAGS_run_shuffle) {
     std::string errorMsg{};
     if (FLAGS_data.empty()) {
       errorMsg = "Missing '--split' or '--data' option.";
