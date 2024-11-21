@@ -193,9 +193,9 @@ object ExtendedGeneratorNestedColumnAliasing {
       .groupBy(_.references.head.canonicalized.asInstanceOf[Attribute])
       .flatMap {
         case (attr: Attribute, nestedFields: collection.Seq[ExtractValue]) =>
-          // Check if `ExtractValue` expressions contain any aggregate functions in their tree. Those
-          // that do should not have an alias generated as it can lead to pushing the aggregate down
-          // into a projection.
+          // Check if `ExtractValue` expressions contain any aggregate functions in their tree.
+          // Those that do should not have an alias generated as it can lead to pushing the
+          // aggregate down into a projection.
           def containsAggregateFunction(ev: ExtractValue): Boolean =
             ev.exists(_.isInstanceOf[AggregateFunction])
 
