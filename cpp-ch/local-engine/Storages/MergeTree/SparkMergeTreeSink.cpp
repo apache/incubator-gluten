@@ -89,7 +89,8 @@ SinkToStoragePtr SparkMergeTreeSink::create(
             temp->getStorageID().getFullNameNotQuoted());
         sink_helper = std::make_shared<CopyToRemoteSinkHelper>(temp, dest_storage, write_settings_);
     }
-    sink_helper = std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
+    else
+        sink_helper = std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
     return std::make_shared<SparkMergeTreeSink>(sink_helper, context, stats);
 }
 
@@ -130,7 +131,7 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
     for (const auto & selected_part : prepare_merge_parts)
         tmp_parts.emplace(selected_part->name);
 
-    // check thread group initialized in task thread
+    // check a thread group initialized in task thread
     currentThreadGroupMemoryUsage();
     thread_pool.scheduleOrThrow(
         [this, prepare_merge_parts, thread_group = CurrentThread::getGroup()]() -> void

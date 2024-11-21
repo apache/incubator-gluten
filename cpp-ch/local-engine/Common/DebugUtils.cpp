@@ -280,7 +280,7 @@ static std::string showString(const NameAndColumns & block, size_t numRows, size
     {
         // For Data that has more than "numRows" records
         const char * rowsString = (numRows == 1) ? "row" : "rows";
-        sb << "only showing top" << numRows << rowsString << std::endl;
+        sb << "only showing top " << numRows << " " << rowsString << std::endl;
     }
     return sb.str();
 }
