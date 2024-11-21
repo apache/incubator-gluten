@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.gluten.delta.DeltaStatsUtils
 import org.apache.spark.sql.SaveMode
@@ -50,7 +52,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
-      .set("spark.gluten.sql.native.writer.enabled", spark35.toString)
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, spark35.toString)
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .setCHSettings("mergetree.merge_after_insert", false)
       .set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
@@ -116,7 +118,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
     if (spark35) {
       val vanillaTable = "lineitem_delta_parquet_vanilla"
-      withSQLConf(("spark.gluten.sql.native.writer.enabled", "false")) {
+      withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "false")) {
         doInsert(drop(vanillaTable), createLineitem(vanillaTable), insert(vanillaTable))
       }
       val expected = DeltaStatsUtils
@@ -563,32 +565,8 @@ class GlutenClickHouseDeltaParquetWriteSuite
   test("test path based parquet write with the delta") {
     val dataPath = s"$basePath/lineitem_delta_parquet_filebased"
     clearDataPath(dataPath)
-
-    val sourceDF = spark.sql(s"""
-                                |select * from lineitem
-                                |""".stripMargin)
-
-    spark.sql(s"""
-                 |CREATE TABLE delta.`$dataPath` (
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string
-                 |)
-                 |USING delta
-                 |""".stripMargin)
+    val sourceDF = spark.sql("select * from lineitem")
+    spark.sql(s"CREATE TABLE delta.`$dataPath` ($q1SchemaString) USING delta")
 
     sourceDF.write
       .format("delta")

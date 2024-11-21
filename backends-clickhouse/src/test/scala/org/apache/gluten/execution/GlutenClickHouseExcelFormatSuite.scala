@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
 
 import org.apache.spark.SparkConf
@@ -76,7 +77,7 @@ class GlutenClickHouseExcelFormatSuite
 
   // in this case, FakeRowAdaptor does R2C
   test("parquet native writer writing a in memory DF") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+    withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
       val filePath = basePath + "/native_parquet_test"
       val format = "parquet"
 
@@ -99,7 +100,7 @@ class GlutenClickHouseExcelFormatSuite
 
   // in this case, FakeRowAdaptor only wrap&transfer
   test("parquet native writer writing a DF from file") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+    withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
 
       val filePath = basePath + "/native_parquet_test"
       val format = "parquet"
@@ -123,7 +124,7 @@ class GlutenClickHouseExcelFormatSuite
 
   // in this case, FakeRowAdaptor only wrap&transfer
   test("parquet native writer writing a DF from an aggregate") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+    withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
 
       val filePath = basePath + "/native_parquet_test_agg"
       val format = "parquet"
@@ -1480,7 +1481,7 @@ class GlutenClickHouseExcelFormatSuite
          | from $format.`$tablePath`
          | where long_field > 30
          |""".stripMargin
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+    withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
       testFileFormatBase(tablePath, format, sql, df => {})
     }
   }

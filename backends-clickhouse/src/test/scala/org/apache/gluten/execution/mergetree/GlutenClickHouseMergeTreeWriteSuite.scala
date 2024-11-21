@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution._
 import org.apache.gluten.utils.Arm
@@ -55,7 +56,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
-      .set("spark.gluten.sql.native.writer.enabled", "true")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .setCHSettings("min_insert_block_size_rows", 100000)
       .setCHSettings("mergetree.merge_after_insert", false)
       .setCHSettings("input_format_parquet_max_block_size", 8192)
