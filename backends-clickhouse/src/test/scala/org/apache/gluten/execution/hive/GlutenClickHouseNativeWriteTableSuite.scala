@@ -610,7 +610,7 @@ class GlutenClickHouseNativeWriteTableSuite
           }
           val table_name_vanilla = table_name_vanilla_template.format(format)
           spark.sql(s"drop table IF EXISTS $table_name_vanilla")
-          withSQLConf(("spark.gluten.sql.native.writer.enabled", "false")) {
+          withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "false")) {
             withNativeWriteCheck(checkNative = false) {
               spark
                 .table("origin_table")
@@ -672,7 +672,7 @@ class GlutenClickHouseNativeWriteTableSuite
 
           val table_name_vanilla = table_name_vanilla_template.format(format)
           spark.sql(s"drop table IF EXISTS $table_name_vanilla")
-          withSQLConf(("spark.gluten.sql.native.writer.enabled", "false")) {
+          withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "false")) {
             withNativeWriteCheck(checkNative = false) {
               spark
                 .table("origin_table")

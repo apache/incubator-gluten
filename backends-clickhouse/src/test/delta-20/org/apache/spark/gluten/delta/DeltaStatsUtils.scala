@@ -14,28 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package org.apache.spark.gluten.delta
 
-#include "config.h"
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
-#if USE_PARQUET
+object DeltaStatsUtils {
 
-#include <IO/WriteBuffer.h>
-#include <Storages/Output/OutputFormatFile.h>
-
-namespace local_engine
-{
-class ParquetOutputFormatFile : public OutputFormatFile
-{
-public:
-    explicit ParquetOutputFormatFile(
-        DB::ContextPtr context_,
-        const std::string & file_uri_,
-        const WriteBufferBuilderPtr & write_buffer_builder_,
-        const DB::Block & preferred_schema_);
-
-    OutputFormatFile::OutputFormatPtr createOutputFormat(const DB::Block & header) override;
-};
-
+  def statsDF(
+      sparkSession: SparkSession,
+      deltaJson: String,
+      schema: String
+  ): DataFrame = {
+    throw new IllegalAccessException("Method not used below spark 3.5")
+  }
 }
-#endif

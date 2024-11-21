@@ -16,6 +16,7 @@
  */
 package org.apache.spark.gluten
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
 
 import org.apache.spark.sql.{Dataset, Row}
@@ -70,13 +71,13 @@ trait NativeWriteChecker
   }
 
   def nativeWrite(f: String => Unit): Unit = {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+    withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
       formats.foreach(f(_))
     }
   }
 
   def vanillaWrite(block: => Unit): Unit = {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "false")) {
+    withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "false")) {
       block
     }
   }

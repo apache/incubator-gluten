@@ -193,7 +193,6 @@ public:
     void collectStats(const std::deque<DB::MergeTreeDataPartPtr> & parts, const std::string & partition) const
     {
         const size_t size = parts.size() + columns_[part_name]->size();
-
         columns_[part_name]->reserve(size);
         columns_[partition_id]->reserve(size);
 

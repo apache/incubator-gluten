@@ -152,7 +152,7 @@ TEST(WritePipeline, SubstraitFileSink)
 
     EXPECT_TRUE(local_executor->hasNext());
     const Block & x = *local_executor->nextColumnar();
-    debug::headBlock(x);
+    std::cerr << debug::verticalShowString(x, 10, 50) << std::endl;
     EXPECT_EQ(1, x.rows());
     const auto & col_a = *(x.getColumns()[0]);
     EXPECT_EQ(settings.task_write_filename, col_a.getDataAt(0));
@@ -186,7 +186,6 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     const substrait::WriteRel & write_rel = root_rel.root().input().write();
     EXPECT_TRUE(write_rel.has_named_table());
 
-    const substrait::NamedObjectWrite & named_table = write_rel.named_table();
     EXPECT_TRUE(write_rel.has_table_schema());
     const substrait::NamedStruct & table_schema = write_rel.table_schema();
     auto block = TypeParser::buildBlockFromNamedStruct(table_schema);
@@ -202,16 +201,7 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     const Block & x = *local_executor->nextColumnar();
     debug::headBlock(x, 25);
     EXPECT_EQ(25, x.rows());
-    // const auto & col_b = *(x.getColumns()[1]);
-    // EXPECT_EQ(16, col_b.getInt(0));
 }
-
-/*DB::ASTPtr printColumn(const std::string& column)
-{
-    //  printf('%05d',col)
-    DB::ASTs arguments {std::make_shared<DB::ASTLiteral>("%05d"), std::make_shared<DB::ASTIdentifier>(column)};
-    return DB::makeASTFunction("printf", std::move(arguments));
-}*/
 
 TEST(WritePipeline, ComputePartitionedExpression)
 {

@@ -22,10 +22,10 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, BasicWriteTaskStats, ExecutedWriteSummary, PartitioningUtils, WriteJobDescription, WriteTaskResult, WriteTaskStatsTracker}
-import org.apache.spark.sql.execution.utils.CHExecUtil
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
@@ -36,6 +36,7 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 import java.lang.reflect.Field
 
 import scala.collection.mutable
+import scala.language.implicitConversions
 
 trait CHColumnarWrite[T <: FileCommitProtocol] {
 
@@ -52,17 +53,17 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
   def abortTask(): Unit = {
     committer.abortTask(taskAttemptContext)
   }
-  def commitTask(batch: ColumnarBatch): Option[WriteTaskResult]
+  def commitTask(writeResults: Seq[InternalRow]): Option[WriteTaskResult]
 
   lazy val basicWriteJobStatsTracker: WriteTaskStatsTracker = description.statsTrackers
     .find(_.isInstanceOf[BasicWriteJobStatsTracker])
     .map(_.newTaskInstance())
     .get
 
-  // TODO: task commit time
-  def finalStats: BasicWriteTaskStats = basicWriteJobStatsTracker
-    .getFinalStats(0)
-    .asInstanceOf[BasicWriteTaskStats]
+  lazy val deltaWriteJobStatsTracker: Option[DeltaJobStatisticsTracker] =
+    description.statsTrackers
+      .find(_.isInstanceOf[DeltaJobStatisticsTracker])
+      .map(_.asInstanceOf[DeltaJobStatisticsTracker])
 
   lazy val (taskAttemptContext: TaskAttemptContext, jobId: String) = {
     // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
@@ -95,7 +96,7 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
 object CreateFileNameSpec {
   def apply(taskContext: TaskAttemptContext, description: WriteJobDescription): FileNameSpec = {
     val fileCounter = 0
-    val suffix = f".c$fileCounter%03d" +
+    val suffix = f"-c$fileCounter%03d" +
       description.outputWriterFactory.getFileExtension(taskContext)
     FileNameSpec("", suffix)
   }
@@ -149,31 +150,74 @@ case class HadoopMapReduceAdapter(sparkCommitter: HadoopMapReduceCommitProtocol)
  *     StructField("record_count", LongType, false) :: Nil)
  * }}}
  */
-case class BasicNativeStat(filename: String, partition_id: String, record_count: Long) {
-
+case class NativeFileWriteResult(filename: String, partition_id: String, record_count: Long) {
   lazy val relativePath: String = if (partition_id == "__NO_PARTITION_ID__") {
     filename
   } else {
     s"$partition_id/$filename"
   }
 }
-object BasicNativeStats {
 
-  /**
-   * we assume the number of records is less than 10,000.So the memory overhead is acceptable.
-   * otherwise, we need to access ColumnarBatch row by row, which is not efficient.
-   */
-  def apply(cb: ColumnarBatch): Seq[BasicNativeStat] =
-    CHExecUtil
-      .c2r(cb)
-      .map(
-        row =>
-          BasicNativeStat(
-            row.getUTF8String(0).toString,
-            row.getUTF8String(1).toString,
-            row.getLong(2)
-          ))
-      .toSeq
+object NativeFileWriteResult {
+  implicit def apply(row: InternalRow): NativeFileWriteResult = {
+    NativeFileWriteResult(row.getString(0), row.getString(1), row.getLong(2))
+  }
+}
+
+case class NativeStatCompute(rows: Seq[InternalRow]) {
+  def apply[T](stats: Seq[T => Unit], extra: Option[InternalRow => Unit] = None)(implicit
+      creator: InternalRow => T): Unit = {
+    rows.foreach {
+      row =>
+        val stat = creator(row)
+        stats.foreach(agg => agg(stat))
+        extra.foreach(_(row))
+    }
+  }
+}
+
+case class NativeBasicWriteTaskStatsTracker(
+    description: WriteJobDescription,
+    basicWriteJobStatsTracker: WriteTaskStatsTracker)
+  extends (NativeFileWriteResult => Unit) {
+  private var numWrittenRows: Long = 0
+  override def apply(stat: NativeFileWriteResult): Unit = {
+    val absolutePath = s"${description.path}/${stat.relativePath}"
+    if (stat.partition_id != "__NO_PARTITION_ID__") {
+      basicWriteJobStatsTracker.newPartition(new GenericInternalRow(Array[Any](stat.partition_id)))
+    }
+    basicWriteJobStatsTracker.newFile(absolutePath)
+    basicWriteJobStatsTracker.closeFile(absolutePath)
+    numWrittenRows += stat.record_count
+  }
+  private def finalStats: BasicWriteTaskStats = basicWriteJobStatsTracker
+    .getFinalStats(0)
+    .asInstanceOf[BasicWriteTaskStats]
+
+  def result: BasicWriteTaskStats = finalStats.copy(numRows = numWrittenRows)
+}
+
+case class FileCommitInfo(description: WriteJobDescription)
+  extends (NativeFileWriteResult => Unit) {
+  private val partitions: mutable.Set[String] = mutable.Set[String]()
+  private val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
+
+  def apply(stat: NativeFileWriteResult): Unit = {
+    val tmpAbsolutePath = s"${description.path}/${stat.relativePath}"
+    if (stat.partition_id != "__NO_PARTITION_ID__") {
+      partitions += stat.partition_id
+      val customOutputPath =
+        description.customPartitionLocations.get(
+          PartitioningUtils.parsePathFragment(stat.partition_id))
+      if (customOutputPath.isDefined) {
+        addedAbsPathFiles(tmpAbsolutePath) = customOutputPath.get + "/" + stat.filename
+      }
+    }
+  }
+
+  def result: (Set[String], Map[String, String]) = {
+    (partitions.toSet, addedAbsPathFiles.toMap)
+  }
 }
 
 case class HadoopMapReduceCommitProtocolWrite(
@@ -196,50 +240,29 @@ case class HadoopMapReduceCommitProtocolWrite(
     BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, writeFileName)
   }
 
-  def doCollectNativeResult(cb: ColumnarBatch): Option[WriteTaskResult] = {
-    val basicNativeStats = BasicNativeStats(cb)
-
-    // TODO: we need close iterator here before processing the result.
+  def doCollectNativeResult(stats: Seq[InternalRow]): Option[WriteTaskResult] = {
     // Write an empty iterator
-    if (basicNativeStats.isEmpty) {
+    if (stats.isEmpty) {
       None
     } else {
-      val partitions: mutable.Set[String] = mutable.Set[String]()
-      val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
-
-      var numWrittenRows: Long = 0
-      basicNativeStats.foreach {
-        stat =>
-          val tmpAbsolutePath = s"${description.path}/${stat.relativePath}"
-          if (stat.partition_id != "__NO_PARTITION_ID__") {
-            partitions += stat.partition_id
-            val customOutputPath =
-              description.customPartitionLocations.get(
-                PartitioningUtils.parsePathFragment(stat.partition_id))
-            if (customOutputPath.isDefined) {
-              addedAbsPathFiles(tmpAbsolutePath) = customOutputPath.get + "/" + stat.filename
-            }
-            basicWriteJobStatsTracker.newPartition(
-              new GenericInternalRow(Array[Any](stat.partition_id)))
-          }
-          basicWriteJobStatsTracker.newFile(tmpAbsolutePath)
-          basicWriteJobStatsTracker.closeFile(tmpAbsolutePath)
-          numWrittenRows += stat.record_count
-      }
-
-      val updatedPartitions = partitions.toSet
+      val commitInfo = FileCommitInfo(description)
+      val basicNativeStat = NativeBasicWriteTaskStatsTracker(description, basicWriteJobStatsTracker)
+      val basicNativeStats = Seq(commitInfo, basicNativeStat)
+      NativeStatCompute(stats)(basicNativeStats)
+      val (partitions, addedAbsPathFiles) = commitInfo.result
+      val updatedPartitions = partitions
       Some(
         WriteTaskResult(
-          new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
+          new TaskCommitMessage(addedAbsPathFiles -> updatedPartitions),
           ExecutedWriteSummary(
             updatedPartitions = updatedPartitions,
-            stats = Seq(finalStats.copy(numRows = numWrittenRows)))
+            stats = Seq(basicNativeStat.result))
         ))
     }
   }
 
-  override def commitTask(batch: ColumnarBatch): Option[WriteTaskResult] = {
-    doCollectNativeResult(batch).map(
+  override def commitTask(writeResults: Seq[InternalRow]): Option[WriteTaskResult] = {
+    doCollectNativeResult(writeResults).map(
       nativeWriteTaskResult => {
         val (_, taskCommitTime) = Utils.timeTakenMs {
           committer.commitTask(taskAttemptContext)

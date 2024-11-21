@@ -14,28 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package org.apache.spark.sql
 
-#include "config.h"
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 
-#if USE_PARQUET
-
-#include <IO/WriteBuffer.h>
-#include <Storages/Output/OutputFormatFile.h>
-
-namespace local_engine
-{
-class ParquetOutputFormatFile : public OutputFormatFile
-{
-public:
-    explicit ParquetOutputFormatFile(
-        DB::ContextPtr context_,
-        const std::string & file_uri_,
-        const WriteBufferBuilderPtr & write_buffer_builder_,
-        const DB::Block & preferred_schema_);
-
-    OutputFormatFile::OutputFormatPtr createOutputFormat(const DB::Block & header) override;
-};
-
+package object wrapper {
+  def ofRows(sparkSession: SparkSession, logicalPlan: LogicalPlan): DataFrame =
+    Dataset.ofRows(sparkSession, logicalPlan)
 }
-#endif
