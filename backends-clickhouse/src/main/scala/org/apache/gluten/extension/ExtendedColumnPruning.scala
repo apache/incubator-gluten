@@ -177,7 +177,7 @@ object ExtendedGeneratorNestedColumnAliasing {
       e =>
         extractor(e).foreach {
           // we can not alias the attr from lambda variable whose expr id is not available
-          case ev: ExtractValue if !ev.exists(_.isInstanceOf[NamedLambdaVariable]) =>
+          case ev: ExtractValue if ev.find(_.isInstanceOf[NamedLambdaVariable]).isEmpty =>
             if (ev.references.size == 1) {
               nestedFieldReferences.append(ev)
             }
@@ -197,7 +197,7 @@ object ExtendedGeneratorNestedColumnAliasing {
           // Those that do should not have an alias generated as it can lead to pushing the
           // aggregate down into a projection.
           def containsAggregateFunction(ev: ExtractValue): Boolean =
-            ev.exists(_.isInstanceOf[AggregateFunction])
+            ev.find(_.isInstanceOf[AggregateFunction]).isDefined
 
           // Remove redundant [[ExtractValue]]s if they share the same parent nest field.
           // For example, when `a.b` and `a.b.c` are in project list, we only need to alias `a.b`.
@@ -208,7 +208,7 @@ object ExtendedGeneratorNestedColumnAliasing {
               // [[GetStructField]]
               case e @ (_: GetStructField | _: GetArrayStructFields) =>
                 val child = e.children.head
-                nestedFields.forall(f => !child.exists(_.semanticEquals(f)))
+                nestedFields.forall(f => child.find(_.semanticEquals(f)).isEmpty)
               case _ => true
             }
             .distinct

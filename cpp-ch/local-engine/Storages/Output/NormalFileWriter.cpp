@@ -18,6 +18,7 @@
 
 #include <QueryPipeline/QueryPipeline.h>
 #include <Poco/URI.h>
+#include <Common/DebugUtils.h>
 
 namespace local_engine
 {
@@ -54,6 +55,8 @@ void NormalFileWriter::write(DB::Block & block)
         column.name = preferred_column.name;
         column.type = preferred_column.type;
     }
+
+    debug::printBlock(block, block.rows());
 
     /// Although gluten will append MaterializingTransform to the end of the pipeline before native insert in most cases, there are some cases in which MaterializingTransform won't be appended.
     /// e.g. https://github.com/oap-project/gluten/issues/2900
