@@ -49,6 +49,9 @@ class ClickhouseOptimisticTransaction(
     override val snapshot: Snapshot)
   extends OptimisticTransaction(deltaLog, catalogTable, snapshot) {
 
+  private lazy val writingMergeTree =
+    ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)
+
   def this(
       deltaLog: DeltaLog,
       catalogTable: Option[CatalogTable],
@@ -63,117 +66,135 @@ class ClickhouseOptimisticTransaction(
   override def writeFiles(
       inputData: Dataset[_],
       writeOptions: Option[DeltaOptions],
+      isOptimize: Boolean,
+      additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
+    val nativeWrite = GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+    if (writingMergeTree) {
+      if (isOptimize) {
+        throw new UnsupportedOperationException("Optimize is not supported for ClickHouse")
+      }
+      // TODO: update FallbackByBackendSettings for mergetree always return true
+      val onePipeline = nativeWrite && CHConf.get.enableOnePipelineMergeTreeWrite
+      if (onePipeline)
+        pipelineWriteFiles(inputData, writeOptions, isOptimize = false, additionalConstraints)
+      else
+        writeMergeTree(inputData, writeOptions, additionalConstraints)
+    } else {
+      if (isOptimize || !nativeWrite) {
+        super.writeFiles(inputData, writeOptions, isOptimize, additionalConstraints)
+      } else {
+        pipelineWriteFiles(inputData, writeOptions, isOptimize = false, additionalConstraints)
+      }
+    }
+  }
+
+  @deprecated("Use pipelineWriteFiles instead")
+  private def writeMergeTree(
+      inputData: Dataset[_],
+      writeOptions: Option[DeltaOptions],
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
 
-    // TODO: update FallbackByBackendSettings for mergetree always return true
-    val onePipeline = GlutenConfig.getConf.enableNativeWriter.getOrElse(
-      false) && CHConf.get.enableOnePipelineMergeTreeWrite
+    hasWritten = true
 
-    if (!onePipeline && ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)) {
-      hasWritten = true
+    val spark = inputData.sparkSession
+    val (data, partitionSchema) = performCDCPartition(inputData)
+    val outputPath = deltaLog.dataPath
 
-      val spark = inputData.sparkSession
-      val (data, partitionSchema) = performCDCPartition(inputData)
-      val outputPath = deltaLog.dataPath
+    val (queryExecution, output, generatedColumnConstraints, _) =
+      normalizeData(deltaLog, writeOptions, data)
 
-      val (queryExecution, output, generatedColumnConstraints, _) =
-        normalizeData(deltaLog, writeOptions, data)
+    val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+    val committer =
+      new MergeTreeDelayedCommitProtocol(
+        outputPath.toString,
+        None,
+        None,
+        tableV2.dataBaseName,
+        tableV2.tableName)
 
-      val tableV2 = ClickHouseTableV2.getTable(deltaLog)
-      val committer =
-        new MergeTreeDelayedCommitProtocol(
-          outputPath.toString,
-          None,
-          None,
-          tableV2.dataBaseName,
-          tableV2.tableName)
+    // val (optionalStatsTracker, _) =
+    //   getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
+    val (optionalStatsTracker, _) = (None, None)
 
-      // val (optionalStatsTracker, _) =
-      //   getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
-      val (optionalStatsTracker, _) = (None, None)
+    val constraints =
+      Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
 
-      val constraints =
-        Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
+    SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
+      val queryPlan = queryExecution.executedPlan
+      val (newQueryPlan, newOutput) =
+        MergeTreeWriterInjects.insertFakeRowAdaptor(queryPlan, output)
+      val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, newOutput)
+      val partitioningColumns = getPartitioningColumns(partitionSchema, newOutput)
 
-      SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
-        val queryPlan = queryExecution.executedPlan
-        val (newQueryPlan, newOutput) =
-          MergeTreeWriterInjects.insertFakeRowAdaptor(queryPlan, output)
-        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, newOutput)
-        val partitioningColumns = getPartitioningColumns(partitionSchema, newOutput)
+      val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
 
-        val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
-
-        if (spark.conf.get(DeltaSQLConf.DELTA_HISTORY_METRICS_ENABLED)) {
-          val basicWriteJobStatsTracker = new BasicWriteJobStatsTracker(
-            new SerializableConfiguration(deltaLog.newDeltaHadoopConf()),
-            BasicWriteJobStatsTracker.metrics)
-          //        registerSQLMetrics(spark, basicWriteJobStatsTracker.driverSideMetrics)
-          statsTrackers.append(basicWriteJobStatsTracker)
-        }
-
-        // Iceberg spec requires partition columns in data files
-        val writePartitionColumns = IcebergCompat.isAnyEnabled(metadata)
-        // Retain only a minimal selection of Spark writer options to avoid any potential
-        // compatibility issues
-        var options = (writeOptions match {
-          case None => Map.empty[String, String]
-          case Some(writeOptions) =>
-            writeOptions.options.filterKeys {
-              key =>
-                key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
-                key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
-            }.toMap
-        }) + (DeltaOptions.WRITE_PARTITION_COLUMNS -> writePartitionColumns.toString)
-
-        spark.conf.getAll.foreach(
-          entry => {
-            if (
-              CHConf.startWithSettingsPrefix(entry._1)
-              || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE.key)
-            ) {
-              options += (entry._1 -> entry._2)
-            }
-          })
-
-        try {
-          val format = tableV2.getFileFormat(protocol, metadata)
-          GlutenWriterColumnarRules.injectSparkLocalProperty(spark, Some(format.shortName()))
-          MergeTreeFileFormatWriter.write(
-            sparkSession = spark,
-            plan = newQueryPlan,
-            fileFormat = format,
-            // formats.
-            committer = committer,
-            outputSpec = outputSpec,
-            // scalastyle:off deltahadoopconfiguration
-            hadoopConf = spark.sessionState
-              .newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
-            // scalastyle:on deltahadoopconfiguration
-            partitionColumns = partitioningColumns,
-            bucketSpec =
-              tableV2.normalizedBucketSpec(output.map(_.name), spark.sessionState.conf.resolver),
-            statsTrackers = optionalStatsTracker.toSeq ++ statsTrackers,
-            options = options,
-            constraints = constraints
-          )
-        } catch {
-          case s: SparkException =>
-            // Pull an InvariantViolationException up to the top level if it was the root cause.
-            val violationException = ExceptionUtils.getRootCause(s)
-            if (violationException.isInstanceOf[InvariantViolationException]) {
-              throw violationException
-            } else {
-              throw s
-            }
-        } finally {
-          GlutenWriterColumnarRules.injectSparkLocalProperty(spark, None)
-        }
+      if (spark.conf.get(DeltaSQLConf.DELTA_HISTORY_METRICS_ENABLED)) {
+        val basicWriteJobStatsTracker = new BasicWriteJobStatsTracker(
+          new SerializableConfiguration(deltaLog.newDeltaHadoopConf()),
+          BasicWriteJobStatsTracker.metrics)
+        //        registerSQLMetrics(spark, basicWriteJobStatsTracker.driverSideMetrics)
+        statsTrackers.append(basicWriteJobStatsTracker)
       }
-      committer.addedStatuses.toSeq ++ committer.changeFiles
-    } else {
-      super.writeFiles(inputData, writeOptions, additionalConstraints)
+
+      // Iceberg spec requires partition columns in data files
+      val writePartitionColumns = IcebergCompat.isAnyEnabled(metadata)
+      // Retain only a minimal selection of Spark writer options to avoid any potential
+      // compatibility issues
+      var options = (writeOptions match {
+        case None => Map.empty[String, String]
+        case Some(writeOptions) =>
+          writeOptions.options.filterKeys {
+            key =>
+              key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
+              key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
+          }.toMap
+      }) + (DeltaOptions.WRITE_PARTITION_COLUMNS -> writePartitionColumns.toString)
+
+      spark.conf.getAll.foreach(
+        entry => {
+          if (
+            CHConf.startWithSettingsPrefix(entry._1)
+            || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE.key)
+          ) {
+            options += (entry._1 -> entry._2)
+          }
+        })
+
+      try {
+        val format = tableV2.getFileFormat(protocol, metadata)
+        GlutenWriterColumnarRules.injectSparkLocalProperty(spark, Some(format.shortName()))
+        MergeTreeFileFormatWriter.write(
+          sparkSession = spark,
+          plan = newQueryPlan,
+          fileFormat = format,
+          // formats.
+          committer = committer,
+          outputSpec = outputSpec,
+          // scalastyle:off deltahadoopconfiguration
+          hadoopConf = spark.sessionState
+            .newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
+          // scalastyle:on deltahadoopconfiguration
+          partitionColumns = partitioningColumns,
+          bucketSpec =
+            tableV2.normalizedBucketSpec(output.map(_.name), spark.sessionState.conf.resolver),
+          statsTrackers = optionalStatsTracker.toSeq ++ statsTrackers,
+          options = options,
+          constraints = constraints
+        )
+      } catch {
+        case s: SparkException =>
+          // Pull an InvariantViolationException up to the top level if it was the root cause.
+          val violationException = ExceptionUtils.getRootCause(s)
+          if (violationException.isInstanceOf[InvariantViolationException]) {
+            throw violationException
+          } else {
+            throw s
+          }
+      } finally {
+        GlutenWriterColumnarRules.injectSparkLocalProperty(spark, None)
+      }
     }
+    committer.addedStatuses.toSeq ++ committer.changeFiles
   }
 
   private def shouldOptimizeWrite(
@@ -197,16 +218,11 @@ class ClickhouseOptimisticTransaction(
       tableV2.tableName)
   }
 
-  override def writeFiles(
+  private def pipelineWriteFiles(
       inputData: Dataset[_],
       writeOptions: Option[DeltaOptions],
       isOptimize: Boolean,
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
-
-    if (isOptimize) {
-      throw new UnsupportedOperationException("Optimize is not supported for ClickHouse")
-    }
-
     hasWritten = true
 
     val spark = inputData.sparkSession

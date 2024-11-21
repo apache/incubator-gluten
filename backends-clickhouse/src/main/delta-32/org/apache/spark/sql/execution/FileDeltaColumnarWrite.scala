@@ -102,10 +102,17 @@ case class FileDeltaColumnarWrite(
     val writePath = description.path
     val writeFileName = committer.getFileName(taskAttemptContext, nameSpec.suffix, Map.empty)
 
-    /// CDC files (CDC_PARTITION_COL = true) are named with "cdc-..." instead of "part-...".
-    /// So, using pattern match to replace guid to {}.
+    /**
+     * CDC files (CDC_PARTITION_COL = true) are named with "cdc-..." instead of "part-...".So, using
+     * pattern match to replace guid to {}.See the following example:
+     * {{{
+     *   part-00000-7d672b28-c079-4b00-bb0a-196c15112918-c000.snappy.parquet
+     *     =>
+     *   part-00000-{}.snappy.parquet
+     * }}}
+     */
     val guidPattern =
-      """.*-([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:\..*)?$""".r
+      """.*-([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:-c(\d+)\..*)?$""".r
     val fileNamePattern =
       guidPattern.replaceAllIn(writeFileName, m => writeFileName.replace(m.group(1), "{}"))
 

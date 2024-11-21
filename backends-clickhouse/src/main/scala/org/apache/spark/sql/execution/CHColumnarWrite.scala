@@ -96,7 +96,7 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
 object CreateFileNameSpec {
   def apply(taskContext: TaskAttemptContext, description: WriteJobDescription): FileNameSpec = {
     val fileCounter = 0
-    val suffix = f".c$fileCounter%03d" +
+    val suffix = f"-c$fileCounter%03d" +
       description.outputWriterFactory.getFileExtension(taskContext)
     FileNameSpec("", suffix)
   }

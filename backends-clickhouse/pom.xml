@@ -426,6 +426,18 @@
               </sources>
             </configuration>
           </execution>
+          <execution>
+          <id>add-test-sources</id>
+          <phase>generate-test-sources</phase>
+          <goals>
+            <goal>add-test-source</goal>
+          </goals>
+          <configuration>
+            <sources>
+              <source>src/test/delta-${delta.binary.version}</source>
+            </sources>
+          </configuration>
+        </execution>
         </executions>
       </plugin>
       <plugin>
