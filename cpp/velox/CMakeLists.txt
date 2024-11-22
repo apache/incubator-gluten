@@ -265,9 +265,8 @@ if(BUILD_TESTS)
   import_library(
     facebook::velox::exec_test_lib
     ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a)
-  import_library(
-    facebook::velox::cursor
-    ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_cursor.a)
+  import_library(facebook::velox::cursor
+                 ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_cursor.a)
   target_link_libraries(
     facebook::velox::exec_test_lib
     INTERFACE facebook::velox::vector_test_lib
