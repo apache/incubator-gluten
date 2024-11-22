@@ -193,13 +193,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       return;
     }
     long startTime = System.nanoTime();
-    SplitResult splitResult;
-    try {
-      splitResult = jniWrapper.stop(nativeShuffleWriter);
-    } catch (IOException e) {
-      throw new RssException(e);
-    }
-    columnarDep.metrics().get("shuffleWallTime").get().add(System.nanoTime() - startTime);
+    splitResult = jniWrapper.stop(nativeShuffleWriter);
     columnarDep
         .metrics()
         .get("splitTime")
