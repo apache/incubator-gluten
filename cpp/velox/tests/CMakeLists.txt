@@ -28,7 +28,7 @@ function(add_velox_test TEST_EXEC)
   add_executable(${TEST_EXEC} ${SOURCES} ${VELOX_TEST_COMMON_SRCS})
   target_include_directories(${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox
                                                   ${CMAKE_SOURCE_DIR}/src)
-  target_link_libraries(${TEST_EXEC} velox GTest::gtest GTest::gtest_main)
+  target_link_libraries(${TEST_EXEC} velox velox_cursor GTest::gtest GTest::gtest_main)
   gtest_discover_tests(${TEST_EXEC} DISCOVERY_MODE PRE_TEST)
 endfunction()
 
