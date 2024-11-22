@@ -227,14 +227,14 @@ set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 find_package(Folly REQUIRED CONFIG)
 
 if(ENABLE_JEMALLOC_STATS)
-  include(Findjemalloc_pic)
+  include(Findjemalloc)
   find_jemalloc()
   if(JEMALLOC_NOT_FOUND)
-    include(Buildjemalloc_pic)
+    include(Buildjemalloc)
     build_jemalloc()
   endif()
   add_definitions(-DENABLE_JEMALLOC_STATS)
-  target_link_libraries(velox PUBLIC jemalloc::libjemalloc)
+  target_link_libraries(velox PUBLIC jemalloc::jemalloc)
 endif()
 
 target_link_libraries(velox PUBLIC gluten)
