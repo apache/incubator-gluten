@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Transitions
+import org.apache.gluten.extension.columnar.transition.{Convention, Transitions}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -61,8 +61,10 @@ case class FakeRowAdaptor(child: SparkPlan)
 
   override def output: Seq[Attribute] = child.output
 
+  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRow
+
   override protected def doExecute(): RDD[InternalRow] = {
-    doExecuteColumnar0().map(cb => new FakeRow(cb))
+    doExecuteColumnar().map(cb => new FakeRow(cb))
   }
 
   override def outputOrdering: Seq[SortOrder] = child match {
@@ -70,17 +72,13 @@ case class FakeRowAdaptor(child: SparkPlan)
     case _ => child.outputOrdering
   }
 
-  private def doExecuteColumnar0(): RDD[ColumnarBatch] = {
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     if (child.supportsColumnar) {
       child.executeColumnar()
     } else {
       val r2c = Transitions.toBatchPlan(child, BackendsApiManager.getSettings.primaryBatchType)
       r2c.executeColumnar()
     }
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException()
   }
 
   // For spark 3.2.
