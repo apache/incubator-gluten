@@ -190,8 +190,9 @@ public:
 
     String getName() const override { return "MergeTreeStats"; }
 
-    void collectStats(const std::deque<DB::MergeTreeDataPartPtr> & parts, const std::string & partition) const
+    void collectStats(const std::deque<DB::MergeTreeDataPartPtr> & parts, const std::string & partition_dir) const
     {
+        const std::string& partition = partition_dir.empty() ? WriteStatsBase::NO_PARTITION_ID : partition_dir;
         const size_t size = parts.size() + columns_[part_name]->size();
         columns_[part_name]->reserve(size);
         columns_[partition_id]->reserve(size);
@@ -214,6 +215,10 @@ public:
             marksColData.emplace_back(part->getMarksCount());
             bytesColData.emplace_back(part->getBytesOnDisk());
         }
+
+        for (size_t index = size_in_bytes + 1; index < columns_.size(); ++index)
+            for (size_t i = 0; i < parts.size(); ++i)
+                columns_[index]->insertDefault();
     }
 };
 

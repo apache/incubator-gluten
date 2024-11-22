@@ -28,7 +28,7 @@ namespace local_engine
 
 using namespace DB;
 
-const std::string SubstraitFileSink::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
+const std::string WriteStatsBase::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
 const std::string SparkPartitionedBaseSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
 
 /// For Nullable(Map(K, V)) or Nullable(Array(T)), if the i-th row is null, we must make sure its nested data is empty.

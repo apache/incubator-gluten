@@ -142,6 +142,9 @@ struct DeltaStats
 
 class WriteStatsBase : public DB::ISimpleTransform
 {
+public:
+    /// visible for UTs
+    static const std::string NO_PARTITION_ID;
 protected:
     bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
     virtual DB::Chunk final_result() = 0;
@@ -207,8 +210,9 @@ public:
 
     String getName() const override { return "WriteStats"; }
 
-    void collectStats(const String & filename, const String & partition, const DeltaStats & stats) const
+    void collectStats(const String & filename, const String & partition_dir, const DeltaStats & stats) const
     {
+        const std::string& partition = partition_dir.empty() ? WriteStatsBase::NO_PARTITION_ID : partition_dir;
         // 3 => filename, partition_id, record_count
         constexpr size_t baseOffset = 3;
         assert(columns_.size() == baseOffset + stats.min.size() + stats.max.size() + stats.null_count.size());
@@ -258,8 +262,6 @@ class SubstraitFileSink final : public DB::SinkToStorage
     }
 
 public:
-    /// visible for UTs
-    static const std::string NO_PARTITION_ID;
 
     explicit SubstraitFileSink(
         const DB::ContextPtr & context,
@@ -271,7 +273,7 @@ public:
         const std::shared_ptr<WriteStatsBase> & stats,
         const DeltaStats & delta_stats)
         : SinkToStorage(header)
-        , partition_id_(partition_id.empty() ? NO_PARTITION_ID : partition_id)
+        , partition_id_(partition_id)
         , relative_path_(relative)
         , format_file_(createOutputFormatFile(context, makeAbsoluteFilename(base_path, partition_id, relative), header, format_hint))
         , stats_(std::dynamic_pointer_cast<WriteStats>(stats))
