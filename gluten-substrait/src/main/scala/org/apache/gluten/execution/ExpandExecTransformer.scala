@@ -48,8 +48,11 @@ case class ExpandExecTransformer(
     AttributeSet.fromAttributeSets(projections.flatten.map(_.references))
   }
 
-  override def metricsUpdater(): MetricsUpdater =
+  override def metricsUpdater(): MetricsUpdater = if (projections == null || projections.isEmpty) {
+    MetricsUpdater.None
+  } else {
     BackendsApiManager.getMetricsApiInstance.genExpandTransformerMetricsUpdater(metrics)
+  }
 
   // The GroupExpressions can output data with arbitrary partitioning, so set it
   // as UNKNOWN partitioning
@@ -112,13 +115,12 @@ case class ExpandExecTransformer(
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val operatorId = context.nextOperatorId(this.nodeName)
-    if (projections == null || projections.isEmpty) {
+    if (metricsUpdater == MetricsUpdater.None) {
       // The computing for this Expand is not needed.
-      context.registerEmptyRelToOperator(operatorId)
       return childCtx
     }
 
+    val operatorId = context.nextOperatorId(this.nodeName)
     val currRel =
       getRelNode(context, projections, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Expand Rel should be valid")

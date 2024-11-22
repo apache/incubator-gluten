@@ -61,8 +61,11 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     case _ => false
   }
 
-  override def metricsUpdater(): MetricsUpdater =
+  override def metricsUpdater(): MetricsUpdater = if (getRemainingCondition == null) {
+    MetricsUpdater.None
+  } else {
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
+  }
 
   def getRelNode(
       context: SubstraitContext,
@@ -149,15 +152,15 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val remainingCondition = getRemainingCondition
-    val operatorId = context.nextOperatorId(this.nodeName)
-    if (remainingCondition == null) {
+    if (metricsUpdater == MetricsUpdater.None) {
       // The computing for this filter is not needed.
-      context.registerEmptyRelToOperator(operatorId)
       // Since some columns' nullability will be removed after this filter, we need to update the
       // outputAttributes of child context.
       return TransformContext(output, childCtx.root)
     }
+
+    val operatorId = context.nextOperatorId(this.nodeName)
+    val remainingCondition = getRemainingCondition
     val currRel = getRelNode(
       context,
       remainingCondition,

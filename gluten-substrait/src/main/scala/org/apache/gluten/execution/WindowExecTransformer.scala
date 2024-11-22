@@ -51,8 +51,13 @@ case class WindowExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetrics(sparkContext)
 
-  override def metricsUpdater(): MetricsUpdater =
+  override def metricsUpdater(): MetricsUpdater = if (
+    windowExpression == null || windowExpression.isEmpty
+  ) {
+    MetricsUpdater.None
+  } else {
     BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetricsUpdater(metrics)
+  }
 
   override def output: Seq[Attribute] = child.output ++ windowExpression.map(_.toAttribute)
 
@@ -177,13 +182,12 @@ case class WindowExecTransformer(
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val operatorId = context.nextOperatorId(this.nodeName)
-    if (windowExpression == null || windowExpression.isEmpty) {
+    if (metricsUpdater == MetricsUpdater.None) {
       // The computing for this operator is not needed.
-      context.registerEmptyRelToOperator(operatorId)
       return childCtx
     }
 
+    val operatorId = context.nextOperatorId(this.nodeName)
     val currRel =
       getWindowRel(context, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Window Rel should be valid")
