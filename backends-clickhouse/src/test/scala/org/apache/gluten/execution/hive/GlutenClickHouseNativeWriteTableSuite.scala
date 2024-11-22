@@ -903,7 +903,7 @@ class GlutenClickHouseNativeWriteTableSuite
   }
 
   test("GLUTEN-2584: fix native write and read mismatch about complex types") {
-    def table(format: String): String = s"t_$format"
+    def table(format: String): String = s"t_2584_$format"
     def create(format: String, table_name: Option[String] = None): String =
       s"""CREATE TABLE ${table_name.getOrElse(table(format))}(
          |  id INT,
@@ -915,6 +915,56 @@ class GlutenClickHouseNativeWriteTableSuite
       s"""INSERT overwrite ${table_name.getOrElse(table(format))} VALUES
          |  (6, null, null, null);
             """.stripMargin
+
+    nativeWrite2(
+      format => (table(format), create(format), insert(format)),
+      (table_name, format) => {
+        val vanilla_table = s"${table_name}_v"
+        val vanilla_create = create(format, Some(vanilla_table))
+        vanillaWrite {
+          withDestinationTable(vanilla_table, Option(vanilla_create)) {
+            checkInsertQuery(insert(format, Some(vanilla_table)), checkNative = false)
+          }
+        }
+        val rowsFromOriginTable =
+          spark.sql(s"select * from $vanilla_table").collect()
+        val dfFromWriteTable =
+          spark.sql(s"select * from $table_name")
+        checkAnswer(dfFromWriteTable, rowsFromOriginTable)
+      }
+    )
+  }
+
+  test("GLUTEN-8021/8022: fix orc read/write mismatch and parquet" +
+    "read exception when written complex column contains null") {
+    def table(format: String): String = s"t_8021_$format"
+    def create(format: String, table_name: Option[String] = None): String =
+      s"""CREATE TABLE ${table_name.getOrElse(table(format))}(
+         |uid int,
+         |x int,
+         |y int,
+         |mp map<string, string>,
+         |arr array<int>,
+         |arr_mp array<map<string, string>>,
+         |mp_arr map<string, array<int>>
+         |) stored as $format""".stripMargin
+    def insert(format: String, table_name: Option[String] = None): String =
+      s"""INSERT OVERWRITE TABLE ${table_name.getOrElse(table(format))}
+         |with data_source as (
+         |select
+         |id,
+         |if(id % 3 = 0, null, id+1) as x,
+         |if(id % 3 = 0, null, id+2) as y
+         |from range(100)
+         |)
+         |select
+         |id, x, y,
+         |str_to_map(concat('x:', x, ',y:', y)) as mp,
+         |if(id % 4 = 0, null, array(x, y)) as arr,
+         |if(id % 5 = 0, null, array(str_to_map(concat('x:', x, ',y:', y)))) as arr_mp,
+         |if(id % 6 = 0, null, map('x', array(x), 'y', array(y))) as mp_arr
+         |from
+         |data_source;""".stripMargin
 
     nativeWrite2(
       format => (table(format), create(format), insert(format)),

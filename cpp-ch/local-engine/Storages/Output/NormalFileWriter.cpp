@@ -31,7 +31,7 @@ using namespace DB;
 const std::string SubstraitFileSink::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
 const std::string SparkPartitionedBaseSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
 
-/// For Nullable(Map(K, V)) or Nullable(Array(T)), if the i-th row is null, make sure its nested data is empty.
+/// For Nullable(Map(K, V)) or Nullable(Array(T)), if the i-th row is null, we must make sure its nested data is empty.
 /// It is for ORC/Parquet writing compatiability. For more details, refer to
 /// https://github.com/apache/incubator-gluten/issues/8022 and https://github.com/apache/incubator-gluten/issues/8021
 static ColumnPtr truncateNestedArrayOrMapIfNull(const ColumnPtr & column)
@@ -62,7 +62,7 @@ static ColumnPtr truncateNestedArrayOrMapIfNull(const ColumnPtr & column)
     else if (const auto * col_nullable = checkAndGetColumn<ColumnNullable>(column.get()))
     {
         const auto & null_map = col_nullable->getNullMapData();
-        const auto & nested = col_nullable->getNestedColumnPtr();
+        auto nested = truncateNestedArrayOrMapIfNull(col_nullable->getNestedColumnPtr());
         const auto * nested_array = checkAndGetColumn<ColumnArray>(nested.get());
         const auto * nested_map = checkAndGetColumn<ColumnMap>(nested.get());
 
