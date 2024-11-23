@@ -44,7 +44,7 @@ if(COMMAND_STATUS EQUAL "1")
   message(FATAL_ERROR "Unable to determine compiler flags!")
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
-message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
+message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
