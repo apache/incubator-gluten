@@ -41,11 +41,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 import org.apache.spark.util.SparkResourceUtil;
 import org.apache.uniffle.client.api.ShuffleWriteClient;
 import org.apache.uniffle.common.ShuffleBlockInfo;
-import org.apache.uniffle.common.exception.RssException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
