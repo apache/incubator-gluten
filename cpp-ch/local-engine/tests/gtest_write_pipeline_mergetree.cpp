@@ -258,15 +258,15 @@ TEST(MergeTree, SparkMergeTree)
 INCBIN(_3_mergetree_plan_input_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/lineitem_parquet_input.json");
 namespace
 {
-void writeMerge(std::string_view json_plan,
-    const std::string & outputPath ,
+void writeMerge(
+    std::string_view json_plan,
+    const std::string & outputPath,
     ContextMutablePtr context,
-    const std::function<void(const DB::Block &)> & callback, std::optional<std::string> input = std::nullopt)
+    const std::function<void(const DB::Block &)> & callback,
+    std::optional<std::string> input = std::nullopt)
 {
     auto queryid = QueryContext::instance().initializeQuery("123456");
-    SCOPE_EXIT({
-        QueryContext::instance().finalizeQuery(queryid);
-    });
+    SCOPE_EXIT({ QueryContext::instance().finalizeQuery(queryid); });
 
     GlutenWriteSettings settings{.task_write_tmp_dir = outputPath};
     settings.set(context);
@@ -286,21 +286,29 @@ TEST(MergeTree, Pipeline)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
     context->setSetting("min_insert_block_size_rows", 100000);
-    context->setSetting("optimize.minFileSize", 1024*1024*10);
+    // context->setSetting("optimize.minFileSize", 1024*1024*10);
     // context->setSetting("mergetree.max_num_part_per_merge_task", 1);
-    writeMerge(EMBEDDED_PLAN(_3_mergetree_plan_),"tmp/lineitem_mergetre", context, [&](const DB::Block & block)
-    {
-        EXPECT_EQ(3, block.rows());
-        debug::headBlock(block);
-    });
+    writeMerge(
+        EMBEDDED_PLAN(_3_mergetree_plan_),
+        "tmp/lineitem_mergetre",
+        context,
+        [&](const DB::Block & block)
+        {
+            EXPECT_EQ(1, block.rows());
+            debug::headBlock(block);
+        });
 }
 
 TEST(MergeTree, PipelineWithPartition)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
-    writeMerge(EMBEDDED_PLAN(_4_mergetree_plan_),"tmp/lineitem_mergetree_p", context, [&](const DB::Block & block)
-    {
-        EXPECT_EQ(2525, block.rows());
-        debug::headBlock(block);
-    });
+    writeMerge(
+        EMBEDDED_PLAN(_4_mergetree_plan_),
+        "tmp/lineitem_mergetree_p",
+        context,
+        [&](const DB::Block & block)
+        {
+            EXPECT_EQ(2525, block.rows());
+            debug::headBlock(block);
+        });
 }
