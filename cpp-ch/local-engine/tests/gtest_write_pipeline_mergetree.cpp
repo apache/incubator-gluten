@@ -261,10 +261,16 @@ namespace
 void writeMerge(
     std::string_view json_plan,
     const std::string & outputPath,
-    ContextMutablePtr context,
+    const TestSettings & test_settings,
     const std::function<void(const DB::Block &)> & callback,
     std::optional<std::string> input = std::nullopt)
 {
+    auto query_id = QueryContext::instance().initializeQuery("gtest_mergetree");
+    SCOPE_EXIT({ QueryContext::instance().finalizeQuery(query_id); });
+    const auto context = QueryContext::instance().currentQueryContext();
+
+    for (const auto & x : test_settings)
+        context->setSetting(x.first, x.second);
     GlutenWriteSettings settings{.task_write_tmp_dir = outputPath};
     settings.set(context);
     SparkMergeTreeWritePartitionSettings partition_settings{.part_name_prefix = "pipline_prefix"};
@@ -281,17 +287,11 @@ INCBIN(_3_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mer
 INCBIN(_4_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/4_one_pipeline.json");
 TEST(MergeTree, Pipeline)
 {
-    auto query_id = QueryContext::instance().initializeQuery("gtest_mergetree");
-    SCOPE_EXIT({ QueryContext::instance().finalizeQuery(query_id); });
-
-    const auto context = QueryContext::instance().currentQueryContext();
-    context->setSetting("min_insert_block_size_rows", 100000);
-    context->setSetting("optimize.minFileSize", 1024 * 1024 * 10);
     // context->setSetting("mergetree.max_num_part_per_merge_task", 1);
     writeMerge(
         EMBEDDED_PLAN(_3_mergetree_plan_),
         "tmp/lineitem_mergetree",
-        context,
+        {{"min_insert_block_size_rows", 100000}, {"optimize.minFileSize", 1024 * 1024 * 10}},
         [&](const DB::Block & block)
         {
             EXPECT_EQ(3, block.rows());
@@ -301,11 +301,10 @@ TEST(MergeTree, Pipeline)
 
 TEST(MergeTree, PipelineWithPartition)
 {
-    const auto context = DB::Context::createCopy(QueryContext::globalContext());
     writeMerge(
         EMBEDDED_PLAN(_4_mergetree_plan_),
         "tmp/lineitem_mergetree_p",
-        context,
+        {},
         [&](const DB::Block & block)
         {
             EXPECT_EQ(3815, block.rows());

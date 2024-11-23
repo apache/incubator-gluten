@@ -83,6 +83,8 @@ std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_execu
 
 }
 
+using TestSettings = std::map<std::string, DB::Field>;
+
 inline std::string replaceLocalFilesWildcards(const std::string_view haystack, const std::string_view replaced)
 {
     static constexpr auto wildcard = "{replace_local_files}";

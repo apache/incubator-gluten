@@ -157,20 +157,18 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
             CurrentThread::detachFromGroupIfNotDetached();
             CurrentThread::attachToGroup(thread_group);
             size_t before_size = 0;
-            size_t after_size = 0;
+
             for (const auto & prepare_merge_part : prepare_merge_parts)
                 before_size += prepare_merge_part->getBytesOnDisk();
 
-            const auto merged_parts = mergeParts(
+            const auto merged_part = mergeParts(
                 prepare_merge_parts,
                 toString(UUIDHelpers::generateV4()),
                 dataRef(),
                 write_settings.partition_settings.partition_dir,
                 write_settings.partition_settings.bucket_dir);
-            for (const auto & merge_tree_data_part : merged_parts)
-                after_size += merge_tree_data_part->getBytesOnDisk();
 
-            new_parts.emplace_back(merged_parts);
+            new_parts.emplace_back(merged_part);
             watch.stop();
             LOG_INFO(
                 &Poco::Logger::get("SparkMergeTreeWriter"),
@@ -178,10 +176,11 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
                 "total elapsed {} ms",
                 before_size,
                 prepare_merge_parts.size(),
-                after_size,
-                merged_parts.size(),
+                merged_part->getBytesOnDisk(),
+                1,
                 watch.elapsedMilliseconds());
         });
+
 }
 void SinkHelper::writeTempPart(DB::BlockWithPartition & block_with_partition, const ContextPtr & context, int part_num)
 {

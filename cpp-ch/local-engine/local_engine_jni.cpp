@@ -994,7 +994,7 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 
     local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
     auto context = local_engine::QueryContext::instance().currentQueryContext();
-    // each task using its own CustomStorageMergeTree, don't reuse
+    // each task, using its own CustomStorageMergeTree, doesn't reuse
     auto temp_storage = merge_tree_table.copyToVirtualStorage(context);
     // prefetch all needed parts metadata before merge
     local_engine::restoreMetaData(temp_storage, merge_tree_table, *context);
@@ -1006,16 +1006,13 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     std::vector<DB::DataPartPtr> selected_parts
         = local_engine::StorageMergeTreeFactory::getDataPartsByNames(temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
 
-    std::vector<DB::MergeTreeDataPartPtr> loaded
-        = local_engine::mergeParts(selected_parts, uuid_str, *temp_storage, partition_dir, bucket_dir);
+    DB::MergeTreeDataPartPtr loaded = local_engine::mergeParts(selected_parts, uuid_str, *temp_storage, partition_dir, bucket_dir);
 
     std::vector<local_engine::PartInfo> res;
-    for (auto & partPtr : loaded)
-    {
-        saveFileStatus(*temp_storage, context, partPtr->name, const_cast<DB::IDataPartStorage &>(partPtr->getDataPartStorage()));
-        res.emplace_back(local_engine::PartInfo{
-            partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count, partition_dir, bucket_dir});
-    }
+
+    saveFileStatus(*temp_storage, context, loaded->name, const_cast<DB::IDataPartStorage &>(loaded->getDataPartStorage()));
+    res.emplace_back(local_engine::PartInfo{
+        loaded->name, loaded->getMarksCount(), loaded->getBytesOnDisk(), loaded->rows_count, partition_dir, bucket_dir});
 
     auto json_info = local_engine::PartInfo::toJson(res);
     return local_engine::charTojstring(env, json_info.c_str());
