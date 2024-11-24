@@ -24,9 +24,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
-import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
-import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, GenericInternalRow}
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, BasicWriteTaskStats, ExecutedWriteSummary, PartitioningUtils, WriteJobDescription, WriteTaskResult, WriteTaskStatsTracker}
+import org.apache.spark.sql.types.{LongType, StringType}
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
@@ -60,11 +60,6 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     .find(_.isInstanceOf[BasicWriteJobStatsTracker])
     .map(_.newTaskInstance())
     .get
-
-  lazy val deltaWriteJobStatsTracker: Option[DeltaJobStatisticsTracker] =
-    description.statsTrackers
-      .find(_.isInstanceOf[DeltaJobStatisticsTracker])
-      .map(_.asInstanceOf[DeltaJobStatisticsTracker])
 
   lazy val (taskAttemptContext: TaskAttemptContext, jobId: String) = {
     // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
@@ -162,15 +157,6 @@ case class HadoopMapReduceAdapter(sparkCommitter: HadoopMapReduceCommitProtocol)
   }
 }
 
-/**
- * {{{
- * val schema =
- *   StructType(
- *     StructField("filename", StringType, false) ::
- *     StructField("partition_id", StringType, false) ::
- *     StructField("record_count", LongType, false) :: Nil)
- * }}}
- */
 case class NativeFileWriteResult(filename: String, partition_id: String, record_count: Long) {
   lazy val relativePath: String = if (partition_id == CHColumnarWrite.EMPTY_PARTITION_ID) {
     filename
@@ -182,6 +168,28 @@ case class NativeFileWriteResult(filename: String, partition_id: String, record_
 object NativeFileWriteResult {
   implicit def apply(row: InternalRow): NativeFileWriteResult = {
     NativeFileWriteResult(row.getString(0), row.getString(1), row.getLong(2))
+  }
+
+  /**
+   * {{{
+   * val schema =
+   *   StructType(
+   *     StructField("filename", StringType, false) ::
+   *     StructField("partition_id", StringType, false) ::
+   *     StructField("record_count", LongType, false) :: <= overlap with vanilla =>
+   *     min...
+   *     max...
+   *     null_count...)
+   * }}}
+   */
+  private val inputBasedSchema: Seq[AttributeReference] = Seq(
+    AttributeReference("filename", StringType, nullable = false)(),
+    AttributeReference("partittion_id", StringType, nullable = false)(),
+    AttributeReference("record_count", LongType, nullable = false)()
+  )
+
+  def nativeStatsSchema(vanilla: Seq[AttributeReference]): Seq[AttributeReference] = {
+    inputBasedSchema.take(2) ++ vanilla
   }
 }
 

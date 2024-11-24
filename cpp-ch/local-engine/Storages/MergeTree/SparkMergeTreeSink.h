@@ -230,7 +230,9 @@ public:
 
         for (const auto & part : parts)
         {
-            columns_[part_name]->insertData(part.data_part->name.c_str(), part.data_part->name.size());
+            std::string part_name_without_partition
+                = partition_dir.empty() ? part.data_part->name : part.data_part->name.substr(partition_dir.size() + 1);
+            columns_[part_name]->insertData(part_name_without_partition.c_str(), part_name_without_partition.size());
             columns_[partition_id]->insertData(partition.c_str(), partition.size());
 
             countColData.emplace_back(part.data_part->rows_count);
@@ -321,8 +323,8 @@ public:
 
         assert(write_settings.partition_settings.partition_dir.empty());
         assert(write_settings.partition_settings.bucket_dir.empty());
-        write_settings.partition_settings.part_name_prefix
-            = fmt::format("{}/{}", partition_id, write_settings.partition_settings.part_name_prefix);
+        write_settings.partition_settings.part_name_prefix = fmt::format(
+            "{}/{}{}", partition_id, toString(DB::UUIDHelpers::generateV4()), write_settings.partition_settings.part_name_prefix);
         write_settings.partition_settings.partition_dir = partition_id;
 
         return SparkMergeTreeSink::create(

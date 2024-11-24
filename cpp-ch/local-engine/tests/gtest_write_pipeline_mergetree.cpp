@@ -273,7 +273,7 @@ void writeMerge(
         context->setSetting(x.first, x.second);
     GlutenWriteSettings settings{.task_write_tmp_dir = outputPath};
     settings.set(context);
-    SparkMergeTreeWritePartitionSettings partition_settings{.part_name_prefix = "pipline_prefix"};
+    SparkMergeTreeWritePartitionSettings partition_settings{.part_name_prefix = "_1"};
     partition_settings.set(context);
 
     auto input_json = input.value_or(replaceLocalFilesWithTPCH(EMBEDDED_PLAN(_3_mergetree_plan_input_)));
@@ -311,7 +311,7 @@ TEST(MergeTree, PipelineWithPartition)
         [&](const DB::Block & block)
         {
             EXPECT_EQ(3815, block.rows());
-            debug::headBlock(block);
+            std::cerr << debug::showString(block, 50, 50) << std::endl;
         });
 }
 

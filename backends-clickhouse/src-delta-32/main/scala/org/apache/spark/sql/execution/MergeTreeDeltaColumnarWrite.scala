@@ -22,13 +22,14 @@ import org.apache.gluten.vectorized.NativeExpressionEvaluator
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, GenericInternalRow}
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.files.MergeTreeDelayedCommitProtocol2
 import org.apache.spark.sql.delta.stats.DeltaStatistics
 import org.apache.spark.sql.delta.util.{JsonUtils, MergeTreePartitionUtils}
 import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, ExecutedWriteSummary, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
+import org.apache.spark.sql.types.{LongType, StringType}
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
@@ -39,17 +40,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
 
-/**
- * {{{
- * val schema =
- *   StructType(
- *     StructField("part_name", StringType, false) ::
- *     StructField("partition_id", StringType, false) ::
- *     StructField("record_count", LongType, false) ::
- *     StructField("marks_count", LongType, false) ::
- *     StructField("size_in_bytes", LongType, false) :: Nil)
- * }}}
- */
 case class MergeTreeWriteResult(
     part_name: String,
     partition_id: String,
@@ -115,6 +105,32 @@ object MergeTreeWriteResult {
     row.getLong(2),
     row.getLong(3),
     row.getLong(4))
+
+  /**
+   * {{{
+   * val schema =
+   *   StructType(
+   *     StructField("part_name", StringType, false) ::
+   *     StructField("partition_id", StringType, false) ::
+   *     StructField("record_count", LongType, false) :: <= overlap with vanilla =>
+   *     StructField("marks_count", LongType, false) ::
+   *     StructField("size_in_bytes", LongType, false) ::
+   *     min...
+   *     max...
+   *     null_count...)
+   * }}}
+   */
+  private val inputBasedSchema: Seq[AttributeReference] = Seq(
+    AttributeReference("part_name", StringType, nullable = false)(),
+    AttributeReference("partition_id", StringType, nullable = false)(),
+    AttributeReference("record_count", LongType, nullable = false)(),
+    AttributeReference("marks_count", LongType, nullable = false)(),
+    AttributeReference("size_in_bytes", LongType, nullable = false)()
+  )
+
+  def nativeStatsSchema(vanilla: Seq[AttributeReference]): Seq[AttributeReference] = {
+    inputBasedSchema.take(2) ++ vanilla.take(1) ++ inputBasedSchema.drop(3) ++ vanilla.drop(1)
+  }
 }
 
 case class MergeTreeCommitInfo(committer: MergeTreeDelayedCommitProtocol2)
@@ -153,13 +169,19 @@ case class MergeTreeDeltaColumnarWrite(
     override val jobTrackerID: String,
     override val description: WriteJobDescription,
     override val committer: MergeTreeDelayedCommitProtocol2)
-  extends CHColumnarWrite[MergeTreeDelayedCommitProtocol2]
+  extends SupportNativeDeltaStats[MergeTreeDelayedCommitProtocol2]
   with Logging {
+
+  override def nativeStatsSchema(vanilla: Seq[AttributeReference]): Seq[AttributeReference] =
+    MergeTreeWriteResult.nativeStatsSchema(vanilla)
+
   override def doSetupNativeTask(): Unit = {
     assert(description.path == committer.outputPath)
     val writePath = StorageMeta.normalizeRelativePath(committer.outputPath)
     val split = taskAttemptContext.getTaskAttemptID.getTaskID.getId
-    val partPrefixWithoutPartitionAndBucket = s"${UUID.randomUUID.toString}_$split"
+    val partPrefixWithoutPartitionAndBucket =
+      if (description.partitionColumns.isEmpty) s"${UUID.randomUUID.toString}_$split"
+      else s"_$split"
     logDebug(
       s"Pipeline write path: $writePath with part prefix: $partPrefixWithoutPartitionAndBucket")
     val settings =
@@ -176,12 +198,14 @@ case class MergeTreeDeltaColumnarWrite(
       val commitInfo = MergeTreeCommitInfo(committer)
       val mergeTreeStat = MergeTreeBasicWriteTaskStatsTracker()
       val basicNativeStats = Seq(commitInfo, mergeTreeStat)
-      NativeStatCompute(stats)(basicNativeStats)
+      NativeStatCompute(stats)(basicNativeStats, nativeDeltaStats)
 
       Some {
         WriteTaskResult(
           new TaskCommitMessage(commitInfo.result),
-          ExecutedWriteSummary(updatedPartitions = Set.empty, stats = Seq(mergeTreeStat.result))
+          ExecutedWriteSummary(
+            updatedPartitions = Set.empty,
+            stats = nativeDeltaStats.map(_.result).toSeq ++ Seq(mergeTreeStat.result))
         )
       }
     }
