@@ -158,6 +158,7 @@ object CHExecUtil extends Logging {
       columns: Int,
       rows: Int): Iterator[InternalRow] = {
     val rowInfo = CHBlockConverterJniWrapper.convertColumnarToRow(blockAddress, null)
+    assert(rowInfo.fieldsNum == columns)
     getRowIterFromSparkRowInfo(rowInfo, columns, rows)
   }
 
