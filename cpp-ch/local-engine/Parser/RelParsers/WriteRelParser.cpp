@@ -150,14 +150,14 @@ void addMergeTreeSinkTransform(
 {
     Chain chain;
     //
-    auto stats = std::make_shared<MergeTreeStats>(header);
+    auto stats = MergeTreeStats::create(header, partition_by);
     chain.addSink(stats);
     //
 
     SparkMergeTreeWriteSettings write_settings{context};
 
     auto sink = partition_by.empty()
-        ? SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getGlobalContext(), {stats})
+        ? SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getGlobalContext(), DeltaStats{header.columns()}, {stats})
         : std::make_shared<SparkMergeTreePartitionedFileSink>(header, partition_by, merge_tree_table, write_settings, context, stats);
 
     chain.addSource(sink);
@@ -175,7 +175,7 @@ void addNormalFileWriterSinkTransform(
     const DB::QueryPipelineBuilderPtr & builder,
     const std::string & format_hint,
     const DB::Block & output,
-    const DB::Names & partitionCols)
+    const DB::Names & partition_by)
 {
     GlutenWriteSettings write_settings = GlutenWriteSettings::get(context);
 
@@ -190,14 +190,14 @@ void addNormalFileWriterSinkTransform(
         .filename_or_pattern
         = write_settings.task_write_filename.empty() ? write_settings.task_write_filename_pattern : write_settings.task_write_filename};
 
-    auto stats = WriteStats::create(output, partitionCols);
+    auto stats = WriteStats::create(output, partition_by);
 
     builder->addSimpleTransform(
         [&](const Block & cur_header, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr
         {
             if (stream_type != QueryPipelineBuilder::StreamType::Main)
                 return nullptr;
-            return make_sink(context, partitionCols, cur_header, output, write_settings.task_write_tmp_dir, generator, format_hint, stats);
+            return make_sink(context, partition_by, cur_header, output, write_settings.task_write_tmp_dir, generator, format_hint, stats);
         });
     builder->addSimpleTransform(
         [&](const Block &, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr
@@ -226,7 +226,7 @@ void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel 
     const substrait::NamedStruct & table_schema = write_rel.table_schema();
     auto output = TypeParser::buildBlockFromNamedStruct(table_schema);
     adjust_output(builder, output);
-    const auto partitionCols = collect_partition_cols(output, table_schema);
+    const auto partition_by = collect_partition_cols(output, table_schema);
     if (write.has_mergetree())
     {
         local_engine::MergeTreeTable merge_tree_table(write, table_schema);
@@ -237,10 +237,10 @@ void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel 
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Non empty relative path for MergeTree table in pipeline mode.");
 
         merge_tree_table.relative_path = write_settings.task_write_tmp_dir;
-        addMergeTreeSinkTransform(context, builder, merge_tree_table, output, partitionCols);
+        addMergeTreeSinkTransform(context, builder, merge_tree_table, output, partition_by);
     }
     else
-        addNormalFileWriterSinkTransform(context, builder, write.common().format(), output, partitionCols);
+        addNormalFileWriterSinkTransform(context, builder, write.common().format(), output, partition_by);
 }
 
 DB::Names collect_partition_cols(const DB::Block & header, const substrait::NamedStruct & struct_)

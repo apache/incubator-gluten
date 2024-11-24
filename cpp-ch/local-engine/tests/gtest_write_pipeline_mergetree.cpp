@@ -295,7 +295,7 @@ TEST(MergeTree, Pipeline)
         [&](const DB::Block & block)
         {
             EXPECT_EQ(1, block.rows());
-            debug::headBlock(block);
+            std::cerr << debug::verticalShowString(block, 10, 50) << std::endl;
         });
 }
 
