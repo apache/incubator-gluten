@@ -93,9 +93,6 @@ namespace dbms
 class LocalExecutor;
 }
 
-static jclass spark_row_info_class;
-static jmethodID spark_row_info_constructor;
-
 static jclass block_stripes_class;
 static jmethodID block_stripes_constructor;
 
@@ -112,9 +109,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
         return JNI_ERR;
 
     local_engine::JniErrorsGlobalState::instance().initialize(env);
-
-    spark_row_info_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/row/SparkRowInfo;");
-    spark_row_info_constructor = local_engine::GetMethodID(env, spark_row_info_class, "<init>", "([J[JJJJ)V");
 
     block_stripes_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
     block_stripes_constructor = local_engine::GetMethodID(env, block_stripes_class, "<init>", "(J[J[II)V");
@@ -164,6 +158,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::BroadCastJoinBuilder::init(env);
     local_engine::CacheManager::initJNI(env);
     local_engine::SparkMergeTreeWriterJNI::init(env);
+    local_engine::SparkRowInfoJNI::init(env);
 
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
@@ -180,8 +175,8 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     local_engine::JniErrorsGlobalState::instance().destroy(env);
     local_engine::BroadCastJoinBuilder::destroy(env);
     local_engine::SparkMergeTreeWriterJNI::destroy(env);
+    local_engine::SparkRowInfoJNI::destroy(env);
 
-    env->DeleteGlobalRef(spark_row_info_class);
     env->DeleteGlobalRef(block_stripes_class);
     env->DeleteGlobalRef(split_result_class);
     env->DeleteGlobalRef(block_stats_class);
@@ -784,9 +779,6 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHBlockConverterJniWrapper_c
     JNIEnv * env, jclass, jlong block_address, jintArray masks)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    local_engine::CHColumnToSparkRow converter;
-
-    std::unique_ptr<local_engine::SparkRowInfo> spark_row_info = nullptr;
     local_engine::MaskVector mask = nullptr;
     DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
     if (masks != nullptr)
@@ -797,21 +789,9 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHBlockConverterJniWrapper_c
             mask->push_back(safeArray.elems()[j]);
     }
 
-    spark_row_info = converter.convertCHColumnToSparkRow(*block, mask);
-
-    auto * offsets_arr = env->NewLongArray(spark_row_info->getNumRows());
-    const auto * offsets_src = spark_row_info->getOffsets().data();
-    env->SetLongArrayRegion(offsets_arr, 0, spark_row_info->getNumRows(), offsets_src);
-    auto * lengths_arr = env->NewLongArray(spark_row_info->getNumRows());
-    const auto * lengths_src = spark_row_info->getLengths().data();
-    env->SetLongArrayRegion(lengths_arr, 0, spark_row_info->getNumRows(), lengths_src);
-    int64_t address = reinterpret_cast<int64_t>(spark_row_info->getBufferAddress());
-    int64_t column_number = spark_row_info->getNumCols();
-    int64_t total_size = spark_row_info->getTotalBytes();
-
-    jobject spark_row_info_object
-        = env->NewObject(spark_row_info_class, spark_row_info_constructor, offsets_arr, lengths_arr, address, column_number, total_size);
-    return spark_row_info_object;
+    local_engine::CHColumnToSparkRow converter;
+    std::unique_ptr<local_engine::SparkRowInfo> spark_row_info = converter.convertCHColumnToSparkRow(*block, mask);
+    return local_engine::SparkRowInfoJNI::create(env, *spark_row_info);
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
