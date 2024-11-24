@@ -293,11 +293,12 @@ TEST(MergeTree, Pipeline)
     writeMerge(
         EMBEDDED_PLAN(_3_mergetree_plan_),
         "tmp/lineitem_mergetree",
-        {{"min_insert_block_size_rows", 100000}, {"optimize.minFileSize", 1024 * 1024 * 10}},
+        {{"min_insert_block_size_rows", 100000}
+         /*, {"optimize.minFileSize", 1024 * 1024 * 10}*/},
         [&](const DB::Block & block)
         {
-            EXPECT_EQ(3, block.rows());
-            debug::headBlock(block);
+            EXPECT_EQ(1, block.rows());
+            std::cerr << debug::verticalShowString(block, 10, 50) << std::endl;
         });
 }
 

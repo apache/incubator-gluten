@@ -33,6 +33,7 @@
 #include <Common/ArenaUtils.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
+#include <Common/FieldVisitorsAccurateComparison.h>
 
 namespace local_engine
 {
@@ -105,11 +106,14 @@ struct DeltaStats
     explicit DeltaStats(size_t size, const std::set<size_t> & partition_index_ = {})
         : row_count(0), min(size), max(size), null_count(size, 0), partition_index(partition_index_)
     {
+        assert(size > 0);
     }
+
+    bool initialized() const { return row_count > 0; }
 
     void update(const DB::Chunk & chunk)
     {
-        row_count += chunk.getNumRows();
+        assert(chunk.getNumRows() > 0);
         const auto & columns = chunk.getColumns();
         assert(columns.size() == min.size() + partition_index.size());
         for (size_t i = 0, col = 0; col < columns.size(); ++col)
@@ -127,15 +131,40 @@ struct DeltaStats
             this->null_count[i] += null_count;
 
             DB::Field min_value, max_value;
-            column->getExtremes(min_value, max_value);
+            if (const auto * column_nullable = typeid_cast<const DB::ColumnNullable *>(column.get()))
+                column_nullable->getExtremesNullLast(min_value, max_value);
+            else
+                column->getExtremes(min_value, max_value);
+
             assert(min[i].isNull() || min_value.getType() == min[i].getType());
             assert(max[i].isNull() || max_value.getType() == max[i].getType());
-            if (min[i].isNull() || min_value < min[i])
-                min[i] = min_value;
-            if (max[i].isNull() || max_value > max[i])
-                max[i] = max_value;
 
+            if (!initialized())
+            {
+                min[i] = min_value;
+                max[i] = max_value;
+            }
+            else
+            {
+                min[i] = applyVisitor(DB::FieldVisitorAccurateLess(), min[i], min_value) ? min[i] : min_value;
+                max[i] = applyVisitor(DB::FieldVisitorAccurateLess(), max[i], max_value) ? max_value : max[i];
+            }
             ++i;
+        }
+
+        row_count += chunk.getNumRows();
+    }
+
+    void merge(const DeltaStats & right)
+    {
+        assert(min.size() == right.min.size());
+        assert(partition_index == right.partition_index);
+
+        for (size_t i = 0; i < min.size(); ++i)
+        {
+            null_count[i] += right.null_count[i];
+            min[i] = std::min(min[i], right.min[i]);
+            max[i] = std::max(max[i], right.max[i]);
         }
     }
 };
@@ -185,8 +214,13 @@ class WriteStats : public WriteStatsBase
     {
         filename,
         partition_id,
-        record_count
+        record_count,
+        stats_column_start = record_count + 1
     };
+    static DB::ColumnsWithTypeAndName statsHeaderBase()
+    {
+        return {{STRING(), "filename"}, {STRING(), "partition_id"}, {BIGINT(), "record_count"}};
+    }
 
 protected:
     DB::Chunk final_result() override
@@ -200,13 +234,9 @@ public:
         : WriteStatsBase(input_header_, output_header_), columns_(output_header_.cloneEmptyColumns())
     {
     }
-
-    static std::shared_ptr<WriteStats> create(const DB::Block & input_header_, const DB::Names & partition)
+    static std::shared_ptr<WriteStats> create(const DB::Block & input, const DB::Names & partition)
     {
-        return std::make_shared<WriteStats>(
-            input_header_,
-            DeltaStats::statsHeader(
-                input_header_, partition, {{STRING(), "filename"}, {STRING(), "partition_id"}, {BIGINT(), "record_count"}}));
+        return std::make_shared<WriteStats>(input, DeltaStats::statsHeader(input, partition, statsHeaderBase()));
     }
 
     String getName() const override { return "WriteStats"; }
@@ -214,17 +244,18 @@ public:
     void collectStats(const String & filename, const String & partition_dir, const DeltaStats & stats) const
     {
         const std::string & partition = partition_dir.empty() ? WriteStatsBase::NO_PARTITION_ID : partition_dir;
-        // 3 => filename, partition_id, record_count
-        constexpr size_t baseOffset = 3;
-        assert(columns_.size() == baseOffset + stats.min.size() + stats.max.size() + stats.null_count.size());
+        size_t columnSize = stats.min.size();
+        assert(columns_.size() == stats_column_start + columnSize * 3);
+        assert(stats.min.size() == stats.max.size() && stats.min.size() == stats.null_count.size());
+
         columns_[ColumnIndex::filename]->insertData(filename.c_str(), filename.size());
         columns_[partition_id]->insertData(partition.c_str(), partition.size());
         auto & countColData = static_cast<DB::ColumnVector<Int64> &>(*columns_[record_count]).getData();
         countColData.emplace_back(stats.row_count);
-        size_t columnSize = stats.min.size();
+
         for (int i = 0; i < columnSize; ++i)
         {
-            size_t offset = baseOffset + i;
+            size_t offset = stats_column_start + i;
             columns_[offset]->insert(stats.min[i]);
             columns_[columnSize + offset]->insert(stats.max[i]);
             auto & nullCountData = static_cast<DB::ColumnVector<Int64> &>(*columns_[(columnSize * 2) + offset]).getData();
@@ -248,13 +279,11 @@ struct FileNameGenerator
     std::vector<bool> compute_need_to_replace(const std::string & file_pattern)
     {
         std::vector<bool> result;
-        for(const std::string& placeholder: SUPPORT_PLACEHOLDERS)
-        {
+        for (const std::string & placeholder : SUPPORT_PLACEHOLDERS)
             if (file_pattern.find(placeholder) != std::string::npos)
                 result.push_back(true);
             else
                 result.push_back(false);
-        }
         return result;
     }
 
@@ -360,8 +389,7 @@ public:
 
     static bool isBucketedWrite(const DB::Block & input_header)
     {
-        return input_header.has(BUCKET_COLUMN_NAME) &&
-            input_header.getPositionByName(BUCKET_COLUMN_NAME) == input_header.columns() - 1;
+        return input_header.has(BUCKET_COLUMN_NAME) && input_header.getPositionByName(BUCKET_COLUMN_NAME) == input_header.columns() - 1;
     }
 
     /// visible for UTs
@@ -387,7 +415,7 @@ public:
         }
         if (isBucketedWrite(input_header))
         {
-            DB::ASTs args {std::make_shared<DB::ASTLiteral>("%05d"), std::make_shared<DB::ASTIdentifier>(BUCKET_COLUMN_NAME)};
+            DB::ASTs args{std::make_shared<DB::ASTLiteral>("%05d"), std::make_shared<DB::ASTIdentifier>(BUCKET_COLUMN_NAME)};
             arguments.emplace_back(DB::makeASTFunction("printf", std::move(args)));
         }
         assert(!arguments.empty());

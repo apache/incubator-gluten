@@ -42,12 +42,24 @@ namespace local_engine
 void SparkMergeTreeSink::write(const Chunk & chunk)
 {
     CurrentThread::flushUntrackedMemory();
+    {
+        PartWithStats part_with_stats{
+            .data_part = nullptr,
+            .delta_stats = empty_delta_stats_
+                               .transform(
+                                   [&](const auto & stats)
+                                   {
+                                       auto newStats = std::make_shared<DeltaStats>(stats);
+                                       newStats->update(chunk);
+                                       return newStats;
+                                   })
+                               .value_or(nullptr)};
+        /// Reset earlier, so put it in the scope
+        BlockWithPartition item{getHeader().cloneWithColumns(chunk.getColumns()), Row{}};
 
-    /// Reset earlier, so put it in the scope
-    BlockWithPartition item{getHeader().cloneWithColumns(chunk.getColumns()), Row{}};
-
-    sink_helper->writeTempPart(item, context, part_num);
-    part_num++;
+        sink_helper->writeTempPart(item, std::move(part_with_stats), context, part_num);
+        part_num++;
+    }
 }
 
 void SparkMergeTreeSink::consume(Chunk & chunk)
@@ -86,6 +98,7 @@ SinkToStoragePtr SparkMergeTreeSink::create(
     const MergeTreeTable & merge_tree_table,
     const SparkMergeTreeWriteSettings & write_settings_,
     const DB::ContextMutablePtr & context,
+    const DeltaStatsOption & delta_stats,
     const SinkStatsOption & stats)
 {
     if (write_settings_.partition_settings.part_name_prefix.empty())
@@ -108,7 +121,12 @@ SinkToStoragePtr SparkMergeTreeSink::create(
         sink_helper = std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
     const DB::Settings & settings = context->getSettingsRef();
     return std::make_shared<SparkMergeTreeSink>(
-        sink_helper, context, stats, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]);
+        sink_helper,
+        context,
+        delta_stats,
+        stats,
+        settings[Setting::min_insert_block_size_rows],
+        settings[Setting::min_insert_block_size_bytes]);
 }
 
 SinkHelper::SinkHelper(const SparkStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
@@ -125,69 +143,91 @@ void SinkHelper::saveMetadata(const DB::ContextPtr & context)
     if (!isRemoteStorage)
         return;
 
-    const std::deque<DB::MergeTreeDataPartPtr> & parts = new_parts.unsafeGet();
+    const std::deque<PartWithStats> & parts = new_parts.unsafeGet();
     for (const auto & merge_tree_data_part : parts)
     {
-        auto part = dest_storage().loadDataPartsWithNames({merge_tree_data_part->name});
+        auto part = dest_storage().loadDataPartsWithNames({merge_tree_data_part.data_part->name});
         if (part.empty())
         {
             LOG_WARNING(
                 &Poco::Logger::get("SparkMergeTreeWriter"),
                 "Save metadata failed because dest storage load part name {} empty.",
-                merge_tree_data_part->name);
+                merge_tree_data_part.data_part->name);
             continue;
         }
 
         saveFileStatus(
-            dest_storage(), context, merge_tree_data_part->name, const_cast<IDataPartStorage &>(part.at(0)->getDataPartStorage()));
+            dest_storage(),
+            context,
+            merge_tree_data_part.data_part->name,
+            const_cast<IDataPartStorage &>(part.at(0)->getDataPartStorage()));
     }
 }
 
-void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts)
+void SinkHelper::doMergePartsAsync(const std::vector<PartWithStats> & merge_parts_with_stats)
 {
-    for (const auto & selected_part : prepare_merge_parts)
-        tmp_parts.emplace(selected_part->name);
+    for (const auto & selected_part : merge_parts_with_stats)
+        tmp_parts.emplace(selected_part.data_part->name);
 
     // check a thread group initialized in task thread
     currentThreadGroupMemoryUsage();
     thread_pool.scheduleOrThrow(
-        [this, prepare_merge_parts, thread_group = CurrentThread::getGroup()]() -> void
+        [this, merge_parts_with_stats, thread_group = CurrentThread::getGroup()]() -> void
         {
             Stopwatch watch;
             CurrentThread::detachFromGroupIfNotDetached();
             CurrentThread::attachToGroup(thread_group);
             size_t before_size = 0;
 
-            for (const auto & prepare_merge_part : prepare_merge_parts)
-                before_size += prepare_merge_part->getBytesOnDisk();
+            std::vector<DB::DataPartPtr> prepare_merge_parts_;
+            for (const auto & prepare_merge_part : merge_parts_with_stats)
+            {
+                before_size += prepare_merge_part.data_part->getBytesOnDisk();
+                prepare_merge_parts_.emplace_back(prepare_merge_part.data_part);
+            }
 
             const auto merged_part = mergeParts(
-                prepare_merge_parts,
+                prepare_merge_parts_,
                 toString(UUIDHelpers::generateV4()),
                 dataRef(),
                 write_settings.partition_settings.partition_dir,
                 write_settings.partition_settings.bucket_dir);
 
-            new_parts.emplace_back(merged_part);
+            size_t after_size = merged_part->getBytesOnDisk();
+            if (std::ranges::any_of(merge_parts_with_stats, [](const auto & part) { return part.delta_stats == nullptr; }))
+            {
+                // no stats
+                new_parts.emplace_back(PartWithStats{std::move(merged_part), nullptr});
+            }
+            else
+            {
+                auto merge_stats = merge_parts_with_stats.begin()->delta_stats;
+                for (auto begin = merge_parts_with_stats.begin() + 1; begin != merge_parts_with_stats.end(); ++begin)
+                    merge_stats->merge(*begin->delta_stats);
+                new_parts.emplace_back(PartWithStats{std::move(merged_part), std::move(merge_stats)});
+            }
+
             watch.stop();
             LOG_INFO(
                 &Poco::Logger::get("SparkMergeTreeWriter"),
                 "Merge success. Before merge part size {}, part count {}, after part size {}, part count {}, "
                 "total elapsed {} ms",
-                before_size,
-                prepare_merge_parts.size(),
-                merged_part->getBytesOnDisk(),
-                1,
+                before_size, // before size
+                merge_parts_with_stats.size(), // before part count
+                after_size, // after size
+                1, // after part count
                 watch.elapsedMilliseconds());
         });
-
 }
-void SinkHelper::writeTempPart(DB::BlockWithPartition & block_with_partition, const ContextPtr & context, int part_num)
+void SinkHelper::writeTempPart(
+    DB::BlockWithPartition & block_with_partition, PartWithStats part_with_stats, const ContextPtr & context, int part_num)
 {
+    assert(!metadata_snapshot->hasPartitionKey());
     const std::string & part_name_prefix = write_settings.partition_settings.part_name_prefix;
     std::string part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
     auto tmp = dataRef().getWriter().writeTempPart(block_with_partition, metadata_snapshot, context, part_dir);
-    new_parts.emplace_back(tmp.part);
+    part_with_stats.data_part = tmp.part;
+    new_parts.emplace_back(std::move(part_with_stats));
 }
 
 void SinkHelper::checkAndMerge(bool force)
@@ -198,22 +238,22 @@ void SinkHelper::checkAndMerge(bool force)
     if (!force && new_parts.size() < write_settings.merge_limit_parts)
         return;
 
-    std::vector<MergeTreeDataPartPtr> selected_parts;
+    std::vector<PartWithStats> selected_parts;
     selected_parts.reserve(write_settings.merge_limit_parts);
     size_t total_size = 0;
-    std::vector<MergeTreeDataPartPtr> skip_parts;
+    std::vector<PartWithStats> skip_parts;
 
     while (const auto merge_tree_data_part_option = new_parts.pop_front())
     {
         auto merge_tree_data_part = merge_tree_data_part_option.value();
-        if (merge_tree_data_part->getBytesOnDisk() >= write_settings.merge_min_size)
+        if (merge_tree_data_part.data_part->getBytesOnDisk() >= write_settings.merge_min_size)
         {
             skip_parts.emplace_back(merge_tree_data_part);
             continue;
         }
 
         selected_parts.emplace_back(merge_tree_data_part);
-        total_size += merge_tree_data_part->getBytesOnDisk();
+        total_size += merge_tree_data_part.data_part->getBytesOnDisk();
         if (write_settings.merge_min_size > total_size && write_settings.merge_limit_parts > selected_parts.size())
             continue;
 
@@ -261,13 +301,13 @@ void CopyToRemoteSinkHelper::commit(const ReadSettings & read_settings, const Wr
     LOG_DEBUG(
         &Poco::Logger::get("SparkMergeTreeWriter"), "Begin upload to disk {}.", dest_storage().getStoragePolicy()->getAnyDisk()->getName());
 
-    const std::deque<DB::MergeTreeDataPartPtr> & parts = new_parts.unsafeGet();
+    const std::deque<PartWithStats> & parts = new_parts.unsafeGet();
 
     Stopwatch watch;
     for (const auto & merge_tree_data_part : parts)
     {
-        String local_relative_path = dataRef().getRelativeDataPath() + "/" + merge_tree_data_part->name;
-        String remote_relative_path = dest_storage().getRelativeDataPath() + "/" + merge_tree_data_part->name;
+        String local_relative_path = dataRef().getRelativeDataPath() + "/" + merge_tree_data_part.data_part->name;
+        String remote_relative_path = dest_storage().getRelativeDataPath() + "/" + merge_tree_data_part.data_part->name;
 
         std::vector<String> files;
         dataRef().getStoragePolicy()->getAnyDisk()->listFiles(local_relative_path, files);
@@ -286,7 +326,7 @@ void CopyToRemoteSinkHelper::commit(const ReadSettings & read_settings, const Wr
         LOG_DEBUG(
             &Poco::Logger::get("SparkMergeTreeWriter"),
             "Upload part {} to disk {} success.",
-            merge_tree_data_part->name,
+            merge_tree_data_part.data_part->name,
             dest_storage().getStoragePolicy()->getAnyDisk()->getName());
     }
     watch.stop();
@@ -306,7 +346,7 @@ void DirectSinkHelper::cleanup()
     // default storage need clean temp.
     std::unordered_set<String> final_parts;
     for (const auto & merge_tree_data_part : new_parts.unsafeGet())
-        final_parts.emplace(merge_tree_data_part->name);
+        final_parts.emplace(merge_tree_data_part.data_part->name);
 
     for (const auto & tmp_part : tmp_parts)
     {
