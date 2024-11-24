@@ -188,7 +188,6 @@ void SinkHelper::doMergePartsAsync(const std::vector<PartWithStats> & merge_part
                 1,                             // after part count
                 watch.elapsedMilliseconds());
         });
-
 }
 void SinkHelper::writeTempPart(
     DB::BlockWithPartition & block_with_partition, PartWithStats part_with_stats, const ContextPtr & context, int part_num)

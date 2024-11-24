@@ -254,19 +254,16 @@ class ClickhouseOptimisticTransaction(
       WriteFiles(logicalPlan, fileFormat, partitioningColumns, None, options, Map.empty)
 
     val queryExecution = new QueryExecution(spark, write)
-    val (committer, collectStats) = fileFormat.toString match {
-      case "MergeTree" => (getCommitter2(outputPath), false)
-      case _ => (getCommitter(outputPath), true)
+    val committer = fileFormat.toString match {
+      case "MergeTree" => getCommitter2(outputPath)
+      case _ => getCommitter(outputPath)
     }
 
     // If Statistics Collection is enabled, then create a stats tracker that will be injected during
     // the FileFormatWriter.write call below and will collect per-file stats using
     // StatisticsCollection
-    val (optionalStatsTracker, _) = if (collectStats) {
+    val (optionalStatsTracker, _) =
       getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
-    } else {
-      (None, None)
-    }
 
     val constraints =
       Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
