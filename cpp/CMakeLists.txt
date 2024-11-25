@@ -98,7 +98,9 @@ set(KNOWN_WARNINGS
        -Wno-error=unused-function \
        -Wno-error=unused-variable \
        -Wno-strict-aliasing \
-       -Wno-ignored-qualifiers")
+       -Wno-ignored-qualifiers \
+       -Wno-deprecated-declarations \
+       -Wno-attributes")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set(KNOWN_WARNINGS "-Wno-error=unused-but-set-variable \
@@ -134,6 +136,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
       -Wno-nullability-completeness \
       -Wno-pessimizing-move \
       -Wno-mismatched-tags \
+      -Wno-class-memaccess \
       ${KNOWN_WARNINGS}")
   # Specific definition for an issue with boost/stacktrace when building on
   # macOS. See https://github.com/boostorg/stacktrace/issues/88 and comments
@@ -142,6 +145,19 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KNOWN_WARNINGS}")
+
+# Keep same compile option with Velox.
+execute_process(
+  COMMAND
+    bash -c
+    "( source ${VELOX_HOME}/scripts/setup-helper-functions.sh && echo -n $(get_cxx_flags $ENV{CPU_TARGET}))"
+  OUTPUT_VARIABLE SCRIPT_CXX_FLAGS
+  RESULT_VARIABLE COMMAND_STATUS)
+if(COMMAND_STATUS EQUAL "1")
+  message(FATAL_ERROR "Unable to determine compiler flags!")
+endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
 
 #
 # Dependencies
