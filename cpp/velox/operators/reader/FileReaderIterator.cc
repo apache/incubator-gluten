@@ -15,33 +15,38 @@
  * limitations under the License.
  */
 
-#include "FileReaderIterator.h"
-#include "benchmarks/common/ParquetReaderIterator.h"
-#ifdef GLUTEN_ENABLE_ORC
-#include "benchmarks/common/OrcReaderIterator.h"
-#endif
+#include "operators/reader/FileReaderIterator.h"
+#include <filesystem>
+#include "operators/reader/ParquetReaderIterator.h"
 
-std::shared_ptr<gluten::ResultIterator> gluten::getInputIteratorFromFileReader(
+namespace gluten {
+namespace {
+const std::string kParquetSuffix = ".parquet";
+}
+
+FileReaderIterator::FileReaderIterator(const std::string& path) : path_(path) {}
+
+int64_t FileReaderIterator::getCollectBatchTime() const {
+  return collectBatchTime_;
+}
+
+std::shared_ptr<gluten::ResultIterator> FileReaderIterator::getInputIteratorFromFileReader(
+    FileReaderType readerType,
     const std::string& path,
-    gluten::FileReaderType readerType) {
+    int64_t batchSize,
+    facebook::velox::memory::MemoryPool* pool) {
   std::filesystem::path input{path};
   auto suffix = input.extension().string();
   if (suffix == kParquetSuffix) {
     if (readerType == FileReaderType::kStream) {
-      return std::make_shared<gluten::ResultIterator>(std::make_unique<ParquetStreamReaderIterator>(path));
+      return std::make_shared<gluten::ResultIterator>(
+          std::make_unique<ParquetStreamReaderIterator>(path, batchSize, pool));
     }
     if (readerType == FileReaderType::kBuffered) {
-      return std::make_shared<gluten::ResultIterator>(std::make_unique<ParquetBufferedReaderIterator>(path));
+      return std::make_shared<gluten::ResultIterator>(
+          std::make_unique<ParquetBufferedReaderIterator>(path, batchSize, pool));
     }
-  } else if (suffix == kOrcSuffix) {
-#ifdef GLUTEN_ENABLE_ORC
-    if (readerType == FileReaderType::kStream) {
-      return std::make_shared<gluten::ResultIterator>(std::make_unique<OrcStreamReaderIterator>(path));
-    }
-    if (readerType == FileReaderType::kBuffered) {
-      return std::make_shared<gluten::ResultIterator>(std::make_unique<OrcBufferedReaderIterator>(path));
-    }
-#endif
   }
   throw new GlutenException("Unreachable.");
 }
+} // namespace gluten

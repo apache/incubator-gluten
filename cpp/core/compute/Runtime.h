@@ -27,6 +27,7 @@
 #include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
+#include "operators/writer/ArrowWriter.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
@@ -123,6 +124,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   virtual std::unique_ptr<ColumnarBatchSerializer> createColumnarBatchSerializer(struct ArrowSchema* cSchema) = 0;
 
   virtual void dumpConf(const std::string& path) = 0;
+
+  virtual std::shared_ptr<ArrowWriter> createArrowWriter(const std::string& path) = 0;
 
   const std::unordered_map<std::string, std::string>& getConfMap() {
     return confMap_;

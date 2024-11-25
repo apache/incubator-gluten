@@ -17,10 +17,11 @@
 
 #include "VeloxColumnarBatchSerializer.h"
 
+#include <arrow/buffer.h>
+
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/common/memory/Memory.h"
-#include "velox/vector/ComplexVector.h"
 #include "velox/vector/FlatVector.h"
 #include "velox/vector/arrow/Bridge.h"
 
