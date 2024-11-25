@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -35,6 +36,10 @@ case class ColumnarCoalesceExec(numPartitions: Int, child: SparkPlan)
   override def outputPartitioning: Partitioning = {
     if (numPartitions == 1) SinglePartition else UnknownPartitioning(numPartitions)
   }
+
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+
+  override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()

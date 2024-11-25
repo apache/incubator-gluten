@@ -17,7 +17,8 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -40,9 +41,12 @@ case class TakeOrderedAndProjectExecTransformer(
     child: SparkPlan,
     offset: Int = 0)
   extends UnaryExecNode
-  with GlutenPlan {
+  with GlutenPlan
+  with ValidatablePlan {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+  override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override def output: Seq[Attribute] = {
     projectList.map(_.toAttribute)

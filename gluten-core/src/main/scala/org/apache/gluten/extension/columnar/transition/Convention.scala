@@ -55,6 +55,19 @@ object Convention {
       }
       Convention.of(rowType(), batchType())
     }
+
+    def asReq(): ConventionReq = {
+      val rowTypeReq = conv.rowType match {
+        case Convention.RowType.None => ConventionReq.RowType.Any
+        case r => ConventionReq.RowType.Is(r)
+      }
+
+      val batchTypeReq = conv.batchType match {
+        case Convention.BatchType.None => ConventionReq.BatchType.Any
+        case b => ConventionReq.BatchType.Is(b)
+      }
+      ConventionReq.of(rowTypeReq, batchTypeReq)
+    }
   }
 
   private case class Impl(override val rowType: RowType, override val batchType: BatchType)

@@ -72,13 +72,7 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                       bhj.left,
                       bhj.right,
                       bhj.isNullAwareAntiJoin)
-                  val isBhjTransformable = bhjTransformer.doValidate()
-                  if (isBhjTransformable.ok()) {
-                    val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
-                    exchangeTransformer.doValidate()
-                  } else {
-                    isBhjTransformable
-                  }
+                  bhjTransformer.doValidate()
                 }
               }
             FallbackTags.add(bhj, isTransformable)
@@ -123,13 +117,7 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                   bnlj.buildSide,
                   bnlj.joinType,
                   bnlj.condition)
-              val isTransformable = transformer.doValidate()
-              if (isTransformable.ok()) {
-                val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
-                exchangeTransformer.doValidate()
-              } else {
-                isTransformable
-              }
+              transformer.doValidate()
             }
           }
         FallbackTags.add(bnlj, isTransformable)

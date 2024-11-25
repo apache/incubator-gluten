@@ -17,7 +17,7 @@
 package org.apache.gluten.execution.metrics
 
 import org.apache.gluten.execution._
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute

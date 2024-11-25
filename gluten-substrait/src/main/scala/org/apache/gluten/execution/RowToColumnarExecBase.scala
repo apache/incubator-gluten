@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.broadcast
@@ -45,6 +44,8 @@ abstract class RowToColumnarExecBase(child: SparkPlan)
   final override def outputPartitioning: Partitioning = child.outputPartitioning
 
   final override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
 

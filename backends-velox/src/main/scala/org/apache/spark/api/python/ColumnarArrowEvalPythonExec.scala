@@ -19,9 +19,9 @@ package org.apache.spark.api.python
 import org.apache.gluten.columnarbatch.ArrowBatches.ArrowJavaBatch
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
-import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
+import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildConvention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.PullOutProjectHelper
@@ -213,11 +213,13 @@ case class ColumnarArrowEvalPythonExec(
     evalType: Int)
   extends EvalPythonExec
   with GlutenPlan
-  with KnownChildrenConventions {
+  with KnownChildConvention {
 
   override def batchType(): Convention.BatchType = ArrowJavaBatch
 
-  override def requiredChildrenConventions(): Seq[ConventionReq] = List(
+  override def rowType0(): Convention.RowType = Convention.RowType.None
+
+  override def requiredChildConvention(): Seq[ConventionReq] = List(
     ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(ArrowJavaBatch)))
 
   override lazy val metrics = Map(
