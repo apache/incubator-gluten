@@ -2220,7 +2220,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
     withSQLConf(("spark.sql.legacy.timeParserPolicy" -> "corrected")) {
       compareResultsAgainstVanillaSpark(
-        "select id, to_date(data, 'yyyy-MM-dd') from test_tbl_3135 where id = 11",
+        "select id, to_date('2024-03-2 11:22:33', 'yyyy-MM-dd') from test_tbl_3135 where id = 11",
         true,
         { _ => })
     }
