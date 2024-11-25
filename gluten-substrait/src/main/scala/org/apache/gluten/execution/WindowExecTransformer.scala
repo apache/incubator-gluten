@@ -51,9 +51,9 @@ case class WindowExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetrics(sparkContext)
 
-  override def isLoop: Boolean = windowExpression == null || windowExpression.isEmpty
+  override def isNoop: Boolean = windowExpression == null || windowExpression.isEmpty
 
-  override def metricsUpdater(): MetricsUpdater = if (isLoop) {
+  override def metricsUpdater(): MetricsUpdater = if (isNoop) {
     MetricsUpdater.None
   } else {
     BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetricsUpdater(metrics)
@@ -182,7 +182,7 @@ case class WindowExecTransformer(
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    if (isLoop) {
+    if (isNoop) {
       // The computing for this operator is not needed.
       return childCtx
     }

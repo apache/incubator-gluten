@@ -44,9 +44,9 @@ case class SortExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetrics(sparkContext)
 
-  override def isLoop: Boolean = sortOrder == null || sortOrder.isEmpty
+  override def isNoop: Boolean = sortOrder == null || sortOrder.isEmpty
 
-  override def metricsUpdater(): MetricsUpdater = if (isLoop) {
+  override def metricsUpdater(): MetricsUpdater = if (isNoop) {
     MetricsUpdater.None
   } else {
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetricsUpdater(metrics)
@@ -108,7 +108,7 @@ case class SortExecTransformer(
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    if (isLoop) {
+    if (isNoop) {
       // The computing for this project is not needed.
       return childCtx
     }

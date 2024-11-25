@@ -102,7 +102,7 @@ trait TransformSupport extends GlutenPlan {
   }
 
   // When true, it will not generate relNode, nor will it generate native metrics.
-  def isLoop: Boolean = false
+  def isNoop: Boolean = false
 }
 
 trait LeafTransformSupport extends TransformSupport with LeafExecNode {
