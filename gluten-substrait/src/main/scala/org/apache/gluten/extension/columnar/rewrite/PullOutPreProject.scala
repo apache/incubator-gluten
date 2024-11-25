@@ -37,6 +37,9 @@ import scala.collection.mutable
  * execution by the native engine.
  */
 object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
+  override def isRewritable(plan: SparkPlan): Boolean = {
+    RewriteEligibility.isRewritable(plan)
+  }
 
   private def needsPreProject(plan: SparkPlan): Boolean = {
     plan match {

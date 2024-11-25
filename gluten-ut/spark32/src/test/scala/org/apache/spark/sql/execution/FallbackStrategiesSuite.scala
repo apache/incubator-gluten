@@ -19,10 +19,10 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.BasicScanExecTransformer
 import org.apache.gluten.extension.{GlutenPlan, GlutenSessionExtensions}
-import org.apache.gluten.extension.columnar.{ExpandFallbackPolicy, RemoveFallbackTagRule}
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.MiscColumnarRules.RemoveTopmostColumnarToRow
-import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
+import org.apache.gluten.extension.columnar.RemoveFallbackTagRule
+import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicApplier}
 import org.apache.gluten.extension.columnar.transition.InsertTransitions
 
 import org.apache.spark.rdd.RDD

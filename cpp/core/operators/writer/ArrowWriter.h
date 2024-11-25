@@ -17,15 +17,19 @@
 
 #pragma once
 
-#include "parquet/arrow/writer.h"
+#include <parquet/arrow/writer.h>
+#include "memory/ColumnarBatch.h"
 
+namespace gluten {
 /**
  * @brief Used to print RecordBatch to a parquet file
  *
  */
 class ArrowWriter {
  public:
-  explicit ArrowWriter(std::string& path) : path_(path) {}
+  explicit ArrowWriter(const std::string& path) : path_(path) {}
+
+  virtual ~ArrowWriter() = default;
 
   arrow::Status initWriter(arrow::Schema& schema);
 
@@ -33,7 +37,13 @@ class ArrowWriter {
 
   arrow::Status closeWriter();
 
- private:
+  bool closed() const;
+
+  virtual std::shared_ptr<ColumnarBatch> retrieveColumnarBatch() = 0;
+
+ protected:
   std::unique_ptr<parquet::arrow::FileWriter> writer_;
   std::string path_;
+  bool closed_{false};
 };
+} // namespace gluten

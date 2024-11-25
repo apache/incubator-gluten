@@ -32,7 +32,7 @@ import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
-import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
+import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
@@ -123,9 +123,9 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Force batch type initializations.
-    VeloxBatch.getClass
-    ArrowJavaBatch.getClass
-    ArrowNativeBatch.getClass
+    VeloxBatch.ensureRegistered()
+    ArrowJavaBatch.ensureRegistered()
+    ArrowNativeBatch.ensureRegistered()
 
     // Sets this configuration only once, since not undoable.
     if (conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)) {
@@ -158,6 +158,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Initial native backend with configurations.
     var parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+
     // Workaround for https://github.com/apache/incubator-gluten/issues/7837
     if (isDriver && !inLocalMode(conf)) {
       parsed += (GlutenConfig.COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
@@ -165,7 +166,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     NativeBackendInitializer.initializeBackend(parsed)
 
     // Inject backend-specific implementations to override spark classes.
-    GlutenFormatFactory.register(new VeloxParquetWriterInjects, new VeloxOrcWriterInjects)
+    GlutenFormatFactory.register(new VeloxParquetWriterInjects)
     GlutenFormatFactory.injectPostRuleFactory(
       session => GlutenWriterColumnarRules.NativeWritePostRule(session))
     GlutenFormatFactory.register(new VeloxRowSplitter())

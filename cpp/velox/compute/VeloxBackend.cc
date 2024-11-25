@@ -145,7 +145,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::filesystems::registerGcsFileSystem();
 #endif
 #ifdef ENABLE_ABFS
-  velox::filesystems::abfs::registerAbfsFileSystem();
+  velox::filesystems::registerAbfsFileSystem();
 #endif
 
   initJolFilesystem();

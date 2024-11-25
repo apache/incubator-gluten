@@ -34,9 +34,6 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
@@ -136,6 +133,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE: String =
     CHConf.prefixOf("delta.metadata.optimize")
   val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE_DEFAULT_VALUE: String = "true"
+
+  val GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT: String =
+    CHConf.prefixOf("convert.left.anti_semi.to.right")
+  val GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT_DEFAULT_VALUE: String = "false"
 
   def affinityMode: String = {
     SparkEnv.get.conf
@@ -251,26 +252,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     }
   }
 
-  override def supportShuffleWithProject(
-      outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean = {
-    child match {
-      case hash: HashAggregateExec =>
-        if (hash.aggregateExpressions.isEmpty) {
-          true
-        } else {
-          outputPartitioning match {
-            case hashPartitioning: HashPartitioning =>
-              hashPartitioning.expressions.exists(x => !x.isInstanceOf[AttributeReference])
-            case _ =>
-              false
-          }
-        }
-      case _ =>
-        true
-    }
-  }
-
   override def supportSortExec(): Boolean = {
     GlutenConfig.getConf.enableColumnarSort
   }
@@ -377,6 +358,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         true
       } else {
         t match {
+          case LeftAnti | LeftSemi
+              if (SQLConf.get
+                .getConfString(
+                  GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT,
+                  GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT_DEFAULT_VALUE)
+                .toBoolean) =>
+            true
           case LeftOuter => true
           case _ => false
         }
@@ -396,8 +384,4 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   }
 
   override def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = true
-
-  override def supportHiveTableScanNestedColumnPruning: Boolean =
-    GlutenConfig.getConf.enableColumnarHiveTableScanNestedColumnPruning
-
 }

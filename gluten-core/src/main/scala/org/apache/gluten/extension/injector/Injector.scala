@@ -30,5 +30,3 @@ class Injector(extensions: SparkSessionExtensions) {
     gluten.inject(extensions)
   }
 }
-
-object Injector {}

@@ -33,7 +33,9 @@ object ArrowBatches {
    * implementations.
    */
   object ArrowJavaBatch extends Convention.BatchType {
-    toBatch(VanillaBatch, Transition.empty)
+    override protected def registerTransitions(): Unit = {
+      toBatch(VanillaBatch, Transition.empty)
+    }
   }
 
   /**
@@ -44,7 +46,9 @@ object ArrowBatches {
    * [[ColumnarBatches]].
    */
   object ArrowNativeBatch extends Convention.BatchType {
-    fromBatch(ArrowJavaBatch, OffloadArrowDataExec.apply)
-    toBatch(ArrowJavaBatch, LoadArrowDataExec.apply)
+    override protected def registerTransitions(): Unit = {
+      fromBatch(ArrowJavaBatch, OffloadArrowDataExec.apply)
+      toBatch(ArrowJavaBatch, LoadArrowDataExec.apply)
+    }
   }
 }

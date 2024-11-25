@@ -16,7 +16,7 @@
  */
 
 #include <arrow/adapters/orc/adapter.h>
-#include "benchmarks/common/ParquetReaderIterator.h"
+#include "operators/reader/ParquetReaderIterator.h"
 
 namespace gluten {
 

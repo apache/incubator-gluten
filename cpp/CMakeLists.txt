@@ -217,10 +217,6 @@ if(ENABLE_IAA)
   add_definitions(-DGLUTEN_ENABLE_IAA)
 endif()
 
-if(ENABLE_ORC)
-  add_definitions(-DGLUTEN_ENABLE_ORC)
-endif()
-
 #
 # Subdirectories
 #

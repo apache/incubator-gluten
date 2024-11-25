@@ -17,15 +17,15 @@
 
 #include "shuffle/Utils.h"
 #include <arrow/record_batch.h>
-#include <boost/uuid/uuid_generators.hpp>
-#include <boost/uuid/uuid_io.hpp>
 #include <fcntl.h>
+#include <unistd.h>
 #include <iomanip>
 #include <iostream>
 #include <numeric>
 #include <sstream>
 #include <thread>
 #include "shuffle/Options.h"
+#include "utils/StringUtil.h"
 #include "utils/Timer.h"
 
 namespace gluten {
@@ -214,17 +214,10 @@ arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeUncompressedRecordBatch(
 }
 } // namespace gluten
 
-std::string gluten::generateUuid() {
-  boost::uuids::random_generator generator;
-  return boost::uuids::to_string(generator());
-}
-
-std::string gluten::getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId) {
-  auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
+std::string gluten::getShuffleSpillDir(const std::string& configuredDir, int32_t subDirId) {
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(2) << std::hex << subDirId;
-  auto dir = arrow::fs::internal::ConcatAbstractPath(configuredDir, ss.str());
-  return dir;
+  return std::filesystem::path(configuredDir) / ss.str();
 }
 
 arrow::Result<std::string> gluten::createTempShuffleFile(const std::string& dir) {
@@ -232,22 +225,25 @@ arrow::Result<std::string> gluten::createTempShuffleFile(const std::string& dir)
     return arrow::Status::Invalid("Failed to create spilled file, got empty path.");
   }
 
-  auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
-  ARROW_ASSIGN_OR_RAISE(auto path_info, fs->GetFileInfo(dir));
-  if (path_info.type() == arrow::fs::FileType::NotFound) {
-    RETURN_NOT_OK(fs->CreateDir(dir, true));
+  if (std::filesystem::exists(dir)) {
+    if (!std::filesystem::is_directory(dir)) {
+      return arrow::Status::Invalid("Invalid directory. File path exists but is not a directory: ", dir);
+    }
+  } else {
+    std::filesystem::create_directories(dir);
   }
 
+  const auto parentPath = std::filesystem::path(dir);
   bool exist = true;
-  std::string filePath;
+  std::filesystem::path filePath;
   while (exist) {
-    filePath = arrow::fs::internal::ConcatAbstractPath(dir, "temp_shuffle_" + generateUuid());
-    ARROW_ASSIGN_OR_RAISE(auto file_info, fs->GetFileInfo(filePath));
-    if (file_info.type() == arrow::fs::FileType::NotFound) {
-      int fd = open(filePath.c_str(), O_CREAT | O_EXCL | O_RDWR, 0666);
+    filePath = parentPath / ("temp-shuffle-" + generateUuid());
+    if (!std::filesystem::exists(filePath)) {
+      auto fd = open(filePath.c_str(), O_CREAT | O_EXCL | O_RDWR, 0666);
       if (fd < 0) {
         if (errno != EEXIST) {
-          return arrow::Status::IOError("Failed to open local file " + filePath + ", Reason: " + strerror(errno));
+          return arrow::Status::IOError(
+              "Failed to open local file " + filePath.string() + ", Reason: " + strerror(errno));
         }
       } else {
         exist = false;

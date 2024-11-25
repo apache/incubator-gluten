@@ -31,7 +31,7 @@ import org.apache.spark.sql.execution.{SortExec, SparkPlan}
  * SortAggregate with the same key. So, this rule adds local sort back if necessary.
  */
 object EnsureLocalSortRequirements extends Rule[SparkPlan] {
-  private lazy val transform = HeuristicTransform()
+  private lazy val transform: HeuristicTransform = HeuristicTransform.static()
 
   private def addLocalSort(
       originalChild: SparkPlan,

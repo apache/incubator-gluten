@@ -227,6 +227,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
     .exclude("SPARK-36797: Union should resolve nested columns as top-level columns")
     .exclude("SPARK-37371: UnionExec should support columnar if all children support columnar")
+    .exclude(
+      "SPARK-36673: Only merge nullability for Unions of struct"
+    ) // disabled due to case-insensitive not supported in CH tuple
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
     .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
@@ -843,7 +846,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("do not replace hash aggregate if child does not have sort order")
     .exclude("do not replace hash aggregate if there is no group-by column")
     .excludeGlutenTest("replace partial hash aggregate with sort aggregate")
-    .excludeGlutenTest("replace partial and final hash aggregate together with sort aggregate")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSQLAggregateFunctionSuite]
   enableSuite[GlutenSQLWindowFunctionSuite]

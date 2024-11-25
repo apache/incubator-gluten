@@ -16,19 +16,33 @@
  */
 package org.apache.gluten.backendsapi.velox
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
-import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
-import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
+import org.apache.gluten.extension.columnar.enumerated.{RasOffload, RemoveSort}
+import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LegacyCoster, RoughCoster, RoughCoster2}
+import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
+import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
+import org.apache.gluten.extension.columnar.rewrite._
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
+import org.apache.gluten.extension.columnar.validator.Validator
+import org.apache.gluten.extension.columnar.validator.Validators.ValidatorBuilderImplicits
 import org.apache.gluten.extension.injector.{Injector, SparkInjector}
 import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter}
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.datasources.WriteFilesExec
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
+import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.execution.joins.BaseJoinExec
+import org.apache.spark.sql.execution.python.EvalPythonExec
+import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 class VeloxRuleApi extends RuleApi {
   import VeloxRuleApi._
@@ -40,38 +54,54 @@ class VeloxRuleApi extends RuleApi {
   }
 }
 
-private object VeloxRuleApi {
-  def injectSpark(injector: SparkInjector): Unit = {
+object VeloxRuleApi {
+  private def injectSpark(injector: SparkInjector): Unit = {
     // Inject the regular Spark rules directly.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
   }
 
-  def injectLegacy(injector: LegacyInjector): Unit = {
+  private def injectLegacy(injector: LegacyInjector): Unit = {
     // Legacy: Pre-transform rules.
-    injector.injectTransform(_ => RemoveTransitions)
-    injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
-    injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
-    injector.injectTransform(c => FallbackMultiCodegens.apply(c.session))
-    injector.injectTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
-    injector.injectTransform(c => ArrowScanReplaceRule.apply(c.session))
+    injector.injectPreTransform(_ => RemoveTransitions)
+    injector.injectPreTransform(_ => PushDownInputFileExpression.PreOffload)
+    injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
+    injector.injectPreTransform(c => FallbackMultiCodegens.apply(c.session))
+    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
+    injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
+    injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
+    injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
 
-    // Legacy: The Legacy transform rule.
-    injector.injectTransform(_ => HeuristicTransform())
+    // Legacy: The legacy transform rule.
+    val validatorBuilder: GlutenConfig => Validator = conf =>
+      Validator
+        .builder()
+        .fallbackByHint()
+        .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
+        .fallbackComplexExpressions()
+        .fallbackByBackendSettings()
+        .fallbackByUserOptions()
+        .fallbackByTestInjects()
+        .fallbackByNativeValidation()
+        .build()
+    val rewrites =
+      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
+    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
+    injector.injectTransform(
+      c => HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads))
 
     // Legacy: Post-transform rules.
-    injector.injectTransform(c => PartialProjectRule.apply(c.session))
-    injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
-    injector.injectTransform(c => RewriteTransformer.apply(c.session))
-    injector.injectTransform(_ => PushDownFilterToScan)
-    injector.injectTransform(_ => PushDownInputFileExpression.PostOffload)
-    injector.injectTransform(_ => EnsureLocalSortRequirements)
-    injector.injectTransform(_ => EliminateLocalSort)
-    injector.injectTransform(_ => CollapseProjectExecTransformer)
-    injector.injectTransform(c => FlushableHashAggregateRule.apply(c.session))
-    injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
+    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
+    injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
+    injector.injectPostTransform(c => RewriteTransformer.apply(c.session))
+    injector.injectPostTransform(_ => PushDownFilterToScan)
+    injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
+    injector.injectPostTransform(_ => EnsureLocalSortRequirements)
+    injector.injectPostTransform(_ => EliminateLocalSort)
+    injector.injectPostTransform(_ => CollapseProjectExecTransformer)
+    injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
+    injector.injectPostTransform(c => InsertTransitions(c.outputsColumnar))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(
@@ -90,37 +120,82 @@ private object VeloxRuleApi {
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
-  def injectRas(injector: RasInjector): Unit = {
+  private def injectRas(injector: RasInjector): Unit = {
     // Gluten RAS: Pre rules.
-    injector.inject(_ => RemoveTransitions)
-    injector.inject(_ => PushDownInputFileExpression.PreOffload)
-    injector.inject(c => FallbackOnANSIMode.apply(c.session))
-    injector.inject(_ => RewriteSubqueryBroadcast())
-    injector.inject(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
-    injector.inject(c => ArrowScanReplaceRule.apply(c.session))
+    injector.injectPreTransform(_ => RemoveTransitions)
+    injector.injectPreTransform(_ => PushDownInputFileExpression.PreOffload)
+    injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
+    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
+    injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
+    injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
+    injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
 
     // Gluten RAS: The RAS rule.
-    injector.inject(c => EnumeratedTransform(c.session, c.outputsColumnar))
+    val validatorBuilder: GlutenConfig => Validator = conf =>
+      Validator
+        .builder()
+        .fallbackByHint()
+        .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
+        .fallbackComplexExpressions()
+        .fallbackByBackendSettings()
+        .fallbackByUserOptions()
+        .fallbackByTestInjects()
+        .build()
+    val rewrites =
+      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
+    injector.injectCoster(_ => LegacyCoster)
+    injector.injectCoster(_ => RoughCoster)
+    injector.injectCoster(_ => RoughCoster2)
+    injector.injectRasRule(_ => RemoveSort)
+    val offloads: Seq[RasOffload] = Seq(
+      RasOffload.from[Exchange](OffloadExchange()),
+      RasOffload.from[BaseJoinExec](OffloadJoin()),
+      RasOffload.from[FilterExec](OffloadOthers()),
+      RasOffload.from[ProjectExec](OffloadOthers()),
+      RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()),
+      RasOffload.from[DataSourceScanExec](OffloadOthers()),
+      RasOffload.from(HiveTableScanExecTransformer.isHiveTableScan(_))(OffloadOthers()),
+      RasOffload.from[CoalesceExec](OffloadOthers()),
+      RasOffload.from[HashAggregateExec](OffloadOthers()),
+      RasOffload.from[SortAggregateExec](OffloadOthers()),
+      RasOffload.from[ObjectHashAggregateExec](OffloadOthers()),
+      RasOffload.from[UnionExec](OffloadOthers()),
+      RasOffload.from[ExpandExec](OffloadOthers()),
+      RasOffload.from[WriteFilesExec](OffloadOthers()),
+      RasOffload.from[SortExec](OffloadOthers()),
+      RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()),
+      RasOffload.from[WindowExec](OffloadOthers()),
+      RasOffload.from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec(_))(OffloadOthers()),
+      RasOffload.from[LimitExec](OffloadOthers()),
+      RasOffload.from[GenerateExec](OffloadOthers()),
+      RasOffload.from[EvalPythonExec](OffloadOthers()),
+      RasOffload.from[SampleExec](OffloadOthers())
+    )
+    offloads.foreach(
+      offload =>
+        injector.injectRasRule(
+          c => RasOffload.Rule(offload, validatorBuilder(c.glutenConf), rewrites)))
 
     // Gluten RAS: Post rules.
-    injector.inject(_ => RemoveTransitions)
-    injector.inject(c => PartialProjectRule.apply(c.session))
-    injector.inject(_ => RemoveNativeWriteFilesSortAndProject())
-    injector.inject(c => RewriteTransformer.apply(c.session))
-    injector.inject(_ => PushDownFilterToScan)
-    injector.inject(_ => PushDownInputFileExpression.PostOffload)
-    injector.inject(_ => EnsureLocalSortRequirements)
-    injector.inject(_ => EliminateLocalSort)
-    injector.inject(_ => CollapseProjectExecTransformer)
-    injector.inject(c => FlushableHashAggregateRule.apply(c.session))
-    injector.inject(c => InsertTransitions(c.outputsColumnar))
-    injector.inject(c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()))
+    injector.injectPostTransform(_ => RemoveTransitions)
+    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
+    injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
+    injector.injectPostTransform(c => RewriteTransformer.apply(c.session))
+    injector.injectPostTransform(_ => PushDownFilterToScan)
+    injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
+    injector.injectPostTransform(_ => EnsureLocalSortRequirements)
+    injector.injectPostTransform(_ => EliminateLocalSort)
+    injector.injectPostTransform(_ => CollapseProjectExecTransformer)
+    injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
+    injector.injectPostTransform(c => InsertTransitions(c.outputsColumnar))
+    injector.injectPostTransform(
+      c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
-      .foreach(each => injector.inject(c => each(c.session)))
-    injector.inject(c => ColumnarCollapseTransformStages(c.glutenConf))
-    injector.inject(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.inject(c => GlutenFallbackReporter(c.glutenConf, c.session))
-    injector.inject(_ => RemoveFallbackTagRule())
+      .foreach(each => injector.injectPostTransform(c => each(c.session)))
+    injector.injectPostTransform(c => ColumnarCollapseTransformStages(c.glutenConf))
+    injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
+    injector.injectPostTransform(c => GlutenFallbackReporter(c.glutenConf, c.session))
+    injector.injectPostTransform(_ => RemoveFallbackTagRule())
   }
 }

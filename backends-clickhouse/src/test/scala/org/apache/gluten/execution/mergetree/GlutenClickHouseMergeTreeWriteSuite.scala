@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution._
 import org.apache.gluten.utils.Arm
@@ -55,7 +56,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
-      .set("spark.gluten.sql.native.writer.enabled", "true")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .setCHSettings("min_insert_block_size_rows", 100000)
       .setCHSettings("mergetree.merge_after_insert", false)
       .setCHSettings("input_format_parquet_max_block_size", 8192)
@@ -102,32 +103,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                    | select * from lineitem
                    |""".stripMargin)
 
-      val sqlStr =
-        s"""
-           |SELECT
-           |    l_returnflag,
-           |    l_linestatus,
-           |    sum(l_quantity) AS sum_qty,
-           |    sum(l_extendedprice) AS sum_base_price,
-           |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-           |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-           |    avg(l_quantity) AS avg_qty,
-           |    avg(l_extendedprice) AS avg_price,
-           |    avg(l_discount) AS avg_disc,
-           |    count(*) AS count_order
-           |FROM
-           |    lineitem_mergetree
-           |WHERE
-           |    l_shipdate <= date'1998-09-02' - interval 1 day
-           |GROUP BY
-           |    l_returnflag,
-           |    l_linestatus
-           |ORDER BY
-           |    l_returnflag,
-           |    l_linestatus;
-           |
-           |""".stripMargin
-      runTPCHQueryBySQL(1, sqlStr) {
+      runTPCHQueryBySQL(1, q1("lineitem_mergetree")) {
         df =>
           val plans = collect(df.queryExecution.executedPlan) {
             case f: FileSourceScanExecTransformer => f
@@ -213,7 +189,7 @@ class GlutenClickHouseMergeTreeWriteSuite
   }
 
   test("test mergetree insert overwrite partitioned table with small table, static") {
-    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, "false")) {
+    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite2;
                    |""".stripMargin)
@@ -573,32 +549,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_orderbykey
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_orderbykey")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -731,32 +682,8 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |  l_comment from lineitem
                  |  where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
                  |""".stripMargin)
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_partition
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
+
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_partition"), compareResult = false) {
       df =>
         val result = df.collect()
         assertResult(4)(result.length)
@@ -849,32 +776,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_bucket
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_bucket")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1055,32 +957,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_ctas1
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_ctas1")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1117,32 +994,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_ctas2
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) { _ => {} }
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_ctas2")) { _ => {} }
 
   }
 
@@ -1181,32 +1033,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_lowcard
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) { _ => {} }
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_lowcard")) { _ => {} }
     val directory = new File(s"$basePath/lineitem_mergetree_lowcard")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
@@ -1281,19 +1108,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    sum(l_extendedprice * l_discount) AS revenue
-         |FROM
-         |    lineitem_mergetree_orderbykey2
-         |WHERE
-         |    l_shipdate >= date'1994-01-01'
-         |    AND l_shipdate < date'1994-01-01' + interval 1 year
-         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-         |    AND l_quantity < 24
-         |""".stripMargin
-    runTPCHQueryBySQL(6, sqlStr) {
+    runTPCHQueryBySQL(6, q6("lineitem_mergetree_orderbykey2")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1368,18 +1183,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr = s"""
-                    |SELECT
-                    |    sum(l_extendedprice * l_discount) AS revenue
-                    |FROM
-                    |    lineitem_mergetree_orderbykey3
-                    |WHERE
-                    |    l_shipdate >= date'1994-01-01'
-                    |    AND l_shipdate < date'1994-01-01' + interval 1 year
-                    |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-                    |    AND l_quantity < 24
-                    |""".stripMargin
-    runTPCHQueryBySQL(6, sqlStr) {
+    runTPCHQueryBySQL(6, q6("lineitem_mergetree_orderbykey3")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1584,7 +1388,7 @@ class GlutenClickHouseMergeTreeWriteSuite
            |    l_linestatus;
            |
            |""".stripMargin
-      runTPCHQueryBySQL(1, sqlStr) {
+      runTPCHQueryBySQL(1, q1(tableName)) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {
             case f: FileSourceScanExecTransformer => f
@@ -1777,23 +1581,10 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    sum(l_extendedprice * l_discount) AS revenue
-         |FROM
-         |    lineitem_mergetree_pk_pruning_by_driver
-         |WHERE
-         |    l_shipdate >= date'1994-01-01'
-         |    AND l_shipdate < date'1994-01-01' + interval 1 year
-         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-         |    AND l_quantity < 24
-         |""".stripMargin
-
     Seq(("true", 2), ("false", 3)).foreach(
       conf => {
         withSQLConf(CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> conf._1) {
-          runTPCHQueryBySQL(6, sqlStr) {
+          runTPCHQueryBySQL(6, q6("lineitem_mergetree_pk_pruning_by_driver")) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {
                 case f: FileSourceScanExecTransformer => f
@@ -1817,7 +1608,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> "true",
       CHConf.prefixOf("files.per.partition.threshold") -> "10"
     ) {
-      runTPCHQueryBySQL(6, sqlStr) {
+      runTPCHQueryBySQL(6, q6("lineitem_mergetree_pk_pruning_by_driver")) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {
             case f: FileSourceScanExecTransformer => f
@@ -2044,19 +1835,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    sum(l_extendedprice * l_discount) AS revenue
-         |FROM
-         |    lineitem_mergetree_case_sensitive
-         |WHERE
-         |    l_shipdate >= date'1994-01-01'
-         |    AND l_shipdate < date'1994-01-01' + interval 1 year
-         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-         |    AND l_quantity < 24
-         |""".stripMargin
-    runTPCHQueryBySQL(6, sqlStr) { _ => }
+    runTPCHQueryBySQL(6, q6("lineitem_mergetree_case_sensitive")) { _ => }
   }
 
   test("test mergetree with partition with whitespace") {

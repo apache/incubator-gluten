@@ -18,6 +18,8 @@ package org.apache.gluten.extension.columnar.transition
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 /**
  * Convention of a query plan consists of the row data type and columnar data type it supports to
  * output.
@@ -72,22 +74,43 @@ object Convention {
   }
 
   trait BatchType extends TransitionGraph.Vertex with Serializable {
-    Transition.graph.addVertex(this)
+    private val initialized: AtomicBoolean = new AtomicBoolean(false)
 
-    final protected def fromRow(transition: Transition): Unit = {
+    final def ensureRegistered(): Unit = {
+      if (!initialized.compareAndSet(false, true)) {
+        // Already registered.
+        return
+      }
+      register()
+    }
+
+    final private def register(): Unit = {
+      Transition.graph.addVertex(this)
+      registerTransitions()
+    }
+
+    ensureRegistered()
+
+    /**
+     * User batch type could override this method to define transitions from/to this batch type by
+     * calling the subsequent protected APIs.
+     */
+    protected[this] def registerTransitions(): Unit
+
+    final protected[this] def fromRow(transition: Transition): Unit = {
       Transition.graph.addEdge(RowType.VanillaRow, this, transition)
     }
 
-    final protected def toRow(transition: Transition): Unit = {
+    final protected[this] def toRow(transition: Transition): Unit = {
       Transition.graph.addEdge(this, RowType.VanillaRow, transition)
     }
 
-    final protected def fromBatch(from: BatchType, transition: Transition): Unit = {
+    final protected[this] def fromBatch(from: BatchType, transition: Transition): Unit = {
       assert(from != this)
       Transition.graph.addEdge(from, this, transition)
     }
 
-    final protected def toBatch(to: BatchType, transition: Transition): Unit = {
+    final protected[this] def toBatch(to: BatchType, transition: Transition): Unit = {
       assert(to != this)
       Transition.graph.addEdge(this, to, transition)
     }
@@ -95,10 +118,14 @@ object Convention {
 
   object BatchType {
     // None indicates that the plan doesn't support batch-based processing.
-    final case object None extends BatchType
+    final case object None extends BatchType {
+      override protected[this] def registerTransitions(): Unit = {}
+    }
     final case object VanillaBatch extends BatchType {
-      fromRow(RowToColumnarExec.apply)
-      toRow(ColumnarToRowExec.apply)
+      override protected[this] def registerTransitions(): Unit = {
+        fromRow(RowToColumnarExec.apply)
+        toRow(ColumnarToRowExec.apply)
+      }
     }
   }
 

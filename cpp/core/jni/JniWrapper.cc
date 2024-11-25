@@ -373,8 +373,16 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     }
     saveDir = conf.at(kGlutenSaveDir);
     std::filesystem::path f{saveDir};
-    if (!std::filesystem::exists(f)) {
-      throw GlutenException("Save input path " + saveDir + " does not exists");
+    if (std::filesystem::exists(f)) {
+      if (!std::filesystem::is_directory(f)) {
+        throw GlutenException("Invalid path for " + kGlutenSaveDir + ": " + saveDir);
+      }
+    } else {
+      std::error_code ec;
+      std::filesystem::create_directory(f, ec);
+      if (ec) {
+        throw GlutenException("Failed to create directory: " + saveDir + ", error message: " + ec.message());
+      }
     }
     ctx->dumpConf(saveDir + "/conf" + fileIdentifier + ".ini");
   }
@@ -407,7 +415,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     std::shared_ptr<ArrowWriter> writer = nullptr;
     if (saveInput) {
       auto file = saveDir + "/data" + fileIdentifier + "_" + std::to_string(idx) + ".parquet";
-      writer = std::make_shared<ArrowWriter>(file);
+      writer = ctx->createArrowWriter(file);
     }
     jobject iter = env->GetObjectArrayElement(iterArr, idx);
     auto arrayIter = makeJniColumnarBatchIterator(env, iter, ctx, writer);

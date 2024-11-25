@@ -169,9 +169,12 @@ set(VELOX_SRCS
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
     operators/functions/SparkExprToSubfieldFilterParser.cc
+    operators/reader/FileReaderIterator.cc
+    operators/reader/ParquetReaderIterator.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
+    operators/writer/VeloxArrowWriter.cc
     operators/writer/VeloxParquetDataSource.cc
     shuffle/VeloxShuffleReader.cc
     shuffle/VeloxShuffleWriter.cc
@@ -227,14 +230,14 @@ set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 find_package(Folly REQUIRED CONFIG)
 
 if(ENABLE_JEMALLOC_STATS)
-  include(Findjemalloc_pic)
+  include(Findjemalloc)
   find_jemalloc()
   if(JEMALLOC_NOT_FOUND)
-    include(Buildjemalloc_pic)
+    include(Buildjemalloc)
     build_jemalloc()
   endif()
   add_definitions(-DENABLE_JEMALLOC_STATS)
-  target_link_libraries(velox PUBLIC jemalloc::libjemalloc)
+  target_link_libraries(velox PUBLIC jemalloc::jemalloc)
 endif()
 
 target_link_libraries(velox PUBLIC gluten)
@@ -265,12 +268,15 @@ if(BUILD_TESTS)
   import_library(
     facebook::velox::exec_test_lib
     ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a)
+  import_library(facebook::velox::cursor
+                 ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_cursor.a)
   target_link_libraries(
     facebook::velox::exec_test_lib
     INTERFACE facebook::velox::vector_test_lib
               facebook::velox::dwio_common_test
               facebook::velox::file_test_utils facebook::velox::temp_path)
   target_link_libraries(velox PUBLIC facebook::velox::exec_test_lib)
+  target_link_libraries(velox PUBLIC facebook::velox::cursor)
 endif()
 
 target_link_libraries(velox PUBLIC facebook::velox)

@@ -33,7 +33,11 @@ void dumpPlan(DB::QueryPlan & plan, const char * type = "clickhouse plan", bool 
 void dumpMessage(const google::protobuf::Message & message, const char * type, bool force = false, LoggerPtr = nullptr);
 
 void headBlock(const DB::Block & block, size_t count = 10);
-String printBlock(const DB::Block & block, size_t count = 10);
-
 void headColumn(const DB::ColumnPtr & column, size_t count = 10);
+std::string showString(const DB::Block & block, size_t numRows = 20, size_t truncate = 20, bool vertical = false);
+inline std::string verticalShowString(const DB::Block & block, size_t numRows = 20, size_t truncate = 20)
+{
+    return showString(block, numRows, truncate, true);
+}
+
 }

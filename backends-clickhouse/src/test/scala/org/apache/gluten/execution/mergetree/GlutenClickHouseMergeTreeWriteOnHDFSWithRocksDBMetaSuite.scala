@@ -111,32 +111,8 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
                  | select * from lineitem
                  |""".stripMargin)
     FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_hdfs
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_hdfs")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -196,32 +172,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_orderbykey_hdfs
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_orderbykey_hdfs")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -358,32 +309,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
                  |  where l_returnflag = 'A'
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_partition_hdfs
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_partition_hdfs"), compareResult = false) {
       df =>
         val result = df.collect()
         assertResult(4)(result.length)
@@ -471,32 +397,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_bucket_hdfs
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_bucket_hdfs")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -552,32 +453,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
       .option("clickhouse.storage_policy", "__hdfs_main_rocksdb")
       .save(dataPath)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
