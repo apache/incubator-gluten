@@ -22,7 +22,7 @@ macro(build_jemalloc)
   if(DEFINED ENV{GLUTEN_JEMALLOC_URL})
     set(JEMALLOC_SOURCE_URL "$ENV{GLUTEN_JEMALLOC_URL}")
   else()
-    set(JEMALLOC_BUILD_VERSION "5.2.1")
+    set(JEMALLOC_BUILD_VERSION "5.3.0")
     set(JEMALLOC_SOURCE_URL
         "https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_BUILD_VERSION}/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
         "https://github.com/ursa-labs/thirdparty/releases/download/latest/jemalloc-${JEMALLOC_BUILD_VERSION}.tar.bz2"
@@ -47,6 +47,8 @@ macro(build_jemalloc)
       # for dynamically linking. "--without-export"
       "--disable-cxx"
       "--disable-libdl"
+      # Enable heap profiling and leak detection functionality.
+      "--enable-prof"
       # For fixing an issue when loading native lib: cannot allocate memory in
       # static TLS block.
       "--disable-initial-exec-tls"
