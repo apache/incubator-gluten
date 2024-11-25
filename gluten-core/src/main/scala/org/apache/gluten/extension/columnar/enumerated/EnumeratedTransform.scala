@@ -21,8 +21,6 @@ import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
-import org.apache.gluten.extension.columnar.transition.Convention.BatchType
-import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.extension.injector.Injector
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
