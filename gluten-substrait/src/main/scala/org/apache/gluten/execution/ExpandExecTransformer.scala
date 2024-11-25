@@ -48,7 +48,9 @@ case class ExpandExecTransformer(
     AttributeSet.fromAttributeSets(projections.flatten.map(_.references))
   }
 
-  override def metricsUpdater(): MetricsUpdater = if (projections == null || projections.isEmpty) {
+  override def isLoop: Boolean = projections == null || projections.isEmpty
+
+  override def metricsUpdater(): MetricsUpdater = if (isLoop) {
     MetricsUpdater.None
   } else {
     BackendsApiManager.getMetricsApiInstance.genExpandTransformerMetricsUpdater(metrics)
@@ -115,7 +117,7 @@ case class ExpandExecTransformer(
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    if (metricsUpdater == MetricsUpdater.None) {
+    if (isLoop) {
       // The computing for this Expand is not needed.
       return childCtx
     }

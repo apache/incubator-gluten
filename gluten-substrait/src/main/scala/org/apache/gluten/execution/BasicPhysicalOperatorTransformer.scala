@@ -61,7 +61,9 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     case _ => false
   }
 
-  override def metricsUpdater(): MetricsUpdater = if (getRemainingCondition == null) {
+  override def isLoop: Boolean = getRemainingCondition == null
+
+  override def metricsUpdater(): MetricsUpdater = if (isLoop) {
     MetricsUpdater.None
   } else {
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
@@ -152,7 +154,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    if (metricsUpdater == MetricsUpdater.None) {
+    if (isLoop) {
       // The computing for this filter is not needed.
       // Since some columns' nullability will be removed after this filter, we need to update the
       // outputAttributes of child context.
