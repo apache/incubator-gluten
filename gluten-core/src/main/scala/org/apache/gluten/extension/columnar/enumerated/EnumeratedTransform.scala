@@ -21,7 +21,6 @@ import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
-import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.extension.injector.Injector
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
@@ -59,17 +58,9 @@ case class EnumeratedTransform(costModel: CostModel[SparkPlan], rules: Seq[RasRu
 
   private val reqConvention = Conv.any
 
-  private val altConventions = {
-    val rowBased: Conv = Conv.req(ConventionReq.row)
-    val backendBatchBased: Conv = Conv.req(ConventionReq.backendBatch)
-    Seq(rowBased, backendBatchBased)
-  }
-
   override def apply(plan: SparkPlan): SparkPlan = {
     val constraintSet = PropertySet(List(reqConvention))
-    val altConstraintSets =
-      altConventions.map(altConv => PropertySet(List(altConv)))
-    val planner = optimization.newPlanner(plan, constraintSet, altConstraintSets)
+    val planner = optimization.newPlanner(plan, constraintSet)
     val out = planner.plan()
     out
   }
