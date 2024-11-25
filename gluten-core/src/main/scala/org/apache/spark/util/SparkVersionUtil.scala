@@ -14,14 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
+package org.apache.spark.util
 
-import org.apache.gluten.columnarbatch.ArrowBatches
-import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Convention
+object SparkVersionUtil {
+  def majorMinorVersion(): (Int, Int) = {
+    VersionUtils.majorMinorVersion(org.apache.spark.SPARK_VERSION)
+  }
 
-trait BaseArrowScanExec extends GlutenPlan {
-  final override def batchType(): Convention.BatchType = {
-    ArrowBatches.ArrowJavaBatch
+  // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.
+  def compareMajorMinorVersion(one: (Int, Int), other: (Int, Int)): Int = {
+    val base = 1000
+    assert(one._2 < base && other._2 < base)
+    one._1 * base + one._2 - (other._1 * base + other._2)
   }
 }

@@ -18,6 +18,7 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
+import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
@@ -114,7 +115,7 @@ object CHRuleApi {
         intercept(
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
             c.session)))
-    injector.injectPostTransform(c => InsertTransitions(c.outputsColumnar))
+    injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatch))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(

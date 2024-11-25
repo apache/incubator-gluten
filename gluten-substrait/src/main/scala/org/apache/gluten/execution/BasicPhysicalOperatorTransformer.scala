@@ -263,8 +263,6 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends GlutenPlan {
     case _ =>
   }
 
-  override def supportsColumnar: Boolean = true
-
   override def output: Seq[Attribute] = {
     children.map(_.output).transpose.map {
       attrs =>

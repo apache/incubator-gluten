@@ -18,6 +18,7 @@ package org.apache.gluten.backendsapi
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -28,6 +29,10 @@ import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopF
 import org.apache.spark.sql.types.StructField
 
 trait BackendSettingsApi {
+
+  /** The columnar-batch type this backend is by default using. */
+  def primaryBatchType: Convention.BatchType
+
   def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],

@@ -121,8 +121,6 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   @transient
   private val timeout: Long = SQLConf.get.broadcastTimeout
 
-  override def supportsColumnar: Boolean = true
-
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = BroadcastPartitioning(mode)

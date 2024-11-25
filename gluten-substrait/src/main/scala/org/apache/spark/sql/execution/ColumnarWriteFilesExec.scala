@@ -19,9 +19,8 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Convention.{KnownRowType, RowType}
+import org.apache.gluten.extension.columnar.transition.Convention.RowType
 import org.apache.gluten.extension.columnar.transition.ConventionReq
-import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.TaskContext
@@ -45,18 +44,17 @@ abstract class ColumnarWriteFilesExec protected (
     override val right: SparkPlan)
   extends BinaryExecNode
   with GlutenPlan
-  with KnownChildrenConventions
-  with KnownRowType
+  with ConventionReq.KnownChildrenConventions
   with ColumnarWriteFilesExec.ExecuteWriteCompatible {
 
   val child: SparkPlan = left
 
   override lazy val references: AttributeSet = AttributeSet.empty
 
-  override def supportsColumnar: Boolean = true
-
   override def requiredChildrenConventions(): Seq[ConventionReq] = {
-    List(ConventionReq.backendBatch)
+    List(
+      ConventionReq.ofBatch(
+        ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType)))
   }
 
   /**
@@ -69,7 +67,7 @@ abstract class ColumnarWriteFilesExec protected (
    *
    * Since https://github.com/apache/incubator-gluten/pull/6745.
    */
-  override def rowType(): RowType = {
+  override def rowType0(): RowType = {
     RowType.VanillaRow
   }
 

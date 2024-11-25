@@ -24,7 +24,7 @@ import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 
@@ -34,6 +34,8 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
@@ -45,10 +47,11 @@ import java.util.Locale
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends SubstraitBackend {
+  import CHBackend._
   override def name(): String = CHConf.BACKEND_NAME
-  override def defaultBatchType: Convention.BatchType = CHBatch
   override def buildInfo(): Backend.BuildInfo =
     Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
@@ -59,7 +62,17 @@ class CHBackend extends SubstraitBackend {
   override def settings(): BackendSettingsApi = CHBackendSettings
 }
 
+object CHBackend {
+  private class ConvFunc() extends ConventionFunc.Override {
+    override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
+      case a: AdaptiveSparkPlanExec if a.supportsColumnar =>
+        CHBatch
+    }
+  }
+}
+
 object CHBackendSettings extends BackendSettingsApi with Logging {
+  override def primaryBatchType: Convention.BatchType = CHBatch
 
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
