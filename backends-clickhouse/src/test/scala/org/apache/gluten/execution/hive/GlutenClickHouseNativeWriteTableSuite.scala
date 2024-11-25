@@ -935,34 +935,42 @@ class GlutenClickHouseNativeWriteTableSuite
     )
   }
 
-  test("GLUTEN-8021/8022: fix orc read/write mismatch and parquet" +
-    "read exception when written complex column contains null") {
+  test(
+    "GLUTEN-8021/8022/8032: fix orc read/write mismatch and parquet" +
+      "read exception when written complex column contains null") {
     def table(format: String): String = s"t_8021_$format"
     def create(format: String, table_name: Option[String] = None): String =
       s"""CREATE TABLE ${table_name.getOrElse(table(format))}(
-         |uid int,
+         |id int,
          |x int,
          |y int,
          |mp map<string, string>,
          |arr array<int>,
+         |tup struct<x:int, y:int>,
          |arr_mp array<map<string, string>>,
-         |mp_arr map<string, array<int>>
+         |mp_arr map<string, array<int>>,
+         |tup_arr struct<a: array<int>>,
+         |tup_map struct<m: map<string, string>>
          |) stored as $format""".stripMargin
     def insert(format: String, table_name: Option[String] = None): String =
       s"""INSERT OVERWRITE TABLE ${table_name.getOrElse(table(format))}
          |with data_source as (
          |select
          |id,
-         |if(id % 3 = 0, null, id+1) as x,
-         |if(id % 3 = 0, null, id+2) as y
+         |if(id % 3 = 1, null, id+1) as x,
+         |if(id % 3 = 1, null, id+2) as y
          |from range(100)
          |)
          |select
          |id, x, y,
          |str_to_map(concat('x:', x, ',y:', y)) as mp,
          |if(id % 4 = 0, null, array(x, y)) as arr,
-         |if(id % 5 = 0, null, array(str_to_map(concat('x:', x, ',y:', y)))) as arr_mp,
-         |if(id % 6 = 0, null, map('x', array(x), 'y', array(y))) as mp_arr
+         |if(id % 4 = 1, null, struct(x, y)) as tup,
+         |if(id % 4 = 2, null, array(str_to_map(concat('x:', x, ',y:', y)))) as arr_mp,
+         |if(id % 4 = 3, null, map('x', array(x), 'y', array(y))) as mp_arr,
+         |if(id % 4 = 0, null, named_struct('a', array(x, y))) as tup_arr,
+         |if(id % 4 = 1, null, named_struct('m',
+         |str_to_map(concat('x:', x, ',y:', y)))) as tup_map
          |from
          |data_source;""".stripMargin
 

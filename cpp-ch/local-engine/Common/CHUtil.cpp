@@ -710,6 +710,7 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("max_parsing_threads", 1);
     settings.set("max_download_threads", 1);
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
+    settings.set("output_format_parquet_use_custom_encoder", false);
 
     /// update per https://github.com/ClickHouse/ClickHouse/pull/71539
     /// if true, we can't get correct metrics for the query

@@ -65,38 +65,76 @@ static ColumnPtr truncateNestedArrayOrMapIfNull(const ColumnPtr & column)
         auto nested = truncateNestedArrayOrMapIfNull(col_nullable->getNestedColumnPtr());
         const auto * nested_array = checkAndGetColumn<ColumnArray>(nested.get());
         const auto * nested_map = checkAndGetColumn<ColumnMap>(nested.get());
+        const auto * nested_tuple = checkAndGetColumn<ColumnTuple>(nested.get());
 
-        if (!memoryIsZero(null_map.data(), 0, null_map.size()) && (nested_array || nested_map))
+        if (!memoryIsZero(null_map.data(), 0, null_map.size()) && (nested_array || nested_map || nested_tuple))
         {
-            if (!nested_array)
-                nested_array = checkAndGetColumn<ColumnArray>(&nested_map->getNestedColumn());
-
-            const auto & offsets = nested_array->getOffsets();
-            size_t total_data_size = 0;
-            for (size_t i = 0; i < null_map.size(); ++i)
-                total_data_size += (offsets[i] - offsets[i - 1]) * (!null_map[i]);
-
-            auto new_nested_array = nested_array->cloneEmpty();
-            new_nested_array->reserve(nested_array->size());
-            auto & new_nested_array_data = assert_cast<ColumnArray &>(*new_nested_array).getData();
-            new_nested_array_data.reserve(total_data_size);
-
-            for (size_t i = 0; i < null_map.size(); ++i)
+            /// Process Nullable(Array) or Nullable(Map)
+            if (nested_array || nested_map)
             {
-                if (null_map[i])
-                    new_nested_array->insertDefault();
+                if (!nested_array)
+                    nested_array = checkAndGetColumn<ColumnArray>(&nested_map->getNestedColumn());
+
+                const auto & offsets = nested_array->getOffsets();
+                size_t total_data_size = 0;
+                for (size_t i = 0; i < null_map.size(); ++i)
+                    total_data_size += (offsets[i] - offsets[i - 1]) * (!null_map[i]);
+
+                auto new_nested_array = nested_array->cloneEmpty();
+                new_nested_array->reserve(nested_array->size());
+                auto & new_nested_array_data = assert_cast<ColumnArray &>(*new_nested_array).getData();
+                new_nested_array_data.reserve(total_data_size);
+
+                for (size_t i = 0; i < null_map.size(); ++i)
+                    if (null_map[i])
+                        new_nested_array->insertDefault();
+                    else
+                        new_nested_array->insertFrom(*nested_array, i);
+
+                if (nested_map)
+                {
+                    auto new_nested_map = ColumnMap::create(std::move(new_nested_array));
+                    return ColumnNullable::create(std::move(new_nested_map), col_nullable->getNullMapColumnPtr());
+                }
                 else
-                    new_nested_array->insertFrom(*nested_array, i);
-            }
-
-            if (nested_map)
-            {
-                auto new_nested_map = ColumnMap::create(std::move(new_nested_array));
-                return ColumnNullable::create(std::move(new_nested_map), col_nullable->getNullMapColumnPtr());
+                {
+                    return ColumnNullable::create(std::move(new_nested_array), col_nullable->getNullMapColumnPtr());
+                }
             }
             else
             {
-                return ColumnNullable::create(std::move(new_nested_array), col_nullable->getNullMapColumnPtr());
+                /// Process Nullable(Tuple)
+                const auto & nested_columns = nested_tuple->getColumns();
+                Columns new_nested_columns(nested_columns.size());
+                for (size_t i = 0; i < nested_columns.size(); ++i)
+                {
+                    const auto & nested_column = nested_columns[i];
+                    TypeIndex type_index = nested_column->getDataType();
+                    if (const auto * nullable_nested_column = checkAndGetColumn<ColumnNullable>(nested_column.get()))
+                        type_index = nullable_nested_column->getNestedColumnPtr()->getDataType();
+
+                    bool should_truncate = type_index == TypeIndex::Array || type_index == TypeIndex::Map || type_index == TypeIndex::Tuple;
+                    if (should_truncate)
+                    {
+                        auto new_nested_column = nested_column->cloneEmpty();
+                        new_nested_column->reserve(nested_column->size());
+                        for (size_t j = 0; j < null_map.size(); ++j)
+                        {
+                            if (null_map[j])
+                                new_nested_column->insertDefault();
+                            else
+                                new_nested_column->insertFrom(*nested_column, j);
+                        }
+                        new_nested_columns[i] = std::move(new_nested_column);
+                    }
+                    else
+                    {
+                        new_nested_columns[i] = nested_column;
+                    }
+                }
+
+                auto new_nested_tuple = ColumnTuple::create(std::move(new_nested_columns));
+                return ColumnNullable::create(std::move(new_nested_tuple), col_nullable->getNullMapColumnPtr());
             }
         }
         else
