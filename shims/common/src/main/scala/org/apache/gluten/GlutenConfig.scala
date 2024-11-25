@@ -1980,7 +1980,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val ENABLE_EXTENDED_COLUMN_PRUNING =
-    buildConf("spark.gluten.sql.extendedColumnPruning")
+    buildConf("spark.gluten.sql.extendedColumnPruning.enabled")
       .internal()
       .doc("Do extended nested column pruning for cases ignored by vanilla Spark.")
       .booleanConf
