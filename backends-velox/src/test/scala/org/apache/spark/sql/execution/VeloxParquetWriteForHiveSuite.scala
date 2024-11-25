@@ -27,6 +27,11 @@ import org.apache.spark.sql.hive.HiveUtils
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.sql.util.QueryExecutionListener
+import org.apache.spark.util.Utils
+
+import org.apache.hadoop.fs.Path
+import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.parquet.hadoop.util.HadoopInputFile
 
 class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
   private var _spark: SparkSession = _
@@ -183,6 +188,38 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
         checkNativeWrite("CREATE TABLE t STORED AS PARQUET AS SELECT 1 as c", checkNative = true)
       }
       checkAnswer(spark.table("t"), Row(1))
+    }
+  }
+
+  test("native writer should respect table properties") {
+    Seq(true, false).foreach {
+      enableNativeWrite =>
+        withSQLConf("spark.gluten.sql.native.writer.enabled" -> enableNativeWrite.toString) {
+          withTable("t") {
+            withSQLConf(
+              "spark.sql.hive.convertMetastoreParquet" -> "false",
+              "spark.sql.parquet.compression.codec" -> "gzip") {
+              checkNativeWrite(
+                "CREATE TABLE t STORED AS PARQUET TBLPROPERTIES ('parquet.compression'='zstd') " +
+                  "AS SELECT 1 as c",
+                checkNative = enableNativeWrite)
+              val tableDir = new Path(s"${conf.getConf(StaticSQLConf.WAREHOUSE_PATH)}/t")
+              val configuration = spark.sessionState.newHadoopConf()
+              val files = tableDir
+                .getFileSystem(configuration)
+                .listStatus(tableDir)
+                .filterNot(_.getPath.getName.startsWith("\\."))
+              assert(files.nonEmpty)
+              val in = HadoopInputFile.fromStatus(files.head, spark.sessionState.newHadoopConf())
+              Utils.tryWithResource(ParquetFileReader.open(in)) {
+                reader =>
+                  val column = reader.getFooter.getBlocks.get(0).getColumns.get(0)
+                  // native writer and vanilla spark hive writer should be consistent
+                  "zstd".equalsIgnoreCase(column.getCodec.toString)
+              }
+            }
+          }
+        }
     }
   }
 }
