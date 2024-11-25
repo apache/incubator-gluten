@@ -136,12 +136,15 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
       -Wno-nullability-completeness \
       -Wno-pessimizing-move \
       -Wno-mismatched-tags \
-      -Wno-class-memaccess \
       ${KNOWN_WARNINGS}")
   # Specific definition for an issue with boost/stacktrace when building on
   # macOS. See https://github.com/boostorg/stacktrace/issues/88 and comments
   # therein.
   add_compile_definitions(_GNU_SOURCE)
+endif()
+
+if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KNOWN_WARNINGS}")
