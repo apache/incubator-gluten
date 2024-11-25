@@ -98,6 +98,9 @@ trait TransformSupport extends GlutenPlan {
         Seq(plan.executeColumnar())
     }
   }
+
+  // When true, it will not generate relNode, nor will it generate native metrics.
+  def isNoop: Boolean = false
 }
 
 trait LeafTransformSupport extends TransformSupport with LeafExecNode {
