@@ -175,9 +175,9 @@ case class ColumnarCollapseTransformStages(
 
 case class ColumnarInputAdapter(child: SparkPlan)
   extends InputAdapterGenerateTreeStringShim
-  with Convention.KnownBatchType {
+  with GlutenPlan {
   override def output: Seq[Attribute] = child.output
-  override val supportsColumnar: Boolean = true
+  override def rowType0(): Convention.RowType = Convention.RowType.None
   override def batchType(): Convention.BatchType =
     BackendsApiManager.getSettings.primaryBatchType
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
