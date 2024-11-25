@@ -35,14 +35,20 @@ namespace local_engine
 class TemporaryWriteBufferWrapper : public DB::WriteBufferFromFileBase
 {
 public:
-    TemporaryWriteBufferWrapper(const String& file_name_, const std::shared_ptr<DB::TemporaryDataBuffer> & data_buffer_)
-        : WriteBufferFromFileBase(0, nullptr, 0), file_name(file_name_), data_buffer(data_buffer_)
-    {
-    }
-    void sync() override
-    {
-        data_buffer->nextImpl();
-    }
+    TemporaryWriteBufferWrapper(const String & file_name_, const std::shared_ptr<DB::TemporaryDataBuffer> & data_buffer_);
+
+    void sync() override { data_buffer->nextImpl(); }
+
+    void preFinalize() override;
+
+protected:
+    void finalizeImpl() override;
+    void cancelImpl() noexcept override;
+
+private:
+    void nextImpl() override;
+
+public:
     std::string getFileName() const override
     {
         return file_name;

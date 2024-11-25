@@ -28,6 +28,36 @@ bool isMetaDataFile(const std::string & path)
     return !path.ends_with("bin");
 }
 
+TemporaryWriteBufferWrapper::TemporaryWriteBufferWrapper(
+    const String & file_name_, const std::shared_ptr<DB::TemporaryDataBuffer> & data_buffer_)
+    : WriteBufferFromFileBase(data_buffer_->buffer().size(), data_buffer_->buffer().begin(), 0)
+    , file_name(file_name_)
+    , data_buffer(data_buffer_)
+{
+}
+void TemporaryWriteBufferWrapper::preFinalize()
+{
+    next();
+}
+
+void TemporaryWriteBufferWrapper::finalizeImpl()
+{
+    next();
+    data_buffer->finalizeImpl();
+}
+
+void TemporaryWriteBufferWrapper::cancelImpl() noexcept
+{
+    data_buffer->cancelImpl();
+}
+
+void TemporaryWriteBufferWrapper::nextImpl()
+{
+    data_buffer->position() = position();
+    data_buffer->next();
+    BufferBase::set(data_buffer->buffer().begin(), data_buffer->buffer().size(), data_buffer->offset());
+}
+
 void CompactObjectStorageDiskTransaction::commit()
 {
     auto metadata_tx = disk.getMetadataStorage()->createTransaction();
