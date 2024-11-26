@@ -56,9 +56,8 @@ concurrency:
 jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:vcpkg-centos-7
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -68,10 +67,17 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          df -a
-          cd $GITHUB_WORKSPACE/
-          bash dev/ci-velox-buildstatic-centos-7.sh
-          ccache -s
+          docker pull apache/gluten:vcpkg-centos-7
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            df -a
+            cd /work
+            export CCACHE_DIR=/work/.ccache
+            bash dev/ci-velox-buildstatic-centos-7.sh
+            ccache -s
+            mkdir -p /work/.m2/repository/org/apache/arrow/
+            cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
+          "
+
       - name: "Save ccache"
         uses: actions/cache/save@v3
         id: ccache
@@ -85,7 +91,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
+          path: .m2/repository/org/apache/arrow/
 
   run-tpc-test-ubuntu:
     needs: build-native-lib-centos-7
@@ -163,7 +169,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "centos:7", "centos:8" ]
+        os: [ "centos:8" ] #TODO: add centos7 tests back with docker run
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
