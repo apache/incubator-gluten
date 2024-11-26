@@ -70,7 +70,7 @@ jobs:
           df -a
           curl -L -o gluten-user.tar.gz https://github.com/${GITHUB_REPOSITORY}/archive/${GITHUB_SHA}.tar.gz
           tar xvf gluten-user.tar.gz
-          cd gluten-user-${GITHUB_SHA}
+          cd incubator-gluten-${GITHUB_SHA}
           bash dev/ci-velox-buildstatic-centos-7.sh
           ccache -s
       # - name: "Save ccache"
