@@ -14,36 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.util
 
-#pragma once
+object SparkVersionUtil {
+  def majorMinorVersion(): (Int, Int) = {
+    VersionUtils.majorMinorVersion(org.apache.spark.SPARK_VERSION)
+  }
 
-#include <parquet/arrow/writer.h>
-#include "memory/ColumnarBatch.h"
-
-namespace gluten {
-/**
- * @brief Used to print RecordBatch to a parquet file
- *
- */
-class ArrowWriter {
- public:
-  explicit ArrowWriter(const std::string& path) : path_(path) {}
-
-  virtual ~ArrowWriter() = default;
-
-  arrow::Status initWriter(arrow::Schema& schema);
-
-  arrow::Status writeInBatches(std::shared_ptr<arrow::RecordBatch> batch);
-
-  arrow::Status closeWriter();
-
-  bool closed() const;
-
-  virtual std::shared_ptr<ColumnarBatch> retrieveColumnarBatch() = 0;
-
- protected:
-  std::unique_ptr<parquet::arrow::FileWriter> writer_;
-  std::string path_;
-  bool closed_{false};
-};
-} // namespace gluten
+  // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.
+  def compareMajorMinorVersion(one: (Int, Int), other: (Int, Int)): Int = {
+    val base = 1000
+    assert(one._2 < base && other._2 < base)
+    one._1 * base + one._2 - (other._1 * base + other._2)
+  }
+}

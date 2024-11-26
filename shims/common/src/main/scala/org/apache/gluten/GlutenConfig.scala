@@ -423,9 +423,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def debug: Boolean = conf.getConf(DEBUG_ENABLED)
   def debugKeepJniWorkspace: Boolean = conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
   def collectUtStats: Boolean = conf.getConf(UT_STATISTIC)
-  def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
-  def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
-  def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
+  def benchmarkStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
+  def benchmarkPartitionId: String = conf.getConf(BENCHMARK_TASK_PARTITIONID)
+  def benchmarkTaskId: String = conf.getConf(BENCHMARK_TASK_TASK_ID)
+  def benchmarkSaveDir: String = conf.getConf(BENCHMARK_SAVE_DIR)
   def textInputMaxBlockSize: Long = conf.getConf(TEXT_INPUT_ROW_MAX_BLOCK_SIZE)
   def textIputEmptyAsDefault: Boolean = conf.getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
   def enableParquetRowGroupMaxMinIndex: Boolean =
@@ -1719,14 +1720,20 @@ object GlutenConfig {
   val BENCHMARK_TASK_PARTITIONID =
     buildConf("spark.gluten.sql.benchmark_task.partitionId")
       .internal()
-      .intConf
-      .createWithDefault(-1)
+      .stringConf
+      .createWithDefault("")
 
   val BENCHMARK_TASK_TASK_ID =
     buildConf("spark.gluten.sql.benchmark_task.taskId")
       .internal()
-      .longConf
-      .createWithDefault(-1L)
+      .stringConf
+      .createWithDefault("")
+
+  val BENCHMARK_SAVE_DIR =
+    buildConf(GLUTEN_SAVE_DIR)
+      .internal()
+      .stringConf
+      .createWithDefault("")
 
   val NATIVE_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.writer.enabled")

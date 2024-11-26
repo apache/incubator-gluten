@@ -30,8 +30,6 @@ case class ColumnarCoalesceExec(numPartitions: Int, child: SparkPlan)
   extends UnaryExecNode
   with GlutenPlan {
 
-  override def supportsColumnar: Boolean = true
-
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = {

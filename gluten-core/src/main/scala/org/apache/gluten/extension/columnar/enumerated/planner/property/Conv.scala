@@ -29,6 +29,18 @@ sealed trait Conv extends Property[SparkPlan] {
   }
 
   override def satisfies(other: Property[SparkPlan]): Boolean = {
+    // The following enforces strict type checking against `this` and `other`
+    // to make sure:
+    //
+    //  1. `this`, which came from user implementation of PropertyDef.getProperty, must be a `Prop`
+    //  2. `other` which came from user implementation of PropertyDef.getChildrenConstraints,
+    //     must be a `Req`
+    //
+    // If the user implementation doesn't follow the criteria, cast error will be thrown.
+    //
+    // This can be a common practice to implement a safe Property for RAS.
+    //
+    // TODO: Add a similar case to RAS UTs.
     val req = other.asInstanceOf[Req]
     if (req.isAny) {
       return true

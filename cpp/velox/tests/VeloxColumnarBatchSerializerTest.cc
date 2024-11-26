@@ -19,11 +19,12 @@
 
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
+
+#include <arrow/buffer.h>
 
 using namespace facebook::velox;
 

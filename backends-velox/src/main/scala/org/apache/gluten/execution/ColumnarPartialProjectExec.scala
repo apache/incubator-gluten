@@ -82,8 +82,6 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     replacedAliasUdf :: Nil
   }
 
-  final override val supportsColumnar: Boolean = true
-
   private def validateExpression(expr: Expression): Boolean = {
     expr.deterministic && !expr.isInstanceOf[LambdaFunction] && expr.children
       .forall(validateExpression)

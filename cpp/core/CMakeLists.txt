@@ -22,10 +22,7 @@ include(FindPkgConfig)
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
-# Only set arch=native for non-AppleClang compilers.
-if(NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-endif()
+message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
@@ -98,11 +95,6 @@ set(GLUTEN_PROTO_OUTPUT_FILES ${GLUTEN_PROTO_HDRS} ${GLUTEN_PROTO_SRCS})
 set_source_files_properties(${GLUTEN_PROTO_OUTPUT_FILES} PROPERTIES GENERATED
                                                                     TRUE)
 get_filename_component(GLUTEN_PROTO_DIR ${GLUTEN_PROTO_SRC_DIR}/ DIRECTORY)
-
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
-
-message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 set(SPARK_COLUMNAR_PLUGIN_SRCS
     ${SUBSTRAIT_PROTO_SRCS}

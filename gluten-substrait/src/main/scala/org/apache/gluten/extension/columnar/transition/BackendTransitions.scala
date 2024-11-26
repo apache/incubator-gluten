@@ -14,36 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.extension.columnar.transition
 
-#pragma once
+import org.apache.gluten.backendsapi.BackendsApiManager
 
-#include <parquet/arrow/writer.h>
-#include "memory/ColumnarBatch.h"
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
-namespace gluten {
-/**
- * @brief Used to print RecordBatch to a parquet file
- *
- */
-class ArrowWriter {
- public:
-  explicit ArrowWriter(const std::string& path) : path_(path) {}
+case class InsertBackendTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
+  def apply(plan: SparkPlan): SparkPlan = {
+    InsertTransitions
+      .create(outputsColumnar, BackendsApiManager.getSettings.primaryBatchType)
+      .apply(plan)
+  }
+}
 
-  virtual ~ArrowWriter() = default;
-
-  arrow::Status initWriter(arrow::Schema& schema);
-
-  arrow::Status writeInBatches(std::shared_ptr<arrow::RecordBatch> batch);
-
-  arrow::Status closeWriter();
-
-  bool closed() const;
-
-  virtual std::shared_ptr<ColumnarBatch> retrieveColumnarBatch() = 0;
-
- protected:
-  std::unique_ptr<parquet::arrow::FileWriter> writer_;
-  std::string path_;
-  bool closed_{false};
-};
-} // namespace gluten
+object BackendTransitions {
+  def insert(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
+    InsertBackendTransitions(outputsColumnar)(plan)
+  }
+}

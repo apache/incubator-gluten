@@ -43,7 +43,6 @@ case class TakeOrderedAndProjectExecTransformer(
   with GlutenPlan {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
-  override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
     projectList.map(_.toAttribute)

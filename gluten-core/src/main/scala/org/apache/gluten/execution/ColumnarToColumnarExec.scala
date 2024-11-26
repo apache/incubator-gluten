@@ -17,8 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
-import org.apache.gluten.extension.columnar.transition.Convention.KnownBatchType
-import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
 import org.apache.gluten.iterator.Iterators
 
 import org.apache.spark.rdd.RDD
@@ -32,8 +30,9 @@ import java.util.concurrent.atomic.AtomicLong
 
 abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention.BatchType)
   extends ColumnarToColumnarTransition
-  with KnownBatchType
-  with KnownChildrenConventions {
+  with Convention.KnownBatchType
+  with Convention.KnownRowTypeForSpark33AndLater
+  with ConventionReq.KnownChildrenConventions {
 
   def child: SparkPlan
   protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch]
@@ -47,8 +46,20 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
       "selfTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert batches")
     )
 
-  override def supportsColumnar: Boolean = true
+  final override val supportsColumnar: Boolean = {
+    batchType() != Convention.BatchType.None
+  }
+
   override def batchType(): Convention.BatchType = to
+
+  final override val supportsRowBased: Boolean = {
+    rowType() != Convention.RowType.None
+  }
+
+  override def rowType0(): Convention.RowType = {
+    Convention.RowType.None
+  }
+
   override def requiredChildrenConventions(): Seq[ConventionReq] = List(
     ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(from)))
 

@@ -16,24 +16,22 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backend.Backend
+import org.apache.gluten.extension.columnar.transition.Convention.BatchType
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.annotation.tailrec
 
-case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
+case class InsertTransitions(convReq: ConventionReq) extends Rule[SparkPlan] {
   private val convFunc = ConventionFunc.create()
 
   override def apply(plan: SparkPlan): SparkPlan = {
     // Remove all transitions at first.
     val removed = RemoveTransitions.apply(plan)
     val filled = fillWithTransitions(removed)
-    if (!outputsColumnar) {
-      return Transitions.toRowPlan(filled)
-    }
-    Transitions.toBackendBatchPlan(filled)
+    val out = Transitions.enforceReq(filled, convReq)
+    out
   }
 
   private def fillWithTransitions(plan: SparkPlan): SparkPlan = plan.transformUp {
@@ -63,6 +61,17 @@ case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
   }
 }
 
+object InsertTransitions {
+  def create(outputsColumnar: Boolean, batchType: BatchType): InsertTransitions = {
+    val conventionReq = if (outputsColumnar) {
+      ConventionReq.ofBatch(ConventionReq.BatchType.Is(batchType))
+    } else {
+      ConventionReq.row
+    }
+    InsertTransitions(conventionReq)
+  }
+}
+
 object RemoveTransitions extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformDown { case p => removeForNode(p) }
 
@@ -76,8 +85,8 @@ object RemoveTransitions extends Rule[SparkPlan] {
 }
 
 object Transitions {
-  def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    InsertTransitions(outputsColumnar).apply(plan)
+  def insert(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
+    InsertTransitions.create(outputsColumnar, BatchType.VanillaBatch).apply(plan)
   }
 
   def toRowPlan(plan: SparkPlan): SparkPlan = {
@@ -88,24 +97,13 @@ object Transitions {
         ConventionReq.BatchType.Any))
   }
 
-  def toBackendBatchPlan(plan: SparkPlan): SparkPlan = {
-    val backendBatchType = Backend.get().defaultBatchType
-    val out = toBatchPlan(plan, backendBatchType)
-    out
-  }
-
-  def toVanillaBatchPlan(plan: SparkPlan): SparkPlan = {
-    val out = toBatchPlan(plan, Convention.BatchType.VanillaBatch)
-    out
-  }
-
-  private def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {
+  def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {
     enforceReq(
       plan,
       ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)))
   }
 
-  private def enforceReq(plan: SparkPlan, req: ConventionReq): SparkPlan = {
+  def enforceReq(plan: SparkPlan, req: ConventionReq): SparkPlan = {
     val convFunc = ConventionFunc.create()
     val removed = RemoveTransitions.removeForNode(plan)
     val transition = Transition

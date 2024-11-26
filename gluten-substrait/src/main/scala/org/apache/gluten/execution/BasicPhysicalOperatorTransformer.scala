@@ -61,8 +61,13 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     case _ => false
   }
 
-  override def metricsUpdater(): MetricsUpdater =
+  override def isNoop: Boolean = getRemainingCondition == null
+
+  override def metricsUpdater(): MetricsUpdater = if (isNoop) {
+    MetricsUpdater.None
+  } else {
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
+  }
 
   def getRelNode(
       context: SubstraitContext,
@@ -149,15 +154,15 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val remainingCondition = getRemainingCondition
-    val operatorId = context.nextOperatorId(this.nodeName)
-    if (remainingCondition == null) {
+    if (isNoop) {
       // The computing for this filter is not needed.
-      context.registerEmptyRelToOperator(operatorId)
       // Since some columns' nullability will be removed after this filter, we need to update the
       // outputAttributes of child context.
       return TransformContext(output, childCtx.root)
     }
+
+    val operatorId = context.nextOperatorId(this.nodeName)
+    val remainingCondition = getRemainingCondition
     val currRel = getRelNode(
       context,
       remainingCondition,
@@ -262,8 +267,6 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends GlutenPlan {
       w.setOutputSchemaForPlan(output)
     case _ =>
   }
-
-  override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
     children.map(_.output).transpose.map {

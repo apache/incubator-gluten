@@ -60,8 +60,6 @@ trait TransformSupport extends GlutenPlan {
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
-  final override lazy val supportsColumnar: Boolean = true
-
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
    *
@@ -100,6 +98,9 @@ trait TransformSupport extends GlutenPlan {
         Seq(plan.executeColumnar())
     }
   }
+
+  // When true, it will not generate relNode, nor will it generate native metrics.
+  def isNoop: Boolean = false
 }
 
 trait LeafTransformSupport extends TransformSupport with LeafExecNode {

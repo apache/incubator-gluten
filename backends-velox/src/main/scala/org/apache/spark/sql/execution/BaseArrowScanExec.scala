@@ -21,8 +21,7 @@ import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.Convention
 
 trait BaseArrowScanExec extends GlutenPlan {
-
-  final override protected def batchType0(): Convention.BatchType = {
+  final override def batchType(): Convention.BatchType = {
     ArrowBatches.ArrowJavaBatch
   }
 }

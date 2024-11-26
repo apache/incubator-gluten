@@ -14,43 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
-#include <arrow/io/api.h>
-#include <arrow/record_batch.h>
-#include <arrow/util/range.h>
-
-#include "BenchmarkUtils.h"
 #include "compute/ResultIterator.h"
-#include "memory/ColumnarBatch.h"
 #include "memory/ColumnarBatchIterator.h"
+#include "velox/common/memory/MemoryPool.h"
 
 namespace gluten {
-
-static const std::string kOrcSuffix = ".orc";
-static const std::string kParquetSuffix = ".parquet";
-
 enum FileReaderType { kBuffered, kStream, kNone };
 
 class FileReaderIterator : public ColumnarBatchIterator {
  public:
-  explicit FileReaderIterator(const std::string& path) : path_(path) {}
+  static std::shared_ptr<gluten::ResultIterator> getInputIteratorFromFileReader(
+      FileReaderType readerType,
+      const std::string& path,
+      int64_t batchSize,
+      facebook::velox::memory::MemoryPool* pool);
+
+  explicit FileReaderIterator(const std::string& path);
 
   virtual ~FileReaderIterator() = default;
 
   virtual std::shared_ptr<arrow::Schema> getSchema() = 0;
 
-  int64_t getCollectBatchTime() const {
-    return collectBatchTime_;
-  }
+  int64_t getCollectBatchTime() const;
 
  protected:
   int64_t collectBatchTime_ = 0;
   std::string path_;
 };
-
-std::shared_ptr<gluten::ResultIterator> getInputIteratorFromFileReader(
-    const std::string& path,
-    FileReaderType readerType);
 
 } // namespace gluten
