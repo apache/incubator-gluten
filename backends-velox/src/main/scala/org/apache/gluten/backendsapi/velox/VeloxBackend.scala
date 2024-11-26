@@ -45,8 +45,9 @@ import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, Pa
 import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+import org.apache.spark.util.SerializableConfiguration
 
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import scala.util.control.Breaks.breakable
 
@@ -97,15 +98,36 @@ object VeloxBackendSettings extends BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       rootPaths: Seq[String],
-      properties: Map[String, String]): ValidationResult = {
+      properties: Map[String, String],
+      serializableHadoopConf: Option[SerializableConfiguration] = None): ValidationResult = {
 
     def validateScheme(): Option[String] = {
       val filteredRootPaths = distinctRootPaths(rootPaths)
-      if (
-        filteredRootPaths.nonEmpty && !VeloxFileSystemValidationJniWrapper
-          .allSupportedByRegisteredFileSystems(filteredRootPaths.toArray)
-      ) {
-        Some(s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
+      if (filteredRootPaths.nonEmpty) {
+        val resolvedPaths =
+          if (
+            GlutenConfig.getConf.enableHdfsViewfs && filteredRootPaths.head.startsWith("viewfs")
+          ) {
+            // Convert the viewfs path to hdfs path.
+            filteredRootPaths.map {
+              viewfsPath =>
+                val viewPath = new Path(viewfsPath)
+                val viewFileSystem =
+                  FileSystem.get(viewPath.toUri, serializableHadoopConf.get.value)
+                viewFileSystem.resolvePath(viewPath).toString
+            }
+          } else {
+            filteredRootPaths
+          }
+
+        if (
+          !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
+            resolvedPaths.toArray)
+        ) {
+          Some(s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
+        } else {
+          None
+        }
       } else {
         None
       }

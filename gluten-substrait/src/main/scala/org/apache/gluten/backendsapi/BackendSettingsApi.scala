@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.util.SerializableConfiguration
 
 trait BackendSettingsApi {
 
@@ -37,7 +38,9 @@ trait BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       rootPaths: Seq[String],
-      properties: Map[String, String]): ValidationResult = ValidationResult.succeeded
+      properties: Map[String, String],
+      serializableHadoopConf: Option[SerializableConfiguration] = None): ValidationResult =
+    ValidationResult.succeeded
 
   def supportWriteFilesExec(
       format: FileFormat,
