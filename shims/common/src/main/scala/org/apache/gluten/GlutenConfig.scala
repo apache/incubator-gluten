@@ -1591,6 +1591,20 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("100G")
 
+  val COLUMNAR_VELOX_MAX_SPILL_READ_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillReadBufferSize")
+      .internal()
+      .doc("The maximum read buffer size for one file")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1M")
+
+  val COLUMNAR_VELOX_MAX_SPILL_WRITE_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillWriteBufferSize")
+      .internal()
+      .doc("The maximum write buffer size")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1M")
+
   val MAX_PARTITION_PER_WRITERS_SESSION =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession")
       .internal()
