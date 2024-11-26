@@ -54,10 +54,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fetch-latest-cache-code:
+  fetch-latest-code:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
+
+  build-native-lib-centos-7:
+    needs: fetch-latest-code
+    runs-on: ubuntu-20.04
+    container: apache/gluten:vcpkg-centos-7
+    steps:
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -65,15 +71,6 @@ jobs:
           key: ccache-centos7-release-default-${{github.sha}}
           restore-keys: |
             ccache-centos7-release-default
-
-  build-native-lib-centos-7:
-    needs: fetch-latest-cache-code
-    runs-on: ubuntu-20.04
-    container: 
-      image: apache/gluten:vcpkg-centos-7
-      volumes:
-        - ${{ github.workspace }}/.ccache:/root/.ccache
-    steps:
       - name: Build Gluten native libraries
         run: |
           df -a
