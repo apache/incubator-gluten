@@ -1589,7 +1589,7 @@ object GlutenConfig {
       .internal()
       .doc("The maximum write buffer size")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("4M")
+      .createWithDefaultString("1M")
 
   val MAX_PARTITION_PER_WRITERS_SESSION =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession")
