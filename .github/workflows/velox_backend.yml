@@ -77,7 +77,7 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
-          cd $GITHUB_WORKSPACE/
+          cd /__w/incubator-gluten/incubator-gluten
           bash dev/ci-velox-buildstatic-centos-7.sh
           ccache -s
       - name: "Save ccache"
