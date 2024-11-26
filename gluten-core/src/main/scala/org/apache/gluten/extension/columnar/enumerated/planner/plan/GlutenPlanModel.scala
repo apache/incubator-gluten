@@ -19,7 +19,6 @@ package org.apache.gluten.extension.columnar.enumerated.planner.plan
 import org.apache.gluten.extension.columnar.enumerated.planner.metadata.GlutenMetadata
 import org.apache.gluten.extension.columnar.enumerated.planner.property.{Conv, ConvDef}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
-import org.apache.gluten.extension.columnar.transition.Convention.{KnownBatchType, KnownRowType}
 import org.apache.gluten.ras.{Metadata, PlanModel}
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -43,16 +42,12 @@ object GlutenPlanModel {
       metadata: GlutenMetadata,
       constraintSet: PropertySet[SparkPlan])
     extends LeafExecNode
-    with KnownBatchType
-    with KnownRowType {
+    with Convention.KnownBatchType
+    with Convention.KnownRowTypeForSpark33AndLater {
     private val req: Conv.Req = constraintSet.get(ConvDef).asInstanceOf[Conv.Req]
 
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
-
-    override def supportsColumnar: Boolean = {
-      batchType != Convention.BatchType.None
-    }
 
     override val batchType: Convention.BatchType = {
       val out = req.req.requiredBatchType match {
@@ -62,12 +57,20 @@ object GlutenPlanModel {
       out
     }
 
-    override val rowType: Convention.RowType = {
+    final override val supportsColumnar: Boolean = {
+      batchType != Convention.BatchType.None
+    }
+
+    override val rowType0: Convention.RowType = {
       val out = req.req.requiredRowType match {
         case ConventionReq.RowType.Any => Convention.RowType.None
         case ConventionReq.RowType.Is(r) => r
       }
       out
+    }
+
+    final override val supportsRowBased: Boolean = {
+      rowType() != Convention.RowType.None
     }
   }
 

@@ -32,7 +32,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Trivial C2R") {
     val in = BatchLeaf(TypeA)
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(out == BatchToRow(TypeA, BatchLeaf(TypeA)))
   }
@@ -40,7 +40,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Insert C2R") {
     val in = RowUnary(BatchLeaf(TypeA))
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(out == RowUnary(BatchToRow(TypeA, BatchLeaf(TypeA))))
   }
@@ -48,7 +48,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Insert R2C") {
     val in = BatchUnary(TypeA, RowLeaf())
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(out == BatchToRow(TypeA, BatchUnary(TypeA, RowToBatch(TypeA, RowLeaf()))))
   }
@@ -56,7 +56,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Insert C2R2C") {
     val in = BatchUnary(TypeA, BatchLeaf(TypeB))
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(
       out == BatchToRow(
@@ -67,7 +67,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Insert C2C") {
     val in = BatchUnary(TypeA, BatchLeaf(TypeC))
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(
       out == BatchToRow(
@@ -79,7 +79,7 @@ class TransitionSuite extends SharedSparkSession {
     val in = BatchUnary(TypeA, BatchLeaf(TypeD))
     assertThrows[GlutenException] {
       ConventionFunc.ignoreBackend {
-        Transitions.insertTransitions(in, outputsColumnar = false)
+        Transitions.insert(in, outputsColumnar = false)
       }
     }
   }
@@ -116,8 +116,7 @@ object TransitionSuite extends TransitionSuiteBase {
   case class RowToBatch(toBatchType: Convention.BatchType, override val child: SparkPlan)
     extends RowToColumnarTransition
     with GlutenPlan {
-    override def supportsColumnar: Boolean = true
-    override protected def batchType0(): Convention.BatchType = toBatchType
+    override def batchType(): Convention.BatchType = toBatchType
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
     override protected def doExecute(): RDD[InternalRow] =

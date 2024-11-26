@@ -41,7 +41,7 @@ object Iterators {
   }
 
   def wrap[A](in: Iterator[A]): WrapperBuilder[A] = {
-    wrap(V1, in)
+    wrap(DEFAULT_VERSION, in)
   }
 
   def wrap[A](version: Version, in: Iterator[A]): WrapperBuilder[A] = {

@@ -21,7 +21,7 @@ import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildr
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan, UnionExec}
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
+import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
@@ -89,17 +89,6 @@ object ConventionFunc {
         }
       case q: QueryStageExec => conventionOf0(q.plan)
       case r: ReusedExchangeExec => conventionOf0(r.child)
-      case a: AdaptiveSparkPlanExec =>
-        val rowType = rowTypeOf(a)
-        val batchType = if (a.supportsColumnar) {
-          // By default, we execute columnar AQE with backend batch output.
-          // See org.apache.gluten.extension.columnar.transition.InsertTransitions.apply
-          Backend.get().defaultBatchType
-        } else {
-          Convention.BatchType.None
-        }
-        val conv = Convention.of(rowType, batchType)
-        conv
       case other =>
         val conv = Convention.of(rowTypeOf(other), batchTypeOf(other))
         conv
@@ -119,10 +108,22 @@ object ConventionFunc {
         case _ =>
           Convention.RowType.None
       }
-      assert(
-        out == Convention.RowType.None || plan.isInstanceOf[Convention.KnownRowType] ||
-          SparkShimLoader.getSparkShims.supportsRowBased(plan))
+      checkRowType(plan, out)
       out
+    }
+
+    private def checkRowType(plan: SparkPlan, rowType: Convention.RowType): Unit = {
+      if (SparkShimLoader.getSparkShims.supportsRowBased(plan)) {
+        assert(
+          rowType != Convention.RowType.None,
+          s"Plan ${plan.nodeName} supports row-based execution, " +
+            s"however #rowTypeOf returns None")
+      } else {
+        assert(
+          rowType == Convention.RowType.None,
+          s"Plan ${plan.nodeName} doesn't support row-based " +
+            s"execution, however #rowTypeOf returns $rowType")
+      }
     }
 
     private def batchTypeOf(plan: SparkPlan): Convention.BatchType = {
@@ -139,8 +140,22 @@ object ConventionFunc {
         case _ =>
           Convention.BatchType.None
       }
-      assert(out == Convention.BatchType.None || plan.supportsColumnar)
+      checkBatchType(plan, out)
       out
+    }
+
+    private def checkBatchType(plan: SparkPlan, batchType: Convention.BatchType): Unit = {
+      if (plan.supportsColumnar) {
+        assert(
+          batchType != Convention.BatchType.None,
+          s"Plan ${plan.nodeName} supports columnar " +
+            s"execution, however #batchTypeOf returns None")
+      } else {
+        assert(
+          batchType == Convention.BatchType.None,
+          s"Plan ${plan.nodeName} doesn't support " +
+            s"columnar execution, however #batchTypeOf returns $batchType")
+      }
     }
 
     override def conventionReqOf(plan: SparkPlan): ConventionReq = {
@@ -169,14 +184,15 @@ object ConventionFunc {
         // To align with ApplyColumnarRulesAndInsertTransitions#insertTransitions
         ConventionReq.any
       case u: UnionExec =>
-        // We force vanilla union to output row data to get best compatibility with vanilla Spark.
+        // We force vanilla union to output row data to get the best compatibility with vanilla
+        // Spark.
         // As a result it's a common practice to rewrite it with GlutenPlan for offloading.
         ConventionReq.of(
           ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
           ConventionReq.BatchType.Any)
       case other =>
         // In the normal case, children's convention should follow parent node's convention.
-        // Note, we don't have consider C2R / R2C here since they are already removed by
+        // Note, we don't have to consider C2R / R2C here since they are already removed by
         // RemoveTransitions.
         val thisConv = conventionOf0(other)
         thisConv.asReq()

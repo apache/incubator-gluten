@@ -14,14 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
+package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.columnarbatch.ArrowBatches
-import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.backendsapi.BackendsApiManager
 
-trait BaseArrowScanExec extends GlutenPlan {
-  final override def batchType(): Convention.BatchType = {
-    ArrowBatches.ArrowJavaBatch
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
+
+case class InsertBackendTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
+  def apply(plan: SparkPlan): SparkPlan = {
+    InsertTransitions
+      .create(outputsColumnar, BackendsApiManager.getSettings.primaryBatchType)
+      .apply(plan)
+  }
+}
+
+object BackendTransitions {
+  def insert(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
+    InsertBackendTransitions(outputsColumnar)(plan)
   }
 }

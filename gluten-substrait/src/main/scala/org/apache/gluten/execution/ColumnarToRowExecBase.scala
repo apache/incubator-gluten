@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.ConventionReq
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
 
 import org.apache.spark.broadcast.Broadcast
@@ -43,6 +43,10 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
 
   final override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
+  override def batchType(): Convention.BatchType = Convention.BatchType.None
+
+  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRow
+
   override def doExecuteBroadcast[T](): Broadcast[T] = {
     // Require for explicit implementation, otherwise throw error.
     super.doExecuteBroadcast[T]()
@@ -55,7 +59,8 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
   }
 
   override def requiredChildrenConventions(): Seq[ConventionReq] = {
-    List(ConventionReq.backendBatch)
+    List(
+      ConventionReq.ofBatch(
+        ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType)))
   }
-
 }
