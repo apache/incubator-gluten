@@ -57,6 +57,7 @@ jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
     steps:
+      - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
