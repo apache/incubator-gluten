@@ -291,7 +291,7 @@ jobs:
           path: /root/.m2/repository/org/apache/arrow/
       - name: Build and run TPCH/DS tests
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:centos-7 \
+          docker run -v $GITHUB_WORKSPACE:/work -v /root/.m2:/root/.m2/ -w /work apache/gluten:centos-7 \
           -e matrix.java=${{ matrix.java }} -e matrix.spark=${{ matrix.spark }} \
           -e MVN_CMD=$MVN_CMD -e SETUP=$SETUP -e GITHUB_WORKSPACE=/work \
           bash -c "
