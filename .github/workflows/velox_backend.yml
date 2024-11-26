@@ -43,7 +43,7 @@ on:
       - 'dev/**'
 
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: false
   MVN_CMD: 'mvn -ntp'
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'

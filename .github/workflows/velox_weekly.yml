@@ -23,7 +23,7 @@ on:
     - cron: '0 20 * * 0'
 
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: false
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
