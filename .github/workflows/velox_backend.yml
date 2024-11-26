@@ -278,9 +278,11 @@ jobs:
           path: .m2/repository/org/apache/arrow/
       - name: Build and run TPCH/DS tests
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -v /$GITHUB_WORKSPACE/.m2:/root/.m2/ -w /work centos:7 \
+          docker pull centos:7
+          docker run -v $GITHUB_WORKSPACE:/work -v /$GITHUB_WORKSPACE/.m2:/root/.m2/ -w /work \
           -e matrix.java=${{ matrix.java }} -e matrix.spark=${{ matrix.spark }} \
           -e MVN_CMD=$MVN_CMD -e SETUP=$SETUP -e GITHUB_WORKSPACE=/work \
+          centos:7 \
           bash -c "
             sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
             sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
