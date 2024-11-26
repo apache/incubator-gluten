@@ -321,6 +321,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxMaxWriteBufferSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_WRITE_BUFFER_SIZE)
 
+  def veloxMaxReadBufferSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_READ_BUFFER_SIZE)
+
   def veloxBloomFilterExpectedNumItems: Long =
     conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS)
 
@@ -1587,7 +1589,14 @@ object GlutenConfig {
   val COLUMNAR_VELOX_MAX_SPILL_WRITE_BUFFER_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillWriteBufferSize")
       .internal()
-      .doc("The maximum write buffer size")
+      .doc("The maximum write buffer size during spilling")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1M")
+
+  val COLUMNAR_VELOX_MAX_SPILL_READ_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillReadBufferSize")
+      .internal()
+      .doc("The maximum read buffer size during merging spill files")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1M")
 
