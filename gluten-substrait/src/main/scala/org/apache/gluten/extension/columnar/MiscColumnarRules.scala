@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, Transitions}
 import org.apache.gluten.utils.PlanUtil
 
@@ -106,7 +107,8 @@ object MiscColumnarRules {
 
     private def toColumnarBroadcastExchange(
         exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
-      val newChild = Transitions.toBackendBatchPlan(exchange.child)
+      val newChild =
+        Transitions.toBatchPlan(exchange.child, BackendsApiManager.getSettings.primaryBatchType)
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 

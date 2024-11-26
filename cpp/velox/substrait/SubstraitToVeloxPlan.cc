@@ -493,13 +493,43 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
+std::string makeUuid() {
+  return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
+}
+
+std::string compressionFileNameSuffix(common::CompressionKind kind) {
+  switch (static_cast<int32_t>(kind)) {
+    case common::CompressionKind_ZLIB:
+      return ".zlib";
+    case common::CompressionKind_SNAPPY:
+      return ".snappy";
+    case common::CompressionKind_LZO:
+      return ".lzo";
+    case common::CompressionKind_ZSTD:
+      return ".zstd";
+    case common::CompressionKind_LZ4:
+      return ".lz4";
+    case common::CompressionKind_GZIP:
+      return ".gz";
+    case common::CompressionKind_NONE:
+    default:
+      return "";
+  }
+}
+
 std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
     const std::string& targetDirectory,
+    dwio::common::FileFormat fileFormat,
+    common::CompressionKind compression,
     const std::optional<std::string>& writeDirectory = std::nullopt,
     const connector::hive::LocationHandle::TableType& tableType =
         connector::hive::LocationHandle::TableType::kExisting) {
+  std::string targetFileName = "";
+  if (fileFormat == dwio::common::FileFormat::PARQUET) {
+    targetFileName = fmt::format("gluten-part-{}{}{}", makeUuid(), compressionFileNameSuffix(compression), ".parquet");
+  }
   return std::make_shared<connector::hive::LocationHandle>(
-      targetDirectory, writeDirectory.value_or(targetDirectory), tableType);
+      targetDirectory, writeDirectory.value_or(targetDirectory), tableType, targetFileName);
 }
 
 std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandle(
@@ -615,6 +645,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Do not hard-code connector ID and allow for connectors other than Hive.
   static const std::string kHiveConnectorId = "test-hive";
+  // Currently only support parquet format.
+  dwio::common::FileFormat fileFormat = dwio::common::FileFormat::PARQUET;
 
   return std::make_shared<core::TableWriteNode>(
       nextPlanNodeId(),
@@ -628,8 +660,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               inputType->children(),
               partitionedKey,
               nullptr /*bucketProperty*/,
-              makeLocationHandle(writePath),
-              dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
+              makeLocationHandle(writePath, fileFormat, compressionCodec),
+              fileFormat,
               compressionCodec)),
       (!partitionedKey.empty()),
       exec::TableWriteTraits::outputType(nullptr),

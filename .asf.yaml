@@ -27,6 +27,9 @@ github:
     - spark-sql
     - vectorization
     - velox
+  collaborators:
+    - majetideepak
+    - pedroerp
   enabled_merge_buttons:
     squash: true
     merge: false

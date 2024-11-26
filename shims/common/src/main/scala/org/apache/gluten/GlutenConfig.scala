@@ -50,11 +50,16 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
 
+  def enableColumnarHiveTableScanNestedColumnPruning: Boolean =
+    conf.getConf(COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED)
+
   def enableVanillaVectorizedReaders: Boolean = conf.getConf(VANILLA_VECTORIZED_READERS_ENABLED)
 
   def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
 
   def forceToUseHashAgg: Boolean = conf.getConf(COLUMNAR_FORCE_HASHAGG_ENABLED)
+
+  def mergeTwoPhasesAggEnabled: Boolean = conf.getConf(MERGE_TWO_PHASES_ENABLED)
 
   def enableColumnarProject: Boolean = conf.getConf(COLUMNAR_PROJECT_ENABLED)
 
@@ -418,9 +423,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def debug: Boolean = conf.getConf(DEBUG_ENABLED)
   def debugKeepJniWorkspace: Boolean = conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
   def collectUtStats: Boolean = conf.getConf(UT_STATISTIC)
-  def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
-  def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
-  def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
+  def benchmarkStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
+  def benchmarkPartitionId: String = conf.getConf(BENCHMARK_TASK_PARTITIONID)
+  def benchmarkTaskId: String = conf.getConf(BENCHMARK_TASK_TASK_ID)
+  def benchmarkSaveDir: String = conf.getConf(BENCHMARK_SAVE_DIR)
   def textInputMaxBlockSize: Long = conf.getConf(TEXT_INPUT_ROW_MAX_BLOCK_SIZE)
   def textIputEmptyAsDefault: Boolean = conf.getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
   def enableParquetRowGroupMaxMinIndex: Boolean =
@@ -475,6 +481,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
+
+  def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
 }
 
 object GlutenConfig {
@@ -866,6 +874,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED =
+    buildConf("spark.gluten.sql.columnar.enableNestedColumnPruningInHiveTableScan")
+      .internal()
+      .doc("Enable or disable nested column pruning in hivetablescan.")
+      .booleanConf
+      .createWithDefault(true)
+
   val VANILLA_VECTORIZED_READERS_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
       .internal()
@@ -884,6 +899,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.force.hashagg")
       .internal()
       .doc("Whether to force to use gluten's hash agg for replacing vanilla spark's sort agg.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val MERGE_TWO_PHASES_ENABLED =
+    buildConf("spark.gluten.sql.mergeTwoPhasesAggregate.enabled")
+      .internal()
+      .doc("Whether to merge two phases aggregate if there are no other operators between them.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1432,6 +1454,13 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8MB")
 
+  val COLUMNAR_VELOX_MEM_RECLAIM_MAX_WAIT_MS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.reclaimMaxWaitMs")
+      .internal()
+      .doc("The max time in ms to wait for memory reclaim.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefault(TimeUnit.MINUTES.toMillis(60))
+
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
       .internal()
@@ -1692,14 +1721,20 @@ object GlutenConfig {
   val BENCHMARK_TASK_PARTITIONID =
     buildConf("spark.gluten.sql.benchmark_task.partitionId")
       .internal()
-      .intConf
-      .createWithDefault(-1)
+      .stringConf
+      .createWithDefault("")
 
   val BENCHMARK_TASK_TASK_ID =
     buildConf("spark.gluten.sql.benchmark_task.taskId")
       .internal()
-      .longConf
-      .createWithDefault(-1L)
+      .stringConf
+      .createWithDefault("")
+
+  val BENCHMARK_SAVE_DIR =
+    buildConf(GLUTEN_SAVE_DIR)
+      .internal()
+      .stringConf
+      .createWithDefault("")
 
   val NATIVE_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.writer.enabled")
@@ -2182,6 +2217,13 @@ object GlutenConfig {
         "If true, will add a trim node " +
           "which has the same sementic as vanilla Spark to CAST-from-varchar." +
           "Otherwise, do nothing.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val HDFS_VIEWFS_ENABLED =
+    buildStaticConf("spark.gluten.storage.hdfsViewfs.enabled")
+      .internal()
+      .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala side")
       .booleanConf
       .createWithDefault(false)
 }

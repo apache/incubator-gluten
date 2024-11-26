@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backend.Backend
-
 import org.apache.spark.sql.execution.SparkPlan
 
 /**
@@ -53,15 +51,14 @@ object ConventionReq {
       override val requiredBatchType: BatchType
   ) extends ConventionReq
 
-  val any: ConventionReq = Impl(RowType.Any, BatchType.Any)
-  val row: ConventionReq = Impl(RowType.Is(Convention.RowType.VanillaRow), BatchType.Any)
-  val vanillaBatch: ConventionReq =
-    Impl(RowType.Any, BatchType.Is(Convention.BatchType.VanillaBatch))
-  lazy val backendBatch: ConventionReq =
-    Impl(RowType.Any, BatchType.Is(Backend.get().defaultBatchType))
+  val any: ConventionReq = of(RowType.Any, BatchType.Any)
+  val row: ConventionReq = ofRow(RowType.Is(Convention.RowType.VanillaRow))
+  val vanillaBatch: ConventionReq = ofBatch(BatchType.Is(Convention.BatchType.VanillaBatch))
 
   def get(plan: SparkPlan): ConventionReq = ConventionFunc.create().conventionReqOf(plan)
   def of(rowType: RowType, batchType: BatchType): ConventionReq = Impl(rowType, batchType)
+  def ofRow(rowType: RowType): ConventionReq = Impl(rowType, BatchType.Any)
+  def ofBatch(batchType: BatchType): ConventionReq = Impl(RowType.Any, batchType)
 
   trait KnownChildrenConventions {
     def requiredChildrenConventions(): Seq[ConventionReq]

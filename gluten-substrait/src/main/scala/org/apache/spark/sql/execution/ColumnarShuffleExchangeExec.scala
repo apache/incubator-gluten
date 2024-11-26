@@ -126,7 +126,6 @@ case class ColumnarShuffleExchangeExec(
 
   override def nodeName: String = "ColumnarExchange"
 
-  override def supportsColumnar: Boolean = true
   override def numMappers: Int = shuffleDependency.rdd.getNumPartitions
 
   override def numPartitions: Int = shuffleDependency.partitioner.numPartitions

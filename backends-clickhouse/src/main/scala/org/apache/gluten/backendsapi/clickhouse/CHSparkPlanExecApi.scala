@@ -225,7 +225,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
         //  Caller may not know it adds project on top of the shuffle.
         // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
         val project =
-          HeuristicTransform()(ProjectExec(plan.child.output ++ projectExpressions, plan.child))
+          HeuristicTransform.static()(
+            ProjectExec(plan.child.output ++ projectExpressions, plan.child))
         var newExprs = Seq[Expression]()
         for (i <- exprs.indices) {
           val pos = newExpressionsPosition(i)
@@ -250,7 +251,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
         //  Caller may not know it adds project on top of the shuffle.
         // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
         val project =
-          HeuristicTransform()(ProjectExec(plan.child.output ++ projectExpressions, plan.child))
+          HeuristicTransform.static()(
+            ProjectExec(plan.child.output ++ projectExpressions, plan.child))
         var newOrderings = Seq[SortOrder]()
         for (i <- orderings.indices) {
           val oldOrdering = orderings(i)
@@ -271,9 +273,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   override def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan = {
     val child = shuffle.child
-    if (
-      BackendsApiManager.getSettings.supportShuffleWithProject(shuffle.outputPartitioning, child)
-    ) {
+    if (CHValidatorApi.supportShuffleWithProject(shuffle.outputPartitioning, child)) {
       val (projectColumnNumber, newPartitioning, newChild) =
         addProjectionForShuffleExchange(shuffle)
 

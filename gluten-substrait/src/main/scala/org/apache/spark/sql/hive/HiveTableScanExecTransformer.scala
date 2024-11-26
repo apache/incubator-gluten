@@ -45,7 +45,8 @@ import java.net.URI
 case class HiveTableScanExecTransformer(
     requestedAttributes: Seq[Attribute],
     relation: HiveTableRelation,
-    partitionPruningPred: Seq[Expression])(@transient session: SparkSession)
+    partitionPruningPred: Seq[Expression],
+    prunedOutput: Seq[Attribute] = Seq.empty[Attribute])(@transient session: SparkSession)
   extends AbstractHiveTableScanExec(requestedAttributes, relation, partitionPruningPred)(session)
   with BasicScanExecTransformer {
 
@@ -63,7 +64,13 @@ case class HiveTableScanExecTransformer(
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
-  override def outputAttributes(): Seq[Attribute] = output
+  override def outputAttributes(): Seq[Attribute] = {
+    if (prunedOutput.nonEmpty) {
+      prunedOutput
+    } else {
+      output
+    }
+  }
 
   override def getPartitions: Seq[InputPartition] = partitions
 

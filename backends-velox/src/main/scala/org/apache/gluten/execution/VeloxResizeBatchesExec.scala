@@ -53,7 +53,6 @@ case class VeloxResizeBatchesExec(
     "selfTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to append / split batches")
   )
 
-  override def supportsColumnar: Boolean = true
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {

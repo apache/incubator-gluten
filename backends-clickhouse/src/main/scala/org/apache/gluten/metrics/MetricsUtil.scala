@@ -38,6 +38,9 @@ object MetricsUtil extends Logging {
           j.metricsUpdater(),
           // must put the buildPlan first
           Seq(treeifyMetricsUpdaters(j.buildPlan), treeifyMetricsUpdaters(j.streamedPlan)))
+      case t: TransformSupport if t.metricsUpdater() == MetricsUpdater.None =>
+        assert(t.children.size == 1, "MetricsUpdater.None can only be used on unary operator")
+        treeifyMetricsUpdaters(t.children.head)
       case t: TransformSupport =>
         MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
       case _ =>

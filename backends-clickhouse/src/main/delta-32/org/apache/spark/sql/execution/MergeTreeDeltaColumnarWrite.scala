@@ -21,20 +21,23 @@ import org.apache.gluten.vectorized.NativeExpressionEvaluator
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.files.MergeTreeDelayedCommitProtocol2
 import org.apache.spark.sql.delta.stats.DeltaStatistics
 import org.apache.spark.sql.delta.util.{JsonUtils, MergeTreePartitionUtils}
-import org.apache.spark.sql.execution.datasources.{ExecutedWriteSummary, WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, ExecutedWriteSummary, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
-import org.apache.spark.sql.execution.utils.CHExecUtil
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
+
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+import scala.language.implicitConversions
 
 /**
  * {{{
@@ -47,7 +50,7 @@ import java.util.UUID
  *     StructField("size_in_bytes", LongType, false) :: Nil)
  * }}}
  */
-case class BasicMergeTreeNativeStat(
+case class MergeTreeWriteResult(
     part_name: String,
     partition_id: String,
     record_count: Long,
@@ -105,25 +108,45 @@ case class BasicMergeTreeNativeStat(
   }
 }
 
-object BasicMergeTreeNativeStats {
+object MergeTreeWriteResult {
+  implicit def apply(row: InternalRow): MergeTreeWriteResult = MergeTreeWriteResult(
+    row.getString(0),
+    row.getString(1),
+    row.getLong(2),
+    row.getLong(3),
+    row.getLong(4))
+}
 
-  /**
-   * we assume the number of records is less than 10,000.So the memory overhead is acceptable.
-   * otherwise, we need to access ColumnarBatch row by row, which is not efficient.
-   */
-  def apply(cb: ColumnarBatch): Seq[BasicMergeTreeNativeStat] =
-    CHExecUtil
-      .c2r(cb)
-      .map(
-        row =>
-          BasicMergeTreeNativeStat(
-            row.getUTF8String(0).toString,
-            row.getUTF8String(1).toString,
-            row.getLong(2),
-            row.getLong(3),
-            row.getLong(4)
-          ))
-      .toSeq
+case class MergeTreeCommitInfo(committer: MergeTreeDelayedCommitProtocol2)
+  extends (MergeTreeWriteResult => Unit) {
+  private val modificationTime = System.currentTimeMillis()
+  private val hostName = Seq(Utils.localHostName())
+  private val addedFiles: ArrayBuffer[FileAction] = new ArrayBuffer[FileAction]
+  private val path = new Path(committer.outputPath)
+  def apply(stat: MergeTreeWriteResult): Unit = {
+    addedFiles.append(
+      stat(committer.database, committer.tableName, path, modificationTime, hostName))
+  }
+  def result: Seq[FileAction] = addedFiles.toSeq
+}
+
+case class MergeTreeBasicWriteTaskStatsTracker() extends (MergeTreeWriteResult => Unit) {
+  private val partitions: mutable.ArrayBuffer[InternalRow] = mutable.ArrayBuffer.empty
+  private var numRows: Long = 0
+  private var numBytes: Long = 0
+  private var numFiles: Int = 0
+
+  def apply(stat: MergeTreeWriteResult): Unit = {
+    if (stat.partition_id != "__NO_PARTITION_ID__") {
+      partitions.append(new GenericInternalRow(Array[Any](stat.partition_id)))
+    }
+    numFiles += 1
+    numRows += stat.record_count
+    numBytes += stat.size_in_bytes
+  }
+
+  def result: BasicWriteTaskStats =
+    BasicWriteTaskStats(partitions.toSeq, numFiles, numBytes, numRows)
 }
 
 case class MergeTreeDeltaColumnarWrite(
@@ -146,44 +169,25 @@ case class MergeTreeDeltaColumnarWrite(
     NativeExpressionEvaluator.updateQueryRuntimeSettings(settings)
   }
 
-  private def doCollectNativeResult(cb: ColumnarBatch): Option[WriteTaskResult] = {
-    val basicNativeStats = BasicMergeTreeNativeStats(cb)
-
-    // TODO: we need close iterator here before processing the result.
-
-    if (basicNativeStats.isEmpty) {
+  private def doCollectNativeResult(stats: Seq[InternalRow]): Option[WriteTaskResult] = {
+    if (stats.isEmpty) {
       None
     } else {
-      val modificationTime = System.currentTimeMillis()
-      val hostName = Seq(Utils.localHostName())
-      val path = new Path(committer.outputPath)
-      var numRows: Long = 0
-      var numBytes: Long = 0
-      val numFiles = basicNativeStats.size
-      val addFiles = basicNativeStats.map {
-        stat =>
-          if (stat.partition_id != "__NO_PARTITION_ID__") {
-            basicWriteJobStatsTracker.newPartition(
-              new GenericInternalRow(Array[Any](stat.partition_id)))
-          }
-          numRows += stat.record_count
-          numBytes += stat.size_in_bytes
-          stat(committer.database, committer.tableName, path, modificationTime, hostName)
-      }
+      val commitInfo = MergeTreeCommitInfo(committer)
+      val mergeTreeStat = MergeTreeBasicWriteTaskStatsTracker()
+      val basicNativeStats = Seq(commitInfo, mergeTreeStat)
+      NativeStatCompute(stats)(basicNativeStats)
 
       Some {
         WriteTaskResult(
-          new TaskCommitMessage(addFiles),
-          ExecutedWriteSummary(
-            updatedPartitions = Set.empty,
-            stats =
-              Seq(finalStats.copy(numFiles = numFiles, numBytes = numBytes, numRows = numRows)))
+          new TaskCommitMessage(commitInfo.result),
+          ExecutedWriteSummary(updatedPartitions = Set.empty, stats = Seq(mergeTreeStat.result))
         )
       }
     }
   }
 
-  override def commitTask(batch: ColumnarBatch): Option[WriteTaskResult] = {
-    doCollectNativeResult(batch)
+  override def commitTask(writeResults: Seq[InternalRow]): Option[WriteTaskResult] = {
+    doCollectNativeResult(writeResults)
   }
 }

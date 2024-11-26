@@ -214,9 +214,8 @@ case class ColumnarArrowEvalPythonExec(
   extends EvalPythonExec
   with GlutenPlan
   with KnownChildrenConventions {
-  override def supportsColumnar: Boolean = true
 
-  override protected def batchType0(): Convention.BatchType = ArrowJavaBatch
+  override def batchType(): Convention.BatchType = ArrowJavaBatch
 
   override def requiredChildrenConventions(): Seq[ConventionReq] = List(
     ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(ArrowJavaBatch)))

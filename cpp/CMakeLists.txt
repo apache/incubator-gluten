@@ -48,7 +48,6 @@ option(BUILD_EXAMPLES "Build Examples" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
 option(ENABLE_JEMALLOC_STATS "Prints Jemalloc stats for debugging" OFF)
 option(BUILD_GLOG "Build Glog from Source" OFF)
-option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
 option(ENABLE_QAT "Enable QAT for de/compression" OFF)
 option(ENABLE_IAA "Enable IAA for de/compression" OFF)
@@ -216,10 +215,6 @@ endif()
 
 if(ENABLE_IAA)
   add_definitions(-DGLUTEN_ENABLE_IAA)
-endif()
-
-if(ENABLE_ORC)
-  add_definitions(-DGLUTEN_ENABLE_ORC)
 endif()
 
 #

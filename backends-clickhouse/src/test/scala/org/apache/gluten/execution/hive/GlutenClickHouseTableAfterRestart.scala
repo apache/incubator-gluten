@@ -107,40 +107,14 @@ class GlutenClickHouseTableAfterRestart
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-
     // before restart, check if cache works
     {
-      runTPCHQueryBySQL(1, sqlStr)(_ => {})
+      runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
       val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()
       val oldMissingCount2 = ClickhouseSnapshot.addFileToAddMTPCache.stats().missCount()
 
       // for this run, missing count should not increase
-      runTPCHQueryBySQL(1, sqlStr)(_ => {})
+      runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
       val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
       assertResult(oldMissingCount1)(stats1.missCount())
       val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
@@ -152,7 +126,7 @@ class GlutenClickHouseTableAfterRestart
 
     restartSpark()
 
-    runTPCHQueryBySQL(1, sqlStr)(_ => {})
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
 
     // after restart, additionally check stats of delta scan cache
     val stats1 = ClickhouseSnapshot.deltaScanCache.stats()

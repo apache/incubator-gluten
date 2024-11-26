@@ -22,12 +22,13 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.CastSupport
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.SchemaPruning.RootField
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.hive._
 import org.apache.spark.sql.hive.client.HiveClientImpl
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{BooleanType, DataType}
+import org.apache.spark.sql.types.{BooleanType, DataType, StructType}
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.conf.Configuration
@@ -239,4 +240,8 @@ abstract private[hive] class AbstractHiveTableScanExec(
   }
 
   override def otherCopyArgs: Seq[AnyRef] = Seq(sparkSession)
+
+  def pruneSchema(schema: StructType, requestedFields: Seq[RootField]): StructType = {
+    SchemaPruning.pruneSchema(schema, requestedFields)
+  }
 }
