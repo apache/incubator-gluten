@@ -21,6 +21,7 @@ BASEDIR=$(readlink -f $(dirname $0))
 TIMESTAMP=$(date +%s)
 
 # Set the following env to install Gluten's modified Arrow Jars on host.
+export NON_INTERACTIVE=ON
 export MOUNT_MAVEN_CACHE=ON
 export EXTRA_DOCKER_OPTIONS="--name buildhere-veloxbe-portable-libs-$TIMESTAMP -v $BASEDIR/scripts:/opt/scripts"
 
