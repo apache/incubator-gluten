@@ -30,7 +30,6 @@ concurrency:
 jobs:
   cache-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:vcpkg-centos-7
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
