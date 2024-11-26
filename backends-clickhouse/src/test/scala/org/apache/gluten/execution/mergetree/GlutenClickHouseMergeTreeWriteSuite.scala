@@ -66,179 +66,174 @@ class GlutenClickHouseMergeTreeWriteSuite
     createNotNullTPCHTablesInParquet(tablesPath)
   }
 
-  test("test mergetree table write") {
-    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
-      spark.sql(s"""
-                   |DROP TABLE IF EXISTS lineitem_mergetree;
-                   |""".stripMargin)
+  onePipelineWriteTest("test mergetree table write") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree;
+                 |""".stripMargin)
 
-      // write.format.default = mergetree
-      spark.sql(s"""
-                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree
-                   |(
-                   | l_orderkey      bigint,
-                   | l_partkey       bigint,
-                   | l_suppkey       bigint,
-                   | l_linenumber    bigint,
-                   | l_quantity      double,
-                   | l_extendedprice double,
-                   | l_discount      double,
-                   | l_tax           double,
-                   | l_returnflag    string,
-                   | l_linestatus    string,
-                   | l_shipdate      date,
-                   | l_commitdate    date,
-                   | l_receiptdate   date,
-                   | l_shipinstruct  string,
-                   | l_shipmode      string,
-                   | l_comment       string
-                   |)
-                   |USING clickhouse
-                   |TBLPROPERTIES (write.format.default = 'mergetree')
-                   |LOCATION '$basePath/lineitem_mergetree'
-                   |""".stripMargin)
+    // write.format.default = mergetree
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |TBLPROPERTIES (write.format.default = 'mergetree')
+                 |LOCATION '$basePath/lineitem_mergetree'
+                 |""".stripMargin)
 
-      spark.sql(s"""
-                   | insert into table lineitem_mergetree
-                   | select * from lineitem
-                   |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree
+                 | select * from lineitem
+                 |""".stripMargin)
 
-      runTPCHQueryBySQL(1, q1("lineitem_mergetree")) {
-        df =>
-          val plans = collect(df.queryExecution.executedPlan) {
-            case f: FileSourceScanExecTransformer => f
-            case w: WholeStageTransformer => w
-          }
-          assertResult(4)(plans.size)
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree")) {
+      df =>
+        val plans = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+          case w: WholeStageTransformer => w
+        }
+        assertResult(4)(plans.size)
 
-          val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-          assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+        val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
-          val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
-          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
-          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
-          val addFiles =
-            fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-          assertResult(6)(addFiles.size)
-          assertResult(600572)(addFiles.map(_.rows).sum)
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
+        val addFiles =
+          fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+        assertResult(6)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
 
-          // GLUTEN-5060: check the unnecessary FilterExec
-          val wholeStageTransformer = plans(2).asInstanceOf[WholeStageTransformer]
-          val planNodeJson = wholeStageTransformer.substraitPlanJson
-          assert(
-            !planNodeJson
-              .replaceAll("\n", "")
-              .replaceAll(" ", "")
-              .contains("\"input\":{\"filter\":{"))
-      }
+        // GLUTEN-5060: check the unnecessary FilterExec
+        val wholeStageTransformer = plans(2).asInstanceOf[WholeStageTransformer]
+        val planNodeJson = wholeStageTransformer.substraitPlanJson
+        assert(
+          !planNodeJson
+            .replaceAll("\n", "")
+            .replaceAll(" ", "")
+            .contains("\"input\":{\"filter\":{"))
     }
   }
 
-  test("test mergetree insert overwrite") {
-    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
-      spark.sql(s"""
-                   |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite;
-                   |""".stripMargin)
+  onePipelineWriteTest("test mergetree insert overwrite") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite;
+                 |""".stripMargin)
 
-      spark.sql(s"""
-                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite
-                   |(
-                   | l_orderkey      bigint,
-                   | l_partkey       bigint,
-                   | l_suppkey       bigint,
-                   | l_linenumber    bigint,
-                   | l_quantity      double,
-                   | l_extendedprice double,
-                   | l_discount      double,
-                   | l_tax           double,
-                   | l_returnflag    string,
-                   | l_linestatus    string,
-                   | l_shipdate      date,
-                   | l_commitdate    date,
-                   | l_receiptdate   date,
-                   | l_shipinstruct  string,
-                   | l_shipmode      string,
-                   | l_comment       string
-                   |)
-                   |USING clickhouse
-                   |LOCATION '$basePath/lineitem_mergetree_insertoverwrite'
-                   |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_mergetree_insertoverwrite'
+                 |""".stripMargin)
 
-      spark.sql(s"""
-                   | insert into table lineitem_mergetree_insertoverwrite
-                   | select * from lineitem
-                   |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_insertoverwrite
+                 | select * from lineitem
+                 |""".stripMargin)
 
-      spark.sql(s"""
-                   | insert overwrite table lineitem_mergetree_insertoverwrite
-                   | select * from lineitem where mod(l_orderkey,2) = 1
-                   |""".stripMargin)
-      val sql2 =
-        s"""
-           | select count(*) from lineitem_mergetree_insertoverwrite
-           |
-           |""".stripMargin
-      assertResult(300001)(
-        // total rows should remain unchanged
-        spark.sql(sql2).collect().apply(0).get(0)
-      )
-    }
+    spark.sql(s"""
+                 | insert overwrite table lineitem_mergetree_insertoverwrite
+                 | select * from lineitem where mod(l_orderkey,2) = 1
+                 |""".stripMargin)
+    val sql2 =
+      s"""
+         | select count(*) from lineitem_mergetree_insertoverwrite
+         |
+         |""".stripMargin
+    assertResult(300001)(
+      // total rows should remain unchanged
+      spark.sql(sql2).collect().apply(0).get(0)
+    )
   }
 
-  test("test mergetree insert overwrite partitioned table with small table, static") {
-    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
-      spark.sql(s"""
-                   |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite2;
-                   |""".stripMargin)
+  onePipelineWriteTest(
+    "test mergetree insert overwrite partitioned table with small table, static") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite2;
+                 |""".stripMargin)
 
-      spark.sql(s"""
-                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite2
-                   |(
-                   | l_orderkey      bigint,
-                   | l_partkey       bigint,
-                   | l_suppkey       bigint,
-                   | l_linenumber    bigint,
-                   | l_quantity      double,
-                   | l_extendedprice double,
-                   | l_discount      double,
-                   | l_tax           double,
-                   | l_returnflag    string,
-                   | l_linestatus    string,
-                   | l_shipdate      date,
-                   | l_commitdate    date,
-                   | l_receiptdate   date,
-                   | l_shipinstruct  string,
-                   | l_shipmode      string,
-                   | l_comment       string
-                   |)
-                   |USING clickhouse
-                   |PARTITIONED BY (l_shipdate)
-                   |LOCATION '$basePath/lineitem_mergetree_insertoverwrite2'
-                   |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite2
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (l_shipdate)
+                 |LOCATION '$basePath/lineitem_mergetree_insertoverwrite2'
+                 |""".stripMargin)
 
-      spark.sql(s"""
-                   | insert into table lineitem_mergetree_insertoverwrite2
-                   | select * from lineitem
-                   |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_insertoverwrite2
+                 | select * from lineitem
+                 |""".stripMargin)
 
-      spark.sql(
-        s"""
-           | insert overwrite table lineitem_mergetree_insertoverwrite2
-           | select * from lineitem where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
-           |""".stripMargin)
-      val sql2 =
-        s"""
-           | select count(*) from lineitem_mergetree_insertoverwrite2
-           |
-           |""".stripMargin
-      assertResult(2418)(
-        // total rows should remain unchanged
-        spark.sql(sql2).collect().apply(0).get(0)
-      )
-    }
+    spark.sql(
+      s"""
+         | insert overwrite table lineitem_mergetree_insertoverwrite2
+         | select * from lineitem where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
+         |""".stripMargin)
+    val sql2 =
+      s"""
+         | select count(*) from lineitem_mergetree_insertoverwrite2
+         |
+         |""".stripMargin
+    assertResult(2418)(
+      // total rows should remain unchanged
+      spark.sql(sql2).collect().apply(0).get(0)
+    )
   }
 
   test("test mergetree insert overwrite partitioned table with small table, dynamic") {

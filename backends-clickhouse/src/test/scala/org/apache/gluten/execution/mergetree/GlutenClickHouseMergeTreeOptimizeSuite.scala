@@ -63,7 +63,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     createNotNullTPCHTablesInParquet(tablesPath)
   }
 
-  test("test mergetree optimize basic") {
+  onePipelineWriteTest("test mergetree optimize basic") {
     withSQLConf("spark.databricks.delta.optimize.maxFileSize" -> "2000000") {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_mergetree_optimize;
@@ -76,9 +76,9 @@ class GlutenClickHouseMergeTreeOptimizeSuite
                    | as select * from lineitem
                    |""".stripMargin)
 
+      assertResult(600572)(spark.sql("select * from lineitem_mergetree_optimize").count)
       spark.sql("optimize lineitem_mergetree_optimize")
-      val ret = spark.sql("select count(*) from lineitem_mergetree_optimize").collect()
-      assertResult(600572)(ret.apply(0).get(0))
+      assertResult(600572)(spark.sql("select * from lineitem_mergetree_optimize").count)
 
       assertResult(462)(
         countFiles(new File(s"$basePath/lineitem_mergetree_optimize"))
