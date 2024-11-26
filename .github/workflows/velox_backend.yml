@@ -55,10 +55,7 @@ concurrency:
 jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:vcpkg-centos-7
     steps:
-      - run: |
-          ls -l /__e/*
       - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v3
@@ -71,8 +68,7 @@ jobs:
         run: |
           df -a
           cd $GITHUB_WORKSPACE/
-          bash dev/ci-velox-buildstatic-centos-7.sh
-          ccache -s
+          bash tools/gluten-te/centos/examples/buildhere-veloxbe-portable-libs/run-default.sh
       - name: "Save ccache"
         uses: actions/cache/save@v3
         id: ccache
