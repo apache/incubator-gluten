@@ -128,7 +128,7 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                 val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
                 exchangeTransformer.doValidate()
               } else {
-                isTransformable
+                isBnljTransformable
               }
             }
           }
