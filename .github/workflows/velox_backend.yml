@@ -58,13 +58,13 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
     steps:
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos7-release-default-${{github.sha}}
-          restore-keys: |
-            ccache-centos7-release-default
+      # - name: Get Ccache
+      #   uses: actions/cache/restore@v3
+      #   with:
+      #     path: '${{ env.CCACHE_DIR }}'
+      #     key: ccache-centos7-release-default-${{github.sha}}
+      #     restore-keys: |
+      #       ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
           df -a
@@ -73,12 +73,12 @@ jobs:
           cd gluten-user-${GITHUB_SHA}
           bash dev/ci-velox-buildstatic-centos-7.sh
           ccache -s
-      - name: "Save ccache"
-        uses: actions/cache/save@v3
-        id: ccache
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos7-release-default-${{github.sha}}
+      # - name: "Save ccache"
+      #   uses: actions/cache/save@v3
+      #   id: ccache
+      #   with:
+      #     path: '${{ env.CCACHE_DIR }}'
+      #     key: ccache-centos7-release-default-${{github.sha}}
       - uses: actions/upload-artifact@v3
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
