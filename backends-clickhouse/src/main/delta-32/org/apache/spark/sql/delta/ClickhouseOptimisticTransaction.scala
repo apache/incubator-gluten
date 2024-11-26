@@ -70,20 +70,21 @@ class ClickhouseOptimisticTransaction(
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
     val nativeWrite = GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
     if (writingMergeTree) {
-      if (isOptimize) {
-        throw new UnsupportedOperationException("Optimize is not supported for ClickHouse")
-      }
       // TODO: update FallbackByBackendSettings for mergetree always return true
       val onePipeline = nativeWrite && CHConf.get.enableOnePipelineMergeTreeWrite
       if (onePipeline)
         pipelineWriteFiles(inputData, writeOptions, isOptimize = false, additionalConstraints)
-      else
+      else {
+        if (isOptimize) {
+          throw new UnsupportedOperationException("Optimize is only supported in one pipeline native write mode")
+        }
         writeMergeTree(inputData, writeOptions, additionalConstraints)
+      }
     } else {
-      if (isOptimize || !nativeWrite) {
-        super.writeFiles(inputData, writeOptions, isOptimize, additionalConstraints)
+      if (nativeWrite) {
+        pipelineWriteFiles(inputData, writeOptions, isOptimize, additionalConstraints)
       } else {
-        pipelineWriteFiles(inputData, writeOptions, isOptimize = false, additionalConstraints)
+        super.writeFiles(inputData, writeOptions, isOptimize, additionalConstraints)
       }
     }
   }
@@ -197,14 +198,6 @@ class ClickhouseOptimisticTransaction(
     committer.addedStatuses.toSeq ++ committer.changeFiles
   }
 
-  private def shouldOptimizeWrite(
-      writeOptions: Option[DeltaOptions],
-      sessionConf: SQLConf): Boolean = {
-    writeOptions
-      .flatMap(_.optimizeWrite)
-      .getOrElse(TransactionalWrite.shouldOptimizeWrite(metadata, sessionConf))
-  }
-
   override protected def getCommitter(outputPath: Path): DelayedCommitProtocol =
     new FileDelayedCommitProtocol("delta", outputPath.toString, None, deltaDataSubdir)
 
@@ -218,6 +211,19 @@ class ClickhouseOptimisticTransaction(
       tableV2.tableName)
   }
 
+  /**
+   * Writes out the dataframe in pipeline mode after performing schema validation.Returns a list of
+   * actions to append these files to the reservoir.
+   *
+   * @param inputData
+   *   Data to write out.
+   * @param writeOptions
+   *   Options to decide how to write out the data.
+   * @param isOptimize
+   *   Whether the operation writing this is Optimize or not.
+   * @param additionalConstraints
+   *   Additional constraints on the write.
+   */
   private def pipelineWriteFiles(
       inputData: Dataset[_],
       writeOptions: Option[DeltaOptions],
@@ -229,35 +235,11 @@ class ClickhouseOptimisticTransaction(
     val (data, partitionSchema) = performCDCPartition(inputData)
     val outputPath = deltaLog.dataPath
 
-    val fileFormat = deltaLog.fileFormat(protocol, metadata) // TODO support changing formats.
-
-    // Iceberg spec requires partition columns in data files
-    val writePartitionColumns = IcebergCompat.isAnyEnabled(metadata)
-    // Retain only a minimal selection of Spark writer options to avoid any potential
-    // compatibility issues
-    val options = (writeOptions match {
-      case None => Map.empty[String, String]
-      case Some(writeOptions) =>
-        writeOptions.options.filterKeys {
-          key =>
-            key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
-            key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
-        }.toMap
-    }) + (DeltaOptions.WRITE_PARTITION_COLUMNS -> writePartitionColumns.toString)
-
     val (normalQueryExecution, output, generatedColumnConstraints, _) =
       normalizeData(deltaLog, writeOptions, data)
     val partitioningColumns = getPartitioningColumns(partitionSchema, output)
 
-    val logicalPlan = normalQueryExecution.optimizedPlan
-    val write =
-      WriteFiles(logicalPlan, fileFormat, partitioningColumns, None, options, Map.empty)
-
-    val queryExecution = new QueryExecution(spark, write)
-    val committer = fileFormat.toString match {
-      case "MergeTree" => getCommitter2(outputPath)
-      case _ => getCommitter(outputPath)
-    }
+    val committer = if (writingMergeTree) getCommitter2(outputPath) else getCommitter(outputPath)
 
     // If Statistics Collection is enabled, then create a stats tracker that will be injected during
     // the FileFormatWriter.write call below and will collect per-file stats using
@@ -265,26 +247,50 @@ class ClickhouseOptimisticTransaction(
     val (optionalStatsTracker, _) =
       getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
 
-    val constraints =
-      Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
+    // val constraints =
+    //  Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
+
+    /**
+     * We need using logical plan to run various rules to get physical plan. But
+     * [[DeltaOptimizedWriterExec]] and [[DeltaInvariantCheckerExec]] are based on physical plan.
+     *
+     * TODO: How to implement and inject DeltaOptimizedWriterExecTransformer and
+     * DeltaInvariantCheckerTransformer?
+     */
+    val fileFormat = deltaLog.fileFormat(protocol, metadata)
+    val write =
+      WriteFiles(
+        normalQueryExecution.optimizedPlan,
+        fileFormat,
+        partitioningColumns,
+        None,
+        Map.empty,
+        Map.empty)
+    val queryExecution = new QueryExecution(spark, write)
 
     SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
       val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, output)
 
-      val physicalPlan = materializeAdaptiveSparkPlan(queryExecution.executedPlan)
+      // TODO: convertEmptyToNullIfNeeded based on logical plan.
+      // TODO: DeltaInvariantCheckerExec.
       // convertEmptyToNullIfNeeded(queryExecution.executedPlan, partitioningColumns, constraints)
-      /*      val checkInvariants = DeltaInvariantCheckerExec(empty2NullPlan, constraints)
+      //     val checkInvariants = DeltaInvariantCheckerExec(empty2NullPlan, constraints)
+
+      /// TODO: DeltaOptimizedWriterExec.
       // No need to plan optimized write if the write command is OPTIMIZE, which aims to produce
       // evenly-balanced data files already.
-      val physicalPlan =
-        if (
-          !isOptimize &&
-          shouldOptimizeWrite(writeOptions, spark.sessionState.conf)
-        ) {
-          DeltaOptimizedWriterExec(checkInvariants, metadata.partitionColumns, deltaLog)
-        } else {
-          checkInvariants
-        } */
+      // val physicalPlan =
+      //   if (
+      //     !isOptimize &&
+      //     shouldOptimizeWrite(writeOptions, spark.sessionState.conf)
+      //   ) {
+      //     DeltaOptimizedWriterExec(checkInvariants, metadata.partitionColumns, deltaLog)
+      //   } else {
+      //     checkInvariants
+      //   }
+
+      val physicalPlan = materializeAdaptiveSparkPlan(queryExecution.executedPlan)
+
       val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
 
       if (spark.conf.get(DeltaSQLConf.DELTA_HISTORY_METRICS_ENABLED)) {
@@ -294,6 +300,20 @@ class ClickhouseOptimisticTransaction(
         registerSQLMetrics(spark, basicWriteJobStatsTracker.driverSideMetrics)
         statsTrackers.append(basicWriteJobStatsTracker)
       }
+
+      // Iceberg spec requires partition columns in data files
+      val writePartitionColumns = IcebergCompat.isAnyEnabled(metadata)
+      // Retain only a minimal selection of Spark writer options to avoid any potential
+      // compatibility issues
+      val options = (writeOptions match {
+        case None => Map.empty[String, String]
+        case Some(writeOptions) =>
+          writeOptions.options.filterKeys {
+            key =>
+              key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
+              key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
+          }.toMap
+      }) + (DeltaOptions.WRITE_PARTITION_COLUMNS -> writePartitionColumns.toString)
 
       try {
         DeltaFileFormatWriter.write(
@@ -353,6 +373,14 @@ class ClickhouseOptimisticTransaction(
     if (resultFiles.nonEmpty && !isOptimize) registerPostCommitHook(AutoCompact)
 
     resultFiles.toSeq ++ committer.changeFiles
+  }
+
+  private def shouldOptimizeWrite(
+      writeOptions: Option[DeltaOptions],
+      sessionConf: SQLConf): Boolean = {
+    writeOptions
+      .flatMap(_.optimizeWrite)
+      .getOrElse(TransactionalWrite.shouldOptimizeWrite(metadata, sessionConf))
   }
 
   private def materializeAdaptiveSparkPlan(plan: SparkPlan): SparkPlan = plan match {
