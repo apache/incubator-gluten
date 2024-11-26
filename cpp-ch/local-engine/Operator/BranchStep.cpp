@@ -35,68 +35,6 @@
 namespace local_engine
 {
 
-class BranchOutputTransform : public DB::IProcessor
-{
-public:
-    using Status = DB::IProcessor::Status;
-    BranchOutputTransform(const DB::Block & header_) : DB::IProcessor({header_}, {header_}) { }
-    ~BranchOutputTransform() override = default;
-
-    String getName() const override { return "BranchOutputTransform"; }
-
-    Status prepare() override;
-    void work() override;
-
-private:
-    bool has_output = false;
-    DB::Chunk output_chunk;
-    bool has_input = false;
-    DB::Chunk input_chunk;
-};
-
-BranchOutputTransform::Status BranchOutputTransform::prepare()
-{
-    auto & output = outputs.front();
-    auto & input = inputs.front();
-    if (output.isFinished())
-    {
-        input.close();
-        return Status::Finished;
-    }
-    if (has_output)
-    {
-        if (output.canPush())
-        {
-            output.push(std::move(output_chunk));
-            has_output = false;
-        }
-        return Status::PortFull;
-    }
-    if (has_input)
-        return Status::Ready;
-    if (input.isFinished())
-    {
-        output.finish();
-        return Status::Finished;
-    }
-    input.setNeeded();
-    if (!input.hasData())
-        return Status::NeedData;
-    input_chunk = input.pull(true);
-    has_input = true;
-    return Status::Ready;
-}
-
-void BranchOutputTransform::work()
-{
-    if (has_input)
-    {
-        output_chunk = std::move(input_chunk);
-        has_output = true;
-        has_input = false;
-    }
-}
-
 class BranchHookSource : public DB::IProcessor
 {
 public:
@@ -240,13 +178,6 @@ void StaticBranchStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, co
             auto branch_transform = std::make_shared<StaticBranchTransform>(header, max_sample_rows, branches, selector);
             DB::connect(*output, branch_transform->getInputs().front());
             new_processors.push_back(branch_transform);
-
-            for (auto & branch_output : branch_transform->getOutputs())
-            {
-                auto branch_processor = std::make_shared<BranchOutputTransform>(header);
-                DB::connect(branch_output, branch_processor->getInputs().front());
-                new_processors.push_back(branch_processor);
-            }
         }
         return new_processors;
     };
@@ -278,6 +209,14 @@ void UniteBranchesStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, c
     {
         DB::Processors new_processors;
         size_t branch_index = 0;
+        if (child_outputs.size() != branch_plans.size())
+        {
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR,
+                "Output port's size({}) is not equal to branches size({})",
+                child_outputs.size(),
+                branch_plans.size());
+        }
         for (auto output : child_outputs)
         {
             auto & branch_plan = branch_plans[branch_index];

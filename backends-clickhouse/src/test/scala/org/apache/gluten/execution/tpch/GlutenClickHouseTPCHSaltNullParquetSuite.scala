@@ -3168,11 +3168,10 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       (runtimeConfigPrefix + "window.aggregate_topk_high_cardinality_threshold", "2.0")) {
       def checkWindowGroupLimit(df: DataFrame): Unit = {
         val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
-          case e: ExpandExecTransformer
-              if (e.child.isInstanceOf[CHAggregateGroupLimitExecTransformer]) =>
-            e
+          case e: CHAggregateGroupLimitExecTransformer => e
+          case wgl: CHWindowGroupLimitExecTransformer => wgl
         }
-        assert(expands.size == 1)
+        assert(expands.size >= 1)
       }
       spark.sql("create table test_win_top (a string, b int, c int) using parquet")
       spark.sql("""
@@ -3242,12 +3241,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       (runtimeConfigPrefix + "enable_window_group_limit_to_aggregate", "true"),
       (runtimeConfigPrefix + "window.aggregate_topk_high_cardinality_threshold", "0.0")) {
       def checkWindowGroupLimit(df: DataFrame): Unit = {
+        // for spark 3.5, CHWindowGroupLimitExecTransformer is in used
         val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
-          case e: ExpandExecTransformer
-              if (e.child.isInstanceOf[CHAggregateGroupLimitExecTransformer]) =>
-            e
+          case e: CHAggregateGroupLimitExecTransformer => e
+          case wgl: CHWindowGroupLimitExecTransformer => wgl
         }
-        assert(expands.size == 1)
+        assert(expands.size >= 1)
       }
       spark.sql("drop table if exists test_win_top")
       spark.sql("create table test_win_top (a string, b int, c int) using parquet")

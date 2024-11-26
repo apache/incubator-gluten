@@ -24,12 +24,9 @@ import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
-// import org.apache.spark.sql.catalyst.expressions.aggregate._
-// import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution._
+// import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.SparkPlan
-// import org.apache.spark.sql.execution.window.Final
 import org.apache.spark.sql.types._
 
 // When to find the first rows of partitions by window function, we can convert it to aggregate
@@ -103,11 +100,9 @@ case class ConverRowNumbertWindowToAggregateRule(spark: SparkSession)
 
   def isSupportedWindowFunction(windowExpressions: Seq[NamedExpression]): Boolean = {
     if (windowExpressions.length != 1) {
-      logDebug(s"xxx windowExpressions length: ${windowExpressions.length}")
       return false
     }
     val windowFunction = extractWindowFunction(windowExpressions(0))
-    logDebug(s"xxx windowFunction: $windowFunction")
     windowFunction match {
       case _: RowNumber => true
       case _ => false

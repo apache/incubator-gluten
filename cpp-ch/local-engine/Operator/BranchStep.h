@@ -62,6 +62,8 @@ private:
     BranchSelector selector;
 };
 
+
+// It should be better to build execution branches on QueryPlan.
 class UniteBranchesStep : public DB::ITransformingStep
 {
 public:

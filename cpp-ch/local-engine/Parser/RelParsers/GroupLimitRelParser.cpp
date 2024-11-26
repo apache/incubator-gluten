@@ -29,6 +29,7 @@
 #include <IO/WriteBufferFromString.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/AggregateDescription.h>
+#include <Interpreters/WindowDescription.h>
 #include <Operator/BranchStep.h>
 #include <Operator/GraceMergingAggregatedStep.h>
 #include <Operator/WindowGroupLimitStep.h>
@@ -38,10 +39,12 @@
 #include <Processors/Port.h>
 #include <Processors/QueryPlan/BuildQueryPipelineSettings.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
+#include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
 #include <Processors/QueryPlan/SortingStep.h>
+#include <Processors/QueryPlan/WindowStep.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/QueryPlanResourceHolder.h>
 #include <google/protobuf/repeated_field.h>
@@ -51,6 +54,7 @@
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
+#include <Common/SortUtils.h>
 #include <Common/logger_useful.h>
 
 namespace DB::ErrorCodes
@@ -184,6 +188,7 @@ size_t selectBranchOnPartitionKeysCardinality(
 DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
     DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
 {
+    // calculate window's topk by aggregation.
     // 1. add a pre-projecttion. Make two tuple arguments for the aggregation function. One is the required columns for the output, the other
     //   is the required columns for sorting.
     // 2. Collect the sorting directions for each sorting field, Let them as the aggregation function's parameters.
@@ -206,6 +211,9 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
     auto win_config = WindowConfig::loadFromContext(getContext());
     auto high_card_threshold = win_config.aggregate_topk_high_cardinality_threshold;
 
+    // Aggregation doesn't perform well on high cardinality keys. We make two execution pathes here.
+    // - if the partition keys are low cardinality, run it by aggregation
+    // - if the partition keys are high cardinality, run it by window.
     auto partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
     auto branch_in_header = current_plan->getCurrentHeader();
     auto branch_step = std::make_unique<StaticBranchStep>(
@@ -226,8 +234,6 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
     postProjectionForExplodingArrays(*aggregation_plan);
     LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Aggregate topk plan:\n{}", PlanUtil::explainPlan(*aggregation_plan));
 
-
-    // aggregation doesn't performs well on high cardinality keys. use sort + window to get the topks.
     auto window_plan = BranchStepHelper::createSubPlan(branch_in_header, 1);
     addSortStep(*window_plan);
     addWindowLimitStep(*window_plan);
@@ -259,7 +265,7 @@ String AggregateGroupLimitRelParser::getAggregateFunctionName(const String & win
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported window function: {}", window_function_name);
 }
 
-// Build two tuple columns as the aggregate function's arguments
+// Build one tuple column as the aggregate function's arguments
 void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryPlan & plan)
 {
     auto projection_actions = std::make_shared<DB::ActionsDAG>(input_header.getColumnsWithTypeAndName());
@@ -322,36 +328,6 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryP
     plan.addStep(std::move(expression_step));
 }
 
-
-String AggregateGroupLimitRelParser::parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields)
-{
-    DB::Array directions;
-    static const std::unordered_map<int, std::string> order_directions
-        = {{1, " asc nulls first"}, {2, " asc nulls last"}, {3, " desc nulls first"}, {4, " desc nulls last"}};
-    size_t n = 0;
-    DB::WriteBufferFromOwnString ostr;
-    for (const auto & sort_field : sort_fields)
-    {
-        auto it = order_directions.find(sort_field.direction());
-        if (it == order_directions.end())
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow sort direction: {}", sort_field.direction());
-        if (!sort_field.expr().has_selection())
-        {
-            throw DB::Exception(
-                DB::ErrorCodes::BAD_ARGUMENTS, "Sort field must be a column reference. but got {}", sort_field.DebugString());
-        }
-        auto ref = sort_field.expr().selection().direct_reference().struct_field().field();
-        const auto & col_name = input_header.getByPosition(ref).name;
-        if (n)
-            ostr << String(",");
-        // the col_name may contain '#' which can may ch fail to parse.
-        ostr << "`" << col_name << "`" << it->second;
-        n += 1;
-    }
-    LOG_DEBUG(getLogger("AggregateGroupLimitRelParser"), "Order by clasue: {}", ostr.str());
-    return ostr.str();
-}
-
 DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription(DB::QueryPlan & plan)
 {
     DB::AggregateDescription agg_desc;
@@ -359,7 +335,7 @@ DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription
     agg_desc.argument_names = {aggregate_tuple_column_name};
     DB::Array parameters;
     parameters.push_back(static_cast<UInt32>(limit));
-    auto sort_directions = parseSortDirections(win_rel_def->sorts());
+    auto sort_directions = buildSQLLikeSortDescription(input_header, win_rel_def->sorts());
     parameters.push_back(sort_directions);
 
     auto header = plan.getCurrentHeader();
@@ -457,6 +433,39 @@ void AggregateGroupLimitRelParser::addSortStep(DB::QueryPlan & plan)
     plan.addStep(std::move(sorting_step));
 }
 
+static DB::WindowFrame buildWindowFrame(const std::string & ch_function_name)
+{
+    DB::WindowFrame frame;
+    // default window frame is [unbounded preceding, current row]
+    if (ch_function_name == "row_number")
+    {
+        frame.type = DB::WindowFrame::FrameType::ROWS;
+        frame.begin_type = DB::WindowFrame::BoundaryType::Offset;
+        frame.begin_offset = 1;
+    }
+    else
+        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow window function: {}", ch_function_name);
+    return frame;
+}
+
+static DB::WindowFunctionDescription buildWindowFunctionDescription(const std::string & ch_function_name)
+{
+    DB::WindowFunctionDescription description;
+    if (ch_function_name == "row_number")
+    {
+        description.column_name = ch_function_name;
+        description.function_node = nullptr;
+        DB::AggregateFunctionProperties agg_props;
+        auto agg_func = RelParser::getAggregateFunction(ch_function_name, {}, agg_props, {});
+        description.aggregate_function = agg_func;
+    }
+    else
+        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow window function: {}", ch_function_name);
+    return description;
+}
+
+
+// TODO: WindowGroupLimitStep has bad performance, need to improve it. So we still use window + filter here.
 void AggregateGroupLimitRelParser::addWindowLimitStep(DB::QueryPlan & plan)
 {
     google::protobuf::StringValue optimize_info_str;
@@ -464,14 +473,35 @@ void AggregateGroupLimitRelParser::addWindowLimitStep(DB::QueryPlan & plan)
     auto optimization_info = WindowGroupOptimizationInfo::parse(optimize_info_str.value());
     auto window_function_name = optimization_info.window_function;
 
-    auto partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
-    auto sort_fields = parseSortFields(win_rel_def->sorts());
-    size_t limit = static_cast<size_t>(win_rel_def->limit());
+    auto in_header = plan.getCurrentHeader();
+    DB::WindowDescription win_descr;
+    win_descr.frame = buildWindowFrame(window_function_name);
+    win_descr.partition_by = parseSortFields(in_header, win_rel_def->partition_expressions());
+    win_descr.order_by = parseSortFields(in_header, win_rel_def->sorts());
+    win_descr.full_sort_description = win_descr.partition_by;
+    win_descr.full_sort_description.insert(win_descr.full_sort_description.end(), win_descr.order_by.begin(), win_descr.order_by.end());
+    DB::WriteBufferFromOwnString ss;
+    ss << "partition by " << DB::dumpSortDescription(win_descr.partition_by);
+    ss << " order by " << DB::dumpSortDescription(win_descr.order_by);
+    ss << " " << win_descr.frame.toString();
+    win_descr.window_name = ss.str();
 
-    auto window_group_limit_step
-        = std::make_unique<WindowGroupLimitStep>(plan.getCurrentHeader(), window_function_name, partition_fields, sort_fields, limit, true);
-    window_group_limit_step->setStepDescription("Window group limit");
-    plan.addStep(std::move(window_group_limit_step));
+    auto win_func_description = buildWindowFunctionDescription(window_function_name);
+    win_descr.window_functions.push_back(win_func_description);
+
+    auto win_step = std::make_unique<WindowStep>(in_header, win_descr, win_descr.window_functions, false);
+    win_step->setStepDescription("Window (" + win_descr.window_name + ")");
+    plan.addStep(std::move(win_step));
+
+    auto win_result_header = plan.getCurrentHeader();
+    DB::ActionsDAG limit_actions_dag(win_result_header.getColumnsWithTypeAndName());
+    const auto * rank_value_node = limit_actions_dag.getInputs().back();
+    const auto * limit_value_node = expression_parser->addConstColumn(limit_actions_dag, std::make_shared<DB::DataTypeInt32>(), limit);
+    const auto * cmp_node = expression_parser->toFunctionNode(limit_actions_dag, "lessOrEquals", {rank_value_node, limit_value_node});
+    auto cmp_column_name = cmp_node->result_name;
+    limit_actions_dag.addOrReplaceInOutputs(*cmp_node);
+    auto filter_step = std::make_unique<DB::FilterStep>(win_result_header, std::move(limit_actions_dag), cmp_column_name, true);
+    plan.addStep(std::move(filter_step));
 }
 
 void registerWindowGroupLimitRelParser(RelParserFactory & factory)
