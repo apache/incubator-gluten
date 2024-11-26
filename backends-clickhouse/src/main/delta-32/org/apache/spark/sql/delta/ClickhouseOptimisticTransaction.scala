@@ -76,7 +76,8 @@ class ClickhouseOptimisticTransaction(
         pipelineWriteFiles(inputData, writeOptions, isOptimize = false, additionalConstraints)
       else {
         if (isOptimize) {
-          throw new UnsupportedOperationException("Optimize is only supported in one pipeline native write mode")
+          throw new UnsupportedOperationException(
+            "Optimize is only supported in one pipeline native write mode")
         }
         writeMergeTree(inputData, writeOptions, additionalConstraints)
       }
