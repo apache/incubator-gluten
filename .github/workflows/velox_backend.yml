@@ -281,25 +281,26 @@ jobs:
           docker pull centos:7
           docker run -v $GITHUB_WORKSPACE:/work -v /$GITHUB_WORKSPACE/.m2:/root/.m2/ -w /work \
           -e matrix.java=${{ matrix.java }} -e matrix.spark=${{ matrix.spark }} \
-          -e MVN_CMD=$MVN_CMD -e SETUP=$SETUP -e GITHUB_WORKSPACE=/work \
+          -e GITHUB_WORKSPACE=/work \
           centos:7 \
           bash -c "
-            sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-            sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+            sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
+            sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
 
             # Setup java and maven
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
             
-            $SETUP install_maven
+            wget -nv https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+            tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
+            export PATH=${PATH}:/usr/lib/maven/bin
 
             # Set environment variables
             export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
             # Build gluten-it
-            echo 'JAVA_HOME: $JAVA_HOME'
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
             cd $GITHUB_WORKSPACE/tools/gluten-it
-            $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+            mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
 
             # Run TPC-H / TPC-DS
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
