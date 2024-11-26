@@ -59,7 +59,7 @@ jobs:
     container: apache/gluten:vcpkg-centos-7
     steps:
       - name: Get Ccache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v2
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos7-release-default-${{github.sha}}
@@ -74,7 +74,7 @@ jobs:
           bash dev/ci-velox-buildstatic-centos-7.sh
           ccache -s
       - name: "Save ccache"
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v2
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
