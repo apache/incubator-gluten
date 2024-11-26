@@ -74,6 +74,8 @@ jobs:
             export CCACHE_DIR=/work/.ccache
             bash dev/ci-velox-buildstatic-centos-7.sh
             ccache -s
+            mkdir -p /work/.m2/repository/org/apache/arrow/
+            cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
           "
 
       - name: "Save ccache"
@@ -89,7 +91,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
+          path: .m2/repository/org/apache/arrow/
 
   run-tpc-test-ubuntu:
     needs: build-native-lib-centos-7
