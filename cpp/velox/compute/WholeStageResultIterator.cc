@@ -478,6 +478,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillBytes, 107374182400LL));
     configs[velox::core::QueryConfig::kSpillWriteBufferSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kSpillWriteBufferSize, 4L * 1024 * 1024));
+    configs[velox::core::QueryConfig::kSpillReadBufferSize] =
+        std::to_string(veloxCfg_->get<int32_t>(kSpillReadBufferSize, 1L * 1024 * 1024));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
         std::to_string(veloxCfg_->get<uint8_t>(kSpillStartPartitionBit, 29));
     configs[velox::core::QueryConfig::kSpillNumPartitionBits] =
@@ -485,7 +487,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
         std::to_string(veloxCfg_->get<uint8_t>(kSpillableReservationGrowthPct, 25));
     configs[velox::core::QueryConfig::kSpillCompressionKind] =
-        veloxCfg_->get<std::string>(kSpillCompressionKind, "lz4");
+        veloxCfg_->get<std::string>(kSpillCompressionKind, veloxCfg_->get<std::string>(kCompressionKind, "lz4"));
     configs[velox::core::QueryConfig::kSparkBloomFilterExpectedNumItems] =
         std::to_string(veloxCfg_->get<int64_t>(kBloomFilterExpectedNumItems, 1000000));
     configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] =

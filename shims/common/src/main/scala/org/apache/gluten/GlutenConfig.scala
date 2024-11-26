@@ -568,6 +568,8 @@ object GlutenConfig {
   val SPARK_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val SPARK_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"
+  val SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE = "spark.unsafe.sorter.spill.reader.buffer.size"
+  val SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE_DEFAULT = 1024 * 1024
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, default value is false
@@ -732,7 +734,10 @@ object GlutenConfig {
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
       (
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
-        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString)
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
+      (
+        SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE,
+        SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE_DEFAULT.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
