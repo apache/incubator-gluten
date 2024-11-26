@@ -16,7 +16,6 @@
 name: Build bundle package
 
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: false
   ACTIONS_RUNNER_FORCED_INTERNAL_NODE_VERSION: node16
   ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
@@ -42,7 +41,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -72,7 +71,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: centos:7
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v2
         with:

@@ -21,7 +21,6 @@ on:
       - 'main'
 
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: false
   ACTIONS_RUNNER_FORCED_INTERNAL_NODE_VERSION: node16
   ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
@@ -35,7 +34,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -58,7 +57,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -84,7 +83,7 @@ jobs:
   #     CCACHE_DIR: "${{ github.workspace }}/.ccache"
   #   container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
   #   steps:
-  #     - uses: actions/checkout@v2
+  #     - uses: actions/checkout@v3
   #     - name: Get Ccache
   #       uses: actions/cache/restore@v3
   #       with:
@@ -116,7 +115,7 @@ jobs:
 #      CCACHE_DIR: "${{ github.workspace }}/.ccache"
 #    container: ghcr.io/facebookincubator/velox-dev:centos8
 #    steps:
-#      - uses: actions/checkout@v2
+#      - uses: actions/checkout@v3
 #      - name: Setup java and maven
 #        run: |
 #          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \

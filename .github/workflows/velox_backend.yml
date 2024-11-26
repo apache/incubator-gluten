@@ -43,7 +43,6 @@ on:
       - 'dev/**'
 
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: false
   ACTIONS_RUNNER_FORCED_INTERNAL_NODE_VERSION: node16
   ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
   MVN_CMD: 'mvn -ntp'
@@ -60,7 +59,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -118,7 +117,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -189,7 +188,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -271,7 +270,7 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force > /dev/null
           df -h
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -386,7 +385,7 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force > /dev/null
           df -h
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -427,7 +426,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: centos:8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -486,7 +485,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ubuntu:22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Native Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -537,7 +536,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
@@ -579,7 +578,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -610,7 +609,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -655,7 +654,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -687,7 +686,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -732,7 +731,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -764,7 +763,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -808,7 +807,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -846,7 +845,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -878,7 +877,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -915,7 +914,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Download All Artifacts
         uses: actions/download-artifact@v3
         with:
@@ -945,7 +944,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:

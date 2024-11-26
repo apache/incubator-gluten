@@ -23,7 +23,6 @@ on:
     - cron: '0 20 * * 0'
 
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: false
   ACTIONS_RUNNER_FORCED_INTERNAL_NODE_VERSION: node16
   ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
 
@@ -40,7 +39,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -85,7 +84,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: build
         run: |
           # To avoid the prompt for region selection during installing tzdata.
