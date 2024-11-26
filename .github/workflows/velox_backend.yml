@@ -67,6 +67,8 @@ jobs:
       #       ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
+          node -v
+          which node
           df -a
           curl -L -o gluten-user.tar.gz https://github.com/${GITHUB_REPOSITORY}/archive/${GITHUB_SHA}.tar.gz
           tar xvf gluten-user.tar.gz
