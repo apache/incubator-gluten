@@ -32,15 +32,41 @@ extern const int NOT_IMPLEMENTED;
 namespace local_engine
 {
 
+class TemporaryWriteBufferWrapper : public DB::WriteBufferFromFileBase
+{
+public:
+    TemporaryWriteBufferWrapper(const String & file_name_, const std::shared_ptr<DB::TemporaryDataBuffer> & data_buffer_);
+
+    void sync() override { data_buffer->nextImpl(); }
+
+    void preFinalize() override;
+
+protected:
+    void finalizeImpl() override;
+    void cancelImpl() noexcept override;
+
+private:
+    void nextImpl() override;
+
+public:
+    std::string getFileName() const override
+    {
+        return file_name;
+    }
+
+private:
+    String file_name;
+    std::shared_ptr<DB::TemporaryDataBuffer> data_buffer;
+};
+
 class CompactObjectStorageDiskTransaction: public DB::IDiskTransaction {
     public:
     static inline const String PART_DATA_FILE_NAME = "part_data.gluten";
     static inline const String PART_META_FILE_NAME = "part_meta.gluten";
 
-    explicit CompactObjectStorageDiskTransaction(DB::IDisk & disk_, const DB::DiskPtr tmp_)
+    explicit CompactObjectStorageDiskTransaction(DB::IDisk & disk_, const DB::TemporaryDataOnDiskScopePtr tmp_)
         : disk(disk_), tmp_data(tmp_)
     {
-        chassert(!tmp_->isRemote());
     }
 
     void commit() override;
@@ -170,8 +196,8 @@ class CompactObjectStorageDiskTransaction: public DB::IDiskTransaction {
 
 private:
     DB::IDisk & disk;
-    DB::DiskPtr tmp_data;
-    std::vector<std::pair<String, std::shared_ptr<DB::TemporaryFileOnDisk>>> files;
+    DB::TemporaryDataOnDiskScopePtr tmp_data;
+    std::vector<std::pair<String, std::shared_ptr<DB::TemporaryDataBuffer>>> files;
     String prefix_path = "";
 };
 }

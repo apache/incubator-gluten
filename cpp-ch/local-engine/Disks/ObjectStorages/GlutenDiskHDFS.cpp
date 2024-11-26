@@ -29,7 +29,7 @@ using namespace DB;
 
 DiskTransactionPtr GlutenDiskHDFS::createTransaction()
 {
-    return std::make_shared<CompactObjectStorageDiskTransaction>(*this, QueryContext::globalContext()->getTempDataOnDisk()->getVolume()->getDisk());
+    return std::make_shared<CompactObjectStorageDiskTransaction>(*this, QueryContext::globalContext()->getTempDataOnDisk());
 }
 
 void GlutenDiskHDFS::createDirectory(const String & path)

@@ -74,7 +74,7 @@ void SparkStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source
         sum_ranges += part.ranges.size();
         sum_marks += part.getMarksCount();
         sum_rows += part.getRowsCount();
-        total_marks_pk += part.data_part->index_granularity.getMarksCountWithoutFinal();
+        total_marks_pk += part.data_part->index_granularity->getMarksCountWithoutFinal();
 
         for (auto range : part.ranges)
             sum_marks_pk += range.getNumberOfMarks();
@@ -487,6 +487,12 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     ///  either default lz4 or compression method with zero thresholds on absolute and relative part size.
     auto compression_codec = data.getContext()->chooseCompressionCodec(0, 0);
     auto txn = context->getCurrentTransaction();
+    auto index_granularity_ptr = createMergeTreeIndexGranularity(
+        block.rows(),
+        block.bytes(),
+        *data.getSettings(),
+        new_data_part->index_granularity_info,
+        /*blocks_are_granules=*/false);
     auto out = std::make_unique<MergedBlockOutputStream>(
         new_data_part,
         metadata_snapshot,
@@ -494,6 +500,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
         indices,
         MergeTreeStatisticsFactory::instance().getMany(metadata_snapshot->getColumns()),
         compression_codec,
+        index_granularity_ptr,
         txn ? txn->tid : Tx::PrehistoricTID,
         false,
         false,
