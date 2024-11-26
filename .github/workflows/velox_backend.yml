@@ -54,16 +54,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fetch-latest-code:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-
   build-native-lib-centos-7:
-    needs: fetch-latest-code
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
     steps:
+      - uses: actions/checkout@v2
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
