@@ -16,7 +16,7 @@
 name: Build bundle package
 
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: false
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
 concurrency:
