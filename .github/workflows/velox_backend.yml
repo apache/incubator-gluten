@@ -65,16 +65,16 @@ jobs:
           restore-keys: |
             ccache-centos7-release-default
       - name: Build Gluten native libraries
-        uses: addnab/docker-run-action@v3
-        with:
-          image: apache/gluten:vcpkg-centos-7
-          options: -v ${{ github.workspace }}:/work
-          run: |
+        run: |
+          docker pull apache/gluten:vcpkg-centos-7
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
             df -a
             cd /work
             export CCACHE_DIR=/work/.ccache
             bash dev/ci-velox-buildstatic-centos-7.sh
             ccache -s
+          "
+
       - name: "Save ccache"
         uses: actions/cache/save@v3
         id: ccache
