@@ -3183,40 +3183,51 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
                   |""".stripMargin)
       compareResultsAgainstVanillaSpark(
         """
-          |select a, b, c, row_number() over (partition by a order by b desc nulls first, c nulls last) as r
-          |from test_win_top
+          |select * from(
+          |select a, b, c,
+          |row_number() over (partition by a order by b desc nulls first, c nulls last) as r
+          |from test_win_top)
+          |where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
       )
       compareResultsAgainstVanillaSpark(
         """
+          |select * from(
           |select a, b, c, row_number() over (partition by a order by b desc, c nulls last) as r
           |from test_win_top
+          |)where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
       )
       compareResultsAgainstVanillaSpark(
         """
+          |select * from(
           |select a, b, c, row_number() over (partition by a order by b asc nulls first, c) as r
-          |from test_win_top
+          |from test_win_top)
+          |where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
       )
       compareResultsAgainstVanillaSpark(
         """
+          |select * from(
           |select a, b, c, row_number() over (partition by a order by b asc nulls last) as r
-          |from test_win_top
+          |from test_win_top)
+          |where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
       )
       compareResultsAgainstVanillaSpark(
         """
+          |select * from(
           |select a, b, c, row_number() over (partition by a order by b , c) as r
-          |from test_win_top
+          |from test_win_top)
+          |where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
@@ -3238,6 +3249,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         }
         assert(expands.size == 1)
       }
+      spark.sql("drop table if exists test_win_top")
       spark.sql("create table test_win_top (a string, b int, c int) using parquet")
       spark.sql("""
                   |insert into test_win_top values
@@ -3247,40 +3259,51 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
                   |""".stripMargin)
       compareResultsAgainstVanillaSpark(
         """
-          |select a, b, c, row_number() over (partition by a order by b desc nulls first, c nulls last) as r
+          |select * from(
+          |select a, b, c,
+          |row_number() over (partition by a order by b desc nulls first, c nulls last) as r
           |from test_win_top
+          |)where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
       )
       compareResultsAgainstVanillaSpark(
         """
+          |select * from(
           |select a, b, c, row_number() over (partition by a order by b desc, c nulls last) as r
-          |from test_win_top
+          |from test_win_top)
+          |where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
       )
       compareResultsAgainstVanillaSpark(
         """
+          | select * from(
           |select a, b, c, row_number() over (partition by a order by b asc nulls first, c) as r
-          |from test_win_top
+          |from test_win_top)
+          |where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
       )
       compareResultsAgainstVanillaSpark(
         """
+          |select * from(
           |select a, b, c, row_number() over (partition by a order by b asc nulls last) as r
-          |from test_win_top
+          |from test_win_top)
+          |where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit
       )
       compareResultsAgainstVanillaSpark(
         """
+          |select * from(
           |select a, b, c, row_number() over (partition by a order by b , c) as r
-          |from test_win_top
+          |from test_win_top)
+          |where r <= 1
           |""".stripMargin,
         true,
         checkWindowGroupLimit

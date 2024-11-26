@@ -50,12 +50,6 @@ case class ConverRowNumbertWindowToAggregateRule(spark: SparkSession)
               partitionSpec,
               orderSpec,
               sort @ SortExecTransformer(_, _, _, _))) =>
-        logDebug(s"xxx condition: $condition")
-        logDebug(s"xxx windowExpressions: $windowExpressions")
-        logDebug(s"xxx partitionSpec: $partitionSpec")
-        logDebug(s"xxx orderSpec: $orderSpec")
-        logDebug(s"xxx window output: ${window.output}")
-        logDebug(s"xxx child: ${sort.child.getClass}")
         if (
           !isSupportedWindowFunction(windowExpressions) || !isTopKLimitFilter(
             condition,
@@ -65,24 +59,23 @@ case class ConverRowNumbertWindowToAggregateRule(spark: SparkSession)
             s"xxx Not Supported case for converting window to aggregate. is topk limit: " +
               s"${isTopKLimitFilter(condition, windowExpressions(0))}. is supported window " +
               s"function: ${isSupportedWindowFunction(windowExpressions)}")
-          return filter
+          filter
+        } else {
+          val limit = getLimit(condition.asInstanceOf[BinaryComparison])
+          if (limit < 1 || limit > 100) {
+            filter
+          } else {
+            val groupLimit = CHAggregateGroupLimitExecTransformer(
+              partitionSpec,
+              orderSpec,
+              extractWindowFunction(windowExpressions(0)),
+              sort.child.output ++ Seq(windowExpressions(0).toAttribute),
+              limit,
+              sort.child
+            )
+            groupLimit
+          }
         }
-        val limit = getLimit(condition.asInstanceOf[BinaryComparison])
-        if (limit < 1 || limit > 100) {
-          return filter
-        }
-        val groupLimit = CHAggregateGroupLimitExecTransformer(
-          partitionSpec,
-          orderSpec,
-          extractWindowFunction(windowExpressions(0)),
-          sort.child.output ++ Seq(windowExpressions(0).toAttribute),
-          limit,
-          sort.child
-        )
-        logDebug(s"xxx windowGroupLimit: $groupLimit")
-        logDebug(s"xxx original window output: ${window.output}")
-        logDebug(s"xxx windowGroupLimit output: ${groupLimit.output}")
-        groupLimit
     }
   }
 
