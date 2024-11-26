@@ -57,9 +57,10 @@ jobs:
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
     steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '16'
+      - run: |
+          cd $RUNNER_HOME/actions-runner/externals
+          mv node20 node20.bak
+          ln -s node16 node20
       - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v3
