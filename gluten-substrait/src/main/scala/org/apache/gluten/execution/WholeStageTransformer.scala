@@ -57,7 +57,7 @@ case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
 
 /**
- * Base interface indicating the Gluten query plan is open to validation calls.
+ * Base interface for a Gluten query plan that is also open to validation calls.
  *
  * Since https://github.com/apache/incubator-gluten/pull/2185.
  */
