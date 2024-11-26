@@ -51,9 +51,12 @@ abstract class ColumnarWriteFilesExec protected (
   override lazy val references: AttributeSet = AttributeSet.empty
 
   override def requiredChildConvention(): Seq[ConventionReq] = {
-    List(
-      ConventionReq.ofBatch(
-        ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType)))
+    val req = ConventionReq.ofBatch(
+      ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType))
+    Seq.tabulate(2)(
+      _ => {
+        req
+      })
   }
 
   /**

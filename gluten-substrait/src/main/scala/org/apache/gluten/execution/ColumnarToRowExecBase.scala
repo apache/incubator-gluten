@@ -46,6 +46,12 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
 
   override def rowType0(): Convention.RowType = Convention.RowType.VanillaRow
 
+  override def requiredChildConvention(): Seq[ConventionReq] = {
+    List(
+      ConventionReq.ofBatch(
+        ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType)))
+  }
+
   override def doExecuteBroadcast[T](): Broadcast[T] = {
     // Require for explicit implementation, otherwise throw error.
     super.doExecuteBroadcast[T]()
@@ -55,11 +61,5 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
 
   override def doExecute(): RDD[InternalRow] = {
     doExecuteInternal()
-  }
-
-  override def requiredChildConvention(): Seq[ConventionReq] = {
-    List(
-      ConventionReq.ofBatch(
-        ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType)))
   }
 }

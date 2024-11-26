@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
@@ -48,6 +48,10 @@ abstract class RowToColumnarExecBase(child: SparkPlan)
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
+
+  override def requiredChildConvention(): Seq[ConventionReq] = {
+    Seq(ConventionReq.row)
+  }
 
   final override def doExecute(): RDD[InternalRow] = {
     child.execute()
