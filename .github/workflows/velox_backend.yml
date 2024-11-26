@@ -281,7 +281,6 @@ jobs:
           docker pull centos:7
           docker run -v $GITHUB_WORKSPACE:/work -v /$GITHUB_WORKSPACE/.m2:/root/.m2/ -w /work \
           -e matrix.java=${{ matrix.java }} -e matrix.spark=${{ matrix.spark }} \
-          -e GITHUB_WORKSPACE=/work \
           centos:7 \
           bash -c "
             sed -i -e 's|mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-* || true
@@ -299,7 +298,7 @@ jobs:
 
             # Build gluten-it
             mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
-            cd $GITHUB_WORKSPACE/tools/gluten-it
+            cd /work/tools/gluten-it
             mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
 
             # Run TPC-H / TPC-DS
@@ -309,7 +308,7 @@ jobs:
               --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
             # Run TPC-H / TPC-DS with RAS
-            cd $GITHUB_WORKSPACE/tools/gluten-it
+            cd /work/tools/gluten-it
             GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
               --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
               --extra-conf=spark.gluten.ras.enabled=true \
