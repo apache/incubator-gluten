@@ -98,7 +98,9 @@ set(KNOWN_WARNINGS
        -Wno-error=unused-function \
        -Wno-error=unused-variable \
        -Wno-strict-aliasing \
-       -Wno-ignored-qualifiers")
+       -Wno-ignored-qualifiers \
+       -Wno-deprecated-declarations \
+       -Wno-attributes")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set(KNOWN_WARNINGS "-Wno-error=unused-but-set-variable \
@@ -141,7 +143,24 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_compile_definitions(_GNU_SOURCE)
 endif()
 
+if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KNOWN_WARNINGS}")
+
+# Keep same compile option with Velox.
+execute_process(
+  COMMAND
+    bash -c
+    "( source ${VELOX_HOME}/scripts/setup-helper-functions.sh && echo -n $(get_cxx_flags $ENV{CPU_TARGET}))"
+  OUTPUT_VARIABLE SCRIPT_CXX_FLAGS
+  RESULT_VARIABLE COMMAND_STATUS)
+if(COMMAND_STATUS EQUAL "1")
+  message(FATAL_ERROR "Unable to determine compiler flags!")
+endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
 
 #
 # Dependencies
