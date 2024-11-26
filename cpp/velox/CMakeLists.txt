@@ -23,12 +23,6 @@ include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 include(FindPackageHandleStandardArgs)
 
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
-if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
-endif()
-
 set(SYSTEM_LIB_PATH
     "/usr/lib"
     CACHE PATH "System Lib dir")
@@ -61,18 +55,6 @@ if(NOT DEFINED VELOX_HOME)
   set(VELOX_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
   message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
-
-# Keep same compile option with Velox.
-execute_process(
-  COMMAND
-    bash -c
-    "( source ${VELOX_HOME}/scripts/setup-helper-functions.sh && echo -n $(get_cxx_flags $ENV{CPU_TARGET}))"
-  OUTPUT_VARIABLE SCRIPT_CXX_FLAGS
-  RESULT_VARIABLE COMMAND_STATUS)
-if(COMMAND_STATUS EQUAL "1")
-  message(FATAL_ERROR "Unable to determine compiler flags!")
-endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
 
 message("Velox module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
