@@ -268,7 +268,8 @@ object Validators {
         val transformer = HashAggregateExecBaseTransformer.from(plan)
         transformer.doValidate().toValidatorOutcome()
       case plan: UnionExec =>
-        pass()
+        val transformer = ColumnarUnionExec(plan.children)
+        transformer.doValidate().toValidatorOutcome()
       case plan: ExpandExec =>
         val transformer = ExpandExecTransformer(plan.projections, plan.output, plan.child)
         transformer.doValidate().toValidatorOutcome()
@@ -301,7 +302,8 @@ object Validators {
             plan.isSkewJoin)
         transformer.doValidate().toValidatorOutcome()
       case plan: BroadcastExchangeExec =>
-        pass()
+        val transformer = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
+        transformer.doValidate().toValidatorOutcome()
       case bhj: BroadcastHashJoinExec =>
         val transformer = BackendsApiManager.getSparkPlanExecApiInstance
           .genBroadcastHashJoinExecTransformer(
@@ -359,7 +361,9 @@ object Validators {
         )
         transformer.doValidate().toValidatorOutcome()
       case plan: CoalesceExec =>
-        pass()
+        ColumnarCoalesceExec(plan.numPartitions, plan.child)
+          .doValidate()
+          .toValidatorOutcome()
       case plan: GlobalLimitExec =>
         val (limit, offset) =
           SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)

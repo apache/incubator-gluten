@@ -29,7 +29,6 @@ import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
 abstract class ColumnarToRowExecBase(child: SparkPlan)
   extends ColumnarToRowTransition
-  with GlutenPlan
   with KnownChildConvention
   with ValidatablePlan {
 

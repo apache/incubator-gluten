@@ -262,7 +262,7 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
 }
 
 // An alternatives for UnionExec.
-case class ColumnarUnionExec(children: Seq[SparkPlan]) extends GlutenPlan {
+case class ColumnarUnionExec(children: Seq[SparkPlan]) extends ValidatablePlan {
   children.foreach {
     case w: WholeStageTransformer =>
       w.setOutputSchemaForPlan(output)

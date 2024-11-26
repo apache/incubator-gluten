@@ -41,7 +41,6 @@ case class TakeOrderedAndProjectExecTransformer(
     child: SparkPlan,
     offset: Int = 0)
   extends UnaryExecNode
-  with GlutenPlan
   with ValidatablePlan {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder

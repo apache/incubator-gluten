@@ -29,7 +29,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarCoalesceExec(numPartitions: Int, child: SparkPlan)
   extends UnaryExecNode
-  with GlutenPlan {
+  with ValidatablePlan {
 
   override def output: Seq[Attribute] = child.output
 

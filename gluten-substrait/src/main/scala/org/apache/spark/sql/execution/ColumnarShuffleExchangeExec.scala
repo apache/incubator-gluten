@@ -47,7 +47,6 @@ case class ColumnarShuffleExchangeExec(
     projectOutputAttributes: Seq[Attribute],
     advisoryPartitionSize: Option[Long] = None)
   extends ShuffleExchangeLike
-  with GlutenPlan
   with ValidatablePlan {
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)

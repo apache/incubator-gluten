@@ -53,7 +53,6 @@ import scala.collection.mutable.ListBuffer
 case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     replacedAliasUdf: Seq[Alias])
   extends UnaryExecNode
-  with GlutenPlan
   with ValidatablePlan {
 
   private val projectAttributes: ListBuffer[Attribute] = ListBuffer()

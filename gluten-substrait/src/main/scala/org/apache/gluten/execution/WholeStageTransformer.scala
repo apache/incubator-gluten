@@ -57,11 +57,11 @@ case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
 
 /**
- * Base interface indicating the query plan is open to validation calls.
+ * Base interface indicating the Gluten query plan is open to validation calls.
  *
  * Since https://github.com/apache/incubator-gluten/pull/2185.
  */
-trait ValidatablePlan extends SparkPlan with LogLevelUtil {
+trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
   protected def glutenConf: GlutenConfig = GlutenConfig.getConf
 
   protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
@@ -116,7 +116,7 @@ trait ValidatablePlan extends SparkPlan with LogLevelUtil {
 }
 
 /** Base interface for a query plan that can be interpreted to Substrait representation. */
-trait TransformSupport extends GlutenPlan with ValidatablePlan {
+trait TransformSupport extends ValidatablePlan {
   override def batchType(): Convention.BatchType = {
     BackendsApiManager.getSettings.primaryBatchType
   }
