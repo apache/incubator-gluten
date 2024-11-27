@@ -123,7 +123,7 @@ TEST(TestJoin, simple)
     auto hash_join = std::make_shared<HashJoin>(join, right_plan.getCurrentHeader());
 
     QueryPlanStepPtr join_step
-        = std::make_unique<JoinStep>(left_plan.getCurrentHeader(), right_plan.getCurrentHeader(), hash_join, 8192, 1, false);
+        = std::make_unique<JoinStep>(left_plan.getCurrentHeader(), right_plan.getCurrentHeader(), hash_join, 8192, 0, 1, false);
 
     std::cerr << "join step:" << join_step->getOutputHeader().dumpStructure() << std::endl;
 
