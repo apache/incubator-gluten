@@ -18,6 +18,7 @@
 
 #include <QueryPipeline/QueryPipeline.h>
 #include <Poco/URI.h>
+#include <Common/DebugUtils.h>
 
 namespace local_engine
 {

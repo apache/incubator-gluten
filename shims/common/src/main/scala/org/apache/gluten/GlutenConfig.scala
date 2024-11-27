@@ -112,8 +112,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCountDistinctWithoutExpand: Boolean =
     conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
 
-  def enableExtendedGeneratorNestedColumnAliasing: Boolean =
-    conf.getConf(ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING)
+  def enableExtendedColumnPruning: Boolean =
+    conf.getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
 
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
@@ -1980,10 +1980,10 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-  val ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING =
-    buildConf("spark.gluten.sql.extendedGeneratorNestedColumnAliasing")
+  val ENABLE_EXTENDED_COLUMN_PRUNING =
+    buildConf("spark.gluten.sql.extendedColumnPruning.enabled")
       .internal()
-      .doc("Do nested column aliasing for Project(Filter(Generator))")
+      .doc("Do extended nested column pruning for cases ignored by vanilla Spark.")
       .booleanConf
       .createWithDefault(true)
 
