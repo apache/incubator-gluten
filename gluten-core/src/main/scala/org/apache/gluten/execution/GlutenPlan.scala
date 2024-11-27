@@ -39,7 +39,7 @@ import org.apache.spark.sql.execution.SparkPlan
  * Implementing `requiredChildConvention` is optional while the default implementation is a sequence
  * of convention reqs that are exactly the same with the output convention. If it's not the case for
  * some plan types, then the API should be overridden. For example, a typical row-to-columnar
- * transition is at the same time a query plan node that requires for row input however is with
+ * transition is at the same time a query plan node that requires for row input however produces
  * columnar output.
  */
 trait GlutenPlan
