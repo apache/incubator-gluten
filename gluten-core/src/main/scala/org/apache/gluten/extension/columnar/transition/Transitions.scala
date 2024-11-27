@@ -90,17 +90,11 @@ object Transitions {
   }
 
   def toRowPlan(plan: SparkPlan): SparkPlan = {
-    enforceReq(
-      plan,
-      ConventionReq.of(
-        ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
-        ConventionReq.BatchType.Any))
+    enforceReq(plan, ConventionReq.row)
   }
 
   def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {
-    enforceReq(
-      plan,
-      ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)))
+    enforceReq(plan, ConventionReq.ofBatch(ConventionReq.BatchType.Is(toBatchType)))
   }
 
   def enforceReq(plan: SparkPlan, req: ConventionReq): SparkPlan = {

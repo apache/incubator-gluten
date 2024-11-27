@@ -218,7 +218,7 @@ case class ColumnarArrowEvalPythonExec(
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override def requiredChildConvention(): Seq[ConventionReq] = List(
-    ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(ArrowJavaBatch)))
+    ConventionReq.ofBatch(ConventionReq.BatchType.Is(ArrowJavaBatch)))
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

@@ -50,8 +50,9 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
     Convention.RowType.None
   }
 
-  override def requiredChildConvention(): Seq[ConventionReq] = List(
-    ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(from)))
+  override def requiredChildConvention(): Seq[ConventionReq] = {
+    List(ConventionReq.ofBatch(ConventionReq.BatchType.Is(from)))
+  }
 
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
