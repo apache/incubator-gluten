@@ -16,8 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.WholeStageTransformer
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.{GlutenPlan, WholeStageTransformer}
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PlanUtil

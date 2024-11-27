@@ -17,8 +17,7 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.execution.ColumnarToColumnarExec
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -117,6 +116,7 @@ object TransitionSuite extends TransitionSuiteBase {
     extends RowToColumnarTransition
     with GlutenPlan {
     override def batchType(): Convention.BatchType = toBatchType
+    override def rowType0(): Convention.RowType = Convention.RowType.None
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
     override protected def doExecute(): RDD[InternalRow] =

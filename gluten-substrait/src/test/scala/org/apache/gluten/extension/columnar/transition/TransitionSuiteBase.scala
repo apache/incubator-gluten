@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -27,6 +27,7 @@ trait TransitionSuiteBase {
   case class BatchLeaf(override val batchType: Convention.BatchType)
     extends LeafExecNode
     with GlutenPlan {
+    override def rowType0(): Convention.RowType = Convention.RowType.None
 
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
 
@@ -36,6 +37,7 @@ trait TransitionSuiteBase {
   case class BatchUnary(override val batchType: Convention.BatchType, override val child: SparkPlan)
     extends UnaryExecNode
     with GlutenPlan {
+    override def rowType0(): Convention.RowType = Convention.RowType.None
 
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
@@ -51,6 +53,7 @@ trait TransitionSuiteBase {
       override val right: SparkPlan)
     extends BinaryExecNode
     with GlutenPlan {
+    override def rowType0(): Convention.RowType = Convention.RowType.None
 
     override protected def withNewChildrenInternal(
         newLeft: SparkPlan,

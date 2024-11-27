@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -330,8 +329,7 @@ object OffloadOthers {
             child)
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
-          val children = plan.children
-          p.withNewChildren(children)
+          p
         case other => other
       }
     }

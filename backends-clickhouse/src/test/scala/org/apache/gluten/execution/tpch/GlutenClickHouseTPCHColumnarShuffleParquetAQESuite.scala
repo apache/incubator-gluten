@@ -18,7 +18,7 @@ package org.apache.gluten.execution.tpch
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution._
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf

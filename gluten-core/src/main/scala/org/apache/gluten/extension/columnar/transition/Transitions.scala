@@ -42,13 +42,13 @@ case class InsertTransitions(convReq: ConventionReq) extends Rule[SparkPlan] {
     if (node.children.isEmpty) {
       return node
     }
-    val convReq = convFunc.conventionReqOf(node)
-    val newChildren = node.children.map {
-      child =>
+    val convReqs = convFunc.conventionReqOf(node)
+    val newChildren = node.children.zip(convReqs).map {
+      case (child, convReq) =>
         val from = convFunc.conventionOf(child)
         if (from.isNone) {
           // For example, a union op with row child and columnar child at the same time,
-          // The plan is actually not executable and we cannot tell about its convention.
+          // The plan is actually not executable, and we cannot tell about its convention.
           child
         } else {
           val transition =

@@ -43,7 +43,6 @@ import org.apache.arrow.memory.ArrowBuf
 import scala.collection.mutable.ListBuffer
 
 case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBase(child = child) {
-
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")
     val numOutputBatches = longMetric("numOutputBatches")

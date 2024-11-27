@@ -92,7 +92,7 @@ object ConvDef extends PropertyDef[SparkPlan, Conv] {
   override def getChildrenConstraints(
       constraint: Property[SparkPlan],
       plan: SparkPlan): Seq[Conv] = {
-    val out = List.tabulate(plan.children.size)(_ => Conv.req(ConventionReq.get(plan)))
+    val out = ConventionReq.get(plan).map(Conv.req)
     out
   }
 
