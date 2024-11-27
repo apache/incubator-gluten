@@ -127,6 +127,31 @@ public:
     }
 };
 
+template <>
+class BaseFloatRoundingHalfUpComputation<BFloat16, Vectorize::No>
+{
+public:
+    using ScalarType = BFloat16;
+    using VectorType = BFloat16;
+    static const size_t data_count = 1;
+
+    static VectorType load(const ScalarType * in) { return *in; }
+    static VectorType load1(const ScalarType in) { return in; }
+    static VectorType store(ScalarType * out, ScalarType val) { return *out = val;}
+    static VectorType multiply(VectorType val, VectorType scale) { return val * scale; }
+    static VectorType divide(VectorType val, VectorType scale) { return val / scale; }
+    template <RoundingMode mode>
+    static VectorType apply(VectorType val)
+    {
+        return BFloat16(std::roundf(static_cast<Float32>(val)));
+    }
+
+    static VectorType prepare(size_t scale)
+    {
+        return load1(BFloat16(static_cast<Float32>(scale)));
+    }
+};
+
 
 /** Implementation of low-level round-off functions for floating-point values.
   */
@@ -167,7 +192,7 @@ private:
 
     template <Vectorize vectorize =
 #ifdef __SSE4_1__
-    Vectorize::Yes
+    std::is_same_v<T, BFloat16> ? Vectorize::No : Vectorize::Yes
 #else
     Vectorize::No
 #endif
@@ -219,7 +244,7 @@ struct DispatcherRoundingHalfUp
 {
     template <ScaleMode scale_mode>
     using FunctionRoundingImpl = std::conditional_t<
-        std::is_floating_point_v<T>,
+        std::is_floating_point_v<T> || std::is_same_v<T, BFloat16>,
         FloatRoundingHalfUpImpl<T, rounding_mode, scale_mode>,
         IntegerRoundingImpl<T, rounding_mode, scale_mode, tie_breaking_mode>>;
 

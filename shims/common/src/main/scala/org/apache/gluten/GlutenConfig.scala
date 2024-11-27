@@ -805,7 +805,8 @@ object GlutenConfig {
       SPARK_OFFHEAP_ENABLED,
       SESSION_LOCAL_TIMEZONE.key,
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
-      SPARK_REDACTION_REGEX
+      SPARK_REDACTION_REGEX,
+      LEGACY_TIME_PARSER_POLICY.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 

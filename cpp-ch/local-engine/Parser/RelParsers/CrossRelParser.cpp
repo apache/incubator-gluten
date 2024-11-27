@@ -41,6 +41,7 @@ namespace DB
 namespace Setting
 {
 extern const SettingsUInt64 max_block_size;
+extern const SettingsUInt64 min_joined_block_size_bytes;
 }
 namespace ErrorCodes
 {
@@ -200,7 +201,13 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
     {
         JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right->getCurrentHeader().cloneEmpty());
         QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
-            left->getCurrentHeader(), right->getCurrentHeader(), hash_join, context->getSettingsRef()[Setting::max_block_size], 1, false);
+            left->getCurrentHeader(),
+            right->getCurrentHeader(),
+            hash_join,
+            context->getSettingsRef()[Setting::max_block_size],
+            context->getSettingsRef()[Setting::min_joined_block_size_bytes],
+            1,
+            false);
         join_step->setStepDescription("CROSS_JOIN");
         steps.emplace_back(join_step.get());
         std::vector<QueryPlanPtr> plans;
