@@ -45,7 +45,7 @@ object GlutenPlanModel {
       constraintSet: PropertySet[SparkPlan])
     extends LeafExecNode
     with Convention.KnownBatchType
-    with Convention.KnownRowTypeForSpark33AndLater
+    with Convention.KnownRowTypeForSpark33OrLater
     with GlutenPlan.SupportsRowBasedCompatible {
     private val req: Conv.Req = constraintSet.get(ConvDef).asInstanceOf[Conv.Req]
 

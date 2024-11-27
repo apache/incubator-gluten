@@ -157,9 +157,9 @@ object Convention {
     def rowType(): RowType
   }
 
-  trait KnownRowTypeForSpark33AndLater extends KnownRowType {
+  trait KnownRowTypeForSpark33OrLater extends KnownRowType {
     this: SparkPlan =>
-    import KnownRowTypeForSpark33AndLater._
+    import KnownRowTypeForSpark33OrLater._
 
     final override def rowType(): RowType = {
       if (lteSpark32) {
@@ -180,7 +180,7 @@ object Convention {
     def rowType0(): RowType
   }
 
-  object KnownRowTypeForSpark33AndLater {
+  object KnownRowTypeForSpark33OrLater {
     private val lteSpark32: Boolean = {
       val v = SparkVersionUtil.majorMinorVersion()
       SparkVersionUtil.compareMajorMinorVersion(v, (3, 2)) <= 0
