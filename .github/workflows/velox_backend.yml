@@ -72,6 +72,7 @@ jobs:
             df -a
             cd /work
             export CCACHE_DIR=/work/.ccache
+            mkdir -p /work/.ccache
             bash dev/ci-velox-buildstatic-centos-7.sh
             ccache -s
             mkdir -p /work/.m2/repository/org/apache/arrow/
