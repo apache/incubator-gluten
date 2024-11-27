@@ -512,6 +512,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             checkGlutenOperatorMatch[WindowExecTransformer]
           }
         }
+
+        // Foldable input of nth_value is not supported.
+        runQueryAndCompare(
+          "select l_suppkey, l_orderkey, nth_value(1, 2) over" +
+            " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+          checkSparkOperatorMatch[WindowExec]
+        }
     }
   }
 
