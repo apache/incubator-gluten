@@ -22,7 +22,7 @@ import org.apache.spark.sql.Row
 abstract class IcebergSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   // FIXME: This folder doesn't exist in module gluten-iceberg so should be provided by
-  //  backend modules that rely on this suite.
+  // backend modules that rely on this suite.
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
@@ -39,7 +39,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
         "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
       .set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog")
       .set("spark.sql.catalog.spark_catalog.type", "hadoop")
-      .set("spark.sql.catalog.spark_catalog.warehouse", s"file://$rootPath/tpch-data-iceberg-velox")
+      .set("spark.sql.catalog.spark_catalog.warehouse", s"file://$rootPath/tpch-data-iceberg")
   }
 
   test("iceberg transformer exists") {
