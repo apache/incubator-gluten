@@ -21,10 +21,31 @@ import org.apache.gluten.extension.columnar.transition.{Convention, ConventionRe
 
 import org.apache.spark.sql.execution.SparkPlan
 
+/**
+ * Base interface for Query plan that defined by backends.
+ *
+ * The following Spark APIs are marked final so forbidden from overriding:
+ *   - supportsColumnar
+ *   - supportsRowBased (Spark version >= 3.3)
+ *
+ * Instead, subclasses are expected to implement the following APIs:
+ *   - batchType
+ *   - rowType0
+ *   - requiredChildConvention (optional)
+ *
+ * With implementations of the APIs provided, Gluten query planner will be able to find and insert
+ * proper transitions between different plan nodes.
+ *
+ * Implementing `requiredChildConvention` is optional while the default implementation is a sequence
+ * of convention reqs that are exactly the same with the output convention. If it's not the case for
+ * some plan types, then the API should be overridden. For example, a typical row-to-columnar
+ * transition is at the same time a query plan node that requires for row input however produces
+ * columnar output.
+ */
 trait GlutenPlan
   extends SparkPlan
   with Convention.KnownBatchType
-  with Convention.KnownRowTypeForSpark33AndLater
+  with Convention.KnownRowTypeForSpark33OrLater
   with GlutenPlan.SupportsRowBasedCompatible
   with ConventionReq.KnownChildConvention {
 
@@ -32,11 +53,11 @@ trait GlutenPlan
     batchType() != Convention.BatchType.None
   }
 
-  override def batchType(): Convention.BatchType
-
   final override val supportsRowBased: Boolean = {
     rowType() != Convention.RowType.None
   }
+
+  override def batchType(): Convention.BatchType
 
   override def rowType0(): Convention.RowType
 

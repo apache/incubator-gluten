@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
-import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildConvention
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -29,7 +28,6 @@ import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
 abstract class ColumnarToRowExecBase(child: SparkPlan)
   extends ColumnarToRowTransition
-  with KnownChildConvention
   with ValidatablePlan {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.

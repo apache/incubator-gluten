@@ -177,7 +177,7 @@ case class ColumnarCollapseTransformStages(
 case class ColumnarInputAdapter(child: SparkPlan)
   extends InputAdapterGenerateTreeStringShim
   with Convention.KnownBatchType
-  with Convention.KnownRowTypeForSpark33AndLater
+  with Convention.KnownRowTypeForSpark33OrLater
   with GlutenPlan.SupportsRowBasedCompatible
   with ConventionReq.KnownChildConvention {
   override def output: Seq[Attribute] = child.output

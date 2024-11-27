@@ -21,7 +21,6 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
-import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildConvention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.PullOutProjectHelper
@@ -212,15 +211,14 @@ case class ColumnarArrowEvalPythonExec(
     child: SparkPlan,
     evalType: Int)
   extends EvalPythonExec
-  with GlutenPlan
-  with KnownChildConvention {
+  with GlutenPlan {
 
   override def batchType(): Convention.BatchType = ArrowJavaBatch
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override def requiredChildConvention(): Seq[ConventionReq] = List(
-    ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(ArrowJavaBatch)))
+    ConventionReq.ofBatch(ConventionReq.BatchType.Is(ArrowJavaBatch)))
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
