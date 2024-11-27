@@ -824,6 +824,13 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
     partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);
   }
+  const auto& conf = ctx->getConfMap();
+  {
+    auto it = conf.find(kShuffleFileBufferSize);
+    if (it != conf.end()) {
+      partitionWriterOptions.shuffleFileBufferSize = static_cast<int64_t>(stoi(it->second));
+    }
+  }
 
   std::unique_ptr<PartitionWriter> partitionWriter;
 

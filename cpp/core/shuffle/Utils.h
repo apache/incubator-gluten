@@ -74,9 +74,9 @@ std::shared_ptr<arrow::Buffer> zeroLengthNullBuffer();
 // to prefetch and release memory timely.
 class MmapFileStream : public arrow::io::InputStream {
  public:
-  MmapFileStream(arrow::internal::FileDescriptor fd, uint8_t* data, int64_t size);
+  MmapFileStream(arrow::internal::FileDescriptor fd, uint8_t* data, int64_t size, uint64_t prefetchSize);
 
-  static arrow::Result<std::shared_ptr<MmapFileStream>> open(const std::string& path);
+  static arrow::Result<std::shared_ptr<MmapFileStream>> open(const std::string& path, uint64_t prefetchSize = 0);
 
   arrow::Result<int64_t> Tell() const override;
 
@@ -95,10 +95,13 @@ class MmapFileStream : public arrow::io::InputStream {
 
   void willNeed(int64_t length);
 
+  // Page-aligned prefetch size
+  const int64_t prefetchSize_;
   arrow::internal::FileDescriptor fd_;
   uint8_t* data_ = nullptr;
   int64_t size_;
   int64_t pos_ = 0;
+  int64_t posFetch_ = 0;
   int64_t posRetain_ = 0;
 };
 
