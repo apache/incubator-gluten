@@ -56,7 +56,6 @@ object ExtendedGeneratorNestedColumnAliasing {
       // We cannot push through if the child of generator is `MapType`.
       g.generator.children.head.dataType match {
         case _: MapType => return Some(pushedThrough)
-        case ArrayType(_: ArrayType, _) => return Some(pushedThrough)
         case _ =>
       }
 

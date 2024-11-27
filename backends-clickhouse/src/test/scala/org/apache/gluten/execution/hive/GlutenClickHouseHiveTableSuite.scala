@@ -1473,40 +1473,52 @@ class GlutenClickHouseHiveTableSuite
                 |    'event_info', map('tab_type', '4', 'action', '12')))
        """.stripMargin)
 
-    val df =
-      spark.sql("""
-                  | SELECT * FROM (
-                  |  SELECT
-                  |    game_name,
-                  |    CASE WHEN
-                  |       event.event_info['tab_type'] IN (5) THEN '1' ELSE '0' END AS entrance
-                  |  FROM aj
-                  |  LATERAL VIEW explode(split(nvl(event.event_info['game_name'],'0'),','))
-                  |    as game_name
-                  |  WHERE event.event_info['action'] IN (13)
-                  |) WHERE game_name = 'xxx'
-      """.stripMargin)
+    val sql = """
+                | SELECT * FROM (
+                |  SELECT
+                |    game_name,
+                |    CASE WHEN
+                |       event.event_info['tab_type'] IN (5) THEN '1' ELSE '0' END AS entrance
+                |  FROM aj
+                |  LATERAL VIEW explode(split(nvl(event.event_info['game_name'],'0'),','))
+                |    as game_name
+                |  WHERE event.event_info['action'] IN (13)
+                |) WHERE game_name = 'xxx'
+      """.stripMargin
 
-    val scan = df.queryExecution.executedPlan.collect {
-      case scan: FileSourceScanExecTransformer => scan
-    }.head
-    val fieldType = scan.schema.fields.head.dataType.asInstanceOf[StructType]
-    assert(fieldType.size == 1)
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      df => {
+        val scan = df.queryExecution.executedPlan.collect {
+          case scan: FileSourceScanExecTransformer => scan
+        }.head
+        val fieldType = scan.schema.fields.head.dataType.asInstanceOf[StructType]
+        assert(fieldType.size == 1)
+      }
+    )
+
     spark.sql("drop table if exists aj")
   }
 
   test("Nested column pruning for Project(Filter(Generate)) on generator") {
-    def assertFieldSizeAfterPruning(df: DataFrame, expectSize: Int): Unit = {
-      val scan = df.queryExecution.executedPlan.collect {
-        case scan: FileSourceScanExecTransformer => scan
-      }.head
+    def assertFieldSizeAfterPruning(sql: String, expectSize: Int): Unit = {
+      compareResultsAgainstVanillaSpark(
+        sql,
+        compareResult = true,
+        df => {
+          val scan = df.queryExecution.executedPlan.collect {
+            case scan: FileSourceScanExecTransformer => scan
+          }.head
 
-      val fieldType =
-        scan.schema.fields.head.dataType
-          .asInstanceOf[ArrayType]
-          .elementType
-          .asInstanceOf[StructType]
-      assert(fieldType.size == expectSize)
+          val fieldType =
+            scan.schema.fields.head.dataType
+              .asInstanceOf[ArrayType]
+              .elementType
+              .asInstanceOf[StructType]
+          assert(fieldType.size == expectSize)
+        }
+      )
     }
 
     spark.sql("drop table if exists ajog")
@@ -1531,47 +1543,44 @@ class GlutenClickHouseHiveTableSuite
        """.stripMargin)
 
     // Test nested column pruning on generator with single field extracted
-    val df1 =
-      spark.sql("""
-                  |select
-                  |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
-                  |from ajog
-                  |lateral view explode(events)  as event
-                  |where  event.event_info['action'] in (13)
-      """.stripMargin)
-    assertFieldSizeAfterPruning(df1, 1)
+    val sql1 = """
+                 |select
+                 |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
+                 |from ajog
+                 |lateral view explode(events)  as event
+                 |where  event.event_info['action'] in (13)
+      """.stripMargin
+    assertFieldSizeAfterPruning(sql1, 1)
 
     // Test nested column pruning on generator with multiple field extracted,
     // which resolves SPARK-34956
-    val df2 =
-      spark.sql("""
-                  |select event.event_id,
-                  |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
-                  |from ajog
-                  |lateral view explode(events)  as event
-                  |where  event.event_info['action'] in (13)
-      """.stripMargin)
-    assertFieldSizeAfterPruning(df2, 2)
+    val sql2 = """
+                 |select event.event_id,
+                 |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
+                 |from ajog
+                 |lateral view explode(events)  as event
+                 |where  event.event_info['action'] in (13)
+      """.stripMargin
+    assertFieldSizeAfterPruning(sql2, 2)
 
     // Test nested column pruning with two adjacent generate operator
-    val df3 =
-      spark.sql("""
-                  |SELECT
-                  |abflag,
-                  |event.event_info,
-                  |event.log_extra
-                  |FROM
-                  |ajog
-                  |LATERAL VIEW EXPLODE(events) AS event
-                  |LATERAL VIEW EXPLODE(split(event.log_extra['abflags_v3'], ',')) AS abflag
-                  |WHERE
-                  |event.event_id = 'xx'
-                  |AND event.event_info['dispatch_id'] IS NOT NULL
-                  |AND event.event_info['dispatch_id'] != ''
-                  |AND event.log_extra['scene'] = 'xxx'
-                  |LIMIT 100;
-      """.stripMargin)
-    assertFieldSizeAfterPruning(df3, 3)
+    val sql3 = """
+                 |SELECT
+                 |abflag,
+                 |event.event_info,
+                 |event.log_extra
+                 |FROM
+                 |ajog
+                 |LATERAL VIEW EXPLODE(events) AS event
+                 |LATERAL VIEW EXPLODE(split(event.log_extra['key1'], ',')) AS abflag
+                 |WHERE
+                 |event.event_id = 'event1'
+                 |AND event.event_info['tab_type'] IS NOT NULL
+                 |AND event.event_info['tab_type'] != ''
+                 |AND event.log_extra['key1'] = 'value1'
+                 |LIMIT 100;
+      """.stripMargin
+    assertFieldSizeAfterPruning(sql3, 3)
 
     spark.sql("drop table if exists ajog")
   }
