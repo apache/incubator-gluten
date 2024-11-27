@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 
 import org.apache.spark.sql.execution.SparkPlan
@@ -24,6 +25,7 @@ trait GlutenPlan
   extends SparkPlan
   with Convention.KnownBatchType
   with Convention.KnownRowTypeForSpark33AndLater
+  with GlutenPlan.SupportsRowBasedCompatible
   with ConventionReq.KnownChildConvention {
 
   final override val supportsColumnar: Boolean = {
@@ -45,5 +47,14 @@ trait GlutenPlan
       _ => {
         childReq
       })
+  }
+}
+
+object GlutenPlan {
+  // To be compatible with Spark (version < 3.3)
+  trait SupportsRowBasedCompatible {
+    def supportsRowBased(): Boolean = {
+      throw new GlutenException("Illegal state: The method is not expected to be called")
+    }
   }
 }
