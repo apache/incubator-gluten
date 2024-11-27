@@ -98,19 +98,22 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
     val outputFormat = fileSinkConf.tableInfo.getOutputFileFormatClassName
     if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")) {
       val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
+      val tableOptions = tableDesc.getProperties.asScala.toMap
       val isParquetFormat = nativeFormat == "parquet"
       val compressionCodec = if (fileSinkConf.compressed) {
         // hive related configurations
         fileSinkConf.compressCodec
       } else if (isParquetFormat) {
-        val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
+        val parquetOptions =
+          new ParquetOptions(tableOptions, sparkSession.sessionState.conf)
         parquetOptions.compressionCodecClassName
       } else {
-        val orcOptions = new OrcOptions(options, sparkSession.sessionState.conf)
+        val orcOptions = new OrcOptions(tableOptions, sparkSession.sessionState.conf)
         orcOptions.compressionCodec
       }
 
-      val nativeConf = GlutenFormatFactory(nativeFormat).nativeConf(options, compressionCodec)
+      val nativeConf =
+        GlutenFormatFactory(nativeFormat).nativeConf(tableOptions, compressionCodec)
 
       new OutputWriterFactory {
         private val jobConf = new SerializableJobConf(new JobConf(conf))
