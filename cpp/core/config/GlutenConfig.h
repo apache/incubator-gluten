@@ -18,6 +18,7 @@
 #pragma once
 
 #include <jni.h>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 
