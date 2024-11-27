@@ -32,11 +32,11 @@ trait GlutenPlan
     batchType() != Convention.BatchType.None
   }
 
-  override def batchType(): Convention.BatchType
-
   final override val supportsRowBased: Boolean = {
     rowType() != Convention.RowType.None
   }
+
+  override def batchType(): Convention.BatchType
 
   override def rowType0(): Convention.RowType
 
