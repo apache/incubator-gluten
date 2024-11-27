@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-#include <Parser/FunctionParser.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/FunctionParser.h>
 
 namespace DB
 {
@@ -52,7 +53,7 @@ public:
             new_arg = toFunctionNode(actions_dag, "CAST", {arg, string_type_node});
         }
         const auto * octet_length_node = toFunctionNode(actions_dag, "octet_length", {new_arg});
-        return convertNodeTypeIfNeeded(substrait_func, octet_length_node, actions_dag);;
+        return convertNodeTypeIfNeeded(substrait_func, octet_length_node, actions_dag);
     }
 };
 

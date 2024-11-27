@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
+#include <Columns/ColumnConst.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/Names.h>
@@ -301,7 +302,7 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
     BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings::fromContext(context);
     build_settings.process_list_element = query_status;
     build_settings.progress_callback = nullptr;
-    return query_plan.buildQueryPipeline(optimization_settings,build_settings);
+    return query_plan.buildQueryPipeline(optimization_settings, build_settings);
 }
 
 std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
