@@ -55,12 +55,12 @@ object ConventionReq {
   val row: ConventionReq = ofRow(RowType.Is(Convention.RowType.VanillaRow))
   val vanillaBatch: ConventionReq = ofBatch(BatchType.Is(Convention.BatchType.VanillaBatch))
 
-  def get(plan: SparkPlan): ConventionReq = ConventionFunc.create().conventionReqOf(plan)
+  def get(plan: SparkPlan): Seq[ConventionReq] = ConventionFunc.create().conventionReqOf(plan)
   def of(rowType: RowType, batchType: BatchType): ConventionReq = Impl(rowType, batchType)
   def ofRow(rowType: RowType): ConventionReq = Impl(rowType, BatchType.Any)
   def ofBatch(batchType: BatchType): ConventionReq = Impl(RowType.Any, batchType)
 
-  trait KnownChildrenConventions {
-    def requiredChildrenConventions(): Seq[ConventionReq]
+  trait KnownChildConvention {
+    def requiredChildConvention(): Seq[ConventionReq]
   }
 }

@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.datasource
+package org.apache.gluten.extension
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.datasource.ArrowCSVFileFormat
 import org.apache.gluten.datasource.v2.ArrowCSVTable
 import org.apache.gluten.sql.shims.SparkShimLoader
 

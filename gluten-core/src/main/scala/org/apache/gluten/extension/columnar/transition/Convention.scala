@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.exception.GlutenException
-
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 import org.apache.spark.util.SparkVersionUtil
 
@@ -54,6 +52,19 @@ object Convention {
         BatchType.None
       }
       Convention.of(rowType(), batchType())
+    }
+
+    def asReq(): ConventionReq = {
+      val rowTypeReq = conv.rowType match {
+        case Convention.RowType.None => ConventionReq.RowType.Any
+        case r => ConventionReq.RowType.Is(r)
+      }
+
+      val batchTypeReq = conv.batchType match {
+        case Convention.BatchType.None => ConventionReq.BatchType.Any
+        case b => ConventionReq.BatchType.Is(b)
+      }
+      ConventionReq.of(rowTypeReq, batchTypeReq)
     }
   }
 
@@ -142,17 +153,8 @@ object Convention {
     def batchType(): BatchType
   }
 
-  sealed trait KnownRowType extends KnownRowType.SupportsRowBasedCompatible {
+  sealed trait KnownRowType {
     def rowType(): RowType
-  }
-
-  object KnownRowType {
-    // To be compatible with Spark (version < 3.3)
-    sealed trait SupportsRowBasedCompatible {
-      def supportsRowBased(): Boolean = {
-        throw new GlutenException("Illegal state: The method is not expected to be called")
-      }
-    }
   }
 
   trait KnownRowTypeForSpark33AndLater extends KnownRowType {

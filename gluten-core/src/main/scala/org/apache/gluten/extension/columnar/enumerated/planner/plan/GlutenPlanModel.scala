@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.enumerated.planner.plan
 
+import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.enumerated.planner.metadata.GlutenMetadata
 import org.apache.gluten.extension.columnar.enumerated.planner.property.{Conv, ConvDef}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
@@ -37,13 +38,15 @@ object GlutenPlanModel {
     PlanModelImpl
   }
 
+  // TODO: Make this inherit from GlutenPlan.
   case class GroupLeafExec(
       groupId: Int,
       metadata: GlutenMetadata,
       constraintSet: PropertySet[SparkPlan])
     extends LeafExecNode
     with Convention.KnownBatchType
-    with Convention.KnownRowTypeForSpark33AndLater {
+    with Convention.KnownRowTypeForSpark33AndLater
+    with GlutenPlan.SupportsRowBasedCompatible {
     private val req: Conv.Req = constraintSet.get(ConvDef).asInstanceOf[Conv.Req]
 
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()

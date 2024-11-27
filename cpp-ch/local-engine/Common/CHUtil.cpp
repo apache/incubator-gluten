@@ -762,6 +762,11 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
             settings.set(key, toField(key, value));
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
+        else if (key == TIMER_PARSER_POLICY)
+        {
+            settings.set(key, value);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
+        }
     }
 
     /// Finally apply some fixed kvs to settings.

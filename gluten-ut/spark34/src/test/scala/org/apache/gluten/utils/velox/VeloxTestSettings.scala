@@ -886,9 +886,6 @@ class VeloxTestSettings extends BackendTestSettings {
   // spill not supported yet.enableSuite[GlutenSQLWindowFunctionSuite]
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("test with low buffer spill threshold")
-    // https://github.com/apache/incubator-gluten/issues/7631
-    .exclude(
-      "SPARK-16633: lead/lag should return the default value if the offset row does not exist")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[TestFileSourceScanExecTransformer]

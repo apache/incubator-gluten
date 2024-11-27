@@ -17,7 +17,7 @@
 
 #include <DataTypes/DataTypeNullable.h>
 #include <Parser/FunctionParser.h>
-
+#include <Parser/scalar_function_parser/getTimestamp.h>
 
 namespace DB
 {
@@ -34,10 +34,10 @@ namespace local_engine
 {
 
 template<typename Name>
-class FunctionParserUnixTimestamp : public FunctionParser
+class FunctionParserUnixTimestamp : public FunctionParserGetTimestamp
 {
 public:
-    explicit FunctionParserUnixTimestamp(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
+    explicit FunctionParserUnixTimestamp(ParserContextPtr parser_context_) : FunctionParserGetTimestamp(parser_context_) {}
     ~FunctionParserUnixTimestamp() override = default;
 
     static constexpr auto name = Name::name;
@@ -60,13 +60,13 @@ public:
         const auto * expr_arg = parsed_args[0];
         const auto * fmt_arg = parsed_args[1];
         auto expr_type = removeNullable(expr_arg->result_type);
+        if (isString(expr_type))
+            return FunctionParserGetTimestamp::parse(substrait_func, actions_dag);
+
         const DateLUTImpl * date_lut = &DateLUT::instance();
         const auto * time_zone_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), date_lut->getTimeZone());
-
         const DB::ActionsDAG::Node * result_node = nullptr;
-        if (isString(expr_type))
-            result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
-        else if (isDateOrDate32(expr_type))
+        if (isDateOrDate32(expr_type))
             result_node = toFunctionNode(actions_dag, "sparkDateToUnixTimestamp", {expr_arg, time_zone_node});
         else if (isDateTime(expr_type) || isDateTime64(expr_type))
             result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {expr_arg, time_zone_node});

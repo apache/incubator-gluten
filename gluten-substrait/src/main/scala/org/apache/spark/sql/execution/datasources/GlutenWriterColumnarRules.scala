@@ -17,9 +17,8 @@
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.ColumnarToRowExecBase
+import org.apache.gluten.execution.{ColumnarToRowExecBase, GlutenPlan}
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.{Convention, Transitions}
 
 import org.apache.spark.rdd.RDD
@@ -60,6 +59,8 @@ case class FakeRowAdaptor(child: SparkPlan)
   }
 
   override def output: Seq[Attribute] = child.output
+
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
   override def rowType0(): Convention.RowType = Convention.RowType.VanillaRow
 

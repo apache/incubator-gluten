@@ -21,8 +21,8 @@ package org.apache.spark.sql
  *   1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.execution.TransformSupport
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SPARK_VERSION_SHORT

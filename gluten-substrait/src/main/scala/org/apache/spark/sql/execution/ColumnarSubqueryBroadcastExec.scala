@@ -17,7 +17,8 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.GlutenTimeMetric
 
 import org.apache.spark.rdd.RDD
@@ -106,6 +107,10 @@ case class ColumnarSubqueryBroadcastExec(
   override protected def doPrepare(): Unit = {
     relationFuture
   }
+
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+
+  override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(

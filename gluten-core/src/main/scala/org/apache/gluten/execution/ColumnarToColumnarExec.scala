@@ -30,9 +30,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention.BatchType)
   extends ColumnarToColumnarTransition
-  with Convention.KnownBatchType
-  with Convention.KnownRowTypeForSpark33AndLater
-  with ConventionReq.KnownChildrenConventions {
+  with GlutenPlan {
 
   def child: SparkPlan
   protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch]
@@ -46,21 +44,13 @@ abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention
       "selfTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert batches")
     )
 
-  final override val supportsColumnar: Boolean = {
-    batchType() != Convention.BatchType.None
-  }
-
   override def batchType(): Convention.BatchType = to
-
-  final override val supportsRowBased: Boolean = {
-    rowType() != Convention.RowType.None
-  }
 
   override def rowType0(): Convention.RowType = {
     Convention.RowType.None
   }
 
-  override def requiredChildrenConventions(): Seq[ConventionReq] = List(
+  override def requiredChildConvention(): Seq[ConventionReq] = List(
     ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(from)))
 
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()

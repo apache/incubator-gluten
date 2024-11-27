@@ -18,7 +18,9 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.execution.ValidatablePlan
+import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark._
@@ -45,7 +47,7 @@ case class ColumnarShuffleExchangeExec(
     projectOutputAttributes: Seq[Attribute],
     advisoryPartitionSize: Option[Long] = None)
   extends ShuffleExchangeLike
-  with GlutenPlan {
+  with ValidatablePlan {
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
 
@@ -147,6 +149,10 @@ case class ColumnarShuffleExchangeExec(
     }
     super.stringArgs ++ Iterator(s"[shuffle_writer_type=$shuffleWriterType]")
   }
+
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+
+  override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()
