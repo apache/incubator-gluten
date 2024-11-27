@@ -36,8 +36,8 @@ import org.apache.spark.sql.execution.SparkPlan
  * With implementations of the APIs provided, Gluten query planner will be able to find and insert
  * proper transitions between different plan nodes.
  *
- * API `requiredChildConvention` is optional while the default implementation is a sequence of
- * convention reqs that are exactly the same with the output convention. If it's not the case for
+ * Implementing `requiredChildConvention` is optional while the default implementation is a sequence
+ * of convention reqs that are exactly the same with the output convention. If it's not the case for
  * some plan types, then the API should be overridden. For example, a typical row-to-columnar
  * transition is at the same time a query plan node that requires for row input is however with
  * columnar output.
