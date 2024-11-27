@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.SparkPlan
 /**
  * Base interface for Query plan that defined by backends.
  *
- * The following Spark APIs are marked final and hidden from subclasses:
+ * The following Spark APIs are marked final so forbidden from overriding:
  *   - supportsColumnar
  *   - supportsRowBased (Spark version >= 3.3)
  *
