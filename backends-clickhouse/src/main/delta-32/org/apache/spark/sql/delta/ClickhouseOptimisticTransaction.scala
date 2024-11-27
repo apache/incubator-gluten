@@ -73,7 +73,7 @@ class ClickhouseOptimisticTransaction(
       // TODO: update FallbackByBackendSettings for mergetree always return true
       val onePipeline = nativeWrite && CHConf.get.enableOnePipelineMergeTreeWrite
       if (onePipeline)
-        pipelineWriteFiles(inputData, writeOptions, isOptimize = false, additionalConstraints)
+        pipelineWriteFiles(inputData, writeOptions, isOptimize, additionalConstraints)
       else {
         if (isOptimize) {
           throw new UnsupportedOperationException(

@@ -74,24 +74,7 @@ class GlutenClickHouseMergeTreeWriteSuite
     // write.format.default = mergetree
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS lineitem_mergetree
-                 |(
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string
-                 |)
+                 |($q1SchemaString)
                  |USING clickhouse
                  |TBLPROPERTIES (write.format.default = 'mergetree')
                  |LOCATION '$basePath/lineitem_mergetree'
@@ -142,24 +125,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite
-                 |(
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string
-                 |)
+                 |($q1SchemaString)
                  |USING clickhouse
                  |LOCATION '$basePath/lineitem_mergetree_insertoverwrite'
                  |""".stripMargin)

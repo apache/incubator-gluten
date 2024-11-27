@@ -79,7 +79,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       assertResult(600572)(spark.sql("select * from lineitem_mergetree_optimize").count)
       spark.sql("optimize lineitem_mergetree_optimize")
       assertResult(600572)(spark.sql("select * from lineitem_mergetree_optimize").count)
-
+      spark.sql("VACUUM lineitem_mergetree_optimize RETAIN 0 HOURS")
       assertResult(462)(
         countFiles(new File(s"$basePath/lineitem_mergetree_optimize"))
       ) // many merged parts
