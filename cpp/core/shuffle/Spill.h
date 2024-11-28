@@ -63,6 +63,6 @@ class Spill final {
   std::list<PartitionPayload> partitionPayloads_{};
   std::string spillFile_;
 
-  arrow::io::InputStream* rawIs_;
+  arrow::io::InputStream* rawIs_{nullptr};
 };
 } // namespace gluten

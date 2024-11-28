@@ -35,7 +35,6 @@ bool Spill::hasNextPayload(uint32_t partitionId) {
 }
 
 std::unique_ptr<Payload> Spill::nextPayload(uint32_t partitionId) {
-  GLUTEN_CHECK(is_, "openForRead before invoke nextPayload");
   if (!hasNextPayload(partitionId)) {
     return nullptr;
   }

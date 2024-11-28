@@ -476,6 +476,9 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> UncompressedDiskBlockPayload::read
 }
 
 arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
+  ARROW_RETURN_IF(
+      inputStream_ == nullptr, arrow::Status::Invalid("inputStream_ is uninitialized before calling serialize()."));
+
   if (codec_ == nullptr || type_ == Payload::kUncompressed) {
     ARROW_ASSIGN_OR_RAISE(auto block, inputStream_->Read(rawSize_));
     RETURN_NOT_OK(outputStream->Write(block));
@@ -526,6 +529,8 @@ CompressedDiskBlockPayload::CompressedDiskBlockPayload(
     : Payload(Type::kCompressed, numRows, isValidityBuffer), inputStream_(inputStream), rawSize_(rawSize) {}
 
 arrow::Status CompressedDiskBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
+  ARROW_RETURN_IF(
+      inputStream_ == nullptr, arrow::Status::Invalid("inputStream_ is uninitialized before calling serialize()."));
   ScopedTimer timer(&writeTime_);
   ARROW_ASSIGN_OR_RAISE(auto block, inputStream_->Read(rawSize_));
   RETURN_NOT_OK(outputStream->Write(block));
