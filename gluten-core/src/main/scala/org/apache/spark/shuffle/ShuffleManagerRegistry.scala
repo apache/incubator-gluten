@@ -23,7 +23,7 @@ class ShuffleManagerRegistry private[ShuffleManagerRegistry] {
     }
   }
 
-  def newRouterBuilder(conf: SparkConf, isDriver: Boolean): RouterBuilder = this.synchronized {
+  private[shuffle] def newRouterBuilder(conf: SparkConf, isDriver: Boolean): RouterBuilder = this.synchronized {
     val out = new RouterBuilder(this, conf, isDriver)
     routerBuilders += out
     out
