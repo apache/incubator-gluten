@@ -407,7 +407,7 @@ class GlutenClickHouseDecimalSuite
   test("GLUTEN-8074 Fix adjust output constant column") {
     val sql =
       s"""
-         |select bround(1002.5786, -3),
+         |select bround(1002.5786, 3),
          |       bround(-10.8, 0),
          |       bround(13.888888888889, 5)
          |from $decimalTable

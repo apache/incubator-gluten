@@ -165,12 +165,10 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
                 {
                     const DB::ContextPtr context = DB::CurrentThread::get().getQueryContext();
                     const FunctionOverloadResolverPtr & cast_resolver = FunctionFactory::instance().get("CAST", context);
-                    const DataTypePtr string_type = DB::DataTypeFactory::instance().get("String");
+                    const DataTypePtr string_type = std::make_shared<DataTypeString>();
                     ColumnWithTypeAndName to_type_column = {string_type->createColumnConst(1, final_type->getName()), string_type, "__cast_const__"};
                     FunctionBasePtr cast_function = cast_resolver->build({origin_column, to_type_column});
-                    ColumnPtr cast_col = cast_function->execute({origin_column, to_type_column}, final_type, 1);
-                    Field cast_field;
-                    cast_col->get(0, cast_field);
+                    Field cast_field = ColumnConst::create(cast_function->execute({origin_column, to_type_column}, final_type, 1), 1)->getField();
                     ColumnWithTypeAndName final_column(final_type->createColumnConst(0, cast_field), final_type, origin_column.name);
                     final_columns.emplace_back(std::move(final_column));
                 }
