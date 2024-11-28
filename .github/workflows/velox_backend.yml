@@ -1044,7 +1044,7 @@ jobs:
 
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
@@ -1054,10 +1054,15 @@ jobs:
           key: ccache-centos8-release-default-${{github.sha}}
           restore-keys: |
             ccache-centos8-release-default
+      - name: Setup java and maven
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
+          $SETUP install_maven
       - name: Build Gluten native libraries
         run: |
           df -a
-          dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
       # - name: "Save ccache"
