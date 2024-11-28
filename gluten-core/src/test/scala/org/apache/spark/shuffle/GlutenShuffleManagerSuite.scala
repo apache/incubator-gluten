@@ -16,7 +16,7 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.spark.{ConstantPartitioner, ShuffleDependency, SparkConf, TaskContext}
+import org.apache.spark.{Partitioner, ShuffleDependency, SparkConf, TaskContext}
 import org.apache.spark.internal.config.SHUFFLE_MANAGER
 import org.apache.spark.rdd.EmptyRDD
 import org.apache.spark.shuffle.sort.SortShuffleManager
@@ -76,9 +76,7 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
     assert(counter1.count("registerShuffle") == 0)
     assert(counter2.count("registerShuffle") == 0)
     // The statement calls #registerShuffle internally.
-    new ShuffleDependency(
-      new EmptyRDD[Product2[Any, Any]](spark.sparkContext),
-      new ConstantPartitioner())
+    new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
     assert(counter1.count("registerShuffle") == 0)
     assert(counter2.count("registerShuffle") == 1)
 
@@ -107,9 +105,7 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
     assert(counter1.count("registerShuffle") == 0)
     assert(counter2.count("registerShuffle") == 0)
     // The statement calls #registerShuffle internally.
-    new ShuffleDependency(
-      new EmptyRDD[Product2[Any, Any]](spark.sparkContext),
-      new ConstantPartitioner())
+    new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
     assert(counter1.count("registerShuffle") == 1)
     assert(counter2.count("registerShuffle") == 0)
   }
@@ -268,5 +264,10 @@ object GlutenShuffleManagerSuite {
     def clear(): Unit = {
       counter.clear()
     }
+  }
+
+  private object DummyPartitioner extends Partitioner {
+    override def numPartitions: Int = 0
+    override def getPartition(key: Any): Int = 0
   }
 }
