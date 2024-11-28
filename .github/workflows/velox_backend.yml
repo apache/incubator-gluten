@@ -47,6 +47,7 @@ env:
   MVN_CMD: 'mvn -ntp'
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -55,26 +56,36 @@ concurrency:
 jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:vcpkg-centos-7
     steps:
-      - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
-      - name: Cache
-        id: cache
+      - uses: actions/checkout@v4
+      - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
-          path: |
-            ./cpp/build/releases/
-          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos7-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos7-release-default
       - name: Build Gluten native libraries
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
-          df -a
-          yum install -y devtoolset-9
-          cd $GITHUB_WORKSPACE/
-          bash dev/ci-velox-buildstatic-centos-7.sh
+          docker pull apache/gluten:vcpkg-centos-7
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            df -a
+            yum install -y devtoolset-9
+            cd /work
+            export CCACHE_DIR=/work/.ccache
+            mkdir -p /work/.ccache
+            bash dev/ci-velox-buildstatic-centos-7.sh
+            ccache -s
+            mkdir -p /work/.m2/repository/org/apache/arrow/
+            cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
+          "
+
+      - name: "Save ccache"
+        uses: actions/cache/save@v3
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos7-release-default-${{github.sha}}
       - uses: actions/upload-artifact@v3
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
@@ -82,7 +93,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
+          path: .m2/repository/org/apache/arrow/
 
   run-tpc-test-ubuntu:
     needs: build-native-lib-centos-7
@@ -160,7 +171,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "centos:7", "centos:8" ]
+        os: [ "centos:8" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
@@ -1033,33 +1044,27 @@ jobs:
 
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     steps:
       - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
-      - name: Cache
-        id: cache
+      - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
-          path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
-            /root/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
-      - name: Setup java and maven
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos8-release-default
       - name: Build Gluten native libraries
-        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
+          ccache -s
+      # - name: "Save ccache"
+      #   uses: actions/cache/save@v3
+      #   id: ccache
+      #   with:
+      #     path: '${{ env.CCACHE_DIR }}'
+      #     key: ccache-centos8-release-default-${{github.sha}}
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V
