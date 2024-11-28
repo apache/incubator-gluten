@@ -87,6 +87,41 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
     assert(counter2.count("stop") == 1)
   }
 
+  test("register two - disordered registration") {
+    val registry = ShuffleManagerRegistry.get()
+
+    registry.register(
+      new LookupKey {
+        override def accepts[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean = true
+      },
+      classOf[ShuffleManager1].getName)
+
+    val gm = new GlutenShuffleManager(sparkConf, true)
+    assert(counter1.count("registerShuffle") == 0)
+    assert(counter2.count("registerShuffle") == 0)
+    // The statement calls #registerShuffle internally.
+    new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    assert(counter1.count("registerShuffle") == 1)
+    assert(counter2.count("registerShuffle") == 0)
+
+    registry.register(
+      new LookupKey {
+        override def accepts[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean = true
+      },
+      classOf[ShuffleManager2].getName)
+
+    // The statement calls #registerShuffle internally.
+    new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    assert(counter1.count("registerShuffle") == 1)
+    assert(counter2.count("registerShuffle") == 1)
+
+    assert(counter1.count("stop") == 0)
+    assert(counter2.count("stop") == 0)
+    gm.stop()
+    assert(counter1.count("stop") == 1)
+    assert(counter2.count("stop") == 1)
+  }
+
   test("register two - with empty key") {
     val registry = ShuffleManagerRegistry.get()
 
