@@ -422,6 +422,7 @@ arrow::Status LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
   auto spillIter = spills_.begin();
   while (spillIter != spills_.end()) {
     ARROW_ASSIGN_OR_RAISE(auto st, dataFileOs_->Tell());
+    (*spillIter)->openForRead(options_.shuffleFileBufferSize);
     // Read if partition exists in the spilled file and write to the final file.
     while (auto payload = (*spillIter)->nextPayload(partitionId)) {
       // May trigger spill during compression.
