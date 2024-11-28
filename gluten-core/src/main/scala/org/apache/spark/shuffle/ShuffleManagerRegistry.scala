@@ -9,13 +9,22 @@ class ShuffleManagerRegistry private[ShuffleManagerRegistry] {
   import ShuffleManagerRegistry._
   private val all: mutable.Buffer[(LookupKey, String)] = mutable.Buffer()
   private val routerBuilders: mutable.Buffer[RouterBuilder] = mutable.Buffer()
+  private val classDeDup: mutable.Set[String] = mutable.Set()
 
   def register(lookupKey: LookupKey, shuffleManagerClass: String): Unit = {
     val clazz = Utils.classForName(shuffleManagerClass)
-    assert(
+    require(
+      !clazz.isAssignableFrom(classOf[GlutenShuffleManager]),
+      "It's not allowed to register GlutenShuffleManager recursively")
+    require(
       classOf[ShuffleManager].isAssignableFrom(clazz),
-      s"Shuffle manager class to register is not an implementation of Spark ShuffleManager")
+      s"Shuffle manager class to register is not an implementation of Spark ShuffleManager: $shuffleManagerClass"
+    )
+    require(
+      !classDeDup.contains(shuffleManagerClass),
+      s"Shuffle manager class already registered: $shuffleManagerClass")
     this.synchronized {
+      classDeDup += shuffleManagerClass
       all += lookupKey -> shuffleManagerClass
       // Invalidate all shuffle managers cached in each alive router builder instances.
       // Then, once the router builder is accessed, a new router will be forced to create.
@@ -23,11 +32,21 @@ class ShuffleManagerRegistry private[ShuffleManagerRegistry] {
     }
   }
 
-  private[shuffle] def newRouterBuilder(conf: SparkConf, isDriver: Boolean): RouterBuilder = this.synchronized {
-    val out = new RouterBuilder(this, conf, isDriver)
-    routerBuilders += out
-    out
+  // Visible for testing
+  private[shuffle] def clear(): Unit = {
+    this.synchronized {
+      classDeDup.clear()
+      all.clear()
+      routerBuilders.foreach(_.invalidateCache())
+    }
   }
+
+  private[shuffle] def newRouterBuilder(conf: SparkConf, isDriver: Boolean): RouterBuilder =
+    this.synchronized {
+      val out = new RouterBuilder(this, conf, isDriver)
+      routerBuilders += out
+      out
+    }
 }
 
 object ShuffleManagerRegistry {
@@ -45,7 +64,7 @@ object ShuffleManagerRegistry {
     private[shuffle] def getOrBuild(): ShuffleManagerRouter = synchronized {
       if (router.isEmpty) {
         val instances = registry.all.map(key => key._1 -> instantiate(key._2, conf, isDriver))
-        router = Some(new ShuffleManagerRouter(new ShuffleManagerLookup(instances)))
+        router = Some(new ShuffleManagerRouter(new ShuffleManagerLookup(instances.toSeq)))
       }
       router.get
     }

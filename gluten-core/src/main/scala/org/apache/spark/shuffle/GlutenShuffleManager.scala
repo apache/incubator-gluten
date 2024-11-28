@@ -1,5 +1,6 @@
 package org.apache.spark.shuffle
 
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.{ShuffleDependency, SparkConf, TaskContext}
 
 /**
@@ -9,6 +10,7 @@ import org.apache.spark.{ShuffleDependency, SparkConf, TaskContext}
  * A SPIP may cause refactoring of this class in the future:
  * https://issues.apache.org/jira/browse/SPARK-45792
  */
+@Experimental
 class GlutenShuffleManager(conf: SparkConf, isDriver: Boolean) extends ShuffleManager {
   private val routerBuilder = ShuffleManagerRegistry.get().newRouterBuilder(conf, isDriver)
 
