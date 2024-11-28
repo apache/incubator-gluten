@@ -21,10 +21,10 @@
 #include <Interpreters/Context_fwd.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
+#include <Processors/Port.h>
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <Processors/QueryPlan/ITransformingStep.h>
-#include "Processors/Port.h"
-#include "Processors/QueryPlan/QueryPlan.h"
+#include <Processors/QueryPlan/QueryPlan.h>
 
 namespace local_engine
 {

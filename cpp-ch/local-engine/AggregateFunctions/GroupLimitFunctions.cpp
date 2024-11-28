@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <new>
 #include <vector>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <AggregateFunctions/FactoryHelpers.h>
@@ -41,7 +40,6 @@
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
-#include "base/defines.h"
 
 namespace DB::ErrorCodes
 {
@@ -182,7 +180,7 @@ class RowNumGroupArraySorted final : public DB::IAggregateFunctionDataHelper<Row
 public:
     explicit RowNumGroupArraySorted(DB::DataTypePtr data_type, const DB::Array & parameters_)
         : DB::IAggregateFunctionDataHelper<RowNumGroupArraySortedData, RowNumGroupArraySorted>(
-            {data_type}, parameters_, getRowNumReultDataType(data_type))
+              {data_type}, parameters_, getRowNumReultDataType(data_type))
     {
         if (parameters_.size() != 2)
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} needs two parameters: limit and order clause", getName());
