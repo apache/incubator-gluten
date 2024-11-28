@@ -86,6 +86,7 @@
     <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
     <fasterxml.version>2.13.5</fasterxml.version>
     <junit.version>4.13.1</junit.version>
+    <flexmark.version>0.62.2</flexmark.version>
 
     <!-- Package name to use when relocating shaded classes -->
     <gluten.shade.packageName>org.apache.gluten.shaded</gluten.shade.packageName>
@@ -872,6 +873,11 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
         <version>3.2.1</version>
+      </dependency>
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-all</artifactId>
+        <version>${flexmark.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
