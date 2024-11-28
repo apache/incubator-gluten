@@ -1057,6 +1057,7 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
+          dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
       # - name: "Save ccache"
