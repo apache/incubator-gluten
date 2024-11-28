@@ -20,9 +20,7 @@ import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.storage.{BlockId, ShuffleBlockBatchId, ShuffleBlockId, ShuffleMergedBlockId}
 
-/**
- * The internal shuffle manager instance used by GlutenShuffleManager.
- */
+/** The internal shuffle manager instance used by GlutenShuffleManager. */
 private class ShuffleManagerRouter(lookup: ShuffleManagerLookup) extends ShuffleManager {
   import ShuffleManagerRouter._
   private val cache = new Cache()
