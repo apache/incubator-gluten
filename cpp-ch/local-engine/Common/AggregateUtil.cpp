@@ -47,7 +47,6 @@ extern const SettingsBool enable_memory_bound_merging_of_aggregation_results;
 extern const SettingsUInt64 aggregation_in_order_max_block_bytes;
 extern const SettingsUInt64 group_by_two_level_threshold;
 extern const SettingsFloat min_hit_rate_to_use_consecutive_keys_optimization;
-extern const SettingsMaxThreads max_threads;
 extern const SettingsUInt64 max_block_size;
 }
 
