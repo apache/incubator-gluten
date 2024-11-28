@@ -17,7 +17,7 @@
 package org.apache.gluten
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.network.util.{ByteUnit, JavaUtils}
 import org.apache.spark.sql.internal.SQLConf
 
 import com.google.common.collect.ImmutableList
@@ -568,6 +568,7 @@ object GlutenConfig {
   val SPARK_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val SPARK_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"
+  val SPARK_SHUFFLE_FILE_BUFFER = "spark.shuffle.file.buffer"
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, default value is false
@@ -735,6 +736,15 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
+
+    conf
+      .get(SPARK_SHUFFLE_FILE_BUFFER)
+      .foreach(
+        v =>
+          nativeConfMap
+            .put(
+              SPARK_SHUFFLE_FILE_BUFFER,
+              (JavaUtils.byteStringAs(v, ByteUnit.KiB) * 1024).toString))
 
     // Backend's dynamic session conf only.
     val confPrefix = prefixOf(backendName)
