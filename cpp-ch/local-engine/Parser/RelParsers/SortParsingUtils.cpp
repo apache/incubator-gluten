@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "SortUtils.h"
+#include "SortParsingUtils.h"
 #include <IO/Operators.h>
 #include <IO/WriteBufferFromString.h>
 #include <Poco/Logger.h>
@@ -37,7 +37,7 @@ DB::SortDescription parseSortFields(const DB::Block & header, const google::prot
         {
             auto pos = expr.selection().direct_reference().struct_field().field();
             const auto & col_name = header.getByPosition(pos).name;
-            description.push_back(DB::SortColumnDescription(col_name, 1, 1));
+            description.push_back(DB::SortColumnDescription(col_name, 1, -1));
         }
         else if (expr.has_literal())
             continue;

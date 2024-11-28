@@ -78,7 +78,6 @@ private:
         DB::WindowFrame::BoundaryType & bound_type,
         Field & offset,
         bool & preceding);
-    DB::SortDescription parsePartitionBy(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions);
     DB::WindowFunctionDescription parseWindowFunctionDescription(
         const String & ch_function_name,
         const substrait::Expression::WindowFunction & window_function,

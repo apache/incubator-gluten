@@ -18,10 +18,7 @@
 #include <optional>
 #include <Parser/RelParsers/RelParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <Poco/Logger.h>
-#include <Common/logger_useful.h>
-#include "Analyzer/IQueryTreeNode.h"
-#include "substrait/algebra.pb.h"
+#include <substrait/algebra.pb.h>
 
 namespace local_engine
 {
