@@ -68,7 +68,7 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup) extends Shuffle
   }
 }
 
-object ShuffleManagerRouter {
+private object ShuffleManagerRouter {
   private class Cache {
     private val cache: java.util.Map[Int, ShuffleManager] =
       new java.util.concurrent.ConcurrentHashMap()

@@ -2,7 +2,7 @@ package org.apache.spark.shuffle
 
 import org.apache.spark.ShuffleDependency
 
-class ShuffleManagerLookup(all: Seq[(LookupKey, ShuffleManager)]) {
+private class ShuffleManagerLookup(all: Seq[(LookupKey, ShuffleManager)]) {
   private val allReversed = all.reverse
 
   def findShuffleManager[K, V, C](dependency: ShuffleDependency[K, V, C]): ShuffleManager = {
