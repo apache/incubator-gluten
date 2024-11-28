@@ -233,6 +233,8 @@ arrow::Result<std::shared_ptr<MmapFileStream>> MmapFileStream::open(const std::s
   ARROW_ASSIGN_OR_RAISE(auto fd, arrow::internal::FileOpenReadable(fileName));
   ARROW_ASSIGN_OR_RAISE(auto size, arrow::internal::FileGetSize(fd.fd()));
 
+  ARROW_RETURN_IF(size == 0, arrow::Status::Invalid("Cannot mmap an empty file: ", path));
+
   void* result = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd.fd(), 0);
   if (result == MAP_FAILED) {
     return arrow::Status::IOError("Memory mapping file failed: ", ::arrow::internal::ErrnoMessage(errno));

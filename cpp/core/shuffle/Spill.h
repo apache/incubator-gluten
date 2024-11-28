@@ -77,6 +77,6 @@ class Spill final {
   int64_t spillTime_;
   int64_t compressTime_;
 
-  arrow::io::InputStream* rawIs_;
+  arrow::io::InputStream* rawIs_{nullptr};
 };
 } // namespace gluten
