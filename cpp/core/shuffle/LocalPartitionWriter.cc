@@ -457,6 +457,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       }
     }
 
+    spill->openForRead(options_.shuffleFileBufferSize);
     for (auto pid = 0; pid < numPartitions_; ++pid) {
       while (auto payload = spill->nextPayload(pid)) {
         partitionLengths_[pid] += payload->rawSize();
