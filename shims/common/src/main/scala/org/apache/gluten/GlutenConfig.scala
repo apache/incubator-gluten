@@ -319,8 +319,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxMaxSpillBytes: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_BYTES)
 
-  def veloxMaxWriteBufferSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_WRITE_BUFFER_SIZE)
-
   def veloxBloomFilterExpectedNumItems: Long =
     conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS)
 
@@ -568,6 +566,10 @@ object GlutenConfig {
   val SPARK_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val SPARK_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"
+  val SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE = "spark.unsafe.sorter.spill.reader.buffer.size"
+  val SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE_DEFAULT: Int = 1024 * 1024
+  val SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE = "spark.shuffle.spill.diskWriteBufferSize"
+  val SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE_DEFAULT: Int = 1024 * 1024
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, default value is false
@@ -732,7 +734,13 @@ object GlutenConfig {
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
       (
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
-        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString)
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
+      (
+        SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE,
+        SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE_DEFAULT.toString),
+      (
+        SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE,
+        SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE_DEFAULT.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -1585,13 +1593,6 @@ object GlutenConfig {
       .doc("The maximum file size of a query")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("100G")
-
-  val COLUMNAR_VELOX_MAX_SPILL_WRITE_BUFFER_SIZE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.spillWriteBufferSize")
-      .internal()
-      .doc("The maximum write buffer size")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("4M")
 
   val MAX_PARTITION_PER_WRITERS_SESSION =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession")
