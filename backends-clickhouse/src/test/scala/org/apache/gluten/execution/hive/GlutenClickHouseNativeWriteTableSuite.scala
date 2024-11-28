@@ -954,25 +954,23 @@ class GlutenClickHouseNativeWriteTableSuite
          |) stored as $format""".stripMargin
     def insert(format: String, table_name: Option[String] = None): String =
       s"""INSERT OVERWRITE TABLE ${table_name.getOrElse(table(format))}
-         |with data_source as (
-         |select
-         |id,
-         |if(id % 3 = 1, null, id+1) as x,
-         |if(id % 3 = 1, null, id+2) as y
-         |from range(100)
-         |)
-         |select
-         |id, x, y,
-         |str_to_map(concat('x:', x, ',y:', y)) as mp,
-         |if(id % 4 = 0, null, array(x, y)) as arr,
-         |if(id % 4 = 1, null, struct(x, y)) as tup,
-         |if(id % 4 = 2, null, array(str_to_map(concat('x:', x, ',y:', y)))) as arr_mp,
-         |if(id % 4 = 3, null, map('x', array(x), 'y', array(y))) as mp_arr,
-         |if(id % 4 = 0, null, named_struct('a', array(x, y))) as tup_arr,
-         |if(id % 4 = 1, null, named_struct('m',
-         |str_to_map(concat('x:', x, ',y:', y)))) as tup_map
-         |from
-         |data_source;""".stripMargin
+         |SELECT
+         |  id, x, y,
+         |  str_to_map(concat('x:', x, ',y:', y)) AS mp,
+         |  IF(id % 4 = 0, NULL, array(x, y)) AS arr,
+         |  IF(id % 4 = 1, NULL, struct(x, y)) AS tup,
+         |  IF(id % 4 = 2, NULL, array(str_to_map(concat('x:', x, ',y:', y)))) AS arr_mp,
+         |  IF(id % 4 = 3, NULL, map('x', array(x), 'y', array(y))) AS mp_arr,
+         |  IF(id % 4 = 0, NULL, named_struct('a', array(x, y))) AS tup_arr,
+         |  IF(id % 4 = 1, NULL, named_struct('m',
+         |  str_to_map(concat('x:', x, ',y:', y)))) AS tup_map
+         |FROM (
+         |  SELECT
+         |    id,
+         |    IF(id % 3 = 1, NULL, id + 1) AS x,
+         |    IF(id % 3 = 1, NULL, id + 2) AS y
+         |  FROM range(100)
+         |) AS data_source;""".stripMargin
 
     nativeWrite2(
       format => (table(format), create(format), insert(format)),
