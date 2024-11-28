@@ -697,4 +697,16 @@ trait SparkPlanExecApi {
       limitExpr: ExpressionTransformer,
       original: StringSplit): ExpressionTransformer =
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
+
+  def genTransformKeysTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer
+
+  def genTransformValuesTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer
 }

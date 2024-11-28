@@ -266,6 +266,7 @@ case class GetArrayItemTransformer(
       ConverterUtils.getTypeNode(getArrayItem.dataType, getArrayItem.nullable))
   }
 }
+
 case class CHStringSplitTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
@@ -274,4 +275,50 @@ case class CHStringSplitTransformer(
   extends ExpressionTransformer {
   // In Spark: split return Array(String), while Array is nullable
   // In CH: splitByXXX return Array(Nullable(String))
+}
+
+case class CHTransformKeysTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: Expression,
+    attributeSeq: Seq[Attribute])
+  extends ExpressionTransformer {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val transformKeys = original.asInstanceOf[TransformKeys]
+    val lambdaFunction = transformKeys.function.asInstanceOf[LambdaFunction]
+    val function = lambdaFunction.function
+
+    val newFunction = CreateStruct(
+      Seq(function, lambdaFunction.arguments.last.asInstanceOf[Expression]))
+    val newLambdaFunction =
+      LambdaFunction(newFunction, lambdaFunction.arguments, lambdaFunction.hidden)
+
+    val lambdaFunctionNode = ExpressionConverter
+      .replaceWithExpressionTransformer(newLambdaFunction, attributeSeq)
+    val newChildren = Seq(children.head, lambdaFunctionNode)
+    GenericExpressionTransformer(substraitExprName, newChildren, original).doTransform(args)
+  }
+}
+
+case class CHTransformValuesTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: Expression,
+    attributeSeq: Seq[Attribute])
+  extends ExpressionTransformer {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val transformValues = original.asInstanceOf[TransformValues]
+    val lambdaFunction = transformValues.function.asInstanceOf[LambdaFunction]
+    val function = lambdaFunction.function
+
+    val newFunction = CreateStruct(
+      Seq(lambdaFunction.arguments.head.asInstanceOf[Expression], function))
+    val newLambdaFunction =
+      LambdaFunction(newFunction, lambdaFunction.arguments, lambdaFunction.hidden)
+
+    val lambdaFunctionNode = ExpressionConverter
+      .replaceWithExpressionTransformer(newLambdaFunction, attributeSeq)
+    val newChildren = Seq(children.head, lambdaFunctionNode)
+    GenericExpressionTransformer(substraitExprName, newChildren, original).doTransform(args)
+  }
 }

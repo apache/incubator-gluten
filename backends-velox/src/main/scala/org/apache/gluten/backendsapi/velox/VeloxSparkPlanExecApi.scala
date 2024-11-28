@@ -824,4 +824,35 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     VeloxHiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
   }
+
+  override def genTransformKeysTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    // default is `EXCEPTION`
+    if (
+      SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY) ==
+        SQLConf.MapKeyDedupPolicy.LAST_WIN.toString
+    ) {
+      // TODO: Remove after fix ready for
+      //  https://github.com/facebookincubator/velox/issues/10219
+      throw new GlutenNotSupportException(
+        "LAST_WIN policy is not supported yet in native to deduplicate map keys")
+    }
+
+    GenericExpressionTransformer(
+      substraitExprName,
+      t.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+      t
+    )
+  }
+
+  override def genTransformValuesTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    throw new GlutenNotSupportException("transform_values policy is not supported yet")
+  }
 }

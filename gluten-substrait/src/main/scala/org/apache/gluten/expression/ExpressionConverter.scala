@@ -30,7 +30,6 @@ import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
 import org.apache.spark.sql.hive.HiveUDFTransformer
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import scala.collection.mutable.ArrayBuffer
@@ -665,20 +664,19 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           Seq(replaceWithExpressionTransformer0(c.child, attributeSeq, expressionsMap)),
           c
         )
-      case t: TransformKeys =>
-        // default is `EXCEPTION`
-        val mapKeyDedupPolicy = SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
-        if (mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
-          // TODO: Remove after fix ready for
-          //  https://github.com/facebookincubator/velox/issues/10219
-          throw new GlutenNotSupportException(
-            "LAST_WIN policy is not supported yet in native to deduplicate map keys"
-          )
-        }
-        GenericExpressionTransformer(
+      case tk: TransformKeys =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTransformKeysTransformer(
           substraitExprName,
-          t.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-          t
+          tk.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+          tk,
+          attributeSeq
+        )
+      case tv: TransformValues =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genTransformValuesTransformer(
+          substraitExprName,
+          tv.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+          tv,
+          attributeSeq
         )
       case e: EulerNumber =>
         LiteralTransformer(Literal(Math.E))
@@ -708,6 +706,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(ss.limit, attributeSeq, expressionsMap),
           ss
         )
+
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

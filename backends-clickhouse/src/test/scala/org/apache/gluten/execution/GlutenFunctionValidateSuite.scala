@@ -856,8 +856,20 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
-  test("GLUTEN-7796 cast bool to string") {
+  test("gluten-7796 cast bool to string") {
     val sql = "select cast(id % 2 = 1 as string) from range(10)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("Test transform_keys/transform_values") {
+    val sql = """
+                |select
+                |  transform_keys(map_from_arrays(array(id+1, id+2, id+3),
+                |    array(1, id+2, 3)), (k, v) -> k + 1),
+                |  transform_values(map_from_arrays(array(id+1, id+2, id+3),
+                |    array(1, id+2, 3)), (k, v) -> v + 1)
+                |from range(10)
+                |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }
