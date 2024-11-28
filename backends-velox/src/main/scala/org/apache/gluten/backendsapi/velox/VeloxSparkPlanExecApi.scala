@@ -841,11 +841,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         "LAST_WIN policy is not supported yet in native to deduplicate map keys")
     }
 
-    GenericExpressionTransformer(
-      substraitExprName,
-      t.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-      t
-    )
+    GenericExpressionTransformer(substraitExprName, children, original)
   }
 
   override def genTransformValuesTransformer(
