@@ -17,7 +17,6 @@
 
 #include "GroupLimitRelParser.h"
 #include <memory>
-#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <Columns/IColumn.h>
@@ -34,6 +33,7 @@
 #include <Operator/GraceMergingAggregatedStep.h>
 #include <Operator/WindowGroupLimitStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
+#include <Parser/RelParsers/SortParsingUtils.h>
 #include <Parser/RelParsers/SortRelParser.h>
 #include <Processors/IProcessor.h>
 #include <Processors/Port.h>
@@ -54,7 +54,6 @@
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
-#include <Common/SortUtils.h>
 #include <Common/logger_useful.h>
 
 namespace DB::ErrorCodes
@@ -414,15 +413,9 @@ void AggregateGroupLimitRelParser::postProjectionForExplodingArrays(DB::QueryPla
 void AggregateGroupLimitRelParser::addSortStep(DB::QueryPlan & plan)
 {
     auto header = plan.getCurrentHeader();
-    DB::SortDescription full_sort_descr;
-    auto partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
-    for (auto field : partition_fields)
-    {
-        const auto & col = header.getByPosition(field);
-        full_sort_descr.emplace_back(col.name, 1, -1);
-    }
-    auto sort_desrc = SortRelParser::parseSortDescription(win_rel_def->sorts(), header);
-    full_sort_descr.insert(full_sort_descr.end(), sort_desrc.begin(), sort_desrc.end());
+    auto full_sort_descr = parseSortFields(header, win_rel_def->partition_expressions());
+    auto sort_descr = parseSortFields(header, win_rel_def->sorts());
+    full_sort_descr.insert(full_sort_descr.end(), sort_descr.begin(), sort_descr.end());
 
     DB::SortingStep::Settings settings(*getContext());
     auto config = MemoryConfig::loadFromContext(getContext());
