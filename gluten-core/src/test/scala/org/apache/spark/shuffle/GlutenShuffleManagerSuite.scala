@@ -49,7 +49,7 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
       },
       classOf[ShuffleManager1].getName)
 
-    val gm = new GlutenShuffleManager(sparkConf, true)
+    val gm = spark.sparkContext.env.shuffleManager
     assert(counter1.count("stop") == 0)
     gm.stop()
     assert(counter1.count("stop") == 1)
@@ -72,11 +72,13 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
       },
       classOf[ShuffleManager2].getName)
 
-    val gm = new GlutenShuffleManager(sparkConf, true)
+    val gm = spark.sparkContext.env.shuffleManager
     assert(counter1.count("registerShuffle") == 0)
     assert(counter2.count("registerShuffle") == 0)
     // The statement calls #registerShuffle internally.
-    new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    val dep =
+      new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    gm.unregisterShuffle(dep.shuffleId)
     assert(counter1.count("registerShuffle") == 0)
     assert(counter2.count("registerShuffle") == 1)
 
@@ -96,11 +98,12 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
       },
       classOf[ShuffleManager1].getName)
 
-    val gm = new GlutenShuffleManager(sparkConf, true)
+    val gm = spark.sparkContext.env.shuffleManager
     assert(counter1.count("registerShuffle") == 0)
     assert(counter2.count("registerShuffle") == 0)
-    // The statement calls #registerShuffle internally.
-    new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    val dep1 =
+      new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    gm.unregisterShuffle(dep1.shuffleId)
     assert(counter1.count("registerShuffle") == 1)
     assert(counter2.count("registerShuffle") == 0)
 
@@ -111,7 +114,9 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
       classOf[ShuffleManager2].getName)
 
     // The statement calls #registerShuffle internally.
-    new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    val dep2 =
+      new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    gm.unregisterShuffle(dep2.shuffleId)
     assert(counter1.count("registerShuffle") == 1)
     assert(counter2.count("registerShuffle") == 1)
 
@@ -136,11 +141,13 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
       },
       classOf[ShuffleManager2].getName)
 
-    val gm = new GlutenShuffleManager(sparkConf, true)
+    val gm = spark.sparkContext.env.shuffleManager
     assert(counter1.count("registerShuffle") == 0)
     assert(counter2.count("registerShuffle") == 0)
     // The statement calls #registerShuffle internally.
-    new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    val dep =
+      new ShuffleDependency(new EmptyRDD[Product2[Any, Any]](spark.sparkContext), DummyPartitioner)
+    gm.unregisterShuffle(dep.shuffleId)
     assert(counter1.count("registerShuffle") == 1)
     assert(counter2.count("registerShuffle") == 0)
   }
