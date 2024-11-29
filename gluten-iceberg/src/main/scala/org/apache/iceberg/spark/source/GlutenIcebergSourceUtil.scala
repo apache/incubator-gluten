@@ -16,6 +16,7 @@
  */
 package org.apache.iceberg.spark.source
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.substrait.rel.{IcebergLocalFilesBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -25,7 +26,7 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.types.StructType
 
-import org.apache.iceberg.{CombinedScanTask, DeleteFile, FileFormat, FileScanTask, ScanTask, Schema}
+import org.apache.iceberg._
 import org.apache.iceberg.spark.SparkSchemaUtil
 
 import java.lang.{Long => JLong}
@@ -50,8 +51,9 @@ object GlutenIcebergSourceUtil {
       val tasks = partition.taskGroup[ScanTask]().tasks().asScala
       asFileScanTask(tasks.toList).foreach {
         task =>
-          val filePath = task.file().path().toString
-          paths.add(filePath)
+          paths.add(
+            BackendsApiManager.getTransformerApiInstance
+              .encodeFilePathIfNeed(task.file().path().toString))
           starts.add(task.start())
           lengths.add(task.length())
           partitionColumns.add(getPartitionColumns(task, readPartitionSchema))
