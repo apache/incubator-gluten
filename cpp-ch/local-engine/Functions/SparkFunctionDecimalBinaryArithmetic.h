@@ -18,35 +18,51 @@
 
 #include <base/arithmeticOverflow.h>
 
+
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wbit-int-extension"
+using NewInt128 = signed _BitInt(128);
+using NewUInt128 = unsigned _BitInt(128);
+using NewInt256 = signed _BitInt(256);
+using NewUInt256 = unsigned _BitInt(256);
+
+
+
 namespace local_engine
 {
 
 static bool canCastLower(const Int256 & a, const Int256 & b)
 {
-    if (a.items[2] == 0 && a.items[3] == 0 && b.items[2] == 0 && b.items[3] == 0)
-        return true;
-
-    return false;
+    return a.items[2] == 0 && a.items[3] == 0 && b.items[2] == 0 && b.items[3] == 0;
 }
 
 static bool canCastLower(const Int128 & a, const Int128 & b)
 {
-    if (a.items[1] == 0 && b.items[1] == 0)
-        return true;
-
-    return false;
+    return a.items[1] == 0 && b.items[1] == 0;
 }
 
+static const Int256 & toInt256(const NewInt256 & value)
+{
+    return *reinterpret_cast<const Int256 *>(&value);
+}
+
+static const NewInt256 & toNewInt256(const Int256 & value)
+{
+    return *reinterpret_cast<const NewInt256 *>(&value);
+}
+
+/// TODO(taiyang-li): remove all overflow checking in below codes because we have already checked overflow in SparkDecimalBinaryOperation
 struct DecimalPlusImpl
 {
-    template <typename A>
-    static bool apply(A & a, A & b, A & r)
+    template <typename T>
+    static bool apply(T a, T b, T & r)
     {
         return !common::addOverflow(a, b, r);
     }
 
     template <>
-    static bool apply(Int128 & a, Int128 & b, Int128 & r)
+    static bool apply(Int128 a, Int128 b, Int128 & r)
     {
         if (canCastLower(a, b))
         {
@@ -57,13 +73,11 @@ struct DecimalPlusImpl
             r = static_cast<Int128>(low_result);
             return true;
         }
-
         return !common::addOverflow(a, b, r);
     }
 
-
     template <>
-    static bool apply(Int256 & a, Int256 & b, Int256 & r)
+    static bool apply(Int256 a, Int256 b, Int256 & r)
     {
         if (canCastLower(a, b))
         {
@@ -76,8 +90,9 @@ struct DecimalPlusImpl
         }
 
         return !common::addOverflow(a, b, r);
+        // r = toInt256(toNewInt256(a) + toNewInt256(b));
+        // return true;
     }
-
 
 #if USE_EMBEDDED_COMPILER
     static constexpr bool compilable = true;
@@ -92,14 +107,14 @@ struct DecimalPlusImpl
 struct DecimalMinusImpl
 {
     /// Apply operation and check overflow. It's used for Deciamal operations. @returns true if overflowed, false otherwise.
-    template <typename A>
-    static bool apply(A & a, A & b, A & r)
+    template <typename T>
+    static bool apply(T a, T b, T & r)
     {
         return !common::subOverflow(a, b, r);
     }
 
     template <>
-    static bool apply(Int128 & a, Int128 & b, Int128 & r)
+    static bool apply(Int128 a, Int128 b, Int128 & r)
     {
         if (canCastLower(a, b))
         {
@@ -115,7 +130,7 @@ struct DecimalMinusImpl
     }
 
     template <>
-    static bool apply(Int256 & a, Int256 & b, Int256 & r)
+    static bool apply(Int256 a, Int256 b, Int256 & r)
     {
         if (canCastLower(a, b))
         {
@@ -128,7 +143,10 @@ struct DecimalMinusImpl
         }
 
         return !common::subOverflow(a, b, r);
+        // r = toInt256(toNewInt256(a) - toNewInt256(b));
+        // return true;
     }
+
 
 #if USE_EMBEDDED_COMPILER
     static constexpr bool compilable = true;
@@ -144,14 +162,14 @@ struct DecimalMinusImpl
 struct DecimalMultiplyImpl
 {
     /// Apply operation and check overflow. It's used for Decimal operations. @returns true if overflowed, false otherwise.
-    template <typename A>
-    static bool apply(A & a, A & b, A & c)
+    template <typename T>
+    static bool apply(T a, T b, T & c)
     {
         return !common::mulOverflow(a, b, c);
     }
 
     template <Int128>
-    static bool apply(Int128 & a, Int128 & b, Int128 & r)
+    static bool apply(Int128 a, Int128 b, Int128 & r)
     {
         if (canCastLower(a, b))
         {
@@ -166,6 +184,14 @@ struct DecimalMultiplyImpl
         return !common::mulOverflow(a, b, r);
     }
 
+    template <>
+    static bool apply(Int256 a, Int256 b, Int256 & r)
+    {
+        // r = toInt256(toNewInt256(a) * toNewInt256(b));
+        r = a * b;
+        return true;
+    }
+
 #if USE_EMBEDDED_COMPILER
     static constexpr bool compilable = true;
 
@@ -178,8 +204,8 @@ struct DecimalMultiplyImpl
 
 struct DecimalDivideImpl
 {
-    template <typename A>
-    static bool apply(A & a, A & b, A & r)
+    template <typename T>
+    static bool apply(T a, T b, T & r)
     {
         if (b == 0)
             return false;
@@ -189,7 +215,7 @@ struct DecimalDivideImpl
     }
 
     template <>
-    static bool apply(Int128 & a, Int128 & b, Int128 & r)
+    static bool apply(Int128 a, Int128 b, Int128 & r)
     {
         if (b == 0)
             return false;
@@ -205,7 +231,7 @@ struct DecimalDivideImpl
     }
 
     template <>
-    static bool apply(Int256 & a, Int256 & b, Int256 & r)
+    static bool apply(Int256 a, Int256 b, Int256 & r)
     {
         if (b == 0)
             return false;
@@ -221,6 +247,7 @@ struct DecimalDivideImpl
         }
 
         r = a / b;
+        // r = toInt256(toNewInt256(a) / toNewInt256(b));
         return true;
     }
 
@@ -238,8 +265,8 @@ struct DecimalDivideImpl
 // ModuloImpl
 struct DecimalModuloImpl
 {
-    template <typename A>
-    static bool apply(A & a, A & b, A & r)
+    template <typename T>
+    static bool apply(T a, T b, T & r)
     {
         if (b == 0)
             return false;
@@ -269,6 +296,7 @@ struct SparkIsOperation
 {
     static constexpr bool plus = IsSameOperation<Op, DecimalPlusImpl>::value;
     static constexpr bool minus = IsSameOperation<Op, DecimalMinusImpl>::value;
+    static constexpr bool plus_minus = IsSameOperation<Op, DecimalPlusImpl>::value || IsSameOperation<Op, DecimalMinusImpl>::value;
     static constexpr bool multiply = IsSameOperation<Op, DecimalMultiplyImpl>::value;
     static constexpr bool division = IsSameOperation<Op, DecimalDivideImpl>::value;
     static constexpr bool modulo = IsSameOperation<Op, DecimalModuloImpl>::value;

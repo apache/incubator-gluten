@@ -47,6 +47,7 @@ public:
         const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t /*input_rows_count*/) const override;
 
     bool useDefaultImplementationForConstants() const override { return true; }
+
 private:
     static DB::DataTypePtr getNestedResultType(DB::DataTypePtr from_arg_type)
     {
