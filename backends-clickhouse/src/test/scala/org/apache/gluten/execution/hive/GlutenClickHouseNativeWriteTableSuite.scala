@@ -903,7 +903,7 @@ class GlutenClickHouseNativeWriteTableSuite
   }
 
   test("GLUTEN-2584: fix native write and read mismatch about complex types") {
-    def table(format: String): String = s"t_$format"
+    def table(format: String): String = s"t_2584_$format"
     def create(format: String, table_name: Option[String] = None): String =
       s"""CREATE TABLE ${table_name.getOrElse(table(format))}(
          |  id INT,
@@ -933,5 +933,64 @@ class GlutenClickHouseNativeWriteTableSuite
         checkAnswer(dfFromWriteTable, rowsFromOriginTable)
       }
     )
+  }
+
+  test(
+    "GLUTEN-8021/8022/8032: fix orc read/write mismatch and parquet" +
+      "read exception when written complex column contains null") {
+    def table(format: String): String = s"t_8021_$format"
+    def create(format: String, table_name: Option[String] = None): String =
+      s"""CREATE TABLE ${table_name.getOrElse(table(format))}(
+         |id int,
+         |x int,
+         |y int,
+         |mp map<string, string>,
+         |arr array<int>,
+         |tup struct<x:int, y:int>,
+         |arr_mp array<map<string, string>>,
+         |mp_arr map<string, array<int>>,
+         |tup_arr struct<a: array<int>>,
+         |tup_map struct<m: map<string, string>>
+         |) stored as $format""".stripMargin
+    def insert(format: String, table_name: Option[String] = None): String =
+      s"""INSERT OVERWRITE TABLE ${table_name.getOrElse(table(format))}
+         |SELECT
+         |  id, x, y,
+         |  str_to_map(concat('x:', x, ',y:', y)) AS mp,
+         |  IF(id % 4 = 0, NULL, array(x, y)) AS arr,
+         |  IF(id % 4 = 1, NULL, struct(x, y)) AS tup,
+         |  IF(id % 4 = 2, NULL, array(str_to_map(concat('x:', x, ',y:', y)))) AS arr_mp,
+         |  IF(id % 4 = 3, NULL, map('x', array(x), 'y', array(y))) AS mp_arr,
+         |  IF(id % 4 = 0, NULL, named_struct('a', array(x, y))) AS tup_arr,
+         |  IF(id % 4 = 1, NULL, named_struct('m',
+         |  str_to_map(concat('x:', x, ',y:', y)))) AS tup_map
+         |FROM (
+         |  SELECT
+         |    id,
+         |    IF(id % 3 = 1, NULL, id + 1) AS x,
+         |    IF(id % 3 = 1, NULL, id + 2) AS y
+         |  FROM range(100)
+         |) AS data_source;""".stripMargin
+
+    // TODO fix it in spark3.5
+    if (!isSparkVersionGE("3.5")) {
+      nativeWrite2(
+        format => (table(format), create(format), insert(format)),
+        (table_name, format) => {
+          val vanilla_table = s"${table_name}_v"
+          val vanilla_create = create(format, Some(vanilla_table))
+          vanillaWrite {
+            withDestinationTable(vanilla_table, Option(vanilla_create)) {
+              checkInsertQuery(insert(format, Some(vanilla_table)), checkNative = false)
+            }
+          }
+          val rowsFromOriginTable =
+            spark.sql(s"select * from $vanilla_table").collect()
+          val dfFromWriteTable =
+            spark.sql(s"select * from $table_name")
+          checkAnswer(dfFromWriteTable, rowsFromOriginTable)
+        }
+      )
+    }
   }
 }
