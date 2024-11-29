@@ -30,9 +30,9 @@ import java.security.MessageDigest
  * @param arraySize
  * underlying array[array[byte]]'s length
  * @param bytesBufferLengths
- * underlying array[array[byte]] per array's length
+ * underlying array[array[byte]] per bytesBuffer length
  * @param totalBytes
- * all bytes buffer's length plus together
+ * all bytesBuffer's length plus together
  */
 class UnsafeBytesBufferArray(
      arraySize: Int,
@@ -70,7 +70,7 @@ class UnsafeBytesBufferArray(
    * @param index
    * @param bytesBuffer
    */
-  def putBytesBufferAtIndex(index: Int, bytesBuffer: Array[Byte]): Unit = this.synchronized {
+  def putBytesBuffer(index: Int, bytesBuffer: Array[Byte]): Unit = this.synchronized {
     assert(index < arraySize)
     assert(bytesBuffer.length == bytesBufferLengths(index))
     // first to allocate underlying long array
@@ -93,26 +93,11 @@ class UnsafeBytesBufferArray(
   }
 
   /**
-   * Used to debug input/output bytes.
-   *
-   * @param bytesBuffer
-   * @return
-   */
-  private def calculateMD5(bytesBuffer: Array[Byte]): Array[Byte] = try {
-    val md = MessageDigest.getInstance("MD5")
-    md.digest(bytesBuffer)
-  } catch {
-    case e: Throwable =>
-      log.warn("error when calculateMD5", e)
-      new Array[Byte](0)
-  }
-
-  /**
    * Get bytesBuffer at specified index.
    * @param index
    * @return
    */
-  def getBytesBufferAtIndex(index: Int): Array[Byte] = {
+  def getBytesBuffer(index: Int): Array[Byte] = {
     assert(index < arraySize)
     if (null == longArray) {
       return new Array[Byte](0)
@@ -134,17 +119,48 @@ class UnsafeBytesBufferArray(
   }
 
   /**
-   * It's needed once the broadcast variable is not used
+   * Get the bytesBuffer memory address and length at specified index, usually used when read memory
+   * direct from offheap.
+   *
+   * @param index
+   * @return
+   */
+  def getBytesBufferOffsetAndLength(index: Int): (Long, Int) = {
+    assert(index < arraySize)
+    assert(longArray != null, "The broadcast data in offheap should not be null!")
+    val offset = longArray.getBaseOffset + bytesBufferOffset(index)
+    val length = bytesBufferLengths(index)
+    (offset, length)
+  }
+
+  /**
+   * It's needed once the broadcast variable is garbage collected. Since now we don't have an
+   * elegant way to free the underlying offheap.
    */
     override def finalize(): Unit = {
-    try {
-      if (longArray != null) {
-        log.debug(s"BytesArrayInOffheap finalize $arraySize")
-        freeArray(longArray)
-        longArray = null
+      try {
+        if (longArray != null) {
+          log.debug(s"BytesArrayInOffheap finalize $arraySize")
+          freeArray(longArray)
+          longArray = null
+        }
+      } finally {
+        super.finalize()
       }
-    } finally {
-      super.finalize();
     }
+
+  /**
+   * Used to debug input/output bytes.
+   *
+   * @param bytesBuffer
+   * @return
+   */
+  private def calculateMD5(bytesBuffer: Array[Byte]): Array[Byte] = try {
+    val md = MessageDigest.getInstance("MD5")
+    md.digest(bytesBuffer)
+  } catch {
+    case e: Throwable =>
+      log.warn("error when calculateMD5", e)
+      new Array[Byte](0)
   }
 }
