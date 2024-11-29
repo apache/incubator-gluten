@@ -198,6 +198,8 @@ struct SparkNameModulo
 {
     static constexpr auto name = "spark_modulo";
 };
+
+/// Its JIT is implemented in ModuloImpl.
 using SparkFunctionModulo = DB::BinaryArithmeticOverloadResolver<ModuloImpl, SparkNameModulo, false>;
 
 REGISTER_FUNCTION(SparkModulo)

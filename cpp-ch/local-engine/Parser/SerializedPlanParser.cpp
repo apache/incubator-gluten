@@ -298,9 +298,9 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
 DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan) const
 {
-    const Settings & settings = parser_context->queryContext()->getSettingsRef();
+    const auto & settings = parser_context->queryContext()->getSettingsRef();
     QueryPriorities priorities;
-    const auto query_status = std::make_shared<QueryStatus>(
+    auto query_status = std::make_shared<QueryStatus>(
         parser_context->queryContext(),
         "",
         parser_context->queryContext()->getClientInfo(),
@@ -309,7 +309,7 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         IAST::QueryKind::Select,
         settings,
         0);
-    const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
+    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
     BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings::fromContext(context);
     build_settings.process_list_element = query_status;
     build_settings.progress_callback = nullptr;
@@ -343,6 +343,10 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     if (root_rel.root().input().has_write())
         addSinkTransform(parser_context->queryContext(), root_rel.root().input().write(), builder);
     LOG_INFO(getLogger("SerializedPlanParser"), "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
+
+    // const Settings & settings = parser_context->queryContext()->getSettingsRef();
+    // if (settings[Setting::query_plan_enable_optimizations])
+    //     debug::dumpPlan(*query_plan, "Optimized clickhouse plan");
 
     auto config = ExecutorConfig::loadFromContext(parser_context->queryContext());
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);

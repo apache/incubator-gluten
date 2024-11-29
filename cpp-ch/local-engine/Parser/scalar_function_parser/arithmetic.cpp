@@ -315,8 +315,8 @@ protected:
 
             const auto & settings = parser_context->queryContext()->getSettingsRef();
             auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
-                ? "NameSparkDecimalModuloEffect"
-                : "NameSparkDecimalModulo";
+                ? "sparkDecimalModuloEffect"
+                : "sparkDecimalModulo";
             ;
             return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
         }
