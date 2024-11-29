@@ -456,7 +456,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(PREFETCH_ROW_GROUPS)
   def loadQuantum: Long =
     conf.getConf(LOAD_QUANTUM)
-  def maxCoalescedDistanceBytes: Long =
+  def maxCoalescedDistance: String =
     conf.getConf(MAX_COALESCED_DISTANCE_BYTES)
   def maxCoalescedBytes: Long =
     conf.getConf(MAX_COALESCED_BYTES)
@@ -2095,11 +2095,11 @@ object GlutenConfig {
       .createWithDefaultString("256MB")
 
   val MAX_COALESCED_DISTANCE_BYTES =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistanceBytes")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance")
       .internal()
       .doc(" Set the max coalesced distance bytes for velox file scan")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("1MB")
+      .stringConf
+      .createWithDefaultString("512KB")
 
   val MAX_COALESCED_BYTES =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes")
