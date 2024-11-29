@@ -37,6 +37,8 @@ class Spill final {
 
   SpillType type() const;
 
+  void openForRead(uint64_t shuffleFileBufferSize);
+
   bool hasNextPayload(uint32_t partitionId);
 
   std::unique_ptr<Payload> nextPayload(uint32_t partitionId);
@@ -57,13 +59,10 @@ class Spill final {
   };
 
   SpillType type_;
-  std::shared_ptr<arrow::io::MemoryMappedFile> is_;
+  std::shared_ptr<gluten::MmapFileStream> is_;
   std::list<PartitionPayload> partitionPayloads_{};
-  std::shared_ptr<arrow::io::MemoryMappedFile> inputStream_{};
   std::string spillFile_;
 
-  arrow::io::InputStream* rawIs_;
-
-  void openSpillFile();
+  arrow::io::InputStream* rawIs_{nullptr};
 };
 } // namespace gluten

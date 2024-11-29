@@ -35,7 +35,6 @@ bool Spill::hasNextPayload(uint32_t partitionId) {
 }
 
 std::unique_ptr<Payload> Spill::nextPayload(uint32_t partitionId) {
-  openSpillFile();
   if (!hasNextPayload(partitionId)) {
     return nullptr;
   }
@@ -72,9 +71,9 @@ void Spill::insertPayload(
   }
 }
 
-void Spill::openSpillFile() {
+void Spill::openForRead(uint64_t shuffleFileBufferSize) {
   if (!is_) {
-    GLUTEN_ASSIGN_OR_THROW(is_, arrow::io::MemoryMappedFile::Open(spillFile_, arrow::io::FileMode::READ));
+    GLUTEN_ASSIGN_OR_THROW(is_, MmapFileStream::open(spillFile_, shuffleFileBufferSize));
     rawIs_ = is_.get();
   }
 }
