@@ -273,5 +273,5 @@ class CHTransformerApi extends TransformerApi with Logging {
 
   /** use Hadoop Path class to encode the file path */
   override def encodeFilePathIfNeed(filePath: String): String =
-    (new Path(filePath)).toUri.toString
+    (new Path(filePath)).toUri.toASCIIString
 }
