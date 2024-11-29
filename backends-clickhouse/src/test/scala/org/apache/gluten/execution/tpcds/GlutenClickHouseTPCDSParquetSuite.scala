@@ -38,6 +38,9 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       .set("spark.memory.offHeap.size", "4g")
       .set("spark.gluten.sql.validation.logLevel", "ERROR")
       .set("spark.gluten.sql.validation.printStackOnFailure", "true")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_config.enable_grace_aggregate_spill_test",
+        "true")
   }
 
   executeTPCDSTest(false)
