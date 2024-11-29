@@ -34,35 +34,35 @@ const std::string SparkPartitionedBaseSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAU
 /// For Nullable(Map(K, V)) or Nullable(Array(T)), if the i-th row is null, we must make sure its nested data is empty.
 /// It is for ORC/Parquet writing compatiability. For more details, refer to
 /// https://github.com/apache/incubator-gluten/issues/8022 and https://github.com/apache/incubator-gluten/issues/8021
-static ColumnPtr truncateNestedArrayOrMapIfNull(const ColumnPtr & column)
+static ColumnPtr truncateNestedDataIfNull(const ColumnPtr & column)
 {
     if (const auto * col_const = checkAndGetColumn<ColumnConst>(column.get()))
     {
         size_t s = col_const->size();
-        auto new_data = truncateNestedArrayOrMapIfNull(col_const->getDataColumnPtr());
+        auto new_data = truncateNestedDataIfNull(col_const->getDataColumnPtr());
         return ColumnConst::create(std::move(new_data), s);
     }
     else if (const auto * col_array = checkAndGetColumn<ColumnArray>(column.get()))
     {
-        auto new_data = truncateNestedArrayOrMapIfNull(col_array->getDataPtr());
+        auto new_data = truncateNestedDataIfNull(col_array->getDataPtr());
         return ColumnArray::create(std::move(new_data), col_array->getOffsetsPtr());
     }
     else if (const auto * col_map = checkAndGetColumn<ColumnMap>(column.get()))
     {
-        auto new_nested = truncateNestedArrayOrMapIfNull(col_map->getNestedColumnPtr());
+        auto new_nested = truncateNestedDataIfNull(col_map->getNestedColumnPtr());
         return ColumnMap::create(std::move(new_nested));
     }
     else if (const auto * col_tuple = checkAndGetColumn<ColumnTuple>(column.get()))
     {
         Columns new_columns;
         for (size_t i = 0; i < col_tuple->tupleSize(); ++i)
-            new_columns.emplace_back(truncateNestedArrayOrMapIfNull(col_tuple->getColumnPtr(i)));
+            new_columns.emplace_back(truncateNestedDataIfNull(col_tuple->getColumnPtr(i)));
         return ColumnTuple::create(std::move(new_columns));
     }
     else if (const auto * col_nullable = checkAndGetColumn<ColumnNullable>(column.get()))
     {
         const auto & null_map = col_nullable->getNullMapData();
-        auto nested = truncateNestedArrayOrMapIfNull(col_nullable->getNestedColumnPtr());
+        auto nested = truncateNestedDataIfNull(col_nullable->getNestedColumnPtr());
         const auto * nested_array = checkAndGetColumn<ColumnArray>(nested.get());
         const auto * nested_map = checkAndGetColumn<ColumnMap>(nested.get());
         const auto * nested_tuple = checkAndGetColumn<ColumnTuple>(nested.get());
@@ -139,7 +139,7 @@ static ColumnPtr truncateNestedArrayOrMapIfNull(const ColumnPtr & column)
         }
         else
         {
-            auto new_nested = truncateNestedArrayOrMapIfNull(nested);
+            auto new_nested = truncateNestedDataIfNull(nested);
             return ColumnNullable::create(std::move(new_nested), col_nullable->getNullMapColumnPtr());
         }
     }
@@ -173,7 +173,7 @@ void NormalFileWriter::write(DB::Block & block)
 
         const auto & preferred_column = preferred_schema.getByPosition(index++);
         /// Make sure nested array or map data is empty when the row is null in Nullable(Map(K, V)) or Nullable(Array(T)).
-        column.column = truncateNestedArrayOrMapIfNull(column.column);
+        column.column = truncateNestedDataIfNull(column.column);
         column.column = DB::castColumn(column, preferred_column.type);
         column.name = preferred_column.name;
         column.type = preferred_column.type;
