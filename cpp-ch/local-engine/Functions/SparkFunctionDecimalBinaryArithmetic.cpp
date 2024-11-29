@@ -19,6 +19,7 @@
 #include <Columns/ColumnDecimal.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
+#include <Core/DecimalFunctions.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionFactory.h>
@@ -26,8 +27,6 @@
 #include <Functions/IFunction.h>
 #include <Functions/castTypeToEither.h>
 #include <Common/CurrentThread.h>
-#include <Common/GlutenDecimalUtils.h>
-#include <Common/ProfileEvents.h>
 #include <Common/Stopwatch.h>
 
 namespace DB

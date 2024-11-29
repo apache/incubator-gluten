@@ -14,9 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Functions/LeastGreatestGeneric.h>
-#include <DataTypes/getLeastSupertype.h>
+#pragma once
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/getLeastSupertype.h>
+#include <Functions/FunctionBinaryArithmetic.h>
+#include <Functions/FunctionFactory.h>
+#include <Functions/LeastGreatestGeneric.h>
 
 namespace DB
 {
@@ -64,7 +67,7 @@ private:
                 else
                 {
                     auto cmp_result = converted_columns[arg]->compareAt(row_num, row_num, *converted_columns[best_arg], 1);
-                    if (cmp_result <  0)
+                    if (cmp_result < 0)
                         best_arg = arg;
                 }
             }
