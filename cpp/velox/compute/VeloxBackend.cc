@@ -274,7 +274,7 @@ void VeloxBackend::initConnector() {
   connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
       backendConf_->get<std::string>(kMaxCoalescedBytes, "67108864"); // 64M
   connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedDistance] =
-      backendConf_->get<std::string>(kMaxCoalescedDistance, "1048576"); // 1M
+      backendConf_->get<std::string>(kMaxCoalescedDistance, "512KB"); // 512KB
   connectorConfMap[velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
       backendConf_->get<std::string>(kPrefetchRowGroups, "1");
   connectorConfMap[velox::connector::hive::HiveConfig::kLoadQuantum] =
