@@ -265,6 +265,7 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
 case class ColumnarUnionExec(children: Seq[SparkPlan]) extends ValidatablePlan {
   children.foreach {
     case w: WholeStageTransformer =>
+      // FIXME: Avoid such practice for plan immutability.
       w.setOutputSchemaForPlan(output)
     case _ =>
   }

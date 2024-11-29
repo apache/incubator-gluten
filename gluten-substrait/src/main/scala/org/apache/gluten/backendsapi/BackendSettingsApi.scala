@@ -58,7 +58,6 @@ trait BackendSettingsApi {
   def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
     false
   }
-  def supportNativeUnionExec(): Boolean = false
   def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getConf.enableColumnarShuffle
   }

@@ -227,11 +227,7 @@ object OffloadOthers {
         case plan: UnionExec =>
           val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          if (BackendsApiManager.getSettings.supportNativeUnionExec()) {
-            UnionExecTransformer(plan.children)
-          } else {
-            ColumnarUnionExec(plan.children)
-          }
+          ColumnarUnionExec(children)
         case plan: ExpandExec =>
           val child = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

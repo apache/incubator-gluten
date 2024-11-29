@@ -414,8 +414,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
     allSupported
   }
 
-  override def supportNativeUnionExec(): Boolean = true
-
   override def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.getConf.enableColumnarShuffle && (GlutenConfig.getConf.isUseColumnarShuffleManager
       || GlutenConfig.getConf.isUseCelebornShuffleManager
