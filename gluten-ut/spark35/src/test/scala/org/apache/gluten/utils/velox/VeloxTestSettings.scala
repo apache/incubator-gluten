@@ -121,6 +121,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
+  enableSuite[GlutenJsonExpressionsSuite]
   enableSuite[GlutenJsonFunctionsSuite]
     // * in get_json_object expression not supported in velox
     .exclude("SPARK-42782: Hive compatibility check for get_json_object")

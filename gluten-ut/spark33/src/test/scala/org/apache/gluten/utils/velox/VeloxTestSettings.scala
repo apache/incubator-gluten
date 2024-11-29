@@ -142,6 +142,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
+  enableSuite[GlutenJsonExpressionsSuite]
   enableSuite[GlutenJsonFunctionsSuite]
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
