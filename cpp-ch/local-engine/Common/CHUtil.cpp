@@ -718,11 +718,13 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
     settings.set("output_format_parquet_use_custom_encoder", false);
 
-    /// update per https://github.com/ClickHouse/ClickHouse/pull/71539
+    /// Set false after https://github.com/ClickHouse/ClickHouse/pull/71539
     /// if true, we can't get correct metrics for the query
     settings[Setting::query_plan_merge_filters] = false;
+
     /// We now set BuildQueryPipelineSettings according to config.
-    settings[Setting::compile_expressions] = true;
+    // TODO: FIXME. Set false after https://github.com/ClickHouse/ClickHouse/pull/70598.
+    settings[Setting::compile_expressions] = false;
     settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
     ///
 
