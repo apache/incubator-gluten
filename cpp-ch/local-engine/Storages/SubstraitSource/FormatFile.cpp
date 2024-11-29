@@ -87,7 +87,7 @@ FormatFilePtr FormatFileUtil::createFile(
     DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file)
 {
 #if USE_PARQUET
-    if (file.has_parquet())
+    if (file.has_parquet() || (file.has_iceberg() && file.iceberg().has_parquet()))
     {
         auto config = ExecutorConfig::loadFromContext(context);
         return std::make_shared<ParquetFormatFile>(context, file, read_buffer_builder, config.use_local_format);
@@ -95,7 +95,7 @@ FormatFilePtr FormatFileUtil::createFile(
 #endif
 
 #if USE_ORC
-    if (file.has_orc())
+    if (file.has_orc() || (file.has_iceberg() && file.iceberg().has_orc()))
         return std::make_shared<ORCFormatFile>(context, file, read_buffer_builder);
 #endif
 

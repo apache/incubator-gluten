@@ -18,7 +18,6 @@ package org.apache.gluten.execution.tpch
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution._
-import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
@@ -114,6 +113,31 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(plans.head.metrics("outputVectors").value === 2)
       }
     }
+  }
+
+  // TODO: there is a bug when using timestamp type as the partition column
+  ignore("test timestamp as partition column") {
+    spark.sql("""
+                |create table part_by_timestamp (
+                |  a int,
+                |  b timestamp,
+                |  c string,
+                |  p timestamp
+                |) using parquet
+                |partitioned by (p);
+                |""".stripMargin)
+
+    // Insert some test rows.
+    spark.sql("""
+                |insert into table part_by_timestamp
+                |values
+                |(1, TIMESTAMP '2022-01-01 00:01:20', '2022-01-01 00:01:20',
+                |TIMESTAMP '2022-01-01 00:01:20');
+                |""".stripMargin)
+    compareResultsAgainstVanillaSpark(
+      "select a, b, to_timestamp(c), p from part_by_timestamp",
+      compareResult = true,
+      customCheck = { _ => })
   }
 
   test("TPCH Q2") {
