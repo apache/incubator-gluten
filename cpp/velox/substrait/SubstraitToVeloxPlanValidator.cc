@@ -61,7 +61,6 @@ const std::unordered_set<std::string> kRegexFunctions = {
 const std::unordered_set<std::string> kBlackList = {
     "split_part",
     "factorial",
-    "concat_ws",
     "from_json",
     "json_array_length",
     "trunc",
