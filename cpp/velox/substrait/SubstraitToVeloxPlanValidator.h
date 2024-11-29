@@ -114,7 +114,7 @@ class SubstraitToVeloxPlanValidator {
   bool validateInputStructType1(const ::substrait::extensions::AdvancedExtension& extension, std::vector<TypePtr>& out);
 
   /// Used to get types from advanced extension and validate them. The input type should have 2 levels
-  /// of nesting.
+  /// of nesting. Used usually for validation of operators like Union which has arbitrary ways of inputs.
   bool validateInputStructType2(
       const ::substrait::extensions::AdvancedExtension& extension,
       std::vector<std::vector<TypePtr>>& out);
@@ -159,7 +159,7 @@ class SubstraitToVeloxPlanValidator {
   bool parseStructType1(const ::substrait::Type& type, std::vector<TypePtr>& out);
 
   /// Parse a Substrait struct type into a flattern Velox type vector. The input Subtrait type should have 2 levels
-  /// of nesting.
+  /// of nesting. Used usually for validation of operators like Union which has arbitrary ways of inputs.
   bool parseStructType2(const ::substrait::Type& type, std::vector<std::vector<TypePtr>>& out);
 
   /// Add necessary log for fallback
