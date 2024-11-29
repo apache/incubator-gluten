@@ -20,7 +20,7 @@ import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.{GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenDecimalPrecisionSuite, GlutenHashExpressionsSuite, GlutenHigherOrderFunctionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryEvalSuite}
+import org.apache.spark.sql.catalyst.expressions.{GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCastWithAnsiOnSuite, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenDecimalPrecisionSuite, GlutenHashExpressionsSuite, GlutenHigherOrderFunctionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryCastSuite, GlutenTryEvalSuite}
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
 import org.apache.spark.sql.execution._
@@ -92,6 +92,17 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+  enableSuite[GlutenCastWithAnsiOnSuite]
+  enableSuite[GlutenTryCastSuite]
+    .exclude(
+      "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
+    )
+    .exclude("ANSI mode: Throw exception on casting out-of-range value to byte type")
+    .exclude("ANSI mode: Throw exception on casting out-of-range value to short type")
+    .exclude("ANSI mode: Throw exception on casting out-of-range value to int type")
+    .exclude("ANSI mode: Throw exception on casting out-of-range value to long type")
+    .exclude("cast from invalid string to numeric should throw NumberFormatException")
+    .exclude("SPARK-26218: Fix the corner case of codegen when casting float to Integer")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")

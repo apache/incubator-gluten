@@ -43,7 +43,10 @@ case class CastTransformer(substraitExprName: String, child: ExpressionTransform
   extends UnaryExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
-    ExpressionBuilder.makeCast(typeNode, child.doTransform(args), original.ansiEnabled)
+    ExpressionBuilder.makeCast(
+      typeNode,
+      child.doTransform(args),
+      original.evalMode == EvalMode.ANSI)
   }
 }
 
