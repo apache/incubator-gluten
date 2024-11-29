@@ -47,6 +47,9 @@ class GlutenClickHouseTPCHBucketSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "-1") // for test bucket join
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_config.enable_grace_aggregate_spill_test",
+        "true")
   }
 
   override protected val createNullableTables = true
