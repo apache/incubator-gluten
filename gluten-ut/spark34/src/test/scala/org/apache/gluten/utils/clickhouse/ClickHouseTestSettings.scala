@@ -513,8 +513,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-17617: % (Remainder) double % double on super big double")
     .exclude("Abs")
     .exclude("pmod")
-    .exclude("function least")
-    .exclude("function greatest")
     .exclude("SPARK-28322: IntegralDivide supports decimal type")
     .exclude("SPARK-33008: division by zero on divide-like operations returns incorrect result")
     .exclude("SPARK-34920: error class")
