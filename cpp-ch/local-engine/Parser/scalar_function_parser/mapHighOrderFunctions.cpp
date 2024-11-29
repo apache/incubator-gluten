@@ -25,6 +25,7 @@
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
+#include "DataTypes/DataTypeMap.h"
 
 namespace DB::ErrorCodes
 {
@@ -48,7 +49,8 @@ public:
     const DB::ActionsDAG::Node *
     parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
-        /// parse transfrom_keys(expr, func) or transform_values(expr, func) as mapApply(func, expr)
+        /// Parse spark transform_keys(map, func) as CH mapFromArrays(arrayMap(func, cast(map as array)), mapValues(map))
+        /// Parse spark transform_values(map, func) as CH mapFromArrays(mapKeys(map), arrayMap(func, cast(map as array)))
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw DB::Exception(DB::ErrorCodes::SIZES_OF_COLUMNS_DOESNT_MATCH, "{} function must have three arguments", getName());
@@ -58,7 +60,26 @@ public:
             throw DB::Exception(
                 DB::ErrorCodes::SIZES_OF_COLUMNS_DOESNT_MATCH, "The lambda function in {} must have two arguments", getName());
 
-        const auto * result_node = toFunctionNode(actions_dag, "mapApply", {parsed_args[1], parsed_args[0]});
+        const auto * map_node = parsed_args[0];
+        const auto * func_node = parsed_args[1];
+        const auto & map_type = map_node->result_type;
+        auto array_type = checkAndGetDataType<DataTypeMap>(removeNullable(map_type).get())->getNestedType();
+        if (map_type->isNullable())
+            array_type = std::make_shared<DataTypeNullable>(array_type);
+        const auto * array_node = ActionsDAGUtil::convertNodeTypeIfNeeded(actions_dag, map_node, array_type);
+        const auto * transformed_node = toFunctionNode(actions_dag, "arrayMap", {func_node, array_node});
+
+        const DB::ActionsDAG::Node * result_node = nullptr;
+        if constexpr (transform_keys)
+        {
+            const auto * nontransformed_node = toFunctionNode(actions_dag, "mapValues", {parsed_args[0]});
+            result_node = toFunctionNode(actions_dag, "mapFromArrays", {transformed_node, nontransformed_node});
+        }
+        else
+        {
+            const auto * nontransformed_node = toFunctionNode(actions_dag, "mapKeys", {parsed_args[0]});
+            result_node = toFunctionNode(actions_dag, "mapFromArrays", {nontransformed_node, transformed_node});
+        }
         return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
