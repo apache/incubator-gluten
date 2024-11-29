@@ -160,20 +160,29 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
             else
             {
                 need_final_project = true;
-
                 bool need_const = origin_column.column && isColumnConst(*origin_column.column);
-                ColumnWithTypeAndName final_column(
-                    need_const ? final_type->createColumnConst(0, assert_cast<const ColumnConst &>(*origin_column.column).getField())
-                               : final_type->createColumn(),
-                    final_type,
-                    origin_column.name);
-                final_columns.emplace_back(std::move(final_column));
+                if (need_const)
+                {
+                    const DB::ContextPtr context = DB::CurrentThread::get().getQueryContext();
+                    const FunctionOverloadResolverPtr & cast_resolver = FunctionFactory::instance().get("CAST", context);
+                    const DataTypePtr string_type = std::make_shared<DataTypeString>();
+                    ColumnWithTypeAndName to_type_column = {string_type->createColumnConst(1, final_type->getName()), string_type, "__cast_const__"};
+                    FunctionBasePtr cast_function = cast_resolver->build({origin_column, to_type_column});
+                    ColumnPtr const_col = ColumnConst::create(cast_function->execute({origin_column, to_type_column}, final_type, 1), 1);
+                    ColumnWithTypeAndName final_column(const_col, final_type, origin_column.name);
+                    final_columns.emplace_back(std::move(final_column));
+                }
+                else
+                {
+                    ColumnWithTypeAndName final_column(final_type->createColumn(), final_type, origin_column.name);
+                    final_columns.emplace_back(std::move(final_column));
+                }
             }
         }
 
         if (need_final_project)
         {
-            ActionsDAG final_project = ActionsDAG::makeConvertingActions(origin_columns, final_columns, ActionsDAG::MatchColumnsMode::Position);
+            ActionsDAG final_project = ActionsDAG::makeConvertingActions(origin_columns, final_columns, ActionsDAG::MatchColumnsMode::Position, true);
             QueryPlanStepPtr final_project_step
                 = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(final_project));
             final_project_step->setStepDescription("Project for output schema");
