@@ -48,6 +48,9 @@ extern const SettingsUInt64 aggregation_in_order_max_block_bytes;
 extern const SettingsUInt64 group_by_two_level_threshold;
 extern const SettingsFloat min_hit_rate_to_use_consecutive_keys_optimization;
 extern const SettingsUInt64 max_block_size;
+extern const SettingsBool compile_aggregate_expressions;
+extern const SettingsUInt64 min_count_to_compile_aggregate_expression;
+extern const SettingsBool enable_software_prefetch_in_aggregation;
 }
 
 template <typename Method>
@@ -186,7 +189,7 @@ DB::Block AggregateDataBlockConverter::next()
 }
 
 DB::Aggregator::Params AggregatorParamsHelper::buildParams(
-    DB::ContextPtr context,
+    const DB::ContextPtr & context,
     const DB::Names & grouping_keys,
     const DB::AggregateDescriptions & agg_descriptions,
     Mode mode,
@@ -194,7 +197,7 @@ DB::Aggregator::Params AggregatorParamsHelper::buildParams(
 {
     const auto & settings = context->getSettingsRef();
     size_t max_rows_to_group_by = mode == Mode::PARTIAL_TO_FINISHED ? 0 : static_cast<size_t>(settings[DB::Setting::max_rows_to_group_by]);
-    DB::OverflowMode group_by_overflow_mode = settings[DB::Setting::group_by_overflow_mode];
+
     size_t group_by_two_level_threshold
         = algorithm == Algorithm::GlutenGraceAggregate ? static_cast<size_t>(settings[DB::Setting::group_by_two_level_threshold]) : 0;
     size_t group_by_two_level_threshold_bytes = algorithm == Algorithm::GlutenGraceAggregate
@@ -207,39 +210,39 @@ DB::Aggregator::Params AggregatorParamsHelper::buildParams(
         ? false
         : (mode == Mode::PARTIAL_TO_FINISHED ? false : static_cast<bool>(settings[DB::Setting::empty_result_for_aggregation_by_empty_set]));
     DB::TemporaryDataOnDiskScopePtr tmp_data_scope = algorithm == Algorithm::GlutenGraceAggregate ? nullptr : context->getTempDataOnDisk();
-    size_t max_threads = settings[DB::Setting::max_threads];
+
     size_t min_free_disk_space = algorithm == Algorithm::GlutenGraceAggregate
         ? 0
         : static_cast<size_t>(settings[DB::Setting::min_free_disk_space_for_temporary_data]);
-    bool compile_aggregate_expressions = mode == Mode::PARTIAL_TO_FINISHED ? false : true;
-    size_t min_count_to_compile_aggregate_expression = mode == Mode::PARTIAL_TO_FINISHED ? 0 : 3;
+    bool compile_aggregate_expressions = mode == Mode::PARTIAL_TO_FINISHED ? false : settings[DB::Setting::compile_aggregate_expressions];
+    size_t min_count_to_compile_aggregate_expression = mode == Mode::PARTIAL_TO_FINISHED ? 0 : settings[DB::Setting::min_count_to_compile_aggregate_expression];
     size_t max_block_size = PODArrayUtil::adjustMemoryEfficientSize(settings[DB::Setting::max_block_size]);
-    bool enable_prefetch = mode == Mode::PARTIAL_TO_FINISHED ? false : true;
+    bool enable_prefetch = mode != Mode::PARTIAL_TO_FINISHED;
     bool only_merge = mode == Mode::PARTIAL_TO_FINISHED;
     bool optimize_group_by_constant_keys
         = mode == Mode::PARTIAL_TO_FINISHED ? false : settings[DB::Setting::optimize_group_by_constant_keys];
-    double min_hit_rate_to_use_consecutive_keys_optimization = settings[DB::Setting::min_hit_rate_to_use_consecutive_keys_optimization];
+
+    DB::Settings aggregate_settings{settings};
+    aggregate_settings[DB::Setting::max_rows_to_group_by] = max_rows_to_group_by;
+    aggregate_settings[DB::Setting::max_bytes_before_external_group_by] = max_bytes_before_external_group_by;
+    aggregate_settings[DB::Setting::min_free_disk_space_for_temporary_data] = min_free_disk_space;
+    aggregate_settings[DB::Setting::compile_aggregate_expressions] = compile_aggregate_expressions;
+    aggregate_settings[DB::Setting::min_count_to_compile_aggregate_expression] = min_count_to_compile_aggregate_expression;
+    aggregate_settings[DB::Setting::max_block_size] = max_block_size;
+    aggregate_settings[DB::Setting::enable_software_prefetch_in_aggregation] = enable_prefetch;
+    aggregate_settings[DB::Setting::optimize_group_by_constant_keys] = optimize_group_by_constant_keys;
     DB::Aggregator::Params params(
+        aggregate_settings,
         grouping_keys,
         agg_descriptions,
         false,
-        max_rows_to_group_by,
-        group_by_overflow_mode,
         group_by_two_level_threshold,
         group_by_two_level_threshold_bytes,
-        max_bytes_before_external_group_by,
         empty_result_for_aggregation_by_empty_set,
         tmp_data_scope,
-        max_threads,
-        min_free_disk_space,
-        compile_aggregate_expressions,
-        min_count_to_compile_aggregate_expression,
-        max_block_size,
-        enable_prefetch,
         only_merge,
-        optimize_group_by_constant_keys,
-        min_hit_rate_to_use_consecutive_keys_optimization,
         {});
+
     return params;
 }
 
