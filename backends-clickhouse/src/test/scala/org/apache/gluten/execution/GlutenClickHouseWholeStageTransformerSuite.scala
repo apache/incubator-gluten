@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
+import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeConfig}
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
@@ -178,6 +178,15 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     } else {
       ignore(s"[$SPARK_VERSION_SHORT]-$testName", testTag: _*)(testFun)
     }
+  }
+  protected def onePipelineWriteTest(testName: String, testTag: Tag*)(testFun: => Any): Unit = {
+    test(testName, testTag: _*)(
+      withSQLConf(
+        (CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString),
+        (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
+        testFun
+      }
+    )
   }
 
   lazy val pruningTimeValueSpark: Int = if (isSparkVersionLE("3.3")) -1 else 0

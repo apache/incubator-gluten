@@ -32,7 +32,7 @@ struct SparkMergeTreeWriteSettings
     SparkMergeTreeWritePartitionSettings partition_settings;
     bool merge_after_insert{true};
     bool insert_without_local_storage{false};
-    size_t merge_min_size = 1024 * 1024 * 1024;
+    size_t merge_min_size = 1024 * 1024 * 1024;  // 1GB
     size_t merge_limit_parts = 10;
 
     explicit SparkMergeTreeWriteSettings(const DB::ContextPtr & context);

@@ -62,24 +62,6 @@ class GlutenClickHouseDeltaParquetWriteSuite
     createNotNullTPCHTablesInParquet(tablesPath)
   }
 
-  private val q1SchemaString: String =
-    s""" l_orderkey      bigint,
-       | l_partkey       bigint,
-       | l_suppkey       bigint,
-       | l_linenumber    bigint,
-       | l_quantity      double,
-       | l_extendedprice double,
-       | l_discount      double,
-       | l_tax           double,
-       | l_returnflag    string,
-       | l_linestatus    string,
-       | l_shipdate      date,
-       | l_commitdate    date,
-       | l_receiptdate   date,
-       | l_shipinstruct  string,
-       | l_shipmode      string,
-       | l_comment       string""".stripMargin
-
   private def doInsert(drop: String, create: String, insert: String): Unit = {
     spark.sql(drop)
     spark.sql(create)
@@ -1025,11 +1007,11 @@ class GlutenClickHouseDeltaParquetWriteSuite
     }
   }
 
-  testSparkVersionLE33("test parquet optimize with the path based table") {
+  test("test parquet optimize with the path based table") {
     val dataPath = s"$basePath/lineitem_delta_parquet_optimize_path_based"
     clearDataPath(dataPath)
     withSQLConf(
-      "spark.databricks.delta.optimize.maxFileSize" -> "1000000",
+      "spark.databricks.delta.optimize.maxFileSize" -> "1100000",
       "spark.databricks.delta.optimize.minFileSize" -> "838000") {
 
       val sourceDF = spark.sql(s"""
@@ -1046,10 +1028,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val clickhouseTable = DeltaTable.forPath(spark, dataPath)
       clickhouseTable.optimize().executeCompaction()
 
+      // There are 75 parquet files + 2 json files after compaction
+      assert(countFiles(new File(dataPath)) === 77)
+
       clickhouseTable.vacuum(0.0)
       if (spark32) {
         assert(countFiles(new File(dataPath)) === 27)
       } else {
+        // There are 25 parquet files + 4 json files after vacuum
         assert(countFiles(new File(dataPath)) === 29)
       }
 
@@ -1059,7 +1045,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
     withSQLConf(
       "spark.databricks.delta.optimize.maxFileSize" -> "10000000",
-      "spark.databricks.delta.optimize.minFileSize" -> "1000000") {
+      "spark.databricks.delta.optimize.minFileSize" -> "1100000") {
 
       val clickhouseTable = DeltaTable.forPath(spark, dataPath)
       clickhouseTable.optimize().executeCompaction()
@@ -1068,6 +1054,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       if (spark32) {
         assert(countFiles(new File(dataPath)) === 6)
       } else {
+        // There are 3 parquet files + 7 json files + 2 check point files after vacuum
         assert(countFiles(new File(dataPath)) === 12)
       }
 
@@ -1083,6 +1070,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     if (spark32) {
       assert(countFiles(new File(dataPath)) === 5)
     } else {
+      // There are 1 parquet file + 10 json files + 2 check point files after vacuum
       assert(countFiles(new File(dataPath)) === 13)
     }
 

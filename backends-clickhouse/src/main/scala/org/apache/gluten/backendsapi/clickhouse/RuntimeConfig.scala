@@ -42,4 +42,13 @@ object RuntimeConfig {
       .doc("Use the current directory as the temporary directory.")
       .booleanConf
       .createWithDefault(false)
+
+  // scalastyle:off line.size.limit
+  val LOGGER_LEVEL =
+    buildConf(runtimeConfig("logger.level"))
+      .doc(
+        "https://clickhouse.com/docs/en/operations/server-configuration-parameters/settings#logger")
+      .stringConf
+      .createWithDefault("warning")
+  // scalastyle:on line.size.limit
 }
