@@ -322,7 +322,9 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
             context->getSettingsRef()[Setting::max_block_size],
             context->getSettingsRef()[Setting::min_joined_block_size_bytes],
             1,
-            false);
+            /* required_output_ = */ NameSet{},
+            false,
+            /* use_new_analyzer_ = */ false);
 
         join_step->setStepDescription("SORT_MERGE_JOIN");
         steps.emplace_back(join_step.get());
@@ -390,7 +392,11 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
     NameSet left_columns_set;
     for (const auto & col : left.getCurrentHeader().getNames())
         left_columns_set.emplace(col);
-    table_join.setColumnsFromJoinedTable(right.getCurrentHeader().getNamesAndTypesList(), left_columns_set, getUniqueName("right") + ".");
+    table_join.setColumnsFromJoinedTable(
+        right.getCurrentHeader().getNamesAndTypesList(),
+        left_columns_set,
+        getUniqueName("right") + ".",
+        left.getCurrentHeader().getNamesAndTypesList());
 
     // fix right table key duplicate
     NamesWithAliases right_table_alias;
@@ -787,7 +793,9 @@ DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
         context->getSettingsRef()[Setting::max_block_size],
         context->getSettingsRef()[Setting::min_joined_block_size_bytes],
         1,
-        false);
+        /* required_output_ = */ NameSet{},
+        false,
+        /* use_new_analyzer_ = */ false);
     join_step->setStepDescription("Multi join on clause hash join");
     steps.emplace_back(join_step.get());
     std::vector<QueryPlanPtr> plans;
@@ -827,7 +835,9 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
         context->getSettingsRef()[Setting::max_block_size],
         context->getSettingsRef()[Setting::min_joined_block_size_bytes],
         1,
-        false);
+        /* required_output_ = */ NameSet{},
+        false,
+        /* use_new_analyzer_ = */ false);
 
     join_step->setStepDescription("HASH_JOIN");
     steps.emplace_back(join_step.get());
