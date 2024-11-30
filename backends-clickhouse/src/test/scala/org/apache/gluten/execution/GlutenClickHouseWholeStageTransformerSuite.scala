@@ -181,7 +181,8 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
   protected def onePipelineWriteTest(testName: String, testTag: Tag*)(testFun: => Any): Unit = {
     test(testName, testTag: _*)(
-      withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString),
+      withSQLConf(
+        (CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString),
         (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
         testFun
       }
