@@ -191,7 +191,11 @@ void NormalFileWriter::close()
     /// When insert into a table with empty dataset, NormalFileWriter::consume would be never called.
     /// So we need to skip when writer is nullptr.
     if (writer)
+    {
         writer->finish();
+        assert(output_format);
+        output_format->finalizeOutput();
+    }
 }
 
 OutputFormatFilePtr createOutputFormatFile(

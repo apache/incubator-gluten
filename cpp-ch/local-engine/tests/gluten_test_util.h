@@ -16,9 +16,9 @@
  */
 
 #pragma once
+#include "testConfig.h"
 
 #include <string>
-#include <testConfig.h>
 #include <Core/Block.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>

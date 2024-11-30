@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 #include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionsMiscellaneous.h>
 #include <Parser/FunctionParser.h>
 #include <Common/Exception.h>
 #include <Common/assert_cast.h>
-
 namespace DB
 {
 namespace ErrorCodes
