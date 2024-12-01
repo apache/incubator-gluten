@@ -106,19 +106,17 @@ class SubstraitToVeloxPlanValidator {
 
   std::vector<std::string> validateLog_;
 
-  /// Used to get types from advanced extension and validate them.
-  bool validateInputType(const ::substrait::extensions::AdvancedExtension& extension, ::substrait::Type& out);
+  /// Used to get types from advanced extension and validate them, then convert to a Velox type that has arbitrary
+  /// levels of nesting.
+  bool validateInputVeloxType(const ::substrait::extensions::AdvancedExtension& extension, TypePtr& out);
 
-  /// Used to get types from advanced extension and validate them. The input type should have single level
-  /// of nesting.
-  bool validateInputStructType1(const ::substrait::extensions::AdvancedExtension& extension, std::vector<TypePtr>& out);
+  /// Flattens a Velox type with single level of nesting into a std::vector of child types.
+  bool flattenVeloxType1(const TypePtr& type, std::vector<TypePtr>& out);
 
-  /// Used to get types from advanced extension and validate them. The input type should have 2 levels
-  /// of nesting. Used usually for validation of operators like Union which has arbitrary ways of inputs.
-  bool validateInputStructType2(
-      const ::substrait::extensions::AdvancedExtension& extension,
-      std::vector<std::vector<TypePtr>>& out);
+  /// Flattens a Velox type with two level of nesting into a dual-nested std::vector of child types.
+  bool flattenVeloxType2(const TypePtr& type, std::vector<std::vector<TypePtr>>& out);
 
+  /// Validate aggregate rel.
   bool validateAggRelFunctionType(const ::substrait::AggregateRel& substraitAgg);
 
   /// Validate the round scalar function.
@@ -153,14 +151,6 @@ class SubstraitToVeloxPlanValidator {
   bool validateSingularOrList(
       const ::substrait::Expression::SingularOrList& singularOrList,
       const RowTypePtr& inputType);
-
-  /// Parse a Substrait struct type into a flattern Velox type vector. The input Subtrait type should have single level
-  /// of nesting.
-  bool parseStructType1(const ::substrait::Type& type, std::vector<TypePtr>& out);
-
-  /// Parse a Substrait struct type into a flattern Velox type vector. The input Subtrait type should have 2 levels
-  /// of nesting. Used usually for validation of operators like Union which has arbitrary ways of inputs.
-  bool parseStructType2(const ::substrait::Type& type, std::vector<std::vector<TypePtr>>& out);
 
   /// Add necessary log for fallback
   void logValidateMsg(const std::string& log) {
