@@ -105,7 +105,8 @@ object BroadcastUtils {
           }
           ColumnarBuildSideRelation(
             SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-            serialized)
+            serialized,
+            mode)
         }
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
@@ -123,7 +124,8 @@ object BroadcastUtils {
           }
           ColumnarBuildSideRelation(
             SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-            serialized)
+            serialized,
+            mode)
         }
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]

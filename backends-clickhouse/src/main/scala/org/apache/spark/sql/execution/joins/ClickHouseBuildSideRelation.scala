@@ -72,7 +72,7 @@ case class ClickHouseBuildSideRelation(
   }
 
   /**
-   * Transform columnar broadcast value to Array[InternalRow] by key and distinct.
+   * Transform columnar broadcast value to Array[InternalRow] by key.
    *
    * @return
    */
