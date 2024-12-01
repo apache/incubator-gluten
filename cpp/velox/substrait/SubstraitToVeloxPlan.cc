@@ -1055,19 +1055,23 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
       // Velox doesn't allow different field names in schemas of LocalPartitionNode's children.
       // Add project nodes to unify the schemas.
+      const RowTypePtr outRowType = asRowType(children[0]->outputType());
       std::vector<std::string> outNames;
-      for (int32_t colIdx = 0; colIdx < asRowType(children[0]->outputType())->size(); ++colIdx) {
-        const std::string name = SubstraitParser::makeNodeName(0, colIdx);
+      for (int32_t colIdx = 0; colIdx < outRowType->size(); ++colIdx) {
+        const auto name = outRowType->childAt(colIdx)->name();
         outNames.push_back(name);
       }
+
       std::vector<core::PlanNodePtr> projectedChildren;
       for (int32_t i = 0; i < children.size(); ++i) {
         const auto& child = children[i];
         const RowTypePtr& childRowType = child->outputType();
         std::vector<core::TypedExprPtr> expressions;
         for (int32_t colIdx = 0; colIdx < outNames.size(); ++colIdx) {
-          expressions.push_back(std::make_shared<core::FieldAccessTypedExpr>(
-              childRowType->childAt(colIdx), childRowType->nameOf(colIdx)));
+          const auto fa =
+              std::make_shared<core::FieldAccessTypedExpr>(childRowType->childAt(colIdx), childRowType->nameOf(colIdx));
+          const auto cast = std::make_shared<core::CastTypedExpr>(outRowType->childAt(colIdx), fa, false);
+          expressions.push_back(cast);
         }
         auto project = std::make_shared<core::ProjectNode>(nextPlanNodeId(), outNames, expressions, child);
         projectedChildren.push_back(project);
