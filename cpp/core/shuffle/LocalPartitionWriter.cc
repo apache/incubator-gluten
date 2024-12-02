@@ -389,9 +389,9 @@ arrow::Result<std::shared_ptr<arrow::io::OutputStream>> LocalPartitionWriter::op
   std::shared_ptr<arrow::io::FileOutputStream> fout;
   ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(file));
   if (options_.bufferedWrite) {
-    // The 16k bytes is a temporary allocation and will be freed with file close.
+    // The `shuffleFileBufferSize` bytes is a temporary allocation and will be freed with file close.
     // Use default memory pool and count treat the memory as executor memory overhead to avoid unnecessary spill.
-    return arrow::io::BufferedOutputStream::Create(16384, arrow::default_memory_pool(), fout);
+    return arrow::io::BufferedOutputStream::Create(options_.shuffleFileBufferSize, arrow::default_memory_pool(), fout);
   }
   return fout;
 }
@@ -420,6 +420,7 @@ arrow::Status LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
   auto spillIter = spills_.begin();
   while (spillIter != spills_.end()) {
     ARROW_ASSIGN_OR_RAISE(auto st, dataFileOs_->Tell());
+    (*spillIter)->openForRead(options_.shuffleFileBufferSize);
     // Read if partition exists in the spilled file and write to the final file.
     while (auto payload = (*spillIter)->nextPayload(partitionId)) {
       // May trigger spill during compression.

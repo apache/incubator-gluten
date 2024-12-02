@@ -14,17 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#pragma once
 #include <memory>
+#include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnStringHelpers.h>
-#include <Columns/ColumnMap.h>
 #include <Columns/ColumnsNumber.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/DataTypeString.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Formats/FormatFactory.h>
 #include <Functions/FunctionFactory.h>
+#include <Functions/FunctionHelpers.h>
 #include <IO/WriteHelpers.h>
 
 namespace DB

@@ -293,9 +293,7 @@ protected:
     {
         if (output_format_) [[unlikely]]
         {
-            output_format_->output->finalize();
-            output_format_->output->flush();
-            output_format_->write_buffer->finalize();
+            output_format_->finalizeOutput();
             assert(delta_stats_.row_count > 0);
             if (stats_)
                 stats_->collectStats(relative_path_, partition_id_, delta_stats_);

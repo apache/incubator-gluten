@@ -17,7 +17,7 @@
 package org.apache.gluten
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.network.util.{ByteUnit, JavaUtils}
 import org.apache.spark.sql.internal.SQLConf
 
 import com.google.common.collect.ImmutableList
@@ -456,7 +456,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(PREFETCH_ROW_GROUPS)
   def loadQuantum: Long =
     conf.getConf(LOAD_QUANTUM)
-  def maxCoalescedDistanceBytes: Long =
+  def maxCoalescedDistance: String =
     conf.getConf(MAX_COALESCED_DISTANCE_BYTES)
   def maxCoalescedBytes: Long =
     conf.getConf(MAX_COALESCED_BYTES)
@@ -568,6 +568,7 @@ object GlutenConfig {
   val SPARK_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val SPARK_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"
+  val SPARK_SHUFFLE_FILE_BUFFER = "spark.shuffle.file.buffer"
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, default value is false
@@ -735,6 +736,15 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
+
+    conf
+      .get(SPARK_SHUFFLE_FILE_BUFFER)
+      .foreach(
+        v =>
+          nativeConfMap
+            .put(
+              SPARK_SHUFFLE_FILE_BUFFER,
+              (JavaUtils.byteStringAs(v, ByteUnit.KiB) * 1024).toString))
 
     // Backend's dynamic session conf only.
     val confPrefix = prefixOf(backendName)
@@ -2085,11 +2095,11 @@ object GlutenConfig {
       .createWithDefaultString("256MB")
 
   val MAX_COALESCED_DISTANCE_BYTES =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistanceBytes")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance")
       .internal()
       .doc(" Set the max coalesced distance bytes for velox file scan")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("1MB")
+      .stringConf
+      .createWithDefaultString("512KB")
 
   val MAX_COALESCED_BYTES =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes")

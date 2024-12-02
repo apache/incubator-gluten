@@ -40,6 +40,7 @@ class GlutenClickHouseTPCHBucketSuite
   override protected val queriesResults: String = rootPath + "bucket-queries-output"
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
@@ -47,6 +48,7 @@ class GlutenClickHouseTPCHBucketSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "-1") // for test bucket join
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
+      .setCHConfig("enable_grace_aggregate_spill_test", "true")
   }
 
   override protected val createNullableTables = true
