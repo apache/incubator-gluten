@@ -86,6 +86,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarUnion: Boolean = conf.getConf(COLUMNAR_UNION_ENABLED)
 
+  def enableNativeUnion: Boolean = conf.getConf(NATIVE_UNION_ENABLED)
+
   def enableColumnarExpand: Boolean = conf.getConf(COLUMNAR_EXPAND_ENABLED)
 
   def enableColumnarBroadcastExchange: Boolean = conf.getConf(COLUMNAR_BROADCAST_EXCHANGE_ENABLED)
@@ -1011,6 +1013,13 @@ object GlutenConfig {
       .doc("Enable or disable columnar union.")
       .booleanConf
       .createWithDefault(true)
+
+  val NATIVE_UNION_ENABLED =
+    buildConf("spark.gluten.sql.native.union")
+      .internal()
+      .doc("Enable or disable native union where computation is completely offloaded to backend.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_EXPAND_ENABLED =
     buildConf("spark.gluten.sql.columnar.expand")
