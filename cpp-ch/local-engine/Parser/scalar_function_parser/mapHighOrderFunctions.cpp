@@ -28,7 +28,6 @@
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
 
-
 namespace DB::ErrorCodes
 {
     extern const int SIZES_OF_COLUMNS_DOESNT_MATCH;
