@@ -34,7 +34,7 @@ import java.security.MessageDigest
  * @param totalBytes
  * all bytesBuffer's length plus together
  */
-class UnsafeBytesBufferArray(
+case class UnsafeBytesBufferArray(
      arraySize: Int,
      bytesBufferLengths: Array[Int],
      totalBytes: Long,
@@ -134,8 +134,8 @@ class UnsafeBytesBufferArray(
   }
 
   /**
-   * It's needed once the broadcast variable is garbage collected. Since now we don't have an
-   * elegant way to free the underlying offheap.
+   * It's needed once the broadcast variable is garbage collected. Since now, we don't have an
+   * elegant way to free the underlying memory in offheap.
    */
     override def finalize(): Unit = {
       try {
