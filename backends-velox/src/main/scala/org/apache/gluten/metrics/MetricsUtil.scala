@@ -54,6 +54,15 @@ object MetricsUtil extends Logging {
           MetricsUpdaterTree(
             smj.metricsUpdater(),
             Seq(treeifyMetricsUpdaters(smj.bufferedPlan), treeifyMetricsUpdaters(smj.streamedPlan)))
+        case u: UnionExecTransformer =>
+          // Union has 2 dummy project children generated natively in Velox plan.
+          MetricsUpdaterTree(
+            u.metricsUpdater(),
+            u.children.map(
+              child =>
+                MetricsUpdaterTree(
+                  MetricsUpdater.Todo,
+                  child.children.map(treeifyMetricsUpdaters))))
         case t: TransformSupport if t.metricsUpdater() == MetricsUpdater.None =>
           assert(t.children.size == 1, "MetricsUpdater.None can only be used on unary operator")
           treeifyMetricsUpdaters(t.children.head)
