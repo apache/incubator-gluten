@@ -587,7 +587,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
     "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of sample"),
+    "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of union"),
     "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count")
   )
 
