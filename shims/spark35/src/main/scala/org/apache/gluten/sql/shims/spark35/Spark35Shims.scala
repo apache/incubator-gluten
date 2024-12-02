@@ -549,4 +549,8 @@ class Spark35Shims extends SparkShims {
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     QueryPlan.localIdMap.get().remove(plan)
   }
+
+  override def ansiEnabled(original: Cast): Boolean = {
+    original.evalMode == EvalMode.ANSI
+  }
 }

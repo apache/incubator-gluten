@@ -296,4 +296,8 @@ class Spark32Shims extends SparkShims {
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
+
+  override def ansiEnabled(original: Cast): Boolean = {
+    original.ansiEnabled
+  }
 }
