@@ -22,13 +22,17 @@ import org.apache.gluten.substrait.expression.ExpressionNode
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
 import org.apache.gluten.substrait.rel.RelBuilder
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Expression}
 
 import com.google.common.collect.Lists
 
+import java.util
+
+import scala.collection.JavaConverters._
+
 object PlanNodesUtil {
 
-  def genProjectionsPlanNode(key: Expression, output: Seq[Attribute]): PlanNode = {
+  def genProjectionsPlanNode(key: Seq[Expression], output: Seq[Attribute]): PlanNode = {
     val context = new SubstraitContext
 
     var operatorId = context.nextOperatorId("ClickHouseBuildSideRelationReadIter")
@@ -44,14 +48,28 @@ object PlanNodesUtil {
       .replaceWithExpressionTransformer(key, attributeSeq = output)
 
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
-    projExprNodeList.add(columnarProjExpr.doTransform(args))
+    columnarProjExpr.foreach(e => projExprNodeList.add(e.doTransform(args)))
 
     PlanBuilder.makePlan(
       context,
       Lists.newArrayList(
         RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)),
-      Lists.newArrayList(
-        ConverterUtils.genColumnNameWithExprId(ConverterUtils.getAttrFromExpr(key)))
+      Lists.newArrayList(genColumnNameWithExprId(key, output))
     )
+  }
+
+  private def genColumnNameWithExprId(
+      key: Seq[Expression],
+      output: Seq[Attribute]): util.List[String] = {
+    key
+      .map {
+        k =>
+          val reference = k.collectFirst { case BoundReference(ordinal, _, _) => output(ordinal) }
+          assert(reference.isDefined)
+          reference.get
+      }
+      .map(ConverterUtils.genColumnNameWithExprId)
+      .toList
+      .asJava
   }
 }
