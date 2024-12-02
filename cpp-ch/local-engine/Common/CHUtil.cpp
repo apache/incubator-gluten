@@ -89,6 +89,7 @@ extern const SettingsUInt64 max_bytes_before_external_sort;
 extern const SettingsBool query_plan_merge_filters;
 extern const SettingsBool compile_expressions;
 extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
+extern const SettingsUInt64 min_count_to_compile_expression;
 }
 namespace ErrorCodes
 {
@@ -723,10 +724,9 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings[Setting::query_plan_merge_filters] = false;
 
     /// We now set BuildQueryPipelineSettings according to config.
-    // TODO: FIXME. Set false after https://github.com/ClickHouse/ClickHouse/pull/70598.
-    settings[Setting::compile_expressions] = false;
+    settings[Setting::compile_expressions] = true;
+    settings[Setting::min_count_to_compile_expression] = 0;
     settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
-    ///
 
     for (const auto & [key, value] : spark_conf_map)
     {
