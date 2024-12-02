@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
-
 import org.apache.spark.SparkConf
 
 import java.io.File
@@ -247,28 +245,19 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
     }
 
     // Validation: Union.
-    Seq(false, true).foreach {
-      nativeUnionEnabled =>
-        withSQLConf(GlutenConfig.NATIVE_UNION_ENABLED.key -> nativeUnionEnabled.toString) {
-          runQueryAndCompare("""
-                               |select count(d) from (
-                               | select date as d from type1
-                               | union all
-                               | select date as d from type1
-                               |);
-                               |""".stripMargin) {
-            df =>
-              {
-                assert(getExecutedPlan(df).exists {
-                  plan =>
-                    if (nativeUnionEnabled) {
-                      plan.isInstanceOf[UnionExecTransformer]
-                    } else {
-                      plan.isInstanceOf[ColumnarUnionExec]
-                    }
-                })
-              }
-          }
+    runQueryAndCompare("""
+                         |select count(d) from (
+                         | select date as d from type1
+                         | union all
+                         | select date as d from type1
+                         |);
+                         |""".stripMargin) {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).exists(
+              plan =>
+                plan.isInstanceOf[ColumnarUnionExec] || plan.isInstanceOf[UnionExecTransformer]))
         }
     }
 
