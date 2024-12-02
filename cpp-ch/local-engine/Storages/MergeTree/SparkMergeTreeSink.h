@@ -278,6 +278,12 @@ public:
         return SparkMergeTreeSink::create(
             table, write_settings, context_->getGlobalContext(), {std::dynamic_pointer_cast<MergeTreeStats>(stats_)});
     }
+
+    // TODO implement with bucket
+    DB::SinkPtr createSinkForPartition(const String & partition_id, const String & bucket) override
+    {
+        return createSinkForPartition(partition_id);
+    }
 };
 
 }

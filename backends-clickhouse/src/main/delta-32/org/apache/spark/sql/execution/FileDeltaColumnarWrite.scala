@@ -108,13 +108,15 @@ case class FileDeltaColumnarWrite(
      * {{{
      *   part-00000-7d672b28-c079-4b00-bb0a-196c15112918-c000.snappy.parquet
      *     =>
-     *   part-00000-{}.snappy.parquet
+     *   part-00000-{id}.snappy.parquet
      * }}}
      */
     val guidPattern =
       """.*-([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:-c(\d+)\..*)?$""".r
     val fileNamePattern =
-      guidPattern.replaceAllIn(writeFileName, m => writeFileName.replace(m.group(1), "{}"))
+      guidPattern.replaceAllIn(
+        writeFileName,
+        m => writeFileName.replace(m.group(1), FileNamePlaceHolder.ID))
 
     logDebug(s"Native staging write path: $writePath and with pattern: $fileNamePattern")
     val settings =
