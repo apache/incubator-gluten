@@ -272,7 +272,7 @@ void WholeStageResultIterator::getOrderedNodeIds(
     //  array is possible but requires for a solid design. Apparently we haven't had it. All the code requires complete
     //  rework.
     // Union was interpreted as LocalPartition + LocalExchange + 2 fake projects as children in Velox. So we only fetch
-    // metrics from LocalExchange node.
+    // metrics from the root node.
     std::vector<std::shared_ptr<const velox::core::PlanNode>> unionChildren{};
     for (const auto& source : planNode->sources()) {
       const auto projectedChild = std::dynamic_pointer_cast<const velox::core::ProjectNode>(source);
