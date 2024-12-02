@@ -205,7 +205,7 @@ abstract class WholeStageTransformerSuite
       val df = dataframe()
       expected = df.collect()
     }
-    // By default, we will fallabck complex type scan but here we should allow
+    // By default, we will fallback complex type scan but here we should allow
     // to test support of complex type
     spark.conf.set("spark.gluten.sql.complexType.scan.fallback.enabled", "false");
     val df = dataframe()
