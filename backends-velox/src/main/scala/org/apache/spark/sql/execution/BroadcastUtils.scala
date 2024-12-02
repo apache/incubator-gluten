@@ -16,17 +16,18 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
-
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, IdentityBroadcastMode, Partitioning}
-import org.apache.spark.sql.execution.joins.{HashedRelation, HashedRelationBroadcastMode, LongHashedRelation}
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashedRelationBroadcastMode, LongHashedRelation}
+import org.apache.spark.sql.execution.unsafe.UnsafeColumnarBuildSideRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
@@ -44,7 +45,7 @@ object BroadcastUtils {
     mode match {
       case HashedRelationBroadcastMode(_, _) =>
         // ColumnarBuildSideRelation to HashedRelation.
-        val fromBroadcast = from.asInstanceOf[Broadcast[ColumnarBuildSideRelation]]
+        val fromBroadcast = from.asInstanceOf[Broadcast[BuildSideRelation]]
         val fromRelation = fromBroadcast.value.asReadOnlyCopy()
         var rowCount: Long = 0
         val toRelation = TaskResources.runUnsafe {
@@ -59,7 +60,7 @@ object BroadcastUtils {
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
       case IdentityBroadcastMode =>
         // ColumnarBuildSideRelation to HashedRelation.
-        val fromBroadcast = from.asInstanceOf[Broadcast[ColumnarBuildSideRelation]]
+        val fromBroadcast = from.asInstanceOf[Broadcast[BuildSideRelation]]
         val fromRelation = fromBroadcast.value.asReadOnlyCopy()
         val toRelation = TaskResources.runUnsafe {
           val rowIterator = fn(fromRelation.deserialized)
@@ -90,6 +91,7 @@ object BroadcastUtils {
       schema: StructType,
       from: Broadcast[F],
       fn: Iterator[InternalRow] => Iterator[ColumnarBatch]): Broadcast[T] = {
+    val useOffheapBuildRelation = GlutenConfig.getConf.enableBroadcastBuildRelationInOffheap
     mode match {
       case HashedRelationBroadcastMode(_, _) =>
         // HashedRelation to ColumnarBuildSideRelation.
@@ -103,9 +105,15 @@ object BroadcastUtils {
             case result: ColumnarBatchSerializeResult =>
               Array(result.getSerialized)
           }
-          ColumnarBuildSideRelation(
-            SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-            serialized)
+          if (useOffheapBuildRelation) {
+            new UnsafeColumnarBuildSideRelation(
+              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+              serialized)
+          } else {
+            ColumnarBuildSideRelation(
+              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+              serialized)
+          }
         }
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]
@@ -121,9 +129,15 @@ object BroadcastUtils {
             case result: ColumnarBatchSerializeResult =>
               Array(result.getSerialized)
           }
+          if (useOffheapBuildRelation) {
+            new UnsafeColumnarBuildSideRelation(
+              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+              serialized)
+          } else {
           ColumnarBuildSideRelation(
             SparkShimLoader.getSparkShims.attributesFromStruct(schema),
             serialized)
+          }
         }
         // Rebroadcast Velox relation.
         context.broadcast(toRelation).asInstanceOf[Broadcast[T]]

@@ -24,8 +24,7 @@ import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
-
+import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializer}
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
 import org.apache.spark.rdd.RDD
@@ -51,8 +50,10 @@ import org.apache.spark.sql.hive.VeloxHiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import org.apache.commons.lang3.ClassUtils
+import org.apache.spark.sql.execution.unsafe.UnsafeColumnarBuildSideRelation
+import org.apache.spark.task.TaskResources
+import org.apache.spark.util.TaskResources
 
 import javax.ws.rs.core.UriBuilder
 
@@ -620,6 +621,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan,
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
+    val useOffheapBroadcastBuildRelation = GlutenConfig.getConf
+      .enableBroadcastBuildRelationInOffheap
     val serialized: Array[ColumnarBatchSerializeResult] = child
       .executeColumnar()
       .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
@@ -632,7 +635,13 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
-    ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
+    if (useOffheapBroadcastBuildRelation){
+      TaskResources.runUnsafe {
+        new UnsafeColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
+      }
+    } else {
+      ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
+    }
   }
 
   override def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
