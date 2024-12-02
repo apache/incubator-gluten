@@ -1458,7 +1458,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test try_cast") {
+  testWithSpecifiedSparkVersion("Test try_cast", Some("3.4")) {
     withTempView("try_cast_table") {
       withTempPath {
         path =>
@@ -1486,10 +1486,10 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
             .write
             .parquet(path.getCanonicalPath)
           spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("cast_table")
-          runQueryAndCompare("select cast(str as bigint) from try_cast_table") {
+          runQueryAndCompare("select cast(str as bigint) from cast_table") {
             checkGlutenOperatorMatch[ProjectExecTransformer]
           }
-          runQueryAndCompare("select cast(str as double) from try_cast_table") {
+          runQueryAndCompare("select cast(str as double) from cast_table") {
             checkGlutenOperatorMatch[ProjectExecTransformer]
           }
       }
