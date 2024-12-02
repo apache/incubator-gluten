@@ -1159,7 +1159,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
     const auto& extension = aggRel.advanced_extension();
     // Aggregate always has advanced extension for streaming aggregate optimization,
     // but only some of them have enhancement for validation.
-    if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+    if (extension.has_enhancement() &&
+        (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types))) {
       LOG_VALIDATION_MSG("Validation failed for input types in AggregateRel.");
       return false;
     }
