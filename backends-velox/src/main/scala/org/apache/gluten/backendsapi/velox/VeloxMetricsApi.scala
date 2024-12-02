@@ -584,14 +584,13 @@ class VeloxMetricsApi extends MetricsApi with Logging {
     new SampleMetricsUpdater(metrics)
 
   override def genUnionTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = Map(
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
     "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of sample"),
     "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count")
   )
 
-  // TODO
   override def genUnionTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
-    MetricsUpdater.Todo
+    new UnionMetricsUpdater(metrics)
 }
