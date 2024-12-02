@@ -17,6 +17,7 @@
 
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeFunction.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
@@ -25,7 +26,7 @@
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
-#include "DataTypes/DataTypeMap.h"
+#include <Functions/FunctionHelpers.h>
 
 namespace DB::ErrorCodes
 {
