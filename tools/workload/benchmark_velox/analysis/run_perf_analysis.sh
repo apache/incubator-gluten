@@ -55,6 +55,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --proxy)
+      PROXY="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --comp-appid)
       COMP_APPID="$2"
       shift # past argument
@@ -111,6 +116,11 @@ then
   fi
   hadoop fs -cp -f /$COMP_BASEDIR/$COMP_APPID/app.log /history/$COMP_APPID
   EXTRA_ARGS="--compare_appid $COMP_APPID --compare_basedir $COMP_BASEDIR --compare_name $COMP_NAME"
+fi
+
+if [ -n "${PROXY}" ]
+then
+  EXTRA_ARGS=$EXTRA_ARGS" --proxy $PROXY"
 fi
 
 source ~/paus-env/bin/activate
