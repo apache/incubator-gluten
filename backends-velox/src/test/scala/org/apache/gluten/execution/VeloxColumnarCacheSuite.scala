@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.storage.StorageLevel
 
 class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = "/tpch-data-sf100"
   override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {

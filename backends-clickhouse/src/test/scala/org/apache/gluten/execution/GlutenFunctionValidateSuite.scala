@@ -33,7 +33,7 @@ import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
-  protected val tablesPath: String = basePath + "/tpch-data"
+  protected val tablesPath: String = basePath + "/tpch-data-sf100"
   protected val tpchQueries: String =
     rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"

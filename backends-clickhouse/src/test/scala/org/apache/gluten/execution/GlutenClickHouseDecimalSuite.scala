@@ -38,7 +38,7 @@ class GlutenClickHouseDecimalSuite
 
   override protected val needCopyParquetToTablePath = true
 
-  override protected val tablesPath: String = basePath + "/tpch-data"
+  override protected val tablesPath: String = basePath + "/tpch-data-sf100"
   override protected val tpchQueries: String =
     rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"

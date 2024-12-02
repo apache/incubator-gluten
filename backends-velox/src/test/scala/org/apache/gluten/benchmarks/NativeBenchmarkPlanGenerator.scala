@@ -31,7 +31,7 @@ import java.io.File
 object GenerateExample extends Tag("org.apache.gluten.tags.GenerateExample")
 
 class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = "/tpch-data-sf100"
   override protected val fileFormat: String = "parquet"
   val generatedPlanDir = getClass.getResource("/").getPath + "../../../generated-native-benchmark/"
   val outputFileFormat = "parquet"

@@ -40,7 +40,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
   override protected val needCopyParquetToTablePath = true
 
-  override protected val tablesPath: String = basePath + "/tpch-data"
+  override protected val tablesPath: String = basePath + "/tpch-data-sf100"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 

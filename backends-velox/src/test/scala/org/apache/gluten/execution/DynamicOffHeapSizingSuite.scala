@@ -23,7 +23,7 @@ import org.apache.spark.SparkConf
 
 @SkipTestTags
 class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = "/tpch-data-sf100"
   override protected val fileFormat: String = "parquet"
 
   private val dataGenerator = RandomParquetDataGenerator(System.currentTimeMillis())

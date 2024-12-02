@@ -28,7 +28,7 @@ class ArrowEvalPythonExecSuite extends WholeStageTransformerSuite {
   import testImplicits.localSeqToDatasetHolder
   import testImplicits.newProductEncoder
 
-  override protected val resourcePath: String = "/tpch-data-parquet"
+  override protected val resourcePath: String = "/tpch-data-sf100"
   override protected val fileFormat: String = "parquet"
   val pyarrowTestUDF = TestScalarPandasUDF(name = "pyarrowUDF")
 
