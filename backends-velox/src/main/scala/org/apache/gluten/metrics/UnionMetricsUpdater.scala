@@ -20,13 +20,16 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 
 class UnionMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {
-      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      metrics("numInputRows") += operatorMetrics.inputRows
-      metrics("inputVectors") += operatorMetrics.inputVectors
-      metrics("inputBytes") += operatorMetrics.inputBytes
-      metrics("cpuCount") += operatorMetrics.cpuCount
-      metrics("wallNanos") += operatorMetrics.wallNanos
-    }
+    throw new UnsupportedOperationException()
+  }
+
+  def updateUnionMetrics(unionMetrics: java.util.ArrayList[OperatorMetrics]): Unit = {
+    // Union was interpreted to LocalExchange + LocalPartition. Use metrics from LocalExchange.
+    val localExchangeMetrics = unionMetrics.get(0)
+    metrics("numInputRows") += localExchangeMetrics.inputRows
+    metrics("inputVectors") += localExchangeMetrics.inputVectors
+    metrics("inputBytes") += localExchangeMetrics.inputBytes
+    metrics("cpuCount") += localExchangeMetrics.cpuCount
+    metrics("wallNanos") += localExchangeMetrics.wallNanos
   }
 }
