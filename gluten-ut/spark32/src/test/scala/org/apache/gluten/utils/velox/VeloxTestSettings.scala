@@ -378,6 +378,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("$.store.basket[0][*]")
     .exclude("$.store.basket[*][*]")
     .exclude("$.store.basket[0][*].b")
+    // Exception class different.
+    .exclude("from_json - invalid data")
   enableSuite[GlutenJsonFunctionsSuite]
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")

@@ -135,6 +135,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("$.store.basket[0][*]")
     .exclude("$.store.basket[*][*]")
     .exclude("$.store.basket[0][*].b")
+    // Exception class different.
+    .exclude("from_json - invalid data")
   enableSuite[GlutenJsonFunctionsSuite]
     // * in get_json_object expression not supported in velox
     .exclude("SPARK-42782: Hive compatibility check for get_json_object")
