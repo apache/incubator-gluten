@@ -35,6 +35,7 @@ extern const int UNKNOWN_AGGREGATED_DATA_VARIANT;
 
 namespace Setting
 {
+extern const SettingsDouble max_bytes_ratio_before_external_group_by;
 extern const SettingsUInt64 max_bytes_before_external_group_by;
 extern const SettingsBool optimize_group_by_constant_keys;
 extern const SettingsUInt64 min_free_disk_space_for_temporary_data;
@@ -203,6 +204,9 @@ DB::Aggregator::Params AggregatorParamsHelper::buildParams(
     size_t group_by_two_level_threshold_bytes = algorithm == Algorithm::GlutenGraceAggregate
         ? 0
         : (mode == Mode::PARTIAL_TO_FINISHED ? 0 : static_cast<size_t>(settings[DB::Setting::group_by_two_level_threshold_bytes]));
+    double max_bytes_ratio_before_external_group_by = algorithm == Algorithm::GlutenGraceAggregate
+        ? 0.0
+        : (mode == Mode::PARTIAL_TO_FINISHED ? 0.0 : settings[DB::Setting::max_bytes_ratio_before_external_group_by]);
     size_t max_bytes_before_external_group_by = algorithm == Algorithm::GlutenGraceAggregate
         ? 0
         : (mode == Mode::PARTIAL_TO_FINISHED ? 0 : static_cast<size_t>(settings[DB::Setting::max_bytes_before_external_group_by]));
@@ -215,7 +219,8 @@ DB::Aggregator::Params AggregatorParamsHelper::buildParams(
         ? 0
         : static_cast<size_t>(settings[DB::Setting::min_free_disk_space_for_temporary_data]);
     bool compile_aggregate_expressions = mode == Mode::PARTIAL_TO_FINISHED ? false : settings[DB::Setting::compile_aggregate_expressions];
-    size_t min_count_to_compile_aggregate_expression = mode == Mode::PARTIAL_TO_FINISHED ? 0 : settings[DB::Setting::min_count_to_compile_aggregate_expression];
+    size_t min_count_to_compile_aggregate_expression
+        = mode == Mode::PARTIAL_TO_FINISHED ? 0 : settings[DB::Setting::min_count_to_compile_aggregate_expression];
     size_t max_block_size = PODArrayUtil::adjustMemoryEfficientSize(settings[DB::Setting::max_block_size]);
     bool enable_prefetch = mode != Mode::PARTIAL_TO_FINISHED;
     bool only_merge = mode == Mode::PARTIAL_TO_FINISHED;
@@ -224,6 +229,7 @@ DB::Aggregator::Params AggregatorParamsHelper::buildParams(
 
     DB::Settings aggregate_settings{settings};
     aggregate_settings[DB::Setting::max_rows_to_group_by] = max_rows_to_group_by;
+    aggregate_settings[DB::Setting::max_bytes_ratio_before_external_group_by] = max_bytes_ratio_before_external_group_by;
     aggregate_settings[DB::Setting::max_bytes_before_external_group_by] = max_bytes_before_external_group_by;
     aggregate_settings[DB::Setting::min_free_disk_space_for_temporary_data] = min_free_disk_space;
     aggregate_settings[DB::Setting::compile_aggregate_expressions] = compile_aggregate_expressions;
