@@ -22,7 +22,9 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ListNode
 import org.apache.gluten.substrait.`type`.MapNode
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, StructLiteralNode}
+
 import org.apache.spark.sql.types._
+
 import com.google.common.collect.Lists
 
 case class ChildTransformer(
