@@ -502,6 +502,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
         compression_codec,
         index_granularity_ptr,
         txn ? txn->tid : Tx::PrehistoricTID,
+        block.bytes(),
         false,
         false,
         context->getWriteSettings());
