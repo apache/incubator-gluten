@@ -38,13 +38,13 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
     long granted = target.borrow(size);
 
     // if multi-slot and shared mode, retry spill.
-    if (granted < size && SparkResourceUtil.getTaskSlots(SparkEnv.get().conf()) > 1
-            && !GlutenConfig.getConf().memoryIsolation()) {
+    if (granted < size
+        && SparkResourceUtil.getTaskSlots(SparkEnv.get().conf()) > 1
+        && !GlutenConfig.getConf().memoryIsolation()) {
       long overUsed =
-              SparkMemoryUtil.getTaskOffheapMemoryUsage()
-                      - GlutenConfig.getConf().taskOffHeapMemorySize();
+          SparkMemoryUtil.getTaskOffheapMemoryUsage()
+              - GlutenConfig.getConf().taskOffHeapMemorySize();
       if (overUsed > 0 || Math.abs(overUsed) < size) {
-        // spill
         long spillSize = size + Math.abs(overUsed);
         target.borrow(spillSize);
         target.repay(spillSize);
