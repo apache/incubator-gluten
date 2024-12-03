@@ -24,32 +24,31 @@ import org.apache.spark.unsafe.array.LongArray
 import java.security.MessageDigest
 
 /**
- * Used to store broadcast variable off-heap memory for broadcast variable.
- * The underlying data structure is a
+ * Used to store broadcast variable off-heap memory for broadcast variable. The underlying data
+ * structure is a
  *
  * @param arraySize
- * underlying array[array[byte]]'s length
+ *   underlying array[array[byte]]'s length
  * @param bytesBufferLengths
- * underlying array[array[byte]] per bytesBuffer length
+ *   underlying array[array[byte]] per bytesBuffer length
  * @param totalBytes
- * all bytesBuffer's length plus together
+ *   all bytesBuffer's length plus together
  */
 case class UnsafeBytesBufferArray(
-     arraySize: Int,
-     bytesBufferLengths: Array[Int],
-     totalBytes: Long,
-     tmm: TaskMemoryManager)
+    arraySize: Int,
+    bytesBufferLengths: Array[Int],
+    totalBytes: Long,
+    tmm: TaskMemoryManager)
   extends MemoryConsumer(tmm, MemoryMode.OFF_HEAP)
-    with Logging {
+  with Logging {
+
   /**
-   * A single array to store all bytesBufferArray's value, it's inited once
-   * when first time get accessed.
+   * A single array to store all bytesBufferArray's value, it's inited once when first time get
+   * accessed.
    */
   private var longArray: LongArray = _
 
-  /**
-   * Index the start of each byteBuffer's offset to underlying LongArray's initial position.
-   */
+  /** Index the start of each byteBuffer's offset to underlying LongArray's initial position. */
   private val bytesBufferOffset = new Array[Int](arraySize)
 
   {
@@ -137,17 +136,17 @@ case class UnsafeBytesBufferArray(
    * It's needed once the broadcast variable is garbage collected. Since now, we don't have an
    * elegant way to free the underlying memory in offheap.
    */
-    override def finalize(): Unit = {
-      try {
-        if (longArray != null) {
-          log.debug(s"BytesArrayInOffheap finalize $arraySize")
-          freeArray(longArray)
-          longArray = null
-        }
-      } finally {
-        super.finalize()
+  override def finalize(): Unit = {
+    try {
+      if (longArray != null) {
+        log.debug(s"BytesArrayInOffheap finalize $arraySize")
+        freeArray(longArray)
+        longArray = null
       }
+    } finally {
+      super.finalize()
     }
+  }
 
   /**
    * Used to debug input/output bytes.
