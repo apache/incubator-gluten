@@ -52,7 +52,7 @@ DB::ProcessorPtr make_sink(
     const DB::Block & input_header,
     const DB::Block & output_header,
     const std::string & base_path,
-    FileNameGenerator & generator,
+    const FileNameGenerator & generator,
     const std::string & format_hint,
     const std::shared_ptr<WriteStats> & stats)
 {

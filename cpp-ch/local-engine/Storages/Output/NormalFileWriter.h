@@ -231,20 +231,20 @@ public:
 struct FileNameGenerator
 {
     // Align with org.apache.spark.sql.execution.FileNamePlaceHolder
-    const std::vector<std::string> placeholders = {"{id}", "{bucket}"};
+    static const std::vector<std::string> SUPPORT_PLACEHOLDERS;
     // Align with placeholders above
-    const std::vector<bool> need_replaced;
+    const std::vector<bool> need_to_replace;
     const std::string file_pattern;
 
-    FileNameGenerator(const std::string& file_pattern)
-        : file_pattern(file_pattern), need_replaced(compute_need_replaced(file_pattern))
+    FileNameGenerator(const std::string & file_pattern)
+        : file_pattern(file_pattern), need_to_replace(compute_need_to_replace(file_pattern))
     {
     }
 
-    std::vector<bool> compute_need_replaced(const std::string & file_pattern)
+    std::vector<bool> compute_need_to_replace(const std::string & file_pattern)
     {
         std::vector<bool> result;
-        for(const std::string& placeholder: placeholders)
+        for(const std::string& placeholder: SUPPORT_PLACEHOLDERS)
         {
             if (file_pattern.find(placeholder) != std::string::npos)
                 result.push_back(true);
@@ -254,17 +254,17 @@ struct FileNameGenerator
         return result;
     }
 
-    std::string generate(const std::string bucket = "") const
+    std::string generate(const std::string & bucket = "") const
     {
         std::string result = file_pattern;
-        if (need_replaced[0])
-            result = pattern_format(placeholders[0], toString(DB::UUIDHelpers::generateV4()));
-        if (need_replaced[1])
-            result = pattern_format(placeholders[1], bucket);
+        if (need_to_replace[0]) // {id}
+            result = pattern_format(SUPPORT_PLACEHOLDERS[0], toString(DB::UUIDHelpers::generateV4()));
+        if (need_to_replace[1]) // {bucket}
+            result = pattern_format(SUPPORT_PLACEHOLDERS[1], bucket);
         return result;
     }
 
-    std::string pattern_format(std::string arg, std::string replacement) const
+    std::string pattern_format(const std::string & arg, const std::string & replacement) const
     {
         std::string format_str = file_pattern;
         size_t pos = format_str.find(arg);
