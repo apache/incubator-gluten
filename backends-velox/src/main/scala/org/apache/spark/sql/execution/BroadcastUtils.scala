@@ -24,6 +24,7 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
+
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow
@@ -138,10 +139,10 @@ object BroadcastUtils {
               SparkShimLoader.getSparkShims.attributesFromStruct(schema),
               serialized)
           } else {
-          ColumnarBuildSideRelation(
-            SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-            serialized,
-            mode)
+            ColumnarBuildSideRelation(
+              SparkShimLoader.getSparkShims.attributesFromStruct(schema),
+              serialized,
+              mode)
           }
         }
         // Rebroadcast Velox relation.

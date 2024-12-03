@@ -16,9 +16,6 @@
  */
 package org.apache.spark.sql.execution.unsafe
 
-import com.esotericsoftware.kryo.io.{Input, Output}
-import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
-import org.apache.arrow.c.ArrowSchema
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -26,6 +23,7 @@ import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
+
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
@@ -38,24 +36,29 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.Utils
 
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+import org.apache.arrow.c.ArrowSchema
+
 import java.io.{Externalizable, ObjectInput, ObjectOutput}
+
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 /**
- * UnsafeColumnarBuildSideRelation should backed by offheap to avoid on-heap oom.
- * Almost the same as ColumnarBuildSideRelation, we should remove ColumnarBuildSideRelation when
+ * UnsafeColumnarBuildSideRelation should backed by offheap to avoid on-heap oom. Almost the same as
+ * ColumnarBuildSideRelation, we should remove ColumnarBuildSideRelation when
  * UnsafeColumnarBuildSideRelation get matured.
  *
  * @param output
  * @param batches
  */
 case class UnsafeColumnarBuildSideRelation(
-                                            private var output: Seq[Attribute],
-                                            private var batches: UnsafeBytesBufferArray)
+    private var output: Seq[Attribute],
+    private var batches: UnsafeBytesBufferArray)
   extends BuildSideRelation
-    with Externalizable
-    with Logging
-    with KryoSerializable {
+  with Externalizable
+  with Logging
+  with KryoSerializable {
 
   def this(output: Seq[Attribute], bytesBufferArray: Array[Array[Byte]]) {
     // only used in driver side when broadcast the whole batches
@@ -113,11 +116,8 @@ case class UnsafeColumnarBuildSideRelation(
       new UnifiedMemoryManager(SparkEnv.get.conf, Long.MaxValue, Long.MaxValue / 2, 1),
       0)
 
-    batches = UnsafeBytesBufferArray(
-      totalArraySize,
-      bytesBufferLengths,
-      totalBytes,
-      taskMemoryManager)
+    batches =
+      UnsafeBytesBufferArray(totalArraySize, bytesBufferLengths, totalBytes, taskMemoryManager)
 
     for (i <- 0 until totalArraySize) {
       val length = bytesBufferLengths(i)
@@ -138,11 +138,8 @@ case class UnsafeColumnarBuildSideRelation(
       new UnifiedMemoryManager(SparkEnv.get.conf, Long.MaxValue, Long.MaxValue / 2, 1),
       0)
 
-    batches = UnsafeBytesBufferArray(
-      totalArraySize,
-      bytesBufferLengths,
-      totalBytes,
-      taskMemoryManager)
+    batches =
+      UnsafeBytesBufferArray(totalArraySize, bytesBufferLengths, totalBytes, taskMemoryManager)
 
     for (i <- 0 until totalArraySize) {
       val length = bytesBufferLengths(i)
@@ -152,7 +149,6 @@ case class UnsafeColumnarBuildSideRelation(
       batches.putBytesBuffer(i, tmpBuffer)
     }
   }
-
 
   override def deserialized: Iterator[ColumnarBatch] = {
     val runtime = Runtimes.contextInstance("UnsafeBuildSideRelation#deserialized")
@@ -179,10 +175,11 @@ case class UnsafeColumnarBuildSideRelation(
         }
 
         override def next: ColumnarBatch = {
-          val handle =
-            jniWrapper
-              .deserialize(serializeHandle, batches.getBytesBuffer(batchId))
+          val (offset, length) =
+            batches.getBytesBufferOffsetAndLength(batchId)
           batchId += 1
+          val handle =
+            jniWrapper.deserialize(serializeHandle, offset, length)
           ColumnarBatches.create(handle)
         }
       })
@@ -247,10 +244,10 @@ case class UnsafeColumnarBuildSideRelation(
         }
 
         override def next(): Iterator[InternalRow] = {
-          val batchBytes = batches.getBytesBuffer(batchId)
+          val (offset, length) = batches.getBytesBufferOffsetAndLength(batchId)
           batchId += 1
           val batchHandle =
-            serializerJniWrapper.deserialize(serializeHandle, batchBytes)
+            serializerJniWrapper.deserialize(serializeHandle, offset, length)
           val batch = ColumnarBatches.create(batchHandle)
           if (batch.numRows == 0) {
             batch.close()
