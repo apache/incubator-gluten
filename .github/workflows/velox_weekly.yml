@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "centos:8", "quay.io/centos/centos:stream9" ]
+        os: [ "centos:7", "centos:8", "quay.io/centos/centos:stream9" ]
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -47,7 +47,17 @@ jobs:
         run: |
           yum update -y
           yum install -y epel-release sudo dnf
-          if [ "${{ matrix.os }}" = "quay.io/centos/centos:stream9" ]; then
+          if [ "${{ matrix.os }}" = "centos:7" ]; then
+            yum install -y centos-release-scl
+            rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
+            sed -i \
+            -e 's/^mirrorlist/#mirrorlist/' \
+            -e 's/^#baseurl/baseurl/' \
+            -e 's/mirror\.centos\.org/vault.centos.org/' \
+            /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+            yum install -y devtoolset-11
+            source /opt/rh/devtoolset-11/enable
+          elif [ "${{ matrix.os }}" = "quay.io/centos/centos:stream9" ]; then
             dnf install -y --setopt=install_weak_deps=False gcc-toolset-12
             source /opt/rh/gcc-toolset-12/enable || exit 1
           else
@@ -63,42 +73,6 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd $GITHUB_WORKSPACE/ && \
-          ./dev/package.sh
-
-  build-on-centos7:
-    strategy:
-      fail-fast: false
-    runs-on: ubuntu-20.04
-    container: centos:7
-    steps:
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: build
-        run: |
-          yum update -y
-          yum install -y epel-release sudo dnf
-
-          yum install -y centos-release-scl
-          rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
-          sed -i \
-          -e 's/^mirrorlist/#mirrorlist/' \
-          -e 's/^#baseurl/baseurl/' \
-          -e 's/mirror\.centos\.org/vault.centos.org/' \
-          /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
-          yum install -y devtoolset-11
-          source /opt/rh/devtoolset-11/enable
-
-          yum install -y java-1.8.0-openjdk-devel patch wget git perl
-          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
-          export PATH=$JAVA_HOME/bin:$PATH
-          wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-          mv apache-maven-3.8.8 /usr/lib/maven && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
           ./dev/package.sh
 
   build-on-ubuntu:
