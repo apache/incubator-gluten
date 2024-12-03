@@ -17,12 +17,11 @@
 package org.apache.gluten.extension.columnar.heuristic
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.{FallbackTag, FallbackTags}
 import org.apache.gluten.extension.columnar.FallbackTags.add
-import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike, Transitions}
+import org.apache.gluten.extension.columnar.transition.{BackendTransitions, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
-
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution._
@@ -31,7 +30,12 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
 import org.apache.spark.sql.execution.exchange.Exchange
 
-// spotless:off
+
+
+
+
+
+// format: off
 /**
  * Note, this rule should only fallback to row-based plan if there is no harm.
  * The follow case should be handled carefully
@@ -64,7 +68,7 @@ import org.apache.spark.sql.execution.exchange.Exchange
  * @param isAdaptiveContext If is inside AQE
  * @param originalPlan The vanilla SparkPlan without apply gluten transform rules
  */
-// spotless:on
+// format: on
 case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPlan)
   extends Rule[SparkPlan] {
   import ExpandFallbackPolicy._
@@ -106,13 +110,12 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     transitionCost
   }
 
+  // format: off
   /**
    * When making a stage fall back, it's possible that we need a ColumnarToRow to adapt to last
    * stage's columnar output. So we need to evaluate the cost, i.e., the number of required
    * ColumnarToRow between entirely fallback stage and last stage(s). Thus, we can avoid possible
    * performance degradation caused by fallback policy.
-   *
-   * spotless:off
    *
    * Spark plan before applying fallback policy:
    *
@@ -136,9 +139,8 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
    *            Project
    *
    *  So by considering the cost, the fallback policy will not be applied.
-   *
-   * spotless:on
    */
+  // format: on
   private def countStageFallbackTransitionCost(plan: SparkPlan): Int = {
     var stageFallbackTransitionCost = 0
 
@@ -227,7 +229,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       case _ =>
     }
 
-    val planWithTransitions = Transitions.insertTransitions(originalPlan, outputsColumnar)
+    val planWithTransitions = BackendTransitions.insert(originalPlan, outputsColumnar)
     planWithTransitions
   }
 

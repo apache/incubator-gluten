@@ -42,6 +42,7 @@ import org.apache.spark.util.collection.BitSet
 
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, Message}
+import org.apache.hadoop.fs.Path
 
 import java.util
 
@@ -269,4 +270,8 @@ class CHTransformerApi extends TransformerApi with Logging {
     }
     packPBMessage(write.build())
   }
+
+  /** use Hadoop Path class to encode the file path */
+  override def encodeFilePathIfNeed(filePath: String): String =
+    (new Path(filePath)).toUri.toASCIIString
 }

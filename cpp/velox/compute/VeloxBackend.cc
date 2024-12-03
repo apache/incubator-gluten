@@ -145,7 +145,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::filesystems::registerGcsFileSystem();
 #endif
 #ifdef ENABLE_ABFS
-  velox::filesystems::abfs::registerAbfsFileSystem();
+  velox::filesystems::registerAbfsFileSystem();
 #endif
 
   initJolFilesystem();
@@ -273,8 +273,8 @@ void VeloxBackend::initConnector() {
 
   connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
       backendConf_->get<std::string>(kMaxCoalescedBytes, "67108864"); // 64M
-  connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedDistanceBytes] =
-      backendConf_->get<std::string>(kMaxCoalescedDistanceBytes, "1048576"); // 1M
+  connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedDistance] =
+      backendConf_->get<std::string>(kMaxCoalescedDistance, "512KB"); // 512KB
   connectorConfMap[velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
       backendConf_->get<std::string>(kPrefetchRowGroups, "1");
   connectorConfMap[velox::connector::hive::HiveConfig::kLoadQuantum] =

@@ -39,18 +39,12 @@ DB::DataTypePtr wrapNullableType(bool nullable, DB::DataTypePtr nested_type)
     {
         if (nested_type->isLowCardinalityNullable())
             return nested_type;
-        else if (!nested_type->lowCardinality())
-            return std::make_shared<DB::DataTypeNullable>(nested_type);
-        else
+        if (nested_type->lowCardinality())
             return std::make_shared<DB::DataTypeLowCardinality>(
                 std::make_shared<DB::DataTypeNullable>(dynamic_cast<const DB::DataTypeLowCardinality &>(*nested_type).getDictionaryType()));
-    }
-
-
-    if (nullable && !nested_type->isNullable())
         return std::make_shared<DB::DataTypeNullable>(nested_type);
-    else
-        return nested_type;
+    }
+    return nested_type;
 }
 
 }

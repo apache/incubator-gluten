@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
-import org.apache.gluten.datasource.ArrowConvertorRule
+import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
@@ -68,6 +68,7 @@ object VeloxRuleApi {
     injector.injectPreTransform(_ => PushDownInputFileExpression.PreOffload)
     injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
     injector.injectPreTransform(c => FallbackMultiCodegens.apply(c.session))
+    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
     injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
@@ -91,6 +92,7 @@ object VeloxRuleApi {
       c => HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads))
 
     // Legacy: Post-transform rules.
+    injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(c => RewriteTransformer.apply(c.session))
@@ -100,7 +102,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => EliminateLocalSort)
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
-    injector.injectPostTransform(c => InsertTransitions(c.outputsColumnar))
+    injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(
@@ -124,6 +126,7 @@ object VeloxRuleApi {
     injector.injectPreTransform(_ => RemoveTransitions)
     injector.injectPreTransform(_ => PushDownInputFileExpression.PreOffload)
     injector.injectPreTransform(c => FallbackOnANSIMode.apply(c.session))
+    injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate(c.session))
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
     injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
@@ -176,6 +179,7 @@ object VeloxRuleApi {
 
     // Gluten RAS: Post rules.
     injector.injectPostTransform(_ => RemoveTransitions)
+    injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(c => RewriteTransformer.apply(c.session))
@@ -185,7 +189,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => EliminateLocalSort)
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
-    injector.injectPostTransform(c => InsertTransitions(c.outputsColumnar))
+    injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
     injector.injectPostTransform(
       c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()))
     SparkShimLoader.getSparkShims

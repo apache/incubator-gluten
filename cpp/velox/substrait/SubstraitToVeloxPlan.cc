@@ -493,13 +493,43 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
+std::string makeUuid() {
+  return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
+}
+
+std::string compressionFileNameSuffix(common::CompressionKind kind) {
+  switch (static_cast<int32_t>(kind)) {
+    case common::CompressionKind_ZLIB:
+      return ".zlib";
+    case common::CompressionKind_SNAPPY:
+      return ".snappy";
+    case common::CompressionKind_LZO:
+      return ".lzo";
+    case common::CompressionKind_ZSTD:
+      return ".zstd";
+    case common::CompressionKind_LZ4:
+      return ".lz4";
+    case common::CompressionKind_GZIP:
+      return ".gz";
+    case common::CompressionKind_NONE:
+    default:
+      return "";
+  }
+}
+
 std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
     const std::string& targetDirectory,
+    dwio::common::FileFormat fileFormat,
+    common::CompressionKind compression,
     const std::optional<std::string>& writeDirectory = std::nullopt,
     const connector::hive::LocationHandle::TableType& tableType =
         connector::hive::LocationHandle::TableType::kExisting) {
+  std::string targetFileName = "";
+  if (fileFormat == dwio::common::FileFormat::PARQUET) {
+    targetFileName = fmt::format("gluten-part-{}{}{}", makeUuid(), compressionFileNameSuffix(compression), ".parquet");
+  }
   return std::make_shared<connector::hive::LocationHandle>(
-      targetDirectory, writeDirectory.value_or(targetDirectory), tableType);
+      targetDirectory, writeDirectory.value_or(targetDirectory), tableType, targetFileName);
 }
 
 std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandle(
@@ -615,6 +645,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Do not hard-code connector ID and allow for connectors other than Hive.
   static const std::string kHiveConnectorId = "test-hive";
+  // Currently only support parquet format.
+  dwio::common::FileFormat fileFormat = dwio::common::FileFormat::PARQUET;
 
   return std::make_shared<core::TableWriteNode>(
       nextPlanNodeId(),
@@ -628,8 +660,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               inputType->children(),
               partitionedKey,
               nullptr /*bucketProperty*/,
-              makeLocationHandle(writePath),
-              dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
+              makeLocationHandle(writePath, fileFormat, compressionCodec),
+              fileFormat,
               compressionCodec)),
       (!partitionedKey.empty()),
       exec::TableWriteTraits::outputType(nullptr),
@@ -1011,6 +1043,50 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
       childNode);
 }
 
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::SetRel& setRel) {
+  switch (setRel.op()) {
+    case ::substrait::SetRel_SetOp::SetRel_SetOp_SET_OP_UNION_ALL: {
+      std::vector<core::PlanNodePtr> children;
+      for (int32_t i = 0; i < setRel.inputs_size(); ++i) {
+        const auto& input = setRel.inputs(i);
+        children.push_back(toVeloxPlan(input));
+      }
+      GLUTEN_CHECK(!children.empty(), "At least one source is required for Velox LocalPartition");
+
+      // Velox doesn't allow different field names in schemas of LocalPartitionNode's children.
+      // Add project nodes to unify the schemas.
+      const RowTypePtr outRowType = asRowType(children[0]->outputType());
+      std::vector<std::string> outNames;
+      for (int32_t colIdx = 0; colIdx < outRowType->size(); ++colIdx) {
+        const auto name = outRowType->childAt(colIdx)->name();
+        outNames.push_back(name);
+      }
+
+      std::vector<core::PlanNodePtr> projectedChildren;
+      for (int32_t i = 0; i < children.size(); ++i) {
+        const auto& child = children[i];
+        const RowTypePtr& childRowType = child->outputType();
+        std::vector<core::TypedExprPtr> expressions;
+        for (int32_t colIdx = 0; colIdx < outNames.size(); ++colIdx) {
+          const auto fa =
+              std::make_shared<core::FieldAccessTypedExpr>(childRowType->childAt(colIdx), childRowType->nameOf(colIdx));
+          const auto cast = std::make_shared<core::CastTypedExpr>(outRowType->childAt(colIdx), fa, false);
+          expressions.push_back(cast);
+        }
+        auto project = std::make_shared<core::ProjectNode>(nextPlanNodeId(), outNames, expressions, child);
+        projectedChildren.push_back(project);
+      }
+      return std::make_shared<core::LocalPartitionNode>(
+          nextPlanNodeId(),
+          core::LocalPartitionNode::Type::kGather,
+          std::make_shared<core::GatherPartitionFunctionSpec>(),
+          projectedChildren);
+    }
+    default:
+      throw GlutenException("Unsupported SetRel op: " + std::to_string(setRel.op()));
+  }
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::SortRel& sortRel) {
   auto childNode = convertSingleInput<::substrait::SortRel>(sortRel);
   auto [sortingKeys, sortingOrders] = processSortField(sortRel.sorts(), childNode->outputType());
@@ -1266,6 +1342,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.write());
   } else if (rel.has_windowgrouplimit()) {
     return toVeloxPlan(rel.windowgrouplimit());
+  } else if (rel.has_set()) {
+    return toVeloxPlan(rel.set());
   } else {
     VELOX_NYI("Substrait conversion not supported for Rel.");
   }

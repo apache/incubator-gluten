@@ -73,6 +73,7 @@ GraceMergingAggregateConfig GraceMergingAggregateConfig::loadFromContext(const D
         = context->getConfigRef().getUInt64(MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET, 1_MiB);
     config.max_allowed_memory_usage_ratio_for_aggregate_merging
         = context->getConfigRef().getDouble(MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING, 0.9);
+    config.enable_spill_test = context->getConfigRef().getBool(ENABLE_SPILL_TEST, false);
     return config;
 }
 
@@ -139,6 +140,15 @@ MergeTreeCacheConfig MergeTreeCacheConfig::loadFromContext(const DB::ContextPtr 
 {
     MergeTreeCacheConfig config;
     config.enable_data_prefetch = context->getConfigRef().getBool(ENABLE_DATA_PREFETCH, config.enable_data_prefetch);
+    return config;
+}
+
+WindowConfig WindowConfig::loadFromContext(const DB::ContextPtr & context)
+{
+    WindowConfig config;
+    config.aggregate_topk_sample_rows = context->getConfigRef().getUInt64(WINDOW_AGGREGATE_TOPK_SAMPLE_ROWS, 5000);
+    config.aggregate_topk_high_cardinality_threshold
+        = context->getConfigRef().getDouble(WINDOW_AGGREGATE_TOPK_HIGH_CARDINALITY_THRESHOLD, 0.6);
     return config;
 }
 }

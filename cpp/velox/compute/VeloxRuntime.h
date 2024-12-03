@@ -76,6 +76,8 @@ class VeloxRuntime final : public Runtime {
 
   void dumpConf(const std::string& path) override;
 
+  std::shared_ptr<ArrowWriter> createArrowWriter(const std::string& path) override;
+
   std::shared_ptr<VeloxDataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {

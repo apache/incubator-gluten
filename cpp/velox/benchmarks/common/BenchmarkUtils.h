@@ -95,12 +95,7 @@ inline std::shared_ptr<gluten::ColumnarBatch> convertBatch(std::shared_ptr<glute
 /// Return whether the data ends with suffix.
 bool endsWith(const std::string& data, const std::string& suffix);
 
-void setCpu(uint32_t cpuindex);
-
-arrow::Status
-setLocalDirsAndDataFileFromEnv(std::string& dataFile, std::vector<std::string>& localDirs, bool& isFromEnv);
-
-void cleanupShuffleOutput(const std::string& dataFile, const std::vector<std::string>& localDirs, bool isFromEnv);
+void setCpu(uint32_t cpuIndex);
 
 class BenchmarkAllocationListener final : public gluten::AllocationListener {
  public:
@@ -118,7 +113,7 @@ class BenchmarkAllocationListener final : public gluten::AllocationListener {
 
  private:
   uint64_t usedBytes_{0L};
-  uint64_t limit_{0L};
+  const uint64_t limit_{0L};
   gluten::ResultIterator* iterator_{nullptr};
   gluten::ShuffleWriter* shuffleWriter_{nullptr};
 };

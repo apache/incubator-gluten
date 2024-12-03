@@ -17,8 +17,7 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.execution.ColumnarToColumnarExec
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -32,7 +31,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Trivial C2R") {
     val in = BatchLeaf(TypeA)
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(out == BatchToRow(TypeA, BatchLeaf(TypeA)))
   }
@@ -40,7 +39,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Insert C2R") {
     val in = RowUnary(BatchLeaf(TypeA))
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(out == RowUnary(BatchToRow(TypeA, BatchLeaf(TypeA))))
   }
@@ -48,7 +47,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Insert R2C") {
     val in = BatchUnary(TypeA, RowLeaf())
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(out == BatchToRow(TypeA, BatchUnary(TypeA, RowToBatch(TypeA, RowLeaf()))))
   }
@@ -56,7 +55,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Insert C2R2C") {
     val in = BatchUnary(TypeA, BatchLeaf(TypeB))
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(
       out == BatchToRow(
@@ -67,7 +66,7 @@ class TransitionSuite extends SharedSparkSession {
   test("Insert C2C") {
     val in = BatchUnary(TypeA, BatchLeaf(TypeC))
     val out = ConventionFunc.ignoreBackend {
-      Transitions.insertTransitions(in, outputsColumnar = false)
+      Transitions.insert(in, outputsColumnar = false)
     }
     assert(
       out == BatchToRow(
@@ -79,7 +78,7 @@ class TransitionSuite extends SharedSparkSession {
     val in = BatchUnary(TypeA, BatchLeaf(TypeD))
     assertThrows[GlutenException] {
       ConventionFunc.ignoreBackend {
-        Transitions.insertTransitions(in, outputsColumnar = false)
+        Transitions.insert(in, outputsColumnar = false)
       }
     }
   }
@@ -87,29 +86,37 @@ class TransitionSuite extends SharedSparkSession {
 
 object TransitionSuite extends TransitionSuiteBase {
   object TypeA extends Convention.BatchType {
-    fromRow(RowToBatch(this, _))
-    toRow(BatchToRow(this, _))
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowToBatch(this, _))
+      toRow(BatchToRow(this, _))
+    }
   }
 
   object TypeB extends Convention.BatchType {
-    fromRow(RowToBatch(this, _))
-    toRow(BatchToRow(this, _))
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowToBatch(this, _))
+      toRow(BatchToRow(this, _))
+    }
   }
 
   object TypeC extends Convention.BatchType {
-    fromRow(RowToBatch(this, _))
-    toRow(BatchToRow(this, _))
-    fromBatch(TypeA, BatchToBatch(TypeA, this, _))
-    toBatch(TypeA, BatchToBatch(this, TypeA, _))
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowToBatch(this, _))
+      toRow(BatchToRow(this, _))
+      fromBatch(TypeA, BatchToBatch(TypeA, this, _))
+      toBatch(TypeA, BatchToBatch(this, TypeA, _))
+    }
   }
 
-  object TypeD extends Convention.BatchType {}
+  object TypeD extends Convention.BatchType {
+    override protected[this] def registerTransitions(): Unit = {}
+  }
 
   case class RowToBatch(toBatchType: Convention.BatchType, override val child: SparkPlan)
     extends RowToColumnarTransition
     with GlutenPlan {
-    override def supportsColumnar: Boolean = true
-    override protected def batchType0(): Convention.BatchType = toBatchType
+    override def batchType(): Convention.BatchType = toBatchType
+    override def rowType0(): Convention.RowType = Convention.RowType.None
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
     override protected def doExecute(): RDD[InternalRow] =

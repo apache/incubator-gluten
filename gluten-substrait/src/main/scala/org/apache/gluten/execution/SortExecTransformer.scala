@@ -44,8 +44,13 @@ case class SortExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetrics(sparkContext)
 
-  override def metricsUpdater(): MetricsUpdater =
+  override def isNoop: Boolean = sortOrder == null || sortOrder.isEmpty
+
+  override def metricsUpdater(): MetricsUpdater = if (isNoop) {
+    MetricsUpdater.None
+  } else {
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetricsUpdater(metrics)
+  }
 
   override def output: Seq[Attribute] = child.output
 
@@ -103,13 +108,12 @@ case class SortExecTransformer(
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val operatorId = context.nextOperatorId(this.nodeName)
-    if (sortOrder == null || sortOrder.isEmpty) {
+    if (isNoop) {
       // The computing for this project is not needed.
-      context.registerEmptyRelToOperator(operatorId)
       return childCtx
     }
 
+    val operatorId = context.nextOperatorId(this.nodeName)
     val currRel =
       getRelNode(context, sortOrder, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Sort Rel should be valid")

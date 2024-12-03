@@ -257,31 +257,30 @@ Arguments: isFinalPlan=true
 ===== Subqueries =====
 
 Subquery:1 Hosting operator id = 22 Hosting Expression = Subquery subquery#X, [id=#X]
-AdaptiveSparkPlan (73)
+AdaptiveSparkPlan (72)
 +- == Final Plan ==
-   VeloxColumnarToRow (64)
-   +- ^ RegularHashAggregateExecTransformer (62)
-      +- ^ RegularHashAggregateExecTransformer (61)
-         +- ^ ProjectExecTransformer (60)
-            +- ^ RegularHashAggregateExecTransformer (59)
-               +- ^ InputIteratorTransformer (58)
-                  +- ShuffleQueryStage (56), Statistics(X)
-                     +- ColumnarExchange (55)
-                        +- VeloxResizeBatches (54)
-                           +- ^ ProjectExecTransformer (52)
-                              +- ^ FlushableHashAggregateExecTransformer (51)
-                                 +- ^ ProjectExecTransformer (50)
-                                    +- ^ FilterExecTransformer (49)
-                                       +- ^ ScanTransformer parquet  (48)
+   VeloxColumnarToRow (63)
+   +- ^ RegularHashAggregateExecTransformer (61)
+      +- ^ ProjectExecTransformer (60)
+         +- ^ RegularHashAggregateExecTransformer (59)
+            +- ^ InputIteratorTransformer (58)
+               +- ShuffleQueryStage (56), Statistics(X)
+                  +- ColumnarExchange (55)
+                     +- VeloxResizeBatches (54)
+                        +- ^ ProjectExecTransformer (52)
+                           +- ^ FlushableHashAggregateExecTransformer (51)
+                              +- ^ ProjectExecTransformer (50)
+                                 +- ^ FilterExecTransformer (49)
+                                    +- ^ ScanTransformer parquet  (48)
 +- == Initial Plan ==
-   HashAggregate (72)
-   +- HashAggregate (71)
-      +- HashAggregate (70)
-         +- Exchange (69)
-            +- HashAggregate (68)
-               +- Project (67)
-                  +- Filter (66)
-                     +- Scan parquet (65)
+   HashAggregate (71)
+   +- HashAggregate (70)
+      +- HashAggregate (69)
+         +- Exchange (68)
+            +- HashAggregate (67)
+               +- Project (66)
+                  +- Filter (65)
+                     +- Scan parquet (64)
 
 
 (48) ScanTransformer parquet 
@@ -346,71 +345,64 @@ Input [2]: [l_suppkey#X, sum(CheckOverflow((promote_precision(cast(l_extendedpri
 (61) RegularHashAggregateExecTransformer
 Input [1]: [total_revenue#X]
 Keys: []
-Functions [1]: [partial_max(total_revenue#X)]
-Aggregate Attributes [1]: [max#X]
-Results [1]: [max#X]
-
-(62) RegularHashAggregateExecTransformer
-Input [1]: [max#X]
-Keys: []
 Functions [1]: [max(total_revenue#X)]
 Aggregate Attributes [1]: [max(total_revenue#X)#X]
 Results [1]: [max(total_revenue#X)#X AS max(total_revenue)#X]
 
-(63) WholeStageCodegenTransformer (X)
+(62) WholeStageCodegenTransformer (X)
 Input [1]: [max(total_revenue)#X]
 Arguments: false
 
-(64) VeloxColumnarToRow
+(63) VeloxColumnarToRow
 Input [1]: [max(total_revenue)#X]
 
-(65) Scan parquet
+(64) Scan parquet
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1996-01-01), LessThan(l_shipdate,1996-04-01)]
 ReadSchema: struct<l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
-(66) Filter
+(65) Filter
 Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Condition : ((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01))
 
-(67) Project
+(66) Project
 Output [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
-(68) HashAggregate
+(67) HashAggregate
 Input [3]: [l_suppkey#X, l_extendedprice#X, l_discount#X]
 Keys [1]: [l_suppkey#X]
 Functions [1]: [partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [3]: [l_suppkey#X, sum#X, isEmpty#X]
 
-(69) Exchange
+(68) Exchange
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(70) HashAggregate
+(69) HashAggregate
 Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Keys [1]: [l_suppkey#X]
 Functions [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
 Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS total_revenue#X]
 
-(71) HashAggregate
+(70) HashAggregate
 Input [1]: [total_revenue#X]
 Keys: []
 Functions [1]: [partial_max(total_revenue#X)]
 Aggregate Attributes [1]: [max#X]
 Results [1]: [max#X]
 
-(72) HashAggregate
+(71) HashAggregate
 Input [1]: [max#X]
 Keys: []
 Functions [1]: [max(total_revenue#X)]
 Aggregate Attributes [1]: [max(total_revenue#X)#X]
 Results [1]: [max(total_revenue#X)#X AS max(total_revenue)#X]
 
-(73) AdaptiveSparkPlan
+(72) AdaptiveSparkPlan
 Output [1]: [max(total_revenue)#X]
 Arguments: isFinalPlan=true

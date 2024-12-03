@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 #include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionsMiscellaneous.h>
 #include <Parser/FunctionParser.h>
 #include <Common/Exception.h>
@@ -56,7 +57,7 @@ public:
         const auto * const_zero_node = addColumnToActionsDAG(actions_dag, n_not_null_arg->result_type, {0});
         const auto * greatest_node = toFunctionNode(actions_dag, "greatest", {n_not_null_arg, const_zero_node});
         const auto * range_node = toFunctionNode(actions_dag, "range", {greatest_node});
-        const auto & range_type = assert_cast<const DataTypeArray & >(*removeNullable(range_node->result_type));
+        const auto & range_type = assert_cast<const DataTypeArray &>(*removeNullable(range_node->result_type));
 
         // Create lambda function x -> elem
         ActionsDAG lambda_actions_dag;

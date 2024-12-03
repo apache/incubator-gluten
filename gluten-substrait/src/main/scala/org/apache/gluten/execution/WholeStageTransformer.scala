@@ -18,14 +18,17 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics.{GlutenTimeMetric, MetricsUpdater}
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
 import org.apache.gluten.substrait.rel.{LocalFilesNode, RelNode, SplitInfo}
+import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark._
@@ -53,14 +56,79 @@ case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
 case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
 
-trait TransformSupport extends GlutenPlan {
+/**
+ * Base interface for a Gluten query plan that is also open to validation calls.
+ *
+ * Since https://github.com/apache/incubator-gluten/pull/2185.
+ */
+trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
+  protected def glutenConf: GlutenConfig = GlutenConfig.getConf
+
+  protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
+
+  /**
+   * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
+   */
+  final def doValidate(): ValidationResult = {
+    val schemaValidationResult = BackendsApiManager.getValidatorApiInstance
+      .doSchemaValidate(schema)
+      .map {
+        reason =>
+          ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
+      }
+      .getOrElse(ValidationResult.succeeded)
+    if (!schemaValidationResult.ok()) {
+      TestStats.addFallBackClassName(this.getClass.toString)
+      return schemaValidationResult
+    }
+    try {
+      TransformerState.enterValidation
+      val res = doValidateInternal()
+      if (!res.ok()) {
+        TestStats.addFallBackClassName(this.getClass.toString)
+      }
+      res
+    } catch {
+      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
+        if (!e.isInstanceOf[GlutenNotSupportException]) {
+          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
+        }
+        // FIXME: Use a validation-specific method to catch validation failures
+        TestStats.addFallBackClassName(this.getClass.toString)
+        logValidationMessage(
+          s"Validation failed with exception for plan: $nodeName, due to: ${e.getMessage}",
+          e)
+        ValidationResult.failed(e.getMessage)
+    } finally {
+      TransformerState.finishValidation
+    }
+  }
+
+  protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
+
+  private def logValidationMessage(msg: => String, e: Throwable): Unit = {
+    if (glutenConf.printStackOnValidationFailure) {
+      logOnLevel(glutenConf.validationLogLevel, msg, e)
+    } else {
+      logOnLevel(glutenConf.validationLogLevel, msg)
+    }
+  }
+}
+
+/** Base interface for a query plan that can be interpreted to Substrait representation. */
+trait TransformSupport extends ValidatablePlan {
+  override def batchType(): Convention.BatchType = {
+    BackendsApiManager.getSettings.primaryBatchType
+  }
+
+  override def rowType0(): Convention.RowType = {
+    Convention.RowType.None
+  }
 
   final override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
-
-  final override lazy val supportsColumnar: Boolean = true
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
@@ -69,6 +137,17 @@ trait TransformSupport extends GlutenPlan {
    *   Right now we support up to two RDDs
    */
   def columnarInputRDDs: Seq[RDD[ColumnarBatch]]
+
+  // Since https://github.com/apache/incubator-gluten/pull/2185.
+  protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
+    if (node != null && glutenConf.enableNativeValidation) {
+      val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
+      BackendsApiManager.getValidatorApiInstance
+        .doNativeValidateWithFailureReason(planNode)
+    } else {
+      ValidationResult.succeeded
+    }
+  }
 
   final def transform(context: SubstraitContext): TransformContext = {
     if (isCanonicalizedPlan) {
@@ -100,6 +179,9 @@ trait TransformSupport extends GlutenPlan {
         Seq(plan.executeColumnar())
     }
   }
+
+  // When true, it will not generate relNode, nor will it generate native metrics.
+  def isNoop: Boolean = false
 }
 
 trait LeafTransformSupport extends TransformSupport with LeafExecNode {

@@ -16,13 +16,13 @@
  */
 package org.apache.spark.sql.hive
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.{FilterExec, LeafExecNode, ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.{FilterExec, LeafExecNode, SparkPlan}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer.{ORC_INPUT_FORMAT_CLASS, PARQUET_INPUT_FORMAT_CLASS, TEXT_INPUT_FORMAT_CLASS}
 import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 import org.apache.spark.sql.util.SchemaUtils._
@@ -31,9 +31,9 @@ import org.apache.spark.util.Utils
 object HiveTableScanNestedColumnPruning extends Logging {
   import org.apache.spark.sql.catalyst.expressions.SchemaPruning._
 
-  def supportNestedColumnPruning(projectExec: ProjectExec): Boolean = {
-    if (BackendsApiManager.getSettings.supportHiveTableScanNestedColumnPruning()) {
-      projectExec.child match {
+  def supportNestedColumnPruning(project: ProjectExecTransformer): Boolean = {
+    if (GlutenConfig.getConf.enableColumnarHiveTableScanNestedColumnPruning) {
+      project.child match {
         case HiveTableScanExecTransformer(_, relation, _, _) =>
           relation.tableMeta.storage.inputFormat match {
             case Some(inputFormat)
@@ -60,7 +60,7 @@ object HiveTableScanNestedColumnPruning extends Logging {
 
   def apply(plan: SparkPlan): SparkPlan = {
     plan match {
-      case ProjectExec(projectList, child) =>
+      case ProjectExecTransformer(projectList, child) =>
         child match {
           case h: HiveTableScanExecTransformer =>
             val newPlan = prunePhysicalColumns(

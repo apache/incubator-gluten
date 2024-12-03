@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -37,7 +36,7 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
-import org.apache.spark.sql.hive.{HiveTableScanExecTransformer, HiveTableScanNestedColumnPruning}
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 // Exchange transformation.
 case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
@@ -188,7 +187,7 @@ object OffloadOthers {
   // Utility to replace single node within transformed Gluten node.
   // Children will be preserved as they are as children of the output node.
   //
-  // Do not look-up on children on the input node in this rule. Otherwise
+  // Do not look up on children on the input node in this rule. Otherwise
   // it may break RAS which would group all the possible input nodes to
   // search for validate candidates.
   private class ReplaceSingleNode() extends LogLevelUtil with Logging {
@@ -215,11 +214,7 @@ object OffloadOthers {
         case plan: ProjectExec =>
           val columnarChild = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          if (HiveTableScanNestedColumnPruning.supportNestedColumnPruning(plan)) {
-            HiveTableScanNestedColumnPruning.apply(plan)
-          } else {
-            ProjectExecTransformer(plan.projectList, columnarChild)
-          }
+          ProjectExecTransformer(plan.projectList, columnarChild)
         case plan: HashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)
@@ -247,7 +242,6 @@ object OffloadOthers {
             plan.bucketSpec,
             plan.options,
             plan.staticPartitions)
-
           ColumnarWriteFilesExec(
             writeTransformer,
             plan.fileFormat,
@@ -335,8 +329,7 @@ object OffloadOthers {
             child)
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
-          val children = plan.children
-          p.withNewChildren(children)
+          p
         case other => other
       }
     }

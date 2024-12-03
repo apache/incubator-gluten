@@ -16,24 +16,22 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backend.Backend
+import org.apache.gluten.extension.columnar.transition.Convention.BatchType
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.annotation.tailrec
 
-case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
+case class InsertTransitions(convReq: ConventionReq) extends Rule[SparkPlan] {
   private val convFunc = ConventionFunc.create()
 
   override def apply(plan: SparkPlan): SparkPlan = {
     // Remove all transitions at first.
     val removed = RemoveTransitions.apply(plan)
     val filled = fillWithTransitions(removed)
-    if (!outputsColumnar) {
-      return Transitions.toRowPlan(filled)
-    }
-    Transitions.toBackendBatchPlan(filled)
+    val out = Transitions.enforceReq(filled, convReq)
+    out
   }
 
   private def fillWithTransitions(plan: SparkPlan): SparkPlan = plan.transformUp {
@@ -44,22 +42,33 @@ case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
     if (node.children.isEmpty) {
       return node
     }
-    val convReq = convFunc.conventionReqOf(node)
-    val newChildren = node.children.map {
-      child =>
+    val convReqs = convFunc.conventionReqOf(node)
+    val newChildren = node.children.zip(convReqs).map {
+      case (child, convReq) =>
         val from = convFunc.conventionOf(child)
         if (from.isNone) {
           // For example, a union op with row child and columnar child at the same time,
-          // The plan is actually not executable and we cannot tell about its convention.
+          // The plan is actually not executable, and we cannot tell about its convention.
           child
         } else {
           val transition =
-            Transition.factory.findTransition(from, convReq, Transition.notFound(node))
+            Transition.factory().findTransition(from, convReq, Transition.notFound(node))
           val newChild = transition.apply(child)
           newChild
         }
     }
     node.withNewChildren(newChildren)
+  }
+}
+
+object InsertTransitions {
+  def create(outputsColumnar: Boolean, batchType: BatchType): InsertTransitions = {
+    val conventionReq = if (outputsColumnar) {
+      ConventionReq.ofBatch(ConventionReq.BatchType.Is(batchType))
+    } else {
+      ConventionReq.row
+    }
+    InsertTransitions(conventionReq)
   }
 }
 
@@ -76,42 +85,24 @@ object RemoveTransitions extends Rule[SparkPlan] {
 }
 
 object Transitions {
-  def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    InsertTransitions(outputsColumnar).apply(plan)
+  def insert(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
+    InsertTransitions.create(outputsColumnar, BatchType.VanillaBatch).apply(plan)
   }
 
   def toRowPlan(plan: SparkPlan): SparkPlan = {
-    enforceReq(
-      plan,
-      ConventionReq.of(
-        ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
-        ConventionReq.BatchType.Any))
+    enforceReq(plan, ConventionReq.row)
   }
 
-  def toBackendBatchPlan(plan: SparkPlan): SparkPlan = {
-    val backendBatchType = Backend.get().defaultBatchType
-    val out = toBatchPlan(plan, backendBatchType)
-    out
+  def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {
+    enforceReq(plan, ConventionReq.ofBatch(ConventionReq.BatchType.Is(toBatchType)))
   }
 
-  def toVanillaBatchPlan(plan: SparkPlan): SparkPlan = {
-    val out = toBatchPlan(plan, Convention.BatchType.VanillaBatch)
-    out
-  }
-
-  private def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {
-    enforceReq(
-      plan,
-      ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)))
-  }
-
-  private def enforceReq(plan: SparkPlan, req: ConventionReq): SparkPlan = {
+  def enforceReq(plan: SparkPlan, req: ConventionReq): SparkPlan = {
     val convFunc = ConventionFunc.create()
     val removed = RemoveTransitions.removeForNode(plan)
-    val transition = Transition.factory.findTransition(
-      convFunc.conventionOf(removed),
-      req,
-      Transition.notFound(removed, req))
+    val transition = Transition
+      .factory()
+      .findTransition(convFunc.conventionOf(removed), req, Transition.notFound(removed, req))
     val out = transition.apply(removed)
     out
   }

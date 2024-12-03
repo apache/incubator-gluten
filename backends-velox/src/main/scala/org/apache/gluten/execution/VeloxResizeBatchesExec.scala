@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.utils.VeloxBatchResizer
 
@@ -53,7 +54,10 @@ case class VeloxResizeBatchesExec(
     "selfTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to append / split batches")
   )
 
-  override def supportsColumnar: Boolean = true
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+
+  override def rowType0(): Convention.RowType = Convention.RowType.None
+
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {

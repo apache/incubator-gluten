@@ -40,6 +40,7 @@ namespace local_engine
 static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_without_local_storage";
 static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
 static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
+static const std::string TIMER_PARSER_POLICY = "spark.sql.legacy.timeParserPolicy";
 
 static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
     MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};

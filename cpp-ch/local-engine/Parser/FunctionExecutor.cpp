@@ -79,8 +79,6 @@ void FunctionExecutor::parseExpression()
     /// Notice keep_result must be true, because result_node of current function must be output node in actions_dag
     const auto * node = expression_parser->parseFunction(expression.scalar_function(), actions_dag, true);
     result_name = node->result_name;
-    // std::cout << "actions_dag:" << std::endl;
-    // std::cout << actions_dag->dumpDAG() << std::endl;
 
     expression_actions = std::make_unique<ExpressionActions>(std::move(actions_dag));
 }
@@ -115,9 +113,7 @@ bool FunctionExecutor::executeAndCompare(const std::vector<FunctionExecutor::Tes
     }
     block.setColumns(std::move(columns));
 
-    // std::cout << "input block:" << block.dumpStructure() << std::endl;
     execute(block);
-    // std::cout << "output block:" << block.dumpStructure() << std::endl;
 
     const auto & result_column = block.getByName(result_name).column;
     for (size_t i = 0; i < cases.size(); ++i)

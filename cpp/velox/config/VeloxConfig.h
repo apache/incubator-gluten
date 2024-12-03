@@ -76,6 +76,9 @@ const bool kMemoryUseHugePagesDefault = false;
 const std::string kVeloxMemInitCapacity = "spark.gluten.sql.columnar.backend.velox.memInitCapacity";
 const uint64_t kVeloxMemInitCapacityDefault = 8 << 20;
 
+const std::string kVeloxMemReclaimMaxWaitMs = "spark.gluten.sql.columnar.backend.velox.reclaimMaxWaitMs";
+const uint64_t kVeloxMemReclaimMaxWaitMsDefault = 3600000; // 60min
+
 const std::string kHiveConnectorId = "test-hive";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
 
@@ -115,7 +118,7 @@ const std::string kDirectorySizeGuess = "spark.gluten.sql.columnar.backend.velox
 const std::string kFilePreloadThreshold = "spark.gluten.sql.columnar.backend.velox.filePreloadThreshold";
 const std::string kPrefetchRowGroups = "spark.gluten.sql.columnar.backend.velox.prefetchRowGroups";
 const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQuantum";
-const std::string kMaxCoalescedDistanceBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedDistanceBytes";
+const std::string kMaxCoalescedDistance = "spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance";
 const std::string kMaxCoalescedBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes";
 const std::string kCachePrefetchMinPct = "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct";
 

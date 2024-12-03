@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.backend
 
-import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
+import org.apache.gluten.extension.columnar.transition.ConventionFunc
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.SparkContext
@@ -38,9 +38,6 @@ trait Backend {
   def onDriverShutdown(): Unit = {}
   def onExecutorStart(pc: PluginContext): Unit = {}
   def onExecutorShutdown(): Unit = {}
-
-  /** The columnar-batch type this backend is by default using. */
-  def defaultBatchType: Convention.BatchType
 
   /**
    * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to

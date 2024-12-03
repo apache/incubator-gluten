@@ -116,19 +116,19 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
             if (FallbackTags.nonEmpty(bnlj)) {
               ValidationResult.failed("broadcast join is already tagged as not transformable")
             } else {
-              val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              val bnljTransformer = BackendsApiManager.getSparkPlanExecApiInstance
                 .genBroadcastNestedLoopJoinExecTransformer(
                   bnlj.left,
                   bnlj.right,
                   bnlj.buildSide,
                   bnlj.joinType,
                   bnlj.condition)
-              val isTransformable = transformer.doValidate()
-              if (isTransformable.ok()) {
+              val isBnljTransformable = bnljTransformer.doValidate()
+              if (isBnljTransformable.ok()) {
                 val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
                 exchangeTransformer.doValidate()
               } else {
-                isTransformable
+                isBnljTransformable
               }
             }
           }

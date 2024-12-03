@@ -28,6 +28,36 @@ bool isMetaDataFile(const std::string & path)
     return !path.ends_with("bin");
 }
 
+TemporaryWriteBufferWrapper::TemporaryWriteBufferWrapper(
+    const String & file_name_, const std::shared_ptr<DB::TemporaryDataBuffer> & data_buffer_)
+    : WriteBufferFromFileBase(data_buffer_->buffer().size(), data_buffer_->buffer().begin(), 0)
+    , file_name(file_name_)
+    , data_buffer(data_buffer_)
+{
+}
+void TemporaryWriteBufferWrapper::preFinalize()
+{
+    next();
+}
+
+void TemporaryWriteBufferWrapper::finalizeImpl()
+{
+    next();
+    data_buffer->finalizeImpl();
+}
+
+void TemporaryWriteBufferWrapper::cancelImpl() noexcept
+{
+    data_buffer->cancelImpl();
+}
+
+void TemporaryWriteBufferWrapper::nextImpl()
+{
+    data_buffer->position() = position();
+    data_buffer->next();
+    BufferBase::set(data_buffer->buffer().begin(), data_buffer->buffer().size(), data_buffer->offset());
+}
+
 void CompactObjectStorageDiskTransaction::commit()
 {
     auto metadata_tx = disk.getMetadataStorage()->createTransaction();
@@ -52,9 +82,9 @@ void CompactObjectStorageDiskTransaction::commit()
             [&](auto & item)
             {
                 DB::DiskObjectStorageMetadata metadata(object_storage->getCommonKeyPrefix(), item.first);
-                DB::ReadBufferFromFilePRead read(item.second->getAbsolutePath());
+                auto read = item.second->read();
                 int file_size = 0;
-                while (int count = read.readBig(buffer.data(), buffer.size()))
+                while (int count = read->readBig(buffer.data(), buffer.size()))
                 {
                     file_size += count;
                     out.write(buffer.data(), count);
@@ -98,12 +128,13 @@ std::unique_ptr<DB::WriteBufferFromFileBase> CompactObjectStorageDiskTransaction
             "Don't support write file in different dirs, path {}, prefix path: {}",
             path,
             prefix_path);
-    auto tmp = std::make_shared<DB::TemporaryFileOnDisk>(tmp_data);
+    auto tmp = std::make_shared<DB::TemporaryDataBuffer>(tmp_data.get());
     files.emplace_back(path, tmp);
     auto tx = disk.getMetadataStorage()->createTransaction();
     tx->createDirectoryRecursive(std::filesystem::path(path).parent_path());
     tx->createEmptyMetadataFile(path);
     tx->commit();
-    return std::make_unique<DB::WriteBufferFromFile>(tmp->getAbsolutePath(), buf_size);
+
+    return std::make_unique<TemporaryWriteBufferWrapper>(path, tmp);
 }
 }

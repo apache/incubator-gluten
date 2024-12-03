@@ -76,6 +76,12 @@
 
 namespace DB
 {
+namespace ServerSetting
+{
+extern const ServerSettingsString primary_index_cache_policy;
+extern const ServerSettingsUInt64 primary_index_cache_size;
+extern const ServerSettingsDouble primary_index_cache_size_ratio;
+}
 namespace Setting
 {
 extern const SettingsUInt64 prefer_external_sort_block_bytes;
@@ -492,21 +498,7 @@ std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColum
 
 const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB::Block & in_block, const std::string & name) const
 {
-    if (case_insentive)
-    {
-        std::string final_name = name;
-        boost::to_lower(final_name);
-        const auto & cols = in_block.getColumnsWithTypeAndName();
-        auto found = std::find_if(cols.begin(), cols.end(), [&](const auto & column) { return boost::iequals(column.name, name); });
-        if (found == cols.end())
-            return nullptr;
-        return &*found;
-    }
-
-    const auto * col = in_block.findByName(name);
-    if (col)
-        return col;
-    return nullptr;
+    return in_block.findByName(name, case_insentive);
 }
 
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
@@ -724,12 +716,15 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("max_parsing_threads", 1);
     settings.set("max_download_threads", 1);
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
+    settings.set("output_format_parquet_use_custom_encoder", false);
 
-    /// update per https://github.com/ClickHouse/ClickHouse/pull/71539
+    /// Set false after https://github.com/ClickHouse/ClickHouse/pull/71539
     /// if true, we can't get correct metrics for the query
     settings[Setting::query_plan_merge_filters] = false;
+
     /// We now set BuildQueryPipelineSettings according to config.
-    settings[Setting::compile_expressions] = true;
+    // TODO: FIXME. Set false after https://github.com/ClickHouse/ClickHouse/pull/70598.
+    settings[Setting::compile_expressions] = false;
     settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
     ///
 
@@ -774,6 +769,11 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
         else if (key == DECIMAL_OPERATIONS_ALLOW_PREC_LOSS)
         {
             settings.set(key, toField(key, value));
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
+        }
+        else if (key == TIMER_PARSER_POLICY)
+        {
+            settings.set(key, value);
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
@@ -828,6 +828,10 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
     /// Make sure global_context and shared_context are constructed only once.
     if (auto global_context = QueryContext::globalMutableContext(); !global_context)
     {
+        ServerSettings server_settings;
+        server_settings.loadSettingsFromConfig(*config);
+
+        auto log = getLogger("CHUtil");
         global_context = QueryContext::createGlobal();
         global_context->makeGlobalContext();
         global_context->setConfig(config);
@@ -852,9 +856,15 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t mark_cache_size = config->getUInt64("mark_cache_size", DEFAULT_MARK_CACHE_MAX_SIZE);
         double mark_cache_size_ratio = config->getDouble("mark_cache_size_ratio", DEFAULT_MARK_CACHE_SIZE_RATIO);
         if (!mark_cache_size)
-            LOG_ERROR(&Poco::Logger::get("CHUtil"), "Too low mark cache size will lead to severe performance degradation.");
-
+            LOG_ERROR(log, "Mark cache is disabled, it will lead to severe performance degradation.");
+        LOG_INFO(log, "mark cache size to {}.", formatReadableSizeWithBinarySuffix(mark_cache_size));
         global_context->setMarkCache(mark_cache_policy, mark_cache_size, mark_cache_size_ratio);
+
+        String primary_index_cache_policy = server_settings[ServerSetting::primary_index_cache_policy];
+        size_t primary_index_cache_size = server_settings[ServerSetting::primary_index_cache_size];
+        double primary_index_cache_size_ratio = server_settings[ServerSetting::primary_index_cache_size_ratio];
+        LOG_INFO(log, "Primary index cache size to {}.", formatReadableSizeWithBinarySuffix(primary_index_cache_size));
+        global_context->setPrimaryIndexCache(primary_index_cache_policy, primary_index_cache_size, primary_index_cache_size_ratio);
 
         String index_uncompressed_cache_policy
             = config->getString("index_uncompressed_cache_policy", DEFAULT_INDEX_UNCOMPRESSED_CACHE_POLICY);
@@ -896,6 +906,7 @@ void BackendInitializerUtil::applyGlobalConfigAndSettings(const DB::Context::Con
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
+extern void registerAggregateFunctionRowNumGroup(AggregateFunctionFactory &);
 extern void registerFunctions(FunctionFactory &);
 
 void registerAllFunctions()
@@ -906,6 +917,7 @@ void registerAllFunctions()
     auto & agg_factory = AggregateFunctionFactory::instance();
     registerAggregateFunctionsBloomFilter(agg_factory);
     registerAggregateFunctionSparkAvg(agg_factory);
+    registerAggregateFunctionRowNumGroup(agg_factory);
     {
         /// register aggregate function combinators from local_engine
         auto & factory = AggregateFunctionCombinatorFactory::instance();
@@ -1095,8 +1107,12 @@ JoinUtil::getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool i
                 return {DB::JoinKind::Left, DB::JoinStrictness::Any};
             return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
         }
+        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_SEMI:
+            return {DB::JoinKind::Right, DB::JoinStrictness::Semi};
         case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_ANTI:
             return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_ANTI:
+            return {DB::JoinKind::Right, DB::JoinStrictness::Anti};
         case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
             return {DB::JoinKind::Left, DB::JoinStrictness::All};
         case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:

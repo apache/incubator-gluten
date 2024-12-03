@@ -69,19 +69,20 @@ object LongCostModel extends Logging {
    */
   sealed trait Kind {
     import Kind._
-    values.synchronized {
+    all.synchronized {
       val n = name()
-      if (values.contains(n)) {
+      if (all.contains(n)) {
         throw new GlutenException(s"Cost mode kind $n already registered")
       }
-      values += n -> this
+      all += n -> this
     }
 
     def name(): String
   }
 
   object Kind {
-    val values: mutable.Map[String, Kind] = mutable.Map()
+    private val all: mutable.Map[String, Kind] = mutable.Map()
+    def values(): Map[String, Kind] = all.toMap
   }
 
   /**

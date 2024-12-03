@@ -29,12 +29,24 @@ sealed trait Conv extends Property[SparkPlan] {
   }
 
   override def satisfies(other: Property[SparkPlan]): Boolean = {
+    // The following enforces strict type checking against `this` and `other`
+    // to make sure:
+    //
+    //  1. `this`, which came from user implementation of PropertyDef.getProperty, must be a `Prop`
+    //  2. `other` which came from user implementation of PropertyDef.getChildrenConstraints,
+    //     must be a `Req`
+    //
+    // If the user implementation doesn't follow the criteria, cast error will be thrown.
+    //
+    // This can be a common practice to implement a safe Property for RAS.
+    //
+    // TODO: Add a similar case to RAS UTs.
     val req = other.asInstanceOf[Req]
     if (req.isAny) {
       return true
     }
     val prop = this.asInstanceOf[Prop]
-    val out = Transition.factory.satisfies(prop.prop, req.req)
+    val out = Transition.factory().satisfies(prop.prop, req.req)
     out
   }
 }
@@ -52,7 +64,7 @@ object Conv {
   def findTransition(from: Conv, to: Conv): Transition = {
     val prop = from.asInstanceOf[Prop]
     val req = to.asInstanceOf[Req]
-    val out = Transition.factory.findTransition(prop.prop, req.req, new IllegalStateException())
+    val out = Transition.factory().findTransition(prop.prop, req.req, new IllegalStateException())
     out
   }
 
@@ -80,7 +92,7 @@ object ConvDef extends PropertyDef[SparkPlan, Conv] {
   override def getChildrenConstraints(
       constraint: Property[SparkPlan],
       plan: SparkPlan): Seq[Conv] = {
-    val out = List.tabulate(plan.children.size)(_ => Conv.req(ConventionReq.get(plan)))
+    val out = ConventionReq.get(plan).map(Conv.req)
     out
   }
 

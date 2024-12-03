@@ -19,7 +19,8 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
@@ -61,8 +62,13 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     case _ => false
   }
 
-  override def metricsUpdater(): MetricsUpdater =
+  override def isNoop: Boolean = getRemainingCondition == null
+
+  override def metricsUpdater(): MetricsUpdater = if (isNoop) {
+    MetricsUpdater.None
+  } else {
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
+  }
 
   def getRelNode(
       context: SubstraitContext,
@@ -149,15 +155,15 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val remainingCondition = getRemainingCondition
-    val operatorId = context.nextOperatorId(this.nodeName)
-    if (remainingCondition == null) {
+    if (isNoop) {
       // The computing for this filter is not needed.
-      context.registerEmptyRelToOperator(operatorId)
       // Since some columns' nullability will be removed after this filter, we need to update the
       // outputAttributes of child context.
       return TransformContext(output, childCtx.root)
     }
+
+    val operatorId = context.nextOperatorId(this.nodeName)
+    val remainingCondition = getRemainingCondition
     val currRel = getRelNode(
       context,
       remainingCondition,
@@ -255,15 +261,18 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
   }
 }
 
-// An alternatives for UnionExec.
-case class ColumnarUnionExec(children: Seq[SparkPlan]) extends GlutenPlan {
+// An alternative for UnionExec.
+case class ColumnarUnionExec(children: Seq[SparkPlan]) extends ValidatablePlan {
   children.foreach {
     case w: WholeStageTransformer =>
+      // FIXME: Avoid such practice for plan immutability.
       w.setOutputSchemaForPlan(output)
     case _ =>
   }
 
-  override def supportsColumnar: Boolean = true
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+
+  override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override def output: Seq[Attribute] = {
     children.map(_.output).transpose.map {

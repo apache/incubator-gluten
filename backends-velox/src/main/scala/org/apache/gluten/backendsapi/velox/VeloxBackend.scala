@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, CharVarcharUtils}
 import org.apache.spark.sql.execution.{ColumnarCachedBatchSerializer, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
@@ -52,10 +53,9 @@ import scala.util.control.Breaks.breakable
 class VeloxBackend extends SubstraitBackend {
   import VeloxBackend._
   override def name(): String = VeloxBackend.BACKEND_NAME
-  override def defaultBatchType: Convention.BatchType = VeloxBatch
-  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def buildInfo(): Backend.BuildInfo =
     Backend.BuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
+  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def iteratorApi(): IteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
   override def transformerApi(): TransformerApi = new VeloxTransformerApi
@@ -72,6 +72,8 @@ object VeloxBackend {
 
   private class ConvFunc() extends ConventionFunc.Override {
     override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
+      case a: AdaptiveSparkPlanExec if a.supportsColumnar =>
+        VeloxBatch
       case i: InMemoryTableScanExec
           if i.supportsColumnar && i.relation.cacheBuilder.serializer
             .isInstanceOf[ColumnarCachedBatchSerializer] =>
@@ -81,12 +83,14 @@ object VeloxBackend {
 }
 
 object VeloxBackendSettings extends BackendSettingsApi {
-
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
   val GLUTEN_VELOX_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".udfLibraryPaths"
   val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".driver.udfLibraryPaths"
   val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".internal.udfLibraryPaths"
   val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = VeloxBackend.CONF_PREFIX + ".udfAllowTypeConversion"
+
+  /** The columnar-batch type this backend is by default using. */
+  override def primaryBatchType: Convention.BatchType = VeloxBatch
 
   override def validateScanExec(
       format: ReadFileFormat,
@@ -395,8 +399,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
             case _ =>
           }
           windowExpression.windowFunction match {
-            case _: RowNumber | _: Rank | _: CumeDist | _: DenseRank | _: PercentRank |
-                _: NthValue | _: NTile | _: Lag | _: Lead =>
+            case _: RowNumber | _: Rank | _: CumeDist | _: DenseRank | _: PercentRank | _: NTile =>
+            case nv: NthValue if !nv.input.foldable =>
+            case l: Lag if !l.input.foldable =>
+            case l: Lead if !l.input.foldable =>
             case aggrExpr: AggregateExpression
                 if !aggrExpr.aggregateFunction.isInstanceOf[ApproximatePercentile]
                   && !aggrExpr.aggregateFunction.isInstanceOf[Percentile] =>

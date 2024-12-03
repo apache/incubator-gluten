@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar.validator
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.execution.{BasicScanExecTransformer, ColumnarCoalesceExec, ColumnarUnionExec, ExpandExecTransformer, HashAggregateExecBaseTransformer, LimitExecTransformer, ProjectExecTransformer, ScanTransformerFactory, SortExecTransformer, TakeOrderedAndProjectExecTransformer, WindowExecTransformer, WindowGroupLimitExecTransformer, WriteFilesExecTransformer}
+import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.extension.columnar.offload.OffloadJoin

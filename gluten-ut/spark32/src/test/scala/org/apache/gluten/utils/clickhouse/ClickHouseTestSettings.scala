@@ -203,6 +203,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-32376: Make unionByName null-filling behavior work with struct columns - deep expr")
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
+    .exclude(
+      "SPARK-36673: Only merge nullability for Unions of struct"
+    ) // disabled due to case-insensitive not supported in CH tuple
     .exclude("except all")
     .exclude("exceptAll - nullability")
     .exclude("intersectAll")

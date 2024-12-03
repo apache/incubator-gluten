@@ -18,6 +18,7 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
+import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
@@ -62,7 +63,7 @@ object CHRuleApi {
     injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
     injector.injectResolutionRule(spark => new RewriteDateTimestampComparisonRule(spark))
     injector.injectOptimizerRule(spark => new CommonSubexpressionEliminateRule(spark))
-    injector.injectOptimizerRule(spark => new ExtendedGeneratorNestedColumnAliasing(spark))
+    injector.injectOptimizerRule(spark => new ExtendedColumnPruning(spark))
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
@@ -98,6 +99,7 @@ object CHRuleApi {
       c => intercept(HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads)))
 
     // Legacy: Post-transform rules.
+    injector.injectPostTransform(_ => PruneNestedColumnsInHiveTableScan)
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(c => intercept(RewriteTransformer.apply(c.session)))
     injector.injectPostTransform(_ => PushDownFilterToScan)
@@ -108,12 +110,13 @@ object CHRuleApi {
     injector.injectPostTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
     injector.injectPostTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.session))
     injector.injectPostTransform(c => LazyAggregateExpandRule.apply(c.session))
+    injector.injectPostTransform(c => ConverRowNumbertWindowToAggregateRule(c.session))
     injector.injectPostTransform(
       c =>
         intercept(
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
             c.session)))
-    injector.injectPostTransform(c => InsertTransitions(c.outputsColumnar))
+    injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatch))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(

@@ -41,6 +41,7 @@ namespace DB
 namespace Setting
 {
 extern const SettingsUInt64 max_block_size;
+extern const SettingsUInt64 min_joined_block_size_bytes;
 }
 namespace ErrorCodes
 {
@@ -200,7 +201,15 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
     {
         JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right->getCurrentHeader().cloneEmpty());
         QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
-            left->getCurrentHeader(), right->getCurrentHeader(), hash_join, context->getSettingsRef()[Setting::max_block_size], 1, false);
+            left->getCurrentHeader(),
+            right->getCurrentHeader(),
+            hash_join,
+            context->getSettingsRef()[Setting::max_block_size],
+            context->getSettingsRef()[Setting::min_joined_block_size_bytes],
+            1,
+            /* required_output_ = */ NameSet{},
+            false,
+            /* use_new_analyzer_ = */ false);
         join_step->setStepDescription("CROSS_JOIN");
         steps.emplace_back(join_step.get());
         std::vector<QueryPlanPtr> plans;
@@ -247,7 +256,12 @@ void CrossRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left
     NameSet left_columns_set;
     for (const auto & col : left.getCurrentHeader().getNames())
         left_columns_set.emplace(col);
-    table_join.setColumnsFromJoinedTable(right.getCurrentHeader().getNamesAndTypesList(), left_columns_set, getUniqueName("right") + ".");
+        
+    table_join.setColumnsFromJoinedTable(
+        right.getCurrentHeader().getNamesAndTypesList(),
+        left_columns_set,
+        getUniqueName("right") + ".",
+        left.getCurrentHeader().getNamesAndTypesList());
 
     // fix right table key duplicate
     NamesWithAliases right_table_alias;

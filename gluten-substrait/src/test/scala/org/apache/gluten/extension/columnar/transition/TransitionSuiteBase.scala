@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -24,22 +24,20 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{BinaryExecNode, LeafExecNode, SparkPlan, UnaryExecNode}
 
 trait TransitionSuiteBase {
-  case class BatchLeaf(override val batchType0: Convention.BatchType)
+  case class BatchLeaf(override val batchType: Convention.BatchType)
     extends LeafExecNode
     with GlutenPlan {
-    override def supportsColumnar: Boolean = true
+    override def rowType0(): Convention.RowType = Convention.RowType.None
 
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
 
     override def output: Seq[Attribute] = List.empty
   }
 
-  case class BatchUnary(
-      override val batchType0: Convention.BatchType,
-      override val child: SparkPlan)
+  case class BatchUnary(override val batchType: Convention.BatchType, override val child: SparkPlan)
     extends UnaryExecNode
     with GlutenPlan {
-    override def supportsColumnar: Boolean = true
+    override def rowType0(): Convention.RowType = Convention.RowType.None
 
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
@@ -50,12 +48,12 @@ trait TransitionSuiteBase {
   }
 
   case class BatchBinary(
-      override val batchType0: Convention.BatchType,
+      override val batchType: Convention.BatchType,
       override val left: SparkPlan,
       override val right: SparkPlan)
     extends BinaryExecNode
     with GlutenPlan {
-    override def supportsColumnar: Boolean = true
+    override def rowType0(): Convention.RowType = Convention.RowType.None
 
     override protected def withNewChildrenInternal(
         newLeft: SparkPlan,

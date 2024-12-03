@@ -56,15 +56,20 @@ struct GraceMergingAggregateConfig
 {
     inline static const String MAX_GRACE_AGGREGATE_MERGING_BUCKETS = "max_grace_aggregate_merging_buckets";
     inline static const String THROW_ON_OVERFLOW_GRACE_AGGREGATE_MERGING_BUCKETS = "throw_on_overflow_grace_aggregate_merging_buckets";
-    inline static const String AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS = "aggregated_keys_before_extend_grace_aggregate_merging_buckets";
-    inline static const String MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET = "max_pending_flush_blocks_per_grace_aggregate_merging_bucket";
-    inline static const String MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING = "max_allowed_memory_usage_ratio_for_aggregate_merging";
+    inline static const String AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS
+        = "aggregated_keys_before_extend_grace_aggregate_merging_buckets";
+    inline static const String MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET
+        = "max_pending_flush_blocks_per_grace_aggregate_merging_bucket";
+    inline static const String MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING
+        = "max_allowed_memory_usage_ratio_for_aggregate_merging";
+    inline static const String ENABLE_SPILL_TEST = "enable_grace_aggregate_spill_test";
 
     size_t max_grace_aggregate_merging_buckets = 32;
     bool throw_on_overflow_grace_aggregate_merging_buckets = false;
     size_t aggregated_keys_before_extend_grace_aggregate_merging_buckets = 8192;
     size_t max_pending_flush_blocks_per_grace_aggregate_merging_bucket = 1_MiB;
     double max_allowed_memory_usage_ratio_for_aggregate_merging = 0.9;
+    bool enable_spill_test = false;
 
     static GraceMergingAggregateConfig loadFromContext(const DB::ContextPtr & context);
 };
@@ -73,7 +78,8 @@ struct StreamingAggregateConfig
 {
     inline static const String AGGREGATED_KEYS_BEFORE_STREAMING_AGGREGATING_EVICT = "aggregated_keys_before_streaming_aggregating_evict";
     inline static const String MAX_MEMORY_USAGE_RATIO_FOR_STREAMING_AGGREGATING = "max_memory_usage_ratio_for_streaming_aggregating";
-    inline static const String HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING = "high_cardinality_threshold_for_streaming_aggregating";
+    inline static const String HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING
+        = "high_cardinality_threshold_for_streaming_aggregating";
     inline static const String ENABLE_STREAMING_AGGREGATING = "enable_streaming_aggregating";
 
     size_t aggregated_keys_before_streaming_aggregating_evict = 1024;
@@ -152,6 +158,16 @@ struct MergeTreeCacheConfig
     bool enable_data_prefetch = true;
 
     static MergeTreeCacheConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+struct WindowConfig
+{
+public:
+    inline static const String WINDOW_AGGREGATE_TOPK_SAMPLE_ROWS = "window.aggregate_topk_sample_rows";
+    inline static const String WINDOW_AGGREGATE_TOPK_HIGH_CARDINALITY_THRESHOLD = "window.aggregate_topk_high_cardinality_threshold";
+    size_t aggregate_topk_sample_rows = 5000;
+    double aggregate_topk_high_cardinality_threshold = 0.6;
+    static WindowConfig loadFromContext(const DB::ContextPtr & context);
 };
 
 namespace PathConfig
