@@ -23,15 +23,15 @@
 namespace gluten {
 
 TEST(S3ConfigTest, defaultConfig) {
-    auto s3Config = facebook::velox::filesystems::S3Config("", getHiveConfig({}));
-    ASSERT_EQ(s3Config.useVirtualAddressing(), true);
-    ASSERT_EQ(s3Config.useSSL(), false);
-    ASSERT_EQ(s3Config.useInstanceCredentials(), false);
-    ASSERT_EQ(s3Config.endpoint(), "");
-    ASSERT_EQ(s3Config.accessKey(), std::nullopt);
-    ASSERT_EQ(s3Config.secretKey(), std::nullopt);
-    ASSERT_EQ(s3Config.iamRole(), std::nullopt);
-    ASSERT_EQ(s3Config.iamRoleSessionName(), "spark-session");
+  auto s3Config = facebook::velox::filesystems::S3Config("", getHiveConfig({}));
+  ASSERT_EQ(s3Config.useVirtualAddressing(), true);
+  ASSERT_EQ(s3Config.useSSL(), false);
+  ASSERT_EQ(s3Config.useInstanceCredentials(), false);
+  ASSERT_EQ(s3Config.endpoint(), "");
+  ASSERT_EQ(s3Config.accessKey(), std::nullopt);
+  ASSERT_EQ(s3Config.secretKey(), std::nullopt);
+  ASSERT_EQ(s3Config.iamRole(), std::nullopt);
+  ASSERT_EQ(s3Config.iamRoleSessionName(), "spark-session");
 }
 
 } // namespace gluten
