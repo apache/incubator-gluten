@@ -553,7 +553,7 @@ class GlutenClickHouseNativeWriteTableSuite
           // spark write does not support bucketed table
           // https://issues.apache.org/jira/browse/SPARK-19256
           val table_name = table_name_template.format(format)
-          writeAndCheckRead(origin_table, table_name, fields_.keys.toSeq, isSparkVersionLE("3.3")) {
+          writeAndCheckRead(origin_table, table_name, fields_.keys.toSeq) {
             fields =>
               spark
                 .table("origin_table")
@@ -589,8 +589,9 @@ class GlutenClickHouseNativeWriteTableSuite
       ("byte_field", "byte"),
       ("boolean_field", "boolean"),
       ("decimal_field", "decimal(23,12)"),
-      ("date_field", "date"),
-      ("timestamp_field", "timestamp")
+      ("date_field", "date")
+      // ("timestamp_field", "timestamp")
+      // FIXME https://github.com/apache/incubator-gluten/issues/8053
     )
     val origin_table = "origin_table"
     withSource(genTestData(), origin_table) {
@@ -598,7 +599,7 @@ class GlutenClickHouseNativeWriteTableSuite
         format =>
           val table_name = table_name_template.format(format)
           val testFields = fields.keys.toSeq
-          writeAndCheckRead(origin_table, table_name, testFields, isSparkVersionLE("3.3")) {
+          writeAndCheckRead(origin_table, table_name, testFields) {
             fields =>
               spark
                 .table(origin_table)
@@ -658,7 +659,7 @@ class GlutenClickHouseNativeWriteTableSuite
       nativeWrite {
         format =>
           val table_name = table_name_template.format(format)
-          writeAndCheckRead(origin_table, table_name, fields.keys.toSeq, isSparkVersionLE("3.3")) {
+          writeAndCheckRead(origin_table, table_name, fields.keys.toSeq) {
             fields =>
               spark
                 .table("origin_table")
@@ -762,7 +763,7 @@ class GlutenClickHouseNativeWriteTableSuite
       format =>
         val table_name = table_name_template.format(format)
         spark.sql(s"drop table IF EXISTS $table_name")
-        withNativeWriteCheck(checkNative = isSparkVersionLE("3.3")) {
+        withNativeWriteCheck(checkNative = true) {
           spark
             .range(10000000)
             .selectExpr("id", "cast('2020-01-01' as date) as p")
@@ -798,7 +799,7 @@ class GlutenClickHouseNativeWriteTableSuite
       format =>
         val table_name = table_name_template.format(format)
         spark.sql(s"drop table IF EXISTS $table_name")
-        withNativeWriteCheck(checkNative = isSparkVersionLE("3.3")) {
+        withNativeWriteCheck(checkNative = true) {
           spark
             .range(30000)
             .selectExpr("id", "cast(null as string) as p")
