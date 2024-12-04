@@ -16,12 +16,11 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.backendsapi.ValidatorApi
+import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.NativePlanEvaluator
-
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
@@ -38,7 +37,7 @@ class VeloxValidatorApi extends ValidatorApi {
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult = {
     TaskResources.runUnsafe {
-      val validator = NativePlanEvaluator.create()
+      val validator = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
       asValidationResult(validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray))
     }
   }

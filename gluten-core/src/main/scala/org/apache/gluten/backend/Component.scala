@@ -77,11 +77,12 @@ trait Component {
 }
 
 object Component {
+  ensureAllComponentsLoaded()
+
+  def sorted(): Seq[Component] = graph.sorted()
+
   private val nextUid = new AtomicInteger()
-
-  val graph: Graph = newGraph()
-
-  private def newGraph(): Graph = new Graph()
+  private val graph: Graph = new Graph()
 
   private class Registry {
     private val lookupByUid: mutable.Map[Int, Component] = mutable.Map()
@@ -193,7 +194,7 @@ object Component {
      * requirement from component A to component B.
      */
     // format: on
-    def sorted(): Seq[Component] = synchronized {
+    private[Component] def sorted(): Seq[Component] = synchronized {
       if (sortedComponents.isDefined) {
         return sortedComponents.get
       }

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.utils;
 
+import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
@@ -28,7 +29,7 @@ import java.util.Iterator;
 public final class VeloxBatchResizer {
   public static ColumnarBatchOutIterator create(
       int minOutputBatchSize, int maxOutputBatchSize, Iterator<ColumnarBatch> in) {
-    final Runtime runtime = Runtimes.contextInstance("VeloxBatchResizer");
+    final Runtime runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName(), "VeloxBatchResizer");
     long outHandle =
         VeloxBatchResizerJniWrapper.create(runtime)
             .create(minOutputBatchSize, maxOutputBatchSize, new ColumnarBatchInIterator(in));

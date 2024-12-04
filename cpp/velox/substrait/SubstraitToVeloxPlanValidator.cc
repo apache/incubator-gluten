@@ -71,7 +71,7 @@ const std::unordered_set<std::string> kBlackList = {
     "map_from_arrays"};
 } // namespace
 
-bool SubstraitToVeloxPlanValidator::parseVeloxType(
+bool SubstraitToVeloxPlanValidator::validateInputVeloxType(
     const ::substrait::extensions::AdvancedExtension& extension,
     TypePtr& out) {
   ::substrait::Type substraitType;
@@ -371,7 +371,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
   std::vector<TypePtr> types;
   if (writeRel.has_named_table()) {
     const auto& extension = writeRel.named_table().advanced_extension();
-    if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+    if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
       LOG_VALIDATION_MSG("Validation failed for input type validation in WriteRel.");
       return false;
     }
@@ -412,7 +412,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
     const auto& extension = fetchRel.advanced_extension();
     TypePtr inputRowType;
     std::vector<TypePtr> types;
-    if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+    if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
       LOG_VALIDATION_MSG("Unsupported input types in FetchRel.");
       return false;
     }
@@ -440,7 +440,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::TopNRel& topNRel
     const auto& extension = topNRel.advanced_extension();
     TypePtr inputRowType;
     std::vector<TypePtr> types;
-    if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+    if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
       LOG_VALIDATION_MSG("Unsupported input types in TopNRel.");
       return false;
     }
@@ -486,7 +486,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& gen
   const auto& extension = generateRel.advanced_extension();
   TypePtr inputRowType;
   std::vector<TypePtr> types;
-  if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+  if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in GenerateRel.");
     return false;
   }
@@ -517,7 +517,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ExpandRel& expan
     const auto& extension = expandRel.advanced_extension();
     TypePtr inputRowType;
     std::vector<TypePtr> types;
-    if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+    if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
       LOG_VALIDATION_MSG("Unsupported input types in ExpandRel.");
       return false;
     }
@@ -602,7 +602,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   const auto& extension = windowRel.advanced_extension();
   TypePtr inputRowType;
   std::vector<TypePtr> types;
-  if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+  if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in WindowRel.");
     return false;
   }
@@ -731,7 +731,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimit
   const auto& extension = windowGroupLimitRel.advanced_extension();
   TypePtr inputRowType;
   std::vector<TypePtr> types;
-  if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+  if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in WindowGroupLimitRel.");
     return false;
   }
@@ -805,7 +805,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SetRel& setRel) 
       const auto& extension = setRel.advanced_extension();
       TypePtr inputRowType;
       std::vector<std::vector<TypePtr>> childrenTypes;
-      if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType2(inputRowType, childrenTypes)) {
+      if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType2(inputRowType, childrenTypes)) {
         LOG_VALIDATION_MSG("Validation failed for input types in SetRel.");
         return false;
       }
@@ -850,7 +850,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
   const auto& extension = sortRel.advanced_extension();
   TypePtr inputRowType;
   std::vector<TypePtr> types;
-  if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+  if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in SortRel.");
     return false;
   }
@@ -904,7 +904,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ProjectRel& proj
   const auto& extension = projectRel.advanced_extension();
   TypePtr inputRowType;
   std::vector<TypePtr> types;
-  if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+  if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in ProjectRel.");
     return false;
   }
@@ -948,7 +948,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
   const auto& extension = filterRel.advanced_extension();
   TypePtr inputRowType;
   std::vector<TypePtr> types;
-  if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+  if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in FilterRel.");
     return false;
   }
@@ -1022,7 +1022,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
   const auto& extension = joinRel.advanced_extension();
   TypePtr inputRowType;
   std::vector<TypePtr> types;
-  if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+  if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in JoinRel.");
     return false;
   }
@@ -1076,7 +1076,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
   const auto& extension = crossRel.advanced_extension();
   TypePtr inputRowType;
   std::vector<TypePtr> types;
-  if (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
+  if (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types)) {
     logValidateMsg("Native validation failed due to: Validation failed for input types in CrossRel");
     return false;
   }
@@ -1160,7 +1160,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
     // Aggregate always has advanced extension for streaming aggregate optimization,
     // but only some of them have enhancement for validation.
     if (extension.has_enhancement() &&
-        (!parseVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types))) {
+        (!validateInputVeloxType(extension, inputRowType) || !flattenVeloxType1(inputRowType, types))) {
       LOG_VALIDATION_MSG("Validation failed for input types in AggregateRel.");
       return false;
     }

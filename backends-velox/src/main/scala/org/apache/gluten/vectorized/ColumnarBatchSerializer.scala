@@ -21,7 +21,6 @@ import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
@@ -32,15 +31,14 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.{TaskResource, TaskResources}
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.gluten.backendsapi.BackendsApiManager
 
 import java.io._
 import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-
 import scala.reflect.ClassTag
 
 class ColumnarBatchSerializer(
@@ -99,7 +97,7 @@ private class ColumnarBatchSerializerInstance(
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
     val batchSize = GlutenConfig.getConf.maxBatchSize
     val bufferSize = GlutenConfig.getConf.columnarShuffleReaderBufferSize
-    val runtime = Runtimes.contextInstance("ShuffleReader")
+    val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleReader")
     val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
@@ -135,7 +133,7 @@ private class ColumnarBatchSerializerInstance(
     extends DeserializationStream
     with TaskResource {
     private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
-    private val runtime = Runtimes.contextInstance("ShuffleReader")
+    private val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleReader")
     private val wrappedOut: ClosableIterator = new ColumnarBatchOutIterator(
       runtime,
       ShuffleReaderJniWrapper

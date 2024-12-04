@@ -14,23 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.runtime
 
-import org.apache.spark.task.{TaskResource, TaskResources}
+package org.apache.gluten
 
-object Runtimes {
+import java.util.ServiceLoader
+import java.util.concurrent.atomic.AtomicBoolean
 
-  /** Get or create the runtime which bound with Spark TaskContext. */
-  def contextInstance(backendName: String, name: String): Runtime = {
-    if (!TaskResources.inSparkTask()) {
-      throw new IllegalStateException("This method must be called in a Spark task.")
+import scala.collection.JavaConverters._
+
+package object backend {
+  private[backend] val allComponentsLoaded: AtomicBoolean = new AtomicBoolean(false)
+
+  private[backend] def ensureAllComponentsLoaded(): Unit = {
+    if (!allComponentsLoaded.compareAndSet(false, true)) {
+      return
     }
+    // Load all components in classpath.
+    val discoveredBackends = ServiceLoader.load(classOf[Backend]).asScala
+    val discoveredComponents = ServiceLoader.load(classOf[Component]).asScala
 
-    val resourceName = String.format("%s:%s", backendName, name)
-    TaskResources.addResourceIfNotRegistered(resourceName, () => create(backendName, name))
-  }
+    val all = discoveredBackends ++ discoveredComponents
 
-  private def create(backendName: String, name: String): Runtime with TaskResource = {
-    Runtime(backendName, name)
+    all.foreach(_.ensureRegistered())
   }
 }

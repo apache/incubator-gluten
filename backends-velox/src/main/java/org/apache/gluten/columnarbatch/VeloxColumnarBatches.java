@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.columnarbatch;
 
+import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 
@@ -59,7 +60,7 @@ public final class VeloxColumnarBatches {
       return input;
     }
     Preconditions.checkArgument(!isVeloxBatch(input));
-    final Runtime runtime = Runtimes.contextInstance("VeloxColumnarBatches#toVeloxBatch");
+    final Runtime runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName(), "VeloxColumnarBatches#toVeloxBatch");
     final long handle = ColumnarBatches.getNativeHandle(input);
     final long outHandle = VeloxColumnarBatchJniWrapper.create(runtime).from(handle);
     final ColumnarBatch output = ColumnarBatches.create(outHandle);
@@ -88,7 +89,7 @@ public final class VeloxColumnarBatches {
    * Otherwise {@link UnsupportedOperationException} will be thrown.
    */
   public static ColumnarBatch compose(ColumnarBatch... batches) {
-    final Runtime runtime = Runtimes.contextInstance("VeloxColumnarBatches#compose");
+    final Runtime runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName(), "VeloxColumnarBatches#compose");
     final long[] handles =
         Arrays.stream(batches).mapToLong(ColumnarBatches::getNativeHandle).toArray();
     final long handle = VeloxColumnarBatchJniWrapper.create(runtime).compose(handles);

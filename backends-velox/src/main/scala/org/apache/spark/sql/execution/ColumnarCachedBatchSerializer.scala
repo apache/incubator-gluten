@@ -176,7 +176,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
             val batch = it.next()
             val results =
               ColumnarBatchSerializerJniWrapper
-                .create(Runtimes.contextInstance("ColumnarCachedBatchSerializer#serialize"))
+                .create(Runtimes.contextInstance(BackendsApiManager.getBackendName, "ColumnarCachedBatchSerializer#serialize"))
                 .serialize(Array(ColumnarBatches.getNativeHandle(batch)))
             CachedColumnarBatch(
               results.getNumRows.toInt,
@@ -201,7 +201,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     val timezoneId = SQLConf.get.sessionLocalTimeZone
     input.mapPartitions {
       it =>
-        val runtime = Runtimes.contextInstance("ColumnarCachedBatchSerializer#read")
+        val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ColumnarCachedBatchSerializer#read")
         val jniWrapper = ColumnarBatchSerializerJniWrapper
           .create(runtime)
         val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
@@ -224,7 +224,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
               val batch = ColumnarBatches.create(batchHandle)
               if (shouldSelectAttributes) {
                 try {
-                  ColumnarBatches.select(batch, requestedColumnIndices.toArray)
+                  ColumnarBatches.select(BackendsApiManager.getBackendName, batch, requestedColumnIndices.toArray)
                 } finally {
                   batch.close()
                 }

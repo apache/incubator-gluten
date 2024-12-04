@@ -108,7 +108,7 @@ class SubstraitToVeloxPlanValidator {
 
   /// Used to get types from advanced extension and validate them, then convert to a Velox type that has arbitrary
   /// levels of nesting.
-  bool parseVeloxType(const ::substrait::extensions::AdvancedExtension& extension, TypePtr& out);
+  bool validateInputVeloxType(const ::substrait::extensions::AdvancedExtension& extension, TypePtr& out);
 
   /// Flattens a Velox type with single level of nesting into a std::vector of child types.
   bool flattenVeloxType1(const TypePtr& type, std::vector<TypePtr>& out);

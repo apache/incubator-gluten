@@ -22,7 +22,6 @@ import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized._
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
@@ -33,16 +32,15 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.{TaskResource, TaskResources}
-
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.celeborn.client.read.CelebornInputStream
+import org.apache.gluten.backendsapi.BackendsApiManager
 
 import java.io._
 import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-
 import scala.reflect.ClassTag
 
 class CelebornColumnarBatchSerializer(
@@ -65,7 +63,8 @@ private class CelebornColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private val runtime = Runtimes.contextInstance("CelebornShuffleReader")
+  private val runtime =
+    Runtimes.contextInstance(BackendsApiManager.getBackendName, "CelebornShuffleReader")
 
   private val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators

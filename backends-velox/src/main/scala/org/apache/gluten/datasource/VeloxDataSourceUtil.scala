@@ -19,11 +19,10 @@ package org.apache.gluten.datasource
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
-
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
-
 import org.apache.arrow.c.ArrowSchema
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.hadoop.fs.FileStatus
 
 import java.util
@@ -38,7 +37,7 @@ object VeloxDataSourceUtil {
 
   def readSchema(file: FileStatus): Option[StructType] = {
     val allocator = ArrowBufferAllocators.contextInstance()
-    val runtime = Runtimes.contextInstance("VeloxWriter")
+    val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "VeloxWriter")
     val datasourceJniWrapper = VeloxDataSourceJniWrapper.create(runtime)
     val dsHandle =
       datasourceJniWrapper.init(file.getPath.toString, -1, new util.HashMap[String, String]())

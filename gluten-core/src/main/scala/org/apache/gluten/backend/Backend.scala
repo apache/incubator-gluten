@@ -16,35 +16,10 @@
  */
 package org.apache.gluten.backend
 
-import java.util.ServiceLoader
-
-import scala.collection.JavaConverters
-
 trait Backend extends Component {
   /**
    * Backends don't register requirements. They are all considered root components in the component
    * DAG and will be loaded at the beginning.
    */
   final override def requirements(): Seq[Class[_ <: Component]] = Nil
-}
-
-object Backend {
-  private val backend: Backend = {
-    val discoveredBackends =
-      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toList
-    discoveredBackends match {
-      case Nil =>
-        throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
-      case head :: Nil =>
-        head
-      case backends =>
-        val backendNames = backends.map(_.name())
-        throw new IllegalStateException(
-          s"More than one Backend implementation discovered from JVM classpath: $backendNames")
-    }
-  }
-
-  def get(): Backend = {
-    backend
-  }
 }

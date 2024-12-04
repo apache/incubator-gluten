@@ -23,7 +23,6 @@ import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -31,8 +30,8 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
-
 import org.apache.arrow.c.ArrowSchema
+import org.apache.gluten.backendsapi.BackendsApiManager
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
@@ -40,7 +39,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
-    val runtime = Runtimes.contextInstance("BuildSideRelation#deserialized")
+    val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#deserialized")
     val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()
@@ -86,7 +85,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
    * was called in Spark Driver, should manage resources carefully.
    */
   override def transform(key: Expression): Array[InternalRow] = TaskResources.runUnsafe {
-    val runtime = Runtimes.contextInstance("BuildSideRelation#transform")
+    val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle = {

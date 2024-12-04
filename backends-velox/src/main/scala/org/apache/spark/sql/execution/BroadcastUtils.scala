@@ -16,11 +16,11 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
-
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow
@@ -156,7 +156,7 @@ object BroadcastUtils {
     val serializeResult =
       try {
         ColumnarBatchSerializerJniWrapper
-          .create(Runtimes.contextInstance("BroadcastUtils#serializeStream"))
+          .create(Runtimes.contextInstance(BackendsApiManager.getBackendName, "BroadcastUtils#serializeStream"))
           .serialize(handleArray)
       } finally {
         filtered.foreach(ColumnarBatches.release)

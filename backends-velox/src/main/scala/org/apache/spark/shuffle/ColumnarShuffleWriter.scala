@@ -17,11 +17,11 @@
 package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
-
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
@@ -99,7 +99,7 @@ class ColumnarShuffleWriter[K, V](
 
   private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
 
-  private val runtime = Runtimes.contextInstance("ShuffleWriter")
+  private val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleWriter")
 
   private val jniWrapper = ShuffleWriterJniWrapper.create(runtime)
 

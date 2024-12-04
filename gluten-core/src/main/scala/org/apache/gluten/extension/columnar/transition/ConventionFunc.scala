@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backend.Backend
+import org.apache.gluten.backend.Component
 import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildConvention
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -70,7 +70,20 @@ object ConventionFunc {
         return Override.Empty
       }
     }
-    Backend.get().convFuncOverride()
+    // Components should override Backend's convention function. Hence, reversed injection order
+    // is applied.
+    val overrides = Component.sorted().reverse.map(_.convFuncOverride())
+    new Override {
+      override val rowTypeOf: PartialFunction[SparkPlan, Convention.RowType] = {
+        overrides.map(_.rowTypeOf).reduce((l, r) => l.orElse(r))
+      }
+      override val batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
+        overrides.map(_.batchTypeOf).reduce((l, r) => l.orElse(r))
+      }
+      override val conventionReqOf: PartialFunction[SparkPlan, Seq[ConventionReq]] = {
+        overrides.map(_.conventionReqOf).reduce((l, r) => l.orElse(r))
+      }
+    }
   }
 
   private class BuiltinFunc(o: Override) extends ConventionFunc {
