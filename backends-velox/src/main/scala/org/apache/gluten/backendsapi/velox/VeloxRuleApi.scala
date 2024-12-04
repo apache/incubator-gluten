@@ -92,6 +92,7 @@ object VeloxRuleApi {
       c => HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads))
 
     // Legacy: Post-transform rules.
+    injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(c => RewriteTransformer.apply(c.session))
@@ -178,6 +179,7 @@ object VeloxRuleApi {
 
     // Gluten RAS: Post rules.
     injector.injectPostTransform(_ => RemoveTransitions)
+    injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(c => RewriteTransformer.apply(c.session))

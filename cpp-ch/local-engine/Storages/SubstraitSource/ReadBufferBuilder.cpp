@@ -258,9 +258,16 @@ public:
         /// Get hdfs_uri
         Poco::URI uri(file_info.uri_file());
         auto hdfs_file_path = uri.getPath();
-        std::string hdfs_uri = "hdfs://" + uri.getHost();
-        if (uri.getPort())
-            hdfs_uri += ":" + std::to_string(uri.getPort());
+
+        std::string new_file_uri = uri.toString();
+        if (uri.getUserInfo().empty() && BackendInitializerUtil::spark_user.has_value())
+        {
+            uri.setUserInfo(*BackendInitializerUtil::spark_user);
+            new_file_uri = uri.toString();
+        }
+
+        auto begin_of_path = new_file_uri.find('/', new_file_uri.find("//") + 2);
+        auto hdfs_uri = new_file_uri.substr(0, begin_of_path);
 
         std::optional<size_t> file_size;
         std::optional<size_t> modified_time;
