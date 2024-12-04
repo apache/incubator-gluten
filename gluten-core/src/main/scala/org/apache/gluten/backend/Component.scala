@@ -207,17 +207,14 @@ object Component {
 
       // 2. Loop to dequeue and remove nodes from the uid-to-num-parents map.
       while (removalQueue.nonEmpty) {
-        val uid = removalQueue.dequeue()
-        val node = lookup(uid)
-        out += registry.findByUid(uid)
+        val parentUid = removalQueue.dequeue()
+        val node = lookup(parentUid)
+        out += registry.findByUid(parentUid)
         node.children.keys.foreach {
           childUid =>
-            val updatedNumParents = uidToNumParents
-              .updateWith(childUid) {
-                case Some(numParents) => Some(numParents - 1)
-                case None => None
-              }
-              .get
+            uidToNumParents += childUid -> (uidToNumParents(childUid) - 1)
+            val updatedNumParents = uidToNumParents(childUid)
+            assert(updatedNumParents >= 0)
             if (updatedNumParents == 0) {
               removalQueue.enqueue(childUid)
             }
