@@ -487,7 +487,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSpillCompressionKind] =
         veloxCfg_->get<std::string>(kSpillCompressionKind, "lz4");
     configs[velox::core::QueryConfig::kSpillPrefixSortEnabled] =
-        veloxCfg_->get<std::string>(kSpillPrefixSortEnabled, "true");
+        veloxCfg_->get<std::string>(kSpillPrefixSortEnabled, "false");
     configs[velox::core::QueryConfig::kSparkBloomFilterExpectedNumItems] =
         std::to_string(veloxCfg_->get<int64_t>(kBloomFilterExpectedNumItems, 1000000));
     configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] =
