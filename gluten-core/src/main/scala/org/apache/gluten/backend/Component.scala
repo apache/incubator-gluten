@@ -42,8 +42,6 @@ trait Component {
   private val uid = nextUid.getAndIncrement()
   private val isRegistered = new AtomicBoolean(false)
 
-  ensureRegistered()
-
   def ensureRegistered(): Unit = {
     if (!isRegistered.compareAndSet(false, true)) {
       return
@@ -77,12 +75,13 @@ trait Component {
 }
 
 object Component {
-  ensureAllComponentsLoaded()
-
-  def sorted(): Seq[Component] = graph.sorted()
-
   private val nextUid = new AtomicInteger()
   private val graph: Graph = new Graph()
+
+  def sorted(): Seq[Component] = {
+    ensureAllComponentsRegistered()
+    graph.sorted()
+  }
 
   private class Registry {
     private val lookupByUid: mutable.Map[Int, Component] = mutable.Map()

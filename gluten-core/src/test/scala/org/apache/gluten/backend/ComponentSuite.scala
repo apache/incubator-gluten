@@ -26,10 +26,15 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
   import ComponentSuite._
 
   private val d = new DummyComponentD()
+  d.ensureRegistered()
   private val b = new DummyBackendB()
+  b.ensureRegistered()
   private val a = new DummyBackendA()
+  a.ensureRegistered()
   private val c = new DummyComponentC()
+  c.ensureRegistered()
   private val e = new DummyComponentE()
+  e.ensureRegistered()
 
   test("Load order - sanity") {
     val possibleOrders =
@@ -45,7 +50,7 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
 
   test("Register again") {
     assertThrows[IllegalArgumentException] {
-      new DummyBackendA()
+      new DummyBackendA().ensureRegistered()
     }
   }
 }

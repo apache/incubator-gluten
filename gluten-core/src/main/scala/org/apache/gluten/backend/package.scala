@@ -17,24 +17,31 @@
 
 package org.apache.gluten
 
+import org.apache.spark.internal.Logging
+
 import java.util.ServiceLoader
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
 
-package object backend {
+package object backend extends Logging {
   private[backend] val allComponentsLoaded: AtomicBoolean = new AtomicBoolean(false)
 
-  private[backend] def ensureAllComponentsLoaded(): Unit = {
+  private[backend] def ensureAllComponentsRegistered(): Unit = {
     if (!allComponentsLoaded.compareAndSet(false, true)) {
       return
     }
+
     // Load all components in classpath.
     val discoveredBackends = ServiceLoader.load(classOf[Backend]).asScala
     val discoveredComponents = ServiceLoader.load(classOf[Component]).asScala
-
     val all = discoveredBackends ++ discoveredComponents
 
+    // Register all components.
     all.foreach(_.ensureRegistered())
+
+    // Output log so user could view the component loading order.
+    val components = Component.sorted()
+    logInfo(s"Components registered within order: ${components.mkString(", ")}")
   }
 }
