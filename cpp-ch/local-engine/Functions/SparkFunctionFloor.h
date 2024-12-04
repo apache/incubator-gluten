@@ -23,6 +23,10 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsRound.h>
 
+#if USE_MULTITARGET_CODE
+#include <immintrin.h>
+#endif
+
 using namespace DB;
 
 namespace local_engine
