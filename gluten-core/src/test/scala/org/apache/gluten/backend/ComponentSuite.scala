@@ -43,7 +43,7 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
     assert(possibleOrders.contains(Component.graph.sorted()))
   }
 
-  test("Register") {
+  test("Register again") {
     assertThrows[IllegalArgumentException] {
       new DummyBackendA()
     }
