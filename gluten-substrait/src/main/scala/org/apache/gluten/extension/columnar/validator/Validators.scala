@@ -240,17 +240,13 @@ object Validators {
 
     private def validate0(plan: SparkPlan): Validator.OutCome = plan match {
       case plan: BatchScanExec =>
-        val transformer =
-          ScanTransformerFactory
-            .createBatchScanTransformer(plan, validation = true)
-            .asInstanceOf[BasicScanExecTransformer]
+        val transformer = ScanTransformerFactory.createBatchScanTransformer(plan)
         transformer.doValidate().toValidatorOutcome()
       case plan: FileSourceScanExec =>
-        val transformer =
-          ScanTransformerFactory.createFileSourceScanTransformer(plan)
+        val transformer = ScanTransformerFactory.createFileSourceScanTransformer(plan)
         transformer.doValidate().toValidatorOutcome()
       case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
-        HiveTableScanExecTransformer.validate(plan).toValidatorOutcome()
+        HiveTableScanExecTransformer(plan).doValidate().toValidatorOutcome()
       case plan: ProjectExec =>
         val transformer = ProjectExecTransformer(plan.projectList, plan.child)
         transformer.doValidate().toValidatorOutcome()
