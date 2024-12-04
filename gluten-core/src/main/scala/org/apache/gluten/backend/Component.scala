@@ -124,8 +124,9 @@ object Component {
   class Graph private[Component] {
     import Graph._
     private val registry: Registry = new Registry()
-
     private val requirements: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
+
+    private var sorted: Option[Seq[Component]] = None
 
     private[Component] def add(comp: Component): Unit = synchronized {
       require(
@@ -135,6 +136,7 @@ object Component {
         !registry.isClassRegistered(comp.getClass),
         s"Component class ${comp.getClass} already registered: ${comp.name()}")
       registry.register(comp)
+      sorted = None
     }
 
     private[Component] def declareRequirement(
@@ -144,6 +146,7 @@ object Component {
         require(registry.isUidRegistered(comp.uid))
         require(registry.isClassRegistered(comp.getClass))
         requirements += comp.uid -> requiredCompClass
+        sorted = None
       }
 
     private def newLookup(): mutable.Map[Int, Node] = {
@@ -191,6 +194,10 @@ object Component {
      */
     // format: on
     def sort(): Seq[Component] = synchronized {
+      if (sorted.isDefined) {
+        return sorted.get
+      }
+
       val lookup: mutable.Map[Int, Node] = newLookup()
 
       val out = mutable.Buffer[Component]()
@@ -228,7 +235,8 @@ object Component {
       }
 
       // 4. Return the ordered nodes.
-      out.toSeq
+      sorted = Some(out.toSeq)
+      sorted.get
     }
   }
 
