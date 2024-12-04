@@ -90,8 +90,10 @@ object Component {
     def register(comp: Component): Unit = synchronized {
       val uid = comp.uid
       val clazz = comp.getClass
-      require(!lookupByUid.contains(uid))
-      require(!lookupByClass.contains(clazz))
+      require(!lookupByUid.contains(uid), s"Component UID $uid already registered: ${comp.name()}")
+      require(
+        !lookupByClass.contains(clazz),
+        s"Component class $clazz already registered: ${comp.name()}")
       lookupByUid += uid -> comp
       lookupByClass += clazz -> comp
     }
@@ -126,8 +128,12 @@ object Component {
     private val requirements: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
 
     private[Component] def add(comp: Component): Unit = synchronized {
-      require(!registry.isUidRegistered(comp.uid))
-      require(!registry.isClassRegistered(comp.getClass))
+      require(
+        !registry.isUidRegistered(comp.uid),
+        s"Component UID ${comp.uid} already registered: ${comp.name()}")
+      require(
+        !registry.isClassRegistered(comp.getClass),
+        s"Component class ${comp.getClass} already registered: ${comp.name()}")
       registry.register(comp)
     }
 
