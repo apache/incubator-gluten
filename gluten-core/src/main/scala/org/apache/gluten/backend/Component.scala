@@ -126,7 +126,7 @@ object Component {
     private val registry: Registry = new Registry()
     private val requirements: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
 
-    private var sorted: Option[Seq[Component]] = None
+    private var sortedComponents: Option[Seq[Component]] = None
 
     private[Component] def add(comp: Component): Unit = synchronized {
       require(
@@ -136,7 +136,7 @@ object Component {
         !registry.isClassRegistered(comp.getClass),
         s"Component class ${comp.getClass} already registered: ${comp.name()}")
       registry.register(comp)
-      sorted = None
+      sortedComponents = None
     }
 
     private[Component] def declareRequirement(
@@ -146,7 +146,7 @@ object Component {
         require(registry.isUidRegistered(comp.uid))
         require(registry.isClassRegistered(comp.getClass))
         requirements += comp.uid -> requiredCompClass
-        sorted = None
+        sortedComponents = None
       }
 
     private def newLookup(): mutable.Map[Int, Node] = {
@@ -193,9 +193,9 @@ object Component {
      * requirement from component A to component B.
      */
     // format: on
-    def sort(): Seq[Component] = synchronized {
-      if (sorted.isDefined) {
-        return sorted.get
+    def sorted(): Seq[Component] = synchronized {
+      if (sortedComponents.isDefined) {
+        return sortedComponents.get
       }
 
       val lookup: mutable.Map[Int, Node] = newLookup()
@@ -235,8 +235,8 @@ object Component {
       }
 
       // 4. Return the ordered nodes.
-      sorted = Some(out.toSeq)
-      sorted.get
+      sortedComponents = Some(out.toSeq)
+      sortedComponents.get
     }
   }
 

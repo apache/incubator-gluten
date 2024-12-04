@@ -40,7 +40,7 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
         Seq(b, a, d, c, e)
       )
 
-    assert(possibleOrders.contains(Component.graph.sort()))
+    assert(possibleOrders.contains(Component.graph.sorted()))
   }
 
   test("Register") {
