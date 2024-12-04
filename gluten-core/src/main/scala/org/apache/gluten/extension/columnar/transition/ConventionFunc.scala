@@ -24,6 +24,7 @@ import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan, UnionExec}
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
+import org.apache.spark.util.SparkTestUtil
 
 /** ConventionFunc is a utility to derive [[Convention]] or [[ConventionReq]] from a query plan. */
 sealed trait ConventionFunc {
@@ -45,8 +46,9 @@ object ConventionFunc {
   // For testing, to make things work without a backend loaded.
   private var ignoreBackend: Boolean = false
 
-  // Visible for testing
+  // Visible for testing.
   def ignoreBackend[T](body: => T): T = synchronized {
+    assert(SparkTestUtil.isTesting)
     assert(!ignoreBackend)
     ignoreBackend = true
     try {
