@@ -24,10 +24,9 @@ import org.apache.spark.SparkContext
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.api.plugin.PluginContext
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 /**
  * The base API to inject user-defined logic to Gluten. To register a component, its implementations
@@ -41,18 +40,23 @@ trait Component {
   import Component._
 
   private val uid = nextUid.getAndIncrement()
+  private val isRegistered = new AtomicBoolean(false)
 
-  graph.add(this)
+  ensureRegistered()
 
-  final protected[this] def require[T <: Component: ClassTag](): Unit = {
-    graph.declareRequirement(
-      this,
-      implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[_ <: Component]])
+  def ensureRegistered(): Unit = {
+    if (!isRegistered.compareAndSet(false, true)) {
+      return
+    }
+    graph.add(this)
+    val reqs = requirements()
+    reqs.foreach(req => graph.declareRequirement(this, req))
   }
 
   /** Base information. */
   def name(): String
   def buildInfo(): BuildInfo
+  def requirements(): Seq[Class[_ <: Component]]
 
   /** Spark listeners. */
   def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {}
@@ -75,7 +79,9 @@ trait Component {
 object Component {
   private val nextUid = new AtomicInteger()
 
-  val graph = new Graph()
+  val graph: Graph = newGraph()
+
+  private def newGraph(): Graph = new Graph()
 
   private class Registry {
     private val lookupByUid: mutable.Map[Int, Component] = mutable.Map()
@@ -90,10 +96,12 @@ object Component {
       lookupByClass += clazz -> comp
     }
 
-    def isRegistered(comp: Component): Boolean = synchronized {
-      val out = lookupByUid.contains(comp.uid)
-      assert(out == lookupByClass.contains(comp.getClass))
-      out
+    def isUidRegistered(uid: Int): Boolean = synchronized {
+      lookupByUid.contains(uid)
+    }
+
+    def isClassRegistered(clazz: Class[_ <: Component]): Boolean = synchronized {
+      lookupByClass.contains(clazz)
     }
 
     def findByClass(clazz: Class[_ <: Component]): Component = synchronized {
@@ -101,50 +109,69 @@ object Component {
       lookupByClass(clazz)
     }
 
-    def findById(id: Int): Component = synchronized {
-      require(lookupByUid.contains(id))
-      lookupByUid(id)
+    def findByUid(uid: Int): Component = synchronized {
+      require(lookupByUid.contains(uid))
+      lookupByUid(uid)
+    }
+
+    def allUids(): Seq[Int] = synchronized {
+      return lookupByUid.keys.toSeq
     }
   }
 
   class Graph private[Component] {
     import Graph._
     private val registry: Registry = new Registry()
-    private val nodes: mutable.Buffer[Node] = mutable.Buffer()
-    private val lookup: mutable.Map[Int, Node] = mutable.Map()
+
+    private val requirements: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
 
     private[Component] def add(comp: Component): Unit = synchronized {
-      require(!registry.isRegistered(comp))
+      require(!registry.isUidRegistered(comp.uid))
+      require(!registry.isClassRegistered(comp.getClass))
       registry.register(comp)
-      val uid = comp.uid
-      require(!lookup.contains(uid))
-      val n = new Node(uid)
-      lookup += uid -> n
-      nodes += n
     }
 
     private[Component] def declareRequirement(
         comp: Component,
         requiredCompClass: Class[_ <: Component]): Unit =
       synchronized {
-        val uid = comp.uid
-        val requiredUid = registry.findByClass(requiredCompClass).uid
-        require(uid != requiredUid)
-        require(lookup.contains(uid))
-        require(lookup.contains(requiredUid))
-        val n = lookup(uid)
-        val r = lookup(requiredUid)
-        require(!n.parent.contains(r.uid))
-        require(!r.children.contains(n.uid))
-        n.parent += r.uid -> r
-        r.children += n.uid -> n
+        require(registry.isUidRegistered(comp.uid))
+        require(registry.isClassRegistered(comp.getClass))
+        requirements += comp.uid -> requiredCompClass
       }
 
+    private def newLookup(): mutable.Map[Int, Node] = {
+      val lookup: mutable.Map[Int, Node] = mutable.Map()
+
+      registry.allUids().foreach {
+        uid =>
+          require(!lookup.contains(uid))
+          val n = new Node(uid)
+          lookup += uid -> n
+      }
+
+      requirements.foreach {
+        case (uid, requiredCompClass) =>
+          val requiredUid = registry.findByClass(requiredCompClass).uid
+          require(uid != requiredUid)
+          require(lookup.contains(uid))
+          require(lookup.contains(requiredUid))
+          val n = lookup(uid)
+          val r = lookup(requiredUid)
+          require(!n.parents.contains(r.uid))
+          require(!r.children.contains(n.uid))
+          n.parents += r.uid -> r
+          r.children += n.uid -> n
+      }
+
+      lookup
+    }
+    
     // format: off
     /**
-     * Run topology sort on all registered components in graph to get an ordered list of components.
-     * The root nodes will be on the head side of the list, while leaf nodes will be on the tail
-     * side of the list.
+     * Apply topology sort on all registered components in graph to get an ordered list of
+     * components. The root nodes will be on the head side of the list, while leaf nodes
+     * will be on the tail side of the list.
      *
      * Say if component-A requires component-B while component-C requires nothing, then the output
      * order will be one of the following:
@@ -157,14 +184,51 @@ object Component {
      * requirement from component A to component B.
      */
     // format: on
-    def sort(): Seq[Component] = {
-      ???
+    def sort(): Seq[Component] = synchronized {
+      val lookup: mutable.Map[Int, Node] = newLookup()
+
+      val out = mutable.Buffer[Component]()
+      val uidToNumParents = lookup.map { case (uid, node) => uid -> node.parents.size }
+      val removalQueue = mutable.Queue[Int]()
+
+      // 1. Find out all nodes with zero parents then enqueue them.
+      uidToNumParents.filter(_._2 == 0).foreach(kv => removalQueue.enqueue(kv._1))
+
+      // 2. Loop to dequeue and remove nodes from the uid-to-num-parents map.
+      while (removalQueue.nonEmpty) {
+        val uid = removalQueue.dequeue()
+        val node = lookup(uid)
+        out += registry.findByUid(uid)
+        node.children.keys.foreach {
+          childUid =>
+            val updatedNumParents = uidToNumParents
+              .updateWith(childUid) {
+                case Some(numParents) => Some(numParents - 1)
+                case None => None
+              }
+              .get
+            if (updatedNumParents == 0) {
+              removalQueue.enqueue(childUid)
+            }
+        }
+      }
+
+      // 3. If there are still outstanding nodes (those are with more non-zero parents) in the
+      // uid-to-num-parents map, then it means at least one cycle is found. Report error if so.
+      if (uidToNumParents.exists(_._2 != 0)) {
+        val cycleNodes = uidToNumParents.filter(_._2 != 0).keys.map(registry.findByUid)
+        val cycleNodeNames = cycleNodes.map(_.name()).mkString(", ")
+        throw new IllegalStateException(s"Cycle detected in the component graph: $cycleNodeNames")
+      }
+
+      // 4. Return the ordered nodes.
+      out.toSeq
     }
   }
 
   private object Graph {
     class Node(val uid: Int) {
-      val parent: mutable.Map[Int, Node] = mutable.Map()
+      val parents: mutable.Map[Int, Node] = mutable.Map()
       val children: mutable.Map[Int, Node] = mutable.Map()
     }
   }

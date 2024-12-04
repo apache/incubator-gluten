@@ -17,9 +17,15 @@
 package org.apache.gluten.backend
 
 import java.util.ServiceLoader
+
 import scala.collection.JavaConverters
 
 trait Backend extends Component {
+  /**
+   * Backends don't register requirements. They are all considered root components in the component
+   * DAG and will be loaded at the beginning.
+   */
+  final override def requirements(): Seq[Class[_ <: Component]] = Nil
 }
 
 object Backend {
