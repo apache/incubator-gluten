@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeConfig, RuntimeSettings}
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
@@ -57,7 +57,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .setCHConfig("logger.level", "error")
+      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .setCHSettings("mergetree.merge_after_insert", false)
   }
 
@@ -500,7 +500,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
       CHConf.runtimeSettings("mergetree.merge_after_insert") -> "true",
       CHConf.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
-      CHConf.runtimeSettings("min_insert_block_size_rows") -> "10000"
+      RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key -> "10000"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;

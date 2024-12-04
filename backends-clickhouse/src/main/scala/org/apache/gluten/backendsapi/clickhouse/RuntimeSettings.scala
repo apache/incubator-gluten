@@ -20,9 +20,19 @@ import org.apache.spark.sql.internal.SQLConf
 
 object RuntimeSettings {
 
-  import CHConf._
+  import CHConf.runtimeSettings
   import SQLConf._
 
+  /** Clickhouse settings */
+  // scalastyle:off line.size.limit
+  val MIN_INSERT_BLOCK_SIZE_ROWS =
+    buildConf(runtimeSettings("min_insert_block_size_rows"))
+      .doc("https://clickhouse.com/docs/en/operations/settings/settings#min_insert_block_size_rows")
+      .longConf
+      .createWithDefault(1048449)
+  // scalastyle:on line.size.limit
+
+  /** Gluten Configuration */
   val NATIVE_WRITE_RESERVE_PARTITION_COLUMNS =
     buildConf(runtimeSettings("gluten.write.reserve_partition_columns"))
       .doc("Whether reserve partition columns for Native write or not, default is false")
