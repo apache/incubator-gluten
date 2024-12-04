@@ -21,6 +21,7 @@ import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 
 class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSuite {
@@ -105,4 +106,53 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
     }
   }
 
+  test("GLUTEN-7470: Same names in group by may cause exception") {
+    withTable("test_7470_1") {
+      sql("""
+            |create table test_7470_1 (
+            |  day string, rtime int, uid string, owner string)
+            |USING orc
+            |""".stripMargin)
+      sql("insert into test_7470_1 values ('2024-09-01', 123, 'user1', 'owner1')")
+      sql("insert into test_7470_1 values ('2024-09-01', 123, 'user1', 'owner1')")
+      sql("insert into test_7470_1 values ('2024-09-02', 567, 'user2', 'owner2')")
+      val query =
+        """
+          |select days, rtime, uid, owner, day1
+          |from (
+          | select day1 as days, rtime, uid, owner, day1
+          | from (
+          |   select distinct coalesce(day, "today") as day1, rtime, uid, owner
+          |   from test_7470_1 where day = '2024-09-01'
+          | )) group by days, rtime, uid, owner, day1
+          |""".stripMargin
+      val df = sql(query)
+      checkAnswer(df, Seq(Row("2024-09-01", 123, "user1", "owner1", "2024-09-01")))
+    }
+  }
+
+  test("GLUTEN-7470: Same names with different qualifier in group by may cause exception") {
+    withTable("test_7470_2") {
+      sql("""
+            |create table test_7470_2 (
+            |  day string, rtime int, uid string, owner string)
+            |USING orc
+            |""".stripMargin)
+      sql("insert into test_7470_2 values ('2024-09-01', 123, 'user1', 'owner1')")
+      sql("insert into test_7470_2 values ('2024-09-01', 123, 'user1', 'owner1')")
+      sql("insert into test_7470_2 values ('2024-09-02', 567, 'user2', 'owner2')")
+      val query =
+        """
+          |select days, rtime, uid, owner, day1
+          |from (
+          | select day1 as days, rtime, uid, owner, day1
+          | from (
+          |   select distinct coalesce(day, "today") as day1, rtime, uid, owner
+          |   from test_7470_2 where day = '2024-09-01'
+          | ) t1 ) t2 group by days, rtime, uid, owner, day1
+          |""".stripMargin
+      val df = sql(query)
+      checkAnswer(df, Seq(Row("2024-09-01", 123, "user1", "owner1", "2024-09-01")))
+    }
+  }
 }

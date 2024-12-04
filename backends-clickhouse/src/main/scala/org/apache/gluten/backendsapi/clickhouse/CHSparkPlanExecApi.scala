@@ -26,7 +26,7 @@ import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
-import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
+import org.apache.gluten.utils.{CHAggUtil, CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.ShuffleDependency
@@ -164,7 +164,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       resultExpressions)
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
-      groupingExpressions.distinct,
+      CHAggUtil.distinctIgnoreQualifier(groupingExpressions),
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
