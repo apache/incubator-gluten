@@ -206,14 +206,14 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
 TEST(WritePipeline, ComputePartitionedExpression)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
-
-    auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"});
+    
+    Block sample_block{{STRING(), "name"}, {UINT(), "s_nationkey"}};
+    auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"}, sample_block);
     // auto partition_by = printColumn("s_nationkey");
 
     ASTs arguments(1, partition_by);
     ASTPtr partition_by_string = makeASTFunction("toString", std::move(arguments));
 
-    Block sample_block{{STRING(), "name"}, {UINT(), "s_nationkey"}};
 
     auto syntax_result = TreeRewriter(context).analyze(partition_by_string, sample_block.getNamesAndTypesList());
     auto partition_by_expr = ExpressionAnalyzer(partition_by_string, syntax_result, context).getActions(false);

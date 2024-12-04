@@ -30,6 +30,8 @@ using namespace DB;
 
 const std::string SubstraitFileSink::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
 const std::string SparkPartitionedBaseSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
+const std::string SparkPartitionedBaseSink::BUCKET_COLUMN_NAME{"__bucket_value__"};
+const std::vector<std::string> FileNameGenerator::SUPPORT_PLACEHOLDERS{"{id}", "{bucket}"};
 
 /// For Nullable(Map(K, V)) or Nullable(Array(T)), if the i-th row is null, we must make sure its nested data is empty.
 /// It is for ORC/Parquet writing compatiability. For more details, refer to
@@ -168,7 +170,7 @@ void NormalFileWriter::write(DB::Block & block)
     const auto & preferred_schema = file->getPreferredSchema();
     for (auto & column : block)
     {
-        if (column.name.starts_with("__bucket_value__"))
+        if (column.name.starts_with(SparkPartitionedBaseSink::BUCKET_COLUMN_NAME))
             continue;
 
         const auto & preferred_column = preferred_schema.getByPosition(index++);

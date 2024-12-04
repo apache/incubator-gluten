@@ -537,8 +537,34 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
                          |""".stripMargin) {
       df =>
         {
-          getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)
+          assert(
+            getExecutedPlan(df).exists(
+              plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined))
         }
+    }
+  }
+
+  test("union_all two tables with known partitioning") {
+    withSQLConf(GlutenConfig.NATIVE_UNION_ENABLED.key -> "true") {
+      compareDfResultsAgainstVanillaSpark(
+        () => {
+          val df1 = spark.sql("select l_orderkey as orderkey from lineitem")
+          val df2 = spark.sql("select o_orderkey as orderkey from orders")
+          df1.repartition(5).union(df2.repartition(5))
+        },
+        compareResult = true,
+        checkGlutenOperatorMatch[UnionExecTransformer]
+      )
+
+      compareDfResultsAgainstVanillaSpark(
+        () => {
+          val df1 = spark.sql("select l_orderkey as orderkey from lineitem")
+          val df2 = spark.sql("select o_orderkey as orderkey from orders")
+          df1.repartition(5).union(df2.repartition(6))
+        },
+        compareResult = true,
+        checkGlutenOperatorMatch[ColumnarUnionExec]
+      )
     }
   }
 

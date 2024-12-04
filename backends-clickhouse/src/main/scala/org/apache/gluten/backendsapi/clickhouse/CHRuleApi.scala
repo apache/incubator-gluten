@@ -79,6 +79,7 @@ object CHRuleApi {
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
     injector.injectPreTransform(c => FallbackBroadcastHashJoin.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
+    injector.injectPreTransform(_ => WriteFilesWithBucketValue)
 
     // Legacy: The legacy transform rule.
     val validatorBuilder: GlutenConfig => Validator = conf =>

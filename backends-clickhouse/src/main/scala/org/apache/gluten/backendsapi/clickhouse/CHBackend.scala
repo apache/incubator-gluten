@@ -246,20 +246,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       }
     }
 
-    def validateBucketSpec(): Option[String] = {
-      if (bucketSpec.nonEmpty) {
-        Some("Unsupported native write: bucket write is not supported.")
-      } else {
-        None
-      }
-    }
-
     validateCompressionCodec()
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
       .orElse(validateDateTypes())
-      .orElse(validateWriteFilesOptions())
-      .orElse(validateBucketSpec()) match {
+      .orElse(validateWriteFilesOptions()) match {
       case Some(reason) => ValidationResult.failed(reason)
       case _ => ValidationResult.succeeded
     }
