@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_12_03
+VELOX_REPO=https://github.com/marin-ma/velox-oap.git
+VELOX_BRANCH=unsafe-row-batch-serialize-oap
 VELOX_HOME=""
 
 OS=`uname -s`
