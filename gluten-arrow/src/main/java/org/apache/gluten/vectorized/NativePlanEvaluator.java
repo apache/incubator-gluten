@@ -42,7 +42,9 @@ public class NativePlanEvaluator {
   }
 
   public static NativePlanEvaluator create(String backendName) {
-    return new NativePlanEvaluator(Runtimes.contextInstance(backendName, String.format("NativePlanEvaluator-%d", id.getAndIncrement())));
+    return new NativePlanEvaluator(
+        Runtimes.contextInstance(
+            backendName, String.format("NativePlanEvaluator-%d", id.getAndIncrement())));
   }
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {

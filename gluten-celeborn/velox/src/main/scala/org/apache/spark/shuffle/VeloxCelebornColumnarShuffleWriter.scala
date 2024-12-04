@@ -17,10 +17,12 @@
 package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
+
 import org.apache.spark._
 import org.apache.spark.internal.config.{SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
@@ -28,9 +30,9 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
+
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
-import org.apache.gluten.backendsapi.BackendsApiManager
 
 import java.io.IOException
 
@@ -50,7 +52,8 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     writeMetrics) {
   private val isSort = !GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER.equals(shuffleWriterType)
 
-  private val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "CelebornShuffleWriter")
+  private val runtime =
+    Runtimes.contextInstance(BackendsApiManager.getBackendName, "CelebornShuffleWriter")
 
   private val jniWrapper = ShuffleWriterJniWrapper.create(runtime)
 

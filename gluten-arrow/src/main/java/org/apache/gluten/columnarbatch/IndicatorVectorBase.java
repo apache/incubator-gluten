@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.gluten.runtime.Runtimes;
-
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.vectorized.ColumnVector;

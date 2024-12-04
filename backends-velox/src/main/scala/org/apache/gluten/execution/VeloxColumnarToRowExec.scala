@@ -23,6 +23,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
+
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow

@@ -17,12 +17,14 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized._
+
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -35,9 +37,9 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
 import org.apache.spark.unsafe.Platform
+
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.ArrowBuf
-import org.apache.gluten.backendsapi.BackendsApiManager
 
 import scala.collection.mutable.ListBuffer
 

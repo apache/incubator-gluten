@@ -67,8 +67,7 @@ public final class NativeBackendInitializer {
 
   private void initialize0(scala.collection.Map<String, String> conf) {
     try {
-      Map<String, String> nativeConfMap =
-          GlutenConfig.getNativeBackendConf(backendName, conf);
+      Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(backendName, conf);
       initialize(ConfigUtil.serialize(nativeConfMap));
     } catch (Exception e) {
       LOG.error("Failed to call native backend's initialize method", e);

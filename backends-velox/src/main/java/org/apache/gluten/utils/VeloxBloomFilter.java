@@ -31,7 +31,8 @@ import java.io.OutputStream;
 
 public class VeloxBloomFilter extends BloomFilter {
   private final VeloxBloomFilterJniWrapper jni =
-      VeloxBloomFilterJniWrapper.create(Runtimes.contextInstance(BackendsApiManager.getBackendName(), "VeloxBloomFilter"));
+      VeloxBloomFilterJniWrapper.create(
+          Runtimes.contextInstance(BackendsApiManager.getBackendName(), "VeloxBloomFilter"));
   private final long handle;
 
   private VeloxBloomFilter(byte[] data) {

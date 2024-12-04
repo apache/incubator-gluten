@@ -16,13 +16,15 @@
  */
 package org.apache.gluten.datasource
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
+
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
+
 import org.apache.arrow.c.ArrowSchema
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.hadoop.fs.FileStatus
 
 import java.util

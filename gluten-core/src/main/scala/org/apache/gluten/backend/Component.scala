@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.backend
 
 import org.apache.gluten.extension.columnar.transition.ConventionFunc
@@ -175,7 +174,7 @@ object Component {
 
       lookup
     }
-    
+
     // format: off
     /**
      * Apply topology sort on all registered components in graph to get an ordered list of

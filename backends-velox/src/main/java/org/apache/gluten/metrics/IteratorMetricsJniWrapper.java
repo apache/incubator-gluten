@@ -30,7 +30,8 @@ public class IteratorMetricsJniWrapper implements RuntimeAware {
   }
 
   public static IteratorMetricsJniWrapper create() {
-    final Runtime runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName(), "IteratorMetrics");
+    final Runtime runtime =
+        Runtimes.contextInstance(BackendsApiManager.getBackendName(), "IteratorMetrics");
     return new IteratorMetricsJniWrapper(runtime);
   }
 

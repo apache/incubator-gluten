@@ -71,7 +71,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private int compressionBufferSize;
   private final int partitionId;
 
-  private final Runtime runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName(), "UniffleShuffleWriter");
+  private final Runtime runtime =
+      Runtimes.contextInstance(BackendsApiManager.getBackendName(), "UniffleShuffleWriter");
   private final ShuffleWriterJniWrapper jniWrapper = ShuffleWriterJniWrapper.create(runtime);
   private final int nativeBufferSize = GlutenConfig.getConf().maxBatchSize();
   private final int bufferSize;

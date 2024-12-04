@@ -44,7 +44,7 @@ using namespace facebook;
 namespace {
 jclass blockStripesClass;
 jmethodID blockStripesConstructor;
-}
+} // namespace
 
 #ifdef __cplusplus
 extern "C" {
