@@ -41,6 +41,6 @@ package object backend extends Logging {
 
     // Output log so user could view the component loading order.
     val components = Component.sorted()
-    logInfo(s"Components registered within order: ${components.mkString(", ")}")
+    logInfo(s"Components registered within order: ${components.map(_.name()).mkString(", ")}")
   }
 }
