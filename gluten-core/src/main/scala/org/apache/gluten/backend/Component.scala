@@ -46,14 +46,13 @@ trait Component {
       return
     }
     graph.add(this)
-    val reqs = requirements()
-    reqs.foreach(req => graph.declareRequirement(this, req))
+    parents().foreach(req => graph.declareRequirement(this, req))
   }
 
   /** Base information. */
   def name(): String
   def buildInfo(): BuildInfo
-  def requirements(): Seq[Class[_ <: Component]]
+  def parents(): Seq[Class[_ <: Component]]
 
   /** Spark listeners. */
   def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {}
