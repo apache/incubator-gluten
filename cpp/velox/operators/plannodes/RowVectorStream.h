@@ -86,7 +86,6 @@ class RowVectorStream {
     {
       // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
       // driver to make the current task open to spilling.
-      // facebook::velox::exec::SuspendedSection ss(driverCtx_->driver);
       SuspendedSection ss(driverCtx_->driver);
       cb = iterator_->next();
     }
