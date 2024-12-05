@@ -40,7 +40,8 @@ package object backend extends Logging {
     all.foreach(_.ensureRegistered())
 
     // Output log so user could view the component loading order.
-    val components = Component.sorted()
+    // Call #sortedUnsafe than on #sorted to avoid unnecessary recursion.
+    val components = Component.sortedUnsafe()
     logInfo(s"Components registered within order: ${components.map(_.name()).mkString(", ")}")
   }
 }

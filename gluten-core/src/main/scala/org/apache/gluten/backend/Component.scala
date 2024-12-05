@@ -81,6 +81,10 @@ object Component {
     graph.sorted()
   }
 
+  private[backend] def sortedUnsafe(): Seq[Component] = {
+    graph.sorted()
+  }
+
   private class Registry {
     private val lookupByUid: mutable.Map[Int, Component] = mutable.Map()
     private val lookupByClass: mutable.Map[Class[_ <: Component], Component] = mutable.Map()
@@ -119,14 +123,14 @@ object Component {
     }
   }
 
-  class Graph private[Component] {
+  private class Graph {
     import Graph._
     private val registry: Registry = new Registry()
     private val requirements: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
 
     private var sortedComponents: Option[Seq[Component]] = None
 
-    private[Component] def add(comp: Component): Unit = synchronized {
+    def add(comp: Component): Unit = synchronized {
       require(
         !registry.isUidRegistered(comp.uid),
         s"Component UID ${comp.uid} already registered: ${comp.name()}")
@@ -137,9 +141,7 @@ object Component {
       sortedComponents = None
     }
 
-    private[Component] def declareRequirement(
-        comp: Component,
-        requiredCompClass: Class[_ <: Component]): Unit =
+    def declareRequirement(comp: Component, requiredCompClass: Class[_ <: Component]): Unit =
       synchronized {
         require(registry.isUidRegistered(comp.uid))
         require(registry.isClassRegistered(comp.getClass))
@@ -191,7 +193,7 @@ object Component {
      * requirement from component A to component B.
      */
     // format: on
-    private[Component] def sorted(): Seq[Component] = synchronized {
+    def sorted(): Seq[Component] = synchronized {
       if (sortedComponents.isDefined) {
         return sortedComponents.get
       }
