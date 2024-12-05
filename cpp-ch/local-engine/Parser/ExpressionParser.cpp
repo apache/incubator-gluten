@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #include "ExpressionParser.h"
-#include <DataTypes/DataTypeAggregateFunction.h>
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime64.h>
@@ -31,17 +31,13 @@
 #include <DataTypes/Serializations/ISerialization.h>
 #include <DataTypes/getLeastSupertype.h>
 #include <IO/WriteBufferFromString.h>
-#include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
-#include <Poco/Logger.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
-#include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
-#include "SerializedPlanParser.h"
 
 namespace DB
 {
@@ -55,7 +51,7 @@ extern const int BAD_ARGUMENTS;
 
 namespace local_engine
 {
-std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expression_Literal & literal) const
+std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expression_Literal & literal)
 {
     DB::DataTypePtr type;
     DB::Field field;
@@ -274,7 +270,7 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
         case substrait::Expression::RexTypeCase::kLiteral: {
             DB::DataTypePtr type;
             DB::Field field;
-            std::tie(type, field) = LiteralParser().parse(rel.literal());
+            std::tie(type, field) = LiteralParser::parse(rel.literal());
             return addConstColumn(actions_dag, type, field);
         }
 
@@ -333,7 +329,8 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
                 // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
                 auto map_input_type = std::static_pointer_cast<const DataTypeMap>(denull_input_type);
                 args.emplace_back(addConstColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
-                args.emplace_back(addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
+                args.emplace_back(
+                    addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
                 result_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
             }
             else if (isString(denull_input_type) && substrait_type.has_bool_())
@@ -411,7 +408,7 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
             args.emplace_back(parseExpression(actions_dag, rel.singular_or_list().value()));
 
             bool nullable = false;
-            int options_len = static_cast<int>(options.size());
+            int options_len = options.size();
             for (int i = 0; i < options_len; ++i)
             {
                 if (!options[i].has_literal())
@@ -421,15 +418,14 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
             }
 
             DB::DataTypePtr elem_type;
-            LiteralParser literal_parser;
-            std::tie(elem_type, std::ignore) = literal_parser.parse(options[0].literal());
+            std::tie(elem_type, std::ignore) = LiteralParser::parse(options[0].literal());
             elem_type = wrapNullableType(nullable, elem_type);
 
             DB::MutableColumnPtr elem_column = elem_type->createColumn();
             elem_column->reserve(options_len);
             for (int i = 0; i < options_len; ++i)
             {
-                auto type_and_field = LiteralParser().parse(options[i].literal());
+                auto type_and_field = LiteralParser::parse(options[i].literal());
                 auto option_type = wrapNullableType(nullable, type_and_field.first);
                 if (!elem_type->equals(*option_type))
                     throw DB::Exception(
@@ -440,16 +436,12 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
 
                 elem_column->insert(type_and_field.second);
             }
-
-            DB::MutableColumns elem_columns;
-            elem_columns.emplace_back(std::move(elem_column));
-
             auto name = getUniqueName("__set");
-            DB::Block elem_block;
-            elem_block.insert(DB::ColumnWithTypeAndName(nullptr, elem_type, name));
-            elem_block.setColumns(std::move(elem_columns));
+            ColumnWithTypeAndName elem_block{std::move(elem_column), elem_type, name};
 
-            auto future_set = std::make_shared<DB::FutureSetFromTuple>(elem_block, context->queryContext()->getSettingsRef());
+            PreparedSets prepared_sets;
+            FutureSet::Hash emptyKey;
+            auto future_set = prepared_sets.addFromTuple(emptyKey, {elem_block}, context->queryContext()->getSettingsRef());
             auto arg = DB::ColumnSet::create(1, std::move(future_set));
             args.emplace_back(&actions_dag.addColumn(DB::ColumnWithTypeAndName(std::move(arg), std::make_shared<DB::DataTypeSet>(), name)));
 
