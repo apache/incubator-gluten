@@ -30,7 +30,8 @@ import java.util.Map;
 
 public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
 
-  private CHNativeExpressionEvaluator() {}
+  private CHNativeExpressionEvaluator() {
+  }
 
   // Used to initialize the native computing.
   public static void initNative(scala.collection.Map<String, String> conf) {
