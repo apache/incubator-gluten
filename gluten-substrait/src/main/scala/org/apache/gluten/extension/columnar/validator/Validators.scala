@@ -18,7 +18,6 @@ package org.apache.gluten.extension.columnar.validator
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
-import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags
@@ -95,7 +94,7 @@ object Validators {
      * native validation failed.
      */
     def fallbackByNativeValidation(): Validator.Builder = {
-      builder.add(new FallbackByNativeValidation())
+      builder.add(new FallbackByNativeValidation)
     }
   }
 
@@ -223,22 +222,8 @@ object Validators {
     }
   }
 
-  private class FallbackByNativeValidation() extends Validator with Logging {
-    override def validate(plan: SparkPlan): Validator.OutCome = {
-      try {
-        validate0(plan)
-      } catch {
-        case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-          if (!e.isInstanceOf[GlutenNotSupportException]) {
-            logDebug("Just a warning. This exception perhaps needs to be fixed.", e)
-          }
-          fail(
-            s"${e.getMessage}, original Spark plan is " +
-              s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
-      }
-    }
-
-    private def validate0(plan: SparkPlan): Validator.OutCome = plan match {
+  private class FallbackByNativeValidation extends Validator with Logging {
+    override def validate(plan: SparkPlan): Validator.OutCome = plan match {
       case plan: BatchScanExec =>
         val transformer = ScanTransformerFactory.createBatchScanTransformer(plan)
         transformer.doValidate().toValidatorOutcome()

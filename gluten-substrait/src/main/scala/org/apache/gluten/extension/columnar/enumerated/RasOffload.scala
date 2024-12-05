@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.{GlutenPlan, ValidatablePlan}
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
@@ -119,29 +118,21 @@ object RasOffload {
             // 4. Validate current node. If passed, offload it.
             validator.validate(from) match {
               case Validator.Passed =>
-                try {
-                  val offloadedPlan = base.offload(from)
-                  val offloadedNodes = offloadedPlan.collect[ValidatablePlan] {
-                    case t: ValidatablePlan => t
-                  }
-                  val outComes = offloadedNodes.map(_.doValidate()).filter(!_.ok())
-                  if (outComes.nonEmpty) {
-                    // 5. If native validation fails on at least one of the offloaded nodes, return
-                    // the original one.
-                    //
-                    // TODO: Tag the original plan with fallback reason. This is a non-trivial work
-                    //  in RAS as the query plan we got here may be a copy so may not propagate tags
-                    //  to original plan.
-                    from
-                  } else {
-                    offloadedPlan
-                  }
-                } catch {
-                  case _: GlutenNotSupportException =>
-                    // TODO: Tag the original plan with fallback reason. This is a non-trivial work
-                    //  in RAS as the query plan we got here may be a copy so may not propagate tags
-                    //  to original plan.
-                    from
+                val offloadedPlan = base.offload(from)
+                val offloadedNodes = offloadedPlan.collect[ValidatablePlan] {
+                  case t: ValidatablePlan => t
+                }
+                val outComes = offloadedNodes.map(_.doValidate()).filter(!_.ok())
+                if (outComes.nonEmpty) {
+                  // 5. If native validation fails on at least one of the offloaded nodes, return
+                  // the original one.
+                  //
+                  // TODO: Tag the original plan with fallback reason. This is a non-trivial work
+                  //  in RAS as the query plan we got here may be a copy so may not propagate tags
+                  //  to original plan.
+                  from
+                } else {
+                  offloadedPlan
                 }
               case Validator.Failed(reason) =>
                 // TODO: Tag the original plan with fallback reason. This is a non-trivial work
