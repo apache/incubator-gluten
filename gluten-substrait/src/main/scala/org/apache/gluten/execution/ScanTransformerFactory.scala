@@ -57,8 +57,7 @@ object ScanTransformerFactory {
     }
   }
 
-  private def lookupBatchScanTransformer(
-      batchScanExec: BatchScanExec): BatchScanExecTransformerBase = {
+  def createBatchScanTransformer(batchScanExec: BatchScanExec): BatchScanExecTransformerBase = {
     val scan = batchScanExec.scan
     lookupDataSourceScanTransformer(scan.getClass.getName) match {
       case Some(clz) =>
@@ -82,14 +81,7 @@ object ScanTransformerFactory {
     }
   }
 
-  def createBatchScanTransformer(batchScan: BatchScanExec): BatchScanExecTransformerBase = {
-    if (!supportedBatchScan(batchScan.scan)) {
-      throw new GlutenNotSupportException(s"Unsupported scan ${batchScan.scan}")
-    }
-    lookupBatchScanTransformer(batchScan)
-  }
-
-  private def supportedBatchScan(scan: Scan): Boolean = scan match {
+  def supportedBatchScan(scan: Scan): Boolean = scan match {
     case _: FileScan => true
     case _ => lookupDataSourceScanTransformer(scan.getClass.getName).nonEmpty
   }

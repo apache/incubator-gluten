@@ -239,7 +239,7 @@ object Validators {
     }
 
     private def validate0(plan: SparkPlan): Validator.OutCome = plan match {
-      case plan: BatchScanExec =>
+      case plan: BatchScanExec if ScanTransformerFactory.supportedBatchScan(plan.scan) =>
         val transformer = ScanTransformerFactory.createBatchScanTransformer(plan)
         transformer.doValidate().toValidatorOutcome()
       case plan: FileSourceScanExec =>
