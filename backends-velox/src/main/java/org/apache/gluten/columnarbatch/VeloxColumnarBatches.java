@@ -95,7 +95,9 @@ public final class VeloxColumnarBatches {
         Runtimes.contextInstance(
             BackendsApiManager.getBackendName(), "VeloxColumnarBatches#compose");
     final long[] handles =
-        Arrays.stream(batches).mapToLong(b -> ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), b)).toArray();
+        Arrays.stream(batches)
+            .mapToLong(b -> ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), b))
+            .toArray();
     final long handle = VeloxColumnarBatchJniWrapper.create(runtime).compose(handles);
     return ColumnarBatches.create(handle);
   }

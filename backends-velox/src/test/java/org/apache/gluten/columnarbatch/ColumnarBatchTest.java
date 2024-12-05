@@ -115,9 +115,12 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           final ColumnarBatch offloaded =
               ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
           Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded));
-          final long handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), offloaded);
+          final long handle =
+              ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), offloaded);
           final ColumnarBatch created = ColumnarBatches.create(handle);
-          Assert.assertEquals(handle, ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), created));
+          Assert.assertEquals(
+              handle,
+              ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), created));
           Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded));
           Assert.assertEquals(1, ColumnarBatches.getRefCnt(created));
           ColumnarBatches.retain(created);
