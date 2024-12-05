@@ -217,7 +217,7 @@ cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh --enable_s3=ON
 ```
 
-Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
+Currently there are several ways to access S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
 
 ## Celeborn support
 
