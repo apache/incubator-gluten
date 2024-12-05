@@ -25,8 +25,8 @@
 #include "utils/Timer.h"
 
 namespace gluten {
-
 namespace {
+
 constexpr uint32_t kMaskLower27Bits = (1 << 27) - 1;
 constexpr uint64_t kMaskLower40Bits = (1UL << 40) - 1;
 constexpr uint32_t kPartitionIdStartByteIndex = 5;
@@ -44,6 +44,7 @@ uint32_t extractPartitionId(uint64_t compactRowId) {
 std::pair<uint32_t, uint32_t> extractPageNumberAndOffset(uint64_t compactRowId) {
   return {(compactRowId & kMaskLower40Bits) >> 27, compactRowId & kMaskLower27Bits};
 }
+
 } // namespace
 
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxSortShuffleWriter::create(
@@ -449,4 +450,5 @@ void VeloxSortShuffleWriter::updateSpillMetrics(const std::unique_ptr<InMemoryPa
     metrics_.totalBytesToEvict += payload->rawSize();
   }
 }
+
 } // namespace gluten

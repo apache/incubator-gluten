@@ -37,6 +37,7 @@ using namespace facebook::velox::test;
 using namespace facebook::velox::exec::test;
 
 namespace gluten {
+
 class VeloxSubstraitRoundTripTest : public OperatorTestBase {
  protected:
   /// Makes a vector of INTEGER type with 'size' RowVectorPtr.

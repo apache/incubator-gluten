@@ -59,6 +59,7 @@ T getConfig(
   return defaultValue;
 }
 } // namespace
+
 /// We assume in a single Spark task. No thread-safety should be guaranteed.
 class ListenableArbitrator : public velox::memory::MemoryArbitrator {
  public:

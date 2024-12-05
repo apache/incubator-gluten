@@ -21,6 +21,7 @@
 #include "velox/common/base/tests/GTestUtils.h"
 
 namespace gluten {
+
 using namespace facebook::velox;
 
 class MockAllocationListener : public gluten::AllocationListener {
@@ -398,4 +399,5 @@ TEST_F(MultiMemoryManagerTest, spill) {
 
   ASSERT_EQ(tmm.currentBytes(), 0);
 }
+
 } // namespace gluten

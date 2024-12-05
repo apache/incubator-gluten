@@ -131,4 +131,5 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   int64_t sortTime_{0};
   bool stopped_{false};
 };
+
 } // namespace gluten
