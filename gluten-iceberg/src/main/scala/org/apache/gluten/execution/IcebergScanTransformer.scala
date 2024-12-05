@@ -48,7 +48,8 @@ case class IcebergScanTransformer(
 
   override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
 
-  override def getPartitionSchema: StructType = GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
+  override lazy val getPartitionSchema: StructType =
+    GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 
   override def getDataSchema: StructType = new StructType()
 
