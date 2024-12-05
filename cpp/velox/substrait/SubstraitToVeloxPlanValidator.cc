@@ -26,6 +26,7 @@
 #include "velox/exec/Aggregate.h"
 #include "velox/expression/Expr.h"
 #include "velox/expression/SignatureBinder.h"
+#include <iostream>
 
 namespace gluten {
 
@@ -61,7 +62,6 @@ static const std::unordered_set<std::string> kRegexFunctions = {
 
 static const std::unordered_set<std::string> kBlackList = {
     "split_part",
-    "factorial",
     "concat_ws",
     "from_json",
     "json_array_length",
@@ -206,6 +206,7 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
 
   if (kBlackList.find(name) != kBlackList.end()) {
+    std::cout<<"Going to check the blacklist for the following function: "<< name<< std::endl;
     LOG_VALIDATION_MSG("Function is not supported: " + name);
     return false;
   }
