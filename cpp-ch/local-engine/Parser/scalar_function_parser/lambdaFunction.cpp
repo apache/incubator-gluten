@@ -43,7 +43,7 @@ DB::NamesAndTypesList collectLambdaArguments(ParserContextPtr parser_context_, c
         if (arg.value().has_scalar_function()
             && parser_context_->getFunctionNameInSignature(arg.value().scalar_function().function_reference()) == "namedlambdavariable")
         {
-            auto [_, col_name_field] = LiteralParser().parse(arg.value().scalar_function().arguments()[0].value().literal());
+            auto [_, col_name_field] = LiteralParser::parse(arg.value().scalar_function().arguments()[0].value().literal());
             String col_name = col_name_field.safeGet<String>();
             if (collected_names.contains(col_name))
                 continue;

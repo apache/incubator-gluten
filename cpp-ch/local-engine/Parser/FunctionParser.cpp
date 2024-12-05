@@ -92,7 +92,7 @@ const DB::ActionsDAG::Node * FunctionParser::parseExpression(DB::ActionsDAG & ac
 
 std::pair<DataTypePtr, Field> FunctionParser::parseLiteral(const substrait::Expression_Literal & literal) const
 {
-    return LiteralParser().parse(literal);
+    return LiteralParser::parse(literal);
 }
 
 ActionsDAG::NodeRawConstPtrs

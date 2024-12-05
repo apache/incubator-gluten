@@ -21,7 +21,6 @@
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context_fwd.h>
 #include <substrait/plan.pb.h>
-#include "SerializedPlanParser.h"
 
 
 namespace local_engine
@@ -34,7 +33,7 @@ class LiteralParser
 public:
     /// Parse a substrait literal into a CH field
     /// returns are the type and field value.
-    std::pair<DB::DataTypePtr, DB::Field> parse(const substrait::Expression_Literal & literal) const;
+    static std::pair<DB::DataTypePtr, DB::Field> parse(const substrait::Expression_Literal & literal);
 };
 
 
