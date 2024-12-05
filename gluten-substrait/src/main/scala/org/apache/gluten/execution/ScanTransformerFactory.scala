@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.connector.read.Scan
@@ -67,17 +66,12 @@ object ScanTransformerFactory {
           .asInstanceOf[DataSourceScanTransformerRegister]
           .createDataSourceV2Transformer(batchScanExec)
       case _ =>
-        scan match {
-          case _: FileScan =>
-            BatchScanExecTransformer(
-              batchScanExec.output,
-              batchScanExec.scan,
-              batchScanExec.runtimeFilters,
-              table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
-            )
-          case _ =>
-            throw new GlutenNotSupportException(s"Unsupported scan $scan")
-        }
+        BatchScanExecTransformer(
+          batchScanExec.output,
+          batchScanExec.scan,
+          batchScanExec.runtimeFilters,
+          table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
+        )
     }
   }
 

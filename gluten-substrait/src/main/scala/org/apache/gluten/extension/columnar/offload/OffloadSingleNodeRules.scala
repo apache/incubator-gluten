@@ -197,7 +197,7 @@ object OffloadOthers {
         return plan
       }
       plan match {
-        case plan: BatchScanExec if ScanTransformerFactory.supportedBatchScan(plan.scan) =>
+        case plan: BatchScanExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           ScanTransformerFactory.createBatchScanTransformer(plan)
         case plan: FileSourceScanExec =>

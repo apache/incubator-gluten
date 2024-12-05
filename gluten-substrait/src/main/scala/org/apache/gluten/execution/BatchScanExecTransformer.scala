@@ -134,6 +134,10 @@ abstract class BatchScanExecTransformerBase(
   }
 
   override def doValidateInternal(): ValidationResult = {
+    if (!ScanTransformerFactory.supportedBatchScan(scan)) {
+      return ValidationResult.failed(s"Unsupported scan $scan")
+    }
+
     if (pushedAggregate.nonEmpty) {
       return ValidationResult.failed(s"Unsupported aggregation push down for $scan.")
     }
