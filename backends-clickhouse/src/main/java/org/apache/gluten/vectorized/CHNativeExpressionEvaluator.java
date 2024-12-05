@@ -35,11 +35,11 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
   // Used to initialize the native computing.
   public static void initNative(scala.collection.Map<String, String> conf) {
     Map<String, String> nativeConfMap =
-        GlutenConfig.getNativeBackendConf(Backend.get().name(), conf);
+        GlutenConfig.getNativeBackendConf(BackendsApiManager.getBackendName(), conf);
 
     // Get the customer config from SparkConf for each backend
     BackendsApiManager.getTransformerApiInstance()
-        .postProcessNativeConfig(nativeConfMap, GlutenConfig.prefixOf(Backend.get().name()));
+        .postProcessNativeConfig(nativeConfMap, GlutenConfig.prefixOf(BackendsApiManager.getBackendName()));
 
     nativeInitNative(ConfigUtil.serialize(nativeConfMap));
   }
@@ -54,7 +54,7 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
   }
 
   private static Map<String, String> getNativeBackendConf() {
-    return GlutenConfig.getNativeBackendConf(Backend.get().name(), SQLConf.get().getAllConfs());
+    return GlutenConfig.getNativeBackendConf(BackendsApiManager.getBackendName(), SQLConf.get().getAllConfs());
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and
