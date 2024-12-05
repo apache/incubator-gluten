@@ -43,8 +43,10 @@ void registerPrestoVectorFunctions() {
   VELOX_REGISTER_VECTOR_FUNCTION(udf_transform_values, "transform_values");
 }
 } // namespace facebook::velox::functions
+
 namespace gluten {
 namespace {
+
 void registerFunctionOverwrite() {
   velox::functions::registerUnaryNumeric<RoundFunction>({"round"});
   velox::registerFunction<RoundFunction, int8_t, int8_t, int32_t>({"round"});

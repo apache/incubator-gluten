@@ -24,6 +24,7 @@
 #include "velox/exec/Task.h"
 
 namespace {
+
 class SuspendedSection {
  public:
   explicit SuspendedSection(facebook::velox::exec::Driver* driver) : driver_(driver) {
@@ -42,9 +43,11 @@ class SuspendedSection {
  private:
   facebook::velox::exec::Driver* const driver_;
 };
+
 } // namespace
 
 namespace gluten {
+
 class RowVectorStream {
  public:
   explicit RowVectorStream(
@@ -67,7 +70,7 @@ class RowVectorStream {
       // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
       // As of now, non-zero running threads usually happens when:
       // 1. Task A spills task B;
-      // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again.
+      // 2. Task A tries to grow buffers created by task B, during which spill is requested on task A again.
       SuspendedSection ss(driverCtx_->driver);
       hasNext = iterator_->hasNext();
     }
@@ -77,7 +80,7 @@ class RowVectorStream {
     return hasNext;
   }
 
-  // Convert arrow batch to rowvector and use new output columns
+  // Convert arrow batch to row vector and use new output columns
   facebook::velox::RowVectorPtr next() {
     if (finished_) {
       return nullptr;

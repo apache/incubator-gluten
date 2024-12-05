@@ -140,12 +140,12 @@ endmacro()
 set(VELOX_SRCS
     compute/VeloxBackend.cc
     compute/VeloxRuntime.cc
-    compute/WholeStageResultIterator.cc
     compute/VeloxPlanConverter.cc
+    compute/WholeStageResultIterator.cc
     compute/iceberg/IcebergPlanConverter.cc
-    jni/VeloxJniWrapper.cc
     jni/JniFileSystem.cc
     jni/JniUdf.cc
+    jni/VeloxJniWrapper.cc
     memory/BufferOutputStream.cc
     memory/VeloxColumnarBatch.cc
     memory/VeloxMemoryManager.cc
@@ -154,30 +154,30 @@ set(VELOX_SRCS
     operators/functions/SparkExprToSubfieldFilterParser.cc
     operators/reader/FileReaderIterator.cc
     operators/reader/ParquetReaderIterator.cc
-    operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
+    operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxArrowWriter.cc
     operators/writer/VeloxParquetDataSource.cc
+    shuffle/VeloxHashShuffleWriter.cc
+    shuffle/VeloxRssSortShuffleWriter.cc
     shuffle/VeloxShuffleReader.cc
     shuffle/VeloxShuffleWriter.cc
-    shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxSortShuffleWriter.cc
-    shuffle/VeloxRssSortShuffleWriter.cc
+    substrait/SubstraitExtensionCollector.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
     substrait/SubstraitToVeloxPlanValidator.cc
     substrait/VariantToVectorConverter.cc
-    substrait/SubstraitExtensionCollector.cc
     substrait/VeloxSubstraitSignature.cc
     substrait/VeloxToSubstraitExpr.cc
     substrait/VeloxToSubstraitPlan.cc
     substrait/VeloxToSubstraitType.cc
     udf/UdfLoader.cc
-    utils/VeloxArrowUtils.cc
-    utils/ConfigExtractor.cc
     utils/Common.cc
+    utils/ConfigExtractor.cc
+    utils/VeloxArrowUtils.cc
     utils/VeloxBatchResizer.cc)
 
 if(ENABLE_S3)

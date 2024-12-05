@@ -27,8 +27,8 @@
 #include "velox/expression/SignatureBinder.h"
 
 namespace gluten {
-
 namespace {
+
 const char* extractFileName(const char* file) {
   return strrchr(file, '/') ? strrchr(file, '/') + 1 : file;
 }

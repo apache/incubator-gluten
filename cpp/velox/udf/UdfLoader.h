@@ -94,4 +94,5 @@ class UdfLoader {
   std::unordered_set<std::shared_ptr<UdfSignature>> signatures_;
   std::unordered_set<std::string> names_;
 };
+
 } // namespace gluten
