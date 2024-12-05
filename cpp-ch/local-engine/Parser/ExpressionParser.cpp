@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "ExpressionParser.h"
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate32.h>
@@ -41,6 +42,7 @@
 #include <Common/CHUtil.h>
 #include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
+
 #include "SerializedPlanParser.h"
 
 namespace DB
@@ -333,7 +335,8 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
                 // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
                 auto map_input_type = std::static_pointer_cast<const DataTypeMap>(denull_input_type);
                 args.emplace_back(addConstColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
-                args.emplace_back(addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
+                args.emplace_back(
+                    addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
                 result_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
             }
             else if (isString(denull_input_type) && substrait_type.has_bool_())
@@ -411,7 +414,7 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
             args.emplace_back(parseExpression(actions_dag, rel.singular_or_list().value()));
 
             bool nullable = false;
-            int options_len = static_cast<int>(options.size());
+            int options_len = options.size();
             for (int i = 0; i < options_len; ++i)
             {
                 if (!options[i].has_literal())
@@ -440,16 +443,12 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
 
                 elem_column->insert(type_and_field.second);
             }
-
-            DB::MutableColumns elem_columns;
-            elem_columns.emplace_back(std::move(elem_column));
-
             auto name = getUniqueName("__set");
-            DB::Block elem_block;
-            elem_block.insert(DB::ColumnWithTypeAndName(nullptr, elem_type, name));
-            elem_block.setColumns(std::move(elem_columns));
+            ColumnWithTypeAndName elem_block{std::move(elem_column), elem_type, name};
 
-            auto future_set = std::make_shared<DB::FutureSetFromTuple>(elem_block, context->queryContext()->getSettingsRef());
+            PreparedSets prepared_sets;
+            FutureSet::Hash emptyKey;
+            auto future_set = prepared_sets.addFromTuple(emptyKey, {elem_block}, context->queryContext()->getSettingsRef());
             auto arg = DB::ColumnSet::create(1, std::move(future_set));
             args.emplace_back(&actions_dag.addColumn(DB::ColumnWithTypeAndName(std::move(arg), std::make_shared<DB::DataTypeSet>(), name)));
 

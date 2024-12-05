@@ -66,16 +66,14 @@ public:
         const auto * lambda_output = elem_in_lambda;
         lambda_actions_dag.getOutputs().push_back(lambda_output);
         lambda_actions_dag.removeUnusedActions(Names(1, lambda_output->result_name));
-
-        auto expression_actions_settings = DB::ExpressionActionsSettings::fromContext(getContext(), DB::CompileExpressions::yes);
-        auto lambda_actions = std::make_shared<DB::ExpressionActions>(std::move(lambda_actions_dag), expression_actions_settings);
-
         DB::Names captured_column_names{elem_in_lambda->result_name};
         NamesAndTypesList lambda_arguments_names_and_types;
         lambda_arguments_names_and_types.emplace_back(x_in_lambda->result_name, x_in_lambda->result_type);
-        DB::Names required_column_names = lambda_actions->getRequiredColumns();
+        DB::Names required_column_names = lambda_actions_dag.getRequiredColumnsNames();
+        auto expression_actions_settings = DB::ExpressionActionsSettings::fromContext(getContext(), DB::CompileExpressions::yes);
         auto function_capture = std::make_shared<FunctionCaptureOverloadResolver>(
-            lambda_actions,
+            std::move(lambda_actions_dag),
+            expression_actions_settings,
             captured_column_names,
             lambda_arguments_names_and_types,
             lambda_output->result_type,
