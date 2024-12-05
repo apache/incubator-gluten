@@ -173,6 +173,20 @@ class InternalRuntime : public Runtime {
       MemoryManager* memoryManager,
       const std::unordered_map<std::string, std::string>& confMap)
       : Runtime(kind, memoryManager, confMap) {}
+
+  std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) override {
+    auto& lookup = emptySchemaBatchLoopUp_;
+    if (lookup.find(numRows) == lookup.end()) {
+      const auto rb =
+          arrow::RecordBatch::Make(arrow::schema({}), numRows, std::vector<std::shared_ptr<arrow::Array>>());
+      const auto batch = std::make_shared<ArrowColumnarBatch>(rb);
+      lookup.emplace(numRows, batch); // the batch will be released after Spark task ends
+    }
+    return lookup.at(numRows);
+  }
+
+ private:
+  std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;
 };
 
 MemoryManager* internalMemoryManagerFactory(const std::string& kind, std::unique_ptr<AllocationListener> listener) {

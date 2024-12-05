@@ -47,7 +47,8 @@ import scala.collection.JavaConverters;
 public final class ColumnarBatches {
   private static final String INTERNAL_BACKEND_KIND = "internal";
 
-  private ColumnarBatches() {}
+  private ColumnarBatches() {
+  }
 
   private enum BatchType {
     LIGHT,
@@ -84,7 +85,9 @@ public final class ColumnarBatches {
     return BatchType.HEAVY;
   }
 
-  /** Heavy batch: Data is readable from JVM and formatted as Arrow data. */
+  /**
+   * Heavy batch: Data is readable from JVM and formatted as Arrow data.
+   */
   @VisibleForTesting
   static boolean isHeavyBatch(ColumnarBatch batch) {
     return identifyBatchType(batch) == BatchType.HEAVY;
@@ -99,7 +102,9 @@ public final class ColumnarBatches {
     return identifyBatchType(batch) == BatchType.LIGHT;
   }
 
-  /** Zero-column batch: The batch doesn't have columns. Though it could have a fixed row count. */
+  /**
+   * Zero-column batch: The batch doesn't have columns. Though it could have a fixed row count.
+   */
   @VisibleForTesting
   static boolean isZeroColumnBatch(ColumnarBatch batch) {
     return identifyBatchType(batch) == BatchType.ZERO_COLUMN;
@@ -186,9 +191,9 @@ public final class ColumnarBatches {
     }
     IndicatorVector iv = (IndicatorVector) input.column(0);
     try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
-        ArrowArray cArray = ArrowArray.allocateNew(allocator);
-        ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
-        CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
+         ArrowArray cArray = ArrowArray.allocateNew(allocator);
+         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
+         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
       ColumnarBatchJniWrapper.exportToArrow(
           iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
@@ -235,7 +240,7 @@ public final class ColumnarBatches {
     final Runtime runtime =
         Runtimes.contextInstance(INTERNAL_BACKEND_KIND, "ColumnarBatches#offload");
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
-        ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
+         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, input, cSchema, cArray);
       long handle =
           ColumnarBatchJniWrapper.create(runtime)
@@ -389,6 +394,10 @@ public final class ColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     if (isZeroColumnBatch(batch)) {
+      // Use the internal Arrow-based backend to find an apposite native batch for the input
+      // zero-column batch then return its handle. This operation will cause some empty-schema
+      // native Arrow batches mixed into backend batches before sending to native for further
+      // processing. The user native code is expected to handle this case correctly.
       final ColumnarBatchJniWrapper jniWrapper =
           ColumnarBatchJniWrapper.create(
               Runtimes.contextInstance(INTERNAL_BACKEND_KIND, "ColumnarBatches#getNativeHandle"));
