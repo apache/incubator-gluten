@@ -29,17 +29,24 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 /**
- * RangeExecTransformer is a concrete implementation of RangeExecBaseTransformer that
- * executes the Range operation and supports columnar processing. It generates columnar
- * batches for the specified range.
+ * RangeExecTransformer is a concrete implementation of RangeExecBaseTransformer that executes the
+ * Range operation and supports columnar processing. It generates columnar batches for the specified
+ * range.
  *
- * @param start Starting value of the range.
- * @param end Ending value of the range.
- * @param step Step size for the range.
- * @param numSlices Number of slices for partitioning the range.
- * @param numElements Total number of elements in the range.
- * @param outputAttributes Attributes defining the output schema of the operator.
- * @param child Child SparkPlan nodes for this operator, if any.
+ * @param start
+ *   Starting value of the range.
+ * @param end
+ *   Ending value of the range.
+ * @param step
+ *   Step size for the range.
+ * @param numSlices
+ *   Number of slices for partitioning the range.
+ * @param numElements
+ *   Total number of elements in the range.
+ * @param outputAttributes
+ *   Attributes defining the output schema of the operator.
+ * @param child
+ *   Child SparkPlan nodes for this operator, if any.
  */
 case class RangeExecTransformer(
     start: Long,
@@ -77,17 +84,18 @@ case class RangeExecTransformer(
               start + step * ((partitionIndex + 1) * numElements.toLong / numSlices)
 
             /**
-             * Generates the columnar batches for the specified range. Each batch contains
-             * a subset of the range values, managed using Arrow column vectors.
-            */
+             * Generates the columnar batches for the specified range. Each batch contains a subset
+             * of the range values, managed using Arrow column vectors.
+             */
             val iterator = new Iterator[ColumnarBatch] {
               var current = safePartitionStart
 
               override def hasNext: Boolean = {
-                if (step > 0)
+                if (step > 0) {
                   current < safePartitionEnd
-                else
+                } else {
                   current > safePartitionEnd
+                }
               }
 
               override def next(): ColumnarBatch = {

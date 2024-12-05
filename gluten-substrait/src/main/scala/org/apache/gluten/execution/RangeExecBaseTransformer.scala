@@ -23,11 +23,10 @@ import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{LeafExecNode, RangeExec, SparkPlan}
 
-
 /**
- * Base class for RangeExec transformation, can be implemented by
- * the by supported backends. Currently velox is supported.
-**/
+ * Base class for RangeExec transformation, can be implemented by the by supported backends.
+ * Currently velox is supported.
+ */
 abstract class RangeExecBaseTransformer(
     start: Long,
     end: Long,
@@ -67,8 +66,8 @@ abstract class RangeExecBaseTransformer(
 }
 
 /**
- * Companion object for RangeExecBaseTransformer, provides factory methods
- * to create instance from existing RangeExec plan.
+ * Companion object for RangeExecBaseTransformer, provides factory methods to create instance from
+ * existing RangeExec plan.
  */
 object RangeExecBaseTransformer {
   def from(rangeExec: RangeExec): RangeExecBaseTransformer = {
