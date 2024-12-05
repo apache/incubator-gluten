@@ -28,7 +28,9 @@ using namespace facebook;
 
 namespace gluten {
 
-void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr rowVector, int64_t startRow) {
+std::vector<size_t> VeloxColumnarToRowConverter::refreshStates(
+    facebook::velox::RowVectorPtr rowVector,
+    int64_t startRow) {
   auto vectorLength = rowVector->size();
   numCols_ = rowVector->childrenSize();
 
@@ -36,11 +38,18 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
 
   int64_t totalMemorySize;
 
+  std::vector<size_t> bufferOffsets;
+  bufferOffsets.push_back(0);
+
   if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rowVector->type()))) {
     auto rowSize = fixedRowSize.value();
     // make sure it has at least one row
     numRows_ = std::max<int32_t>(1, std::min<int64_t>(memThreshold_ / rowSize, vectorLength - startRow));
     totalMemorySize = numRows_ * rowSize;
+    bufferOffsets.reserve(numRows_);
+    for (auto i = 1; i < numRows_; ++i) {
+      bufferOffsets.push_back(i * rowSize);
+    }
   } else {
     // Calculate the first row size
     totalMemorySize = fast_->rowSize(startRow);
@@ -51,12 +60,25 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
       if (UNLIKELY(totalMemorySize + rowSize > memThreshold_)) {
         break;
       } else {
+        bufferOffsets.push_back(totalMemorySize);
         totalMemorySize += rowSize;
       }
     }
     // Make sure the threshold is larger than the first row size
     numRows_ = endRow - startRow;
   }
+
+  offsets_.clear();
+  lengths_.clear();
+  offsets_.reserve(numRows_);
+  lengths_.reserve(numRows_);
+
+  offsets_.push_back(0);
+  for (auto i = 1; i < numRows_; ++i) {
+    lengths_.push_back(bufferOffsets[i] - bufferOffsets[i - 1]);
+    offsets_.push_back(bufferOffsets[i]);
+  }
+  lengths_.push_back(totalMemorySize - bufferOffsets.back());
 
   if (nullptr == veloxBuffers_) {
     veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(totalMemorySize, veloxPool_.get());
@@ -66,27 +88,13 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
 
   bufferAddress_ = veloxBuffers_->asMutable<uint8_t>();
   memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
+  return bufferOffsets;
 }
 
 void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb, int64_t startRow) {
   auto veloxBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-  refreshStates(veloxBatch->getRowVector(), startRow);
-
-  // Initialize the offsets_ , lengths_
-  lengths_.clear();
-  offsets_.clear();
-  lengths_.resize(numRows_, 0);
-  offsets_.resize(numRows_, 0);
-
-  size_t offset = 0;
-  for (auto i = 0; i < numRows_; ++i) {
-    auto rowSize = fast_->serialize(startRow + i, (char*)(bufferAddress_ + offset));
-    lengths_[i] = rowSize;
-    if (i > 0) {
-      offsets_[i] = offsets_[i - 1] + lengths_[i - 1];
-    }
-    offset += rowSize;
-  }
+  auto bufferOffsets = refreshStates(veloxBatch->getRowVector(), startRow);
+  fast_->serialize(startRow, numRows_, bufferOffsets.data(), (char*)bufferAddress_);
 }
 
 } // namespace gluten
