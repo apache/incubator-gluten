@@ -1023,7 +1023,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
     // Handle if all sorting keys are also used as partition keys.
 
     return std::make_shared<core::RowNumberNode>(
-        nextPlanNodeId(), partitionKeys, rowNumberColumnName, (int32_t)windowGroupLimitRel.limit(), childNode);
+        nextPlanNodeId(),
+        partitionKeys,
+        rowNumberColumnName,
+        static_cast<int32_t>(windowGroupLimitRel.limit()),
+        childNode);
   }
 
   return std::make_shared<core::TopNRowNumberNode>(
@@ -1032,7 +1036,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
       sortingKeys,
       sortingOrders,
       rowNumberColumnName,
-      (int32_t)windowGroupLimitRel.limit(),
+      static_cast<int32_t>(windowGroupLimitRel.limit()),
       childNode);
 }
 
@@ -1122,14 +1126,18 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::FetchRel& fetchRel) {
   auto childNode = convertSingleInput<::substrait::FetchRel>(fetchRel);
   return std::make_shared<core::LimitNode>(
-      nextPlanNodeId(), (int32_t)fetchRel.offset(), (int32_t)fetchRel.count(), false /*isPartial*/, childNode);
+      nextPlanNodeId(),
+      static_cast<int32_t>(fetchRel.offset()),
+      static_cast<int32_t>(fetchRel.count()),
+      false /*isPartial*/,
+      childNode);
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::TopNRel& topNRel) {
   auto childNode = convertSingleInput<::substrait::TopNRel>(topNRel);
   auto [sortingKeys, sortingOrders] = processSortField(topNRel.sorts(), childNode->outputType());
   return std::make_shared<core::TopNNode>(
-      nextPlanNodeId(), sortingKeys, sortingOrders, (int32_t)topNRel.n(), false /*isPartial*/, childNode);
+      nextPlanNodeId(), sortingKeys, sortingOrders, static_cast<int32_t>(topNRel.n()), false /*isPartial*/, childNode);
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(

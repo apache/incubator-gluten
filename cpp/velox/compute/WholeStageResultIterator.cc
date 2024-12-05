@@ -478,9 +478,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       // partial aggregation memory config
       auto offHeapMemory = veloxCfg_->get<int64_t>(kSparkTaskOffHeapMemory, facebook::velox::memory::kMaxMemory);
       auto maxPartialAggregationMemory =
-          (long)(veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory);
+          static_cast<long>((veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
       auto maxExtendedPartialAggregationMemory =
-          (long)(veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory);
+          static_cast<long>((veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
       configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
           std::to_string(maxExtendedPartialAggregationMemory);
