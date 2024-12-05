@@ -401,4 +401,18 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-8148: Fix corr with NaN") {
+    withTable("corr_nan") {
+      sql("create table if not exists corr_nan (x double, y double) using parquet")
+      sql("insert into corr_nan values(0,1)")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select corr(x,y), corr(y,x) from corr_nan
+        """.stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }
