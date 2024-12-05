@@ -137,7 +137,7 @@ object RasOffload {
                     offloadedPlan
                   }
                 } catch {
-                  case GlutenNotSupportException =>
+                  case _: GlutenNotSupportException =>
                     // TODO: Tag the original plan with fallback reason. This is a non-trivial work
                     //  in RAS as the query plan we got here may be a copy so may not propagate tags
                     //  to original plan.
