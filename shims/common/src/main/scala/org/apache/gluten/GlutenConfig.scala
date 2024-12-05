@@ -1416,7 +1416,7 @@ object GlutenConfig {
   val RAS_ENABLED =
     buildConf("spark.gluten.ras.enabled")
       .doc(
-        "Experimental: Enables RAS (relational algebra selector) during physical " +
+        "Enables RAS (relational algebra selector) during physical " +
           "planning to generate more efficient query plan. Note, this feature is still in " +
           "development and may not bring performance profits.")
       .booleanConf
