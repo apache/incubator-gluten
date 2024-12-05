@@ -29,8 +29,8 @@
 #include "velox/functions/sparksql/DecimalArithmetic.h"
 #include "velox/functions/sparksql/Hash.h"
 #include "velox/functions/sparksql/Rand.h"
-#include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
+#include "velox/functions/sparksql/registration/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
 
 using namespace facebook;

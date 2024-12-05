@@ -17,6 +17,7 @@
 #include "SparkStorageMergeTree.h"
 
 #include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
+#include <Disks/SingleDiskVolume.h>
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>

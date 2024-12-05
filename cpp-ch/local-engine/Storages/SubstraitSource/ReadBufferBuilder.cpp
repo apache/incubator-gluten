@@ -616,21 +616,20 @@ ConcurrentLRU<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuil
 class AzureBlobReadBuffer : public ReadBufferBuilder
 {
 public:
-    explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
+    explicit AzureBlobReadBuffer(const DB::ContextPtr & context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
     std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        std::unique_ptr<DB::ReadBuffer> read_buffer;
-        read_buffer = std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
-        return read_buffer;
+        return std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
     }
 
 private:
-    std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> shared_client;
 
-    std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> getClient()
+    std::shared_ptr<DB::AzureBlobStorage::ContainerClient> shared_client;
+
+    std::shared_ptr<DB::AzureBlobStorage::ContainerClient> getClient()
     {
         if (shared_client)
             return shared_client;
@@ -687,7 +686,7 @@ DB::ReadSettings ReadBufferBuilder::getReadSettings() const
     return read_settings;
 }
 
-ReadBufferBuilder::ReadBufferBuilder(DB::ContextPtr context_) : context(context_)
+ReadBufferBuilder::ReadBufferBuilder(const DB::ContextPtr & context_) : context(context_)
 {
 }
 

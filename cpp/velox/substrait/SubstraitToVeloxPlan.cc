@@ -140,13 +140,6 @@ RowTypePtr getJoinOutputType(
   VELOX_FAIL("Output should include left or right columns.");
 }
 
-// Returns the path vector used to create Subfield.
-std::vector<std::unique_ptr<common::Subfield::PathElement>> getPath(const std::string& field) {
-  std::vector<std::unique_ptr<common::Subfield::PathElement>> path;
-  path.push_back(std::make_unique<common::Subfield::NestedField>(field));
-  return path;
-}
-
 } // namespace
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(

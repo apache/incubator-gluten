@@ -19,6 +19,7 @@
 #include <format>
 #include <memory>
 #include <vector>
+#include <Columns/ColumnsNumber.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteBufferFromFile.h>
 #include <IO/WriteBufferFromString.h>
