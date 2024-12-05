@@ -33,7 +33,7 @@ public final class VeloxBatchResizer {
         Runtimes.contextInstance(BackendsApiManager.getBackendName(), "VeloxBatchResizer");
     long outHandle =
         VeloxBatchResizerJniWrapper.create(runtime)
-            .create(minOutputBatchSize, maxOutputBatchSize, new ColumnarBatchInIterator(in));
+            .create(minOutputBatchSize, maxOutputBatchSize, new ColumnarBatchInIterator(BackendsApiManager.getBackendName(), in));
     return new ColumnarBatchOutIterator(runtime, outHandle);
   }
 }

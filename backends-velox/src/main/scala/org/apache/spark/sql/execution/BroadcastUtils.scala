@@ -153,7 +153,8 @@ object BroadcastUtils {
     if (filtered.isEmpty) {
       return ColumnarBatchSerializeResult.EMPTY
     }
-    val handleArray = filtered.map(ColumnarBatches.getNativeHandle)
+    val handleArray =
+      filtered.map(b => ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b))
     val serializeResult =
       try {
         ColumnarBatchSerializerJniWrapper

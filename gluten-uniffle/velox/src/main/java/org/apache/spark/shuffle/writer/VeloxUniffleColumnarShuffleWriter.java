@@ -146,7 +146,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       if (cb.numRows() == 0 || cb.numCols() == 0) {
         LOG.info("Skip ColumnarBatch of 0 rows or 0 cols");
       } else {
-        long handle = ColumnarBatches.getNativeHandle(cb);
+        long handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), cb);
         if (nativeShuffleWriter == -1) {
           nativeShuffleWriter =
               jniWrapper.makeForRSS(

@@ -157,7 +157,7 @@ object VeloxColumnarToRowExec {
         val cols = batch.numCols()
         val rows = batch.numRows()
         val beforeConvert = System.currentTimeMillis()
-        val batchHandle = ColumnarBatches.getNativeHandle(batch)
+        val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
         var info =
           jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, 0)
 

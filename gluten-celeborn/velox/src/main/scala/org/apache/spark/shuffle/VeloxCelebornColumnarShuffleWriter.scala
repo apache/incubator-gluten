@@ -77,7 +77,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         initShuffleWriter(cb)
-        val handle = ColumnarBatches.getNativeHandle(cb)
+        val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
         dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
@@ -133,7 +133,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       clientPushBufferMaxSize,
       clientPushSortMemoryThreshold,
       celebornPartitionPusher,
-      ColumnarBatches.getNativeHandle(columnarBatch),
+      ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, columnarBatch),
       context.taskAttemptId(),
       GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
       "celeborn",

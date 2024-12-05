@@ -78,7 +78,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
         ColumnarBatches.retain(batch)
         val batchHandle = {
           ColumnarBatches.checkOffloaded(batch)
-          ColumnarBatches.getNativeHandle(batch)
+          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
         }
         datasourceJniWrapper.writeBatch(dsHandle, batchHandle)
         batch.close()
@@ -109,7 +109,7 @@ class VeloxRowSplitter extends GlutenRowSplitter {
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
       reserve_partition_columns: Boolean = false): BlockStripes = {
-    val handler = ColumnarBatches.getNativeHandle(row.batch)
+    val handler = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, row.batch)
     val runtime =
       Runtimes.contextInstance(BackendsApiManager.getBackendName, "VeloxPartitionWriter")
     val datasourceJniWrapper = VeloxDataSourceJniWrapper.create(runtime)

@@ -153,7 +153,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
             var info =
               jniWrapper.nativeColumnarToRowConvert(
                 c2rId,
-                ColumnarBatches.getNativeHandle(batch),
+                ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch),
                 0)
             batch.close()
 

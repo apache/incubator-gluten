@@ -136,7 +136,7 @@ class ColumnarShuffleWriter[K, V](
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
         val rows = cb.numRows()
-        val handle = ColumnarBatches.getNativeHandle(cb)
+        val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, cb)
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning.getShortName,
