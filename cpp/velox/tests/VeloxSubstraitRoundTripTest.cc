@@ -27,7 +27,6 @@
 
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/VeloxToSubstraitPlan.h"
-#include "velox/functions/sparksql/Register.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
 
 #include "substrait/VariantToVectorConverter.h"
