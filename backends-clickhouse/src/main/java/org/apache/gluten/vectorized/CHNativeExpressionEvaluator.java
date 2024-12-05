@@ -17,7 +17,6 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.GlutenConfig;
-import org.apache.gluten.backend.Backend;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.execution.ColumnarNativeIterator;
 import org.apache.gluten.memory.CHThreadGroup;
@@ -30,8 +29,7 @@ import java.util.Map;
 
 public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
 
-  private CHNativeExpressionEvaluator() {
-  }
+  private CHNativeExpressionEvaluator() {}
 
   // Used to initialize the native computing.
   public static void initNative(scala.collection.Map<String, String> conf) {
@@ -40,7 +38,8 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
 
     // Get the customer config from SparkConf for each backend
     BackendsApiManager.getTransformerApiInstance()
-        .postProcessNativeConfig(nativeConfMap, GlutenConfig.prefixOf(BackendsApiManager.getBackendName()));
+        .postProcessNativeConfig(
+            nativeConfMap, GlutenConfig.prefixOf(BackendsApiManager.getBackendName()));
 
     nativeInitNative(ConfigUtil.serialize(nativeConfMap));
   }
@@ -55,7 +54,8 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
   }
 
   private static Map<String, String> getNativeBackendConf() {
-    return GlutenConfig.getNativeBackendConf(BackendsApiManager.getBackendName(), SQLConf.get().getAllConfs());
+    return GlutenConfig.getNativeBackendConf(
+        BackendsApiManager.getBackendName(), SQLConf.get().getAllConfs());
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and
