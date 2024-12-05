@@ -28,6 +28,19 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
+/**
+ * RangeExecTransformer is a concrete implementation of RangeExecBaseTransformer that
+ * executes the Range operation and supports columnar processing. It generates columnar
+ * batches for the specified range.
+ *
+ * @param start Starting value of the range.
+ * @param end Ending value of the range.
+ * @param step Step size for the range.
+ * @param numSlices Number of slices for partitioning the range.
+ * @param numElements Total number of elements in the range.
+ * @param outputAttributes Attributes defining the output schema of the operator.
+ * @param child Child SparkPlan nodes for this operator, if any.
+ */
 case class RangeExecTransformer(
     start: Long,
     end: Long,
@@ -44,36 +57,37 @@ case class RangeExecTransformer(
     numElements,
     outputAttributes,
     child) {
-  // scalastyle:off println
+
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    println(s"[arnavb] RangeExecBaseTransformer 47")
     if (start == end || (start < end ^ 0 < step)) {
-      println(s"[arnavb] RangeExecBaseTransformer 49")
       sparkContext.emptyRDD[ColumnarBatch]
     } else {
-      println(s"[arnavb] RangeExecBaseTransformer 52")
-      // scalastyle:off println
-      println(s"[arnavb] RangeExecBaseTransformer 55")
       sparkContext
         .parallelize(0 until numSlices, numSlices)
         .mapPartitionsWithIndex {
           (partitionIndex, _) =>
-            println(s"[arnavb] RangeExecBaseTransformer 62")
-            val sessionLocalTimeZone = SQLConf.get.sessionLocalTimeZone
             val allocator = ArrowBufferAllocators.contextInstance()
+            val sessionLocalTimeZone = SQLConf.get.sessionLocalTimeZone
             val arrowSchema = SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-            val batchSize = 2
+
+            val batchSize = 1000
             val safePartitionStart =
               start + step * (partitionIndex * numElements.toLong / numSlices)
             val safePartitionEnd =
               start + step * ((partitionIndex + 1) * numElements.toLong / numSlices)
 
+            /**
+             * Generates the columnar batches for the specified range. Each batch contains
+             * a subset of the range values, managed using Arrow column vectors.
+            */
             val iterator = new Iterator[ColumnarBatch] {
               var current = safePartitionStart
 
               override def hasNext: Boolean = {
-                if (step > 0) current < safePartitionEnd
-                else current > safePartitionEnd
+                if (step > 0)
+                  current < safePartitionEnd
+                else
+                  current > safePartitionEnd
               }
 
               override def next(): ColumnarBatch = {
@@ -85,46 +99,26 @@ case class RangeExecTransformer(
                 val vectors = ArrowWritableColumnVector.allocateColumns(numRows, schema)
 
                 for (i <- 0 until numRows) {
-                  // val value = current + i * step
-                  val value = 1
+                  val value = current + i * step
                   vectors(0).putLong(i, value)
                 }
                 vectors.foreach(_.setValueCount(numRows))
-                val batch = new ColumnarBatch(vectors.asInstanceOf[Array[ColumnVector]], numRows)
                 current += numRows * step
+
+                val batch = new ColumnarBatch(vectors.asInstanceOf[Array[ColumnVector]], numRows)
                 val offloadedBatch = ColumnarBatches.offload(allocator, batch)
-                println(s"[arnavb] returning offloaded batch 94")
-                println(s"[arnavb] going to return the wrapped batch 110")
                 offloadedBatch
               }
-              println(s"[arnavb] returning offloaded batch 112")
             }
             Iterators
               .wrap(iterator)
-              .recyclePayload(_.close())
               .recyclePayload(
                 batch => {
-                  println(s"[arnavb] Closing batch with rows1.")
                   batch.close()
                 })
-              .recyclePayload(
-                offloadedBatch => {
-                  println(s"[arnavb] Closing batch with rows2.")
-                  offloadedBatch.close()
-                })
-              .recycleIterator(
-                () => {
-                  println(s"[arnavb] Closing allocator for partition1.")
-                  allocator.close()
-                  try {
-                    println(s"[arnavb] Closing iterator2.")
-                    println(s"[arnavb] Iterator successfully closed3.")
-                  } catch {
-                    case e: Exception =>
-                      println(s"[arnavb] Error while closing iterator3: ${e.getMessage}")
-                      throw e
-                  }
-                })
+              .recycleIterator {
+                allocator.close()
+              }
               .create()
 
         }
@@ -132,6 +126,6 @@ case class RangeExecTransformer(
   }
 
   override protected def doExecute(): RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException("Custom execution is not implemented yet.")
+    throw new UnsupportedOperationException("doExecute is not supported for this operator")
   }
 }

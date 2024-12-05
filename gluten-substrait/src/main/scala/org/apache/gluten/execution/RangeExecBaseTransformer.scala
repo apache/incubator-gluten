@@ -22,7 +22,12 @@ import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{LeafExecNode, RangeExec, SparkPlan}
-// scalastyle:off println
+
+
+/**
+ * Base class for RangeExec transformation, can be implemented by
+ * the by supported backends. Currently velox is supported.
+**/
 abstract class RangeExecBaseTransformer(
     start: Long,
     end: Long,
@@ -34,32 +39,39 @@ abstract class RangeExecBaseTransformer(
   extends LeafExecNode
   with ValidatablePlan {
 
-  println(s"[arnavb] RangeExecBaseTransformer invoked 123")
-
-  override def output: Seq[Attribute] = outputAttributes
+  override def output: Seq[Attribute] = {
+    outputAttributes
+  }
 
   override protected def doValidateInternal(): ValidationResult = {
-    // scalastyle:off println
-    println("[arnavb] doValidateInternal called.")
+    val isSupported = BackendsApiManager.getSettings.supportRangeExec()
+
+    if (!isSupported) {
+      return ValidationResult.failed(
+        s"RangeExec is not supported by the current backend."
+      )
+    }
     ValidationResult.succeeded
   }
 
-  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+  override def batchType(): Convention.BatchType = {
+    BackendsApiManager.getSettings.primaryBatchType
+  }
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override protected def doExecute()
       : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    // scalastyle:off println
-    println("doexecute called.")
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 }
 
+/**
+ * Companion object for RangeExecBaseTransformer, provides factory methods
+ * to create instance from existing RangeExec plan.
+ */
 object RangeExecBaseTransformer {
-  println(s"[arnavb] RangeExecBaseTransformer invoked")
   def from(rangeExec: RangeExec): RangeExecBaseTransformer = {
-    println(s"[arnavb] RangeExecBaseTransformer 1invoked")
     BackendsApiManager.getSparkPlanExecApiInstance
       .genRangeExecTransformer(
         rangeExec.start,
