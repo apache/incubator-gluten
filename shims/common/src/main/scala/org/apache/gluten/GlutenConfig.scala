@@ -1417,8 +1417,9 @@ object GlutenConfig {
     buildConf("spark.gluten.ras.enabled")
       .doc(
         "Enables RAS (relational algebra selector) during physical " +
-          "planning to generate more efficient query plan. Note, this feature is still in " +
-          "development and may not bring performance profits.")
+          "planning to generate more efficient query plan. Note, this feature doesn't bring " +
+          "performance profits by default. Try exploring option `spark.gluten.ras.costModel` " +
+          "for advanced usage.")
       .booleanConf
       .createWithDefault(false)
 
