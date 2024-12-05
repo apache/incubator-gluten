@@ -30,8 +30,8 @@ class DataPartStorageHolder
 {
 public:
     DataPartStorageHolder(const DataPartPtr& data_part, const SparkStorageMergeTreePtr& storage)
-        : data_part_(data_part),
-          storage_(storage)
+        : storage_(storage),
+          data_part_(data_part)
     {
     }
 
@@ -48,12 +48,11 @@ public:
     ~DataPartStorageHolder()
     {
         storage_->removePartFromMemory(*data_part_);
-        // std::cerr << fmt::format("clean part {}", data_part_->name) << std::endl;
     }
 
 private:
-    DataPartPtr data_part_;
     SparkStorageMergeTreePtr storage_;
+    DataPartPtr data_part_;
 };
 
 using DataPartStorageHolderPtr = std::shared_ptr<DataPartStorageHolder>;

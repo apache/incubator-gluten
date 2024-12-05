@@ -246,20 +246,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       }
     }
 
-    def validateBucketSpec(): Option[String] = {
-      if (bucketSpec.nonEmpty) {
-        Some("Unsupported native write: bucket write is not supported.")
-      } else {
-        None
-      }
-    }
-
     validateCompressionCodec()
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
       .orElse(validateDateTypes())
-      .orElse(validateWriteFilesOptions())
-      .orElse(validateBucketSpec()) match {
+      .orElse(validateWriteFilesOptions()) match {
       case Some(reason) => ValidationResult.failed(reason)
       case _ => ValidationResult.succeeded
     }
@@ -355,6 +346,14 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def enableLazyAggregateExpand(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConf.runtimeConfig("enable_lazy_aggregate_expand"),
+      defaultValue = true
+    )
+  }
+
+  // If the partition keys are high cardinality, the aggregation method is slower.
+  def enableConvertWindowGroupLimitToAggregate(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_window_group_limit_to_aggregate"),
       defaultValue = true
     )
   }

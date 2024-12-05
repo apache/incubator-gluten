@@ -14,25 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Functions/FunctionGreatestLeast.h>
+package org.apache.spark.shuffle
 
-namespace local_engine
-{
-class SparkFunctionLeast : public FunctionGreatestestLeast<DB::LeastGreatest::Least>
-{
-public:
-    static constexpr auto name = "sparkLeast";
-    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionLeast>(); }
-    SparkFunctionLeast() = default;
-    ~SparkFunctionLeast() override = default;
-    String getName() const override
-    {
-        return name;
-    } 
-};
+import org.apache.spark.ShuffleDependency
 
-REGISTER_FUNCTION(SparkLeast)
-{
-    factory.registerFunction<SparkFunctionLeast>();
-}
+/**
+ * Required during shuffle manager registration to determine whether the shuffle manager should be
+ * used for the particular shuffle dependency.
+ */
+trait LookupKey {
+  def accepts[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean
 }

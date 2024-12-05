@@ -475,7 +475,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_metrics_IteratorMetricsJniWrapp
   }
 
   jlongArray longArray[Metrics::kNum];
-  for (auto i = (int)Metrics::kBegin; i != (int)Metrics::kEnd; ++i) {
+  for (auto i = static_cast<int>(Metrics::kBegin); i != static_cast<int>(Metrics::kEnd); ++i) {
     longArray[i] = env->NewLongArray(numMetrics);
     if (metrics) {
       env->SetLongArrayRegion(longArray[i], 0, numMetrics, metrics->get((Metrics::TYPE)i));
@@ -801,7 +801,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .bufferSize = bufferSize,
       .bufferReallocThreshold = reallocThreshold,
       .partitioning = toPartitioning(jStringToCString(env, partitioningNameJstr)),
-      .taskAttemptId = (int64_t)taskAttemptId,
+      .taskAttemptId = static_cast<int64_t>(taskAttemptId),
       .startPartitionId = startPartitionId,
       .shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
       .sortBufferInitialSize = sortBufferInitialSize,
@@ -823,6 +823,13 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   if (codecJstr != NULL) {
     partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
     partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);
+  }
+  const auto& conf = ctx->getConfMap();
+  {
+    auto it = conf.find(kShuffleFileBufferSize);
+    if (it != conf.end()) {
+      partitionWriterOptions.shuffleFileBufferSize = static_cast<int64_t>(stoi(it->second));
+    }
   }
 
   std::unique_ptr<PartitionWriter> partitionWriter;

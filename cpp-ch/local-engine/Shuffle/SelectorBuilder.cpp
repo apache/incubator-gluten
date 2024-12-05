@@ -17,6 +17,7 @@
 #include "SelectorBuilder.h"
 #include <limits>
 #include <memory>
+#include <Columns/ColumnConst.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <DataTypes/DataTypeArray.h>

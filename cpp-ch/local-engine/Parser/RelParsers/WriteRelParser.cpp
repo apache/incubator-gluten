@@ -56,10 +56,11 @@ DB::ProcessorPtr make_sink(
     const std::string & format_hint,
     const std::shared_ptr<WriteStats> & stats)
 {
-    if (partition_by.empty())
+    bool no_bucketed = !SparkPartitionedBaseSink::isBucketedWrite(input_header);
+    if (partition_by.empty() && no_bucketed)
     {
         return std::make_shared<SubstraitFileSink>(
-            context, base_path, "", generator.generate(), format_hint, input_header, stats, DeltaStats{input_header.columns()});
+            context, base_path, "", false, generator.generate(), format_hint, input_header, stats, DeltaStats{input_header.columns()});
     }
 
     return std::make_shared<SubstraitPartitionedFileSink>(
@@ -184,13 +185,10 @@ void addNormalFileWriterSinkTransform(
     if (write_settings.task_write_tmp_dir.empty())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject temp directory.");
 
-    if (write_settings.task_write_filename.empty() && write_settings.task_write_filename_pattern.empty())
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject file name or file name pattern.");
+    if (write_settings.task_write_filename_pattern.empty())
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject file pattern.");
 
-    FileNameGenerator generator{
-        .pattern = write_settings.task_write_filename.empty(),
-        .filename_or_pattern
-        = write_settings.task_write_filename.empty() ? write_settings.task_write_filename_pattern : write_settings.task_write_filename};
+    FileNameGenerator generator(write_settings.task_write_filename_pattern);
 
     auto stats = WriteStats::create(output, partitionCols);
 

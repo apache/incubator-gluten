@@ -14,25 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Functions/FunctionGreatestLeast.h>
+package org.apache.spark.shuffle
 
-namespace local_engine
-{
-class SparkFunctionGreatest : public FunctionGreatestestLeast<DB::LeastGreatest::Greatest>
-{
-public:
-    static constexpr auto name = "sparkGreatest";
-    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionGreatest>(); }
-    SparkFunctionGreatest() = default;
-    ~SparkFunctionGreatest() override = default;
-    String getName() const override
-    {
-        return name;
-    } 
-};
+import org.apache.spark.ShuffleDependency
 
-REGISTER_FUNCTION(SparkGreatest)
-{
-    factory.registerFunction<SparkFunctionGreatest>();
-}
+private class ShuffleManagerLookup(all: Seq[(LookupKey, ShuffleManager)]) {
+  private val allReversed = all.reverse
+
+  def findShuffleManager[K, V, C](dependency: ShuffleDependency[K, V, C]): ShuffleManager = {
+    this.synchronized {
+      // The latest shuffle manager registered will be looked up earlier.
+      allReversed.find(_._1.accepts(dependency)).map(_._2).getOrElse {
+        throw new IllegalStateException(s"No ShuffleManager found for $dependency")
+      }
+    }
+  }
+
+  def all(): Seq[ShuffleManager] = {
+    this.synchronized {
+      all.map(_._2)
+    }
+  }
 }

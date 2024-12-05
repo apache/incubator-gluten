@@ -121,7 +121,7 @@ TEST(WritePipeline, SubstraitFileSink)
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
     GlutenWriteSettings settings{
         .task_write_tmp_dir = "file:///tmp/test_table/test",
-        .task_write_filename = "data.parquet",
+        .task_write_filename_pattern = "data.parquet",
     };
     settings.set(context);
 
@@ -155,7 +155,7 @@ TEST(WritePipeline, SubstraitFileSink)
     std::cerr << debug::verticalShowString(x, 10, 50) << std::endl;
     EXPECT_EQ(1, x.rows());
     const auto & col_a = *(x.getColumns()[0]);
-    EXPECT_EQ(settings.task_write_filename, col_a.getDataAt(0));
+    EXPECT_EQ(settings.task_write_filename_pattern, col_a.getDataAt(0));
     const auto & col_b = *(x.getColumns()[1]);
     EXPECT_EQ(SubstraitFileSink::NO_PARTITION_ID, col_b.getDataAt(0));
     const auto & col_c = *(x.getColumns()[2]);
@@ -169,7 +169,7 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
     GlutenWriteSettings settings{
         .task_write_tmp_dir = "file:///tmp/test_table/test_partition",
-        .task_write_filename = "data.parquet",
+        .task_write_filename_pattern = "data.parquet",
     };
     settings.set(context);
 
@@ -206,14 +206,14 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
 TEST(WritePipeline, ComputePartitionedExpression)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
-
-    auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"});
+    
+    Block sample_block{{STRING(), "name"}, {UINT(), "s_nationkey"}};
+    auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"}, sample_block);
     // auto partition_by = printColumn("s_nationkey");
 
     ASTs arguments(1, partition_by);
     ASTPtr partition_by_string = makeASTFunction("toString", std::move(arguments));
 
-    Block sample_block{{STRING(), "name"}, {UINT(), "s_nationkey"}};
 
     auto syntax_result = TreeRewriter(context).analyze(partition_by_string, sample_block.getNamesAndTypesList());
     auto partition_by_expr = ExpressionAnalyzer(partition_by_string, syntax_result, context).getActions(false);

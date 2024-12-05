@@ -79,6 +79,7 @@ object CHRuleApi {
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
     injector.injectPreTransform(c => FallbackBroadcastHashJoin.apply(c.session))
     injector.injectPreTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
+    injector.injectPreTransform(_ => WriteFilesWithBucketValue)
 
     // Legacy: The legacy transform rule.
     val validatorBuilder: GlutenConfig => Validator = conf =>
@@ -110,6 +111,7 @@ object CHRuleApi {
     injector.injectPostTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
     injector.injectPostTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.session))
     injector.injectPostTransform(c => LazyAggregateExpandRule.apply(c.session))
+    injector.injectPostTransform(c => ConverRowNumbertWindowToAggregateRule(c.session))
     injector.injectPostTransform(
       c =>
         intercept(

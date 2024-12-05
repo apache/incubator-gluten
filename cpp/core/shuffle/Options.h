@@ -39,6 +39,7 @@ static constexpr bool kEnableBufferedWrite = true;
 static constexpr bool kDefaultUseRadixSort = true;
 static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
+static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
 
 enum ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
 enum PartitionWriterType { kLocal, kRss };
@@ -86,6 +87,8 @@ struct PartitionWriterOptions {
   int64_t pushBufferMaxSize = kDefaultPushMemoryThreshold;
 
   int64_t sortBufferMaxSize = kDefaultSortBufferThreshold;
+
+  int64_t shuffleFileBufferSize = kDefaultShuffleFileBufferSize;
 };
 
 struct ShuffleWriterMetrics {
