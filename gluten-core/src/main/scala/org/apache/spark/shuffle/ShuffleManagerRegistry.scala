@@ -17,7 +17,7 @@
 package org.apache.spark.shuffle
 
 import org.apache.spark.SparkConf
-import org.apache.spark.util.Utils
+import org.apache.spark.util.{SparkTestUtil, Utils}
 
 import scala.collection.mutable
 
@@ -49,8 +49,9 @@ class ShuffleManagerRegistry private[ShuffleManagerRegistry] {
     }
   }
 
-  // Visible for testing
+  // Visible for testing.
   private[shuffle] def clear(): Unit = {
+    assert(SparkTestUtil.isTesting)
     this.synchronized {
       classDeDup.clear()
       all.clear()

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -40,7 +41,8 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
-    val runtime = Runtimes.contextInstance("BuildSideRelation#deserialized")
+    val runtime =
+      Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#deserialized")
     val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()
@@ -86,7 +88,8 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
    * was called in Spark Driver, should manage resources carefully.
    */
   override def transform(key: Expression): Array[InternalRow] = TaskResources.runUnsafe {
-    val runtime = Runtimes.contextInstance("BuildSideRelation#transform")
+    val runtime =
+      Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle = {
@@ -150,7 +153,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
             var info =
               jniWrapper.nativeColumnarToRowConvert(
                 c2rId,
-                ColumnarBatches.getNativeHandle(batch),
+                ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch),
                 0)
             batch.close()
 

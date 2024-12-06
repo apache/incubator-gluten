@@ -14,13 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backend
+package org.apache.spark.util
 
-trait Backend extends Component {
-
-  /**
-   * Backends don't have dependencies. They are all considered root components in the component DAG
-   * and will be loaded at the beginning.
-   */
-  final override def dependencies(): Seq[Class[_ <: Component]] = Nil
+object SparkTestUtil {
+  def isTesting: Boolean = {
+    Utils.isTesting
+  }
 }

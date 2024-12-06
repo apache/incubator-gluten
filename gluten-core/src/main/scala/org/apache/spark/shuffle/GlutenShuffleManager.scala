@@ -25,6 +25,10 @@ import org.apache.spark.annotation.Experimental
  *
  * A SPIP may cause refactoring of this class in the future:
  * https://issues.apache.org/jira/browse/SPARK-45792
+ *
+ * Experimental: This is not expected to be used in production yet. Use backend shuffle manager
+ * (e.g., ColumnarShuffleManager or other RSS shuffle manager provided in Gluten's code
+ * base)instead.
  */
 @Experimental
 class GlutenShuffleManager(conf: SparkConf, isDriver: Boolean) extends ShuffleManager {

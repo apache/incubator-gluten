@@ -164,7 +164,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (isDriver && !inLocalMode(conf)) {
       parsed += (GlutenConfig.COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
     }
-    NativeBackendInitializer.initializeBackend(parsed)
+    NativeBackendInitializer.forBackend(VeloxBackend.BACKEND_NAME).initialize(parsed)
 
     // Inject backend-specific implementations to override spark classes.
     GlutenFormatFactory.register(new VeloxParquetWriterInjects)
