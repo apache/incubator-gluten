@@ -364,6 +364,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def supportCartesianProductExec(): Boolean = true
 
+  override def supportCartesianProductExecWithCondition(): Boolean = false
+
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>
       if (super.supportHashBuildJoinTypeOnLeft(t)) {
