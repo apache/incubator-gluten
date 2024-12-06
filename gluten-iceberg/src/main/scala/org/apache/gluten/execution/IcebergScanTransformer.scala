@@ -50,8 +50,6 @@ case class IcebergScanTransformer(
     IcebergScanTransformer.supportsBatchScan(scan)
   }
 
-  override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
-
   override lazy val getPartitionSchema: StructType =
     GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 

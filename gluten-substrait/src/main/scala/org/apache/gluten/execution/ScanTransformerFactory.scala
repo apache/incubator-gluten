@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.FileSourceScanExec
@@ -41,6 +42,12 @@ object ScanTransformerFactory {
           .asInstanceOf[DataSourceScanTransformerRegister]
           .createDataSourceTransformer(scanExec)
       case _ =>
+        val dataFilters = scanExec.dataFilters.filter {
+          expr =>
+            ExpressionConverter.canReplaceWithExpressionTransformer(
+              ExpressionConverter.replaceAttributeReference(expr),
+              scanExec.output)
+        }
         FileSourceScanExecTransformer(
           scanExec.relation,
           scanExec.output,
@@ -48,7 +55,7 @@ object ScanTransformerFactory {
           scanExec.partitionFilters,
           scanExec.optionalBucketSet,
           scanExec.optionalNumCoalescedBuckets,
-          scanExec.dataFilters,
+          dataFilters,
           scanExec.tableIdentifier,
           scanExec.disableBucketedScan
         )
