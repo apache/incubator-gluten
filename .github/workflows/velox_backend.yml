@@ -532,7 +532,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/ && \
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with uniffle
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with uniffle-${{ matrix.uniffle }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
