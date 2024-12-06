@@ -164,11 +164,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       resultExpressions)
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
-      groupingExpressions.distinct,
+      groupingExpressions,
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
-      replacedResultExpressions.distinct,
+      replacedResultExpressions,
       child
     )
   }

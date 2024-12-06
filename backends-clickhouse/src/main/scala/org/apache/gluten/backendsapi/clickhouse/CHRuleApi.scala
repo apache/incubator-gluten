@@ -118,6 +118,7 @@ object CHRuleApi {
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
             c.session)))
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatch))
+    injector.injectPostTransform(c => RemoveDuplicatedColumns.apply(c.session))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(
