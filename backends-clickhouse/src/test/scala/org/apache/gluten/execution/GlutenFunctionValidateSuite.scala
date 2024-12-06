@@ -22,6 +22,7 @@ import org.apache.gluten.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -860,4 +861,22 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     val sql = "select cast(id % 2 = 1 as string) from range(10)"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("GLUTEN-7866: Unsupported re2 regex should fallback") {
+    val sql1 = "select split('123abc456', '\\d(?!\\d)')"
+    val sql2 = "select '123abc456' rlike '\\d(?=\\D)'"
+    val sql3 = "select regexp_replace('123abc456', '(?<=\\d)\\D', 'x')"
+    val sql4 = "select regexp_extract('123abc456', '(?<!\\d)(\\D)', 1)"
+    val sql5 = "select regexp_extract_all('123abc456', '(?<!\\d)(\\D)', 1)"
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
+        (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(sql1, noFallBack = false)(checkSparkOperatorMatch[ProjectExec])
+      runQueryAndCompare(sql2, noFallBack = false)(checkSparkOperatorMatch[ProjectExec])
+      runQueryAndCompare(sql3, noFallBack = false)(checkSparkOperatorMatch[ProjectExec])
+      runQueryAndCompare(sql4, noFallBack = false)(checkSparkOperatorMatch[ProjectExec])
+      runQueryAndCompare(sql5, noFallBack = false)(checkSparkOperatorMatch[ProjectExec])
+    }
+  }
+
 }
