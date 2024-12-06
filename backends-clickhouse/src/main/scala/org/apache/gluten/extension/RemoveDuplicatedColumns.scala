@@ -21,7 +21,6 @@ import org.apache.gluten.execution._
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.CHColumnarToRowExec
@@ -54,21 +53,6 @@ case class RemoveDuplicatedColumns(session: SparkSession) extends Rule[SparkPlan
         val newChildren = hashAgg.children.map(visitPlan)
         val newHashAgg = uniqueHashAggregateColumns(hashAgg)
         newHashAgg.withNewChildren(newChildren)
-      case shuffle @ ColumnarShuffleExchangeExec(
-            HashPartitioning(hashExpressions, partitionNum),
-            _,
-            _,
-            _,
-            _) =>
-        val newChildren = shuffle.children.map(visitPlan)
-        val uniqueHashExpressions = uniqueExpressions(hashExpressions)
-        if (uniqueHashExpressions.length != hashExpressions.length) {
-          shuffle
-            .copy(outputPartitioning = HashPartitioning(uniqueHashExpressions, partitionNum))
-            .withNewChildren(newChildren)
-        } else {
-          shuffle.withNewChildren(newChildren)
-        }
       case _ =>
         plan.withNewChildren(plan.children.map(visitPlan))
     }
