@@ -373,7 +373,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
        * rather than genFinalStageIterator will be invoked
        */
-      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
+      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions.toIndexedSeq)
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
       if (GlutenConfig.getConf.enableHdfsViewfs) {
