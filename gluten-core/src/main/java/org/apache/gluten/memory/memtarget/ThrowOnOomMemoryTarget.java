@@ -16,14 +16,11 @@
  */
 package org.apache.gluten.memory.memtarget;
 
-import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.GlutenConfig$;
 
-import org.apache.spark.SparkEnv;
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.task.TaskResources;
-import org.apache.spark.util.SparkResourceUtil;
 import org.apache.spark.util.Utils;
 
 public class ThrowOnOomMemoryTarget implements MemoryTarget {
@@ -36,22 +33,6 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
   @Override
   public long borrow(long size) {
     long granted = target.borrow(size);
-
-    // if multi-slot and shared mode, retry spill.
-    if (granted < size
-        && SparkResourceUtil.getTaskSlots(SparkEnv.get().conf()) > 1
-        && !GlutenConfig.getConf().memoryIsolation()) {
-      long overUsed =
-          SparkMemoryUtil.getTaskOffheapMemoryUsage()
-              - GlutenConfig.getConf().taskOffHeapMemorySize();
-      if (overUsed > 0 || Math.abs(overUsed) < size) {
-        long spillSize = size + Math.abs(overUsed);
-        target.borrow(spillSize);
-        target.repay(spillSize);
-      }
-      granted = target.borrow(size);
-    }
-
     if (granted >= size) {
       return granted;
     }
