@@ -29,8 +29,17 @@ base_dir: emr
 # Proxy used to connect to server for perf analysis.
 proxy: ''
 
+# Emon event file for `emon -i`. Set to emptry string '' if emon is unavailable.
+# Supported emon events on platform can be verified via `emon -i emon.list`
+emon_list: /home/sparkuser/ipython/emon.list
+
 # Whether to upload profile to perf analysis server and run perf analysis scripts. Only takes effect if server is set.
 analyze_perf: True
+
+# Specify app info to compare for perf analysis
+comp_appid: ''
+comp_base_dir: ''
+comp_name: ''
 
 # Select workload. Can be either 'tpch' or 'tpcds'.
 workload: tpch

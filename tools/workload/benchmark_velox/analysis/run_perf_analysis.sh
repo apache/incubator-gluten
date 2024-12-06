@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -x
+
 SCRIPT_LOCATION=$(dirname $0)
 PAUS=$HOME/PAUS
 
@@ -115,7 +117,8 @@ then
 	exit 1
   fi
   hadoop fs -cp -f /$COMP_BASEDIR/$COMP_APPID/app.log /history/$COMP_APPID
-  EXTRA_ARGS="--compare_appid $COMP_APPID --compare_basedir $COMP_BASEDIR --compare_name $COMP_NAME"
+  EXTRA_ARGS="--comp_appid $COMP_APPID --comp_base_dir $COMP_BASEDIR --comp_name $COMP_NAME"
+  sed -i "s/# Compare to/# Compare to $COMP_NAME/g" ${nb_name}
 fi
 
 if [ -n "${PROXY}" ]
@@ -125,6 +128,6 @@ fi
 
 source ~/paus-env/bin/activate
 
-python3 $SCRIPT_LOCATION/run.py --inputnb $nb_name --outputnb ${nb_name0}.nbconvert.ipynb --appid $APPID --disk $DISK --nic $NIC --tz $SPARK_TZ --basedir $BASEDIR --name $NAME $EXTRA_ARGS
+python3 $SCRIPT_LOCATION/run.py --inputnb $nb_name --outputnb ${nb_name0}.nbconvert.ipynb --appid $APPID --disk $DISK --nic $NIC --tz $SPARK_TZ --base_dir $BASEDIR --name $NAME $EXTRA_ARGS
 
 jupyter nbconvert --to html  --no-input ./${nb_name0}.nbconvert.ipynb --output html/${nb_name0}.html --template classic > /dev/null 2>&1

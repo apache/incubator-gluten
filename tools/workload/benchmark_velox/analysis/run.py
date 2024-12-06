@@ -16,11 +16,11 @@
 import fire
 import papermill as pm
 
-def exec(inputnb, outputnb, appid, disk, nic, tz, basedir, name, compare_appid='', compare_basedir='', compare_name=''):
+def exec(inputnb, outputnb, appid, disk, nic, tz, base_dir, name, comp_appid='', comp_base_dir='', comp_name='', proxy=''):
   return pm.execute_notebook(
     inputnb,
     outputnb,
-    parameters=dict(appid=appid,disk=disk,nic=nic,tz=tz,basedir=basedir,name=name,compare_appid=compare_appid,compare_basedir=compare_basedir,compare_name=compare_name))
+    parameters=dict(appid=appid,disk=disk,nic=nic,tz=tz,base_dir=base_dir,name=name,comp_appid=comp_appid,comp_base_dir=comp_base_dir,comp_name=comp_name,proxy=proxy))
 
 if __name__ == '__main__':
   fire.Fire(exec)
