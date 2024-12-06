@@ -27,6 +27,7 @@ import org.apache.gluten.utils.FileIndexUtil
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
@@ -168,5 +169,14 @@ abstract class BatchScanExecTransformerBase(
     case "DwrfScan" => ReadFileFormat.DwrfReadFormat
     case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
     case _ => ReadFileFormat.UnknownFormat
+  }
+
+  override def simpleString(maxFields: Int): String = {
+    val truncatedOutputString = truncatedString(output, "[", ", ", "]", maxFields)
+    val runtimeFiltersString = s"RuntimeFilters: ${runtimeFilters.mkString("[", ",", "]")}"
+    val nativeFiltersString = s"nativeFilters: ${filterExprs().mkString("[", ",", "]")}"
+    val result = s"$nodeName$truncatedOutputString ${scan.description()}" +
+      s" $runtimeFiltersString $nativeFiltersString"
+    redact(result)
   }
 }
