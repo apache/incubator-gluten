@@ -44,6 +44,7 @@ const uint64_t kMaxSpillFileSizeDefault = 1L * 1024 * 1024 * 1024;
 const std::string kSpillableReservationGrowthPct =
     "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
 const std::string kSpillCompressionKind = "spark.io.compression.codec";
+const std::string kSpillPrefixSortEnabled = "spark.gluten.sql.columnar.backend.velox.spillPrefixsortEnabled";
 const std::string kMaxPartialAggregationMemoryRatio =
     "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
 const std::string kMaxExtendedPartialAggregationMemoryRatio =
