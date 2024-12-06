@@ -1076,6 +1076,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       return std::make_shared<core::LocalPartitionNode>(
           nextPlanNodeId(),
           core::LocalPartitionNode::Type::kGather,
+          false,
           std::make_shared<core::GatherPartitionFunctionSpec>(),
           projectedChildren);
     }
