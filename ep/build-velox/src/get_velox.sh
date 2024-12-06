@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/JkSelf/velox.git
-VELOX_BRANCH=semi-fix
+VELOX_BRANCH=anti-semi-fix
 VELOX_HOME=""
 
 OS=`uname -s`
