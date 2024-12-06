@@ -19,8 +19,8 @@ package org.apache.gluten.backend
 trait Backend extends Component {
 
   /**
-   * Backends don't register parents. They are all considered root components in the component DAG
+   * Backends don't have dependencies. They are all considered root components in the component DAG
    * and will be loaded at the beginning.
    */
-  final override def parents(): Seq[Class[_ <: Component]] = Nil
+  final override def dependencies(): Seq[Class[_ <: Component]] = Nil
 }

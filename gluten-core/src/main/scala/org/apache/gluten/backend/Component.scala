@@ -8,7 +8,7 @@
  *
  *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ * Unless dependency by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
@@ -46,13 +46,13 @@ trait Component {
       return
     }
     graph.add(this)
-    parents().foreach(req => graph.declareRequirement(this, req))
+    dependencies().foreach(req => graph.declareDependency(this, req))
   }
 
   /** Base information. */
   def name(): String
   def buildInfo(): BuildInfo
-  def parents(): Seq[Class[_ <: Component]]
+  def dependencies(): Seq[Class[_ <: Component]]
 
   /** Spark listeners. */
   def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {}
@@ -126,7 +126,7 @@ object Component {
   private class Graph {
     import Graph._
     private val registry: Registry = new Registry()
-    private val requirements: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
+    private val dependencies: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
 
     private var sortedComponents: Option[Seq[Component]] = None
 
@@ -141,11 +141,11 @@ object Component {
       sortedComponents = None
     }
 
-    def declareRequirement(comp: Component, requiredCompClass: Class[_ <: Component]): Unit =
+    def declareDependency(comp: Component, dependencyCompClass: Class[_ <: Component]): Unit =
       synchronized {
         require(registry.isUidRegistered(comp.uid))
         require(registry.isClassRegistered(comp.getClass))
-        requirements += comp.uid -> requiredCompClass
+        dependencies += comp.uid -> dependencyCompClass
         sortedComponents = None
       }
 
@@ -159,14 +159,14 @@ object Component {
           lookup += uid -> n
       }
 
-      requirements.foreach {
-        case (uid, requiredCompClass) =>
-          val requiredUid = registry.findByClass(requiredCompClass).uid
-          require(uid != requiredUid)
+      dependencies.foreach {
+        case (uid, dependencyCompClass) =>
+          val dependencyUid = registry.findByClass(dependencyCompClass).uid
+          require(uid != dependencyUid)
           require(lookup.contains(uid))
-          require(lookup.contains(requiredUid))
+          require(lookup.contains(dependencyUid))
           val n = lookup(uid)
-          val r = lookup(requiredUid)
+          val r = lookup(dependencyUid)
           require(!n.parents.contains(r.uid))
           require(!r.children.contains(n.uid))
           n.parents += r.uid -> r
@@ -182,15 +182,15 @@ object Component {
      * components. The root nodes will be on the head side of the list, while leaf nodes
      * will be on the tail side of the list.
      *
-     * Say if component-A requires component-B while component-C requires nothing, then the output
-     * order will be one of the following:
+     * Say if component-A depends on component-B while component-C requires nothing, then the
+     * output order will be one of the following:
      *
      *   1. [component-B, component-A, component-C]
      *   2. [component-C, component-B, component-A]
      *   3. [component-B, component-C, component-A]
      *
      * By all means component B will be placed before component A because of the declared
-     * requirement from component A to component B.
+     * dependency from component A to component B.
      */
     // format: on
     def sorted(): Seq[Component] = synchronized {

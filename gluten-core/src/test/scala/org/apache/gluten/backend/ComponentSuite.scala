@@ -70,7 +70,7 @@ object ComponentSuite {
   }
 
   private class DummyComponentC extends Component {
-    override def parents(): Seq[Class[_ <: Component]] = classOf[DummyBackendA] :: Nil
+    override def dependencies(): Seq[Class[_ <: Component]] = classOf[DummyBackendA] :: Nil
 
     override def name(): String = "dummy-component-c"
     override def buildInfo(): Component.BuildInfo =
@@ -79,7 +79,7 @@ object ComponentSuite {
   }
 
   private class DummyComponentD extends Component {
-    override def parents(): Seq[Class[_ <: Component]] =
+    override def dependencies(): Seq[Class[_ <: Component]] =
       Seq(classOf[DummyBackendA], classOf[DummyBackendB])
 
     override def name(): String = "dummy-component-d"
@@ -89,7 +89,7 @@ object ComponentSuite {
   }
 
   private class DummyComponentE extends Component {
-    override def parents(): Seq[Class[_ <: Component]] =
+    override def dependencies(): Seq[Class[_ <: Component]] =
       Seq(classOf[DummyBackendA], classOf[DummyComponentD])
 
     override def name(): String = "dummy-component-e"
