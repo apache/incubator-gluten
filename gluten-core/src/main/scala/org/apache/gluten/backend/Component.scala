@@ -91,8 +91,8 @@ object Component {
    *
    * By all means component B will be placed before component A because of the declared
    * dependency from component A to component B.
-   * 
-   * @throws UnsupportedOperationException When cycles in dependency graph are found. 
+   *
+   * @throws UnsupportedOperationException When cycles in dependency graph are found.
    */
   // format: on
   def sorted(): Seq[Component] = {
