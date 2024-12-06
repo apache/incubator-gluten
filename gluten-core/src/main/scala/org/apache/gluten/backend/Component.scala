@@ -76,6 +76,25 @@ object Component {
   private val nextUid = new AtomicInteger()
   private val graph: Graph = new Graph()
 
+  // format: off
+  /**
+   * Apply topology sort on all registered components in graph to get an ordered list of
+   * components. The root nodes will be on the head side of the list, while leaf nodes
+   * will be on the tail side of the list.
+   *
+   * Say if component-A depends on component-B while component-C requires nothing, then the
+   * output order will be one of the following:
+   *
+   *   1. [component-B, component-A, component-C]
+   *   2. [component-C, component-B, component-A]
+   *   3. [component-B, component-C, component-A]
+   *
+   * By all means component B will be placed before component A because of the declared
+   * dependency from component A to component B.
+   * 
+   * @throws UnsupportedOperationException When cycles in dependency graph are found. 
+   */
+  // format: on
   def sorted(): Seq[Component] = {
     ensureAllComponentsRegistered()
     graph.sorted()
@@ -176,23 +195,6 @@ object Component {
       lookup
     }
 
-    // format: off
-    /**
-     * Apply topology sort on all registered components in graph to get an ordered list of
-     * components. The root nodes will be on the head side of the list, while leaf nodes
-     * will be on the tail side of the list.
-     *
-     * Say if component-A depends on component-B while component-C requires nothing, then the
-     * output order will be one of the following:
-     *
-     *   1. [component-B, component-A, component-C]
-     *   2. [component-C, component-B, component-A]
-     *   3. [component-B, component-C, component-A]
-     *
-     * By all means component B will be placed before component A because of the declared
-     * dependency from component A to component B.
-     */
-    // format: on
     def sorted(): Seq[Component] = synchronized {
       if (sortedComponents.isDefined) {
         return sortedComponents.get
@@ -228,7 +230,8 @@ object Component {
       if (uidToNumParents.exists(_._2 != 0)) {
         val cycleNodes = uidToNumParents.filter(_._2 != 0).keys.map(registry.findByUid)
         val cycleNodeNames = cycleNodes.map(_.name()).mkString(", ")
-        throw new IllegalStateException(s"Cycle detected in the component graph: $cycleNodeNames")
+        throw new UnsupportedOperationException(
+          s"Cycle detected in the component graph: $cycleNodeNames")
       }
 
       // 4. Return the ordered nodes.
