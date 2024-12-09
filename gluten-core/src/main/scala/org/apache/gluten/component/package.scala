@@ -16,6 +16,8 @@
  */
 package org.apache.gluten
 
+import org.apache.gluten.backend.Backend
+
 import org.apache.spark.internal.Logging
 
 import java.util.ServiceLoader
@@ -23,10 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.JavaConverters._
 
-package object backend extends Logging {
-  private[backend] val allComponentsLoaded: AtomicBoolean = new AtomicBoolean(false)
+package object component extends Logging {
+  private val allComponentsLoaded: AtomicBoolean = new AtomicBoolean(false)
 
-  private[backend] def ensureAllComponentsRegistered(): Unit = {
+  private[component] def ensureAllComponentsRegistered(): Unit = {
     if (!allComponentsLoaded.compareAndSet(false, true)) {
       return
     }

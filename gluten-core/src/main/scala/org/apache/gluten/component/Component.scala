@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backend
+package org.apache.gluten.component
 
 import org.apache.gluten.extension.columnar.transition.ConventionFunc
 import org.apache.gluten.extension.injector.Injector
@@ -100,7 +100,7 @@ object Component {
     graph.sorted()
   }
 
-  private[backend] def sortedUnsafe(): Seq[Component] = {
+  private[component] def sortedUnsafe(): Seq[Component] = {
     graph.sorted()
   }
 

@@ -18,7 +18,7 @@ package org.apache.gluten
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig._
-import org.apache.gluten.backend.Component
+import org.apache.gluten.component.Component
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenSessionExtensions

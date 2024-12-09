@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated.planner.plan
 
 import org.apache.gluten.execution.GlutenPlan
-import org.apache.gluten.extension.columnar.enumerated.planner.metadata.GlutenMetadata
+import org.apache.gluten.extension.columnar.enumerated.planner.metadata.{GlutenMetadata, LogicalLink}
 import org.apache.gluten.extension.columnar.enumerated.planner.property.{Conv, ConvDef}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.ras.{Metadata, PlanModel}
@@ -27,6 +27,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.task.{SparkTaskUtil, TaskResources}
@@ -75,6 +76,16 @@ object GlutenPlanModel {
     final override val supportsRowBased: Boolean = {
       rowType() != Convention.RowType.None
     }
+
+    override def logicalLink: Option[LogicalPlan] = {
+      if (metadata.logicalLink() eq LogicalLink.notFound) {
+        return None
+      }
+      Some(metadata.logicalLink().plan)
+    }
+
+    override def setLogicalLink(logicalPlan: LogicalPlan): Unit =
+      throw new UnsupportedOperationException()
   }
 
   private object PlanModelImpl extends PlanModel[SparkPlan] {

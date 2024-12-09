@@ -82,6 +82,7 @@ object CHRuleApi {
     injector.injectPreTransform(_ => WriteFilesWithBucketValue)
 
     // Legacy: The legacy transform rule.
+    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
     val validatorBuilder: GlutenConfig => Validator = conf =>
       Validator
         .builder()
@@ -91,11 +92,10 @@ object CHRuleApi {
         .fallbackByBackendSettings()
         .fallbackByUserOptions()
         .fallbackByTestInjects()
-        .fallbackByNativeValidation()
+        .fallbackByNativeValidation(offloads)
         .build()
     val rewrites =
       Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
-    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
     injector.injectTransform(
       c => intercept(HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads)))
 
