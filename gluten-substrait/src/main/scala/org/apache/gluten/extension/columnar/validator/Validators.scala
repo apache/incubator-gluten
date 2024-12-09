@@ -26,6 +26,9 @@ import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -224,15 +227,46 @@ object Validators {
   private class FallbackByNativeValidation(offloadRules: Seq[OffloadSingleNode])
     extends Validator
     with Logging {
+    import FallbackByNativeValidation._
     private val offloadAttempt: LegacyOffload = LegacyOffload(offloadRules)
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      offloadAttempt.apply(plan) match {
-        case v: ValidatablePlan =>
-          v.doValidate().toValidatorOutcome()
-        case _ =>
-          // Currently we assume a plan to be offload-able by default.
-          pass()
+      applyAsSingleNode(plan) {
+        node =>
+          val offloadedNode = offloadAttempt.apply(node)
+          val outcomes = offloadedNode.collect {
+            case v: ValidatablePlan =>
+              v.doValidate().toValidatorOutcome()
+          }
+          val failures = outcomes
+            .filter(_.isInstanceOf[Validator.Failed])
+            .map(_.asInstanceOf[Validator.Failed])
+          if (failures.nonEmpty) {
+            failures.reduce((f1, f2) => Validator.Failed(Seq(f1.reason, f2.reason).mkString(";")))
+          } else {
+            pass()
+          }
       }
+    }
+  }
+
+  private object FallbackByNativeValidation {
+    /**
+     * A fake leaf node that hides a subtree from the parent node to make sure the native validation
+     * only called on the interested plan nodes.
+     */
+    private case class FakeLeaf(originalChild: SparkPlan) extends LeafExecNode {
+      override protected def doExecute(): RDD[InternalRow] =
+        throw new UnsupportedOperationException()
+      override def output: Seq[Attribute] = originalChild.output
+      override def supportsRowBased: Boolean = throw new UnsupportedOperationException()
+      override def supportsColumnar: Boolean = throw new UnsupportedOperationException()
+    }
+
+    private def applyAsSingleNode[T](plan: SparkPlan)(body: SparkPlan => T): T = {
+      val newChildren = plan.children.map(child => FakeLeaf(originalChild = child))
+      val newPlan = plan.withNewChildren(newChildren)
+      val applied = body(newPlan)
+      applied
     }
   }
 }
