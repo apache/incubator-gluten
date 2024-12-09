@@ -73,6 +73,9 @@ struct Metrics {
     kProcessedStrides,
     kRemainingFilterTime,
     kIoWaitTime,
+    kStorageReadBytes,
+    kLocalReadBytes,
+    kRamReadBytes,
     kPreloadSplits,
 
     // Write metrics.
