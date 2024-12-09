@@ -2097,12 +2097,13 @@ object GlutenConfig {
       .intConf
       .createWithDefault(1)
 
+  // Velox currently only support up to 8MB load quantum size on SSD.
   val LOAD_QUANTUM =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.loadQuantum")
       .internal()
       .doc("Set the load quantum for velox file scan")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("256MB")
+      .createWithDefaultString("8MB")
 
   val MAX_COALESCED_DISTANCE_BYTES =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance")
