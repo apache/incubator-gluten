@@ -33,6 +33,7 @@ import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.resource.ResourceProfile
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -194,10 +195,22 @@ trait UnaryTransformSupport extends TransformSupport with UnaryExecNode {
   }
 }
 
+/** Base interface for a query plan that can be used to set ResourceProfile. */
+trait WithResourceProfileSupport {
+  private var resourceProfile: Option[ResourceProfile] = None
+
+  def withResourceProfile(resourceProfile: ResourceProfile): Unit = {
+    this.resourceProfile = Some(resourceProfile)
+  }
+
+  def getResourceProfile: Option[ResourceProfile] = resourceProfile
+}
+
 case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = false)(
     val transformStageId: Int
 ) extends WholeStageTransformerGenerateTreeStringShim
-  with UnaryTransformSupport {
+  with UnaryTransformSupport
+  with WithResourceProfileSupport {
 
   def stageId: Int = transformStageId
 
@@ -366,93 +379,99 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     // Check if BatchScan exists.
     val basicScanExecTransformers = findAllScanTransformers()
 
-    if (basicScanExecTransformers.nonEmpty) {
+    var finalRdd =
+      if (basicScanExecTransformers.nonEmpty) {
 
-      /**
-       * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
-       * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
-       * rather than genFinalStageIterator will be invoked
-       */
-      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions.toIndexedSeq)
-      val allScanSplitInfos =
-        getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
-      if (GlutenConfig.getConf.enableHdfsViewfs) {
-        allScanSplitInfos.foreach {
-          splitInfos =>
-            splitInfos.foreach {
-              case splitInfo: LocalFilesNode =>
-                val paths = splitInfo.getPaths.asScala
-                if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
-                  // Convert the viewfs path into hdfs
-                  val newPaths = paths.map {
-                    viewfsPath =>
-                      val viewPath = new Path(viewfsPath)
-                      val viewFileSystem =
-                        FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
-                      viewFileSystem.resolvePath(viewPath).toString
+        /**
+         * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
+         * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
+         * rather than genFinalStageIterator will be invoked
+         */
+        val allScanPartitions = basicScanExecTransformers.map(_.getPartitions.toIndexedSeq)
+        val allScanSplitInfos =
+          getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
+        if (GlutenConfig.getConf.enableHdfsViewfs) {
+          allScanSplitInfos.foreach {
+            splitInfos =>
+              splitInfos.foreach {
+                case splitInfo: LocalFilesNode =>
+                  val paths = splitInfo.getPaths.asScala
+                  if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
+                    // Convert the viewfs path into hdfs
+                    val newPaths = paths.map {
+                      viewfsPath =>
+                        val viewPath = new Path(viewfsPath)
+                        val viewFileSystem =
+                          FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
+                        viewFileSystem.resolvePath(viewPath).toString
+                    }
+                    splitInfo.setPaths(newPaths.asJava)
                   }
-                  splitInfo.setPaths(newPaths.asJava)
-                }
-            }
+              }
+          }
         }
-      }
 
-      val inputPartitions =
-        BackendsApiManager.getIteratorApiInstance.genPartitions(
-          wsCtx,
-          allScanSplitInfos,
-          basicScanExecTransformers)
+        val inputPartitions =
+          BackendsApiManager.getIteratorApiInstance.genPartitions(
+            wsCtx,
+            allScanSplitInfos,
+            basicScanExecTransformers)
 
-      val rdd = new GlutenWholeStageColumnarRDD(
-        sparkContext,
-        inputPartitions,
-        inputRDDs,
-        pipelineTime,
-        leafInputMetricsUpdater(),
-        BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
-          child,
-          wsCtx.substraitContext.registeredRelMap,
-          wsCtx.substraitContext.registeredJoinParams,
-          wsCtx.substraitContext.registeredAggregationParams
+        val rdd = new GlutenWholeStageColumnarRDD(
+          sparkContext,
+          inputPartitions,
+          inputRDDs,
+          pipelineTime,
+          leafInputMetricsUpdater(),
+          BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
+            child,
+            wsCtx.substraitContext.registeredRelMap,
+            wsCtx.substraitContext.registeredJoinParams,
+            wsCtx.substraitContext.registeredAggregationParams
+          )
         )
-      )
-      (0 until allScanPartitions.head.size).foreach(
-        i => {
-          val currentPartitions = allScanPartitions.map(_(i))
-          currentPartitions.indices.foreach(
-            i =>
-              currentPartitions(i) match {
-                case f: FilePartition =>
-                  SoftAffinity.updateFilePartitionLocations(f, rdd.id)
-                case _ =>
-              })
-        })
-      rdd
-    } else {
+        (0 until allScanPartitions.head.size).foreach(
+          i => {
+            val currentPartitions = allScanPartitions.map(_(i))
+            currentPartitions.indices.foreach(
+              i =>
+                currentPartitions(i) match {
+                  case f: FilePartition =>
+                    SoftAffinity.updateFilePartitionLocations(f, rdd.id)
+                  case _ =>
+                })
+          })
+        rdd
+      } else {
 
-      /**
-       * the whole stage contains NO BasicScanExecTransformer. this the default case for:
-       *   1. SCAN with clickhouse backend (check ColumnarCollapseTransformStages#separateScanRDD())
-       *      2. test case where query plan is constructed from simple dataframes (e.g.
-       *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
-       *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked
-       */
-      new WholeStageZippedPartitionsRDD(
-        sparkContext,
-        inputRDDs,
-        numaBindingInfo,
-        sparkConf,
-        wsCtx,
-        pipelineTime,
-        BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
-          child,
-          wsCtx.substraitContext.registeredRelMap,
-          wsCtx.substraitContext.registeredJoinParams,
-          wsCtx.substraitContext.registeredAggregationParams
-        ),
-        materializeInput
-      )
+        /**
+         * the whole stage contains NO BasicScanExecTransformer. this the default case for:
+         *   1. SCAN with clickhouse backend (check
+         *      ColumnarCollapseTransformStages#separateScanRDD()) 2. test case where query plan is
+         *      constructed from simple dataframes (e.g. GlutenDataFrameAggregateSuite) in these
+         *      cases, separate RDDs takes care of SCAN as a result, genFinalStageIterator rather
+         *      than genFirstStageIterator will be invoked
+         */
+        new WholeStageZippedPartitionsRDD(
+          sparkContext,
+          inputRDDs,
+          numaBindingInfo,
+          sparkConf,
+          wsCtx,
+          pipelineTime,
+          BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
+            child,
+            wsCtx.substraitContext.registeredRelMap,
+            wsCtx.substraitContext.registeredJoinParams,
+            wsCtx.substraitContext.registeredAggregationParams
+          ),
+          materializeInput
+        )
+      }
+    if (getResourceProfile.isDefined) {
+      finalRdd = finalRdd.withResources(getResourceProfile.get)
     }
+    finalRdd
   }
 
   override def metricsUpdater(): MetricsUpdater = {

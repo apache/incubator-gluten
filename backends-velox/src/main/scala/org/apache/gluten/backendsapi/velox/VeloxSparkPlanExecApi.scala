@@ -29,6 +29,7 @@ import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSeria
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.resource.ResourceProfile
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
@@ -620,12 +621,23 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       mode: BroadcastMode,
       child: SparkPlan,
       numOutputRows: SQLMetric,
-      dataSize: SQLMetric): BuildSideRelation = {
-    val serialized: Array[ColumnarBatchSerializeResult] = child
-      .executeColumnar()
-      .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
-      .filter(_.getNumRows != 0)
-      .collect
+      dataSize: SQLMetric,
+      resourceProfile: Option[ResourceProfile] = None): BuildSideRelation = {
+    val serialized: Array[ColumnarBatchSerializeResult] =
+      if (resourceProfile.isDefined) {
+        child
+          .executeColumnar()
+          .withResources(resourceProfile.get)
+          .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
+          .filter(_.getNumRows != 0)
+          .collect
+      } else {
+        child
+          .executeColumnar()
+          .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
+          .filter(_.getNumRows != 0)
+          .collect
+      }
     val rawSize = serialized.map(_.getSerialized.length).sum
     if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
       throw new SparkException(

@@ -32,6 +32,7 @@ import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.resource.ResourceProfile
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
@@ -469,7 +470,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       mode: BroadcastMode,
       child: SparkPlan,
       numOutputRows: SQLMetric,
-      dataSize: SQLMetric): BuildSideRelation = {
+      dataSize: SQLMetric,
+      resourceProfile: Option[ResourceProfile] = None): BuildSideRelation = {
 
     val (buildKeys, isNullAware) = mode match {
       case mode1: HashedRelationBroadcastMode =>

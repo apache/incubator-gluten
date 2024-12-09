@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.ValidatablePlan
+import org.apache.gluten.execution.{ValidatablePlan, WithResourceProfileSupport}
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -42,7 +42,8 @@ import scala.util.control.NonFatal
 
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   extends BroadcastExchangeLike
-  with ValidatablePlan {
+  with ValidatablePlan
+  with WithResourceProfileSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
@@ -75,7 +76,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
               mode,
               child,
               longMetric("numOutputRows"),
-              longMetric("dataSize"))
+              longMetric("dataSize"),
+              getResourceProfile)
         }
 
         val broadcasted = GlutenTimeMetric.millis(longMetric("broadcastTime")) {
