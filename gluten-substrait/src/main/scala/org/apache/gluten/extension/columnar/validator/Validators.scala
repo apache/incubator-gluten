@@ -259,8 +259,7 @@ object Validators {
       override protected def doExecute(): RDD[InternalRow] =
         throw new UnsupportedOperationException()
       override def output: Seq[Attribute] = originalChild.output
-      override def supportsRowBased: Boolean = throw new UnsupportedOperationException()
-      override def supportsColumnar: Boolean = throw new UnsupportedOperationException()
+      override def supportsColumnar: Boolean = originalChild.supportsColumnar
     }
 
     private def applyAsSingleNode[T](plan: SparkPlan)(body: SparkPlan => T): T = {
