@@ -39,6 +39,8 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
+import scala.collection.mutable
+
 object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
     private val conf = GlutenConfig.getConf
@@ -232,9 +234,10 @@ object Validators {
     private val offloadAttempt: LegacyOffload = LegacyOffload(offloadRules)
     override def validate(plan: SparkPlan): Validator.OutCome = {
       applyOnSingleNode(plan) {
-        node =>
+        (node, hideOriginalChildren) =>
           val offloadedNode = offloadAttempt.apply(node)
-          val outcomes = offloadedNode.collect {
+          val hidden = hideOriginalChildren(offloadedNode)
+          val outcomes = hidden.collect {
             case v: ValidatablePlan =>
               v.doValidate().toValidatorOutcome()
           }
@@ -265,16 +268,26 @@ object Validators {
       override def outputPartitioning: Partitioning = originalChild.outputPartitioning
     }
 
-    private def applyOnSingleNode[T](plan: SparkPlan)(body: SparkPlan => T): T = {
-      val newChildren = plan.children.map(
-        child => {
-          val fl = FakeLeaf(originalChild = child)
-          child.logicalLink.foreach(link => fl.setLogicalLink(link))
-          fl
-        })
-      val newPlan = plan.withNewChildren(newChildren)
-      val applied = body(newPlan)
-      applied
+    private def applyOnSingleNode[T](plan: SparkPlan)(
+        body: (SparkPlan, SparkPlan => SparkPlan) => T): T = {
+      val children = plan.children
+
+      val lookup: mutable.Map[Int, FakeLeaf] = mutable.Map()
+      children.foreach(child => lookup += child.id -> FakeLeaf(child))
+
+      /**
+       * Traverse up the input plan and find the original leafs. Replace the leafs with FakeLeaf
+       * nodes then return. So any further operations with the returned query plan will not see the
+       * original leaf nodes.
+       */
+      def insertFakeLeafs(input: SparkPlan): SparkPlan = {
+        input.transformUp {
+          case p if lookup.contains(p.id) =>
+            lookup(p.id)
+        }
+      }
+
+      body(plan, insertFakeLeafs)
     }
   }
 }
