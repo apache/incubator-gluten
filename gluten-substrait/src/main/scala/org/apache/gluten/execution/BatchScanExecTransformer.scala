@@ -174,7 +174,7 @@ abstract class BatchScanExecTransformerBase(
   override def simpleString(maxFields: Int): String = {
     val truncatedOutputString = truncatedString(output, "[", ", ", "]", maxFields)
     val runtimeFiltersString = s"RuntimeFilters: ${runtimeFilters.mkString("[", ",", "]")}"
-    val nativeFiltersString = s"nativeFilters: ${filterExprs().mkString("[", ",", "]")}"
+    val nativeFiltersString = s"NativeFilters: ${filterExprs().mkString("[", ",", "]")}"
     val result = s"$nodeName$truncatedOutputString ${scan.description()}" +
       s" $runtimeFiltersString $nativeFiltersString"
     redact(result)

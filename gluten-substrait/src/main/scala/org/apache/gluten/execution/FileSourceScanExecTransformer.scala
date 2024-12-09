@@ -200,7 +200,7 @@ abstract class FileSourceScanExecTransformerBase(
         key + ": " + StringUtils.abbreviate(redact(value), maxMetadataValueLength)
     }
     val metadataStr = truncatedString(metadataEntries, " ", ", ", "", maxFields)
-    val nativeFiltersString = s"nativeFilters: ${filterExprs().mkString("[", ",", "]")}"
+    val nativeFiltersString = s"NativeFilters: ${filterExprs().mkString("[", ",", "]")}"
     redact(
       s"$nodeNamePrefix$nodeName${truncatedString(output, "[", ",", "]", maxFields)}$metadataStr" +
         s" $nativeFiltersString")
