@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.execution.WriteFilesExecTransformer
+import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.memory.CHThreadGroup
 
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
@@ -149,12 +151,17 @@ class CHColumnarWriteFilesRDD(
 case class CHColumnarWriteFilesExec(
     override val left: SparkPlan,
     override val right: SparkPlan,
+    t: WriteFilesExecTransformer,
     fileFormat: FileFormat,
     partitionColumns: Seq[Attribute],
     bucketSpec: Option[BucketSpec],
     options: Map[String, String],
     staticPartitions: TablePartitionSpec
 ) extends ColumnarWriteFilesExec(left, right) {
+
+  override protected def doValidateInternal(): ValidationResult = {
+    t.doValidateInternal()
+  }
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,

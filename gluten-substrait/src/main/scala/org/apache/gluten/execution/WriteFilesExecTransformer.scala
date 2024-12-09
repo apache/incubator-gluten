@@ -127,7 +127,7 @@ case class WriteFilesExecTransformer(
     child.output.map(attr => WriteFilesExecTransformer.removeMetadata(attr, metadataExclusionList))
   }
 
-  override protected def doValidateInternal(): ValidationResult = {
+  override def doValidateInternal(): ValidationResult = {
     val finalChildOutput = getFinalChildOutput
 
     def isConstantComplexType(e: Expression): Boolean = {

@@ -26,10 +26,6 @@ import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -38,8 +34,6 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-
-import scala.collection.mutable
 
 object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
@@ -230,64 +224,17 @@ object Validators {
   private class FallbackByNativeValidation(offloadRules: Seq[OffloadSingleNode])
     extends Validator
     with Logging {
-    import FallbackByNativeValidation._
     private val offloadAttempt: LegacyOffload = LegacyOffload(offloadRules)
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      applyOnSingleNode(plan) {
-        (node, hideOriginalChildren) =>
-          val offloadedNode = offloadAttempt.apply(node)
-          val hidden = hideOriginalChildren(offloadedNode)
-          val outcomes = hidden.collect {
-            case v: ValidatablePlan =>
-              v.doValidate().toValidatorOutcome()
-          }
-          val failures = outcomes
-            .filter(_.isInstanceOf[Validator.Failed])
-            .map(_.asInstanceOf[Validator.Failed])
-          if (failures.nonEmpty) {
-            failures.reduce((f1, f2) => Validator.Failed(Seq(f1.reason, f2.reason).mkString(";")))
-          } else {
-            pass()
-          }
+      val offloadedNode = offloadAttempt.apply(plan)
+      val out = offloadedNode match {
+        case v: ValidatablePlan =>
+          v.doValidate().toValidatorOutcome()
+        case other =>
+          // Currently we assume a plan to be offload-able by default.
+          pass()
       }
-    }
-  }
-
-  private object FallbackByNativeValidation {
-
-    /**
-     * A fake leaf node that hides a subtree from the parent node to make sure the native validation
-     * only called on the interested plan nodes.
-     */
-    private case class FakeLeaf(originalChild: SparkPlan) extends LeafExecNode {
-      override protected def doExecute(): RDD[InternalRow] =
-        throw new UnsupportedOperationException()
-      override def supportsColumnar: Boolean = originalChild.supportsColumnar
-      override def output: Seq[Attribute] = originalChild.output
-      override def outputOrdering: Seq[SortOrder] = originalChild.outputOrdering
-      override def outputPartitioning: Partitioning = originalChild.outputPartitioning
-    }
-
-    private def applyOnSingleNode[T](plan: SparkPlan)(
-        body: (SparkPlan, SparkPlan => SparkPlan) => T): T = {
-      val children = plan.children
-
-      val lookup: mutable.Map[Int, FakeLeaf] = mutable.Map()
-      children.foreach(child => lookup += child.id -> FakeLeaf(child))
-
-      /**
-       * Traverse up the input plan and find the original leafs. Replace the leafs with FakeLeaf
-       * nodes then return. So any further operations with the returned query plan will not see the
-       * original leaf nodes.
-       */
-      def insertFakeLeafs(input: SparkPlan): SparkPlan = {
-        input.transformUp {
-          case p if lookup.contains(p.id) =>
-            lookup(p.id)
-        }
-      }
-
-      body(plan, insertFakeLeafs)
+      out
     }
   }
 }
