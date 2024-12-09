@@ -250,6 +250,7 @@ object Validators {
   }
 
   private object FallbackByNativeValidation {
+
     /**
      * A fake leaf node that hides a subtree from the parent node to make sure the native validation
      * only called on the interested plan nodes.
