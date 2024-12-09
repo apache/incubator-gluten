@@ -56,6 +56,10 @@ case class BatchScanExecTransformer(
     applyPartialClustering,
     replicatePartitions) {
 
+  protected[this] def supportsBatchScan(scan: Scan): Boolean = {
+    scan.isInstanceOf[FileScan]
+  }
+
   override def doCanonicalize(): BatchScanExecTransformer = {
     this.copy(
       output = output.map(QueryPlan.normalizeExpressions(_, output)),
@@ -134,8 +138,10 @@ abstract class BatchScanExecTransformerBase(
     }
   }
 
+  protected[this] def supportsBatchScan(scan: Scan): Boolean
+
   override def doValidateInternal(): ValidationResult = {
-    if (!ScanTransformerFactory.supportedBatchScan(scan)) {
+    if (!supportsBatchScan(scan)) {
       return ValidationResult.failed(s"Unsupported scan $scan")
     }
 
