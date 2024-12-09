@@ -60,7 +60,7 @@ CORE:
 VELOX:
   - changed-files:
     - any-glob-to-any-file: [
-      'gluten-data/**/*',
+      'gluten-arrow/**/*',
       'backends-velox/**/*',
       'ep/build-velox/**/*',
       'cpp/**/*'

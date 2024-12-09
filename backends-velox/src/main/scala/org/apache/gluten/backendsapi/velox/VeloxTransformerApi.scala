@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.backendsapi.TransformerApi
+import org.apache.gluten.backendsapi.{BackendsApiManager, TransformerApi}
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.runtime.Runtimes
@@ -87,7 +87,9 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   override def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String = {
     TaskResources.runUnsafe {
       val jniWrapper = PlanEvaluatorJniWrapper.create(
-        Runtimes.contextInstance("VeloxTransformerApi#getNativePlanString"))
+        Runtimes.contextInstance(
+          BackendsApiManager.getBackendName,
+          "VeloxTransformerApi#getNativePlanString"))
       jniWrapper.nativePlanString(substraitPlan, details)
     }
   }

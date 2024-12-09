@@ -27,7 +27,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 // If there is an expression (not a attribute) in an aggregation function's
-// parameters. It will introduce a pr-projection to calculate the expression
+// parameters. It will introduce a pre-projection to calculate the expression
 // at first, and make all the parameters be attributes.
 // If it's a aggregation with grouping set, this pre-projection is placed after
 // expand operator. This is not efficient, we cannot move this pre-projection
@@ -83,7 +83,7 @@ case class PushdownAggregatePreProjectionAheadExpand(session: SparkSession)
         val originInputAttributes = aheadProjectExprs.filter(e => isAttributeOrLiteral(e))
 
         val preProjectExprs = aheadProjectExprs.filter(e => !isAttributeOrLiteral(e))
-        if (preProjectExprs.length == 0) {
+        if (preProjectExprs.isEmpty) {
           return hashAggregate
         }
 
@@ -93,11 +93,31 @@ case class PushdownAggregatePreProjectionAheadExpand(session: SparkSession)
           return hashAggregate
         }
 
+        def projectInputExists(expr: Expression, inputs: Seq[Attribute]): Boolean = {
+          expr.children.foreach {
+            case a: Attribute =>
+              return inputs.exists(i => i.name.equals(a.name) && i.exprId.equals(a.exprId))
+            case p: Expression =>
+              return projectInputExists(p, inputs)
+            case _ =>
+              return true
+          }
+          true
+        }
+
+        val couldPushDown = preProjectExprs.forall {
+          case p: Expression => projectInputExists(p, rootChild.output)
+          case _ => true
+        }
+
+        if (!couldPushDown) {
+          return hashAggregate;
+        }
+
         // The new ahead project node will take rootChild's output and preProjectExprs as the
         // the projection expressions.
         val aheadProject = ProjectExecTransformer(rootChild.output ++ preProjectExprs, rootChild)
         val aheadProjectOuput = aheadProject.output
-
         val preProjectOutputAttrs = aheadProjectOuput.filter(
           e =>
             !originInputAttributes.exists(_.exprId.equals(e.asInstanceOf[NamedExpression].exprId)))

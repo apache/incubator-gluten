@@ -22,8 +22,8 @@
 #include <IO/ReadBufferFromFile.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Parser/LocalExecutor.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parser/ParserContext.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Parsers/parseQuery.h>
@@ -76,15 +76,21 @@ std::optional<ActionsDAG> parseFilter(const std::string & filter, const AnotherR
     return ActionsDAG::buildFilterActionsDAG({visitor_data.getActions().getOutputs().back()}, node_name_to_input_column);
 }
 
-std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_executor(
-    std::string_view json_plan, std::string_view split_template, std::string_view file, const std::optional<DB::ContextPtr> & context)
+std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>>
+create_plan_and_executor(std::string_view json_plan, std::string_view split, const std::optional<DB::ContextPtr> & context)
 {
-    const std::string split = replaceLocalFilesWildcards(split_template, file);
     const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(json_plan);
     auto parser_context = ParserContext::build(context.value_or(QueryContext::globalContext()), plan);
     SerializedPlanParser parser(parser_context);
     parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     return {plan, parser.createExecutor(plan)};
+}
+
+std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_executor(
+    std::string_view json_plan, std::string_view split_template, std::string_view file, const std::optional<DB::ContextPtr> & context)
+{
+    const std::string split = replaceLocalFilesWildcards(split_template, file);
+    return create_plan_and_executor(json_plan, split, context);
 }
 
 const char * get_data_dir()

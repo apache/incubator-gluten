@@ -99,7 +99,7 @@ case class EvalPythonExecTransformer(
 
     val relNode =
       getRelNode(childCtx.root, expressionNodes, context, operatorId, child.output, false)
-    TransformContext(child.output, output, relNode)
+    TransformContext(output, relNode)
   }
 
   def getRelNode(

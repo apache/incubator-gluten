@@ -32,16 +32,12 @@ trait RasPlanner[T <: AnyRef] {
 }
 
 object RasPlanner {
-  def apply[T <: AnyRef](
-      ras: Ras[T],
-      altConstraintSets: Seq[PropertySet[T]],
-      constraintSet: PropertySet[T],
-      plan: T): RasPlanner[T] = {
+  def apply[T <: AnyRef](ras: Ras[T], constraintSet: PropertySet[T], plan: T): RasPlanner[T] = {
     ras.config.plannerType match {
       case PlannerType.Exhaustive =>
-        ExhaustivePlanner(ras, altConstraintSets, constraintSet, plan)
+        ExhaustivePlanner(ras, constraintSet, plan)
       case PlannerType.Dp =>
-        DpPlanner(ras, altConstraintSets, constraintSet, plan)
+        DpPlanner(ras, constraintSet, plan)
     }
   }
 }

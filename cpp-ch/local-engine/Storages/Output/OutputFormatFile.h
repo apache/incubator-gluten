@@ -16,10 +16,6 @@
  */
 #pragma once
 
-#include <memory>
-#include <optional>
-#include <vector>
-
 #include <Core/Block.h>
 #include <IO/WriteBuffer.h>
 #include <Interpreters/Context.h>
@@ -33,9 +29,14 @@ class OutputFormatFile
 public:
     struct OutputFormat
     {
-    public:
         DB::OutputFormatPtr output;
         std::unique_ptr<DB::WriteBuffer> write_buffer;
+        void finalizeOutput() const
+        {
+            output->finalize();
+            output->flush();
+            write_buffer->finalize();
+        }
     };
     using OutputFormatPtr = std::shared_ptr<OutputFormat>;
 
@@ -48,8 +49,8 @@ public:
     virtual ~OutputFormatFile() = default;
 
     virtual OutputFormatPtr createOutputFormat(const DB::Block & header_) = 0;
-
-    virtual const DB::Block getPreferredSchema() const { return preferred_schema; }
+    OutputFormatPtr createOutputFormat() { return createOutputFormat(preferred_schema); }
+    DB::Block getPreferredSchema() const { return preferred_schema; }
 
 protected:
     DB::Block createHeaderWithPreferredSchema(const DB::Block & header);

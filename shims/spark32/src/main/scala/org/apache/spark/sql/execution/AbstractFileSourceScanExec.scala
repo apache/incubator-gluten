@@ -71,10 +71,9 @@ abstract class AbstractFileSourceScanExec(
     disableBucketedScan: Boolean = false)
   extends DataSourceScanExec {
 
-  // Note that some vals referring the file-based relation are lazy intentionally
-  // so that this plan can be canonicalized on executor side too. See SPARK-23731.
-  override lazy val supportsColumnar: Boolean = {
-    relation.fileFormat.supportBatch(relation.sparkSession, schema)
+  override def supportsColumnar: Boolean = {
+    // The value should be defined in GlutenPlan.
+    throw new UnsupportedOperationException("Unreachable code")
   }
 
   private lazy val needsUnsafeRowConversion: Boolean = {

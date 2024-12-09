@@ -29,7 +29,7 @@ struct MergeTreePart;
 struct MergeTreeTableInstance;
 
 /***
- * Manage the cache of the MergeTree, mainly including meta.bin, data.bin, metadata.gluten
+ * Manage the cache of the MergeTree, mainly including part_data.gluten, part_meta.gluten, metadata.gluten
  */
 class CacheManager
 {

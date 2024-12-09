@@ -71,7 +71,7 @@ class CHListenerApi extends ListenerApi with Logging {
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Force batch type initializations.
-    CHBatch.getClass
+    CHBatch.ensureRegistered()
     SparkDirectoryUtil.init(conf)
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isBlank(libPath)) {

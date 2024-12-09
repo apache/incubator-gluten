@@ -31,7 +31,7 @@ object ColumnarRuleApplier {
       val session: SparkSession,
       val ac: AdaptiveContext,
       val outputsColumnar: Boolean) {
-    val conf: GlutenConfig = {
+    val glutenConf: GlutenConfig = {
       new GlutenConfig(session.sessionState.conf)
     }
   }

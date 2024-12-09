@@ -32,6 +32,9 @@ import org.apache.spark.sql.types.StructType
  * TODO: Remove this rule once Velox support the list option in `In` is not literal.
  */
 object RewriteIn extends RewriteSingleNode {
+  override def isRewritable(plan: SparkPlan): Boolean = {
+    RewriteEligibility.isRewritable(plan)
+  }
 
   private def shouldRewrite(e: Expression): Boolean = {
     e match {

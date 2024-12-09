@@ -45,7 +45,7 @@ import org.apache.spark.util.Utils
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 3.2.0. It is modified to overcome the following issues:
+ * This file is copied from Delta 3.2.1. It is modified to overcome the following issues:
  *   1. filesForScan() will cache the DeltaScan by the FilterExprsAsKey
  *   2. filesForScan() should return DeltaScan of AddMergeTreeParts instead of AddFile
  */

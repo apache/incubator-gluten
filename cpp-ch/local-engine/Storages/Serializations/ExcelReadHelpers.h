@@ -98,7 +98,7 @@ bool readDateTime64Text(
     const DateLUTImpl & utc_time_zone,
     bool quote);
 
-bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool is_us_style);
+bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool is_us_style, const DB::FormatSettings & settings);
 bool readDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettings & settings);
 
 

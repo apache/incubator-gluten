@@ -31,6 +31,22 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
+  // The parquet compression codec extensions
+  private val parquetCompressionCodecExtensions = Map(
+    "none" -> "",
+    "uncompressed" -> "",
+    "snappy" -> ".snappy",
+    "gzip" -> ".gz",
+    "lzo" -> ".lzo",
+    "lz4" -> ".lz4",
+    "brotli" -> ".br",
+    "zstd" -> ".zstd"
+  )
+
+  private def getParquetFileExtension(codec: String): String = {
+    s"${parquetCompressionCodecExtensions(codec)}.parquet"
+  }
+
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
@@ -49,8 +65,8 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
           spark.sql("select array(struct(1), null) as var1").write.mode("overwrite").save(path)
         }
         assert(
-          testAppender.loggingEvents.exists(
-            _.getMessage.toString.contains("Use Gluten parquet write for hive")) == false)
+          !testAppender.loggingEvents.exists(
+            _.getMessage.toString.contains("Use Gluten parquet write for hive")))
     }
   }
 
@@ -77,6 +93,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
                     parquetFiles.forall {
                       file =>
                         val path = new Path(f.getCanonicalPath, file)
+                        assert(file.endsWith(getParquetFileExtension(codec)))
                         val in = HadoopInputFile.fromPath(path, spark.sessionState.newHadoopConf())
                         Utils.tryWithResource(ParquetFileReader.open(in)) {
                           reader =>

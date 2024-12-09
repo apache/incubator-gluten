@@ -250,41 +250,6 @@ abstract class PropertySuite extends AnyFunSuite {
     assert(out == TypedUnary(TypeA, 8, PassNodeType(5, TypedLeaf(TypeA, 10))))
   }
 
-  test(s"Property convert - (A, B), alternative conventions") {
-    object ConvertEnforcerAndTypeAToTypeB extends RasRule[TestNode] {
-      override def shift(node: TestNode): Iterable[TestNode] = node match {
-        case TypeEnforcer(TypeB, _, TypedBinary(TypeA, 5, left, right)) =>
-          List(TypedBinary(TypeB, 0, left, right))
-        case _ => List.empty
-      }
-      override def shape(): Shape[TestNode] = Shapes.fixedHeight(2)
-    }
-
-    val ras =
-      Ras[TestNode](
-        PlanModelImpl,
-        CostModelImpl,
-        MetadataModelImpl,
-        propertyModel(zeroDepth),
-        ExplainImpl,
-        RasRule.Factory.reuse(List(ConvertEnforcerAndTypeAToTypeB)))
-        .withNewConfig(_ => conf)
-    val plan =
-      TypedBinary(TypeA, 5, TypedUnary(TypeA, 10, TypedLeaf(TypeA, 10)), TypedLeaf(TypeA, 10))
-    val planner = ras.newPlanner(
-      plan,
-      PropertySet(Seq(TypeAny)),
-      List(PropertySet(Seq(TypeB)), PropertySet(Seq(TypeC))))
-    val out = planner.plan()
-    assert(
-      out == TypedBinary(
-        TypeB,
-        0,
-        TypeEnforcer(TypeB, 1, TypedUnary(TypeA, 10, TypedLeaf(TypeA, 10))),
-        TypeEnforcer(TypeB, 1, TypedLeaf(TypeA, 10))))
-    assert(planner.newState().memoState().allGroups().size == 9)
-  }
-
   test(s"Property convert - (A, B), Unary only has TypeA") {
     object ReplaceNonUnaryByTypeBRule extends RasRule[TestNode] {
       override def shift(node: TestNode): Iterable[TestNode] = {

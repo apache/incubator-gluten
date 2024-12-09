@@ -28,16 +28,14 @@
 #include "compute/VeloxPlanConverter.h"
 #include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
-#include "shuffle/VeloxHashShuffleWriter.h"
-#include "shuffle/VeloxRssSortShuffleWriter.h"
+#include "operators/writer/VeloxArrowWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
+#include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
 #ifdef ENABLE_HDFS
-
 #include "operators/writer/VeloxParquetDataSourceHDFS.h"
-
 #endif
 
 #ifdef ENABLE_S3
@@ -259,6 +257,7 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
       veloxCompressionType,
       rowType,
       options.batchSize,
+      options.bufferSize,
       memoryManager()->getArrowMemoryPool(),
       ctxVeloxPool,
       options.shuffleWriterType);
@@ -305,6 +304,14 @@ void VeloxRuntime::dumpConf(const std::string& path) {
   }
 
   outFile.close();
+}
+
+std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(const std::string& path) {
+  int64_t batchSize = 4096;
+  if (auto it = confMap_.find(kSparkBatchSize); it != confMap_.end()) {
+    batchSize = std::atol(it->second.c_str());
+  }
+  return std::make_shared<VeloxArrowWriter>(path, batchSize, memoryManager()->getLeafMemoryPool().get());
 }
 
 } // namespace gluten

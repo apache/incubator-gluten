@@ -79,7 +79,7 @@ case class TopNTransformer(
         child.output,
         childCtx.root,
         validation = false)
-    TransformContext(child.output, child.output, relNode)
+    TransformContext(child.output, relNode)
   }
 
   private def getRelNode(

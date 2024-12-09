@@ -49,4 +49,8 @@ class SparkInjector private[injector] (
   def injectFunction(functionDescription: FunctionDescription): Unit = {
     extensions.injectFunction(control.disabler().wrapFunction(functionDescription))
   }
+
+  def injectPreCBORule(builder: RuleBuilder): Unit = {
+    extensions.injectPreCBORule(control.disabler().wrapRule(builder))
+  }
 }

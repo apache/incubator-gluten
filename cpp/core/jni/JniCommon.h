@@ -26,6 +26,7 @@
 #include "compute/Runtime.h"
 #include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
+#include "operators/writer/ArrowWriter.h"
 #include "shuffle/rss/RssClient.h"
 #include "utils/Compression.h"
 #include "utils/Exception.h"

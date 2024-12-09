@@ -18,6 +18,7 @@
 #pragma once
 
 #include <jni.h>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 
@@ -72,6 +73,7 @@ const std::string kSparkRedactionRegex = "spark.redaction.regex";
 const std::string kSparkRedactionString = "*********(redacted)";
 
 const std::string kSparkLegacyTimeParserPolicy = "spark.sql.legacy.timeParserPolicy";
+const std::string kShuffleFileBufferSize = "spark.shuffle.file.buffer";
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);

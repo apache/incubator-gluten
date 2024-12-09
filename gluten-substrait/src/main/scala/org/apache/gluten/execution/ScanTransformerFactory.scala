@@ -16,12 +16,10 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.connector.read.Scan
-import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
+import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 
 import java.util.ServiceLoader
@@ -58,8 +56,7 @@ object ScanTransformerFactory {
     }
   }
 
-  private def lookupBatchScanTransformer(
-      batchScanExec: BatchScanExec): BatchScanExecTransformerBase = {
+  def createBatchScanTransformer(batchScanExec: BatchScanExec): BatchScanExecTransformerBase = {
     val scan = batchScanExec.scan
     lookupDataSourceScanTransformer(scan.getClass.getName) match {
       case Some(clz) =>
@@ -69,46 +66,16 @@ object ScanTransformerFactory {
           .asInstanceOf[DataSourceScanTransformerRegister]
           .createDataSourceV2Transformer(batchScanExec)
       case _ =>
-        scan match {
-          case _: FileScan =>
-            BatchScanExecTransformer(
-              batchScanExec.output,
-              batchScanExec.scan,
-              batchScanExec.runtimeFilters,
-              table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
-            )
-          case _ =>
-            throw new GlutenNotSupportException(s"Unsupported scan $scan")
-        }
+        BatchScanExecTransformer(
+          batchScanExec.output,
+          batchScanExec.scan,
+          batchScanExec.runtimeFilters,
+          table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
+        )
     }
   }
 
-  def createBatchScanTransformer(
-      batchScan: BatchScanExec,
-      validation: Boolean = false): SparkPlan = {
-    if (supportedBatchScan(batchScan.scan)) {
-      val transformer = lookupBatchScanTransformer(batchScan)
-      if (!validation) {
-        val validationResult = transformer.doValidate()
-        if (validationResult.ok()) {
-          transformer
-        } else {
-          FallbackTags.add(batchScan, validationResult.reason())
-          batchScan
-        }
-      } else {
-        transformer
-      }
-    } else {
-      if (validation) {
-        throw new GlutenNotSupportException(s"Unsupported scan ${batchScan.scan}")
-      }
-      FallbackTags.add(batchScan, "The scan in BatchScanExec is not supported.")
-      batchScan
-    }
-  }
-
-  private def supportedBatchScan(scan: Scan): Boolean = scan match {
+  def supportedBatchScan(scan: Scan): Boolean = scan match {
     case _: FileScan => true
     case _ => lookupDataSourceScanTransformer(scan.getClass.getName).nonEmpty
   }
@@ -132,5 +99,4 @@ object ScanTransformerFactory {
     )
     Option(clz)
   }
-
 }

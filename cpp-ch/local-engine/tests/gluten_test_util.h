@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "testConfig.h"
 
 #include <string>
 #include <Core/Block.h>
@@ -71,6 +72,9 @@ AnotherRowType readParquetSchema(const std::string & file);
 
 std::optional<DB::ActionsDAG> parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
 
+std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>>
+create_plan_and_executor(std::string_view json_plan, std::string_view split, const std::optional<DB::ContextPtr> & context = std::nullopt);
+
 std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_executor(
     std::string_view json_plan,
     std::string_view split_template,
@@ -82,6 +86,13 @@ std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_execu
 inline std::string replaceLocalFilesWildcards(const std::string_view haystack, const std::string_view replaced)
 {
     static constexpr auto wildcard = "{replace_local_files}";
+    return boost::replace_all_copy(std::string{haystack}, wildcard, replaced);
+}
+
+inline std::string replaceLocalFilesWithTPCH(const std::string_view haystack)
+{
+    static constexpr auto wildcard = "{replace_GLUTEN_SOURCE_TPCH_DIR}";
+    constexpr std::string_view replaced = GLUTEN_SOURCE_TPCH_DIR("");
     return boost::replace_all_copy(std::string{haystack}, wildcard, replaced);
 }
 

@@ -49,7 +49,7 @@ import org.apache.spark.util.{SystemClock, ThreadUtils}
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 3.2.0. It is modified in:
+ * This file is copied from Delta 3.2.1. It is modified in:
  *   1. getDeltaTable supports to get ClickHouseTableV2
  *   2. runOptimizeBinJobClickhouse
  *   3. groupFilesIntoBinsClickhouse

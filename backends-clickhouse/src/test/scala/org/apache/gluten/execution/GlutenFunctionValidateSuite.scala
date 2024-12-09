@@ -855,4 +855,9 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       compareResultsAgainstVanillaSpark(sql, true, { _ => })
     }
   }
+
+  test("GLUTEN-7796 cast bool to string") {
+    val sql = "select cast(id % 2 = 1 as string) from range(10)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }

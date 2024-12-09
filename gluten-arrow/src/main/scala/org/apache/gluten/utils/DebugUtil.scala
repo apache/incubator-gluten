@@ -21,24 +21,32 @@ import org.apache.gluten.GlutenConfig
 import org.apache.spark.TaskContext
 
 object DebugUtil {
-  // if specify taskId, then only do that task partition
-  // if not specify stageId, then do nothing
+  // if taskId is specified and matches, then do that task
+  // if stageId is not specified or doesn't match, then do nothing
   // if specify stageId but no partitionId, then do all partitions for that stage
   // if specify stageId and partitionId, then only do that partition for that stage
   def saveInputToFile(): Boolean = {
-    if (TaskContext.get().taskAttemptId() == GlutenConfig.getConf.taskId) {
-      return true
-    }
-    if (TaskContext.get().stageId() != GlutenConfig.getConf.taskStageId) {
-      return false
-    }
-    if (GlutenConfig.getConf.taskPartitionId == -1) {
-      return true
-    }
-    if (TaskContext.getPartitionId() == GlutenConfig.getConf.taskPartitionId) {
-      return true
-    }
+    def taskIdMatches =
+      GlutenConfig.getConf.benchmarkTaskId.nonEmpty &&
+        GlutenConfig.getConf.benchmarkTaskId
+          .split(",")
+          .map(_.toLong)
+          .contains(TaskContext.get().taskAttemptId())
 
-    false
+    def partitionIdMatches =
+      TaskContext.get().stageId() == GlutenConfig.getConf.benchmarkStageId &&
+        (GlutenConfig.getConf.benchmarkPartitionId.isEmpty ||
+          GlutenConfig.getConf.benchmarkPartitionId
+            .split(",")
+            .map(_.toInt)
+            .contains(TaskContext.get().partitionId()))
+
+    val saveInput = taskIdMatches || partitionIdMatches
+    if (saveInput) {
+      if (GlutenConfig.getConf.benchmarkSaveDir.isEmpty) {
+        throw new IllegalArgumentException(GlutenConfig.BENCHMARK_SAVE_DIR.key + " is not set.")
+      }
+    }
+    saveInput
   }
 }

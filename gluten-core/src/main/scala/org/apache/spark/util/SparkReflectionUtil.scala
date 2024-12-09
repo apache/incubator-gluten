@@ -20,4 +20,11 @@ object SparkReflectionUtil {
   def getSimpleClassName(cls: Class[_]): String = {
     Utils.getSimpleName(cls)
   }
+
+  def classForName[C](
+      className: String,
+      initialize: Boolean = true,
+      noSparkClassLoader: Boolean = false): Class[C] = {
+    Utils.classForName(className, initialize, noSparkClassLoader)
+  }
 }

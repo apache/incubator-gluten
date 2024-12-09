@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.delta.files
 
+import org.apache.hadoop.mapreduce.TaskAttemptContext
+
 class MergeTreeDelayedCommitProtocol(
     val outputPath: String,
     randomPrefixLength: Option[Int],
@@ -24,3 +26,49 @@ class MergeTreeDelayedCommitProtocol(
     val tableName: String)
   extends DelayedCommitProtocol("delta-mergetree", outputPath, randomPrefixLength, subdir)
   with MergeTreeFileCommitProtocol {}
+
+/**
+ * A Wrapper of [[DelayedCommitProtocol]] for accessing protected methods and fields in a pipeline
+ * write for parquet.
+ */
+class FileDelayedCommitProtocol(
+    jobId: String,
+    val outputPath: String,
+    randomPrefixLength: Option[Int],
+    subdir: Option[String])
+  extends DelayedCommitProtocol(jobId, outputPath, randomPrefixLength, subdir) {
+
+  override def getFileName(
+      taskContext: TaskAttemptContext,
+      ext: String,
+      partitionValues: Map[String, String]): String = {
+    super.getFileName(taskContext, ext, partitionValues)
+  }
+
+  def updateAddedFiles(files: Seq[(Map[String, String], String)]): Unit = {
+    assert(addedFiles.isEmpty)
+    addedFiles ++= files
+  }
+
+  override def parsePartitions(dir: String): Map[String, String] =
+    super.parsePartitions(dir)
+}
+
+/**
+ * A Wrapper of [[DelayedCommitProtocol]] for accessing protected methods and fields in a pipeline
+ * write for mergetree.
+ */
+class MergeTreeDelayedCommitProtocol2(
+    val outputPath: String,
+    randomPrefixLength: Option[Int],
+    subdir: Option[String],
+    val database: String,
+    val tableName: String)
+  extends DelayedCommitProtocol("delta-mergetree", outputPath, randomPrefixLength, subdir) {
+
+  override def newTaskTempFile(
+      taskContext: TaskAttemptContext,
+      dir: Option[String],
+      ext: String): String = outputPath
+
+}

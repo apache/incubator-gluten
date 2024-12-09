@@ -25,7 +25,8 @@ class GlutenAggregatorUtil
 {
 public:
     static Int32 getBucketsNum(AggregatedDataVariants & data_variants);
-    static std::optional<Block> safeConvertOneBucketToBlock(Aggregator & aggregator, AggregatedDataVariants & variants, Arena * arena, bool final, Int32 bucket);
+    static std::optional<Block>
+    safeConvertOneBucketToBlock(Aggregator & aggregator, AggregatedDataVariants & variants, Arena * arena, bool final, Int32 bucket);
     static void safeReleaseOneBucket(AggregatedDataVariants & variants, Int32 bucket);
 };
 }
@@ -41,6 +42,7 @@ public:
     ~AggregateDataBlockConverter() = default;
     bool hasNext();
     DB::Block next();
+
 private:
     DB::Aggregator & aggregator;
     DB::AggregatedDataVariantsPtr data_variants;
@@ -50,4 +52,31 @@ private:
     Int32 current_bucket = 0;
     DB::BlocksList output_blocks;
 };
+
+class AggregatorParamsHelper
+{
+public:
+    enum class Algorithm
+    {
+        GlutenGraceAggregate,
+        CHTwoStageAggregate
+    };
+    enum class Mode
+    {
+        INIT_TO_PARTIAL,
+        INIT_TO_COMPLETED,
+        PARTIAL_TO_PARTIAL,
+        PARTIAL_TO_FINISHED,
+    };
+
+    // for using grace aggregating, never enable ch spill, otherwise there will be data lost.
+    static DB::Aggregator::Params buildParams(
+        const DB::ContextPtr & context,
+        const DB::Names & grouping_keys,
+        const DB::AggregateDescriptions & agg_descriptions,
+        Mode mode,
+        Algorithm algorithm = Algorithm::GlutenGraceAggregate);
+    static bool compare(const DB::Aggregator::Params & lhs, const DB::Aggregator::Params & rhs);
+};
+
 }

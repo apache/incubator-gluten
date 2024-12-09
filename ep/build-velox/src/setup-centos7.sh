@@ -242,7 +242,7 @@ dnf_install epel-release dnf-plugins-core # For ccache, ninja
 dnf_install ccache wget which libevent-devel \
   yasm \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
-  curl-devel libxml2-devel libgsasl-devel libuuid-devel patch
+  curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel
 
 $SUDO dnf remove -y gflags
 

@@ -32,7 +32,7 @@ private class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTracki
   private val executionIdToDescription = new mutable.HashMap[Long, String]
   private val executionIdToFallbackEvent = new mutable.HashMap[Long, GlutenPlanFallbackEvent]
 
-  kvstore.addTrigger(classOf[SQLExecutionUIData], conf.get[Int](UI_RETAINED_EXECUTIONS)) {
+  kvstore.addTrigger(classOf[GlutenSQLExecutionUIData], conf.get[Int](UI_RETAINED_EXECUTIONS)) {
     count => cleanupExecutions(count)
   }
 
@@ -71,7 +71,7 @@ private class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTracki
         fallbackEvent.get.physicalPlanDescription,
         fallbackEvent.get.fallbackNodeToReason.toSeq.sortBy(_._1)
       )
-      kvstore.write(uiData)
+      kvstore.write(uiData, checkTriggers = true)
       executionIdToFallbackEvent.remove(event.executionId)
     }
     executionIdToDescription.put(event.executionId, event.description)

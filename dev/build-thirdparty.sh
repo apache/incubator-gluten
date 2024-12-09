@@ -82,4 +82,4 @@ elif [ "$LINUX_OS" == "debian" ]; then
   fi
 fi
 cd $THIRDPARTY_LIB/
-jar cvf gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar ./
+$JAVA_HOME/bin/jar cvf gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar ./

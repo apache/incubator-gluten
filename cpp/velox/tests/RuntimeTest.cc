@@ -103,6 +103,10 @@ class DummyRuntime final : public Runtime {
     throw GlutenException("Not yet implemented");
   }
 
+  std::shared_ptr<ArrowWriter> createArrowWriter(const std::string& path) override {
+    throw GlutenException("Not yet implemented");
+  }
+
  private:
   class DummyResultIterator : public ColumnarBatchIterator {
    public:

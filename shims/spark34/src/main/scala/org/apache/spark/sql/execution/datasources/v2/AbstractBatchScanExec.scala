@@ -21,7 +21,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{KeyGroupedPartitioning, Partitioning, SinglePartition}
-import org.apache.spark.sql.catalyst.util.{truncatedString, InternalRowComparableWrapper}
+import org.apache.spark.sql.catalyst.util.InternalRowComparableWrapper
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.internal.SQLConf
@@ -252,14 +252,7 @@ abstract class AbstractBatchScanExec(
     rdd
   }
 
-  override def simpleString(maxFields: Int): String = {
-    val truncatedOutputString = truncatedString(output, "[", ", ", "]", maxFields)
-    val runtimeFiltersString = s"RuntimeFilters: ${runtimeFilters.mkString("[", ",", "]")}"
-    val result = s"$nodeName$truncatedOutputString ${scan.description()} $runtimeFiltersString"
-    redact(result)
-  }
-
   override def nodeName: String = {
-    s"BatchScan ${table.name()}".trim
+    s"BatchScanTransformer ${table.name()}".trim
   }
 }

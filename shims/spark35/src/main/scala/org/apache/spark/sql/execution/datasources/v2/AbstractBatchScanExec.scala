@@ -260,6 +260,6 @@ abstract class AbstractBatchScanExec(
   }
 
   override def nodeName: String = {
-    s"BatchScan ${table.name()}".trim
+    s"BatchScanTransformer ${table.name()}".trim
   }
 }

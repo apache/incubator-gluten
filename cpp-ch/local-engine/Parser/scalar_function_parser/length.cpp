@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-#include <Parser/FunctionParser.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
 #include <Parser/ExpressionParser.h>
+#include <Parser/FunctionParser.h>
 
 namespace DB
 {
@@ -71,7 +72,7 @@ public:
         else
             result_node = toFunctionNode(actions_dag, "char_length", {new_arg});
 
-        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);;
+        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
 

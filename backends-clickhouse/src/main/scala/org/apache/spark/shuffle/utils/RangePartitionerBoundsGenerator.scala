@@ -16,7 +16,7 @@
  */
 package org.apache.spark.shuffle.utils
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backendsapi.clickhouse.CHValidatorApi
 import org.apache.gluten.execution.SortExecTransformer
 import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.substrait.SubstraitContext
@@ -261,8 +261,9 @@ object RangePartitionerBoundsGenerator {
           break
         }
         if (
-          !ordering.child.isInstanceOf[Attribute] && !BackendsApiManager.getSettings
-            .supportShuffleWithProject(rangePartitioning, child)
+          !ordering.child.isInstanceOf[Attribute] && !CHValidatorApi.supportShuffleWithProject(
+            rangePartitioning,
+            child)
         ) {
           enableRangePartitioning = false
           break

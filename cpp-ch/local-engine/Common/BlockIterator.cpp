@@ -27,7 +27,7 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-void local_engine::BlockIterator::checkNextValid()
+void local_engine::BlockIterator::checkNextValid() const
 {
     if (consumed)
     {

@@ -16,8 +16,8 @@
  */
 #pragma once
 #include <optional>
+#include <Parser/ExpandField.h>
 #include <Parser/RelParsers/RelParser.h>
-
 
 namespace local_engine
 {
@@ -29,7 +29,17 @@ public:
     ~ExpandRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
+    DB::QueryPlanPtr normalParse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
+    DB::QueryPlanPtr
+    lazyAggregateExpandParse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
 
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.expand().input(); }
+
+private:
+    bool isLazyAggregateExpand(const substrait::ExpandRel & expand_rel);
+    ExpandField buildExpandField(const DB::Block & header, const substrait::ExpandRel & expand_rel);
+
+    DB::AggregateDescriptions
+    buildAggregations(const DB::Block & input_header, const ExpandField & expand_field, const substrait::AggregateRel & aggregate_rel);
 };
 }

@@ -32,6 +32,7 @@ class ReadBufferFromString;
 }
 namespace local_engine
 {
+class Write;
 class SparkStorageMergeTree;
 using SparkStorageMergeTreePtr = std::shared_ptr<SparkStorageMergeTree>;
 using namespace DB;
@@ -79,7 +80,7 @@ struct MergeTreeTable
     std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::Block & header, const ContextPtr & context) const;
 
     MergeTreeTable() = default;
-    explicit MergeTreeTable(const substrait::WriteRel & write_rel);
+    MergeTreeTable(const local_engine::Write & write, const substrait::NamedStruct & table_schema);
 };
 
 struct MergeTreeTableInstance : MergeTreeTable

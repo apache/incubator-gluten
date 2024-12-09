@@ -92,7 +92,7 @@ const DB::ActionsDAG::Node * FunctionParser::parseExpression(DB::ActionsDAG & ac
 
 std::pair<DataTypePtr, Field> FunctionParser::parseLiteral(const substrait::Expression_Literal & literal) const
 {
-    return LiteralParser().parse(literal);
+    return LiteralParser::parse(literal);
 }
 
 ActionsDAG::NodeRawConstPtrs
@@ -115,33 +115,60 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
     const substrait::Expression_ScalarFunction & substrait_func, const ActionsDAG::Node * func_node, ActionsDAG & actions_dag) const
 {
     const auto & output_type = substrait_func.output_type();
-    if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
+    const ActionsDAG::Node * result_node = nullptr;
+
+    auto convert_type_if_needed = [&]()
     {
-        auto result_type = TypeParser::parseType(substrait_func.output_type());
-        if (DB::isDecimalOrNullableDecimal(result_type))
+        if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
         {
-            return ActionsDAGUtil::convertNodeType(
-                actions_dag,
-                func_node,
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)
-                                                     : local_engine::removeNullable(result_type),
-                func_node->result_name,
-                CastType::accurateOrNull);
+            auto result_type = TypeParser::parseType(substrait_func.output_type());
+            if (DB::isDecimalOrNullableDecimal(result_type))
+            {
+                return ActionsDAGUtil::convertNodeType(
+                    actions_dag,
+                    func_node,
+                    // as stated in isTypeMatched， currently we don't change nullability of the result type
+                    func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)
+                                                         : local_engine::removeNullable(result_type),
+                    func_node->result_name,
+                    CastType::accurateOrNull);
+            }
+            else
+            {
+                return ActionsDAGUtil::convertNodeType(
+                    actions_dag,
+                    func_node,
+                    // as stated in isTypeMatched， currently we don't change nullability of the result type
+                    func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))
+                                                         : DB::removeNullable(TypeParser::parseType(output_type)),
+                    func_node->result_name);
+            }
         }
         else
+            return func_node;
+    };
+    result_node = convert_type_if_needed();
+
+    /// Notice that in CH Bool and UInt8 have different serialization and deserialization methods, which will cause issue when executing cast(bool as string) in spark in spark.
+    auto convert_uint8_to_bool_if_needed = [&]() -> const auto *
+    {
+        auto * mutable_result_node = const_cast<ActionsDAG::Node *>(result_node);
+        auto denull_result_type = DB::removeNullable(result_node->result_type);
+        if (isUInt8(denull_result_type) && output_type.has_bool_())
         {
-            return ActionsDAGUtil::convertNodeType(
-                actions_dag,
-                func_node,
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))
-                                                     : DB::removeNullable(TypeParser::parseType(output_type)),
-                func_node->result_name);
+            auto bool_type = DB::DataTypeFactory::instance().get("Bool");
+            if (result_node->result_type->isNullable())
+                bool_type = DB::makeNullable(bool_type);
+
+            mutable_result_node->result_type = std::move(bool_type);
+            return mutable_result_node;
         }
-    }
-    else
-        return func_node;
+        else
+            return result_node;
+    };
+    result_node = convert_uint8_to_bool_if_needed();
+
+    return result_node;
 }
 
 void FunctionParserFactory::registerFunctionParser(const String & name, Value value)

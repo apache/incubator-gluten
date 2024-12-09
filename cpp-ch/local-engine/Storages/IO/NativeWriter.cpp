@@ -32,6 +32,7 @@ namespace local_engine
 {
 
 const String NativeWriter::AGG_STATE_SUFFIX= "#optagg";
+
 void NativeWriter::flush()
 {
     ostr.next();

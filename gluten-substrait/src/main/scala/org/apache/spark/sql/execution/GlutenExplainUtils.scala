@@ -16,8 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.WholeStageTransformer
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.{GlutenPlan, WholeStageTransformer}
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PlanUtil
@@ -147,15 +146,13 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
     }
   }
 
-  // spotless:off
-  // scalastyle:off
+  // format: off
   /**
    * Given a input physical plan, performs the following tasks.
    *   1. Generates the explain output for the input plan excluding the subquery plans. 2. Generates
    *      the explain output for each subquery referenced in the plan.
    */
-  // scalastyle:on
-  // spotless:on
+  // format: on
   def processPlan[T <: QueryPlan[T]](
       plan: T,
       append: String => Unit,

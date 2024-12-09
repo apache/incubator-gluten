@@ -42,7 +42,6 @@ class SharedLibraryLoaderCentos9 extends SharedLibraryLoader {
     loader.loadAndCreateLink("libntlm.so.0", "libntlm.so", false)
     loader.loadAndCreateLink("libgsasl.so.7", "libgsasl.so", false)
     loader.loadAndCreateLink("libprotobuf.so.32", "libprotobuf.so", false)
-    loader.loadAndCreateLink("libhdfs.so.0.0.0", "libhdfs.so", false)
     loader.loadAndCreateLink("libre2.so.9", "libre2.so", false)
     loader.loadAndCreateLink("libsodium.so.23", "libsodium.so", false)
   }

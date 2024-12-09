@@ -17,12 +17,13 @@
 
 #include <vector>
 #include "udf/UdfLoader.h"
-#include "velox/expression/VectorFunction.h"
+#include "velox/expression/SimpleFunctionRegistry.h"
 #include "velox/functions/prestosql/tests/utils/FunctionBaseTest.h"
 #include "velox/parse/TypeResolver.h"
 
 using namespace facebook::velox::functions::test;
 using namespace facebook::velox;
+
 class MyUdfTest : public FunctionBaseTest {
  protected:
   static void SetUpTestCase() {
@@ -35,16 +36,7 @@ class MyUdfTest : public FunctionBaseTest {
 };
 
 TEST_F(MyUdfTest, hivestringstring) {
-  auto map = facebook::velox::exec::vectorFunctionFactories();
-  const std::string candidate = {"org.apache.spark.sql.hive.execution.UDFStringString"};
-  ASSERT(map.withRLock([&candidate](auto& self) -> bool {
-    auto iter = self.find(candidate);
-    std::unordered_map<std::string, std::string> values;
-    const facebook::velox::core::QueryConfig config(std::move(values));
-    iter->second.factory(
-        candidate,
-        {facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()},
-         facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()}},
-        config) != nullptr;
-  });)
+  const std::string name = "org.apache.spark.sql.hive.execution.UDFStringString";
+  const core::QueryConfig config({});
+  EXPECT_EQ(TypeKind::VARCHAR, exec::simpleFunctions().resolveFunction(name, {VARCHAR(), VARCHAR()})->type()->kind());
 }

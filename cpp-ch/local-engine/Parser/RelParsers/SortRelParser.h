@@ -30,8 +30,6 @@ public:
 
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & sort_rel, std::list<const substrait::Rel *> & rel_stack_) override;
-    static DB::SortDescription
-    parseSortDescription(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields, const DB::Block & header);
 
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.sort().input(); }
 

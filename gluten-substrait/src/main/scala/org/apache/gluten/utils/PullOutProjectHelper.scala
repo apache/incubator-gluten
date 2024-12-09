@@ -62,7 +62,8 @@ trait PullOutProjectHelper {
   protected def replaceExpressionWithAttribute(
       expr: Expression,
       projectExprsMap: mutable.HashMap[Expression, NamedExpression],
-      replaceBoundReference: Boolean = false): Expression =
+      replaceBoundReference: Boolean = false,
+      replaceLiteral: Boolean = true): Expression =
     expr match {
       case alias: Alias =>
         alias.child match {
@@ -73,6 +74,7 @@ trait PullOutProjectHelper {
         }
       case attr: Attribute => attr
       case e: BoundReference if !replaceBoundReference => e
+      case literal: Literal if !replaceLiteral => literal
       case other =>
         projectExprsMap
           .getOrElseUpdate(other.canonicalized, Alias(other, generatePreAliasName)())

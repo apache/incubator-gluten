@@ -58,16 +58,23 @@ object JoinTypeTransform {
         } else {
           JoinRel.JoinType.JOIN_TYPE_RIGHT
         }
-      case LeftSemi | ExistenceJoin(_) =>
+      case LeftSemi =>
         if (!buildRight) {
-          throw new IllegalArgumentException("LeftSemi join should not switch children")
+          JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
         }
-        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       case LeftAnti =>
         if (!buildRight) {
-          throw new IllegalArgumentException("LeftAnti join should not switch children")
+          JoinRel.JoinType.JOIN_TYPE_RIGHT_ANTI
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_LEFT_ANTI
         }
-        JoinRel.JoinType.JOIN_TYPE_LEFT_ANTI
+      case ExistenceJoin(_) =>
+        if (!buildRight) {
+          throw new IllegalArgumentException("Existence join should not switch children")
+        }
+        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       case _ =>
         // TODO: Support cross join with Cross Rel
         JoinRel.JoinType.UNRECOGNIZED

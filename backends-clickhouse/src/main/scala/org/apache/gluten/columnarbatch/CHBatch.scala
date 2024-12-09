@@ -38,6 +38,8 @@ import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumna
  * }}}
  */
 object CHBatch extends Convention.BatchType {
-  fromRow(RowToCHNativeColumnarExec.apply)
-  toRow(CHColumnarToRowExec.apply)
+  override protected def registerTransitions(): Unit = {
+    fromRow(RowToCHNativeColumnarExec.apply)
+    toRow(CHColumnarToRowExec.apply)
+  }
 }

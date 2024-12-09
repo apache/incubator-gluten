@@ -26,10 +26,7 @@ import scala.collection.mutable
  * https://github.com/apache/incubator-gluten/issues/5057.
  */
 trait Optimization[T <: AnyRef] {
-  def newPlanner(
-      plan: T,
-      constraintSet: PropertySet[T],
-      altConstraintSets: Seq[PropertySet[T]]): RasPlanner[T]
+  def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T]
   def anyPropSet(): PropertySet[T]
   def withNewConfig(confFunc: RasConfig => RasConfig): Optimization[T]
 }
@@ -47,10 +44,7 @@ object Optimization {
 
   implicit class OptimizationImplicits[T <: AnyRef](opt: Optimization[T]) {
     def newPlanner(plan: T): RasPlanner[T] = {
-      opt.newPlanner(plan, opt.anyPropSet(), List.empty)
-    }
-    def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T] = {
-      opt.newPlanner(plan, constraintSet, List.empty)
+      opt.newPlanner(plan, opt.anyPropSet())
     }
   }
 }
@@ -113,11 +107,8 @@ class Ras[T <: AnyRef] private (
     }
   }
 
-  override def newPlanner(
-      plan: T,
-      constraintSet: PropertySet[T],
-      altConstraintSets: Seq[PropertySet[T]]): RasPlanner[T] = {
-    RasPlanner(this, altConstraintSets, constraintSet, plan)
+  override def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T] = {
+    RasPlanner(this, constraintSet, plan)
   }
 
   override def anyPropSet(): PropertySet[T] = propertySetFactory().any()

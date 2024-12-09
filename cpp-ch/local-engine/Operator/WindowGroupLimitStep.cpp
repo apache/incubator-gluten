@@ -37,7 +37,6 @@ enum class WindowGroupLimitFunction
     DenseRank
 };
 
-
 template <WindowGroupLimitFunction function>
 class WindowGroupLimitTransform : public DB::IProcessor
 {
@@ -50,7 +49,6 @@ public:
         , partition_columns(partition_columns_)
         , sort_columns(sort_columns_)
         , limit(limit_)
-
     {
     }
     ~WindowGroupLimitTransform() override = default;
@@ -95,9 +93,7 @@ public:
     void work() override
     {
         if (!has_input) [[unlikely]]
-        {
             return;
-        }
         DB::Block block = header.cloneWithColumns(input_chunk.getColumns());
         size_t partition_start_row = 0;
         size_t chunk_rows = input_chunk.getNumRows();
@@ -151,7 +147,6 @@ private:
     DB::Columns partition_start_row_columns;
     DB::Columns peer_group_start_row_columns;
 
-
     size_t advanceNextPartition(const DB::Chunk & chunk, size_t start_offset)
     {
         if (partition_start_row_columns.empty())
@@ -159,12 +154,8 @@ private:
 
         size_t max_row = chunk.getNumRows();
         for (size_t i = start_offset; i < max_row; ++i)
-        {
             if (!isRowEqual(partition_columns, partition_start_row_columns, 0, chunk.getColumns(), i))
-            {
                 return i;
-            }
-        }
         return max_row;
     }
 
@@ -198,7 +189,6 @@ private:
         // Skip the rest rows int this partition.
         if (current_row_rank_value > limit)
             return;
-
 
         size_t chunk_rows = chunk.getNumRows();
         auto has_peer_group_ended = [&](size_t offset, size_t partition_end_offset, size_t chunk_rows_)
@@ -241,6 +231,7 @@ private:
             size_t limit_remained = limit - current_row_rank_value + 1;
             rows = rows > limit_remained ? limit_remained : rows;
             insertResultValue(chunk, start_offset, rows);
+
             current_row_rank_value += rows;
         }
         else
@@ -249,8 +240,8 @@ private:
             while (peer_group_start_offset < end_offset && current_row_rank_value <= limit)
             {
                 auto next_peer_group_start_offset = advanceNextPeerGroup(chunk, peer_group_start_offset, end_offset);
-
-                insertResultValue(chunk, peer_group_start_offset, next_peer_group_start_offset - peer_group_start_offset);
+                size_t group_rows = next_peer_group_start_offset - peer_group_start_offset;
+                insertResultValue(chunk, peer_group_start_offset, group_rows);
                 try_end_peer_group(peer_group_start_offset, next_peer_group_start_offset, end_offset, chunk_rows);
                 peer_group_start_offset = next_peer_group_start_offset;
             }
@@ -261,12 +252,8 @@ private:
         if (!rows)
             return;
         if (output_columns.empty())
-        {
             for (const auto & col : chunk.getColumns())
-            {
                 output_columns.push_back(col->cloneEmpty());
-            }
-        }
         size_t i = 0;
         for (const auto & col : chunk.getColumns())
         {
@@ -279,12 +266,8 @@ private:
         if (peer_group_start_row_columns.empty())
             peer_group_start_row_columns = extractOneRowColumns(chunk, start_offset);
         for (size_t i = start_offset; i < partition_end_offset; ++i)
-        {
             if (!isRowEqual(sort_columns, peer_group_start_row_columns, 0, chunk.getColumns(), i))
-            {
                 return i;
-            }
-        }
         return partition_end_offset;
     }
 };

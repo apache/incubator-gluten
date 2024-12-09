@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.memory.CHThreadGroup
+
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
 import org.apache.spark.rdd.RDD
@@ -25,6 +27,7 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
@@ -46,14 +49,16 @@ class CHColumnarWriteFilesRDD(
   extends RDD[WriterCommitMessage](prev) {
 
   private def reportTaskMetrics(writeTaskResult: WriteTaskResult): Unit = {
-    val stats = writeTaskResult.summary.stats.head.asInstanceOf[BasicWriteTaskStats]
-    val (numBytes, numWrittenRows) = (stats.numBytes, stats.numRows)
-    // Reports bytesWritten and recordsWritten to the Spark output metrics.
-    // We should update it after calling `commitTask` to overwrite the metrics.
-    Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
-      outputMetrics =>
-        outputMetrics.setBytesWritten(numBytes)
-        outputMetrics.setRecordsWritten(numWrittenRows)
+    writeTaskResult.summary.stats.find(_.isInstanceOf[BasicWriteTaskStats]).foreach {
+      s =>
+        val stats = s.asInstanceOf[BasicWriteTaskStats]
+        // Reports bytesWritten and recordsWritten to the Spark output metrics.
+        // We should update it after calling `commitTask` to overwrite the metrics.
+        Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
+          outputMetrics =>
+            outputMetrics.setBytesWritten(stats.numBytes)
+            outputMetrics.setRecordsWritten(stats.numRows)
+        }
     }
   }
 
@@ -78,6 +83,7 @@ class CHColumnarWriteFilesRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[WriterCommitMessage] = {
+    CHThreadGroup.registerNewThreadGroup()
 
     val commitProtocol = CHColumnarWrite(jobTrackerID, description, committer)
     commitProtocol.setupTask()
@@ -90,8 +96,19 @@ class CHColumnarWriteFilesRDD(
         assert(iter.hasNext)
         val resultColumnarBatch = iter.next()
         assert(resultColumnarBatch != null)
+
+        /**
+         * we assume the number of records is less than 10,000.So the memory overhead is acceptable.
+         * otherwise, we need to access ColumnarBatch row by row, which is not efficient.
+         */
+        val writeResults = CHExecUtil.c2r(resultColumnarBatch).map(_.copy()).toSeq
+        // TODO: we need close iterator here before processing the result.
+        // TODO: task commit time
+        // TODO: get the schema from result ColumnarBatch and verify it.
+        assert(!iter.hasNext)
+
         val writeTaskResult = commitProtocol
-          .commitTask(resultColumnarBatch)
+          .commitTask(writeResults)
           .orElse({
             // If we are writing an empty iterator, then gluten backend would do nothing.
             // Here we fallback to use vanilla Spark write files to generate an empty file for

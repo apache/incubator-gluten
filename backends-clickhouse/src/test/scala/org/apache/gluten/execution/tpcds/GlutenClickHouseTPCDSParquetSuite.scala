@@ -30,17 +30,16 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
     super.sparkConf
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      // Currently, it can not support to read multiple partitioned file in one task.
-      //      .set("spark.sql.files.maxPartitionBytes", "134217728")
-      //      .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.memory.offHeap.size", "4g")
       .set("spark.gluten.sql.validation.logLevel", "ERROR")
       .set("spark.gluten.sql.validation.printStackOnFailure", "true")
+      .setCHConfig("enable_grace_aggregate_spill_test", "true")
   }
 
   executeTPCDSTest(false)

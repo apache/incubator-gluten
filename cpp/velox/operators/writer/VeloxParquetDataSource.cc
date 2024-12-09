@@ -38,7 +38,6 @@ using namespace facebook::velox::common;
 using namespace facebook::velox::filesystems;
 
 namespace gluten {
-
 namespace {
 const int32_t kGzipWindowBits4k = 12;
 }

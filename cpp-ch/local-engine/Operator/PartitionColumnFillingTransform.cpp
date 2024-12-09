@@ -57,16 +57,11 @@ ColumnPtr createFloatPartitionColumn(DataTypePtr column_type, const std::string 
     return column_type->createColumnConst(1, value);
 }
 
-//template <>
-//ColumnPtr createFloatPartitionColumn<Float32>(DataTypePtr column_type, std::string partition_value);
-//template <>
-//ColumnPtr createFloatPartitionColumn<Float64>(DataTypePtr column_type, std::string partition_value);
-
 PartitionColumnFillingTransform::PartitionColumnFillingTransform(
     const DB::Block & input_, const DB::Block & output_, const String & partition_col_name_, const String & partition_col_value_)
     : ISimpleTransform(input_, output_, true), partition_col_name(partition_col_name_), partition_col_value(partition_col_value_)
 {
-    partition_col_type = output_.getByName(partition_col_name_).type;
+    partition_col_type = output_.getByName(partition_col_name_, true).type;
     partition_column = createPartitionColumn();
 }
 

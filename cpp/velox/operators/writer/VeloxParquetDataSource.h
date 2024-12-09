@@ -37,7 +37,7 @@
 #include "velox/connectors/hive/storage_adapters/s3fs/S3Util.h"
 #endif
 #ifdef ENABLE_GCS
-#include "velox/connectors/hive/storage_adapters/gcs/GCSFileSystem.h"
+#include "velox/connectors/hive/storage_adapters/gcs/GcsFileSystem.h"
 #endif
 #ifdef ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"

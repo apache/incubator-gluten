@@ -48,7 +48,7 @@ class NonNullableColumnsResolver
 public:
     explicit NonNullableColumnsResolver(
         const DB::Block & header_, std::shared_ptr<const ParserContext> parser_context_, const substrait::Expression & cond_rel_);
-    ~NonNullableColumnsResolver();
+    ~NonNullableColumnsResolver() = default;
 
     // return column names
     std::set<String> resolve();
@@ -68,7 +68,7 @@ private:
 class SerializedPlanParser
 {
 private:
-    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan);
+    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan) const;
 
 public:
     explicit SerializedPlanParser(std::shared_ptr<const ParserContext> parser_context_);
@@ -76,7 +76,7 @@ public:
     /// visible for UT
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
     std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan);
-    DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan);
+    DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan) const;
     ///
     std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
@@ -118,6 +118,7 @@ public:
 
 private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
+    static void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::Plan & plan);
 
     std::vector<jobject> input_iters;
     std::vector<std::string> split_infos;

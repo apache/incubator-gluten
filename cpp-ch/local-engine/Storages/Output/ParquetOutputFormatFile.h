@@ -33,7 +33,6 @@ public:
         const std::string & file_uri_,
         const WriteBufferBuilderPtr & write_buffer_builder_,
         const DB::Block & preferred_schema_);
-    ~ParquetOutputFormatFile() override = default;
 
     OutputFormatFile::OutputFormatPtr createOutputFormat(const DB::Block & header) override;
 };

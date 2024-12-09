@@ -61,42 +61,96 @@ private:
 OutputFormatFilePtr createOutputFormatFile(
     const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint);
 
-class WriteStats : public DB::ISimpleTransform
+struct DeltaStats
 {
-    bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
-    DB::Arena partition_keys_arena_;
-    std::string filename_;
+    size_t row_count;
+    std::vector<DB::Field> min;
+    std::vector<DB::Field> max;
+    std::vector<Int64> null_count;
+    std::set<size_t> partition_index;
 
-    absl::flat_hash_map<StringRef, size_t> fiel_to_count_;
-
-    static DB::Block statsHeader()
+    static DeltaStats create(const DB::Block & output, const DB::Names & partition)
     {
-        return makeBlockHeader({{STRING(), "filename"}, {STRING(), "partition_id"}, {BIGINT(), "record_count"}});
+        size_t size = output.columns() - partition.size();
+        std::set<size_t> partition_index;
+        std::ranges::transform(
+            partition,
+            std::inserter(partition_index, partition_index.end()),
+            [&](const auto & name) { return output.getPositionByName(name); });
+        assert(partition_index.size() == partition.size());
+        return DeltaStats(size, partition_index);
     }
-
-    DB::Chunk final_result() const
+    static DB::Block statsHeader(const DB::Block & output, const DB::Names & partition, DB::ColumnsWithTypeAndName && statsHeaderBase)
     {
-        ///TODO: improve performance
-        auto file_col = STRING()->createColumn();
-        auto partition_col = STRING()->createColumn();
-        auto countCol = BIGINT()->createColumn();
-        UInt64 num_rows = 0;
-        for (const auto & [relative_path, rows] : fiel_to_count_)
+        std::set<std::string> partition_index;
+        std::ranges::transform(partition, std::inserter(partition_index, partition_index.end()), [&](const auto & name) { return name; });
+
+        assert(partition_index.size() == partition.size());
+
+        auto appendBase = [&](const std::string & prefix)
         {
-            if (rows == 0)
-                continue;
-            file_col->insertData(filename_.c_str(), filename_.size());
-            partition_col->insertData(relative_path.data, relative_path.size);
-            countCol->insert(rows);
-            num_rows++;
-        }
+            for (const auto & column : output.getColumnsWithTypeAndName())
+                if (!partition_index.contains(column.name))
+                    statsHeaderBase.emplace_back(wrapNullableType(column.type), prefix + column.name);
+        };
+        appendBase("min_");
+        appendBase("max_");
+        for (const auto & column : output.getColumnsWithTypeAndName())
+            if (!partition_index.contains(column.name))
+                statsHeaderBase.emplace_back(BIGINT(), "null_count_" + column.name);
 
-        const DB::Columns res_columns{std::move(file_col), std::move(partition_col), std::move(countCol)};
-        return DB::Chunk(res_columns, num_rows);
+        return makeBlockHeader(statsHeaderBase);
     }
+
+    explicit DeltaStats(size_t size, const std::set<size_t> & partition_index_ = {})
+        : row_count(0), min(size), max(size), null_count(size, 0), partition_index(partition_index_)
+    {
+    }
+
+    void update(const DB::Chunk & chunk)
+    {
+        row_count += chunk.getNumRows();
+        const auto & columns = chunk.getColumns();
+        assert(columns.size() == min.size() + partition_index.size());
+        for (size_t i = 0, col = 0; col < columns.size(); ++col)
+        {
+            if (partition_index.contains(col))
+                continue;
+
+            const auto & column = columns[col];
+            Int64 null_count = 0;
+            if (const auto * nullable_column = typeid_cast<const DB::ColumnNullable *>(column.get()))
+            {
+                const auto & null_map = nullable_column->getNullMapData();
+                null_count = std::ranges::count_if(null_map, [](UInt8 value) { return value != 0; });
+            }
+            this->null_count[i] += null_count;
+
+            DB::Field min_value, max_value;
+            column->getExtremes(min_value, max_value);
+            assert(min[i].isNull() || min_value.getType() == min[i].getType());
+            assert(max[i].isNull() || max_value.getType() == max[i].getType());
+            if (min[i].isNull() || min_value < min[i])
+                min[i] = min_value;
+            if (max[i].isNull() || max_value > max[i])
+                max[i] = max_value;
+
+            ++i;
+        }
+    }
+};
+
+class WriteStatsBase : public DB::ISimpleTransform
+{
+protected:
+    bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
+    virtual DB::Chunk final_result() = 0;
 
 public:
-    explicit WriteStats(const DB::Block & input_header_) : ISimpleTransform(input_header_, statsHeader(), true) { }
+    WriteStatsBase(const DB::Block & input_header_, const DB::Block & output_header_)
+        : ISimpleTransform(input_header_, output_header_, true)
+    {
+    }
 
     Status prepare() override
     {
@@ -110,7 +164,6 @@ public:
         return ISimpleTransform::prepare();
     }
 
-    String getName() const override { return "WriteStats"; }
     void transform(DB::Chunk & chunk) override
     {
         if (all_chunks_processed_)
@@ -118,40 +171,123 @@ public:
         else
             chunk = {};
     }
+};
 
-    void addFilePath(const String & patition_id, const String & filename)
+class WriteStats : public WriteStatsBase
+{
+    DB::MutableColumns columns_;
+
+    enum ColumnIndex
     {
-        assert(!filename.empty());
+        filename,
+        partition_id,
+        record_count
+    };
 
-        if (filename_.empty())
-            filename_ = filename;
-
-        assert(filename_ == filename);
-
-        if (patition_id.empty())
-            return;
-        fiel_to_count_.emplace(copyStringInArena(partition_keys_arena_, patition_id), 0);
+protected:
+    DB::Chunk final_result() override
+    {
+        size_t rows = columns_[filename]->size();
+        return DB::Chunk(std::move(columns_), rows);
     }
 
-    void collectStats(const String & file_path, size_t rows)
+public:
+    WriteStats(const DB::Block & input_header_, const DB::Block & output_header_)
+        : WriteStatsBase(input_header_, output_header_), columns_(output_header_.cloneEmptyColumns())
     {
-        if (const auto it = fiel_to_count_.find(file_path); it != fiel_to_count_.end())
+    }
+
+    static std::shared_ptr<WriteStats> create(const DB::Block & input_header_, const DB::Names & partition)
+    {
+        return std::make_shared<WriteStats>(
+            input_header_,
+            DeltaStats::statsHeader(
+                input_header_, partition, {{STRING(), "filename"}, {STRING(), "partition_id"}, {BIGINT(), "record_count"}}));
+    }
+
+    String getName() const override { return "WriteStats"; }
+
+    void collectStats(const String & filename, const String & partition, const DeltaStats & stats) const
+    {
+        // 3 => filename, partition_id, record_count
+        constexpr size_t baseOffset = 3;
+        assert(columns_.size() == baseOffset + stats.min.size() + stats.max.size() + stats.null_count.size());
+        columns_[ColumnIndex::filename]->insertData(filename.c_str(), filename.size());
+        columns_[partition_id]->insertData(partition.c_str(), partition.size());
+        auto & countColData = static_cast<DB::ColumnVector<Int64> &>(*columns_[record_count]).getData();
+        countColData.emplace_back(stats.row_count);
+        size_t columnSize = stats.min.size();
+        for (int i = 0; i < columnSize; ++i)
         {
-            it->second += rows;
-            return;
+            size_t offset = baseOffset + i;
+            columns_[offset]->insert(stats.min[i]);
+            columns_[columnSize + offset]->insert(stats.max[i]);
+            auto & nullCountData = static_cast<DB::ColumnVector<Int64> &>(*columns_[(columnSize * 2) + offset]).getData();
+            nullCountData.emplace_back(stats.null_count[i]);
         }
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "File path {} not found in the stats map", file_path);
+    }
+};
+
+struct FileNameGenerator
+{
+    // Align with org.apache.spark.sql.execution.FileNamePlaceHolder
+    static const std::vector<std::string> SUPPORT_PLACEHOLDERS;
+    // Align with placeholders above
+    const std::vector<bool> need_to_replace;
+    const std::string file_pattern;
+
+    FileNameGenerator(const std::string & file_pattern)
+        : file_pattern(file_pattern), need_to_replace(compute_need_to_replace(file_pattern))
+    {
+    }
+
+    std::vector<bool> compute_need_to_replace(const std::string & file_pattern)
+    {
+        std::vector<bool> result;
+        for(const std::string& placeholder: SUPPORT_PLACEHOLDERS)
+        {
+            if (file_pattern.find(placeholder) != std::string::npos)
+                result.push_back(true);
+            else
+                result.push_back(false);
+        }
+        return result;
+    }
+
+    std::string generate(const std::string & bucket = "") const
+    {
+        std::string result = file_pattern;
+        if (need_to_replace[0]) // {id}
+            result = pattern_format(SUPPORT_PLACEHOLDERS[0], toString(DB::UUIDHelpers::generateV4()));
+        if (need_to_replace[1]) // {bucket}
+            result = pattern_format(SUPPORT_PLACEHOLDERS[1], bucket);
+        return result;
+    }
+
+    std::string pattern_format(const std::string & arg, const std::string & replacement) const
+    {
+        std::string format_str = file_pattern;
+        size_t pos = format_str.find(arg);
+        while (pos != std::string::npos)
+        {
+            format_str.replace(pos, arg.length(), replacement);
+            pos = format_str.find(arg, pos + arg.length());
+        }
+        return format_str;
     }
 };
 
 class SubstraitFileSink final : public DB::SinkToStorage
 {
     const std::string partition_id_;
+    const bool bucketed_write_;
     const std::string relative_path_;
+    OutputFormatFilePtr format_file_;
     OutputFormatFile::OutputFormatPtr output_format_;
-    std::shared_ptr<WriteStats> stats_{nullptr};
+    std::shared_ptr<WriteStats> stats_;
+    DeltaStats delta_stats_;
 
-    static std::string makeFilename(const std::string & base_path, const std::string & partition_id, const std::string & relative)
+    static std::string makeAbsoluteFilename(const std::string & base_path, const std::string & partition_id, const std::string & relative)
     {
         if (partition_id.empty())
             return fmt::format("{}/{}", base_path, relative);
@@ -166,49 +302,70 @@ public:
         const DB::ContextPtr & context,
         const std::string & base_path,
         const std::string & partition_id,
+        const bool bucketed_write,
         const std::string & relative,
         const std::string & format_hint,
-        const DB::Block & header)
+        const DB::Block & header,
+        const std::shared_ptr<WriteStatsBase> & stats,
+        const DeltaStats & delta_stats)
         : SinkToStorage(header)
         , partition_id_(partition_id.empty() ? NO_PARTITION_ID : partition_id)
+        , bucketed_write_(bucketed_write)
         , relative_path_(relative)
-        , output_format_(createOutputFormatFile(context, makeFilename(base_path, partition_id, relative), header, format_hint)
-                             ->createOutputFormat(header))
+        , format_file_(createOutputFormatFile(context, makeAbsoluteFilename(base_path, partition_id, relative), header, format_hint))
+        , stats_(std::dynamic_pointer_cast<WriteStats>(stats))
+        , delta_stats_(delta_stats)
     {
     }
-    String getName() const override { return "SubstraitFileSink"; }
 
-    ///TODO: remove this function
-    void setStats(const std::shared_ptr<WriteStats> & stats)
-    {
-        stats_ = stats;
-        stats_->addFilePath(partition_id_, relative_path_);
-    }
+    String getName() const override { return "SubstraitFileSink"; }
 
 protected:
     void consume(DB::Chunk & chunk) override
     {
-        const size_t row_count = chunk.getNumRows();
-        output_format_->output->write(materializeBlock(getHeader().cloneWithColumns(chunk.detachColumns())));
+        delta_stats_.update(chunk);
+        if (!output_format_) [[unlikely]]
+            output_format_ = format_file_->createOutputFormat();
 
-        if (stats_)
-            stats_->collectStats(partition_id_, row_count);
+        const DB::Block & input_header = getHeader();
+        if (bucketed_write_)
+        {
+            chunk.erase(input_header.columns() - 1);
+            const DB::ColumnsWithTypeAndName & cols = input_header.getColumnsWithTypeAndName();
+            DB::ColumnsWithTypeAndName without_bucket_cols(cols.begin(), cols.end() - 1);
+            DB::Block without_bucket_header = DB::Block(without_bucket_cols);
+            output_format_->output->write(materializeBlock(without_bucket_header.cloneWithColumns(chunk.detachColumns())));
+        }
+        else
+            output_format_->output->write(materializeBlock(input_header.cloneWithColumns(chunk.detachColumns())));
     }
     void onFinish() override
     {
-        output_format_->output->finalize();
-        output_format_->output->flush();
-        output_format_->write_buffer->finalize();
+        if (output_format_) [[unlikely]]
+        {
+            output_format_->finalizeOutput();
+            assert(delta_stats_.row_count > 0);
+            if (stats_)
+                stats_->collectStats(relative_path_, partition_id_, delta_stats_);
+        }
     }
 };
 
-class SubstraitPartitionedFileSink final : public DB::PartitionedSink
+class SparkPartitionedBaseSink : public DB::PartitionedSink
 {
-    static const std::string DEFAULT_PARTITION_NAME;
 
 public:
+    static const std::string DEFAULT_PARTITION_NAME;
+    static const std::string BUCKET_COLUMN_NAME;
+
+    static bool isBucketedWrite(const DB::Block & input_header)
+    {
+        return input_header.has(BUCKET_COLUMN_NAME) &&
+            input_header.getPositionByName(BUCKET_COLUMN_NAME) == input_header.columns() - 1;
+    }
+
     /// visible for UTs
-    static DB::ASTPtr make_partition_expression(const DB::Names & partition_columns)
+    static DB::ASTPtr make_partition_expression(const DB::Names & partition_columns, const DB::Block & input_header)
     {
         /// Parse the following expression into ASTs
         /// cancat('/col_name=', 'toString(col_name)')
@@ -228,16 +385,58 @@ public:
                 makeASTFunction("toString", DB::ASTs{column_ast}), std::make_shared<DB::ASTLiteral>(DEFAULT_PARTITION_NAME)};
             arguments.emplace_back(makeASTFunction("ifNull", std::move(if_null_args)));
         }
+        if (isBucketedWrite(input_header))
+        {
+            DB::ASTs args {std::make_shared<DB::ASTLiteral>("%05d"), std::make_shared<DB::ASTIdentifier>(BUCKET_COLUMN_NAME)};
+            arguments.emplace_back(DB::makeASTFunction("printf", std::move(args)));
+        }
+        assert(!arguments.empty());
+        if (arguments.size() == 1)
+            return arguments[0];
         return DB::makeASTFunction("concat", std::move(arguments));
     }
 
-private:
-    const std::string base_path_;
-    const std::string filenmame_;
+    DB::SinkPtr createSinkForPartition(const String & partition_id) override
+    {
+        if (bucketed_write_)
+        {
+            std::string bucket_val = partition_id.substr(partition_id.length() - 5, 5);
+            std::string real_partition_id = partition_id.substr(0, partition_id.length() - 5);
+            return createSinkForPartition(real_partition_id, bucket_val);
+        }
+        return createSinkForPartition(partition_id, "");
+    }
+
+    virtual DB::SinkPtr createSinkForPartition(const String & partition_id, const String & bucket) = 0;
+
+protected:
     DB::ContextPtr context_;
+    std::shared_ptr<WriteStatsBase> stats_;
+    DeltaStats empty_delta_stats_;
+    bool bucketed_write_;
+
+public:
+    SparkPartitionedBaseSink(
+        const DB::ContextPtr & context,
+        const DB::Names & partition_by,
+        const DB::Block & input_header,
+        const std::shared_ptr<WriteStatsBase> & stats)
+        : PartitionedSink(make_partition_expression(partition_by, input_header), context, input_header)
+        , context_(context)
+        , stats_(stats)
+        , bucketed_write_(isBucketedWrite(input_header))
+        , empty_delta_stats_(DeltaStats::create(input_header, partition_by))
+    {
+    }
+};
+
+class SubstraitPartitionedFileSink final : public SparkPartitionedBaseSink
+{
+    const std::string base_path_;
+    const FileNameGenerator generator_;
+    const DB::Block input_header_;
     const DB::Block sample_block_;
     const std::string format_hint_;
-    std::shared_ptr<WriteStats> stats_{nullptr};
 
 public:
     SubstraitPartitionedFileSink(
@@ -246,28 +445,28 @@ public:
         const DB::Block & input_header,
         const DB::Block & sample_block,
         const std::string & base_path,
-        const std::string & filename,
-        const std::string & format_hint)
-        : PartitionedSink(make_partition_expression(partition_by), context, input_header)
+        const FileNameGenerator & generator,
+        const std::string & format_hint,
+        const std::shared_ptr<WriteStatsBase> & stats)
+        : SparkPartitionedBaseSink(context, partition_by, input_header, stats)
         , base_path_(base_path)
-        , filenmame_(filename)
-        , context_(context)
+        , generator_(generator)
         , sample_block_(sample_block)
+        , input_header_(input_header)
         , format_hint_(format_hint)
     {
     }
-    DB::SinkPtr createSinkForPartition(const String & partition_id) override
+
+    DB::SinkPtr createSinkForPartition(const String & partition_id, const String & bucket) override
     {
         assert(stats_);
-        const auto partition_path = fmt::format("{}/{}", partition_id, filenmame_);
-        PartitionedSink::validatePartitionKey(partition_path, true);
-        auto file_sink = std::make_shared<SubstraitFileSink>(context_, base_path_, partition_id, filenmame_, format_hint_, sample_block_);
-        file_sink->setStats(stats_);
-        return file_sink;
+        bool bucketed_write = !bucket.empty();
+        std::string filename = bucketed_write ? generator_.generate(bucket) : generator_.generate();
+        const auto partition_path = fmt::format("{}/{}", partition_id, filename);
+        validatePartitionKey(partition_path, true);
+        return std::make_shared<SubstraitFileSink>(
+            context_, base_path_, partition_id, bucketed_write, filename, format_hint_, sample_block_, stats_, empty_delta_stats_);
     }
     String getName() const override { return "SubstraitPartitionedFileSink"; }
-
-    ///TODO: remove this function
-    void setStats(const std::shared_ptr<WriteStats> & stats) { stats_ = stats; }
 };
 }

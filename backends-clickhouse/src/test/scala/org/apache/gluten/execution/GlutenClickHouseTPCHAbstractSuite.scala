@@ -621,4 +621,42 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       checkDataFrame(noFallBack, customCheck, df)
   }
 
+  def q1(tableName: String): String =
+    s"""
+       |SELECT
+       |    l_returnflag,
+       |    l_linestatus,
+       |    sum(l_quantity) AS sum_qty,
+       |    sum(l_extendedprice) AS sum_base_price,
+       |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+       |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+       |    avg(l_quantity) AS avg_qty,
+       |    avg(l_extendedprice) AS avg_price,
+       |    avg(l_discount) AS avg_disc,
+       |    count(*) AS count_order
+       |FROM
+       |    $tableName
+       |WHERE
+       |    l_shipdate <= date'1998-09-02' - interval 1 day
+       |GROUP BY
+       |    l_returnflag,
+       |    l_linestatus
+       |ORDER BY
+       |    l_returnflag,
+       |    l_linestatus;
+       |
+       |""".stripMargin
+
+  def q6(tableName: String): String =
+    s"""
+       |SELECT
+       |    sum(l_extendedprice * l_discount) AS revenue
+       |FROM
+       |    $tableName
+       |WHERE
+       |    l_shipdate >= date'1994-01-01'
+       |    AND l_shipdate < date'1994-01-01' + interval 1 year
+       |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+       |    AND l_quantity < 24
+       |""".stripMargin
 }

@@ -17,7 +17,7 @@
 package org.apache.gluten.execution.hive
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
 import org.apache.gluten.test.AllDataTypesWithComplexType
 import org.apache.gluten.utils.UTSystemParameters
 
@@ -28,6 +28,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{ArrayType, StructType}
 
 import org.apache.hadoop.fs.Path
 
@@ -540,6 +541,37 @@ class GlutenClickHouseHiveTableSuite
         assert(txtFileScan.size == 1)
       }
     )
+  }
+
+  test("GLUTEN-7700: test hive table with partition values contain space") {
+    val tbl = "test_7700"
+    val create_table_sql =
+      s"""
+         |create table if not exists $tbl (
+         |  id int
+         |) partitioned by (itime string)
+         |stored as orc;
+         |""".stripMargin
+    val insert_sql =
+      s"""
+         |insert overwrite table $tbl partition (itime = '2024-10-24 10:02:04')
+         |select id from range(3)
+         |""".stripMargin
+    val select_sql =
+      s"""
+         |select * from $tbl
+         |""".stripMargin
+    val drop_sql = s"drop table if exists $tbl"
+
+    spark.sql(create_table_sql)
+    spark.sql(insert_sql)
+
+    compareResultsAgainstVanillaSpark(
+      select_sql,
+      compareResult = true,
+      df => assert(df.count() == 3)
+    )
+    spark.sql(drop_sql)
   }
 
   test("test hive compressed txt table") {
@@ -1417,6 +1449,193 @@ class GlutenClickHouseHiveTableSuite
     spark.sql(insertDataSql)
     runQueryAndCompare(selectSql)(df => checkOperatorCount[ProjectExecTransformer](3)(df))
     spark.sql("DROP TABLE test_tbl_7054")
+  }
+
+  test("Nested column pruning for Project(Filter(Generate))") {
+    spark.sql("drop table if exists aj")
+    spark.sql(
+      """
+        |CREATE TABLE if not exists aj (
+        |  country STRING,
+        |  event STRUCT<time:BIGINT, lng:BIGINT, lat:BIGINT, net:STRING,
+        |     log_extra:MAP<STRING, STRING>, event_id:STRING, event_info:MAP<STRING, STRING>>
+        |)
+        |USING orc
+      """.stripMargin)
+
+    spark.sql("""
+                |INSERT INTO aj VALUES
+                |  ('USA', named_struct('time', 1622547800, 'lng', -122, 'lat', 37, 'net',
+                |    'wifi', 'log_extra', map('key1', 'value1'), 'event_id', 'event1',
+                |    'event_info', map('tab_type', '5', 'action', '13'))),
+                |  ('Canada', named_struct('time', 1622547801, 'lng', -79, 'lat', 43, 'net',
+                |    '4g', 'log_extra', map('key2', 'value2'), 'event_id', 'event2',
+                |    'event_info', map('tab_type', '4', 'action', '12')))
+       """.stripMargin)
+
+    val sql = """
+                | SELECT * FROM (
+                |  SELECT
+                |    game_name,
+                |    CASE WHEN
+                |       event.event_info['tab_type'] IN (5) THEN '1' ELSE '0' END AS entrance
+                |  FROM aj
+                |  LATERAL VIEW explode(split(nvl(event.event_info['game_name'],'0'),','))
+                |    as game_name
+                |  WHERE event.event_info['action'] IN (13)
+                |) WHERE game_name = 'xxx'
+      """.stripMargin
+
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      df => {
+        val scan = df.queryExecution.executedPlan.collect {
+          case scan: FileSourceScanExecTransformer => scan
+        }.head
+        val fieldType = scan.schema.fields.head.dataType.asInstanceOf[StructType]
+        assert(fieldType.size == 1)
+      }
+    )
+
+    spark.sql("drop table if exists aj")
+  }
+
+  test("Nested column pruning for Project(Filter(Generate)) on generator") {
+    def assertFieldSizeAfterPruning(sql: String, expectSize: Int): Unit = {
+      compareResultsAgainstVanillaSpark(
+        sql,
+        compareResult = true,
+        df => {
+          val scan = df.queryExecution.executedPlan.collect {
+            case scan: FileSourceScanExecTransformer => scan
+          }.head
+
+          val fieldType =
+            scan.schema.fields.head.dataType
+              .asInstanceOf[ArrayType]
+              .elementType
+              .asInstanceOf[StructType]
+          assert(fieldType.size == expectSize)
+        }
+      )
+    }
+
+    spark.sql("drop table if exists ajog")
+    spark.sql(
+      """
+        |CREATE TABLE if not exists ajog (
+        |  country STRING,
+        |  events ARRAY<STRUCT<time:BIGINT, lng:BIGINT, lat:BIGINT, net:STRING,
+        |     log_extra:MAP<STRING, STRING>, event_id:STRING, event_info:MAP<STRING, STRING>>>
+        |)
+        |USING orc
+      """.stripMargin)
+
+    spark.sql("""
+                |INSERT INTO ajog VALUES
+                |  ('USA', array(named_struct('time', 1622547800, 'lng', -122, 'lat', 37, 'net',
+                |    'wifi', 'log_extra', map('key1', 'value1'), 'event_id', 'event1',
+                |    'event_info', map('tab_type', '5', 'action', '13')))),
+                |  ('Canada', array(named_struct('time', 1622547801, 'lng', -79, 'lat', 43, 'net',
+                |    '4g', 'log_extra', map('key2', 'value2'), 'event_id', 'event2',
+                |    'event_info', map('tab_type', '4', 'action', '12'))))
+       """.stripMargin)
+
+    // Test nested column pruning on generator with single field extracted
+    val sql1 = """
+                 |select
+                 |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
+                 |from ajog
+                 |lateral view explode(events)  as event
+                 |where  event.event_info['action'] in (13)
+      """.stripMargin
+    assertFieldSizeAfterPruning(sql1, 1)
+
+    // Test nested column pruning on generator with multiple field extracted,
+    // which resolves SPARK-34956
+    val sql2 = """
+                 |select event.event_id,
+                 |case when event.event_info['tab_type'] in (5) then '1' else '0' end as entrance
+                 |from ajog
+                 |lateral view explode(events)  as event
+                 |where  event.event_info['action'] in (13)
+      """.stripMargin
+    assertFieldSizeAfterPruning(sql2, 2)
+
+    // Test nested column pruning with two adjacent generate operator
+    val sql3 = """
+                 |SELECT
+                 |abflag,
+                 |event.event_info,
+                 |event.log_extra
+                 |FROM
+                 |ajog
+                 |LATERAL VIEW EXPLODE(events) AS event
+                 |LATERAL VIEW EXPLODE(split(event.log_extra['key1'], ',')) AS abflag
+                 |WHERE
+                 |event.event_id = 'event1'
+                 |AND event.event_info['tab_type'] IS NOT NULL
+                 |AND event.event_info['tab_type'] != ''
+                 |AND event.log_extra['key1'] = 'value1'
+                 |LIMIT 100;
+      """.stripMargin
+    assertFieldSizeAfterPruning(sql3, 3)
+
+    spark.sql("drop table if exists ajog")
+  }
+
+  test("test hive table scan nested column pruning") {
+    val json_table_name = "test_tbl_7267_json"
+    val pq_table_name = "test_tbl_7267_pq"
+    val create_table_sql =
+      s"""
+         | create table if not exists %s(
+         | id bigint,
+         | d1 STRUCT<c: STRING, d: ARRAY<STRUCT<x: STRING, y: STRING>>>,
+         | d2 STRUCT<c: STRING, d: Map<STRING, STRUCT<x: STRING, y: STRING>>>,
+         | day string,
+         | hour string
+         | ) partitioned by(day, hour)
+         |""".stripMargin
+    val create_table_json = create_table_sql.format(json_table_name) +
+      s"""
+         | ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
+         | STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'
+         | OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+         |""".stripMargin
+    val create_table_pq = create_table_sql.format(pq_table_name) + " Stored as PARQUET"
+    val insert_sql =
+      """
+        | insert into %s values(1,
+        | named_struct('c', 'c123', 'd', array(named_struct('x', 'x123', 'y', 'y123'))),
+        | named_struct('c', 'c124', 'd', map('m124', named_struct('x', 'x124', 'y', 'y124'))),
+        | '2024-09-26', '12'
+        | )
+        |""".stripMargin
+    val select_sql =
+      "select id, d1.c, d1.d[0].x, d2.d['m124'].y from %s where day = '2024-09-26' and hour = '12'"
+    val table_names = Array.apply(json_table_name, pq_table_name)
+    val create_table_sqls = Array.apply(create_table_json, create_table_pq)
+    for (i <- table_names.indices) {
+      val table_name = table_names(i)
+      val create_table = create_table_sqls(i)
+      spark.sql(create_table)
+      spark.sql(insert_sql.format(table_name))
+      withSQLConf(("spark.sql.hive.convertMetastoreParquet" -> "false")) {
+        compareResultsAgainstVanillaSpark(
+          select_sql.format(table_name),
+          compareResult = true,
+          df => {
+            val scan = collect(df.queryExecution.executedPlan) {
+              case l: HiveTableScanExecTransformer => l
+            }
+            assert(scan.size == 1)
+          }
+        )
+      }
+      spark.sql("drop table if exists %s".format(table_name))
+    }
   }
 
 }

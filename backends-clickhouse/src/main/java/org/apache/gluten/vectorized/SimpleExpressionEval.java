@@ -34,7 +34,7 @@ public class SimpleExpressionEval implements AutoCloseable, Iterator<Long> {
   public SimpleExpressionEval(ColumnarNativeIterator blockStream, PlanNode planNode) {
     Plan plan = planNode.toProtobuf();
     if (LOG.isDebugEnabled()) {
-      LOG.debug(String.format("SimpleExpressionEval exec plan: %s", plan.toString()));
+      LOG.debug("SimpleExpressionEval exec plan: {}", plan.toString());
     }
     byte[] planData = plan.toByteArray();
     instance = createNativeInstance(blockStream, planData);

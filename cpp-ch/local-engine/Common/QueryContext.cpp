@@ -44,6 +44,7 @@ struct QueryContext::Data
     std::shared_ptr<ThreadStatus> thread_status;
     std::shared_ptr<ThreadGroup> thread_group;
     ContextMutablePtr query_context;
+    String task_id;
 
     static DB::ContextMutablePtr global_context;
     static SharedContextHolder shared_context;
@@ -83,11 +84,12 @@ DB::ContextPtr QueryContext::globalContext()
     return Data::global_context;
 }
 
-int64_t QueryContext::initializeQuery()
+int64_t QueryContext::initializeQuery(const String & task_id)
 {
     std::shared_ptr<Data> query_context = std::make_shared<Data>();
     query_context->query_context = Context::createCopy(globalContext());
     query_context->query_context->makeQueryContext();
+    query_context->task_id = task_id;
 
     // empty input will trigger random query id to be set
     // FileCache will check if query id is set to decide whether to skip cache or not
@@ -95,7 +97,7 @@ int64_t QueryContext::initializeQuery()
     //
     // Notice:
     // this generated random query id a qualified global queryid for the spark query
-    query_context->query_context->setCurrentQueryId(toString(UUIDHelpers::generateV4()));
+    query_context->query_context->setCurrentQueryId(toString(UUIDHelpers::generateV4()) + "_" + task_id);
     auto config = MemoryConfig::loadFromContext(query_context->query_context);
     query_context->thread_status = std::make_shared<ThreadStatus>(false);
     query_context->thread_group = std::make_shared<ThreadGroup>(query_context->query_context);
@@ -124,14 +126,24 @@ std::shared_ptr<DB::ThreadGroup> QueryContext::currentThreadGroup()
     throw Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
 }
 
-void QueryContext::logCurrentPerformanceCounters(ProfileEvents::Counters & counters) const
+String QueryContext::currentTaskIdOrEmpty()
+{
+    if (auto thread_group = CurrentThread::getGroup())
+    {
+        const int64_t id = reinterpret_cast<int64_t>(thread_group.get());
+        return query_map_.get(id)->task_id;
+    }
+   return "";
+}
+
+void QueryContext::logCurrentPerformanceCounters(ProfileEvents::Counters & counters, const String & task_id) const
 {
     if (!CurrentThread::getGroup())
         return;
     if (logger_->information())
     {
         std::ostringstream msg;
-        msg << "\n---------------------Task Performance Counters-----------------------------\n";
+        msg << "\n---------------------Task Performance Counters(" << task_id << ")-----------------------------\n";
         for (ProfileEvents::Event event = ProfileEvents::Event(0); event < counters.num_counters; event++)
         {
             const auto * name = ProfileEvents::getName(event);
@@ -167,7 +179,7 @@ void QueryContext::finalizeQuery(int64_t id)
 
     if (currentThreadGroupMemoryUsage() > 2_MiB)
         LOG_WARNING(logger_, "{} bytes memory didn't release, There may be a memory leak!", currentThreadGroupMemoryUsage());
-    logCurrentPerformanceCounters(context->thread_group->performance_counters);
+    logCurrentPerformanceCounters(context->thread_group->performance_counters, context->task_id);
     context->thread_status->detachFromGroup();
     context->thread_group.reset();
     context->thread_status.reset();

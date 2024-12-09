@@ -92,6 +92,7 @@ class BlockPayload final : public Payload {
       const std::shared_ptr<arrow::util::Codec>& codec,
       arrow::MemoryPool* pool,
       uint32_t& numRows,
+      int64_t& deserializeTime,
       int64_t& decompressTime);
 
   static int64_t maxCompressedLength(

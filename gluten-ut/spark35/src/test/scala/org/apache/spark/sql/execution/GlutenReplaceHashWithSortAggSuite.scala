@@ -84,7 +84,7 @@ class GlutenReplaceHashWithSortAggSuite
     withTempView("t1", "t2") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       spark.range(50).selectExpr("id as key").createOrReplaceTempView("t2")
-      Seq(("COUNT", 0, 1, 2, 0), ("COLLECT_LIST", 2, 0, 2, 0)).foreach {
+      Seq(("COUNT", 1, 0, 1, 0), ("COLLECT_LIST", 1, 0, 1, 0)).foreach {
         aggExprInfo =>
           val query =
             s"""

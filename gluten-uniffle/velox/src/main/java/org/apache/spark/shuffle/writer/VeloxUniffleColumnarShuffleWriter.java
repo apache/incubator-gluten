@@ -17,6 +17,7 @@
 package org.apache.spark.shuffle.writer;
 
 import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
@@ -70,7 +71,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private int compressionBufferSize;
   private final int partitionId;
 
-  private final Runtime runtime = Runtimes.contextInstance("UniffleShuffleWriter");
+  private final Runtime runtime =
+      Runtimes.contextInstance(BackendsApiManager.getBackendName(), "UniffleShuffleWriter");
   private final ShuffleWriterJniWrapper jniWrapper = ShuffleWriterJniWrapper.create(runtime);
   private final int nativeBufferSize = GlutenConfig.getConf().maxBatchSize();
   private final int bufferSize;
@@ -144,7 +146,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       if (cb.numRows() == 0 || cb.numCols() == 0) {
         LOG.info("Skip ColumnarBatch of 0 rows or 0 cols");
       } else {
-        long handle = ColumnarBatches.getNativeHandle(cb);
+        long handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), cb);
         if (nativeShuffleWriter == -1) {
           nativeShuffleWriter =
               jniWrapper.makeForRSS(

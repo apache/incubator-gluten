@@ -48,6 +48,10 @@ import org.apache.spark.sql.types.IntegerType
 object RewriteMultiChildrenCount extends RewriteSingleNode with PullOutProjectHelper {
   private lazy val shouldRewriteCount = BackendsApiManager.getSettings.shouldRewriteCount()
 
+  override def isRewritable(plan: SparkPlan): Boolean = {
+    RewriteEligibility.isRewritable(plan)
+  }
+
   private def extractCountForRewrite(aggExpr: AggregateExpression): Option[Count] = {
     val isPartialCountWithMoreThanOneChild = aggExpr.mode == Partial && {
       aggExpr.aggregateFunction match {

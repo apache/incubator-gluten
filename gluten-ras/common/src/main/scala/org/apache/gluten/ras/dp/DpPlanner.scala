@@ -26,11 +26,7 @@ import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{EnforcerRuleSet, RuleApplier, Shape}
 
 // TODO: Branch and bound pruning.
-private class DpPlanner[T <: AnyRef] private (
-    ras: Ras[T],
-    altConstraintSets: Seq[PropertySet[T]],
-    constraintSet: PropertySet[T],
-    plan: T)
+private class DpPlanner[T <: AnyRef] private (ras: Ras[T], constraintSet: PropertySet[T], plan: T)
   extends RasPlanner[T] {
   import DpPlanner._
 
@@ -43,7 +39,6 @@ private class DpPlanner[T <: AnyRef] private (
   }
 
   private lazy val best: (Best[T], KnownCostPath[T]) = {
-    altConstraintSets.foreach(propSet => memo.memorize(plan, propSet))
     val groupId = rootGroupId
     val memoTable = memo.table()
     val best = findBest(memoTable, groupId)
@@ -70,12 +65,8 @@ private class DpPlanner[T <: AnyRef] private (
 }
 
 object DpPlanner {
-  def apply[T <: AnyRef](
-      ras: Ras[T],
-      altConstraintSets: Seq[PropertySet[T]],
-      constraintSet: PropertySet[T],
-      plan: T): RasPlanner[T] = {
-    new DpPlanner(ras, altConstraintSets: Seq[PropertySet[T]], constraintSet, plan)
+  def apply[T <: AnyRef](ras: Ras[T], constraintSet: PropertySet[T], plan: T): RasPlanner[T] = {
+    new DpPlanner(ras, constraintSet, plan)
   }
 
   // Visited flag.

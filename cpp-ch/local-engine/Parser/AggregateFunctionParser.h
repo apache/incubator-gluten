@@ -144,6 +144,9 @@ protected:
 
     std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const;
 
+    const DB::ActionsDAG::Node * convertNanToNullIfNeed(
+        const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAG & actions_dag) const;
+
     ParserContextPtr parser_context;
     std::unique_ptr<ExpressionParser> expression_parser;
     Poco::Logger * logger = &Poco::Logger::get("AggregateFunctionParserFactory");

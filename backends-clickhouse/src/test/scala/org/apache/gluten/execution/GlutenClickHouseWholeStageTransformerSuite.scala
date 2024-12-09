@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
@@ -41,20 +42,20 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
   val SPARK_DIR_NAME: String = sparkVersion.replace(".", "-")
 
-  val S3_METADATA_PATH = s"/tmp/metadata/s3/$SPARK_DIR_NAME/"
+  val S3_METADATA_PATH = s"/tmp/metadata/s3/$SPARK_DIR_NAME"
   val S3_CACHE_PATH = s"/tmp/s3_cache/$SPARK_DIR_NAME/"
   val S3_ENDPOINT = "s3://127.0.0.1:9000/"
   val MINIO_ENDPOINT: String = S3_ENDPOINT.replace("s3", "http")
   val BUCKET_NAME: String = SPARK_DIR_NAME
   val WHOLE_PATH: String = MINIO_ENDPOINT + BUCKET_NAME + "/"
 
-  val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/$SPARK_DIR_NAME/"
+  val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/$SPARK_DIR_NAME"
   val HDFS_CACHE_PATH = s"/tmp/hdfs_cache/$SPARK_DIR_NAME/"
   val HDFS_URL_ENDPOINT = "hdfs://127.0.0.1:8020"
   val HDFS_URL = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME"
 
-  val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
-  val S3_SECRET_KEY = "K9MDaGItPSaphorZM8t4hXf30gHF9dBWi6L2dK5E"
+  val S3_ACCESS_KEY = "minioadmin"
+  val S3_SECRET_KEY = "minioadmin"
 
   val CH_DEFAULT_STORAGE_DIR = "/data"
 
@@ -82,7 +83,8 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
-      .setCHConfig("path", UTSystemParameters.diskOutputDataPath)
+      .set(RuntimeConfig.PATH.key, UTSystemParameters.diskOutputDataPath)
+      .set(RuntimeConfig.TMP_PATH.key, s"/tmp/libch/$SPARK_DIR_NAME")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       conf
         .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)

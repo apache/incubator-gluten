@@ -15,8 +15,7 @@
 
 find_arrow_lib(${PARQUET_LIB_NAME})
 
-set(VELOX_BENCHMARK_COMMON_SRCS common/FileReaderIterator.cc
-                                common/BenchmarkUtils.cc)
+set(VELOX_BENCHMARK_COMMON_SRCS common/BenchmarkUtils.cc)
 add_library(velox_benchmark_common STATIC ${VELOX_BENCHMARK_COMMON_SRCS})
 target_include_directories(
   velox_benchmark_common PUBLIC ${CMAKE_SOURCE_DIR}/velox
@@ -38,7 +37,3 @@ add_velox_benchmark(columnar_to_row_benchmark ColumnarToRowBenchmark.cc)
 add_velox_benchmark(parquet_write_benchmark ParquetWriteBenchmark.cc)
 
 add_velox_benchmark(plan_validator_util PlanValidatorUtil.cc)
-
-if(ENABLE_ORC)
-  add_velox_benchmark(orc_converter exec/OrcConverter.cc)
-endif()

@@ -227,6 +227,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
     .exclude("SPARK-36797: Union should resolve nested columns as top-level columns")
     .exclude("SPARK-37371: UnionExec should support columnar if all children support columnar")
+    .exclude(
+      "SPARK-36673: Only merge nullability for Unions of struct"
+    ) // disabled due to case-insensitive not supported in CH tuple
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
     .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
@@ -510,8 +513,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-17617: % (Remainder) double % double on super big double")
     .exclude("Abs")
     .exclude("pmod")
-    .exclude("function least")
-    .exclude("function greatest")
     .exclude("SPARK-28322: IntegralDivide supports decimal type")
     .exclude("SPARK-33008: division by zero on divide-like operations returns incorrect result")
     .exclude("SPARK-34920: error class")
@@ -740,8 +741,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-32110: compare special double/float values in struct")
   enableSuite[GlutenRandomSuite].exclude("random").exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenRegexpExpressionsSuite]
-    .exclude("LIKE ALL")
-    .exclude("LIKE ANY")
     .exclude("LIKE Pattern")
     .exclude("LIKE Pattern ESCAPE '/'")
     .exclude("LIKE Pattern ESCAPE '#'")
@@ -750,8 +749,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("RegexReplace")
     .exclude("RegexExtract")
     .exclude("RegexExtractAll")
-    .exclude("SPLIT")
-    .exclude("SPARK - 34814: LikeSimplification should handleNULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
     .exclude("StringComparison")
@@ -847,7 +844,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("do not replace hash aggregate if child does not have sort order")
     .exclude("do not replace hash aggregate if there is no group-by column")
     .excludeGlutenTest("replace partial hash aggregate with sort aggregate")
-    .excludeGlutenTest("replace partial and final hash aggregate together with sort aggregate")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSQLAggregateFunctionSuite]
   enableSuite[GlutenSQLWindowFunctionSuite]

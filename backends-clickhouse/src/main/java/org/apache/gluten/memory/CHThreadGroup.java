@@ -28,7 +28,13 @@ public class CHThreadGroup implements TaskResource {
    */
   public static void registerNewThreadGroup() {
     if (TaskResources.isResourceRegistered(CHThreadGroup.class.getName())) return;
-    CHThreadGroup group = new CHThreadGroup();
+
+    String taskId = "";
+    if (TaskResources.getLocalTaskContext() != null) {
+      taskId = String.valueOf(TaskResources.getLocalTaskContext().taskAttemptId());
+    }
+
+    CHThreadGroup group = new CHThreadGroup(taskId);
     TaskResources.addResource(CHThreadGroup.class.getName(), group);
     TaskContext.get()
         .addTaskCompletionListener(
@@ -40,8 +46,8 @@ public class CHThreadGroup implements TaskResource {
   private long thread_group_id = 0;
   private long peak_memory = -1;
 
-  private CHThreadGroup() {
-    thread_group_id = createThreadGroup();
+  private CHThreadGroup(String taskId) {
+    thread_group_id = createThreadGroup(taskId);
   }
 
   public long getPeakMemory() {
@@ -69,7 +75,7 @@ public class CHThreadGroup implements TaskResource {
     return "CHThreadGroup";
   }
 
-  private static native long createThreadGroup();
+  private static native long createThreadGroup(String taskId);
 
   private static native long threadGroupPeakMemory(long id);
 

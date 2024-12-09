@@ -25,7 +25,6 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog.V1Table
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTableUtils, DeltaTimeTravelSpec, Snapshot, UnresolvedPathBasedDeltaTable}
 import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
 import org.apache.spark.sql.delta.sources.DeltaDataSource
@@ -87,13 +86,6 @@ class ClickHouseTableV2(
       ret.putAll(clickhouseExtensionOptions.asJava)
     }
     ret
-  }
-
-  override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
-    new WriteIntoDeltaBuilder(
-      this,
-      info.options,
-      spark.sessionState.conf.useNullsForMissingDefaultColumnValues)
   }
 
   def getFileFormat(protocol: Protocol, meta: Metadata): DeltaMergeTreeFileFormat = {

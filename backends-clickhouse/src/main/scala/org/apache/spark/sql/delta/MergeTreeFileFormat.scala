@@ -21,7 +21,8 @@ import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.mergetree.DeltaMetaReader
+import org.apache.spark.sql.execution.datasources.mergetree.{DeltaMetaReader, StorageMeta}
+import org.apache.spark.sql.execution.datasources.v1.Write
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
 
@@ -62,5 +63,30 @@ trait MergeTreeFileFormat extends FileFormat with DataSourceRegister {
           .createOutputWriter(path, metadata.schema, context, nativeConf)
       }
     }
+  }
+}
+
+object MergeTreeFileFormat {
+  def createWrite(outputPath: Option[String], conf: Map[String, String]): Write.MergeTreeWrite = {
+    Write.MergeTreeWrite
+      .newBuilder()
+      .setDatabase(conf(StorageMeta.DB))
+      .setTable(conf(StorageMeta.TABLE))
+      .setSnapshotId(conf(StorageMeta.SNAPSHOT_ID))
+      .setOrderByKey(conf(StorageMeta.ORDER_BY_KEY))
+      .setLowCardKey(conf(StorageMeta.LOW_CARD_KEY))
+      .setMinmaxIndexKey(conf(StorageMeta.MINMAX_INDEX_KEY))
+      .setBfIndexKey(conf(StorageMeta.BF_INDEX_KEY))
+      .setSetIndexKey(conf(StorageMeta.SET_INDEX_KEY))
+      .setPrimaryKey(conf(StorageMeta.PRIMARY_KEY))
+      .setRelativePath(outputPath.map(StorageMeta.normalizeRelativePath).getOrElse(""))
+      .setAbsolutePath("")
+      .setStoragePolicy(conf(StorageMeta.POLICY))
+      .build()
+  }
+  def createWrite(metadata: Metadata): Write.MergeTreeWrite = {
+    // we can get the output path at the driver side
+    val deltaMetaReader = DeltaMetaReader(metadata)
+    createWrite(None, deltaMetaReader.storageConf)
   }
 }

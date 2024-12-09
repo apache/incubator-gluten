@@ -16,7 +16,9 @@
  */
 
 #include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
+#include <Functions/FunctionHelpers.h>
 #include <Parser/FunctionParser.h>
 
 namespace DB

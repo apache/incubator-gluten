@@ -76,4 +76,7 @@ trait TransformerApi {
   def invalidateSQLExecutionResource(executionId: String): Unit = {}
 
   def genWriteParameters(fileFormat: FileFormat, writeOptions: Map[String, String]): Any
+
+  /** use Hadoop Path class to encode the file path */
+  def encodeFilePathIfNeed(filePath: String): String = filePath
 }

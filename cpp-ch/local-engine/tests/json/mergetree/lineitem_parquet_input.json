@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "uriFile": "{replace_GLUTEN_SOURCE_TPCH_DIR}lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet",
+      "length": "19230111",
+      "parquet": {},
+      "schema": {},
+      "metadataColumns": [
+        {
+          "key": "input_file_name",
+          "value": "{replace_GLUTEN_SOURCE_TPCH_DIR}lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet"
+        },
+        {
+          "key": "input_file_block_length",
+          "value": "19230111"
+        },
+        {
+          "key": "input_file_block_start",
+          "value": "0"
+        }
+      ],
+      "properties": {
+        "fileSize": "19230111",
+        "modificationTime": "1719819166344"
+      }
+    }
+  ]
+}

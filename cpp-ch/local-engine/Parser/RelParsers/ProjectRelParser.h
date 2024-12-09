@@ -26,13 +26,6 @@ namespace local_engine
 class ProjectRelParser : public RelParser
 {
 public:
-    struct SplittedActionsDAGs
-    {
-        ActionsDAG before_array_join; /// Optional
-        ActionsDAG array_join;
-        ActionsDAG after_array_join; /// Optional
-    };
-
     explicit ProjectRelParser(ParserContextPtr parser_context_);
     ~ProjectRelParser() override = default;
 
@@ -44,11 +37,6 @@ private:
 
     DB::QueryPlanPtr parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
     DB::QueryPlanPtr parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
-
-    static const DB::ActionsDAG::Node * findArrayJoinNode(const ActionsDAG & actions_dag);
-
-    /// Split actions_dag of generate rel into 3 parts: before array join + during array join + after array join
-    static SplittedActionsDAGs splitActionsDAGInGenerate(const ActionsDAG & actions_dag);
 
     bool isReplicateRows(substrait::GenerateRel rel);
 

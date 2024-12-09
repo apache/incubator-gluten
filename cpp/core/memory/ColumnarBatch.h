@@ -23,7 +23,6 @@
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
 #include "memory/MemoryManager.h"
-#include "operators/writer/ArrowWriter.h"
 #include "utils/ArrowStatus.h"
 #include "utils/Exception.h"
 

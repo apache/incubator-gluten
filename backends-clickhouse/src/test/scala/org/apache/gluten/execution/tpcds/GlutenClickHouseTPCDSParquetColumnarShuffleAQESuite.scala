@@ -20,6 +20,8 @@ import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
+import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.plans.{LeftAnti, LeftSemi}
 import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, ReusedSubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
@@ -35,9 +37,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      // Currently, it can not support to read multiple partitioned file in one task.
-      //      .set("spark.sql.files.maxPartitionBytes", "134217728")
-      //      .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.memory.offHeap.size", "4g")
   }
@@ -264,5 +263,79 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
           )
         }
       })
+  }
+
+  test("GLUTEN-7971: Support using left side as the build table for the left anti/semi join") {
+    withSQLConf(
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.backend.ch.convert.left.anti_semi.to.right", "true")) {
+      val sql1 =
+        s"""
+           |select
+           |  cd_gender,
+           |  cd_marital_status,
+           |  cd_education_status,
+           |  count(*) cnt1
+           | from
+           |  customer c,customer_address ca,customer_demographics
+           | where
+           |  c.c_current_addr_sk = ca.ca_address_sk and
+           |  ca_county in ('Walker County','Richland County','Gaines County','Douglas County')
+           |  and cd_demo_sk = c.c_current_cdemo_sk and
+           |  exists (select *
+           |          from store_sales
+           |          where c.c_customer_sk = ss_customer_sk)
+           | group by cd_gender,
+           |          cd_marital_status,
+           |          cd_education_status
+           | order by cd_gender,
+           |          cd_marital_status,
+           |          cd_education_status
+           | LIMIT 100 ;
+           |""".stripMargin
+      runQueryAndCompare(sql1)(
+        df => {
+          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+          val shuffledHashJoinExecs = collect(df.queryExecution.executedPlan) {
+            case h: CHShuffledHashJoinExecTransformer if h.joinType == LeftSemi => h
+          }
+          assertResult(1)(shuffledHashJoinExecs.size)
+          assertResult(BuildLeft)(shuffledHashJoinExecs(0).buildSide)
+        })
+
+      val sql2 =
+        s"""
+           |select
+           |  cd_gender,
+           |  cd_marital_status,
+           |  cd_education_status,
+           |  count(*) cnt1
+           | from
+           |  customer c,customer_address ca,customer_demographics
+           | where
+           |  c.c_current_addr_sk = ca.ca_address_sk and
+           |  ca_county in ('Walker County','Richland County','Gaines County','Douglas County')
+           |  and cd_demo_sk = c.c_current_cdemo_sk and
+           |  not exists (select *
+           |          from store_sales
+           |          where c.c_customer_sk = ss_customer_sk)
+           | group by cd_gender,
+           |          cd_marital_status,
+           |          cd_education_status
+           | order by cd_gender,
+           |          cd_marital_status,
+           |          cd_education_status
+           | LIMIT 100 ;
+           |""".stripMargin
+      runQueryAndCompare(sql2)(
+        df => {
+          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+          val shuffledHashJoinExecs = collect(df.queryExecution.executedPlan) {
+            case h: CHShuffledHashJoinExecTransformer if h.joinType == LeftAnti => h
+          }
+          assertResult(1)(shuffledHashJoinExecs.size)
+          assertResult(BuildLeft)(shuffledHashJoinExecs(0).buildSide)
+        })
+    }
   }
 }

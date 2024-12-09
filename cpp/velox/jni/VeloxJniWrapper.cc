@@ -41,12 +41,14 @@
 using namespace gluten;
 using namespace facebook;
 
+namespace {
+jclass blockStripesClass;
+jmethodID blockStripesConstructor;
+} // namespace
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-static jclass blockStripesClass;
-static jmethodID blockStripesConstructor;
 
 jint JNI_OnLoad(JavaVM* vm, void*) {
   JNIEnv* env;
@@ -385,7 +387,6 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapp
     jlong dsHandle,
     jlong batchHandle) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
   auto datasource = ObjectStore::retrieve<VeloxDataSource>(dsHandle);
   auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   datasource->write(batch);

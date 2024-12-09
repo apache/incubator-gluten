@@ -18,8 +18,6 @@ package org.apache.spark.sql.execution.datasources.clickhouse;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Map;
-
 public class WriteReturnedMetric {
 
   @JsonProperty("part_name")
@@ -38,7 +36,7 @@ public class WriteReturnedMetric {
   protected String bucketId;
 
   @JsonProperty("partition_values")
-  protected Map<String, String> partitionValues;
+  protected String partitionValues;
 
   public String getPartName() {
     return partName;
@@ -72,11 +70,11 @@ public class WriteReturnedMetric {
     this.rowCount = rowCount;
   }
 
-  public Map<String, String> getPartitionValues() {
+  public String getPartitionValues() {
     return partitionValues;
   }
 
-  public void setPartitionValues(Map<String, String> partitionValues) {
+  public void setPartitionValues(String partitionValues) {
     this.partitionValues = partitionValues;
   }
 

@@ -73,14 +73,18 @@ inline DB::DataTypePtr DATE()
     return std::make_shared<DB::DataTypeDate32>();
 }
 
-inline DB::Block makeBlockHeader(const DB::ColumnsWithTypeAndName & data_)
+inline DB::Block makeBlockHeader(const DB::ColumnsWithTypeAndName & data)
 {
-    return DB::Block(data_);
+    return DB::Block(data);
 }
 
 DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
 DB::DataTypePtr wrapNullableType(bool nullable, DB::DataTypePtr nested_type);
 
+inline DB::DataTypePtr wrapNullableType(DB::DataTypePtr nested_type)
+{
+    return wrapNullableType(true, nested_type);
+}
 inline DB::DataTypePtr wrapNullableType(const substrait::Type_Nullability nullable, const DB::DataTypePtr & nested_type)
 {
     return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);

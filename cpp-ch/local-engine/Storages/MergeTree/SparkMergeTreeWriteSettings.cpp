@@ -26,7 +26,8 @@ namespace local_engine
 
 IMPLEMENT_GLUTEN_SETTINGS(SparkMergeTreeWritePartitionSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
 
-void SparkMergeTreeWriteSettings::load(const DB::ContextPtr & context)
+SparkMergeTreeWriteSettings::SparkMergeTreeWriteSettings(const DB::ContextPtr & context)
+    : partition_settings(SparkMergeTreeWritePartitionSettings::get(context))
 {
     const DB::Settings & settings = context->getSettingsRef();
     merge_after_insert = settings.get(MERGETREE_MERGE_AFTER_INSERT).safeGet<bool>();

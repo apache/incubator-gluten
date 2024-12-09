@@ -17,7 +17,8 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.GlutenTimeMetric
 
 import org.apache.spark.rdd.RDD
@@ -26,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashJoin, LongHashedRelation}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.types.IntegralType
 import org.apache.spark.util.ThreadUtils
 
 import scala.concurrent.Future
@@ -63,6 +65,14 @@ case class ColumnarSubqueryBroadcastExec(
     copy(name = "native-dpp", buildKeys = keys, child = child.canonicalized)
   }
 
+  // Copy from org.apache.spark.sql.execution.joins.HashJoin#canRewriteAsLongType
+  // we should keep consistent with it to identify the LongHashRelation.
+  private def canRewriteAsLongType(keys: Seq[Expression]): Boolean = {
+    // TODO: support BooleanType, DateType and TimestampType
+    keys.forall(_.dataType.isInstanceOf[IntegralType]) &&
+    keys.map(_.dataType.defaultSize).sum <= 8
+  }
+
   @transient
   private lazy val relationFuture: Future[Array[InternalRow]] = {
     // relationFuture is used in "doExecute". Therefore we can get the execution id correctly here.
@@ -77,7 +87,13 @@ case class ColumnarSubqueryBroadcastExec(
             relation match {
               case b: BuildSideRelation =>
                 // Transform columnar broadcast value to Array[InternalRow] by key.
-                b.transform(buildKeys(index)).distinct
+                if (canRewriteAsLongType(buildKeys)) {
+                  b.transform(HashJoin.extractKeyExprAt(buildKeys, index)).distinct
+                } else {
+                  b.transform(
+                    BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+                    .distinct
+                }
               case h: HashedRelation =>
                 val (iter, expr) = if (h.isInstanceOf[LongHashedRelation]) {
                   (h.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
@@ -106,6 +122,10 @@ case class ColumnarSubqueryBroadcastExec(
   override protected def doPrepare(): Unit = {
     relationFuture
   }
+
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+
+  override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(

@@ -18,7 +18,7 @@ package org.apache.gluten
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig._
-import org.apache.gluten.backend.Backend
+import org.apache.gluten.backend.Component
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenSessionExtensions
@@ -65,10 +65,10 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
     postBuildInfoEvent(sc)
 
-    setPredefinedConfigs(sc, conf)
+    setPredefinedConfigs(conf)
 
     // Initialize Backend.
-    Backend.get().onDriverStart(sc, pluginContext)
+    Component.sorted().foreach(_.onDriverStart(sc, pluginContext))
 
     Collections.emptyMap()
   }
@@ -84,12 +84,10 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
   }
 
   override def shutdown(): Unit = {
-    Backend.get().onDriverShutdown()
+    Component.sorted().reverse.foreach(_.onDriverShutdown())
   }
 
   private def postBuildInfoEvent(sc: SparkContext): Unit = {
-    val buildInfo = Backend.get().buildInfo()
-
     // export gluten version to property to spark
     System.setProperty("gluten.version", VERSION)
 
@@ -105,10 +103,16 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     glutenBuildInfo.put("Gluten Revision Time", REVISION_TIME)
     glutenBuildInfo.put("Gluten Build Time", BUILD_DATE)
     glutenBuildInfo.put("Gluten Repo URL", REPO_URL)
-    glutenBuildInfo.put("Backend", buildInfo.name)
-    glutenBuildInfo.put("Backend Branch", buildInfo.branch)
-    glutenBuildInfo.put("Backend Revision", buildInfo.revision)
-    glutenBuildInfo.put("Backend Revision Time", buildInfo.revisionTime)
+
+    Component.sorted().foreach {
+      comp =>
+        val buildInfo = comp.buildInfo()
+        glutenBuildInfo.put("Component", buildInfo.name)
+        glutenBuildInfo.put("Component Branch", buildInfo.branch)
+        glutenBuildInfo.put("Component Revision", buildInfo.revision)
+        glutenBuildInfo.put("Component Revision Time", buildInfo.revisionTime)
+    }
+
     val infoMap = glutenBuildInfo.toMap
     val loggingInfo = infoMap.toSeq
       .sortBy(_._1)
@@ -123,7 +127,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     GlutenEventUtils.post(sc, event)
   }
 
-  private def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
+  private def setPredefinedConfigs(conf: SparkConf): Unit = {
     // Spark SQL extensions
     val extensions = if (conf.contains(SPARK_SESSION_EXTENSIONS.key)) {
       s"${conf.get(SPARK_SESSION_EXTENSIONS.key)}," +
@@ -134,7 +138,10 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     conf.set(SPARK_SESSION_EXTENSIONS.key, extensions)
 
     // adaptive custom cost evaluator class
-    if (GlutenConfig.getConf.enableGluten && GlutenConfig.getConf.enableGlutenCostEvaluator) {
+    val enableGlutenCostEvaluator = conf.getBoolean(
+      GlutenConfig.GLUTEN_COST_EVALUATOR_ENABLED,
+      GLUTEN_COST_EVALUATOR_ENABLED_DEFAULT_VALUE)
+    if (enableGlutenCostEvaluator) {
       val costEvaluator = "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator"
       conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key, costEvaluator)
     }
@@ -251,12 +258,12 @@ private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
   /** Initialize the executor plugin. */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     // Initialize Backend.
-    Backend.get().onExecutorStart(ctx)
+    Component.sorted().foreach(_.onExecutorStart(ctx))
   }
 
   /** Clean up and terminate this plugin. For example: close the native engine. */
   override def shutdown(): Unit = {
-    Backend.get().onExecutorShutdown()
+    Component.sorted().reverse.foreach(_.onExecutorShutdown())
     super.shutdown()
   }
 

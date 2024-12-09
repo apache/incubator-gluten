@@ -65,6 +65,7 @@ public:
         txn_holder = std::move(txn_holder_);
         txn = std::move(txn_);
     }
+    void cancel() noexcept override;
 
 private:
     void prepare();
@@ -116,7 +117,7 @@ private:
 using MergeSparkMergeTreeTaskPtr = std::shared_ptr<MergeSparkMergeTreeTask>;
 
 
-[[ maybe_unused ]] static void executeHere(MergeSparkMergeTreeTaskPtr task)
+[[maybe_unused]] static void executeHere(MergeSparkMergeTreeTaskPtr task)
 {
     while (task->executeStep()) {}
 }

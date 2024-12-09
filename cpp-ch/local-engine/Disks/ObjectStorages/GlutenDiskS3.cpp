@@ -31,7 +31,7 @@ namespace local_engine
 
     DB::DiskTransactionPtr GlutenDiskS3::createTransaction()
     {
-        return std::make_shared<CompactObjectStorageDiskTransaction>(*this, QueryContext::globalContext()->getTempDataOnDisk()->getVolume()->getDisk());
+        return std::make_shared<CompactObjectStorageDiskTransaction>(*this, QueryContext::globalContext()->getSharedTempDataOnDisk());
     }
 
     std::unique_ptr<DB::ReadBufferFromFileBase> GlutenDiskS3::readFile(

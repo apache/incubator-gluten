@@ -17,7 +17,8 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -40,10 +41,11 @@ case class TakeOrderedAndProjectExecTransformer(
     child: SparkPlan,
     offset: Int = 0)
   extends UnaryExecNode
-  with GlutenPlan {
+  with ValidatablePlan {
   override def outputPartitioning: Partitioning = SinglePartition
   override def outputOrdering: Seq[SortOrder] = sortOrder
-  override def supportsColumnar: Boolean = true
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+  override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override def output: Seq[Attribute] = {
     projectList.map(_.toAttribute)
@@ -73,7 +75,7 @@ case class TakeOrderedAndProjectExecTransformer(
     var tagged: ValidationResult = null
     val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, sortOrder)
     if (orderingSatisfies) {
-      val limitPlan = LimitTransformer(child, offset, limit)
+      val limitPlan = LimitExecTransformer(child, offset, limit)
       tagged = limitPlan.doValidate()
     } else {
       // Here we are validating sort + limit which is a kind of whole stage transformer,
@@ -86,7 +88,7 @@ case class TakeOrderedAndProjectExecTransformer(
       if (!sortValidation.ok()) {
         return sortValidation
       }
-      val limitPlan = LimitTransformer(sortPlan, offset, limit)
+      val limitPlan = LimitExecTransformer(sortPlan, offset, limit)
       tagged = limitPlan.doValidate()
     }
 
@@ -127,13 +129,13 @@ case class TakeOrderedAndProjectExecTransformer(
           // remove this WholeStageTransformer, put the new sort, limit and project
           // into a new whole stage.
           val localSortPlan = withLocalSort(wholeStage.child)
-          LimitTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
+          LimitExecTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
         case other =>
           // if the child it is not WholeStageTransformer, add the adapter first
           // so that, later we can wrap WholeStageTransformer.
           val localSortPlan = withLocalSort(
             ColumnarCollapseTransformStages.wrapInputIteratorTransformer(other))
-          LimitTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
+          LimitExecTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
       }
       val transformStageCounter: AtomicInteger =
         ColumnarCollapseTransformStages.transformStageCounter
@@ -150,7 +152,7 @@ case class TakeOrderedAndProjectExecTransformer(
             sortOrder,
             false,
             ColumnarCollapseTransformStages.wrapInputIteratorTransformer(transformedShuffleExec))
-        LimitTransformer(localSortPlan, offset, limit)
+        LimitExecTransformer(localSortPlan, offset, limit)
       }
 
       val projectPlan = if (projectList != child.output) {

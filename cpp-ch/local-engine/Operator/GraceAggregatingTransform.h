@@ -59,7 +59,7 @@ private:
     DB::Aggregator::AggregateColumns aggregate_columns;
     DB::AggregatingTransformParamsPtr params;
     DB::ContextPtr context;
-    DB::TemporaryDataOnDiskPtr tmp_data_disk;
+    DB::TemporaryDataOnDiskScopePtr tmp_data_disk;
     DB::AggregatedDataVariantsPtr current_data_variants = nullptr;
     size_t current_bucket_index = 0;
 
@@ -83,9 +83,9 @@ private:
         /// Only be used when there is no pre-aggregated step, store the original input blocks.
         std::list<DB::Block> original_blocks;
         /// store the intermediate result blocks.
-        DB::TemporaryFileStream * intermediate_file_stream = nullptr;
+        std::optional<DB::TemporaryBlockStreamHolder> intermediate_file_stream;
         /// Only be used when there is no pre-aggregated step
-        DB::TemporaryFileStream * original_file_stream = nullptr;
+        std::optional<DB::TemporaryBlockStreamHolder> original_file_stream;
         size_t pending_bytes = 0;
     };
     std::unordered_map<size_t, BufferFileStream> buckets;
@@ -116,6 +116,7 @@ private:
     DB::BlocksList current_final_blocks;
     std::unique_ptr<AggregateDataBlockConverter> block_converter = nullptr;
     bool no_more_keys = false;
+    bool enable_spill_test = false;
 
     double per_key_memory_usage = 0;
 

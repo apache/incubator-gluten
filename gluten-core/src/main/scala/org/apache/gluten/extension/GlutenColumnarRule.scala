@@ -31,11 +31,9 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object GlutenColumnarRule {
-
   // Utilities to infer columnar rule's caller's property:
   // ApplyColumnarRulesAndInsertTransitions#outputsColumnar.
-
-  case class DummyRowOutputExec(override val child: SparkPlan) extends UnaryExecNode {
+  private case class DummyRowOutputExec(override val child: SparkPlan) extends UnaryExecNode {
     override def supportsColumnar: Boolean = false
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
@@ -47,7 +45,7 @@ object GlutenColumnarRule {
       copy(child = newChild)
   }
 
-  case class DummyColumnarOutputExec(override val child: SparkPlan) extends UnaryExecNode {
+  private case class DummyColumnarOutputExec(override val child: SparkPlan) extends UnaryExecNode {
     override def supportsColumnar: Boolean = true
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
@@ -99,9 +97,8 @@ case class GlutenColumnarRule(
           "This should not happen. Please leave an issue at" +
             " https://github.com/apache/incubator-gluten.")
     }
-    val vanillaPlan = Transitions.insertTransitions(originalPlan, outputsColumnar)
+    val vanillaPlan = Transitions.insert(originalPlan, outputsColumnar)
     val applier = applierBuilder.apply(session)
     applier.apply(vanillaPlan, outputsColumnar)
   }
-
 }

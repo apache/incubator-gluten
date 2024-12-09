@@ -16,6 +16,9 @@
  */
 
 #include "utils/VeloxArrowUtils.h"
+
+#include <arrow/buffer.h>
+
 #include "memory/VeloxColumnarBatch.h"
 #include "utils/Common.h"
 #include "velox/vector/ComplexVector.h"

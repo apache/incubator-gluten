@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-#include <Parser/FunctionParser.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/FunctionParser.h>
 
 namespace DB
 {
@@ -57,7 +58,7 @@ public:
         const auto * const_eight_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 8);
         const auto * result_node = toFunctionNode(actions_dag, "multiply", {octet_length_node, const_eight_node});
 
-        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);;
+        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
 

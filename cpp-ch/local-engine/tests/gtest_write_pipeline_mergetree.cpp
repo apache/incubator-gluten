@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 #include <substrait/algebra.pb.h>
 #include <Common/BlockTypeUtils.h>
+#include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 #include <Common/ThreadStatus.h>
 
@@ -194,7 +195,6 @@ INCBIN(_1_read_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/1_p
 
 TEST(MergeTree, SparkMergeTree)
 {
-    GTEST_SKIP(); // TODO: fix test
     ThreadStatus thread_status;
 
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
@@ -226,7 +226,7 @@ TEST(MergeTree, SparkMergeTree)
     };
     gm_write_settings.set(context);
 
-    auto writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, gm_write_settings, context, "no job id");
+    auto writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, context, SparkMergeTreeWriter::CPP_UT_JOB_ID);
     SparkMergeTreeWriter & spark_merge_tree_writer = *writer;
 
     auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_1_read_), split_template, file);
@@ -255,25 +255,42 @@ TEST(MergeTree, SparkMergeTree)
     }
 }
 
-INCBIN(_2_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/2_one_pipeline.json");
+INCBIN(_3_mergetree_plan_input_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/lineitem_parquet_input.json");
+namespace
+{
+void writeMerge(std::string_view json_plan,
+    const std::string & outputPath ,
+    const std::function<void(const DB::Block &)> & callback, std::optional<std::string> input = std::nullopt)
+{
+    const auto context = DB::Context::createCopy(QueryContext::globalContext());
+    GlutenWriteSettings settings{.task_write_tmp_dir = outputPath};
+    settings.set(context);
+    SparkMergeTreeWritePartitionSettings partition_settings{.part_name_prefix = "pipline_prefix"};
+    partition_settings.set(context);
 
+    auto input_json = input.value_or(replaceLocalFilesWithTPCH(EMBEDDED_PLAN(_3_mergetree_plan_input_)));
+    auto [_, local_executor] = test::create_plan_and_executor(json_plan, input_json, context);
+
+    while (local_executor->hasNext())
+        callback(*local_executor->nextColumnar());
+}
+}
+INCBIN(_3_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/3_one_pipeline.json");
+INCBIN(_4_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/4_one_pipeline.json");
 TEST(MergeTree, Pipeline)
 {
-    GTEST_SKIP();
-    const auto context = DB::Context::createCopy(QueryContext::globalContext());
-    GlutenWriteSettings settings{
-        .task_write_tmp_dir = "file:///tmp/lineitem_mergetree",
-        .task_write_filename = "part-00000-a09f9d59-2dc6-43bc-a485-dcab8384b2ff.c000.mergetree",
-    };
-    settings.set(context);
+    writeMerge(EMBEDDED_PLAN(_3_mergetree_plan_),"tmp/lineitem_mergetree",[&](const DB::Block & block)
+    {
+        EXPECT_EQ(1, block.rows());
+        debug::headBlock(block);
+    });
+}
 
-    constexpr std::string_view split_template
-        = R"({"items":[{"uriFile":"{replace_local_files}","length":"19230111","parquet":{},"schema":{},"metadataColumns":[{}],"properties":{"fileSize":"19230111","modificationTime":"1722330598029"}}]})";
-    auto [_, local_executor] = test::create_plan_and_executor(
-        EMBEDDED_PLAN(_2_mergetree_plan_),
-        split_template,
-        GLUTEN_SOURCE_TPCH_DIR("lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet"),
-        context);
-    EXPECT_TRUE(local_executor->hasNext());
-    const Block & x = *local_executor->nextColumnar();
+TEST(MergeTree, PipelineWithPartition)
+{
+    writeMerge(EMBEDDED_PLAN(_4_mergetree_plan_),"tmp/lineitem_mergetree_p",[&](const DB::Block & block)
+    {
+        EXPECT_EQ(2525, block.rows());
+        debug::headBlock(block);
+    });
 }

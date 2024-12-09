@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.events.GlutenPlanFallbackEvent
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.logging.LogLevelUtil
 
@@ -31,12 +31,12 @@ import org.apache.spark.sql.execution.ui.GlutenEventUtils
  * This rule is used to collect all fallback reason.
  *   1. print fallback reason for each plan node 2. post all fallback reason using one event
  */
-case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSession)
+case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
   extends Rule[SparkPlan]
   with LogLevelUtil {
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!glutenConfig.enableFallbackReport) {
+    if (!glutenConf.enableFallbackReport) {
       return plan
     }
     printFallbackReason(plan)
@@ -52,7 +52,7 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
   }
 
   private def printFallbackReason(plan: SparkPlan): Unit = {
-    val validationLogLevel = glutenConfig.validationLogLevel
+    val validationLogLevel = glutenConf.validationLogLevel
     plan.foreachUp {
       case _: GlutenPlan => // ignore
       case p: SparkPlan if FallbackTags.nonEmpty(p) =>

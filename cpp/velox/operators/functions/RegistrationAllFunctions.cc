@@ -29,8 +29,8 @@
 #include "velox/functions/sparksql/DecimalArithmetic.h"
 #include "velox/functions/sparksql/Hash.h"
 #include "velox/functions/sparksql/Rand.h"
-#include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
+#include "velox/functions/sparksql/registration/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
 
 using namespace facebook;
@@ -43,8 +43,10 @@ void registerPrestoVectorFunctions() {
   VELOX_REGISTER_VECTOR_FUNCTION(udf_transform_values, "transform_values");
 }
 } // namespace facebook::velox::functions
+
 namespace gluten {
 namespace {
+
 void registerFunctionOverwrite() {
   velox::functions::registerUnaryNumeric<RoundFunction>({"round"});
   velox::registerFunction<RoundFunction, int8_t, int8_t, int32_t>({"round"});
@@ -76,13 +78,6 @@ void registerFunctionOverwrite() {
   velox::functions::registerPrestoVectorFunctions();
 }
 
-void registerFunctionForConfig() {
-  const std::string prefix = "not_allow_precision_loss_";
-  velox::functions::sparksql::registerDecimalAdd(prefix, false);
-  velox::functions::sparksql::registerDecimalSubtract(prefix, false);
-  velox::functions::sparksql::registerDecimalMultiply(prefix, false);
-  velox::functions::sparksql::registerDecimalDivide(prefix, false);
-}
 } // namespace
 
 void registerAllFunctions() {
@@ -96,7 +91,6 @@ void registerAllFunctions() {
   // Using function overwrite to handle function names mismatch between Spark
   // and Velox.
   registerFunctionOverwrite();
-  registerFunctionForConfig();
 }
 
 } // namespace gluten

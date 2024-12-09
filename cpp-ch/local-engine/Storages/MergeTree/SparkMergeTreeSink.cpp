@@ -62,15 +62,24 @@ void SparkMergeTreeSink::onStart()
 void SparkMergeTreeSink::onFinish()
 {
     sink_helper->finish(context);
+    if (stats_.has_value())
+        (*stats_)->collectStats(sink_helper->unsafeGet(), sink_helper->write_settings.partition_settings.partition_dir);
 }
 
 /////
-SinkHelperPtr SparkMergeTreeSink::create(
-    const MergeTreeTable & merge_tree_table, const SparkMergeTreeWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
+SinkToStoragePtr SparkMergeTreeSink::create(
+    const MergeTreeTable & merge_tree_table,
+    const SparkMergeTreeWriteSettings & write_settings_,
+    const DB::ContextMutablePtr & context,
+    const SinkStatsOption & stats)
 {
+    if (write_settings_.partition_settings.part_name_prefix.empty())
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "empty part_name_prefix is not allowed.");
+
     auto dest_storage = merge_tree_table.getStorage(context);
     bool isRemoteStorage = dest_storage->getStoragePolicy()->getAnyDisk()->isRemote();
     bool insert_with_local_storage = !write_settings_.insert_without_local_storage;
+    SinkHelperPtr sink_helper;
     if (insert_with_local_storage && isRemoteStorage)
     {
         auto temp = merge_tree_table.copyToDefaultPolicyStorage(context);
@@ -78,10 +87,11 @@ SinkHelperPtr SparkMergeTreeSink::create(
             &Poco::Logger::get("SparkMergeTreeWriter"),
             "Create temp table {} for local merge.",
             temp->getStorageID().getFullNameNotQuoted());
-        return std::make_shared<CopyToRemoteSinkHelper>(temp, dest_storage, write_settings_);
+        sink_helper = std::make_shared<CopyToRemoteSinkHelper>(temp, dest_storage, write_settings_);
     }
-
-    return std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
+    else
+        sink_helper = std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
+    return std::make_shared<SparkMergeTreeSink>(sink_helper, context, stats);
 }
 
 SinkHelper::SinkHelper(const SparkStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
@@ -121,7 +131,7 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
     for (const auto & selected_part : prepare_merge_parts)
         tmp_parts.emplace(selected_part->name);
 
-    // check thread group initialized in task thread
+    // check a thread group initialized in task thread
     currentThreadGroupMemoryUsage();
     thread_pool.scheduleOrThrow(
         [this, prepare_merge_parts, thread_group = CurrentThread::getGroup()]() -> void
@@ -134,10 +144,8 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
             for (const auto & prepare_merge_part : prepare_merge_parts)
                 before_size += prepare_merge_part->getBytesOnDisk();
 
-            std::unordered_map<String, String> partition_values;
             const auto merged_parts = mergeParts(
                 prepare_merge_parts,
-                partition_values,
                 toString(UUIDHelpers::generateV4()),
                 dataRef(),
                 write_settings.partition_settings.partition_dir,

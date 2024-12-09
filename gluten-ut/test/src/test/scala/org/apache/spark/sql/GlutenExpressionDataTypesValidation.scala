@@ -17,8 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.{ProjectExecTransformer, TransformSupport, WholeStageTransformerSuite}
 import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
@@ -100,7 +99,8 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       case _ => throw new UnsupportedOperationException("Not supported type: " + t)
     }
   }
-  def generateGlutenProjectPlan(expr: Expression): GlutenPlan = {
+
+  def generateGlutenProjectPlan(expr: Expression): TransformSupport = {
     val namedExpr = Seq(Alias(expr, "r")())
     ProjectExecTransformer(namedExpr, DummyPlan())
   }
