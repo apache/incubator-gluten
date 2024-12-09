@@ -231,7 +231,7 @@ object Validators {
     import FallbackByNativeValidation._
     private val offloadAttempt: LegacyOffload = LegacyOffload(offloadRules)
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      applyAsSingleNode(plan) {
+      applyOnSingleNode(plan) {
         node =>
           val offloadedNode = offloadAttempt.apply(node)
           val outcomes = offloadedNode.collect {
@@ -265,7 +265,7 @@ object Validators {
       override def outputPartitioning: Partitioning = originalChild.outputPartitioning
     }
 
-    private def applyAsSingleNode[T](plan: SparkPlan)(body: SparkPlan => T): T = {
+    private def applyOnSingleNode[T](plan: SparkPlan)(body: SparkPlan => T): T = {
       val newChildren = plan.children.map(child => FakeLeaf(originalChild = child))
       val newPlan = plan.withNewChildren(newChildren)
       val applied = body(newPlan)
