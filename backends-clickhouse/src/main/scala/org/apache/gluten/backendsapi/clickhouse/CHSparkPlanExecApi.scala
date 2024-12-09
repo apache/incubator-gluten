@@ -666,6 +666,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     CHColumnarWriteFilesExec(
       child,
       noop,
+      child,
       fileFormat,
       partitionColumns,
       bucketSpec,

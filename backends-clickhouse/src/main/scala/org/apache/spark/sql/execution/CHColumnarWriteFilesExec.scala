@@ -166,7 +166,7 @@ case class CHColumnarWriteFilesExec(
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
       newRight: SparkPlan): SparkPlan =
-    copy(newLeft, newRight, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
+    copy(newLeft, newRight, t, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
 
   override def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
     assert(child.supportsColumnar)
