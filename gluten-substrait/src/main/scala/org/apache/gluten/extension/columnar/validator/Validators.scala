@@ -28,7 +28,8 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -37,6 +38,8 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+
+import scala.collection.Seq
 
 object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
@@ -258,8 +261,10 @@ object Validators {
     private case class FakeLeaf(originalChild: SparkPlan) extends LeafExecNode {
       override protected def doExecute(): RDD[InternalRow] =
         throw new UnsupportedOperationException()
-      override def output: Seq[Attribute] = originalChild.output
       override def supportsColumnar: Boolean = originalChild.supportsColumnar
+      override def output: Seq[Attribute] = originalChild.output
+      override def outputOrdering: Seq[SortOrder] = originalChild.outputOrdering
+      override def outputPartitioning: Partitioning = originalChild.outputPartitioning
     }
 
     private def applyAsSingleNode[T](plan: SparkPlan)(body: SparkPlan => T): T = {
