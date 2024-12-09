@@ -39,8 +39,6 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
-import scala.collection.Seq
-
 object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
     private val conf = GlutenConfig.getConf
