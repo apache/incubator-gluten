@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.extension.columnar.enumerated.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
@@ -33,13 +32,12 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, MapType}
-import org.apache.spark.sql.types.MetadataBuilder
+import org.apache.spark.sql.types.{ArrayType, MapType, MetadataBuilder}
 
 import io.substrait.proto.NamedStruct
 import org.apache.parquet.hadoop.ParquetOutputFormat
@@ -139,23 +137,11 @@ case class WriteFilesExecTransformer(
       }
     }
 
-    lazy val hasConstantComplexType = child match {
-      case t: ProjectExecTransformer =>
-        t.projectList.exists(isConstantComplexType)
-      case p: ProjectExec =>
-        p.projectList.exists(isConstantComplexType)
-      case g: GroupLeafExec => // support the ras
-        g.metadata
-          .logicalLink()
-          .plan
-          .collectFirst {
-            case p: Project if p.projectList.exists(isConstantComplexType) => true
-          }
-          .isDefined
-      case _ => false
-    }
-    // TODO: currently the velox don't support parquet write with complex data type
-    //  with constant.
+    def hasConstantComplexType = child.logicalLink.collectFirst {
+      case p: Project if p.projectList.exists(isConstantComplexType) => true
+    }.isDefined
+
+    // TODO: Currently Velox doesn't support Parquet write of constant with complex data type.
     if (fileFormat.isInstanceOf[ParquetFileFormat] && hasConstantComplexType) {
       return ValidationResult.failed(
         "Unsupported native parquet write: " +

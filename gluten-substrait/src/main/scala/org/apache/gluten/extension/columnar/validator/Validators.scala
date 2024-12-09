@@ -266,7 +266,12 @@ object Validators {
     }
 
     private def applyOnSingleNode[T](plan: SparkPlan)(body: SparkPlan => T): T = {
-      val newChildren = plan.children.map(child => FakeLeaf(originalChild = child))
+      val newChildren = plan.children.map(
+        child => {
+          val fl = FakeLeaf(originalChild = child)
+          child.logicalLink.foreach(link => fl.setLogicalLink(link))
+          fl
+        })
       val newPlan = plan.withNewChildren(newChildren)
       val applied = body(newPlan)
       applied
