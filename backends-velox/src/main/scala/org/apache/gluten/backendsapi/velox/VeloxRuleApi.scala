@@ -115,6 +115,7 @@ object VeloxRuleApi {
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
     injector.injectFinal(c => GlutenFallbackReporter(c.glutenConf, c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
+    injector.injectFinal(c => GlutenAutoAdjustStageResourceProfile(c.glutenConf, c.session))
   }
 
   private def injectRas(injector: RasInjector): Unit = {
@@ -189,5 +190,6 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
     injector.injectPostTransform(c => GlutenFallbackReporter(c.glutenConf, c.session))
     injector.injectPostTransform(_ => RemoveFallbackTagRule())
+    injector.injectPostTransform(c => GlutenAutoAdjustStageResourceProfile(c.glutenConf, c.session))
   }
 }

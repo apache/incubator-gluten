@@ -496,6 +496,19 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def parquetEncryptionValidationEnabled: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
 
+  def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
+
+  def enableAutoAdjustStageResourceProfile: Boolean =
+    conf.getConf(AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED) && conf.adaptiveExecutionEnabled
+
+  def autoAdjustStageRPHeapRatio: Double = {
+    conf.getConf(AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO)
+  }
+
+  def autoAdjustStageC2RorR2CThreshold: Int = {
+    conf.getConf(AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_THRESHOLD)
+  }
+
 }
 
 object GlutenConfig {
@@ -2274,4 +2287,25 @@ object GlutenConfig {
       .stringConf
       .createWithDefault("")
 
+  val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
+    buildStaticConf("spark.gluten.auto.adjustStageResource.enabled")
+      .internal()
+      .doc("If enabled, gluten will try to set the stage resource according " +
+        "to stage execution plan. Only worked when aqe is enabled at the same time!!")
+      .booleanConf
+      .createWithDefault(false)
+
+  val AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO =
+    buildConf("spark.gluten.auto.adjustStageResources.heap.ratio")
+      .internal()
+      .doc("Increase executor heap memory when match adjust stage resource rule.")
+      .doubleConf
+      .createWithDefault(2.0d)
+
+  val AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_THRESHOLD =
+    buildConf("spark.gluten.auto.adjustStageResources.c2rORr2c.threshold")
+      .internal()
+      .doc("Increase executor heap memory when match c2r and r2c exceeds the threshold.")
+      .intConf
+      .createWithDefault(4)
 }
