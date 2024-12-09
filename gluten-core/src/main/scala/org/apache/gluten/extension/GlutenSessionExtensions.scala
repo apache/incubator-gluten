@@ -17,7 +17,7 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backend.Component
+import org.apache.gluten.component.Component
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.internal.Logging
