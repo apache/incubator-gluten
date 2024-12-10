@@ -20,8 +20,8 @@ import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
-import org.apache.spark.annotation.Experimental;
 import org.apache.spark.SparkEnv;
+import org.apache.spark.annotation.Experimental;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.SparkResourceUtil;
 
