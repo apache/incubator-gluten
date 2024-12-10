@@ -277,9 +277,8 @@ void VeloxBackend::initConnector() {
       backendConf_->get<std::string>(kMaxCoalescedDistance, "512KB"); // 512KB
   connectorConfMap[velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
       backendConf_->get<std::string>(kPrefetchRowGroups, "1");
-  // Velox currently only support up to 8MB load quantum size on SSD.
   connectorConfMap[velox::connector::hive::HiveConfig::kLoadQuantum] =
-      backendConf_->get<std::string>(kLoadQuantum, "8388608"); // 8M
+      backendConf_->get<std::string>(kLoadQuantum, "268435456"); // 256M
   connectorConfMap[velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
       backendConf_->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
   connectorConfMap[velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
