@@ -64,7 +64,7 @@ case class AddPreProjectionForHashJoin(session: SparkSession)
           eliminateProjectList(hashJoin.left.outputSet, leftReplacedExpressions.values.toSeq)
         val rightProjectExprs =
           eliminateProjectList(hashJoin.right.outputSet, rightReplacedExpressions.values.toSeq)
-        hashJoin.copy(
+        val newHashJoin = hashJoin.copy(
           leftKeys = newLeftKeys,
           rightKeys = newRightKeys,
           condition = newCondition,
@@ -75,6 +75,11 @@ case class AddPreProjectionForHashJoin(session: SparkSession)
             ProjectExecTransformer(rightProjectExprs, hashJoin.right)
           } else { hashJoin.right }
         )
+        if (leftReplacedExpressions.size > 0 || rightReplacedExpressions.size > 0) {
+          ProjectExecTransformer(hashJoin.output, newHashJoin)
+        } else {
+          newHashJoin
+        }
     }
   }
 

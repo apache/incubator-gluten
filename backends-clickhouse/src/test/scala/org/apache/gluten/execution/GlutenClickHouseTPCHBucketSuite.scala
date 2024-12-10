@@ -249,12 +249,12 @@ class GlutenClickHouseTPCHBucketSuite
           plans(3)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
-            .isInstanceOf[InputIteratorTransformer])
+            .isInstanceOf[ProjectExecTransformer])
         assert(
           plans(3)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
-            .isInstanceOf[InputIteratorTransformer])
+            .isInstanceOf[ProjectExecTransformer])
 
         // Check the bucket join
         assert(
