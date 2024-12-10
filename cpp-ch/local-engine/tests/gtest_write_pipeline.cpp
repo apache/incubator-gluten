@@ -94,7 +94,7 @@ TEST(LocalExecutor, StorageObjectStorageSink)
     EXPECT_TRUE(func && func->name == "HDFS");
 
     DB::StorageHDFSConfiguration config;
-    StorageObjectStorage::Configuration::initialize(config, arg->children[0]->children, QueryContext::globalContext(), false);
+    StorageObjectStorage::Configuration::initialize(config, arg->children[0]->children, QueryContext::globalContext(), false, nullptr);
 
     const std::shared_ptr<DB::HDFSObjectStorage> object_storage
         = std::dynamic_pointer_cast<DB::HDFSObjectStorage>(config.createObjectStorage(QueryContext::globalContext(), false));
