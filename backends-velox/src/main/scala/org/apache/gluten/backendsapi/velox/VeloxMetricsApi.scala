@@ -100,7 +100,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "remaining filter time"),
-      "ioWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "io wait time")
+      "ioWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "io wait time"),
+      "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
+      "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
     )
 
   override def genBatchScanTransformerMetricsUpdater(
@@ -138,7 +141,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "remaining filter time"),
-      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time")
+      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time"),
+      "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
+      "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
@@ -176,7 +182,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "remaining filter time"),
-      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time")
+      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time"),
+      "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
+      "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(
