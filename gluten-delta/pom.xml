@@ -14,10 +14,6 @@
   <packaging>jar</packaging>
   <name>Gluten DeltaLake</name>
 
-  <properties>
-    <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -107,7 +103,7 @@
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <resources>
       <resource>
-        <directory>${resource.dir}</directory>
+        <directory>${project.basedir}/src/main/resources</directory>
       </resource>
     </resources>
     <plugins>
