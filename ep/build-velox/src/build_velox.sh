@@ -158,7 +158,8 @@ function compile {
     if [ -d gtest-build ]; then
       echo "INSTALL gtest."
       if [ $OS == 'Linux' ]; then
-        sudo cmake --install gtest-build/
+        cd gtest-src; cmake . ; sudo make install -j
+        #sudo cmake --install gtest-build/
       elif [ $OS == 'Darwin' ]; then
         sudo cmake --install gtest-build/
       fi
