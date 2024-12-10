@@ -16,12 +16,18 @@
  */
 package org.apache.gluten.memory.memtarget;
 
+import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
+import org.apache.spark.SparkEnv;
+import org.apache.spark.memory.SparkMemoryUtil;
+import org.apache.spark.util.SparkResourceUtil;
 import org.apache.spark.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -86,6 +92,7 @@ public class TreeMemoryTargets {
 
   // non-root nodes are not Spark memory consumer
   public static class Node implements TreeMemoryTarget, KnownNameAndStats {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Node.class);
     private final Map<String, Node> children = new HashMap<>();
     private final TreeMemoryTarget parent;
     private final String name;
@@ -137,12 +144,14 @@ public class TreeMemoryTargets {
     }
 
     private boolean ensureFreeCapacity(long bytesNeeded) {
+      boolean result = false;
       while (true) { // FIXME should we add retry limit?
         long freeBytes = freeBytes();
         Preconditions.checkState(freeBytes >= 0);
         if (freeBytes >= bytesNeeded) {
           // free bytes fit requirement
-          return true;
+          result = true;
+          break;
         }
         // spill
         long bytesToSpill = bytesNeeded - freeBytes;
@@ -150,9 +159,27 @@ public class TreeMemoryTargets {
         Preconditions.checkState(spilledBytes >= 0);
         if (spilledBytes == 0) {
           // OOM
-          return false;
+          result = false;
+          break;
         }
       }
+
+      if (result) {
+        // if multi-slot and in shared mode, retry spill more memory.
+        if (SparkResourceUtil.getTaskSlots(SparkEnv.get().conf()) > 1
+            && !GlutenConfig.getConf().memoryIsolation()) {
+          long overUsed =
+              SparkMemoryUtil.getTaskOffheapMemoryUsage()
+                  - GlutenConfig.getConf().taskOffHeapMemorySize();
+          if (overUsed > 0) {
+            // spill
+            long bytesToSpill = bytesNeeded + overUsed;
+            LOGGER.debug("Exceed perTaskLimit, try spill:{}", bytesToSpill);
+            TreeMemoryTargets.spillTree(this, bytesToSpill);
+          }
+        }
+      }
+      return result;
     }
 
     @Override

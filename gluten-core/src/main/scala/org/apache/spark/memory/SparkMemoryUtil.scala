@@ -20,7 +20,7 @@ import org.apache.gluten.memory.memtarget._
 import org.apache.gluten.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
 import org.apache.gluten.proto.MemoryUsageStats
 
-import org.apache.spark.SparkEnv
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.util.Utils
 
 import com.google.common.base.Preconditions
@@ -54,6 +54,12 @@ object SparkMemoryUtil {
     val smp = smpField.get(mm).asInstanceOf[StorageMemoryPool]
     val emp = empField.get(mm).asInstanceOf[ExecutionMemoryPool]
     smp.memoryFree + emp.memoryFree
+  }
+
+  def getTaskOffheapMemoryUsage: Long = {
+    val mm = SparkEnv.get.memoryManager
+    val emp = empField.get(mm).asInstanceOf[ExecutionMemoryPool]
+    emp.getMemoryUsageForTask(TaskContext.get().taskAttemptId())
   }
 
   def dumpMemoryManagerStats(tmm: TaskMemoryManager): String = {
