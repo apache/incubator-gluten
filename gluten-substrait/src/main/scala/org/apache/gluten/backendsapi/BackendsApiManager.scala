@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.backendsapi
 
-import org.apache.gluten.backend.Component
+import org.apache.gluten.component.Component
 
 object BackendsApiManager {
   private lazy val backend: SubstraitBackend = initializeInternal()

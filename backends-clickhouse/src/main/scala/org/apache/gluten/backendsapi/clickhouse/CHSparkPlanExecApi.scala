@@ -656,7 +656,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   }
 
   override def createColumnarWriteFilesExec(
-      child: SparkPlan,
+      child: WriteFilesExecTransformer,
       noop: SparkPlan,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],
@@ -666,6 +666,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     CHColumnarWriteFilesExec(
       child,
       noop,
+      child,
       fileFormat,
       partitionColumns,
       bucketSpec,

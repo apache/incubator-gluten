@@ -74,6 +74,7 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
 
     // Legacy: The legacy transform rule.
+    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
     val validatorBuilder: GlutenConfig => Validator = conf =>
       Validator
         .builder()
@@ -83,11 +84,10 @@ object VeloxRuleApi {
         .fallbackByBackendSettings()
         .fallbackByUserOptions()
         .fallbackByTestInjects()
-        .fallbackByNativeValidation()
+        .fallbackByNativeValidation(offloads)
         .build()
     val rewrites =
       Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
-    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
     injector.injectTransform(
       c => HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads))
 

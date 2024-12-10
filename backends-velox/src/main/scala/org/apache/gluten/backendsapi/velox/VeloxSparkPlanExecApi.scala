@@ -560,7 +560,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     ShuffleUtil.genColumnarShuffleWriter(parameters)
   }
   override def createColumnarWriteFilesExec(
-      child: SparkPlan,
+      child: WriteFilesExecTransformer,
       noop: SparkPlan,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],
@@ -570,6 +570,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     VeloxColumnarWriteFilesExec(
       child,
       noop,
+      child,
       fileFormat,
       partitionColumns,
       bucketSpec,
@@ -632,7 +633,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
-    ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
+    ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
   }
 
   override def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
