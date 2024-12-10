@@ -70,14 +70,14 @@ object Validator {
         p.validators.flatMap(flatten)
       case other => Seq(other)
     }
-
-    private object NoopValidator extends Validator {
-      override def validate(plan: SparkPlan): Validator.OutCome = pass()
-    }
   }
 
   private object Builder {
     def apply(): Builder = new Builder()
+
+    private object NoopValidator extends Validator {
+      override def validate(plan: SparkPlan): Validator.OutCome = pass()
+    }
 
     private class ValidatorPipeline(val validators: Seq[Validator]) extends Validator {
       assert(!validators.exists(_.isInstanceOf[ValidatorPipeline]))
