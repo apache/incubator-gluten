@@ -152,9 +152,13 @@ object GlutenIcebergSourceUtil {
     val spec = task.spec()
     val partition = task.partition()
     if (spec.isPartitioned) {
-      val partitionFields =
-        spec.partitionType().fields().asScala.filter(f => readPartitionFields.contains(f.name()))
-      partitionFields.zipWithIndex.foreach {
+      val partitionFields = spec
+        .partitionType()
+        .fields()
+        .asScala
+        .zipWithIndex
+        .filter(f => readPartitionFields.contains(f._1.name()))
+      partitionFields.foreach {
         case (field, index) =>
           val partitionValue = partition.get(index, field.`type`().typeId().javaClass())
           val partitionType = field.`type`()
