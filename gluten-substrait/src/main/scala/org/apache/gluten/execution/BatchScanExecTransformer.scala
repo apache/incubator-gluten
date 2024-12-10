@@ -109,7 +109,9 @@ abstract class BatchScanExecTransformerBase(
             ExpressionConverter.replaceAttributeReference(expr),
             output)
       }
-    case _ => Seq.empty
+    case _ =>
+      logInfo(s"${scan.getClass.toString} does not support push down filters")
+      Seq.empty
   }
 
   def setPushDownFilters(filters: Seq[Expression]): Unit = {

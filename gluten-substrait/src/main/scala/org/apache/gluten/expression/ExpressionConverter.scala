@@ -58,12 +58,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
   def canReplaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): Boolean = {
-    val expressionsMap = ExpressionMappings.expressionsMap
     try {
-      replaceWithExpressionTransformer0(expr, attributeSeq, expressionsMap)
+      replaceWithExpressionTransformer(expr, attributeSeq)
       true
     } catch {
-      case _: Exception => false
+      case e: Exception =>
+        logInfo(e.getMessage)
+        false
     }
   }
 
