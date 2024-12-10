@@ -390,15 +390,15 @@
             <includes>
               <include>src/main/scala/**/*.scala</include>
               <include>src/test/scala/**/*.scala</include>
-              <include>src/main/delta-${delta.binary.version}/**/*.scala</include>
-              <include>src/test/delta-${delta.binary.version}/**/*.scala</include>
+              <include>src-delta-${delta.binary.version}/main/delta/**/*.scala</include>
+              <include>src-delta-${delta.binary.version}/test/delta/**/*.scala</include>
             </includes>
             <excludes>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/commands/*.scala</exclude>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/commands/merge/*.scala</exclude>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/stats/*.scala</exclude>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/Snapshot.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/delta/org/apache/spark/sql/delta/commands/*.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/delta/org/apache/spark/sql/delta/commands/merge/*.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/delta/org/apache/spark/sql/delta/stats/*.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/delta/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/delta/org/apache/spark/sql/delta/Snapshot.scala</exclude>
             </excludes>
           </scala>
         </configuration>
@@ -436,36 +436,6 @@
               <goal>test-jar</goal>
             </goals>
           </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>add-sources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>src/main/delta-${delta.binary.version}</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-          <id>add-test-sources</id>
-          <phase>generate-test-sources</phase>
-          <goals>
-            <goal>add-test-source</goal>
-          </goals>
-          <configuration>
-            <sources>
-              <source>src/test/delta-${delta.binary.version}</source>
-            </sources>
-          </configuration>
-        </execution>
         </executions>
       </plugin>
       <plugin>

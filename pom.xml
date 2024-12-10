@@ -314,7 +314,7 @@
         <delta.version>2.3.0</delta.version>
         <delta.binary.version>23</delta.binary.version>
         <antlr4.version>4.8</antlr4.version>
-	<hudi.version>0.15.0</hudi.version>
+        <hudi.version>0.15.0</hudi.version>
       </properties>
     </profile>
     <profile>
