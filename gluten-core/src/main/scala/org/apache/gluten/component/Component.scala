@@ -32,7 +32,8 @@ import scala.collection.mutable
  * should be placed to Gluten's classpath with a Java service file. Gluten will discover all the
  * component implementations then register them at the booting time.
  *
- * Experimental: This is not expected to be used in production yet. Use [[Backend]] instead.
+ * Experimental: This is not expected to be used in production yet. Use
+ * [[org.apache.gluten.backend.Backend]] instead.
  */
 @Experimental
 trait Component {
