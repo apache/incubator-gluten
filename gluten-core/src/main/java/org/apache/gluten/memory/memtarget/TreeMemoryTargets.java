@@ -22,6 +22,8 @@ import org.apache.gluten.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
 import org.apache.spark.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,9 +42,10 @@ public class TreeMemoryTargets {
       TreeMemoryTarget parent,
       String name,
       long capacity,
+      boolean isDynamicCapacity,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-    return new Node(parent, name, capacity, spiller, virtualChildren);
+    return new Node(parent, name, capacity, isDynamicCapacity, spiller, virtualChildren);
   }
 
   public static long spillTree(TreeMemoryTarget node, final long bytes) {
@@ -86,10 +89,12 @@ public class TreeMemoryTargets {
 
   // non-root nodes are not Spark memory consumer
   public static class Node implements TreeMemoryTarget, KnownNameAndStats {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TreeMemoryTargets.Node.class);
     private final Map<String, Node> children = new HashMap<>();
     private final TreeMemoryTarget parent;
     private final String name;
     private final long capacity;
+    private final boolean isDynamicCapacity;
     private final Spiller spiller;
     private final Map<String, MemoryUsageStatsBuilder> virtualChildren;
     private final SimpleMemoryUsageRecorder selfRecorder = new SimpleMemoryUsageRecorder();
@@ -98,10 +103,12 @@ public class TreeMemoryTargets {
         TreeMemoryTarget parent,
         String name,
         long capacity,
+        boolean isDynamicCapacity,
         Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
       this.parent = parent;
       this.capacity = capacity;
+      this.isDynamicCapacity = isDynamicCapacity;
       final String uniqueName = MemoryTargetUtil.toUniqueName(name);
       if (capacity == CAPACITY_UNLIMITED) {
         this.name = uniqueName;
@@ -118,7 +125,26 @@ public class TreeMemoryTargets {
         return 0;
       }
       ensureFreeCapacity(size);
-      return borrow0(Math.min(freeBytes(), size));
+      long requiredSize = Math.min(freeBytes(), size);
+      long granted = borrow0(requiredSize);
+
+      // but it think this task hold too many memories, so we active retry spill all memory
+      // After this, if there is still not enough acquired, should OOM.
+      if (granted < requiredSize && isDynamicCapacity) {
+        LOGGER.info(
+            "Exceed Spark perTaskLimit with maxTaskSizeDynamic when "
+                + "require:{} got:{}, try spill all.",
+            requiredSize,
+            granted);
+        long spilled = TreeMemoryTargets.spillTree(this, Long.MAX_VALUE);
+        long remain = requiredSize - granted;
+        if (spilled > remain) {
+          granted += borrow0(remain);
+        } else {
+          // OOM
+        }
+      }
+      return granted;
     }
 
     private long freeBytes() {
@@ -204,9 +230,11 @@ public class TreeMemoryTargets {
     public TreeMemoryTarget newChild(
         String name,
         long capacity,
+        boolean isDynamicCapacity,
         Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-      final Node child = new Node(this, name, capacity, spiller, virtualChildren);
+      final Node child =
+          new Node(this, name, capacity, isDynamicCapacity, spiller, virtualChildren);
       if (children.containsKey(child.name())) {
         throw new IllegalArgumentException("Child already registered: " + child.name());
       }

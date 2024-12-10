@@ -25,6 +25,8 @@ import com.google.common.base.Preconditions;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -47,7 +49,7 @@ import java.util.stream.Collectors;
  * org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers}.
  */
 public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarget {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(TreeMemoryConsumer.class);
   private final SimpleMemoryUsageRecorder recorder = new SimpleMemoryUsageRecorder();
   private final Map<String, TreeMemoryTarget> children = new HashMap<>();
   private final String name = MemoryTargetUtil.toUniqueName("Gluten.Tree");
@@ -112,17 +114,23 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
   @Override
   public long spill(long size, MemoryConsumer trigger) throws IOException {
     // subject to the regular Spark spill calls
-    return TreeMemoryTargets.spillTree(this, size);
+
+    LOGGER.warn("spillTree begin size:{}", size);
+    long spillSize = TreeMemoryTargets.spillTree(this, size);
+    LOGGER.warn("spillTree end spilled:{}", spillSize);
+    return spillSize;
   }
 
   @Override
   public TreeMemoryTarget newChild(
       String name,
       long capacity,
+      boolean isDynamicCapacity,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     final TreeMemoryTarget child =
-        TreeMemoryTargets.newChild(this, name, capacity, spiller, virtualChildren);
+        TreeMemoryTargets.newChild(
+            this, name, capacity, isDynamicCapacity, spiller, virtualChildren);
     if (children.containsKey(child.name())) {
       throw new IllegalArgumentException("Child already registered: " + child.name());
     }
