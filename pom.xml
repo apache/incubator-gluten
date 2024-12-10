@@ -440,6 +440,77 @@
       <modules>
         <module>gluten-delta</module>
       </modules>
+
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>add-delta-sources</id>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>add-source</goal>
+                </goals>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-delta/main/scala</source>
+                    <source>${project.basedir}/src-delta/main/java</source>
+                    <source>${project.basedir}/src-delta-${delta.binary.version}/main/scala</source>
+                    <source>${project.basedir}/src-delta-${delta.binary.version}/main/java</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-delta-resources</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>add-resource</goal>
+                </goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-delta/main/resources</directory>
+                      <directory>${project.basedir}/src-delta-${delta.binary.version}/main/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-delta-test-sources</id>
+                <phase>generate-test-sources</phase>
+                <goals>
+                  <goal>add-test-source</goal>
+                </goals>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-delta/test/scala</source>
+                    <source>${project.basedir}/src-delta/test/java</source>
+                    <source>${project.basedir}/src-delta-${delta.binary.version}/test/scala</source>
+                    <source>${project.basedir}/src-delta-${delta.binary.version}/test/java</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-delta-test-resources</id>
+                <phase>generate-test-resources</phase>
+                <goals>
+                  <goal>add-test-resource</goal>
+                </goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-delta/test/resources</directory>
+                      <directory>${project.basedir}/src-delta-${delta.binary.version}/test/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>iceberg</id>
