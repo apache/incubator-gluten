@@ -46,8 +46,6 @@ case class IcebergScanTransformer(
     commonPartitionValues = commonPartitionValues
   ) {
 
-  override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
-
   override lazy val getPartitionSchema: StructType =
     GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 
