@@ -336,5 +336,31 @@ public:
 };
 static FunctionParserRegister<FunctionParserZipWith> register_zip_with;
 
+class FunctionParserMapZipWith: public FunctionParser
+{
+public:
+    static constexpr auto name = "map_zip_with";
+    explicit FunctionParserZipWith(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
+    ~FunctionParserMapZipWidth() override = default;
+    String getName() const override { return name; }
+
+    cosnt DB::ActionsDAG::Node *
+    parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override 
+    {
+        // Parse spark map_zip_with(map1, map2, func) as Ch arrayMap(func, mapZipUnaligned(map1, map2))
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
+        if (parsed_args.size() != 3)
+            throw DB::Exception(DB::ErrorCodes::SIZES_OF_COLUMNS_DOESNT_MATCH, "map_zip_with function must have three arguments");
+        
+        auto lambda_args = collectLambdaArguments(parser_context, substrait_func.arguments()[2].value().scalar_function());
+        if (lambda_args.size() != 2)
+            throw DB::Exception(DB::ErrorCodes::SIZES_OF_COLUMNS_DOESNT_MATCH, "The lambda function in map_zip_with must have two arguments");
+
+        const auto * map_zip_unaligned = toFunctionNode(actions_dag, "mapZipUnaligned", {parsed_args[0], parsed_args[1]});
+        const auto * map_zip = toFunctionNode(actions_dag, "zipMap", {parsed_args[2], map_zip_unaligned});
+        return convertNodeTypeIfNeeded(substrait_func, map_zip, actions_dag);
+    }
+};
+static FunctionParserRegister<FunctionParserMapZipWith> register_map_zip_with;
 
 }
