@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backend.Component
+import org.apache.gluten.component.Component
 import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildConvention
 import org.apache.gluten.sql.shims.SparkShimLoader
 

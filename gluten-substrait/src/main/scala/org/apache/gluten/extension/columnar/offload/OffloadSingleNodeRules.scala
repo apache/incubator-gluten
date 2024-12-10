@@ -312,7 +312,10 @@ object OffloadOthers {
           val child = plan.child
           // For ArrowEvalPythonExec, CH supports it through EvalPythonExecTransformer while
           // Velox backend uses ColumnarArrowEvalPythonExec.
-          if (!BackendsApiManager.getSettings.supportColumnarArrowUdf()) {
+          if (
+            !BackendsApiManager.getSettings.supportColumnarArrowUdf() ||
+            !GlutenConfig.getConf.enableColumnarArrowUDF
+          ) {
             EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
           } else {
             BackendsApiManager.getSparkPlanExecApiInstance.createColumnarArrowEvalPythonExec(

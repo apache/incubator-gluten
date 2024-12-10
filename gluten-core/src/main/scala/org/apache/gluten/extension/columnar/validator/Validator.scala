@@ -50,7 +50,7 @@ object Validator {
 
     /** Add a custom validator to pipeline. */
     def add(validator: Validator): Builder = {
-      buffer += validator
+      buffer ++= flatten(validator)
       this
     }
 
@@ -64,7 +64,15 @@ object Validator {
       new ValidatorPipeline(buffer.toSeq)
     }
 
-    private class ValidatorPipeline(validators: Seq[Validator]) extends Validator {
+    private def flatten(validator: Validator): Seq[Validator] = validator match {
+      case p: ValidatorPipeline =>
+        p.validators.flatMap(flatten)
+      case other => Seq(other)
+    }
+
+    private class ValidatorPipeline(val validators: Seq[Validator]) extends Validator {
+      assert(!validators.exists(_.isInstanceOf[ValidatorPipeline]))
+
       override def validate(plan: SparkPlan): Validator.OutCome = {
         val init: Validator.OutCome = pass()
         val finalOut = validators.foldLeft(init) {
@@ -85,5 +93,11 @@ object Validator {
 
   private object Builder {
     def apply(): Builder = new Builder()
+  }
+
+  implicit class ValidatorImplicits(v: Validator) {
+    def andThen(other: Validator): Validator = {
+      builder().add(v).add(other).build()
+    }
   }
 }

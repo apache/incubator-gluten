@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.heuristic
 
-import org.apache.gluten.backend.Component
+import org.apache.gluten.component.Component
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode

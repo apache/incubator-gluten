@@ -365,7 +365,7 @@ trait SparkPlanExecApi {
 
   /** Create ColumnarWriteFilesExec */
   def createColumnarWriteFilesExec(
-      child: SparkPlan,
+      child: WriteFilesExecTransformer,
       noop: SparkPlan,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],

@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.backend
 
+import org.apache.gluten.component.Component
+
 trait Backend extends Component {
 
   /**
