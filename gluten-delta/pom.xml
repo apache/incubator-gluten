@@ -127,10 +127,10 @@
               <file>${project.basedir}/../.scalafmt.conf</file>
             </scalafmt>
             <includes>
-              <include>src/main/scala/**/*.scala</include>
-              <include>src/test/scala/**/*.scala</include>
-              <include>src/main/delta-${delta.binary.version}/**/*.scala</include>
-              <include>src/test/delta-${delta.binary.version}/**/*.scala</include>
+              <include>src-delta/main/scala/**/*.scala</include>
+              <include>src-delta/test/scala/**/*.scala</include>
+              <include>src-delta-${delta.binary.version}/main/scala/**/*.scala</include>
+              <include>src-delta-${delta.binary.version}/test/scala/**/*.scala</include>
             </includes>
           </scala>
         </configuration>
@@ -152,28 +152,6 @@
             <goals>
               <goal>test-jar</goal>
             </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-resources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>src/main/scala/org/apache/gluten/execution</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>src/main/delta-${delta.binary.version}/org/apache/gluten/execution</directory>
-                </resource>
-              </resources>
-              <overwrite>true</overwrite>
-            </configuration>
           </execution>
         </executions>
       </plugin>
