@@ -28,8 +28,7 @@ import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, Heu
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.rewrite._
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
-import org.apache.gluten.extension.columnar.validator.Validator
-import org.apache.gluten.extension.columnar.validator.Validators.ValidatorBuilderImplicits
+import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.extension.injector.{Injector, SparkInjector}
 import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -76,20 +75,11 @@ object VeloxRuleApi {
     // Legacy: The legacy transform rule.
     val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
     val validatorBuilder: GlutenConfig => Validator = conf =>
-      Validator
-        .builder()
-        .fallbackByHint()
-        .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
-        .fallbackComplexExpressions()
-        .fallbackByBackendSettings()
-        .fallbackByUserOptions()
-        .fallbackByTestInjects()
-        .fallbackByNativeValidation(offloads)
-        .build()
+      Validators.newValidator(conf, offloads)
     val rewrites =
       Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
     injector.injectTransform(
-      c => HeuristicTransform.Single(validatorBuilder(c.glutenConf), rewrites, offloads))
+      c => HeuristicTransform.WithRewrites(validatorBuilder(c.glutenConf), rewrites, offloads))
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => UnionTransformerRule())
@@ -132,16 +122,7 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
 
     // Gluten RAS: The RAS rule.
-    val validatorBuilder: GlutenConfig => Validator = conf =>
-      Validator
-        .builder()
-        .fallbackByHint()
-        .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
-        .fallbackComplexExpressions()
-        .fallbackByBackendSettings()
-        .fallbackByUserOptions()
-        .fallbackByTestInjects()
-        .build()
+    val validatorBuilder: GlutenConfig => Validator = conf => Validators.newValidator(conf)
     val rewrites =
       Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
     injector.injectCoster(_ => LegacyCoster)

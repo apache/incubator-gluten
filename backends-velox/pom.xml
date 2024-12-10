@@ -14,7 +14,6 @@
   <name>Gluten Backends Velox</name>
 
   <properties>
-    <resource.dir>${project.basedir}/src/main/resources</resource.dir>
     <cpp.build.dir>../cpp/build/</cpp.build.dir>
     <cpp.releases.dir>${cpp.build.dir}/releases/</cpp.releases.dir>
   </properties>
@@ -61,6 +60,11 @@
         </dependency>
       </dependencies>
       <build>
+        <resources>
+          <resource>
+            <directory>${project.basedir}/src/main-iceberg/resource</directory>
+          </resource>
+        </resources>
         <plugins>
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
@@ -258,7 +262,7 @@
         <targetPath>${platform}/${arch}</targetPath>
       </resource>
       <resource>
-        <directory>${resource.dir}</directory>
+        <directory>${project.basedir}/src/main/resources</directory>
       </resource>
     </resources>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>

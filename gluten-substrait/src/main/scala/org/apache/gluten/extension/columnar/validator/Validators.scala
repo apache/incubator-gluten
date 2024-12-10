@@ -237,4 +237,40 @@ object Validators {
       out
     }
   }
+
+  /**
+   * A standard validator for legacy planner that does native validation.
+   *
+   * The native validation is ordered in the latest validator, namely the one created by
+   * #fallbackByNativeValidation. The validator accepts offload rules for doing offload attempts,
+   * then call native validation code on the offloaded plan.
+   *
+   * Once the native validation fails, the validator then gives negative outcome.
+   */
+  def newValidator(conf: GlutenConfig, offloads: Seq[OffloadSingleNode]): Validator = {
+    val nativeValidator = Validator.builder().fallbackByNativeValidation(offloads).build()
+    newValidator(conf).andThen(nativeValidator)
+  }
+
+  /**
+   * A validator that doesn't involve native validation.
+   *
+   * This is typically RAS planner that does native validation inline without relying on tags. Thus,
+   * validator `#fallbackByNativeValidation` is not required. See
+   * [[org.apache.gluten.extension.columnar.enumerated.RasOffload]].
+   *
+   * This could also be used in legacy planner for doing trivial offload without the help of rewrite
+   * rules.
+   */
+  def newValidator(conf: GlutenConfig): Validator = {
+    Validator
+      .builder()
+      .fallbackByHint()
+      .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
+      .fallbackComplexExpressions()
+      .fallbackByBackendSettings()
+      .fallbackByUserOptions()
+      .fallbackByTestInjects()
+      .build()
+  }
 }
