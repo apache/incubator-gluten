@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution._
 import org.apache.gluten.utils._
 
@@ -42,6 +43,10 @@ case class AddPreProjectionForHashJoin(session: SparkSession)
   with PullOutProjectHelper
   with Logging {
   override def apply(plan: SparkPlan): SparkPlan = {
+    if (!CHBackendSettings.enablePreProjectionForJoinConditions) {
+      return plan
+    }
+
     plan.transformUp {
       case hashJoin: CHShuffledHashJoinExecTransformer =>
         val leftReplacedExpressions = new mutable.HashMap[Expression, NamedExpression]
@@ -50,6 +55,7 @@ case class AddPreProjectionForHashJoin(session: SparkSession)
         val newLeftKeys = hashJoin.leftKeys.map {
           case e => replaceExpressionWithAttribute(e, leftReplacedExpressions, false, false)
         }
+
         val newRightKeys = hashJoin.rightKeys.map {
           case e => replaceExpressionWithAttribute(e, rightReplacedExpressions, false, false)
         }
@@ -64,7 +70,7 @@ case class AddPreProjectionForHashJoin(session: SparkSession)
           eliminateProjectList(hashJoin.left.outputSet, leftReplacedExpressions.values.toSeq)
         val rightProjectExprs =
           eliminateProjectList(hashJoin.right.outputSet, rightReplacedExpressions.values.toSeq)
-        hashJoin.copy(
+        val newHashJoin = hashJoin.copy(
           leftKeys = newLeftKeys,
           rightKeys = newRightKeys,
           condition = newCondition,
@@ -75,6 +81,11 @@ case class AddPreProjectionForHashJoin(session: SparkSession)
             ProjectExecTransformer(rightProjectExprs, hashJoin.right)
           } else { hashJoin.right }
         )
+        if (leftReplacedExpressions.size > 0 || rightReplacedExpressions.size > 0) {
+          ProjectExecTransformer(hashJoin.output, newHashJoin)
+        } else {
+          newHashJoin
+        }
     }
   }
 
