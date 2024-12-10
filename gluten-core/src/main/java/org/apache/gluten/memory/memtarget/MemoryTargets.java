@@ -54,6 +54,11 @@ public final class MemoryTargets {
     return memoryTarget;
   }
 
+  private static boolean isDynamicCapacity() {
+    SparkEnv env = SparkEnv.get();
+    return env != null && env.conf() != null && SparkResourceUtil.getTaskSlots(env.conf()) > 1;
+  }
+
   public static TreeMemoryTarget newConsumer(
       TaskMemoryManager tmm,
       String name,
@@ -63,7 +68,7 @@ public final class MemoryTargets {
     if (GlutenConfig.getConf().memoryIsolation()) {
       factory = TreeMemoryConsumers.isolated();
     } else {
-      factory = TreeMemoryConsumers.shared(SparkResourceUtil.getTaskSlots(SparkEnv.get().conf()));
+      factory = TreeMemoryConsumers.shared(isDynamicCapacity());
     }
 
     return factory.newConsumer(tmm, name, spiller, virtualChildren);

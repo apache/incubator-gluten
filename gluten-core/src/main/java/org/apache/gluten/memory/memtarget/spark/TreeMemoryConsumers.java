@@ -55,8 +55,11 @@ public final class TreeMemoryConsumers {
    * This works as a legacy Spark memory consumer which grants as much as possible of memory
    * capacity to each task.
    */
-  public static Factory shared(long taskSlots) {
-    boolean isDynamicCapacity = taskSlots > 1;
+  public static Factory shared() {
+    return shared(false);
+  }
+
+  public static Factory shared(boolean isDynamicCapacity) {
     return createOrGetFactory(TreeMemoryTarget.CAPACITY_UNLIMITED, isDynamicCapacity);
   }
 

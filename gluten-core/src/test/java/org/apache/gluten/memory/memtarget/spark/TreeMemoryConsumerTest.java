@@ -67,7 +67,7 @@ public class TreeMemoryConsumerTest {
   public void testShared() {
     test(
         () -> {
-          final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.shared(1);
+          final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.shared();
           final TreeMemoryTarget consumer =
               factory.newConsumer(
                   TaskContext.get().taskMemoryManager(),
@@ -86,7 +86,7 @@ public class TreeMemoryConsumerTest {
     test(
         () -> {
           final TreeMemoryTarget shared =
-              TreeMemoryConsumers.shared(1)
+              TreeMemoryConsumers.shared()
                   .newConsumer(
                       TaskContext.get().taskMemoryManager(),
                       "FOO",
@@ -110,7 +110,7 @@ public class TreeMemoryConsumerTest {
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget shared =
-              TreeMemoryConsumers.shared(1)
+              TreeMemoryConsumers.shared()
                   .newConsumer(
                       TaskContext.get().taskMemoryManager(),
                       "FOO",
@@ -148,7 +148,7 @@ public class TreeMemoryConsumerTest {
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget shared =
-              TreeMemoryConsumers.shared(1)
+              TreeMemoryConsumers.shared()
                   .newConsumer(
                       TaskContext.get().taskMemoryManager(),
                       "FOO",
