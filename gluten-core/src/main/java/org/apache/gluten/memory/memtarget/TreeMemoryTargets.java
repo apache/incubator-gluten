@@ -128,8 +128,11 @@ public class TreeMemoryTargets {
       long requiredSize = Math.min(freeBytes(), size);
       long granted = borrow0(requiredSize);
 
-      // but it think this task hold too many memories, so we active retry spill all memory
-      // After this, if there is still not enough acquired, should OOM.
+      // If isDynamicCapacity is true, which means it is controlled by vanilla Spark,
+      // and if the granted memory is less than the required size, it may be because
+      // this task holds memory exceeding maxMemoryPerTask. Therefore, we actively retry
+      // spilling all memory. After this, if there is still not enough memory acquired,
+      // it should result in an OOM.
       if (granted < requiredSize && isDynamicCapacity) {
         LOGGER.info(
             "Exceed Spark perTaskLimit with maxTaskSizeDynamic when "
