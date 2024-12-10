@@ -61,6 +61,11 @@
         </dependency>
       </dependencies>
       <build>
+        <resources>
+          <resource>
+            <directory>${project.basedir}/src/main-iceberg/resource</directory>
+          </resource>
+        </resources>
         <plugins>
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
@@ -259,9 +264,6 @@
       </resource>
       <resource>
         <directory>${resource.dir}</directory>
-      </resource>
-      <resource>
-        <directory>${project.basedir}/src/main-iceberg/resource</directory>
       </resource>
     </resources>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>

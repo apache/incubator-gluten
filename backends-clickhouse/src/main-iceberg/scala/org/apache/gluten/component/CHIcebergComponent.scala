@@ -16,15 +16,16 @@
  */
 
 package org.apache.gluten.component
-import org.apache.gluten.backendsapi.velox.VeloxBackend
+
+import org.apache.gluten.backendsapi.clickhouse.CHBackend
 import org.apache.gluten.execution.OffloadIcebergScan
 import org.apache.gluten.extension.injector.Injector
 
-class VeloxIcebergComponent extends Component {
-  override def name(): String = "velox-iceberg"
+class CHIcebergComponent extends Component {
+  override def name(): String = "clickhouse-iceberg"
   override def buildInfo(): Component.BuildInfo =
-    Component.BuildInfo("VeloxIceberg", "N/A", "N/A", "N/A")
-  override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
+    Component.BuildInfo("ClickHouseIceberg", "N/A", "N/A", "N/A")
+  override def dependencies(): Seq[Class[_ <: Component]] = classOf[CHBackend] :: Nil
   override def injectRules(injector: Injector): Unit = {
     OffloadIcebergScan.inject(injector)
   }

@@ -39,6 +39,11 @@
         </dependency>
       </dependencies>
       <build>
+        <resources>
+          <resource>
+            <directory>${project.basedir}/src/main-iceberg/resource</directory>
+          </resource>
+        </resources>
         <plugins>
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
