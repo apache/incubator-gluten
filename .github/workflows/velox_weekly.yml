@@ -35,6 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "centos:7", "centos:8", "quay.io/centos/centos:stream9" ]
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -79,6 +80,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
