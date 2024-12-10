@@ -180,6 +180,9 @@ object Component {
 
       dependencies.foreach {
         case (uid, dependencyCompClass) =>
+          require(
+            registry.isClassRegistered(dependencyCompClass),
+            s"Dependency class not registered yet: ${dependencyCompClass.getName}")
           val dependencyUid = registry.findByClass(dependencyCompClass).uid
           require(uid != dependencyUid)
           require(lookup.contains(uid))
