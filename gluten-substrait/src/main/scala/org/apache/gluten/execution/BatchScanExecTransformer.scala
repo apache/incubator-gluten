@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -101,18 +101,24 @@ abstract class BatchScanExecTransformerBase(
   // class. Otherwise, we will encounter an issue where makeCopy cannot find a constructor
   // with the corresponding number of parameters.
   // The workaround is to add a mutable list to pass in pushdownFilters.
-  protected var pushdownFilters: Option[Seq[Expression]] = None
+  protected var pushdownFilters: Seq[Expression] = scan match {
+    case fileScan: FileScan =>
+      fileScan.dataFilters.filter {
+        expr =>
+          ExpressionConverter.canReplaceWithExpressionTransformer(
+            ExpressionConverter.replaceAttributeReference(expr),
+            output)
+      }
+    case _ =>
+      logInfo(s"${scan.getClass.toString} does not support push down filters")
+      Seq.empty
+  }
 
   def setPushDownFilters(filters: Seq[Expression]): Unit = {
-    pushdownFilters = Some(filters)
+    pushdownFilters = filters
   }
 
-  override def filterExprs(): Seq[Expression] = scan match {
-    case fileScan: FileScan =>
-      pushdownFilters.getOrElse(fileScan.dataFilters)
-    case _ =>
-      throw new GlutenNotSupportException(s"${scan.getClass.toString} is not supported")
-  }
+  override def filterExprs(): Seq[Expression] = pushdownFilters
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
