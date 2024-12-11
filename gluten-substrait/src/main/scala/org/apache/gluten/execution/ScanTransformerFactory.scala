@@ -18,9 +18,8 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
 import java.util.ServiceLoader
 import java.util.concurrent.ConcurrentHashMap
@@ -73,11 +72,6 @@ object ScanTransformerFactory {
           table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
         )
     }
-  }
-
-  def supportedBatchScan(scan: Scan): Boolean = scan match {
-    case _: FileScan => true
-    case _ => lookupDataSourceScanTransformer(scan.getClass.getName).nonEmpty
   }
 
   private def lookupDataSourceScanTransformer(scanClassName: String): Option[Class[_]] = {

@@ -14,16 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
 
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+package org.apache.gluten.component
 
-class IcebergTransformerProvider extends DataSourceScanTransformerRegister {
+import org.apache.gluten.backendsapi.clickhouse.CHBackend
+import org.apache.gluten.execution.OffloadIcebergScan
+import org.apache.gluten.extension.injector.Injector
 
-  override val scanClassName: String = "org.apache.iceberg.spark.source.SparkBatchQueryScan"
-
-  override def createDataSourceV2Transformer(
-      batchScan: BatchScanExec): BatchScanExecTransformerBase = {
-    IcebergScanTransformer(batchScan)
+class CHIcebergComponent extends Component {
+  override def name(): String = "clickhouse-iceberg"
+  override def buildInfo(): Component.BuildInfo =
+    Component.BuildInfo("ClickHouseIceberg", "N/A", "N/A", "N/A")
+  override def dependencies(): Seq[Class[_ <: Component]] = classOf[CHBackend] :: Nil
+  override def injectRules(injector: Injector): Unit = {
+    OffloadIcebergScan.inject(injector)
   }
 }

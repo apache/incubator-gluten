@@ -46,7 +46,9 @@ case class IcebergScanTransformer(
     commonPartitionValues = commonPartitionValues
   ) {
 
-  override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
+  protected[this] def supportsBatchScan(scan: Scan): Boolean = {
+    IcebergScanTransformer.supportsBatchScan(scan)
+  }
 
   override lazy val getPartitionSchema: StructType =
     GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
@@ -93,5 +95,9 @@ object IcebergScanTransformer {
       keyGroupedPartitioning = SparkShimLoader.getSparkShims.getKeyGroupedPartitioning(batchScan),
       commonPartitionValues = SparkShimLoader.getSparkShims.getCommonPartitionValues(batchScan)
     )
+  }
+
+  def supportsBatchScan(scan: Scan): Boolean = {
+    scan.getClass.getName == "org.apache.iceberg.spark.source.SparkBatchQueryScan"
   }
 }

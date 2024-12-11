@@ -16,6 +16,7 @@
  */
 #include <cstring>
 #include <vector>
+#include <thread>
 #include <Core/Settings.h>
 #include <IO/ReadBufferFromFileDescriptor.h>
 #include <IO/ReadHelpers.h>
