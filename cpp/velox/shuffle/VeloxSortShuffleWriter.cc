@@ -108,10 +108,10 @@ arrow::Status VeloxSortShuffleWriter::init() {
   // In Spark, sortedBuffer_ memory and compressionBuffer_ memory are pre-allocated and counted into executor
   // memory overhead. To align with Spark, we use arrow::default_memory_pool() to avoid counting these memory in Gluten.
   ARROW_ASSIGN_OR_RAISE(
-      sortedBuffer_, arrow::AllocateBuffer(options_.compressionBufferSize, arrow::default_memory_pool()));
+      sortedBuffer_, arrow::AllocateBuffer(options_.sortEvictBufferSize, arrow::default_memory_pool()));
   rawBuffer_ = sortedBuffer_->mutable_data();
   auto compressedBufferLength = partitionWriter_->getCompressedBufferLength(
-      {std::make_shared<arrow::Buffer>(rawBuffer_, options_.compressionBufferSize)});
+      {std::make_shared<arrow::Buffer>(rawBuffer_, options_.sortEvictBufferSize)});
   if (compressedBufferLength.has_value()) {
     ARROW_ASSIGN_OR_RAISE(
         compressionBuffer_, arrow::AllocateBuffer(*compressedBufferLength, arrow::default_memory_pool()));
@@ -295,20 +295,20 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
     auto pageIndex = extractPageNumberAndOffset(arrayPtr_[index]);
     addr = pageAddresses_[pageIndex.first] + pageIndex.second;
     size = *(RowSizeType*)addr;
-    if (offset + size > options_.compressionBufferSize && offset > 0) {
+    if (offset + size > options_.sortEvictBufferSize && offset > 0) {
       sortTime.stop();
       RETURN_NOT_OK(evictPartition0(partitionId, index - begin, rawBuffer_, offset));
       sortTime.start();
       begin = index;
       offset = 0;
     }
-    if (size > options_.compressionBufferSize) {
+    if (size > options_.sortEvictBufferSize) {
       // Split large rows.
       sortTime.stop();
       RowSizeType bytes = 0;
       auto* buffer = reinterpret_cast<uint8_t*>(addr);
       while (bytes < size) {
-        auto rawLength = std::min<RowSizeType>((uint32_t)options_.compressionBufferSize, size - bytes);
+        auto rawLength = std::min<RowSizeType>((uint32_t)options_.sortEvictBufferSize, size - bytes);
         // Use numRows = 0 to represent a part of row.
         RETURN_NOT_OK(evictPartition0(partitionId, 0, buffer + bytes, rawLength));
         bytes += rawLength;
