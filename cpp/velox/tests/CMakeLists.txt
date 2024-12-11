@@ -39,6 +39,7 @@ add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
 add_velox_test(
   velox_operators_test
   SOURCES
+  HiveConfigTest.cc
   VeloxColumnarToRowTest.cc
   VeloxRowToColumnarTest.cc
   VeloxColumnarBatchSerializerTest.cc
