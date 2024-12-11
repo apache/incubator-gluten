@@ -28,6 +28,7 @@ public interface TreeMemoryTarget extends MemoryTarget, KnownNameAndStats {
   TreeMemoryTarget newChild(
       String name,
       long capacity,
+      boolean isDynamicCapacity,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren);
 

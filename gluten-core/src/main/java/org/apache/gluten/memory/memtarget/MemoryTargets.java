@@ -20,8 +20,10 @@ import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
+import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.util.SparkResourceUtil;
 
 import java.util.Map;
 
@@ -52,6 +54,11 @@ public final class MemoryTargets {
     return memoryTarget;
   }
 
+  private static boolean isDynamicCapacity() {
+    SparkEnv env = SparkEnv.get();
+    return env != null && env.conf() != null && SparkResourceUtil.getTaskSlots(env.conf()) > 1;
+  }
+
   public static TreeMemoryTarget newConsumer(
       TaskMemoryManager tmm,
       String name,
@@ -61,7 +68,7 @@ public final class MemoryTargets {
     if (GlutenConfig.getConf().memoryIsolation()) {
       factory = TreeMemoryConsumers.isolated();
     } else {
-      factory = TreeMemoryConsumers.shared();
+      factory = TreeMemoryConsumers.shared(isDynamicCapacity());
     }
 
     return factory.newConsumer(tmm, name, spiller, virtualChildren);

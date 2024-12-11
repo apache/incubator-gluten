@@ -34,8 +34,8 @@ public final class TreeMemoryConsumers {
 
   private TreeMemoryConsumers() {}
 
-  private static Factory createOrGetFactory(long perTaskCapacity) {
-    return FACTORIES.computeIfAbsent(perTaskCapacity, Factory::new);
+  private static Factory createOrGetFactory(long perTaskCapacity, boolean isDynamicCapacity) {
+    return FACTORIES.computeIfAbsent(perTaskCapacity, key -> new Factory(key, isDynamicCapacity));
   }
 
   /**
@@ -48,7 +48,7 @@ public final class TreeMemoryConsumers {
    * <p>See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
    */
   public static Factory isolated() {
-    return createOrGetFactory(GlutenConfig.getConf().conservativeTaskOffHeapMemorySize());
+    return createOrGetFactory(GlutenConfig.getConf().conservativeTaskOffHeapMemorySize(), false);
   }
 
   /**
@@ -56,15 +56,21 @@ public final class TreeMemoryConsumers {
    * capacity to each task.
    */
   public static Factory shared() {
-    return createOrGetFactory(TreeMemoryTarget.CAPACITY_UNLIMITED);
+    return shared(false);
+  }
+
+  public static Factory shared(boolean isDynamicCapacity) {
+    return createOrGetFactory(TreeMemoryTarget.CAPACITY_UNLIMITED, isDynamicCapacity);
   }
 
   public static class Factory {
     private final ReferenceMap map = new ReferenceMap(ReferenceMap.WEAK, ReferenceMap.WEAK);
     private final long perTaskCapacity;
+    private final boolean isDynamicCapacity;
 
-    private Factory(long perTaskCapacity) {
+    private Factory(long perTaskCapacity, boolean isDynamicCapacity) {
       this.perTaskCapacity = perTaskCapacity;
+      this.isDynamicCapacity = isDynamicCapacity;
     }
 
     @SuppressWarnings("unchecked")
@@ -76,7 +82,11 @@ public final class TreeMemoryConsumers {
                 m -> {
                   TreeMemoryTarget tmc = new TreeMemoryConsumer((TaskMemoryManager) m);
                   return tmc.newChild(
-                      "root", perTaskCapacity, Spillers.NOOP, Collections.emptyMap());
+                      "root",
+                      perTaskCapacity,
+                      isDynamicCapacity,
+                      Spillers.NOOP,
+                      Collections.emptyMap());
                 });
       }
     }
@@ -88,7 +98,7 @@ public final class TreeMemoryConsumers {
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
       final TreeMemoryTarget account = getSharedAccount(tmm);
       return account.newChild(
-          name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spiller, virtualChildren);
+          name, TreeMemoryConsumer.CAPACITY_UNLIMITED, false, spiller, virtualChildren);
     }
   }
 }
