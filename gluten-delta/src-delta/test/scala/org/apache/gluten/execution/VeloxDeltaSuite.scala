@@ -42,7 +42,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
       .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
   }
 
-  // IdMapping is supported in Delta 2.2 (related to Spark3.3.1)
+  // IdMapping is supported in Delta 2.2 (related to Spark 3.3.1)
   testWithSpecifiedSparkVersion("column mapping mode = id", Some("3.3")) {
     withTable("delta_cm1") {
       spark.sql(s"""
