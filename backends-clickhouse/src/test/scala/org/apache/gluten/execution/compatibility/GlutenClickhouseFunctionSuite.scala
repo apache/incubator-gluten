@@ -415,4 +415,18 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7755: translate support args with unequal length") {
+    withTable("test_7755") {
+      sql("create table if not exists test_7755 (id string) using parquet")
+      sql("insert into test_7755 values('aAbBcC')")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select translate(id, 'abc', '12') from test_7755
+        """.stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }
