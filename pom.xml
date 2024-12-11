@@ -119,7 +119,7 @@
     </spotless.license.header>
 
     <!-- plugin version-->
-    <build-helper-maven-plugin.version>3.2.0</build-helper-maven-plugin.version>
+    <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <scala.compiler.version>4.8.0</scala.compiler.version>
     <maven.compiler.plugin>3.12.1</maven.compiler.plugin>
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
