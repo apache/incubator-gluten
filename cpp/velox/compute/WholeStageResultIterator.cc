@@ -486,8 +486,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<uint8_t>(kSpillPartitionBits, 3));
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
         std::to_string(veloxCfg_->get<uint8_t>(kSpillableReservationGrowthPct, 25));
-    configs[velox::core::QueryConfig::kSpillCompressionKind] =
-        veloxCfg_->get<std::string>(kSpillCompressionKind, veloxCfg_->get<std::string>(kCompressionKind, "lz4"));
+    if (veloxCfg_->get<bool>(kSparkShuffleSpillCompress, true)) {
+      configs[velox::core::QueryConfig::kSpillCompressionKind] =
+          veloxCfg_->get<std::string>(kSpillCompressionKind, veloxCfg_->get<std::string>(kCompressionKind, "lz4"));
+    } else {
+      configs[velox::core::QueryConfig::kSpillCompressionKind] = "none";
+    }
     configs[velox::core::QueryConfig::kSparkBloomFilterExpectedNumItems] =
         std::to_string(veloxCfg_->get<int64_t>(kBloomFilterExpectedNumItems, 1000000));
     configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] =

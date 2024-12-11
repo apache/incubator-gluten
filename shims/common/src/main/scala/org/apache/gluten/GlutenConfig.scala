@@ -570,6 +570,8 @@ object GlutenConfig {
   val SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE_DEFAULT: Int = 1024 * 1024
   val SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE = "spark.shuffle.spill.diskWriteBufferSize"
   val SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE_DEFAULT: Int = 1024 * 1024
+  val SPARK_SHUFFLE_SPILL_COMPRESS = "spark.shuffle.spill.compress"
+  val SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT: Boolean = true
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, default value is false
@@ -740,7 +742,8 @@ object GlutenConfig {
         SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE_DEFAULT.toString),
       (
         SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE,
-        SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE_DEFAULT.toString)
+        SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE_DEFAULT.toString),
+      (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 

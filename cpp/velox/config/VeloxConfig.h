@@ -43,6 +43,8 @@ const uint64_t kMaxSpillFileSizeDefault = 1L * 1024 * 1024 * 1024;
 
 const std::string kSpillableReservationGrowthPct =
     "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
+// Whether to compress data spilled. Compression will use spark.io.compression.codec or kSpillCompressionKind.
+const std::string kSparkShuffleSpillCompress = "spark.shuffle.spill.compress";
 const std::string kCompressionKind = "spark.io.compression.codec";
 /// The compression codec to use for spilling. Use kCompressionKind if not set.
 const std::string kSpillCompressionKind = "spark.gluten.sql.columnar.backend.velox.spillCompressionCodec";
