@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.unsafe
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -28,8 +29,9 @@ import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.execution.joins.BuildSideRelation
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, IdentityBroadcastMode}
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -54,13 +56,14 @@ import scala.collection.JavaConverters.asScalaIteratorConverter
  */
 case class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
-    private var batches: UnsafeBytesBufferArray)
+    private var batches: UnsafeBytesBufferArray,
+    var mode: BroadcastMode)
   extends BuildSideRelation
   with Externalizable
   with Logging
   with KryoSerializable {
 
-  def this(output: Seq[Attribute], bytesBufferArray: Array[Array[Byte]]) {
+  def this(output: Seq[Attribute], bytesBufferArray: Array[Array[Byte]], mode: BroadcastMode) {
     // only used in driver side when broadcast the whole batches
     this(
       output,
@@ -69,7 +72,8 @@ case class UnsafeColumnarBuildSideRelation(
         bytesBufferArray.map(_.length),
         bytesBufferArray.map(_.length.toLong).sum,
         TaskContext.get().taskMemoryManager
-      )
+      ),
+      mode
     )
     val batchesSize = bytesBufferArray.length
     for (i <- 0 until batchesSize) {
@@ -82,6 +86,7 @@ case class UnsafeColumnarBuildSideRelation(
   // should only be used on driver to serialize this relation
   override def writeExternal(out: ObjectOutput): Unit = Utils.tryOrIOException {
     out.writeObject(output)
+    out.writeObject(mode)
     out.writeInt(batches.arraySize)
     out.writeObject(batches.bytesBufferLengths)
     out.writeLong(batches.totalBytes)
@@ -95,6 +100,7 @@ case class UnsafeColumnarBuildSideRelation(
   // should only be used on driver to serialize this relation
   override def write(kryo: Kryo, out: Output): Unit = Utils.tryOrIOException {
     kryo.writeObject(out, output.toList)
+    kryo.writeObject(out, mode)
     out.writeInt(batches.arraySize)
     kryo.writeObject(out, batches.bytesBufferLengths)
     out.writeLong(batches.totalBytes)
@@ -108,6 +114,7 @@ case class UnsafeColumnarBuildSideRelation(
   // should only be used on executor to deserialize this relation
   override def readExternal(in: ObjectInput): Unit = Utils.tryOrIOException {
     output = in.readObject().asInstanceOf[Seq[Attribute]]
+    mode = in.readObject().asInstanceOf[BroadcastMode]
     val totalArraySize = in.readInt()
     val bytesBufferLengths = in.readObject().asInstanceOf[Array[Int]]
     val totalBytes = in.readLong()
@@ -130,6 +137,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def read(kryo: Kryo, in: Input): Unit = Utils.tryOrIOException {
     output = kryo.readObject(in, classOf[List[_]]).asInstanceOf[Seq[Attribute]]
+    mode = kryo.readObject(in, classOf[BroadcastMode])
     val totalArraySize = in.readInt()
     val bytesBufferLengths = kryo.readObject(in, classOf[Array[Int]])
     val totalBytes = in.readLong()
@@ -150,8 +158,16 @@ case class UnsafeColumnarBuildSideRelation(
     }
   }
 
+  private def transformProjection: UnsafeProjection = {
+    mode match {
+      case HashedRelationBroadcastMode(k, _) => UnsafeProjection.create(k)
+      case IdentityBroadcastMode => UnsafeProjection.create(output, output)
+    }
+  }
+
   override def deserialized: Iterator[ColumnarBatch] = {
-    val runtime = Runtimes.contextInstance("UnsafeBuildSideRelation#deserialized")
+    val runtime =
+      Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
     val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()
@@ -198,7 +214,8 @@ case class UnsafeColumnarBuildSideRelation(
    * was called in Spark Driver, should manage resources carefully.
    */
   override def transform(key: Expression): Array[InternalRow] = TaskResources.runUnsafe {
-    val runtime = Runtimes.contextInstance("BuildSideRelation#transform")
+    val runtime =
+      Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle = {
@@ -215,17 +232,7 @@ case class UnsafeColumnarBuildSideRelation(
 
     var closed = false
 
-    val exprIds = output.map(_.exprId)
-    val projExpr = key.transformDown {
-      case attr: AttributeReference if !exprIds.contains(attr.exprId) =>
-        val i = output.count(_.name == attr.name)
-        if (i != 1) {
-          throw new IllegalArgumentException(s"Only one attr with the same name is supported: $key")
-        } else {
-          output.find(_.name == attr.name).get
-        }
-    }
-    val proj = UnsafeProjection.create(Seq(projExpr), output)
+    val proj = UnsafeProjection.create(Seq(key))
 
     // Convert columnar to Row.
     val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
@@ -262,7 +269,7 @@ case class UnsafeColumnarBuildSideRelation(
             var info =
               jniWrapper.nativeColumnarToRowConvert(
                 c2rId,
-                ColumnarBatches.getNativeHandle(batch),
+                ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch),
                 0)
             batch.close()
 
@@ -287,7 +294,7 @@ case class UnsafeColumnarBuildSideRelation(
                 rowId += 1
                 row
               }
-            }.map(proj).map(_.copy())
+            }.map(transformProjection).map(proj).map(_.copy())
           }
         }
       }

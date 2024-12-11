@@ -41,5 +41,5 @@ trait BuildSideRelation extends Serializable {
    *
    * Post-processed relation transforms can use this mode to obtain the desired format.
    */
-  val mode: BroadcastMode
+  def mode: BroadcastMode
 }
