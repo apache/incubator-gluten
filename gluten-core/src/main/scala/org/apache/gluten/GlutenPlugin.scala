@@ -91,7 +91,18 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // export gluten version to property to spark
     System.setProperty("gluten.version", VERSION)
 
-    val glutenBuildInfo = new mutable.HashMap[String, String]()
+    val glutenBuildInfo = new mutable.LinkedHashMap[String, String]()
+
+    val components = Component.sorted()
+    glutenBuildInfo.put("Components", components.map(_.buildInfo().name).mkString(","))
+    components.foreach {
+      comp =>
+        val buildInfo = comp.buildInfo()
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Branch", buildInfo.branch)
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Revision", buildInfo.revision)
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Revision Time", buildInfo.revisionTime)
+    }
+
     glutenBuildInfo.put("Gluten Version", VERSION)
     glutenBuildInfo.put("GCC Version", GCC_VERSION)
     glutenBuildInfo.put("Java Version", JAVA_COMPILE_VERSION)
@@ -104,18 +115,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     glutenBuildInfo.put("Gluten Build Time", BUILD_DATE)
     glutenBuildInfo.put("Gluten Repo URL", REPO_URL)
 
-    Component.sorted().foreach {
-      comp =>
-        val buildInfo = comp.buildInfo()
-        glutenBuildInfo.put("Component", buildInfo.name)
-        glutenBuildInfo.put("Component Branch", buildInfo.branch)
-        glutenBuildInfo.put("Component Revision", buildInfo.revision)
-        glutenBuildInfo.put("Component Revision Time", buildInfo.revisionTime)
-    }
-
-    val infoMap = glutenBuildInfo.toMap
-    val loggingInfo = infoMap.toSeq
-      .sortBy(_._1)
+    val loggingInfo = glutenBuildInfo
       .map { case (name, value) => s"$name: $value" }
       .mkString(
         "Gluten build info:\n==============================================================\n",
@@ -123,7 +123,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         "\n=============================================================="
       )
     logInfo(loggingInfo)
-    val event = GlutenBuildInfoEvent(infoMap)
+    val event = GlutenBuildInfoEvent(glutenBuildInfo.toMap)
     GlutenEventUtils.post(sc, event)
   }
 
