@@ -115,8 +115,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     glutenBuildInfo.put("Gluten Build Time", BUILD_DATE)
     glutenBuildInfo.put("Gluten Repo URL", REPO_URL)
 
-    val infoMap = glutenBuildInfo.toMap
-    val loggingInfo = infoMap.toSeq
+    val loggingInfo = glutenBuildInfo
       .map { case (name, value) => s"$name: $value" }
       .mkString(
         "Gluten build info:\n==============================================================\n",
@@ -124,7 +123,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         "\n=============================================================="
       )
     logInfo(loggingInfo)
-    val event = GlutenBuildInfoEvent(infoMap)
+    val event = GlutenBuildInfoEvent(glutenBuildInfo.toMap)
     GlutenEventUtils.post(sc, event)
   }
 
