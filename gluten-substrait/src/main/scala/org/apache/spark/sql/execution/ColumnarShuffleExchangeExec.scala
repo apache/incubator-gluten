@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.ValidatablePlan
+import org.apache.gluten.execution.{ValidatablePlan, WithResourceProfileSupport}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -47,7 +47,8 @@ case class ColumnarShuffleExchangeExec(
     projectOutputAttributes: Seq[Attribute],
     advisoryPartitionSize: Option[Long] = None)
   extends ShuffleExchangeLike
-  with ValidatablePlan {
+  with ValidatablePlan
+  with WithResourceProfileSupport {
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
 
@@ -161,6 +162,10 @@ case class ColumnarShuffleExchangeExec(
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     if (cachedShuffleRDD == null) {
       cachedShuffleRDD = new ShuffledColumnarBatchRDD(columnarShuffleDependency, readMetrics)
+      if (getResourceProfile.isDefined) {
+        log.info(s"Set resource profile for $child to ${getResourceProfile.get}")
+        cachedShuffleRDD.withResources(getResourceProfile.get)
+      }
     }
     cachedShuffleRDD
   }
