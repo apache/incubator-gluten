@@ -32,6 +32,14 @@ object FunctionValidator {
     case DateType | TimestampType => true
     case _ => false
   }
+
+  // https://github.com/google/re2/wiki/Syntax
+  private val unsupportedRe2Patterns = Set("(?=", "(?!", "(?<=", "(?<!")
+
+  def validateRe2(pattern: Expression): Boolean = {
+    val p = pattern.eval().asInstanceOf[UTF8String].toString
+    !unsupportedRe2Patterns.exists(p.contains(_))
+  }
 }
 
 case class DefaultValidator() extends FunctionValidator {
@@ -92,6 +100,10 @@ case class StringSplitValidator() extends FunctionValidator {
       return false
     }
 
+    if (!validateRe2(split.regex)) {
+      return false
+    }
+
     true
   }
 }
@@ -116,24 +128,16 @@ case class SubstringIndexValidator() extends FunctionValidator {
 }
 
 case class StringLPadValidator() extends FunctionValidator {
-  override def doValidate(expr: Expression): Boolean = {
-    val lpad = expr.asInstanceOf[StringLPad]
-    if (!lpad.pad.isInstanceOf[Literal]) {
-      return false
-    }
-
-    true
+  override def doValidate(expr: Expression): Boolean = expr match {
+    case s: StringLPad => s.pad.isInstanceOf[Literal]
+    case _ => true
   }
 }
 
 case class StringRPadValidator() extends FunctionValidator {
-  override def doValidate(expr: Expression): Boolean = {
-    val rpad = expr.asInstanceOf[StringRPad]
-    if (!rpad.pad.isInstanceOf[Literal]) {
-      return false
-    }
-
-    true
+  override def doValidate(expr: Expression): Boolean = expr match {
+    case s: StringRPad => s.pad.isInstanceOf[Literal]
+    case _ => true
   }
 }
 
@@ -166,6 +170,16 @@ case class FormatStringValidator() extends FunctionValidator {
   }
 }
 
+case class Re2PatternValidator() extends FunctionValidator {
+  // validate only for string literal
+  override def doValidate(expr: Expression): Boolean = expr match {
+    case r: RLike if r.right.isInstanceOf[Literal] => validateRe2(r.right)
+    case r: RegExpExtractBase if r.regexp.isInstanceOf[Literal] => validateRe2(r.regexp)
+    case r: RegExpReplace if r.regexp.isInstanceOf[Literal] => validateRe2(r.regexp)
+    case _ => true
+  }
+}
+
 object CHExpressionUtil {
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
     MAX_BY -> DefaultValidator(),
@@ -182,6 +196,10 @@ object CHExpressionUtil {
     SUBSTRING_INDEX -> SubstringIndexValidator(),
     LPAD -> StringLPadValidator(),
     RPAD -> StringRPadValidator(),
+    RLIKE -> Re2PatternValidator(),
+    REGEXP_EXTRACT -> Re2PatternValidator(),
+    REGEXP_EXTRACT_ALL -> Re2PatternValidator(),
+    REGEXP_REPLACE -> Re2PatternValidator(),
     DATE_FORMAT -> DateFormatClassValidator(),
     DECODE -> EncodeDecodeValidator(),
     ENCODE -> EncodeDecodeValidator(),
