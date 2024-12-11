@@ -1396,7 +1396,7 @@
         <!--to add base resources (generated-resources and other common extended resource folders).-->
         <!--So submodules could easily add their own resources through maven-resources-plugin-->
         <!--which is more compatible with Intellij IDE (E.g., `targetPath` can be respected by-->
-        <!-- IDEA with that plugin while it is not working with build-helper-maven-plugin).-->
+        <!-- IDEA with maven-resources-plugin while it is not working with build-helper-maven-plugin).-->
         <executions>
           <execution>
           </execution>
