@@ -181,13 +181,6 @@
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
-    <resources>
-      <resource>
-        <filtering>true</filtering>
-        <!-- Include the properties file to provide the build information. -->
-        <directory>${project.build.directory}/extra-resources</directory>
-      </resource>
-    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -213,6 +206,30 @@
                   <arg value="${hadoop.version}"/>
                 </exec>
               </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Should always use build-helper-maven-plugin to assign additional resource folders to
+       make sure the default resource folders, namely src/main/resource is not overridden. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-generated-resources</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>add-resource</goal>
+            </goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <filtering>true</filtering>
+                  <!-- Include the properties file to provide the build information. -->
+                  <directory>${project.build.directory}/extra-resources</directory>
+                </resource>
+              </resources>
             </configuration>
           </execution>
         </executions>
