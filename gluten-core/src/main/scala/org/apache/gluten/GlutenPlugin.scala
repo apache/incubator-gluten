@@ -117,7 +117,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
     val infoMap = glutenBuildInfo.toMap
     val loggingInfo = infoMap.toSeq
-      .sortBy(_._1)
       .map { case (name, value) => s"$name: $value" }
       .mkString(
         "Gluten build info:\n==============================================================\n",
