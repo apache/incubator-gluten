@@ -104,13 +104,14 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     glutenBuildInfo.put("Gluten Build Time", BUILD_DATE)
     glutenBuildInfo.put("Gluten Repo URL", REPO_URL)
 
-    Component.sorted().foreach {
+    val components = Component.sorted()
+    glutenBuildInfo.put("Components", components.map(_.buildInfo().name).mkString(","))
+    components.foreach {
       comp =>
         val buildInfo = comp.buildInfo()
-        glutenBuildInfo.put("Component", buildInfo.name)
-        glutenBuildInfo.put("Component Branch", buildInfo.branch)
-        glutenBuildInfo.put("Component Revision", buildInfo.revision)
-        glutenBuildInfo.put("Component Revision Time", buildInfo.revisionTime)
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Branch", buildInfo.branch)
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Revision", buildInfo.revision)
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Revision Time", buildInfo.revisionTime)
     }
 
     val infoMap = glutenBuildInfo.toMap
