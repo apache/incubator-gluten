@@ -350,6 +350,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  def enablePreProjectionForJoinConditions(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_pre_projection_for_join_conditions"),
+      defaultValue = true
+    )
+  }
+
   // If the partition keys are high cardinality, the aggregation method is slower.
   def enableConvertWindowGroupLimitToAggregate(): Boolean = {
     SparkEnv.get.conf.getBoolean(
