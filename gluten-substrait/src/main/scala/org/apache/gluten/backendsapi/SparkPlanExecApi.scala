@@ -24,6 +24,7 @@ import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode
 
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
+import org.apache.spark.resource.ResourceProfile
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -357,7 +358,8 @@ trait SparkPlanExecApi {
       mode: BroadcastMode,
       child: SparkPlan,
       numOutputRows: SQLMetric,
-      dataSize: SQLMetric): BuildSideRelation
+      dataSize: SQLMetric,
+      resourceProfile: Option[ResourceProfile] = None): BuildSideRelation
 
   def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
     mode.canonicalized
