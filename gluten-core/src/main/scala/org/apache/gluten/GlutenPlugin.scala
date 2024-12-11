@@ -91,7 +91,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // export gluten version to property to spark
     System.setProperty("gluten.version", VERSION)
 
-    val glutenBuildInfo = new mutable.HashMap[String, String]()
+    val glutenBuildInfo = new mutable.LinkedHashMap[String, String]()
     glutenBuildInfo.put("Gluten Version", VERSION)
     glutenBuildInfo.put("GCC Version", GCC_VERSION)
     glutenBuildInfo.put("Java Version", JAVA_COMPILE_VERSION)
