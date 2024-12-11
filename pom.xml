@@ -469,6 +469,8 @@
                 </goals>
                 <configuration>
                   <resources>
+                    <!--Don't place multiple `directory` lines under the same `resource` entry.-->
+                    <!--IDEA recognizes this kind of usage while Maven doesn't.-->
                     <resource>
                       <directory>${project.basedir}/src-delta/main/resources</directory>
                     </resource>
