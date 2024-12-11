@@ -305,9 +305,7 @@ class VeloxTPCHV1BhjSuite extends VeloxTPCHSuite {
   }
 }
 
-/**
- * BroadcastBuildSideRelation use offheap.
- */
+/** BroadcastBuildSideRelation use offheap. */
 class VeloxTPCHV1BhjOffheapSuite extends VeloxTPCHSuite {
   override def subType(): String = "v1-bhj-offheap"
 

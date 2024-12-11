@@ -16,10 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
-
-import org.apache.gluten.backendsapi.BackendsApiManager
-
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -112,7 +110,8 @@ object BroadcastUtils {
           if (useOffheapBuildRelation) {
             new UnsafeColumnarBuildSideRelation(
               SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-              serialized)
+              serialized,
+              mode)
           } else {
             ColumnarBuildSideRelation(
               SparkShimLoader.getSparkShims.attributesFromStruct(schema),
@@ -137,7 +136,8 @@ object BroadcastUtils {
           if (useOffheapBuildRelation) {
             new UnsafeColumnarBuildSideRelation(
               SparkShimLoader.getSparkShims.attributesFromStruct(schema),
-              serialized)
+              serialized,
+              mode)
           } else {
             ColumnarBuildSideRelation(
               SparkShimLoader.getSparkShims.attributesFromStruct(schema),
