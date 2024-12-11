@@ -92,6 +92,17 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     System.setProperty("gluten.version", VERSION)
 
     val glutenBuildInfo = new mutable.LinkedHashMap[String, String]()
+
+    val components = Component.sorted()
+    glutenBuildInfo.put("Components", components.map(_.buildInfo().name).mkString(","))
+    components.foreach {
+      comp =>
+        val buildInfo = comp.buildInfo()
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Branch", buildInfo.branch)
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Revision", buildInfo.revision)
+        glutenBuildInfo.put(s"Component ${buildInfo.name} Revision Time", buildInfo.revisionTime)
+    }
+
     glutenBuildInfo.put("Gluten Version", VERSION)
     glutenBuildInfo.put("GCC Version", GCC_VERSION)
     glutenBuildInfo.put("Java Version", JAVA_COMPILE_VERSION)
@@ -103,16 +114,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     glutenBuildInfo.put("Gluten Revision Time", REVISION_TIME)
     glutenBuildInfo.put("Gluten Build Time", BUILD_DATE)
     glutenBuildInfo.put("Gluten Repo URL", REPO_URL)
-
-    val components = Component.sorted()
-    glutenBuildInfo.put("Components", components.map(_.buildInfo().name).mkString(","))
-    components.foreach {
-      comp =>
-        val buildInfo = comp.buildInfo()
-        glutenBuildInfo.put(s"Component ${buildInfo.name} Branch", buildInfo.branch)
-        glutenBuildInfo.put(s"Component ${buildInfo.name} Revision", buildInfo.revision)
-        glutenBuildInfo.put(s"Component ${buildInfo.name} Revision Time", buildInfo.revisionTime)
-    }
 
     val infoMap = glutenBuildInfo.toMap
     val loggingInfo = infoMap.toSeq
