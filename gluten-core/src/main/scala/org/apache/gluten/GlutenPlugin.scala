@@ -94,7 +94,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     val glutenBuildInfo = new mutable.LinkedHashMap[String, String]()
 
     val components = Component.sorted()
-    glutenBuildInfo.put("Components", components.map(_.buildInfo().name).mkString(","))
+    glutenBuildInfo.put("Components", components.map(_.buildInfo().name).mkString(", "))
     components.foreach {
       comp =>
         val buildInfo = comp.buildInfo()
