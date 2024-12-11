@@ -198,7 +198,7 @@
                   <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
                   <arg value="${backend.type}"/>
                   <arg value="${backend.home}"/>
-                  <arg value="${project.build.directory}/extra-resources"/>
+                  <arg value="${project.build.directory}/generated-resources"/>
                   <arg value="${project.version}"/>
                   <arg value="${java.version}"/>
                   <arg value="${scala.version}"/>
@@ -206,30 +206,6 @@
                   <arg value="${hadoop.version}"/>
                 </exec>
               </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <!-- Should always use build-helper-maven-plugin to assign additional resource folders to
-       make sure the default resource folders, namely src/main/resource is not overridden. -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>add-generated-resources</id>
-            <phase>generate-resources</phase>
-            <goals>
-              <goal>add-resource</goal>
-            </goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <filtering>true</filtering>
-                  <!-- Include the properties file to provide the build information. -->
-                  <directory>${project.build.directory}/extra-resources</directory>
-                </resource>
-              </resources>
             </configuration>
           </execution>
         </executions>
