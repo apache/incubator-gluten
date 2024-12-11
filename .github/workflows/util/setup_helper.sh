@@ -22,7 +22,7 @@ function install_maven {
     wget -nv https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
     tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
   )
-  echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+  echo "PATH=/usr/lib/maven/bin:${PATH}" >> $GITHUB_ENV
 }
 
 for cmd in "$@"
