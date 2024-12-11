@@ -237,12 +237,6 @@
   </dependencies>
 
   <build>
-    <resources>
-      <resource>
-        <directory>${cpp.releases.dir}</directory>
-        <targetPath>${platform}/${arch}</targetPath>
-      </resource>
-    </resources>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
@@ -293,6 +287,27 @@
             <goals>
               <goal>test-jar</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-cpp-libraries</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>add-resource</goal>
+            </goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${cpp.releases.dir}</directory>
+                  <targetPath>${platform}/${arch}</targetPath>
+                </resource>
+              </resources>
+            </configuration>
           </execution>
         </executions>
       </plugin>
