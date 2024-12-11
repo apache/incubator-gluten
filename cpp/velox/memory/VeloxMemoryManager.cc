@@ -119,7 +119,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     }
     VELOX_CHECK(pool->root() == candidate, "Illegal state in ListenableArbitrator");
 
-    growCapacity0(pool->root(), targetBytes);
+    growCapacityInternal(pool->root(), targetBytes);
     return true;
   }
 
@@ -133,11 +133,11 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       pool = candidates_.begin()->first;
     }
     pool->reclaim(targetBytes, memoryReclaimMaxWaitMs_, status); // ignore the output
-    return shrinkCapacity0(pool, 0);
+    return shrinkCapacityInternal(pool, 0);
   }
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    return shrinkCapacity0(pool, targetBytes);
+    return shrinkCapacityInternal(pool, targetBytes);
   }
 
   Stats stats() const override {
@@ -150,7 +150,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  void growCapacity0(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  void growCapacityInternal(velox::memory::MemoryPool* pool, uint64_t bytes) {
     // Since
     // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
@@ -172,7 +172,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
         pool->toString());
   }
 
-  uint64_t shrinkCapacity0(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  uint64_t shrinkCapacityInternal(velox::memory::MemoryPool* pool, uint64_t bytes) {
     uint64_t freeBytes = shrinkPool(pool, bytes);
     listener_->allocationChanged(-freeBytes);
     return freeBytes;

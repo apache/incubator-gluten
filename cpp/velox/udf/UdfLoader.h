@@ -79,7 +79,7 @@ class UdfLoader {
   void registerUdf();
 
  private:
-  void loadUdfLibraries0(const std::vector<std::string>& libPaths);
+  void loadUdfLibrariesInternal(const std::vector<std::string>& libPaths);
 
   std::string toSubstraitTypeStr(const std::string& type);
 
