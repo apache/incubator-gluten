@@ -471,6 +471,8 @@
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-delta/main/resources</directory>
+                    </resource>
+                    <resource>
                       <directory>${project.basedir}/src-delta-${delta.binary.version}/main/resources</directory>
                     </resource>
                   </resources>
@@ -501,6 +503,8 @@
                   <resources>
                     <resource>
                       <directory>${project.basedir}/src-delta/test/resources</directory>
+                    </resource>
+                    <resource>
                       <directory>${project.basedir}/src-delta-${delta.binary.version}/test/resources</directory>
                     </resource>
                   </resources>
