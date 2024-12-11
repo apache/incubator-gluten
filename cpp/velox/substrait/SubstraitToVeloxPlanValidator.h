@@ -111,10 +111,10 @@ class SubstraitToVeloxPlanValidator {
   bool parseVeloxType(const ::substrait::extensions::AdvancedExtension& extension, TypePtr& out);
 
   /// Flattens a Velox type with single level of nesting into a std::vector of child types.
-  bool flattenVeloxType1(const TypePtr& type, std::vector<TypePtr>& out);
+  bool flattenSingleLevel(const TypePtr& type, std::vector<TypePtr>& out);
 
   /// Flattens a Velox type with two level of nesting into a dual-nested std::vector of child types.
-  bool flattenVeloxType2(const TypePtr& type, std::vector<std::vector<TypePtr>>& out);
+  bool flattenDualLevel(const TypePtr& type, std::vector<std::vector<TypePtr>>& out);
 
   /// Validate aggregate rel.
   bool validateAggRelFunctionType(const ::substrait::AggregateRel& substraitAgg);
