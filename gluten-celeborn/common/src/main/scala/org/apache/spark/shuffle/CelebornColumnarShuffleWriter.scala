@@ -100,7 +100,7 @@ abstract class CelebornColumnarShuffleWriter[K, V](
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
 
   protected val compressionBufferSize: Int =
-    GlutenShuffleUtils.getCompressionBufferSize(conf, customizedCompressionCodec)
+    GlutenShuffleUtils.getSortEvictBufferSize(conf, customizedCompressionCodec)
 
   protected val bufferCompressThreshold: Int =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold

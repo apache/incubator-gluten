@@ -129,7 +129,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
               compressionCodec,
               GlutenConfig.getConf().columnarShuffleCodecBackend().getOrElse(() -> null));
       compressionBufferSize =
-          GlutenShuffleUtils.getCompressionBufferSize(sparkConf, compressionCodec);
+          GlutenShuffleUtils.getSortEvictBufferSize(sparkConf, compressionCodec);
     }
   }
 
