@@ -1330,30 +1330,6 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build-helper-maven-plugin.version}</version>
-          <!--We use build-helper-maven-plugin rather than maven-resources-plugin-->
-          <!--to add base resources (generated-resources and other common extended resource folders).-->
-          <!--So submodules could easily add their own resources through maven-resources-plugin-->
-          <!--which is more compatible with Intellij IDE (E.g., `targetPath` can be respected by-->
-          <!-- IDEA with that plugin while it is not working with build-helper-maven-plugin).-->
-          <executions>
-            <execution>
-            </execution>
-            <execution>
-              <id>add-generated-resources</id>
-              <phase>generate-resources</phase>
-              <goals>
-                <goal>add-resource</goal>
-              </goals>
-              <configuration>
-                <resources>
-                  <resource>
-                    <!-- Include the properties file to provide the build information. -->
-                    <directory>${project.build.directory}/generated-resources</directory>
-                  </resource>
-                </resources>
-              </configuration>
-            </execution>
-          </executions>
         </plugin>
         <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
@@ -1406,6 +1382,34 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>versions-maven-plugin</artifactId>
         <version>2.15.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <!--We use build-helper-maven-plugin rather than maven-resources-plugin-->
+        <!--to add base resources (generated-resources and other common extended resource folders).-->
+        <!--So submodules could easily add their own resources through maven-resources-plugin-->
+        <!--which is more compatible with Intellij IDE (E.g., `targetPath` can be respected by-->
+        <!-- IDEA with that plugin while it is not working with build-helper-maven-plugin).-->
+        <executions>
+          <execution>
+          </execution>
+          <execution>
+            <id>add-generated-resources</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>add-resource</goal>
+            </goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <!-- Include the properties file to provide the build information. -->
+                  <directory>${project.build.directory}/generated-resources</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
