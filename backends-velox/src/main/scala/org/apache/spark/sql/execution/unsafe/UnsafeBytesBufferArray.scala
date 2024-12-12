@@ -25,7 +25,7 @@ import java.security.MessageDigest
 
 /**
  * Used to store broadcast variable off-heap memory for broadcast variable. The underlying data
- * structure is a
+ * structure is a LongArray allocated in offheap memory.
  *
  * @param arraySize
  *   underlying array[array[byte]]'s length
