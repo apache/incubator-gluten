@@ -92,8 +92,8 @@ class ColumnarShuffleWriter[K, V](
   private val compressionLevel =
     GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
 
-  private val compressionBufferSize =
-    GlutenShuffleUtils.getCompressionBufferSize(conf, compressionCodec)
+  private val sortEvictBufferSize =
+    GlutenShuffleUtils.getSortEvictBufferSize(conf, compressionCodec)
 
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold
@@ -147,7 +147,7 @@ class ColumnarShuffleWriter[K, V](
             compressionCodec,
             compressionCodecBackend,
             compressionLevel,
-            compressionBufferSize,
+            sortEvictBufferSize,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,

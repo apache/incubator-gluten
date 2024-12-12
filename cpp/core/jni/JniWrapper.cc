@@ -832,7 +832,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     jstring codecJstr,
     jstring codecBackendJstr,
     jint compressionLevel,
-    jint compressionBufferSize,
+    jint sortEvictBufferSize,
     jint compressionThreshold,
     jstring compressionModeJstr,
     jint sortBufferInitialSize,
@@ -864,7 +864,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .startPartitionId = startPartitionId,
       .shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
       .sortBufferInitialSize = sortBufferInitialSize,
-      .compressionBufferSize = compressionBufferSize,
+      .sortEvictBufferSize = sortEvictBufferSize,
       .useRadixSort = static_cast<bool>(useRadixSort)};
 
   // Build PartitionWriterOptions.
