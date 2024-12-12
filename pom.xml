@@ -412,7 +412,6 @@
       </modules>
       <properties>
         <backend_type>clickhouse</backend_type>
-        <activateDelta>true</activateDelta>
       </properties>
     </profile>
     <profile>
@@ -437,10 +436,6 @@
       <id>delta</id>
       <activation>
         <activeByDefault>false</activeByDefault>
-        <property>
-          <name>activateDelta</name>
-          <value>true</value>
-        </property>
       </activation>
       <modules>
         <module>gluten-delta</module>
