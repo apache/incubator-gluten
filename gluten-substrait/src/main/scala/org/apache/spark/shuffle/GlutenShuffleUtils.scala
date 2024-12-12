@@ -16,8 +16,8 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.NativePartitioning
 
@@ -51,7 +51,7 @@ object GlutenShuffleUtils {
             s"${validValues.mkString(", ")}, but was $codec")
       }
     }
-    val glutenConfig = GlutenConfig.getConf
+    val glutenConfig = GlutenConfig.get
     glutenConfig.columnarShuffleCodec match {
       case Some(codec) =>
         val glutenCodecKey = GlutenConfig.COLUMNAR_SHUFFLE_CODEC.key

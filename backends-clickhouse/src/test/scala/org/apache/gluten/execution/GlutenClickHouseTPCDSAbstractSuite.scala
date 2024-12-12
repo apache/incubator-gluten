@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.benchmarks.GenTPCDSTableScripts
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.{Arm, UTSystemParameters}
 
 import org.apache.spark.SparkConf

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.benchmarks
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
 
 import org.apache.spark.SparkConf

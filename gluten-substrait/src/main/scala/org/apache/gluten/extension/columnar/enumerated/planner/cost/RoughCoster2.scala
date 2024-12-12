@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.enumerated.planner.cost
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
@@ -45,11 +45,11 @@ object RoughCoster2 extends LongCoster {
       case ColumnarToRowLike(_) => 1L
       case RowToColumnarLike(_) =>
         // If sizeBytes is less than the threshold, the cost of RowToColumnarLike is ignored.
-        if (sizeFactor == 0) 1L else GlutenConfig.getConf.rasRough2R2cCost
+        if (sizeFactor == 0) 1L else GlutenConfig.get.rasRough2R2cCost
       case p if PlanUtil.isGlutenColumnarOp(p) => 1L
-      case p if PlanUtil.isVanillaColumnarOp(p) => GlutenConfig.getConf.rasRough2VanillaCost
+      case p if PlanUtil.isVanillaColumnarOp(p) => GlutenConfig.get.rasRough2VanillaCost
       // Other row ops. Usually a vanilla row op.
-      case _ => GlutenConfig.getConf.rasRough2VanillaCost
+      case _ => GlutenConfig.get.rasRough2VanillaCost
     }
     opCost * Math.max(1, sizeFactor)
   }
@@ -61,7 +61,7 @@ object RoughCoster2 extends LongCoster {
       case _: LeafExecNode => 0L
       case p => p.children.map(getStatSizeBytes).sum
     }
-    sizeBytes / GlutenConfig.getConf.rasRough2SizeBytesThreshold
+    sizeBytes / GlutenConfig.get.rasRough2SizeBytesThreshold
   }
 
   private def getStatSizeBytes(plan: SparkPlan): Long = {

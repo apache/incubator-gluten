@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.substrait.rel;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig$;
 
 import io.substrait.proto.ReadRel;
 import org.apache.iceberg.DeleteFile;
@@ -64,7 +64,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
             ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
                 .setEnableRowGroupMaxminIndex(
-                    GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                    GlutenConfig$.MODULE$.get().enableParquetRowGroupMaxMinIndex())
                 .build();
         icebergBuilder.setParquet(parquetReadOptions);
         break;
@@ -104,7 +104,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
               ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
                   .setEnableRowGroupMaxminIndex(
-                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                      GlutenConfig$.MODULE$.get().enableParquetRowGroupMaxMinIndex())
                   .build();
           deleteFileBuilder.setParquet(parquetReadOptions);
           break;

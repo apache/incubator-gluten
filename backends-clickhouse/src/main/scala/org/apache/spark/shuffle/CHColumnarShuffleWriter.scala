@@ -16,8 +16,8 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarNativeIterator
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._
@@ -51,17 +51,17 @@ class CHColumnarShuffleWriter[K, V](
     .map(_.getAbsolutePath)
     .mkString(",")
   private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
-  private val splitSize = GlutenConfig.getConf.maxBatchSize
+  private val splitSize = GlutenConfig.get.maxBatchSize
   private val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
   private val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private val compressionLevel =
     GlutenShuffleUtils.getCompressionLevel(
       conf,
       compressionCodec,
-      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
-  private val maxSortBufferSize = GlutenConfig.getConf.chColumnarMaxSortBufferSize
-  private val forceMemorySortShuffle = GlutenConfig.getConf.chColumnarForceMemorySortShuffle
-  private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
+      GlutenConfig.get.columnarShuffleCodecBackend.orNull)
+  private val maxSortBufferSize = GlutenConfig.get.chColumnarMaxSortBufferSize
+  private val forceMemorySortShuffle = GlutenConfig.get.chColumnarForceMemorySortShuffle
+  private val spillThreshold = GlutenConfig.get.chColumnarShuffleSpillThreshold
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure
