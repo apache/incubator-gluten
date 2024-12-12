@@ -22,7 +22,7 @@ import org.apache.spark.sql.types.{ArrayType, IntegerType, MapType, StringType, 
 
 import scala.collection.JavaConverters._
 
-class VeloxDeltaSuite extends WholeStageTransformerSuite {
+abstract class DeltaSuite extends WholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val resourcePath: String = "/tpch-data-parquet"
