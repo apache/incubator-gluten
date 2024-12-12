@@ -23,8 +23,9 @@ import org.apache.spark.sql.types.{ArrayType, IntegerType, MapType, StringType, 
 import scala.collection.JavaConverters._
 
 abstract class DeltaSuite extends WholeStageTransformerSuite {
-
   protected val rootPath: String = getClass.getResource("/").getPath
+  // FIXME: This folder doesn't exist in module gluten-delta so should be provided by
+  //  backend modules that rely on this suite.
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
