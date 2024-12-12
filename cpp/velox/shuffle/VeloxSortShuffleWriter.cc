@@ -297,7 +297,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
     size = *(RowSizeType*)addr;
     if (offset + size > options_.sortEvictBufferSize && offset > 0) {
       sortTime.stop();
-      RETURN_NOT_OK(evictPartition0(partitionId, index - begin, rawBuffer_, offset));
+      RETURN_NOT_OK(evictPartitionInternal(partitionId, index - begin, rawBuffer_, offset));
       sortTime.start();
       begin = index;
       offset = 0;
@@ -310,7 +310,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
       while (bytes < size) {
         auto rawLength = std::min<RowSizeType>((uint32_t)options_.sortEvictBufferSize, size - bytes);
         // Use numRows = 0 to represent a part of row.
-        RETURN_NOT_OK(evictPartition0(partitionId, 0, buffer + bytes, rawLength));
+        RETURN_NOT_OK(evictPartitionInternal(partitionId, 0, buffer + bytes, rawLength));
         bytes += rawLength;
       }
       begin++;
@@ -325,14 +325,17 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
   sortTime.stop();
   if (offset > 0) {
     VELOX_CHECK(index > begin);
-    RETURN_NOT_OK(evictPartition0(partitionId, index - begin, rawBuffer_, offset));
+    RETURN_NOT_OK(evictPartitionInternal(partitionId, index - begin, rawBuffer_, offset));
   }
   sortTime_ += sortTime.realTimeUsed();
   return arrow::Status::OK();
 }
 
-arrow::Status
-VeloxSortShuffleWriter::evictPartition0(uint32_t partitionId, int32_t numRows, uint8_t* buffer, int64_t rawLength) {
+arrow::Status VeloxSortShuffleWriter::evictPartitionInternal(
+    uint32_t partitionId,
+    int32_t numRows,
+    uint8_t* buffer,
+    int64_t rawLength) {
   VELOX_CHECK(rawLength > 0);
   auto payload = std::make_unique<InMemoryPayload>(
       numRows,
