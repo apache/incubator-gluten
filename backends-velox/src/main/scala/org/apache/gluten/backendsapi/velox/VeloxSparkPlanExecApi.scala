@@ -53,7 +53,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
-import org.apache.spark.util.TaskResources
 
 import org.apache.commons.lang3.ClassUtils
 

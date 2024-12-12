@@ -34,6 +34,7 @@ import java.security.MessageDigest
  * @param totalBytes
  *   all bytesBuffer's length plus together
  */
+// scalastyle:off no.finalize
 case class UnsafeBytesBufferArray(
     arraySize: Int,
     bytesBufferLengths: Array[Int],
@@ -163,3 +164,4 @@ case class UnsafeBytesBufferArray(
       new Array[Byte](0)
   }
 }
+// scalastyle:on no.finalize
