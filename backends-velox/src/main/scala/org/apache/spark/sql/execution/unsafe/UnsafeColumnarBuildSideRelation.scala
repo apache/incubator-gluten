@@ -195,7 +195,7 @@ case class UnsafeColumnarBuildSideRelation(
             batches.getBytesBufferOffsetAndLength(batchId)
           batchId += 1
           val handle =
-            jniWrapper.deserialize(serializeHandle, offset, length)
+            jniWrapper.deserializeDirectAddress(serializeHandle, offset, length)
           ColumnarBatches.create(handle)
         }
       })
@@ -254,7 +254,7 @@ case class UnsafeColumnarBuildSideRelation(
           val (offset, length) = batches.getBytesBufferOffsetAndLength(batchId)
           batchId += 1
           val batchHandle =
-            serializerJniWrapper.deserialize(serializeHandle, offset, length)
+            serializerJniWrapper.deserializeDirectAddress(serializeHandle, offset, length)
           val batch = ColumnarBatches.create(batchHandle)
           if (batch.numRows == 0) {
             batch.close()
