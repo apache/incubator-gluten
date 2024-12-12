@@ -19,23 +19,19 @@ package org.apache.gluten.benchmarks
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
 
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.internal.SQLConf
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.Tag
 
 import java.io.File
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
-
-import scala.collection.JavaConverters._
 
 object GenerateExample extends Tag("org.apache.gluten.tags.GenerateExample")
 
 class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
   val generatedPlanDir = getClass.getResource("/").getPath + "../../../generated-native-benchmark/"
   val outputFileFormat = "parquet"
@@ -48,6 +44,11 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
     }
     FileUtils.forceMkdir(dir)
     createTPCHNotNullTables()
+  }
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
   }
 
   test("Test plan json non-empty - AQE off") {
@@ -67,7 +68,6 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
       planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson
       assert(planJson.nonEmpty)
     }
-    spark.sparkContext.setLogLevel(logLevel)
   }
 
   test("Test plan json non-empty - AQE on") {
@@ -88,70 +88,42 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
       val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson
       assert(planJson.nonEmpty)
     }
-    spark.sparkContext.setLogLevel(logLevel)
   }
 
   test("generate example", GenerateExample) {
-    import testImplicits._
     withSQLConf(
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
       SQLConf.SHUFFLE_PARTITIONS.key -> "2",
-      GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT.key -> "true"
+      GlutenConfig.BENCHMARK_SAVE_DIR.key -> generatedPlanDir,
+      GlutenConfig.BENCHMARK_TASK_STAGEID.key -> "12",
+      GlutenConfig.BENCHMARK_TASK_PARTITIONID.key -> "0"
     ) {
       logWarning(s"Generating inputs for micro benchmark to $generatedPlanDir")
-      val q4_lineitem = spark
-        .sql(s"""
-                |select l_orderkey from lineitem where l_commitdate < l_receiptdate
-                |""".stripMargin)
-      val q4_orders = spark
-        .sql(s"""
-                |select o_orderkey, o_orderpriority
-                |  from orders
-                |  where o_orderdate >= '1993-07-01' and o_orderdate < '1993-10-01'
-                |""".stripMargin)
-      q4_lineitem
-        .createOrReplaceTempView("q4_lineitem")
-      q4_orders
-        .createOrReplaceTempView("q4_orders")
-
-      q4_lineitem
-        .repartition(1, 'l_orderkey)
-        .write
-        .format(outputFileFormat)
-        .save(generatedPlanDir + "/example_lineitem")
-      q4_orders
-        .repartition(1, 'o_orderkey)
-        .write
-        .format(outputFileFormat)
-        .save(generatedPlanDir + "/example_orders")
-
-      val df =
-        spark.sql("""
-                    |select * from q4_orders left semi join q4_lineitem on l_orderkey = o_orderkey
-                    |""".stripMargin)
-      generateSubstraitJson(df, "example.json")
+      spark
+        .sql("""
+               |select /*+ REPARTITION(1) */
+               |  o_orderpriority,
+               |  count(*) as order_count
+               |from
+               |  orders
+               |where
+               |  o_orderdate >= date '1993-07-01'
+               |  and o_orderdate < date '1993-07-01' + interval '3' month
+               |  and exists (
+               |    select /*+ REPARTITION(1) */
+               |      *
+               |    from
+               |      lineitem
+               |    where
+               |      l_orderkey = o_orderkey
+               |      and l_commitdate < l_receiptdate
+               |  )
+               |group by
+               |  o_orderpriority
+               |order by
+               |  o_orderpriority
+               |""".stripMargin)
+        .foreach(_ => ())
     }
-    spark.sparkContext.setLogLevel(logLevel)
-  }
-
-  def generateSubstraitJson(df: DataFrame, file: String): Unit = {
-    val executedPlan = df.queryExecution.executedPlan
-    executedPlan.execute()
-    val finalPlan =
-      executedPlan match {
-        case aqe: AdaptiveSparkPlanExec =>
-          aqe.executedPlan match {
-            case s: ShuffleQueryStageExec => s.shuffle.child
-            case other => other
-          }
-        case plan => plan
-      }
-    val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
-    assert(lastStageTransformer.nonEmpty)
-    val plan =
-      lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.split('\n')
-
-    val exampleJsonFile = Paths.get(generatedPlanDir, file)
-    Files.write(exampleJsonFile, plan.toList.asJava, StandardCharsets.UTF_8)
   }
 }

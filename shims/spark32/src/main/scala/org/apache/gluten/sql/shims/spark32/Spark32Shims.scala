@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.sql.shims.spark32
 
-import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
 
@@ -91,7 +91,7 @@ class Spark32Shims extends SparkShims {
       options: CaseInsensitiveStringMap,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): TextScan = {
-    new TextScan(
+    TextScan(
       sparkSession,
       fileIndex,
       readDataSchema,
@@ -154,7 +154,7 @@ class Spark32Shims extends SparkShims {
       mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression = expr
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    List(session => GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRule(session))
+    List(session => GlutenFormatFactory.getExtendedColumnarPostRule(session))
   }
 
   override def createTestTaskContext(properties: Properties): TaskContext = {

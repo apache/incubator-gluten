@@ -16,8 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.gluten.execution.datasource.GlutenOrcWriterInjects
-import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -51,7 +50,7 @@ import java.util.{Date, UUID}
 /** A helper object for writing FileFormat data out to a location. */
 object FileFormatWriter extends Logging {
 
-  var executeWriterWrappedSparkPlan: SparkPlan => RDD[InternalRow] = null
+  var executeWriterWrappedSparkPlan: SparkPlan => RDD[InternalRow] = _
 
   /** Describes how output files should be placed in the filesystem. */
   case class OutputSpec(
@@ -277,11 +276,7 @@ object FileFormatWriter extends Logging {
       }
 
       val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
-      if ("parquet" == nativeFormat) {
-        (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
-      } else {
-        (GlutenOrcWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
-      }
+      (GlutenFormatFactory(nativeFormat).executeWriterWrappedSparkPlan(wrapped), None)
     }
 
     try {

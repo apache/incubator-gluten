@@ -201,7 +201,7 @@ case class GlutenCHCacheDataCommand(
             (
               executorId,
               executor.executorEndpointRef.ask[CacheJobInfo](
-                GlutenMergeTreeCacheLoad(tableMessage, selectedColumns.toSet.asJava)
+                GlutenMergeTreeCacheLoad(tableMessage, selectedColumns.toSet.asJava, onlyMetaCache)
               )))
         })
     } else {
@@ -213,7 +213,7 @@ case class GlutenCHCacheDataCommand(
             (
               value._1,
               executorData.executorEndpointRef.ask[CacheJobInfo](
-                GlutenMergeTreeCacheLoad(value._2, selectedColumns.toSet.asJava)
+                GlutenMergeTreeCacheLoad(value._2, selectedColumns.toSet.asJava, onlyMetaCache)
               )))
         })
     }

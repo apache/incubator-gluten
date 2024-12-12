@@ -22,7 +22,7 @@ import org.apache.spark.sql.Row
 class VeloxHudiSuite extends WholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   override protected def sparkConf: SparkConf = {

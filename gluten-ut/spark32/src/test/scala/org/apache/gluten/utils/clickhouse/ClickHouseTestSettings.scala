@@ -21,6 +21,7 @@ import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 import org.apache.spark.sql._
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.clickhouse.ClickHouseAdaptiveQueryExecSuite
@@ -202,6 +203,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-32376: Make unionByName null-filling behavior work with struct columns - deep expr")
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
+    .exclude(
+      "SPARK-36673: Only merge nullability for Unions of struct"
+    ) // disabled due to case-insensitive not supported in CH tuple
     .exclude("except all")
     .exclude("exceptAll - nullability")
     .exclude("intersectAll")
@@ -282,7 +286,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("groupBy.as")
   enableSuite[GlutenDateFunctionsSuite]
     .exclude("function to_date")
-    .exclude("from_unixtime")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
     .exclude("to_timestamp")
@@ -551,8 +554,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-17617: % (Remainder) double % double on super big double")
     .exclude("Abs")
     .exclude("pmod")
-    .exclude("function least")
-    .exclude("function greatest")
     .exclude("SPARK-28322: IntegralDivide supports decimal type")
     .exclude("SPARK-33008: division by zero on divide-like operations returns incorrect result")
     .exclude("SPARK-34920: error class")
@@ -844,8 +845,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-32110: compare special double/float values in struct")
   enableSuite[GlutenRandomSuite].exclude("random").exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenRegexpExpressionsSuite]
-    .exclude("LIKE ALL")
-    .exclude("LIKE ANY")
     .exclude("LIKE Pattern")
     .exclude("LIKE Pattern ESCAPE '/'")
     .exclude("LIKE Pattern ESCAPE '#'")
@@ -854,8 +853,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("RegexReplace")
     .exclude("RegexExtract")
     .exclude("RegexExtractAll")
-    .exclude("SPLIT")
-    .exclude("SPARK-34814: LikeSimplification should handle NULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
     .exclude("StringComparison")
@@ -1986,6 +1983,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[SparkFunctionStatistics]
   enableSuite[GlutenSparkSessionExtensionSuite]
   enableSuite[GlutenHiveSQLQueryCHSuite]
+  enableSuite[GlutenPercentileSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

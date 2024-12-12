@@ -31,20 +31,8 @@ concurrency:
 jobs:
   cache-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:vcpkg-centos-7
     steps:
-      - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
-      - name: Check existing caches
-        id: check-cache
-        uses: actions/cache/restore@v3
-        with:
-          lookup-only: true
-          path: |
-            ./cpp/build/releases/
-          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
+      - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -53,45 +41,24 @@ jobs:
           restore-keys: |
             ccache-centos7-release-default
       - name: Build Gluten native libraries
-        if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
-          df -a
-          yum install ccache -y
-          bash dev/ci-velox-buildstatic-centos-7.sh
-      - name: "Save ccache"
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            export CCACHE_DIR=/work/.ccache
+            mkdir -p /work/.ccache
+            bash dev/ci-velox-buildstatic-centos-7.sh
+          "
+      - name: Save Ccache
         uses: actions/cache/save@v3
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos7-release-default-${{github.sha}}
-      - name: Cache
-        if: steps.check-cache.outputs.cache-hit != 'true'
-        id: cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ./cpp/build/releases/
-          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
 
   cache-native-lib-centos-8:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
       - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
-      - name: Check existing caches
-        id: check-cache
-        uses: actions/cache/restore@v3
-        with:
-          lookup-only: true
-          path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
-            /root/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -99,36 +66,17 @@ jobs:
           key: ccache-centos8-release-default-${{github.sha}}
           restore-keys: |
             ccache-centos8-release-default
-      - name: Setup java and maven
-        if: steps.check-cache.outputs.cache-hit != 'true'
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          bash .github/workflows/util/setup_helper.sh install_maven
       - name: Build Gluten native libraries
-        if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
-      - name: "Save ccache"
+      - name: Save Ccache
         uses: actions/cache/save@v3
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos8-release-default-${{github.sha}}
-      - name: Cache
-        if: steps.check-cache.outputs.cache-hit != 'true'
-        id: cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
-            /root/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
 
   # ccache-native-lib-ubuntu-velox-ut:
   #   runs-on: ubuntu-20.04

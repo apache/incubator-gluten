@@ -19,6 +19,7 @@
 #include <Columns/ColumnDecimal.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
+#include <Core/DecimalFunctions.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionFactory.h>
@@ -26,8 +27,6 @@
 #include <Functions/IFunction.h>
 #include <Functions/castTypeToEither.h>
 #include <Common/CurrentThread.h>
-#include <Common/GlutenDecimalUtils.h>
-#include <Common/ProfileEvents.h>
 #include <Common/Stopwatch.h>
 
 namespace DB
@@ -279,7 +278,7 @@ private:
         const ScaleDataType & scale_b,
         ColumnUInt8::Container & vec_null_map_to,
         const ResultDataType & resultDataType,
-        const size_t & max_scale)
+        size_t max_scale)
     {
         using NativeResultType = NativeType<typename ResultDataType::FieldType>;
 
@@ -357,7 +356,7 @@ private:
         const ScaleDataType & scale_right,
         NativeResultType & res,
         const ResultDataType & resultDataType,
-        const size_t & max_scale)
+        size_t max_scale)
     {
         if constexpr (CalculateWith256)
             return calculateImpl<Int256>(l, r, scale_left, scale_right, res, resultDataType, max_scale);
@@ -375,7 +374,7 @@ private:
         const ScaleDataType & scale_right,
         NativeResultType & res,
         const ResultDataType & resultDataType,
-        const size_t & max_scale)
+        size_t max_scale)
     {
         CalcType scaled_l = applyScaled(static_cast<CalcType>(l), static_cast<CalcType>(scale_left));
         CalcType scaled_r = applyScaled(static_cast<CalcType>(r), static_cast<CalcType>(scale_right));
@@ -488,7 +487,7 @@ public:
             right_generic,
             removeNullable(arguments[2].type).get(),
             [&](const auto & left, const auto & right, const auto & result) {
-                return (res = SparkDecimalBinaryOperation<Operation, Mode>::template executeDecimal(arguments, left, right, result))
+                return (res = SparkDecimalBinaryOperation<Operation, Mode>::template executeDecimal<>(arguments, left, right, result))
                     != nullptr;
             });
 

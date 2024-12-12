@@ -20,7 +20,7 @@ import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.{GlutenAnsiCastSuiteWithAnsiModeOff, GlutenAnsiCastSuiteWithAnsiModeOn, GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCastSuiteWithAnsiModeOn, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenDecimalPrecisionSuite, GlutenHashExpressionsSuite, GlutenHigherOrderFunctionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryCastSuite}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
 import org.apache.spark.sql.execution._
@@ -142,6 +142,22 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
+  enableSuite[GlutenJsonExpressionsSuite]
+    // https://github.com/apache/incubator-gluten/issues/8102
+    .exclude("$.store.book")
+    .exclude("$")
+    .exclude("$.store.book[0]")
+    .exclude("$.store.book[*]")
+    .exclude("$.store.book[*].category")
+    .exclude("$.store.book[*].isbn")
+    .exclude("$.store.book[*].reader")
+    .exclude("$.store.basket[*]")
+    .exclude("$.store.basket[*][0]")
+    .exclude("$.store.basket[0][*]")
+    .exclude("$.store.basket[*][*]")
+    .exclude("$.store.basket[0][*].b")
+    // Exception class different.
+    .exclude("from_json - invalid data")
   enableSuite[GlutenJsonFunctionsSuite]
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
@@ -663,7 +679,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetFileFormatV2Suite]
   enableSuite[GlutenParquetV1FilterSuite]
     // Rewrite.
-    .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
     // Rewrite for supported INT96 - timestamp.
     .exclude("filter pushdown - timestamp")
@@ -679,11 +694,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
-    // https://github.com/apache/incubator-gluten/issues/7174
-    .excludeGlutenTest("Filter applied on merged Parquet schema with new column should work")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
-    .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
     // Rewrite for supported INT96 - timestamp.
     .exclude("filter pushdown - timestamp")
@@ -699,8 +711,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
-    // https://github.com/apache/incubator-gluten/issues/7174
-    .excludeGlutenTest("Filter applied on merged Parquet schema with new column should work")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
@@ -710,13 +720,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
     // Velox only support read Timestamp with INT96 for now.
     .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
-    // TODO: Unsupported Array schema in Parquet.
-    .exclude("vectorized reader: optional array with required elements")
-    .exclude("vectorized reader: required array with required elements")
-    .exclude("vectorized reader: required array with optional elements")
-    .exclude("vectorized reader: required array with legacy format")
-    // add support in native reader
-    .exclude("SPARK-41096: FIXED_LEN_BYTE_ARRAY support")
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
@@ -897,7 +900,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortSuite]
   enableSuite[GlutenSQLAggregateFunctionSuite]
   // spill not supported yet.
-  enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
+  enableSuite[GlutenSQLWindowFunctionSuite]
+    .exclude("test with low buffer spill threshold")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[TestFileSourceScanExecTransformer]

@@ -17,14 +17,14 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.BasicScanExecTransformer
-import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.{ExpandFallbackPolicy, FallbackTags, RemoveFallbackTagRule}
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleBuilder
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.{BasicScanExecTransformer, GlutenPlan}
+import org.apache.gluten.extension.GlutenSessionExtensions
+import org.apache.gluten.extension.columnar.{FallbackTags, RemoveFallbackTagRule}
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.MiscColumnarRules.RemoveTopmostColumnarToRow
-import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
-import org.apache.gluten.extension.columnar.transition.InsertTransitions
-import org.apache.gluten.utils.{PhysicalPlanSelector, QueryPlanSelector}
+import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicApplier}
+import org.apache.gluten.extension.columnar.transition.{Convention, InsertBackendTransitions}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
@@ -45,7 +45,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
             _ => {
               UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
             },
-          c => InsertTransitions(c.outputsColumnar)))
+          c => InsertBackendTransitions(c.outputsColumnar)))
       val outputPlan = rule.apply(originalPlan, false)
       // Expect to fall back the entire plan.
       assert(outputPlan == originalPlan)
@@ -62,7 +62,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
             _ => {
               UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
             },
-          c => InsertTransitions(c.outputsColumnar)))
+          c => InsertBackendTransitions(c.outputsColumnar)))
         .enableAdaptiveContext()
       val outputPlan = rule.apply(originalPlan, false)
       // Expect to fall back the entire plan.
@@ -80,7 +80,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
             _ => {
               UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
             },
-          c => InsertTransitions(c.outputsColumnar)))
+          c => InsertBackendTransitions(c.outputsColumnar)))
         .enableAdaptiveContext()
       val outputPlan = rule.apply(originalPlan, false)
       // Expect to get the plan with columnar rule applied.
@@ -100,7 +100,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
             _ => {
               UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
             },
-          c => InsertTransitions(c.outputsColumnar)))
+          c => InsertBackendTransitions(c.outputsColumnar)))
         .enableAdaptiveContext()
       val outputPlan = rule.apply(originalPlan, false)
       // Expect to fall back the entire plan.
@@ -120,7 +120,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
             _ => {
               UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
             },
-          c => InsertTransitions(c.outputsColumnar)))
+          c => InsertBackendTransitions(c.outputsColumnar)))
         .enableAdaptiveContext()
       val outputPlan = rule.apply(originalPlan, false)
       // Expect to get the plan with columnar rule applied.
@@ -154,14 +154,16 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 
     val thread = new Thread(
       () => {
-        spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
+        spark.sparkContext
+          .setLocalProperty(GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
         val fallbackPlan = spark.sql(sql).queryExecution.executedPlan
         val fallbackScanExec = fallbackPlan.collect {
           case e: FileSourceScanExec if !e.isInstanceOf[BasicScanExecTransformer] => true
         }
         assert(fallbackScanExec.size == 1)
 
-        spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, null)
+        spark.sparkContext
+          .setLocalProperty(GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY, null)
         val noFallbackPlan = spark.sql(sql).queryExecution.executedPlan
         val noFallbackScanExec = noFallbackPlan.collect { case _: BasicScanExecTransformer => true }
         assert(noFallbackScanExec.size == 1)
@@ -174,10 +176,9 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 private object FallbackStrategiesSuite {
   def newRuleApplier(
       spark: SparkSession,
-      transformBuilders: Seq[ColumnarRuleBuilder]): HeuristicApplier = {
+      transformBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]]): HeuristicApplier = {
     new HeuristicApplier(
       spark,
-      Seq(PhysicalPlanSelector.skipCond),
       transformBuilders,
       List(c => ExpandFallbackPolicy(c.ac.isAdaptiveContext(), c.ac.originalPlan())),
       List(
@@ -229,19 +230,19 @@ private object FallbackStrategiesSuite {
   }
 
 // For replacing LeafOp.
-  case class LeafOpTransformer(override val supportsColumnar: Boolean = true)
-    extends LeafExecNode
-    with GlutenPlan {
+  case class LeafOpTransformer() extends LeafExecNode with GlutenPlan {
+    override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+    override def rowType0(): Convention.RowType = Convention.RowType.None
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
     override def output: Seq[Attribute] = Seq.empty
   }
 
 // For replacing UnaryOp1.
-  case class UnaryOp1Transformer(
-      override val child: SparkPlan,
-      override val supportsColumnar: Boolean = true)
+  case class UnaryOp1Transformer(override val child: SparkPlan)
     extends UnaryExecNode
     with GlutenPlan {
+    override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+    override def rowType0(): Convention.RowType = Convention.RowType.None
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
     override def output: Seq[Attribute] = child.output
     override protected def withNewChildInternal(newChild: SparkPlan): UnaryOp1Transformer =

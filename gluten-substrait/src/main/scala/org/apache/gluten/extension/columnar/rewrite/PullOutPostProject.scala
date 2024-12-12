@@ -33,6 +33,9 @@ import scala.collection.mutable.ArrayBuffer
  * when a fallback occurs.
  */
 object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
+  override def isRewritable(plan: SparkPlan): Boolean = {
+    RewriteEligibility.isRewritable(plan)
+  }
 
   private def needsPostProjection(plan: SparkPlan): Boolean = {
     plan match {
@@ -87,16 +90,20 @@ object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
         case alias @ Alias(_: WindowExpression, _) =>
           postWindowExpressions += alias.toAttribute
           alias
-        case other =>
+        case expr if hasWindowExpression(expr) =>
           // Directly use the output of WindowExpression, and move expression evaluation to
           // post-project for computation.
-          assert(hasWindowExpression(other))
-          val we = other.collectFirst { case w: WindowExpression => w }.get
+          val we = expr.collectFirst { case w: WindowExpression => w }.get
           val alias = Alias(we, generatePostAliasName)()
-          postWindowExpressions += other
+          postWindowExpressions += expr
             .transform { case _: WindowExpression => alias.toAttribute }
             .asInstanceOf[NamedExpression]
           alias
+        case other: Alias =>
+          // The expression doesn't actually have a Spark WindowExpression in it. It's possibly
+          // a trivial literal.
+          postWindowExpressions += other.toAttribute
+          other
       }
       val newWindow =
         window.copy(windowExpression = newWindowExpressions.asInstanceOf[Seq[NamedExpression]])

@@ -58,7 +58,8 @@ object MetricsUtil extends Logging {
           assert(t.children.size == 1, "MetricsUpdater.None can only be used on unary operator")
           treeifyMetricsUpdaters(t.children.head)
         case t: TransformSupport =>
-          MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
+          // Reversed children order to match the traversal code.
+          MetricsUpdaterTree(t.metricsUpdater(), t.children.reverse.map(treeifyMetricsUpdaters))
         case _ =>
           MetricsUpdaterTree(MetricsUpdater.Terminate, Seq())
       }
@@ -115,6 +116,7 @@ object MetricsUtil extends Logging {
     var numDynamicFiltersAccepted: Long = 0
     var numReplacedWithDynamicFilterRows: Long = 0
     var flushRowCount: Long = 0
+    var loadedToValueHook: Long = 0
     var scanTime: Long = 0
     var skippedSplits: Long = 0
     var processedSplits: Long = 0
@@ -141,6 +143,7 @@ object MetricsUtil extends Logging {
       numDynamicFiltersAccepted += metrics.numDynamicFiltersAccepted
       numReplacedWithDynamicFilterRows += metrics.numReplacedWithDynamicFilterRows
       flushRowCount += metrics.flushRowCount
+      loadedToValueHook += metrics.loadedToValueHook
       scanTime += metrics.scanTime
       skippedSplits += metrics.skippedSplits
       processedSplits += metrics.processedSplits
@@ -174,6 +177,7 @@ object MetricsUtil extends Logging {
       numDynamicFiltersAccepted,
       numReplacedWithDynamicFilterRows,
       flushRowCount,
+      loadedToValueHook,
       scanTime,
       skippedSplits,
       processedSplits,
@@ -230,6 +234,12 @@ object MetricsUtil extends Logging {
           operatorMetrics,
           metrics.getSingleMetrics,
           joinParamsMap.get(operatorIdx))
+      case u: UnionMetricsUpdater =>
+        // JoinRel outputs two suites of metrics respectively for hash build and hash probe.
+        // Therefore, fetch one more suite of metrics here.
+        operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
+        curMetricsIdx -= 1
+        u.updateUnionMetrics(operatorMetrics)
       case hau: HashAggregateMetricsUpdater =>
         hau.updateAggregationMetrics(operatorMetrics, aggParamsMap.get(operatorIdx))
       case lu: LimitMetricsUpdater =>

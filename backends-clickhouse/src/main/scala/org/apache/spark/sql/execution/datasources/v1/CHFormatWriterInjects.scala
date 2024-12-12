@@ -23,7 +23,6 @@ import org.apache.gluten.utils.SubstraitUtil
 import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.orc.OrcUtils
 import org.apache.spark.sql.types.StructType
@@ -79,27 +78,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
     val datasourceJniWrapper =
       new CHDatasourceJniWrapper(outputPath, createWriteRel(outputPath, dataSchema, context))
-
-    new OutputWriter {
-      override def write(row: InternalRow): Unit = {
-        assert(row.isInstanceOf[FakeRow])
-        val nextBatch = row.asInstanceOf[FakeRow].batch
-
-        if (nextBatch.numRows > 0) {
-          val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-          datasourceJniWrapper.write(col.getBlockAddress)
-        } // else just ignore this empty block
-      }
-
-      override def close(): Unit = {
-        datasourceJniWrapper.close()
-      }
-
-      // Do NOT add override keyword for compatibility on spark 3.1.
-      def path(): String = {
-        outputPath
-      }
-    }
+    new FakeRowOutputWriter(Some(datasourceJniWrapper), outputPath)
   }
 
   override def inferSchema(
@@ -117,13 +96,12 @@ class CHRowSplitter extends GlutenRowSplitter {
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
       reserve_partition_columns: Boolean = false): CHBlockStripes = {
+    // splitBlockByPartitionAndBucket called before createOutputWriter in case of
+    // writing partitioned table, so we need to register a new thread group here
+    CHThreadGroup.registerNewThreadGroup()
     val col = row.batch.column(0).asInstanceOf[CHColumnVector]
     new CHBlockStripes(
       CHDatasourceJniWrapper
-        .splitBlockByPartitionAndBucket(
-          col.getBlockAddress,
-          partitionColIndice,
-          hasBucket,
-          reserve_partition_columns))
+        .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
   }
 }

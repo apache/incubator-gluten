@@ -114,32 +114,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Overwrite)
       .save(dataPath)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
       df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -148,7 +123,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(4)(plans.size)
 
         val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -205,32 +180,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .option("clickhouse.lowCardKey", "l_returnflag,l_linestatus")
       .save(dataPath)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
       df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -239,7 +189,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(4)(plans.size)
 
         val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -383,7 +333,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       assertResult(1)(scanExec.size)
 
       val mergetreeScan = scanExec.head
-      assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+      assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
       val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
       assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -416,7 +366,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       assertResult(1)(scanExec.size)
 
       val mergetreeScan = scanExec.head
-      assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+      assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
       val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -575,32 +525,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -608,7 +533,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -672,32 +597,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`"), compareResult = false) {
       df =>
         val result = df.collect()
         assertResult(4)(result.length)
@@ -715,7 +615,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
         assertResult(3744)(mergetreeScan.metrics("numFiles").value)
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -771,32 +671,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -804,7 +679,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -875,32 +750,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -908,7 +758,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -935,32 +785,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) { _ => {} }
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) { _ => {} }
 
   }
 
@@ -978,32 +803,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) { _ => {} }
+    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) { _ => {} }
     val directory = new File(dataPath)
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
@@ -1057,19 +857,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    sum(l_extendedprice * l_discount) AS revenue
-         |FROM
-         |    clickhouse.`$dataPath`
-         |WHERE
-         |    l_shipdate >= date'1994-01-01'
-         |    AND l_shipdate < date'1994-01-01' + interval 1 year
-         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-         |    AND l_quantity < 24
-         |""".stripMargin
-    runTPCHQueryBySQL(6, sqlStr) {
+    runTPCHQueryBySQL(6, q6(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1077,7 +865,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -1218,32 +1006,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
 
   test("GLUTEN-5219: Fix the table metadata sync issue for the CH backend") {
     def checkQueryResult(tableName: String): Unit = {
-      val sqlStr =
-        s"""
-           |SELECT
-           |    l_returnflag,
-           |    l_linestatus,
-           |    sum(l_quantity) AS sum_qty,
-           |    sum(l_extendedprice) AS sum_base_price,
-           |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-           |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-           |    avg(l_quantity) AS avg_qty,
-           |    avg(l_extendedprice) AS avg_price,
-           |    avg(l_discount) AS avg_disc,
-           |    count(*) AS count_order
-           |FROM
-           |    clickhouse.`$tableName`
-           |WHERE
-           |    l_shipdate <= date'1998-09-02' - interval 1 day
-           |GROUP BY
-           |    l_returnflag,
-           |    l_linestatus
-           |ORDER BY
-           |    l_returnflag,
-           |    l_linestatus;
-           |
-           |""".stripMargin
-      runTPCHQueryBySQL(1, sqlStr) {
+      runTPCHQueryBySQL(1, q1(s"clickhouse.`$tableName`")) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {
             case f: FileSourceScanExecTransformer => f
@@ -1251,7 +1014,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
           assertResult(1)(scanExec.size)
 
           val mergetreeScan = scanExec.head
-          assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+          assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
           val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
           val addFiles =

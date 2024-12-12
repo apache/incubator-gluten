@@ -26,10 +26,10 @@ install_maven_from_source() {
     fi
 }
 
-install_gcc9_from_source() {
+install_gcc11_from_source() {
      cur_gcc_version=$(gcc -dumpversion)
-     if [ "$(semver "$cur_gcc_version")" -lt "$(semver 9.0.0)" ]; then
-            gcc_version=gcc-9.4.0
+     if [ "$(semver "$cur_gcc_version")" -lt "$(semver 11.0.0)" ]; then
+            gcc_version=gcc-11.5.0
             gcc_install_dir=/usr/local/${gcc_version}
             cd /tmp
             if [ ! -d $gcc_version ]; then
@@ -37,7 +37,6 @@ install_gcc9_from_source() {
                 tar -xvf ${gcc_version}.tar.gz
             fi
             cd ${gcc_version}
-            sed -i 's/ftp/https/g' contrib/download_prerequisites
             ./contrib/download_prerequisites
 
             mkdir gcc-build && cd gcc-build
@@ -68,7 +67,7 @@ install_centos_7() {
     yum -y install \
         wget curl tar zip unzip which patch sudo \
         ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
-        devtoolset-9 python3 pip dnf \
+        devtoolset-11 python3 pip dnf \
         bison \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
 
@@ -126,59 +125,11 @@ install_centos_8() {
     yum -y install \
         wget curl tar zip unzip git which sudo patch \
         cmake perl-IPC-Cmd autoconf automake libtool \
-        gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
+        gcc-toolset-11 \
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
 
     dnf -y --enablerepo=powertools install autoconf-archive ninja-build
-
-    install_maven_from_source
-}
-
-install_ubuntu_18.04() {
-    # Support for gcc-9 and g++-9
-    apt-get update && apt-get install -y software-properties-common
-    add-apt-repository -y ppa:ubuntu-toolchain-r/test
-
-    apt-get -y install \
-        wget curl tar zip unzip git \
-        build-essential ccache ninja-build pkg-config autoconf autoconf-archive libtool \
-        flex bison \
-        openjdk-8-jdk \
-        gcc-9 g++-9
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 900 --slave /usr/bin/g++ g++ /usr/bin/g++-9
-
-    # Install cmake 3.28.1 from source
-    apt remove -y --purge --auto-remove cmake
-    apt-get install -y libssl-dev
-
-    version=3.28
-    build=1
-    mkdir cmake_install
-    cd cmake_install
-    wget https://cmake.org/files/v$version/cmake-$version.$build.tar.gz
-    tar -xzvf cmake-$version.$build.tar.gz
-    cd cmake-$version.$build/
-
-    ./bootstrap
-    make -j$(nproc)
-    make install
-
-    cd ../../
-    rm -rf cmake_install
-    ln -fs /usr/local/bin/cmake /usr/bin/cmake
-
-    # Install automake 1.16
-    mkdir -p /tmp/automake
-    wget -O - http://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz | tar -x --xz -C /tmp/automake --strip-components=1
-    cd /tmp/automake
-    ./configure
-    make install -j
-    cd
-    rm -rf /tmp/automake
-
-    # Fix aclocal search path
-    echo /usr/share/aclocal > /usr/local/share/aclocal/dirlist
 
     install_maven_from_source
 }
@@ -189,6 +140,12 @@ install_ubuntu_20.04() {
         build-essential ccache cmake ninja-build pkg-config autoconf autoconf-archive libtool \
         flex bison \
         openjdk-8-jdk maven
+    # Overwrite gcc-9 installed by build-essential.
+    sudo apt install -y software-properties-common
+    sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+    sudo apt update && sudo apt install -y gcc-11 g++-11
+    sudo ln -sf /usr/bin/gcc-11 /usr/bin/gcc
+    sudo ln -sf /usr/bin/g++-11 /usr/bin/g++
 }
 
 install_ubuntu_22.04() { install_ubuntu_20.04; }
@@ -206,7 +163,7 @@ install_tencentos_3.2() {
     yum -y install \
         wget curl tar zip unzip git which \
         cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
-        gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
+        gcc-toolset-11 \
         flex bison python3 \
         java-8-konajdk
 
@@ -229,7 +186,7 @@ install_debian_10() {
     apt update && apt-get -y install temurin-8-jdk
 
     install_maven_from_source
-    install_gcc9_from_source
+    install_gcc11_from_source
 }
 
 install_debian_11() {

@@ -14,33 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 #include <unordered_map>
 #include <Core/Block.h>
 #include <Interpreters/Aggregator.h>
 #include <Interpreters/Context.h>
-#include <Processors/Chunk.h>
-#include <Processors/IProcessor.h>
-#include <Processors/Port.h>
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <Processors/QueryPlan/ITransformingStep.h>
-#include <Processors/Transforms/AggregatingTransform.h>
-#include <QueryPipeline/SizeLimits.h>
-#include <Poco/Logger.h>
-#include <Common/AggregateUtil.h>
-#include <Common/logger_useful.h>
-#include "GraceAggregatingTransform.h"
 
 namespace local_engine
 {
 /// It's used to merged aggregated data from intermediate aggregate stages, it's the final stage of
 /// aggregating.
-/// It support spilling data into disk when the memory usage is overflow.
+/// It supports spilling data into disk when the memory usage is overflow.
 class GraceMergingAggregatedStep : public DB::ITransformingStep
 {
 public:
     explicit GraceMergingAggregatedStep(
         DB::ContextPtr context_,
-        const DB::DataStream & input_stream_,
+        const DB::Block & input_header,
         DB::Aggregator::Params params_,
         bool no_pre_aggregated_);
     ~GraceMergingAggregatedStep() override = default;
@@ -55,7 +47,8 @@ private:
     DB::ContextPtr context;
     DB::Aggregator::Params params;
     bool no_pre_aggregated;
-    void updateOutputStream() override; 
+protected:
+    void updateOutputHeader() override;
 };
 
 

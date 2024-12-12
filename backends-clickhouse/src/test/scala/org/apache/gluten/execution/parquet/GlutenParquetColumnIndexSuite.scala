@@ -71,7 +71,19 @@ class GlutenParquetColumnIndexSuite
       45,
       Some("push down Decimal filter In")
     ),
-    ParquetData("count(*)", "index/pageindex/query05", "`142` = true", 9896)
+    ParquetData("count(*)", "index/pageindex/query05", "`142` = true", 9896),
+    ParquetData(
+      "count(*)",
+      "index/pageindex/query05",
+      "(`145` like '%GTC' and `142` = true) or (not `175` in (23,16,14,100))",
+      9896,
+      Some("endwith")),
+    ParquetData(
+      "count(*)",
+      "index/pageindex/query05",
+      "(`145` not like 'GTC%' and `154` not in(11,16,14,-99)) or `154` > 3365",
+      9896,
+      Some("not endwith"))
   )
 
   parquetData.foreach {

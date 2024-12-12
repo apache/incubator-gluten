@@ -60,7 +60,7 @@ case class TestFileSourceScanExecTransformer(
       optionalNumCoalescedBuckets,
       disableBucketedScan)
 
-  override val nodeNamePrefix: String = "TestNativeFile"
+  override val nodeNamePrefix: String = "TestFile"
 
   override def doCanonicalize(): TestFileSourceScanExecTransformer = {
     TestFileSourceScanExecTransformer(

@@ -23,7 +23,7 @@ package org.apache.spark.sql.execution.datasources
  * we can move this class to shims-spark32,
  * shims-spark33, etc.
  */
-import org.apache.gluten.execution.datasource.GlutenRowSplitter
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol
@@ -408,7 +408,7 @@ class DynamicPartitionDataSingleWriter(
     record match {
       case fakeRow: FakeRow =>
         if (fakeRow.batch.numRows() > 0) {
-          val blockStripes = GlutenRowSplitter.getInstance
+          val blockStripes = GlutenFormatFactory.rowSplitter
             .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
 
           val iter = blockStripes.iterator()

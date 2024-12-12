@@ -19,7 +19,6 @@
 
 #include <memory>
 #include <shared_mutex>
-#include <thread>
 #include <Core/Settings.h>
 #include <Disks/IO/AsynchronousBoundedReadBuffer.h>
 #include <Disks/IO/CachedOnDiskReadBufferFromFile.h>
@@ -31,14 +30,14 @@
 #include <IO/ReadSettings.h>
 #include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
-#include <IO/S3Settings.h>
 #include <IO/SeekableReadBuffer.h>
+#include <IO/SharedThreadPools.h>
+#include <IO/SplittableBzip2ReadBuffer.h>
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
 #include <Interpreters/Context.h>
 #include <Storages/ObjectStorage/HDFS/AsynchronousReadBufferFromHDFS.h>
-#include <Storages/ObjectStorage/HDFS/HDFSCommon.h>
 #include <Storages/ObjectStorage/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
@@ -72,6 +71,9 @@ namespace Setting
 extern const SettingsUInt64 s3_max_redirects;
 extern const SettingsBool s3_disable_checksum;
 extern const SettingsUInt64 s3_retry_attempts;
+extern const SettingsMaxThreads max_download_threads;
+extern const SettingsUInt64 max_download_buffer_size;
+extern const SettingsBool input_format_allow_seeks;
 }
 namespace ErrorCodes
 {
@@ -86,13 +88,14 @@ namespace ErrorCodes
 namespace local_engine
 {
 
+using namespace DB;
 FileCacheConcurrentMap ReadBufferBuilder::files_cache_time_map;
 
 template <class key_type, class value_type>
 class ConcurrentLRU
 {
 public:
-    ConcurrentLRU(size_t size) : cache(size) { }
+    explicit ConcurrentLRU(size_t size) : cache(size) { }
     boost::optional<value_type> get(const key_type & key)
     {
         std::shared_lock<std::shared_mutex> lock(rwLock);
@@ -117,12 +120,13 @@ private:
     std::shared_mutex rwLock;
 };
 
-std::pair<size_t, size_t> adjustFileReadPosition(DB::ReadBufferFromFileBase & buffer, size_t read_start_pos, size_t read_end_pos)
+static std::pair<size_t, size_t> getAdjustedReadRange(SeekableReadBuffer & buffer, const std::pair<size_t, size_t> & start_end)
 {
-    auto get_next_line_pos = [&](DB::ReadBufferFromFileBase & buf) -> size_t
+    auto get_next_line_pos = [&](SeekableReadBuffer & buf) -> size_t
     {
         while (!buf.eof())
         {
+            /// Search for \n or \r\n or \n\r or \r in buffer.
             if (*buf.position() == '\r')
             {
                 ++buf.position();
@@ -137,6 +141,12 @@ std::pair<size_t, size_t> adjustFileReadPosition(DB::ReadBufferFromFileBase & bu
             else if (*buf.position() == '\n')
             {
                 ++buf.position();
+
+                if (!buf.eof() && *buf.position() == '\r')
+                {
+                    ++buf.position();
+                }
+
                 return buf.getPosition();
             }
 
@@ -146,6 +156,8 @@ std::pair<size_t, size_t> adjustFileReadPosition(DB::ReadBufferFromFileBase & bu
         return buf.getPosition();
     };
 
+    size_t read_start_pos = start_end.first;
+    size_t read_end_pos = start_end.second;
     std::pair<size_t, size_t> result;
 
     if (read_start_pos == 0)
@@ -167,14 +179,51 @@ std::pair<size_t, size_t> adjustFileReadPosition(DB::ReadBufferFromFileBase & bu
     return result;
 }
 
+static std::unique_ptr<SeekableReadBuffer>
+adjustReadRangeIfNeeded(std::unique_ptr<SeekableReadBuffer> read_buffer, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+{
+    /// Skip formats in which rows are not seperated by newline characters.
+    if (!(file_info.has_text() || file_info.has_json()))
+        return std::move(read_buffer);
+
+    /// Skip text/json files with compression.
+    /// When the file is compressed, its read range is adjusted in [[buildWithCompressionWrapper]]
+    Poco::URI file_uri(file_info.uri_file());
+    DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
+    if (compression != CompressionMethod::None)
+        return std::move(read_buffer);
+
+    std::pair<size_t, size_t> start_end{file_info.start(), file_info.start() + file_info.length()};
+    start_end = getAdjustedReadRange(*read_buffer, start_end);
+
+    LOG_DEBUG(
+        &Poco::Logger::get("ReadBufferBuilder"),
+        "File read start and end position adjusted from {},{} to {},{}",
+        file_info.start(),
+        file_info.start() + file_info.length(),
+        start_end.first,
+        start_end.second);
+
+    /// If read buffer doesn't support right bounded reads, wrap it with BoundedReadBuffer to enable right bounded reads.
+    if (dynamic_cast<DB::ReadBufferFromHDFS *>(read_buffer.get()) || dynamic_cast<DB::AsynchronousReadBufferFromHDFS *>(read_buffer.get())
+        || dynamic_cast<DB::ReadBufferFromFile *>(read_buffer.get()))
+        read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
+
+    read_buffer->seek(start_end.first, SEEK_SET);
+    read_buffer->setReadUntilPosition(start_end.second);
+    return std::move(read_buffer);
+}
+
 class LocalFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
+    bool isRemote() const override { return false; }
+
     std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBufferFromFileBase> read_buffer;
@@ -188,24 +237,7 @@ public:
         else
             read_buffer = std::make_unique<DB::ReadBufferFromFile>(file_path);
 
-
-        if (set_read_util_position)
-        {
-            read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
-            auto start_end_pos = adjustFileReadPosition(*read_buffer, file_info.start(), file_info.start() + file_info.length());
-            LOG_DEBUG(
-                &Poco::Logger::get("ReadBufferBuilder"),
-                "File read start and end position adjusted from {},{} to {},{}",
-                file_info.start(),
-                file_info.start() + file_info.length(),
-                start_end_pos.first,
-                start_end_pos.second);
-
-            read_buffer->seek(start_end_pos.first, SEEK_SET);
-            read_buffer->setReadUntilPosition(start_end_pos.second);
-        }
-
-        return read_buffer;
+        return adjustReadRangeIfNeeded(std::move(read_buffer), file_info);
     }
 };
 
@@ -218,194 +250,99 @@ public:
     ~HDFSFileReadBufferBuilder() override = default;
 
     std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         DB::ReadSettings read_settings = getReadSettings();
-        auto & config = context->getConfigRef();
-        auto hdfs_config = HdfsConfig::loadFromContext(config, read_settings);
-        Poco::URI file_uri(file_info.uri_file());
-        std::string uri_path = "hdfs://" + file_uri.getHost();
-        if (file_uri.getPort())
-            uri_path += ":" + std::to_string(static_cast<unsigned>(file_uri.getPort()));
+        const auto & config = context->getConfigRef();
 
-        size_t read_util_position = 0;
-        size_t read_begin = 0;
-        if (set_read_util_position)
+        /// Get hdfs_uri
+        Poco::URI uri(file_info.uri_file());
+        auto hdfs_file_path = uri.getPath();
+
+        std::string new_file_uri = uri.toString();
+        if (uri.getUserInfo().empty() && BackendInitializerUtil::spark_user.has_value())
         {
-            std::pair<size_t, size_t> start_end_pos
-               = adjustFileReadStartAndEndPos(file_info.start(), file_info.start() + file_info.length(), uri_path, file_uri.getPath());
-
-            LOG_DEBUG(
-                &Poco::Logger::get("ReadBufferBuilder"),
-                "File read start and end position adjusted from {},{} to {},{}",
-                file_info.start(),
-                file_info.start() + file_info.length(),
-                start_end_pos.first,
-                start_end_pos.second);
-
-            read_begin = start_end_pos.first;
-            read_util_position = start_end_pos.second;
+            uri.setUserInfo(*BackendInitializerUtil::spark_user);
+            new_file_uri = uri.toString();
         }
 
-        size_t file_size = 0;
-        size_t modified_time = 0;
+        auto begin_of_path = new_file_uri.find('/', new_file_uri.find("//") + 2);
+        auto hdfs_uri = new_file_uri.substr(0, begin_of_path);
+
+        std::optional<size_t> file_size;
+        std::optional<size_t> modified_time;
         if (file_info.has_properties())
         {
-            file_size = file_info.properties().filesize();
+            if (file_info.properties().filesize() > 0)
+            {
+                /// filesize may be zero, under such condition we should not set file_size
+                file_size = file_info.properties().filesize();
+            }
+
             modified_time = file_info.properties().modificationtime();
         }
 
-        std::unique_ptr<DB::ReadBuffer> read_buffer;
-
-        if (hdfs_config.hdfs_async)
+        std::unique_ptr<SeekableReadBuffer> read_buffer;
+        if (!read_settings.enable_filesystem_cache)
         {
-            std::optional<size_t> size = std::nullopt;
-            if (file_size)
-                size = file_size;
+            bool thread_pool_read = read_settings.remote_fs_method == DB::RemoteFSReadMethod::threadpool;
+            /// ORC and Parquet reader had already implemented async prefetch. They don't rely on AsynchronousReadBufferFromHDFS
+            bool use_async_prefetch
+                = read_settings.remote_fs_prefetch && thread_pool_read && (file_info.has_text() || file_info.has_json());
+            auto raw_read_buffer = std::make_unique<ReadBufferFromHDFS>(
+                    hdfs_uri,
+                    hdfs_file_path,
+                    config,
+                    read_settings,
+                    /* read_until_position */ 0,
+                    /* use_external_buffer */ true,
+                    file_size);
 
-            auto read_buffer_impl = std::make_shared<DB::ReadBufferFromHDFS>(
-                            uri_path, file_uri.getPath(), config, read_settings, read_util_position, true, size);
-            auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
-            read_buffer = std::make_unique<DB::AsynchronousReadBufferFromHDFS>(pool_reader, read_settings, std::move(read_buffer_impl));
+            if (use_async_prefetch)
+                read_buffer = std::make_unique<AsynchronousReadBufferFromHDFS>(
+                    getThreadPoolReader(FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER), read_settings, std::move(raw_read_buffer));
+            else
+                read_buffer = std::move(raw_read_buffer);
         }
         else
         {
-            if (!file_size)
+            if (!file_size.has_value())
             {
                 // only for spark3.2 file partition not contained file size
                 // so first compute file size first
-                auto read_buffer_impl = std::make_unique<DB::ReadBufferFromHDFS>(
-                    uri_path, file_uri.getPath(), config, read_settings, read_util_position, true);
-                file_size = read_buffer_impl->getFileSize();
+                auto tmp_read_buffer = std::make_unique<DB::ReadBufferFromHDFS>(
+                    hdfs_uri,
+                    hdfs_file_path,
+                    config,
+                    read_settings,
+                    /* read_until_position */ 0,
+                    /* use_external_buffer */ true);
+                file_size = tmp_read_buffer->getFileSize();
             }
 
-            ReadBufferCreator hdfs_read_buffer_creator
-                = [this, hdfs_uri = uri_path, hdfs_file_path = file_uri.getPath(), read_settings, &config, read_util_position](
-                      bool /* restricted_seek */, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromHDFS>
-            {
+            if (!modified_time.has_value())
+                modified_time = 0;
+
+            ReadBufferCreator read_buffer_creator
+                = [this, hdfs_uri = hdfs_uri, hdfs_file_path = hdfs_file_path, read_settings, &config](
+                      bool /* restricted_seek */, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromHDFS> {
                 return std::make_unique<DB::ReadBufferFromHDFS>(
-                    hdfs_uri, hdfs_file_path, config, read_settings, read_util_position, true, object.bytes_size);
+                    hdfs_uri, hdfs_file_path, config, read_settings, 0, true, object.bytes_size);
             };
 
-            auto remote_path = file_uri.getPath().substr(1);
-            DB::StoredObjects stored_objects{DB::StoredObject{remote_path, "", file_size}};
-            auto cache_creator = wrapWithCache(hdfs_read_buffer_creator, read_settings, remote_path, modified_time, file_size);
+            auto remote_path = uri.getPath().substr(1);
+            DB::StoredObjects stored_objects{DB::StoredObject{remote_path, "", *file_size}};
+            auto cache_creator = wrapWithCache(
+                read_buffer_creator, read_settings, remote_path, *modified_time, *file_size);
+            size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
+            if (*file_size > 0)
+                buffer_size = std::min(*file_size, buffer_size);
             auto cache_hdfs_read = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-                std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false);
-            cache_hdfs_read->setReadUntilPosition(read_util_position);
+                std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false, buffer_size);
             read_buffer = std::move(cache_hdfs_read);
         }
 
-        if (set_read_util_position && read_begin)
-            if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
-                seekable_in->seek(read_begin, SEEK_SET);
-
-        return read_buffer;
-    }
-
-    std::pair<size_t, size_t>
-    adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, const std::string & uri_path, const std::string & file_path)
-    {
-        auto builder = DB::createHDFSBuilder(uri_path, context->getConfigRef());
-        auto fs = DB::createHDFSFS(builder.get());
-        hdfsFile fin = hdfsOpenFile(fs.get(), file_path.c_str(), O_RDONLY, 0, 0, 0);
-        std::string hdfs_file_path = uri_path + file_path;
-        if (!fin)
-            throw DB::Exception(
-                DB::ErrorCodes::CANNOT_OPEN_FILE, "Cannot open hdfs file:{}, error: {}", hdfs_file_path, std::string(hdfsGetLastError()));
-
-        /// Always close hdfs file before exit function.
-        SCOPE_EXIT({ hdfsCloseFile(fs.get(), fin); });
-
-        auto hdfs_file_info = hdfsGetPathInfo(fs.get(), file_path.c_str());
-        if (!hdfs_file_info)
-            throw DB::Exception(
-                DB::ErrorCodes::UNKNOWN_FILE_SIZE,
-                "Cannot find out file size for :{}, error: {}",
-                hdfs_file_path,
-                std::string(hdfsGetLastError()));
-        size_t hdfs_file_size = hdfs_file_info->mSize;
-
-        /// initial_pos maybe in the middle of a row, so we need to find the next row start position.
-        auto get_next_line_pos = [&](hdfsFS hdfs_fs, hdfsFile file, size_t initial_pos, size_t file_size) -> size_t
-        {
-            if (initial_pos == 0 || initial_pos == file_size)
-                return initial_pos;
-
-            int seek_ret = hdfsSeek(hdfs_fs, file, initial_pos);
-            if (seek_ret < 0)
-                throw DB::Exception(
-                    DB::ErrorCodes::CANNOT_SEEK_THROUGH_FILE,
-                    "Fail to seek HDFS file: {}, error: {}",
-                    file_path,
-                    std::string(hdfsGetLastError()));
-
-            static constexpr size_t buf_size = 1024;
-            char buf[buf_size];
-
-            auto do_read = [&]() -> int
-            {
-                auto n = hdfsRead(hdfs_fs, file, buf, buf_size);
-                if (n < 0)
-                    throw DB::Exception(
-                        DB::ErrorCodes::CANNOT_READ_FROM_FILE_DESCRIPTOR,
-                        "Fail to read HDFS file: {}, error: {}",
-                        file_path,
-                        std::string(hdfsGetLastError()));
-
-                return n;
-            };
-
-            auto pos = initial_pos;
-            while (true)
-            {
-                auto n = do_read();
-
-                /// If read to the end of file, return directly.
-                if (n == 0)
-                    return pos;
-
-                /// Search for \n or \r\n or \n\r in buffer.
-                int i = 0;
-                while (i < n)
-                {
-                    if (buf[i] == '\n')
-                    {
-                        if (i + 1 < n)
-                            return buf[i + 1] == '\r' ? pos + i + 2 : pos + i + 1;
-
-                        /// read again if buffer is not enough.
-                        auto m = do_read();
-                        if (m == 0)
-                            return pos + i + 1;
-
-                        return buf[0] == '\r' ? pos + i + 2 : pos + i + 1;
-                    }
-                    else if (buf[i] == '\r')
-                    {
-                        if (i + 1 < n)
-                            return buf[i + 1] == '\n' ? pos + i + 2 : pos + i + 1;
-
-                        /// read again if buffer is not enough.
-                        auto m = do_read();
-                        if (m == 0)
-                            return pos + i + 1;
-
-                        return buf[0] == '\n' ? pos + i + 2 : pos + i + 1;
-                    }
-                    else
-                        ++i;
-                }
-
-                /// Can't find \n or \r\n or \n\r in current buffer, read again.
-                pos += n;
-            }
-        };
-
-        std::pair<size_t, size_t> result;
-        result.first = get_next_line_pos(fs.get(), fin, read_start_pos, hdfs_file_size);
-        result.second = get_next_line_pos(fs.get(), fin, read_end_pos, hdfs_file_size);
-        return result;
+        return adjustReadRangeIfNeeded(std::move(read_buffer), file_info);
     }
 
 private:
@@ -442,7 +379,7 @@ public:
     ~S3FileReadBufferBuilder() override = default;
 
     std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         DB::ReadSettings read_settings = getReadSettings();
         Poco::URI file_uri(file_info.uri_file());
@@ -450,9 +387,20 @@ public:
         const std::string& bucket = file_uri.getHost();
         const auto client = getClient(bucket);
         std::string pathKey = file_uri.getPath().substr(1);
-        DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, pathKey, "");
-        size_t object_size = object_info.size;
-        Int64 object_modified_time = object_info.last_modification_time;
+
+        size_t object_size = 0;
+        size_t object_modified_time = 0;
+        if (file_info.has_properties())
+        {
+            object_size = file_info.properties().filesize();
+            object_modified_time = file_info.properties().modificationtime();
+        }
+        else
+        {
+            DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, pathKey, "");
+            object_size = object_info.size;
+            object_modified_time = object_info.last_modification_time;
+        }
 
         auto read_buffer_creator
             = [bucket, client, read_settings, this](bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
@@ -462,7 +410,7 @@ public:
                     bucket,
                     object.remote_path,
                     "",
-                    DB::S3::RequestSettings(),
+                    DB::S3::S3RequestSettings(),
                     read_settings,
                     /* use_external_buffer */ true,
                     /* offset */ 0,
@@ -474,35 +422,19 @@ public:
 
         DB::StoredObjects stored_objects{DB::StoredObject{pathKey, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
+            std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true, 0);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
+        size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
+        if (object_size > 0)
+            buffer_size = std::min(object_size, buffer_size);
         auto async_reader
-            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, nullptr, nullptr);
-
-        if (set_read_util_position)
-        {
-            auto start_end_pos = adjustFileReadPosition(*async_reader, file_info.start(), file_info.start() + file_info.length());
-            LOG_DEBUG(
-                &Poco::Logger::get("ReadBufferBuilder"),
-                "File read start and end position adjusted from {},{} to {},{}",
-                file_info.start(),
-                file_info.start() + file_info.length(),
-                start_end_pos.first,
-                start_end_pos.second);
-
-            async_reader->seek(start_end_pos.first, SEEK_SET);
-            async_reader->setReadUntilPosition(start_end_pos.second);
-        }
-        else
-        {
-            async_reader->setReadUntilEnd();
-        }
+            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, buffer_size);
 
         if (read_settings.remote_fs_prefetch)
             async_reader->prefetch(Priority{});
 
-        return async_reader;
+        return adjustReadRangeIfNeeded(std::move(async_reader), file_info);
     }
 
 private:
@@ -684,21 +616,20 @@ ConcurrentLRU<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuil
 class AzureBlobReadBuffer : public ReadBufferBuilder
 {
 public:
-    explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
+    explicit AzureBlobReadBuffer(const DB::ContextPtr & context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        std::unique_ptr<DB::ReadBuffer> read_buffer;
-        read_buffer = std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
-        return read_buffer;
+        return std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
     }
 
 private:
-    std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> shared_client;
 
-    std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> getClient()
+    std::shared_ptr<DB::AzureBlobStorage::ContainerClient> shared_client;
+
+    std::shared_ptr<DB::AzureBlobStorage::ContainerClient> getClient()
     {
         if (shared_client)
             return shared_client;
@@ -741,42 +672,122 @@ void registerReadBufferBuilders()
 #endif
 }
 
-ReadBufferBuilder::ReadBufferBuilder(DB::ContextPtr context_) : context(context_)
-{
-}
-
 DB::ReadSettings ReadBufferBuilder::getReadSettings() const
 {
     DB::ReadSettings read_settings = context->getReadSettings();
-    if (context->getConfigRef().getBool("gluten_cache.local.enabled", false))
-        read_settings.enable_filesystem_cache = true;
-    else
-        read_settings.enable_filesystem_cache = false;
+    const auto & config = context->getConfigRef();
+
+    /// Override enable_filesystem_cache with gluten config
+    read_settings.enable_filesystem_cache = config.getBool("gluten_cache.local.enabled", false);
+
+    /// Override remote_fs_prefetch with gluten config
+    read_settings.remote_fs_prefetch = config.getBool("hdfs.enable_async_io", false);
 
     return read_settings;
 }
 
-std::unique_ptr<DB::ReadBuffer>
-ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position)
+ReadBufferBuilder::ReadBufferBuilder(const DB::ContextPtr & context_) : context(context_)
 {
-    auto in = build(file_info, set_read_util_position);
+}
+
+std::unique_ptr<DB::ReadBuffer>
+ReadBufferBuilder::wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+{
+    /// Bzip2 compressed file is splittable and we need to adjust read range for each split
+    auto * seekable = dynamic_cast<SeekableReadBuffer *>(in.release());
+    if (!seekable)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "ReadBuffer underlying BZIP2 decompressor must be seekable");
+    std::unique_ptr<SeekableReadBuffer> seekable_in(seekable);
+
+    size_t file_size = getFileSizeFromReadBuffer(*seekable_in);
+    size_t start = file_info.start();
+    size_t end = file_info.start() + file_info.length();
+
+    /// No need to adjust start becuase it is already processed inside SplittableBzip2ReadBuffer
+    size_t new_start = start;
+
+    /// Extend end to the end of next block.
+    size_t new_end = end;
+    if (end < file_size)
+    {
+        Int64 bs_buff = 0;
+        Int64 bs_live = 0;
+
+        /// From end position skip to the second block delimiter.
+        seekable_in->seek(end, SEEK_SET);
+        for (size_t i = 0; i < 2; ++i)
+        {
+            size_t pos = seekable_in->getPosition();
+            bool ok = SplittableBzip2ReadBuffer::skipToNextMarker(
+                SplittableBzip2ReadBuffer::BLOCK_DELIMITER,
+                SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH,
+                *seekable_in,
+                bs_buff,
+                bs_live);
+
+            if (seekable_in->eof())
+                break;
+
+            if (!ok)
+                throw Exception(ErrorCodes::LOGICAL_ERROR, "Can't find next block delimiter in after offset: {}", pos);
+        }
+        new_end = seekable->eof() ? file_size : seekable_in->getPosition() - SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH / 8 + 1;
+    }
+
+    LOG_DEBUG(
+        &Poco::Logger::get("ReadBufferBuilder"),
+        "File read start and end position adjusted from {},{} to {},{}",
+        start,
+        end,
+        new_start,
+        new_end);
+
+    std::unique_ptr<SeekableReadBuffer> bounded_in;
+    if (dynamic_cast<DB::ReadBufferFromHDFS *>(seekable_in.get()) || dynamic_cast<DB::AsynchronousReadBufferFromHDFS *>(seekable_in.get())
+        || dynamic_cast<DB::ReadBufferFromFile *>(seekable_in.get()))
+        bounded_in = std::make_unique<BoundedReadBuffer>(std::move(seekable_in));
+    else
+        bounded_in = std::move(seekable_in);
+
+    bounded_in->seek(new_start, SEEK_SET);
+    bounded_in->setReadUntilPosition(new_end);
+    bool first_block_need_special_process = (new_start > 0);
+    bool last_block_need_special_process = (new_end < file_size);
+    auto decompressed_in = std::make_unique<SplittableBzip2ReadBuffer>(
+        std::move(bounded_in), first_block_need_special_process, last_block_need_special_process);
+    return std::move(decompressed_in);
+}
+
+std::unique_ptr<DB::ReadBuffer>
+ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+{
+    auto in = build(file_info);
 
     /// Wrap the read buffer with compression method if exists
     Poco::URI file_uri(file_info.uri_file());
     DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
-    return compression != DB::CompressionMethod::None ? DB::wrapReadBufferWithCompressionMethod(std::move(in), compression) : std::move(in);
+
+    if (compression == CompressionMethod::Bzip2)
+        return wrapWithBzip2(std::move(in), file_info);
+    else
+    {
+        /// In this case we are pretty sure that current split covers the whole file because only bzip2 compression is splittable
+        auto parallel = wrapWithParallelIfNeeded(std::move(in), file_info);
+        return wrapReadBufferWithCompressionMethod(std::move(parallel), compression);
+    }
 }
 
 ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     ReadBufferCreator read_buffer_creator,
     DB::ReadSettings & read_settings,
     const String & key,
-    const size_t & last_modified_time,
-    const size_t & file_size)
+    size_t last_modified_time,
+    size_t file_size)
 {
     const auto & config = context->getConfigRef();
     if (!config.getBool("gluten_cache.local.enabled", false))
         return read_buffer_creator;
+
     read_settings.enable_filesystem_cache = true;
     if (!file_cache)
     {
@@ -826,7 +837,7 @@ ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     };
 }
 
-void ReadBufferBuilder::updateCaches(const String & key, const size_t & last_modified_time, const size_t & file_size) const
+void ReadBufferBuilder::updateCaches(const String & key, size_t last_modified_time, size_t file_size) const
 {
     if (!file_cache)
         return;
@@ -846,6 +857,39 @@ void ReadBufferBuilder::updateCaches(const String & key, const size_t & last_mod
         //   we recommend continuing to use caching instead of renew it
         files_cache_time_map.insert(file_cache_key, last_modified_time, file_size);
     }
+}
+
+std::unique_ptr<DB::ReadBuffer> ReadBufferBuilder::wrapWithParallelIfNeeded(
+    std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+{
+    /// Only use parallel downloading for text and json format because data are read serially in those formats.
+    if (!file_info.has_text() && !file_info.has_json())
+        return std::move(in);
+
+    const auto & settings = context->getSettingsRef();
+    auto max_download_threads = settings[DB::Setting::max_download_threads];
+    auto max_download_buffer_size = settings[DB::Setting::max_download_buffer_size];
+
+    bool parallel_read = isRemote() && max_download_threads > 1 && isBufferWithFileSize(*in);
+    if (!parallel_read)
+        return std::move(in);
+
+    size_t file_size = getFileSizeFromReadBuffer(*in);
+    if (file_size < 4 * max_download_buffer_size)
+        return std::move(in);
+
+    LOG_TRACE(
+        getLogger("ReadBufferBuilder"),
+        "Using ParallelReadBuffer with {} workers with chunks of {} bytes",
+        max_download_threads,
+        max_download_buffer_size);
+
+    return wrapInParallelReadBufferIfSupported(
+        {std::move(in)},
+        DB::threadPoolCallbackRunnerUnsafe<void>(DB::getIOThreadPool().get(), "ParallelRead"),
+        max_download_threads,
+        max_download_buffer_size,
+        file_size);
 }
 
 ReadBufferBuilderFactory & ReadBufferBuilderFactory::instance()

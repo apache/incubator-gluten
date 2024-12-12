@@ -101,6 +101,7 @@ case class GlutenCacheFilesCommand(
           val paths = new JArrayList[String]()
           val starts = new JArrayList[JLong]()
           val lengths = new JArrayList[JLong]()
+          val modificationTimes = new JArrayList[JLong]()
           val partitionColumns = new JArrayList[JMap[String, String]]
 
           fileStatusArray.foreach(
@@ -108,6 +109,7 @@ case class GlutenCacheFilesCommand(
               paths.add(fileStatus.getPath.toUri.toASCIIString)
               starts.add(JLong.valueOf(0))
               lengths.add(JLong.valueOf(fileStatus.getLen))
+              modificationTimes.add(JLong.valueOf(fileStatus.getModificationTime))
               partitionColumns.add(new JHashMap[String, String]())
             })
 
@@ -116,8 +118,8 @@ case class GlutenCacheFilesCommand(
             paths,
             starts,
             lengths,
-            lengths,
-            new JArrayList[JLong](),
+            lengths, /* fileSizes */
+            modificationTimes,
             partitionColumns,
             new JArrayList[JMap[String, String]](),
             ReadFileFormat.ParquetReadFormat, // ignore format in backend

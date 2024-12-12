@@ -40,13 +40,13 @@ static DB::ITransformingStep::Traits getTraits()
         }};
 }
 
-static DB::Block getOutputHeader(
-    const DB::DataStream & input_stream,
+static DB::Block createOutputHeader(
+    const DB::Block & header,
     const std::optional<String> & file_name,
     const std::optional<Int64> & block_start,
     const std::optional<Int64> & block_length)
 {
-    DB::Block output_header = input_stream.header;
+    DB::Block output_header{header};
     if (file_name.has_value())
         output_header.insert(DB::ColumnWithTypeAndName{std::make_shared<DB::DataTypeString>(), InputFileNameParser::INPUT_FILE_NAME});
     if (block_start.has_value())
@@ -89,11 +89,11 @@ class InputFileExprProjectStep : public DB::ITransformingStep
 {
 public:
     InputFileExprProjectStep(
-        const DB::DataStream & input_stream,
+        const DB::Block & input_header,
         const std::optional<String> & file_name,
         const std::optional<Int64> & block_start,
         const std::optional<Int64> & block_length)
-        : ITransformingStep(input_stream, getOutputHeader(input_stream, file_name, block_start, block_length), getTraits(), true)
+        : ITransformingStep(input_header, createOutputHeader(input_header, file_name, block_start, block_length), getTraits(), true)
         , file_name(file_name)
         , block_start(block_start)
         , block_length(block_length)
@@ -105,15 +105,14 @@ public:
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/) override
     {
         pipeline.addSimpleTransform(
-            [&](const DB::Block & header) {
-                return std::make_shared<InputFileExprProjectTransform>(header, output_stream->header, file_name, block_start, block_length);
-            });
+            [&](const DB::Block & header)
+            { return std::make_shared<InputFileExprProjectTransform>(header, *output_header, file_name, block_start, block_length); });
     }
 
 protected:
-    void updateOutputStream() override
+    void updateOutputHeader() override
     {
-        output_stream = createOutputStream(input_streams.front(), output_stream->header, getDataStreamTraits());
+        // do nothing
     }
 
 private:
@@ -198,14 +197,14 @@ std::optional<DB::IQueryPlanStep *> InputFileNameParser::addInputFileProjectStep
 {
     if (!file_name.has_value() && !block_start.has_value() && !block_length.has_value())
         return std::nullopt;
-    auto step = std::make_unique<InputFileExprProjectStep>(plan.getCurrentDataStream(), file_name, block_start, block_length);
+    auto step = std::make_unique<InputFileExprProjectStep>(plan.getCurrentHeader(), file_name, block_start, block_length);
     step->setStepDescription("Input file expression project");
     std::optional<DB::IQueryPlanStep *> result = step.get();
     plan.addStep(std::move(step));
     return result;
 }
 
-void InputFileNameParser::addInputFileColumnsToChunk(const DB::Block & header, DB::Chunk & chunk)
+void InputFileNameParser::addInputFileColumnsToChunk(const DB::Block & header, DB::Chunk & chunk) const
 {
     addInputFileColumnsToChunk(header, chunk, file_name, block_start, block_length);
 }

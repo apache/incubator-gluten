@@ -18,13 +18,13 @@
 #pragma once
 
 #include <arrow/array.h>
-#include <arrow/filesystem/filesystem.h>
-#include <arrow/filesystem/localfs.h>
-#include <arrow/filesystem/path_util.h>
 #include <arrow/ipc/writer.h>
 #include <arrow/type.h>
 #include <arrow/util/io_util.h>
+
 #include <chrono>
+#include <filesystem>
+
 #include "utils/Compression.h"
 
 namespace gluten {
@@ -36,9 +36,7 @@ static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBuf
 static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
 static const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
 
-std::string generateUuid();
-
-std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId);
+std::string getShuffleSpillDir(const std::string& configuredDir, int32_t subDirId);
 
 arrow::Result<std::string> createTempShuffleFile(const std::string& dir);
 
@@ -71,5 +69,40 @@ arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeUncompressedRecordBatch(
     arrow::MemoryPool* pool);
 
 std::shared_ptr<arrow::Buffer> zeroLengthNullBuffer();
+
+// MmapFileStream is used to optimize sequential file reading. It uses madvise
+// to prefetch and release memory timely.
+class MmapFileStream : public arrow::io::InputStream {
+ public:
+  MmapFileStream(arrow::internal::FileDescriptor fd, uint8_t* data, int64_t size, uint64_t prefetchSize);
+
+  static arrow::Result<std::shared_ptr<MmapFileStream>> open(const std::string& path, uint64_t prefetchSize = 0);
+
+  arrow::Result<int64_t> Tell() const override;
+
+  arrow::Status Close() override;
+
+  arrow::Result<int64_t> Read(int64_t nbytes, void* out) override;
+
+  arrow::Result<std::shared_ptr<arrow::Buffer>> Read(int64_t nbytes) override;
+
+  bool closed() const override;
+
+ private:
+  arrow::Result<int64_t> actualReadSize(int64_t nbytes);
+
+  void advance(int64_t length);
+
+  void willNeed(int64_t length);
+
+  // Page-aligned prefetch size
+  const int64_t prefetchSize_;
+  arrow::internal::FileDescriptor fd_;
+  uint8_t* data_ = nullptr;
+  int64_t size_;
+  int64_t pos_ = 0;
+  int64_t posFetch_ = 0;
+  int64_t posRetain_ = 0;
+};
 
 } // namespace gluten

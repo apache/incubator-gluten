@@ -16,7 +16,7 @@
  */
 
 #include "VeloxMemoryManager.h"
-#ifdef ENABLE_JEMALLOC
+#ifdef ENABLE_JEMALLOC_STATS
 #include <jemalloc/jemalloc.h>
 #endif
 
@@ -41,6 +41,8 @@ static constexpr std::string_view kMemoryPoolInitialCapacity{"memory-pool-initia
 static constexpr uint64_t kDefaultMemoryPoolInitialCapacity{256 << 20};
 static constexpr std::string_view kMemoryPoolTransferCapacity{"memory-pool-transfer-capacity"};
 static constexpr uint64_t kDefaultMemoryPoolTransferCapacity{128 << 20};
+static constexpr std::string_view kMemoryReclaimMaxWaitMs{"memory-reclaim-max-wait-time"};
+static constexpr std::string_view kDefaultMemoryReclaimMaxWaitMs{"3600000ms"};
 
 template <typename T>
 T getConfig(
@@ -57,6 +59,7 @@ T getConfig(
   return defaultValue;
 }
 } // namespace
+
 /// We assume in a single Spark task. No thread-safety should be guaranteed.
 class ListenableArbitrator : public velox::memory::MemoryArbitrator {
  public:
@@ -74,10 +77,18 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
                 config.extraConfigs,
                 kMemoryPoolTransferCapacity,
                 std::to_string(kDefaultMemoryPoolTransferCapacity)),
-            velox::config::CapacityUnit::BYTE)) {}
+            velox::config::CapacityUnit::BYTE)),
+        memoryReclaimMaxWaitMs_(
+            std::chrono::duration_cast<std::chrono::milliseconds>(velox::config::toDuration(getConfig<std::string>(
+                                                                      config.extraConfigs,
+                                                                      kMemoryReclaimMaxWaitMs,
+                                                                      std::string(kDefaultMemoryReclaimMaxWaitMs))))
+                .count()) {}
   std::string kind() const override {
     return kind_;
   }
+
+  void shutdown() override {}
 
   void addPool(const std::shared_ptr<velox::memory::MemoryPool>& pool) override {
     VELOX_CHECK_EQ(pool->capacity(), 0);
@@ -97,7 +108,9 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   bool growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    velox::memory::ScopedMemoryArbitrationContext ctx(pool);
+    // Set arbitration context to allow memory over-use during recursive arbitration.
+    // See MemoryPoolImpl::maybeIncrementReservation.
+    velox::memory::ScopedMemoryArbitrationContext ctx{};
     velox::memory::MemoryPool* candidate;
     {
       std::unique_lock guard{mutex_};
@@ -119,7 +132,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
       pool = candidates_.begin()->first;
     }
-    pool->reclaim(targetBytes, 0, status); // ignore the output
+    pool->reclaim(targetBytes, memoryReclaimMaxWaitMs_, status); // ignore the output
     return shrinkCapacity0(pool, 0);
   }
 
@@ -168,6 +181,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   gluten::AllocationListener* listener_;
   const uint64_t memoryPoolInitialCapacity_; // FIXME: Unused.
   const uint64_t memoryPoolTransferCapacity_;
+  const uint64_t memoryReclaimMaxWaitMs_;
 
   mutable std::mutex mutex_;
   inline static std::string kind_ = "GLUTEN";
@@ -206,14 +220,16 @@ VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   auto memInitCapacity =
       VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
+  auto memReclaimMaxWaitMs =
+      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
 
   std::unordered_map<std::string, std::string> extraArbitratorConfigs;
-  extraArbitratorConfigs["memory-pool-initial-capacity"] = folly::to<std::string>(memInitCapacity) + "B";
-  extraArbitratorConfigs["memory-pool-transfer-capacity"] = folly::to<std::string>(reservationBlockSize) + "B";
-  extraArbitratorConfigs["memory-reclaim-max-wait-time"] = folly::to<std::string>(0) + "ms";
+  extraArbitratorConfigs[std::string(kMemoryPoolInitialCapacity)] = folly::to<std::string>(memInitCapacity) + "B";
+  extraArbitratorConfigs[std::string(kMemoryPoolTransferCapacity)] = folly::to<std::string>(reservationBlockSize) + "B";
+  extraArbitratorConfigs[std::string(kMemoryReclaimMaxWaitMs)] = folly::to<std::string>(memReclaimMaxWaitMs) + "ms";
 
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
@@ -377,8 +393,8 @@ VeloxMemoryManager::~VeloxMemoryManager() {
     LOG(ERROR) << "Failed to release Velox memory manager after " << accumulatedWaitMs
                << "ms as there are still outstanding memory resources. ";
   }
-#ifdef ENABLE_JEMALLOC
-  je_gluten_malloc_stats_print(NULL, NULL, NULL);
+#ifdef ENABLE_JEMALLOC_STATS
+  malloc_stats_print(NULL, NULL, NULL);
 #endif
 }
 

@@ -33,9 +33,14 @@ trait MetricsApi extends Serializable {
       "pipelineTime" -> SQLMetrics
         .createTimingMetric(sparkContext, WholeStageCodegenExec.PIPELINE_DURATION_METRIC))
 
-  def genInputIteratorTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+  def genInputIteratorTransformerMetrics(
+      child: SparkPlan,
+      sparkContext: SparkContext,
+      forBroadcast: Boolean): Map[String, SQLMetric]
 
-  def genInputIteratorTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+  def genInputIteratorTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric],
+      forBroadcast: Boolean): MetricsUpdater
 
   def metricsUpdatingFunction(
       child: SparkPlan,
@@ -120,6 +125,10 @@ trait MetricsApi extends Serializable {
   def genSampleTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genSampleTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+
+  def genUnionTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+
+  def genUnionTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
   def genColumnarInMemoryTableMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))

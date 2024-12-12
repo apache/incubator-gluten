@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
@@ -89,8 +89,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
       conf.set(ParquetOutputFormat.COMPRESSION, parquetOptions.compressionCodecClassName)
       val nativeConf =
-        GlutenParquetWriterInjects
-          .getInstance()
+        GlutenFormatFactory(shortName())
           .nativeConf(options, parquetOptions.compressionCodecClassName)
 
       new OutputWriterFactory {
@@ -102,9 +101,8 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
             path: String,
             dataSchema: StructType,
             context: TaskAttemptContext): OutputWriter = {
-          GlutenParquetWriterInjects
-            .getInstance()
-            .createOutputWriter(path, dataSchema, context, nativeConf);
+          GlutenFormatFactory(shortName())
+            .createOutputWriter(path, dataSchema, context, nativeConf)
 
         }
       }
@@ -238,7 +236,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       requiredSchema: StructType,
       filters: Seq[Filter],
       options: Map[String, String],
-      hadoopConf: Configuration): (PartitionedFile) => Iterator[InternalRow] = {
+      hadoopConf: Configuration): PartitionedFile => Iterator[InternalRow] = {
     hadoopConf.set(ParquetInputFormat.READ_SUPPORT_CLASS, classOf[ParquetReadSupport].getName)
     hadoopConf.set(ParquetReadSupport.SPARK_ROW_REQUESTED_SCHEMA, requiredSchema.json)
     hadoopConf.set(ParquetWriteSupport.SPARK_ROW_SCHEMA, requiredSchema.json)
@@ -331,7 +329,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       // have different writers.
       // Define isCreatedByParquetMr as function to avoid unnecessary parquet footer reads.
       def isCreatedByParquetMr: Boolean =
-        footerFileMetaData.getCreatedBy().startsWith("parquet-mr")
+        footerFileMetaData.getCreatedBy.startsWith("parquet-mr")
 
       val convertTz =
         if (timestampConversion && !isCreatedByParquetMr) {
@@ -528,7 +526,7 @@ object ParquetFileFormat extends Logging {
             // when it can't read the footer.
             Some(
               new Footer(
-                currentFile.getPath(),
+                currentFile.getPath,
                 ParquetFooterReader.readFooter(conf, currentFile, SKIP_ROW_GROUPS)))
           } catch {
             case e: RuntimeException =>

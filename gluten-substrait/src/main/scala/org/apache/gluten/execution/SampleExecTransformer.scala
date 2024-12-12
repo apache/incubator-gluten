@@ -118,7 +118,7 @@ case class SampleExecTransformer(
     val currRel =
       getRelNode(context, condition, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Filter rel should be valid.")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SampleExecTransformer =

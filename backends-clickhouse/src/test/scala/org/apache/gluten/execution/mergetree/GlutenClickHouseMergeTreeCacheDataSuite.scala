@@ -134,7 +134,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
               |                aaa='ccc')""".stripMargin)
       .collect()
     assertResult(true)(res(0).getBoolean(0))
-    val metaPath = new File(HDFS_METADATA_PATH + s"$sparkVersion/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
     assertResult(true)(metaPath.exists() && metaPath.isDirectory)
     assertResult(22)(metaPath.list().length)
     assert(countFiles(dataPath) > initial_cache_files)
@@ -178,7 +178,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -238,7 +238,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
               |                aaa='ccc')""".stripMargin)
       .collect()
     assertResult(true)(res(0).getBoolean(0))
-    val metaPath = new File(HDFS_METADATA_PATH + s"$sparkVersion/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
     assertResult(true)(metaPath.exists() && metaPath.isDirectory)
     eventually(timeout(60.seconds), interval(2.seconds)) {
       assertResult(22)(metaPath.list().length)
@@ -286,7 +286,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -346,7 +346,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
               |                aaa='ccc')""".stripMargin)
       .collect()
     assertResult(true)(res(0).getBoolean(0))
-    val metaPath = new File(HDFS_METADATA_PATH + s"$sparkVersion/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
     assertResult(true)(metaPath.exists() && metaPath.isDirectory)
     assertResult(22)(metaPath.list().length)
     assert(countFiles(dataPath) > initial_cache_files)
@@ -389,7 +389,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -439,7 +439,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
     val dataPath = new File(HDFS_CACHE_PATH)
     val initial_cache_files = countFiles(dataPath)
 
-    val metaPath = new File(HDFS_METADATA_PATH + s"$sparkVersion/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
     val res1 = spark.sql(s"cache data select * from lineitem_mergetree_hdfs").collect()
     assertResult(true)(res1(0).getBoolean(0))
     assertResult(1)(metaPath.list().length)
@@ -478,7 +478,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -539,7 +539,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
               |                aaa='ccc')""".stripMargin)
       .collect()
     assertResult(true)(res(0).getBoolean(0))
-    val metaPath = new File(HDFS_METADATA_PATH + s"$sparkVersion/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
     assertResult(true)(metaPath.exists() && metaPath.isDirectory)
     assertResult(22)(metaPath.list().length)
     assert(countFiles(dataPath) > initial_cache_files)
@@ -582,7 +582,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])

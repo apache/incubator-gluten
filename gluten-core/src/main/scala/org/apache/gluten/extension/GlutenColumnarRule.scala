@@ -31,11 +31,9 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object GlutenColumnarRule {
-
   // Utilities to infer columnar rule's caller's property:
   // ApplyColumnarRulesAndInsertTransitions#outputsColumnar.
-
-  case class DummyRowOutputExec(override val child: SparkPlan) extends UnaryExecNode {
+  private case class DummyRowOutputExec(override val child: SparkPlan) extends UnaryExecNode {
     override def supportsColumnar: Boolean = false
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
@@ -47,7 +45,7 @@ object GlutenColumnarRule {
       copy(child = newChild)
   }
 
-  case class DummyColumnarOutputExec(override val child: SparkPlan) extends UnaryExecNode {
+  private case class DummyColumnarOutputExec(override val child: SparkPlan) extends UnaryExecNode {
     override def supportsColumnar: Boolean = true
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
     override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
@@ -57,38 +55,6 @@ object GlutenColumnarRule {
     override def output: Seq[Attribute] = child.output
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
-  }
-
-  object OutputsColumnarTester {
-    def wrap(plan: SparkPlan): SparkPlan = {
-      if (plan.supportsColumnar) {
-        DummyColumnarOutputExec(plan)
-      } else {
-        DummyRowOutputExec(plan)
-      }
-    }
-
-    def inferOutputsColumnar(plan: SparkPlan): Boolean = plan match {
-      case DummyRowOutputExec(_) => false
-      case RowToColumnarExec(DummyRowOutputExec(_)) => true
-      case DummyColumnarOutputExec(_) => true
-      case ColumnarToRowExec(DummyColumnarOutputExec(_)) => false
-      case _ =>
-        throw new IllegalStateException(
-          "This should not happen. Please leave a issue at" +
-            " https://github.com/apache/incubator-gluten.")
-    }
-
-    def unwrap(plan: SparkPlan): SparkPlan = plan match {
-      case DummyRowOutputExec(child) => child
-      case RowToColumnarExec(DummyRowOutputExec(child)) => child
-      case DummyColumnarOutputExec(child) => child
-      case ColumnarToRowExec(DummyColumnarOutputExec(child)) => child
-      case _ =>
-        throw new IllegalStateException(
-          "This should not happen. Please leave a issue at" +
-            " https://github.com/apache/incubator-gluten.")
-    }
   }
 }
 
@@ -109,18 +75,30 @@ case class GlutenColumnarRule(
    */
   final override def preColumnarTransitions: Rule[SparkPlan] = plan => {
     // To infer caller's property: ApplyColumnarRulesAndInsertTransitions#outputsColumnar.
-    OutputsColumnarTester.wrap(plan)
+    if (plan.supportsColumnar) {
+      DummyColumnarOutputExec(plan)
+    } else {
+      DummyRowOutputExec(plan)
+    }
   }
 
   override def postColumnarTransitions: Rule[SparkPlan] = plan => {
-    val outputsColumnar = OutputsColumnarTester.inferOutputsColumnar(plan)
-    val unwrapped = OutputsColumnarTester.unwrap(plan)
-    val vanillaPlan = Transitions.insertTransitions(unwrapped, outputsColumnar)
+    val (originalPlan, outputsColumnar) = plan match {
+      case DummyRowOutputExec(child) =>
+        (child, false)
+      case RowToColumnarExec(DummyRowOutputExec(child)) =>
+        (child, true)
+      case DummyColumnarOutputExec(child) =>
+        (child, true)
+      case ColumnarToRowExec(DummyColumnarOutputExec(child)) =>
+        (child, false)
+      case _ =>
+        throw new IllegalStateException(
+          "This should not happen. Please leave an issue at" +
+            " https://github.com/apache/incubator-gluten.")
+    }
+    val vanillaPlan = Transitions.insert(originalPlan, outputsColumnar)
     val applier = applierBuilder.apply(session)
-    val out = applier.apply(vanillaPlan, outputsColumnar)
-    out
+    applier.apply(vanillaPlan, outputsColumnar)
   }
-
 }
-
-object ColumnarOverrides {}

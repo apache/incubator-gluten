@@ -18,6 +18,7 @@
 
 #include <string>
 #include <google/protobuf/util/json_util.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <Common/Exception.h>
 
 namespace DB::ErrorCodes
@@ -67,7 +68,10 @@ Message BinaryToMessage(const std::string_view binary)
     return message;
 }
 
-void logDebugMessage(const google::protobuf::Message & message, const char * type);
-
-std::string toString(const google::protobuf::Any & any);
+inline std::string toString(const google::protobuf::Any & any)
+{
+    google::protobuf::StringValue sv;
+    sv.ParseFromString(any.value());
+    return sv.value();
+}
 } // namespace local_engine

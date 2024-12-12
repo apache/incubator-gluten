@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution._
 import org.apache.gluten.utils.Arm
@@ -55,7 +56,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
-      .set("spark.gluten.sql.native.writer.enabled", "true")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .setCHSettings("min_insert_block_size_rows", 100000)
       .setCHSettings("mergetree.merge_after_insert", false)
       .setCHSettings("input_format_parquet_max_block_size", 8192)
@@ -66,197 +67,178 @@ class GlutenClickHouseMergeTreeWriteSuite
   }
 
   test("test mergetree table write") {
-    spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree;
-                 |""".stripMargin)
+    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree;
+                   |""".stripMargin)
 
-    // write.format.default = mergetree
-    spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree
-                 |(
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string
-                 |)
-                 |USING clickhouse
-                 |TBLPROPERTIES (write.format.default = 'mergetree')
-                 |LOCATION '$basePath/lineitem_mergetree'
-                 |""".stripMargin)
+      // write.format.default = mergetree
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree
+                   |(
+                   | l_orderkey      bigint,
+                   | l_partkey       bigint,
+                   | l_suppkey       bigint,
+                   | l_linenumber    bigint,
+                   | l_quantity      double,
+                   | l_extendedprice double,
+                   | l_discount      double,
+                   | l_tax           double,
+                   | l_returnflag    string,
+                   | l_linestatus    string,
+                   | l_shipdate      date,
+                   | l_commitdate    date,
+                   | l_receiptdate   date,
+                   | l_shipinstruct  string,
+                   | l_shipmode      string,
+                   | l_comment       string
+                   |)
+                   |USING clickhouse
+                   |TBLPROPERTIES (write.format.default = 'mergetree')
+                   |LOCATION '$basePath/lineitem_mergetree'
+                   |""".stripMargin)
 
-    spark.sql(s"""
-                 | insert into table lineitem_mergetree
-                 | select * from lineitem
-                 |""".stripMargin)
+      spark.sql(s"""
+                   | insert into table lineitem_mergetree
+                   | select * from lineitem
+                   |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
-      df =>
-        val plans = collect(df.queryExecution.executedPlan) {
-          case f: FileSourceScanExecTransformer => f
-          case w: WholeStageTransformer => w
-        }
-        assertResult(4)(plans.size)
+      runTPCHQueryBySQL(1, q1("lineitem_mergetree")) {
+        df =>
+          val plans = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+            case w: WholeStageTransformer => w
+          }
+          assertResult(4)(plans.size)
 
-        val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+          val mergetreeScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
+          assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
-        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
-        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-        assertResult(6)(addFiles.size)
-        assertResult(600572)(addFiles.map(_.rows).sum)
+          val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
+          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
+          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
+          val addFiles =
+            fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+          assertResult(6)(addFiles.size)
+          assertResult(600572)(addFiles.map(_.rows).sum)
 
-        // GLUTEN-5060: check the unnecessary FilterExec
-        val wholeStageTransformer = plans(2).asInstanceOf[WholeStageTransformer]
-        val planNodeJson = wholeStageTransformer.substraitPlanJson
-        assert(
-          !planNodeJson
-            .replaceAll("\n", "")
-            .replaceAll(" ", "")
-            .contains("\"input\":{\"filter\":{"))
+          // GLUTEN-5060: check the unnecessary FilterExec
+          val wholeStageTransformer = plans(2).asInstanceOf[WholeStageTransformer]
+          val planNodeJson = wholeStageTransformer.substraitPlanJson
+          assert(
+            !planNodeJson
+              .replaceAll("\n", "")
+              .replaceAll(" ", "")
+              .contains("\"input\":{\"filter\":{"))
+      }
     }
-
   }
 
   test("test mergetree insert overwrite") {
-    spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite;
-                 |""".stripMargin)
+    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite;
+                   |""".stripMargin)
 
-    spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite
-                 |(
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string
-                 |)
-                 |USING clickhouse
-                 |LOCATION '$basePath/lineitem_mergetree_insertoverwrite'
-                 |""".stripMargin)
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite
+                   |(
+                   | l_orderkey      bigint,
+                   | l_partkey       bigint,
+                   | l_suppkey       bigint,
+                   | l_linenumber    bigint,
+                   | l_quantity      double,
+                   | l_extendedprice double,
+                   | l_discount      double,
+                   | l_tax           double,
+                   | l_returnflag    string,
+                   | l_linestatus    string,
+                   | l_shipdate      date,
+                   | l_commitdate    date,
+                   | l_receiptdate   date,
+                   | l_shipinstruct  string,
+                   | l_shipmode      string,
+                   | l_comment       string
+                   |)
+                   |USING clickhouse
+                   |LOCATION '$basePath/lineitem_mergetree_insertoverwrite'
+                   |""".stripMargin)
 
-    spark.sql(s"""
-                 | insert into table lineitem_mergetree_insertoverwrite
-                 | select * from lineitem
-                 |""".stripMargin)
+      spark.sql(s"""
+                   | insert into table lineitem_mergetree_insertoverwrite
+                   | select * from lineitem
+                   |""".stripMargin)
 
-    spark.sql(s"""
-                 | insert overwrite table lineitem_mergetree_insertoverwrite
-                 | select * from lineitem where mod(l_orderkey,2) = 1
-                 |""".stripMargin)
-    val sql2 =
-      s"""
-         | select count(*) from lineitem_mergetree_insertoverwrite
-         |
-         |""".stripMargin
-    assertResult(300001)(
-      // total rows should remain unchanged
-      spark.sql(sql2).collect().apply(0).get(0)
-    )
+      spark.sql(s"""
+                   | insert overwrite table lineitem_mergetree_insertoverwrite
+                   | select * from lineitem where mod(l_orderkey,2) = 1
+                   |""".stripMargin)
+      val sql2 =
+        s"""
+           | select count(*) from lineitem_mergetree_insertoverwrite
+           |
+           |""".stripMargin
+      assertResult(300001)(
+        // total rows should remain unchanged
+        spark.sql(sql2).collect().apply(0).get(0)
+      )
+    }
   }
 
   test("test mergetree insert overwrite partitioned table with small table, static") {
-    spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite2;
-                 |""".stripMargin)
+    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS lineitem_mergetree_insertoverwrite2;
+                   |""".stripMargin)
 
-    spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite2
-                 |(
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string
-                 |)
-                 |USING clickhouse
-                 |PARTITIONED BY (l_shipdate)
-                 |LOCATION '$basePath/lineitem_mergetree_insertoverwrite2'
-                 |""".stripMargin)
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS lineitem_mergetree_insertoverwrite2
+                   |(
+                   | l_orderkey      bigint,
+                   | l_partkey       bigint,
+                   | l_suppkey       bigint,
+                   | l_linenumber    bigint,
+                   | l_quantity      double,
+                   | l_extendedprice double,
+                   | l_discount      double,
+                   | l_tax           double,
+                   | l_returnflag    string,
+                   | l_linestatus    string,
+                   | l_shipdate      date,
+                   | l_commitdate    date,
+                   | l_receiptdate   date,
+                   | l_shipinstruct  string,
+                   | l_shipmode      string,
+                   | l_comment       string
+                   |)
+                   |USING clickhouse
+                   |PARTITIONED BY (l_shipdate)
+                   |LOCATION '$basePath/lineitem_mergetree_insertoverwrite2'
+                   |""".stripMargin)
 
-    spark.sql(s"""
-                 | insert into table lineitem_mergetree_insertoverwrite2
-                 | select * from lineitem
-                 |""".stripMargin)
+      spark.sql(s"""
+                   | insert into table lineitem_mergetree_insertoverwrite2
+                   | select * from lineitem
+                   |""".stripMargin)
 
-    spark.sql(
-      s"""
-         | insert overwrite table lineitem_mergetree_insertoverwrite2
-         | select * from lineitem where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
-         |""".stripMargin)
-    val sql2 =
-      s"""
-         | select count(*) from lineitem_mergetree_insertoverwrite2
-         |
-         |""".stripMargin
-    assertResult(2418)(
-      // total rows should remain unchanged
-      spark.sql(sql2).collect().apply(0).get(0)
-    )
+      spark.sql(
+        s"""
+           | insert overwrite table lineitem_mergetree_insertoverwrite2
+           | select * from lineitem where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
+           |""".stripMargin)
+      val sql2 =
+        s"""
+           | select count(*) from lineitem_mergetree_insertoverwrite2
+           |
+           |""".stripMargin
+      assertResult(2418)(
+        // total rows should remain unchanged
+        spark.sql(sql2).collect().apply(0).get(0)
+      )
+    }
   }
 
   test("test mergetree insert overwrite partitioned table with small table, dynamic") {
@@ -567,32 +549,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_orderbykey
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_orderbykey")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -600,7 +557,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -725,32 +682,8 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |  l_comment from lineitem
                  |  where l_shipdate BETWEEN date'1993-02-01' AND date'1993-02-10'
                  |""".stripMargin)
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_partition
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
+
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_partition"), compareResult = false) {
       df =>
         val result = df.collect()
         assertResult(4)(result.length)
@@ -768,7 +701,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
         assertResult(3745)(mergetreeScan.metrics("numFiles").value)
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
@@ -843,32 +776,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_bucket
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_bucket")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -876,7 +784,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -1049,32 +957,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_ctas1
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) {
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_ctas1")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1082,7 +965,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -1111,32 +994,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | as select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_ctas2
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) { _ => {} }
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_ctas2")) { _ => {} }
 
   }
 
@@ -1175,32 +1033,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_lowcard
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-    runTPCHQueryBySQL(1, sqlStr) { _ => {} }
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree_lowcard")) { _ => {} }
     val directory = new File(s"$basePath/lineitem_mergetree_lowcard")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
@@ -1275,19 +1108,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    sum(l_extendedprice * l_discount) AS revenue
-         |FROM
-         |    lineitem_mergetree_orderbykey2
-         |WHERE
-         |    l_shipdate >= date'1994-01-01'
-         |    AND l_shipdate < date'1994-01-01' + interval 1 year
-         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-         |    AND l_quantity < 24
-         |""".stripMargin
-    runTPCHQueryBySQL(6, sqlStr) {
+    runTPCHQueryBySQL(6, q6("lineitem_mergetree_orderbykey2")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1295,7 +1116,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -1362,18 +1183,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr = s"""
-                    |SELECT
-                    |    sum(l_extendedprice * l_discount) AS revenue
-                    |FROM
-                    |    lineitem_mergetree_orderbykey3
-                    |WHERE
-                    |    l_shipdate >= date'1994-01-01'
-                    |    AND l_shipdate < date'1994-01-01' + interval 1 year
-                    |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-                    |    AND l_quantity < 24
-                    |""".stripMargin
-    runTPCHQueryBySQL(6, sqlStr) {
+    runTPCHQueryBySQL(6, q6("lineitem_mergetree_orderbykey3")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1381,7 +1191,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
-        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -1505,7 +1315,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       assertResult(1)(scanExec.size)
 
       val mergetreeScan = scanExec.head
-      assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+      assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
       val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
@@ -1578,7 +1388,7 @@ class GlutenClickHouseMergeTreeWriteSuite
            |    l_linestatus;
            |
            |""".stripMargin
-      runTPCHQueryBySQL(1, sqlStr) {
+      runTPCHQueryBySQL(1, q1(tableName)) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {
             case f: FileSourceScanExecTransformer => f
@@ -1586,7 +1396,7 @@ class GlutenClickHouseMergeTreeWriteSuite
           assertResult(1)(scanExec.size)
 
           val mergetreeScan = scanExec.head
-          assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+          assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
           val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
           val addFiles =
@@ -1771,23 +1581,10 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    sum(l_extendedprice * l_discount) AS revenue
-         |FROM
-         |    lineitem_mergetree_pk_pruning_by_driver
-         |WHERE
-         |    l_shipdate >= date'1994-01-01'
-         |    AND l_shipdate < date'1994-01-01' + interval 1 year
-         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-         |    AND l_quantity < 24
-         |""".stripMargin
-
     Seq(("true", 2), ("false", 3)).foreach(
       conf => {
         withSQLConf(CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> conf._1) {
-          runTPCHQueryBySQL(6, sqlStr) {
+          runTPCHQueryBySQL(6, q6("lineitem_mergetree_pk_pruning_by_driver")) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {
                 case f: FileSourceScanExecTransformer => f
@@ -1795,7 +1592,7 @@ class GlutenClickHouseMergeTreeWriteSuite
               assertResult(1)(scanExec.size)
 
               val mergetreeScan = scanExec.head
-              assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+              assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
               val plans = collect(df.queryExecution.executedPlan) {
                 case scanExec: BasicScanExecTransformer => scanExec
@@ -1805,6 +1602,29 @@ class GlutenClickHouseMergeTreeWriteSuite
           }
         }
       })
+
+    // GLUTEN-7670: fix enable 'files.per.partition.threshold'
+    withSQLConf(
+      CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> "true",
+      CHConf.prefixOf("files.per.partition.threshold") -> "10"
+    ) {
+      runTPCHQueryBySQL(6, q6("lineitem_mergetree_pk_pruning_by_driver")) {
+        df =>
+          val scanExec = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assertResult(1)(scanExec.size)
+
+          val mergetreeScan = scanExec.head
+          assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+
+          val plans = collect(df.queryExecution.executedPlan) {
+            case scanExec: BasicScanExecTransformer => scanExec
+          }
+          assertResult(1)(plans.size)
+          assertResult(1)(plans.head.getSplitInfos.size)
+      }
+    }
   }
 
   test("test mergetree with primary keys filter pruning by driver with bucket") {
@@ -1954,24 +1774,29 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_count_opti
-         |""".stripMargin
-    runSql(sqlStr)(
-      df => {
-        val result = df.collect()
-        assertResult(1)(result.length)
-        assertResult("600572")(result(0).getLong(0).toString)
+    Seq("true", "false").foreach {
+      skip =>
+        withSQLConf("spark.databricks.delta.stats.skipping" -> skip.toString) {
+          val sqlStr =
+            s"""
+               |SELECT
+               |    count(*) AS count_order
+               |FROM
+               |    lineitem_mergetree_count_opti
+               |""".stripMargin
+          runSql(sqlStr)(
+            df => {
+              val result = df.collect()
+              assertResult(1)(result.length)
+              assertResult("600572")(result(0).getLong(0).toString)
 
-        // Spark 3.2 + Delta 2.0 does not support this feature
-        if (!spark32) {
-          assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
+              // Spark 3.2 + Delta 2.0 does not support this feature
+              if (!spark32) {
+                assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
+              }
+            })
         }
-      })
+    }
   }
 
   test("test mergetree with column case sensitive") {
@@ -2010,19 +1835,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    sum(l_extendedprice * l_discount) AS revenue
-         |FROM
-         |    lineitem_mergetree_case_sensitive
-         |WHERE
-         |    l_shipdate >= date'1994-01-01'
-         |    AND l_shipdate < date'1994-01-01' + interval 1 year
-         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
-         |    AND l_quantity < 24
-         |""".stripMargin
-    runTPCHQueryBySQL(6, sqlStr) { _ => }
+    runTPCHQueryBySQL(6, q6("lineitem_mergetree_case_sensitive")) { _ => }
   }
 
   test("test mergetree with partition with whitespace") {
@@ -2104,5 +1917,87 @@ class GlutenClickHouseMergeTreeWriteSuite
           }
         }
       })
+  }
+
+  test(
+    "GLUTEN-7812: Fix the query failed for the mergetree format " +
+      "when the 'spark.databricks.delta.stats.skipping' is off") {
+    // Spark 3.2 + Delta 2.0 doesn't not support this feature
+    if (!spark32) {
+      withSQLConf(("spark.databricks.delta.stats.skipping", "false")) {
+        spark.sql(s"""
+                     |DROP TABLE IF EXISTS lineitem_mergetree_stats_skipping;
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |CREATE TABLE IF NOT EXISTS lineitem_mergetree_stats_skipping
+                     |(
+                     | l_orderkey      bigint,
+                     | l_partkey       bigint,
+                     | l_suppkey       bigint,
+                     | l_linenumber    bigint,
+                     | l_quantity      double,
+                     | l_extendedprice double,
+                     | l_discount      double,
+                     | l_tax           double,
+                     | l_returnflag    string,
+                     | l_linestatus    string,
+                     | l_shipdate      date,
+                     | l_commitdate    date,
+                     | l_receiptdate   date,
+                     | l_shipinstruct  string,
+                     | l_shipmode      string,
+                     | l_comment       string
+                     |)
+                     |USING clickhouse
+                     |PARTITIONED BY (l_returnflag)
+                     |TBLPROPERTIES (orderByKey='l_orderkey',
+                     |               primaryKey='l_orderkey')
+                     |LOCATION '$basePath/lineitem_mergetree_stats_skipping'
+                     |""".stripMargin)
+
+        // dynamic partitions
+        spark.sql(s"""
+                     | insert into table lineitem_mergetree_stats_skipping
+                     | select * from lineitem
+                     |""".stripMargin)
+
+        val sqlStr =
+          s"""
+             |SELECT
+             |    o_orderpriority,
+             |    count(*) AS order_count
+             |FROM
+             |    orders
+             |WHERE
+             |    o_orderdate >= date'1993-07-01'
+             |    AND o_orderdate < date'1993-07-01' + interval 3 month
+             |    AND EXISTS (
+             |        SELECT
+             |            *
+             |        FROM
+             |            lineitem
+             |        WHERE
+             |            l_orderkey = o_orderkey
+             |            AND l_commitdate < l_receiptdate)
+             |GROUP BY
+             |    o_orderpriority
+             |ORDER BY
+             |    o_orderpriority;
+             |
+             |""".stripMargin
+        runSql(sqlStr)(
+          df => {
+            val result = df.collect()
+            assertResult(5)(result.length)
+            assertResult("1-URGENT")(result(0).getString(0))
+            assertResult(999)(result(0).getLong(1))
+            assertResult("2-HIGH")(result(1).getString(0))
+            assertResult(997)(result(1).getLong(1))
+            assertResult("5-LOW")(result(4).getString(0))
+            assertResult(1077)(result(4).getLong(1))
+          })
+      }
+    }
   }
 }

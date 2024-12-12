@@ -23,6 +23,10 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsRound.h>
 
+#if USE_MULTITARGET_CODE
+#include <immintrin.h>
+#endif
+
 using namespace DB;
 
 namespace local_engine
@@ -168,18 +172,23 @@ public:
             memcpy(p_out, &tmp_dst, tail_size_bytes);
         }
 
+#if USE_MULTITARGET_CODE
         if (isArchSupported(TargetArch::AVX2))
         {
             if constexpr (std::is_same_v<T, Float32>)
+            {
                 TargetSpecific::AVX2::checkFloat32AndSetNullables(out.data(), null_map.data(), out.size());
+                return;
+            }
             else if constexpr (std::is_same_v<T, Float64>)
+            {
                 TargetSpecific::AVX2::checkFloat64AndSetNullables(out.data(), null_map.data(), out.size());
+                return;
+            }
         }
-        else
-        {
-            for (size_t i = 0; i < out.size(); ++i)
-                checkAndSetNullable(out[i], null_map[i]);
-        }
+#endif
+        for (size_t i = 0; i < out.size(); ++i)
+             checkAndSetNullable(out[i], null_map[i]);
     }
 };
 

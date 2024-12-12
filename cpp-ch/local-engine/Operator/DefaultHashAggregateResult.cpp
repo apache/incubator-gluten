@@ -139,8 +139,8 @@ private:
     DB::Chunk output_chunk;
 };
 
-DefaultHashAggregateResultStep::DefaultHashAggregateResultStep(const DB::DataStream & input_stream_)
-    : DB::ITransformingStep(input_stream_, adjustOutputHeader(input_stream_.header), getTraits())
+DefaultHashAggregateResultStep::DefaultHashAggregateResultStep(const DB::Block & input_header)
+    : DB::ITransformingStep(input_header, adjustOutputHeader(input_header), getTraits())
 {
 }
 
@@ -169,8 +169,7 @@ void DefaultHashAggregateResultStep::describePipeline(DB::IQueryPlanStep::Format
         DB::IQueryPlanStep::describePipeline(processors, settings);
 }
 
-void DefaultHashAggregateResultStep::updateOutputStream()
+void DefaultHashAggregateResultStep::updateOutputHeader()
 {
-    createOutputStream(input_streams.front(), input_streams.front().header, getDataStreamTraits());
 }
 }

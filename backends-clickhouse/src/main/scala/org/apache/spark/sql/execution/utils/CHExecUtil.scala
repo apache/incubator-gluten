@@ -113,12 +113,8 @@ object CHExecUtil extends Logging {
           iter =>
             iter.flatMap(
               batch => {
-                val blockAddress = CHNativeBlock.fromColumnarBatch(batch).blockAddress()
-
                 // generate rows from a columnar batch
-                val rowItr: Iterator[InternalRow] =
-                  getRowIterFromSparkRowInfo(blockAddress, batch.numCols(), batch.numRows())
-
+                val rowItr: Iterator[InternalRow] = c2r(batch)
                 val projection =
                   UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
                 val mutablePair = new MutablePair[InternalRow, Null]()
@@ -164,6 +160,14 @@ object CHExecUtil extends Logging {
     val rowInfo = CHBlockConverterJniWrapper.convertColumnarToRow(blockAddress, null)
     getRowIterFromSparkRowInfo(rowInfo, columns, rows)
   }
+
+  def c2r(batch: ColumnarBatch): Iterator[InternalRow] = {
+    getRowIterFromSparkRowInfo(
+      CHNativeBlock.fromColumnarBatch(batch).blockAddress(),
+      batch.numCols(),
+      batch.numRows())
+  }
+
   private def buildPartitionedBlockIterator(
       cbIter: Iterator[ColumnarBatch],
       options: IteratorOptions,

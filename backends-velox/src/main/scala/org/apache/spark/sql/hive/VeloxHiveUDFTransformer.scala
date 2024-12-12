@@ -37,11 +37,11 @@ object VeloxHiveUDFTransformer {
     }
 
     if (UDFResolver.UDFNames.contains(udfClassName)) {
-      UDFResolver
+      val udfExpression = UDFResolver
         .getUdfExpression(udfClassName, udfName)(expr.children)
-        .getTransformer(
-          ExpressionConverter.replaceWithExpressionTransformer(expr.children, attributeSeq)
-        )
+      udfExpression.getTransformer(
+        ExpressionConverter.replaceWithExpressionTransformer(udfExpression.children, attributeSeq)
+      )
     } else {
       HiveUDFTransformer.genTransformerFromUDFMappings(udfName, expr, attributeSeq)
     }

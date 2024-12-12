@@ -24,8 +24,9 @@
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <Parser/CHColumnToSparkRow.h>
-#include <Parser/SerializedPlanParser.h>
+#include <Parser/LocalExecutor.h>
 #include <Parser/ParserContext.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parsers/ASTIdentifier.h>
@@ -43,11 +44,10 @@
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/PODArray_fwd.h>
+#include <Common/QueryContext.h>
 #include <Common/Stopwatch.h>
 #include <Common/logger_useful.h>
-#include <Parser/LocalExecutor.h>
 #include "testConfig.h"
-#include <Common/QueryContext.h>
 
 #if defined(__SSE2__)
 #include <emmintrin.h>
@@ -812,11 +812,11 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
 {
     auto join = std::make_shared<TableJoin>(
         global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
-    auto left_columns = left->getCurrentDataStream().header.getColumnsWithTypeAndName();
-    auto right_columns = right->getCurrentDataStream().header.getColumnsWithTypeAndName();
+    auto left_columns = left->getCurrentHeader().getColumnsWithTypeAndName();
+    auto right_columns = right->getCurrentHeader().getColumnsWithTypeAndName();
     join->setKind(JoinKind::Left);
     join->setStrictness(JoinStrictness::All);
-    join->setColumnsFromJoinedTable(right->getCurrentDataStream().header.getNamesAndTypesList());
+    join->setColumnsFromJoinedTable(right->getCurrentHeader().getNamesAndTypesList());
     join->addDisjunct();
     ASTPtr lkey = std::make_shared<ASTIdentifier>(left_key);
     ASTPtr rkey = std::make_shared<ASTIdentifier>(right_key);
@@ -824,7 +824,7 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
     for (const auto & column : join->columnsFromJoinedTable())
         join->addJoinedColumn(column);
 
-    auto left_keys = left->getCurrentDataStream().header.getNamesAndTypesList();
+    auto left_keys = left->getCurrentHeader().getNamesAndTypesList();
     join->addJoinedColumnsAndCorrectTypes(left_keys, true);
     std::optional<ActionsDAG> left_convert_actions;
     std::optional<ActionsDAG> right_convert_actions;
@@ -832,21 +832,21 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
 
     if (right_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), std::move(*right_convert_actions));
+        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentHeader(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         right->addStep(std::move(converting_step));
     }
 
     if (left_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), std::move(*right_convert_actions));
+        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentHeader(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         left->addStep(std::move(converting_step));
     }
-    auto hash_join = std::make_shared<HashJoin>(join, right->getCurrentDataStream().header);
+    auto hash_join = std::make_shared<HashJoin>(join, right->getCurrentHeader());
 
     QueryPlanStepPtr join_step
-        = std::make_unique<JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, block_size, 1, false);
+        = std::make_unique<JoinStep>(left->getCurrentHeader(), right->getCurrentHeader(), hash_join, block_size, 8192, 1,  NameSet{}, false, false);
 
     std::vector<QueryPlanPtr> plans;
     plans.emplace_back(std::move(left));

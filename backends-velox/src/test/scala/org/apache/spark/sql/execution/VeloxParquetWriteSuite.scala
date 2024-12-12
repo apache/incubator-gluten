@@ -20,12 +20,32 @@ import org.apache.gluten.execution.VeloxWholeStageTransformerSuite
 import org.apache.gluten.test.FallbackUtil
 
 import org.apache.spark.SparkConf
+import org.apache.spark.util.Utils
 
+import org.apache.hadoop.fs.Path
+import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.junit.Assert
 
 class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
+
+  // The parquet compression codec extensions
+  private val parquetCompressionCodecExtensions = Map(
+    "none" -> "",
+    "uncompressed" -> "",
+    "snappy" -> ".snappy",
+    "gzip" -> ".gz",
+    "lzo" -> ".lzo",
+    "lz4" -> ".lz4",
+    "brotli" -> ".br",
+    "zstd" -> ".zstd"
+  )
+
+  private def getParquetFileExtension(codec: String): String = {
+    s"${parquetCompressionCodecExtensions(codec)}.parquet"
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -45,22 +65,16 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
           spark.sql("select array(struct(1), null) as var1").write.mode("overwrite").save(path)
         }
         assert(
-          testAppender.loggingEvents.exists(
-            _.getMessage.toString.contains("Use Gluten parquet write for hive")) == false)
+          !testAppender.loggingEvents.exists(
+            _.getMessage.toString.contains("Use Gluten parquet write for hive")))
     }
   }
 
-  testWithSpecifiedSparkVersion("test write parquet with compression codec", Some("3.2")) {
+  test("test write parquet with compression codec") {
     // compression codec details see `VeloxParquetDatasource.cc`
     Seq("snappy", "gzip", "zstd", "lz4", "none", "uncompressed")
       .foreach {
         codec =>
-          val extension = codec match {
-            case "none" | "uncompressed" => ""
-            case "gzip" => "gz"
-            case _ => codec
-          }
-
           TPCHTableDataFrames.foreach {
             case (_, df) =>
               withTempPath {
@@ -69,15 +83,26 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
                     .format("parquet")
                     .option("compression", codec)
                     .save(f.getCanonicalPath)
-                  val files = f.list()
-                  assert(files.nonEmpty, extension)
-
-                  if (!isSparkVersionGE("3.4")) {
-                    assert(
-                      files.exists(_.contains(extension)),
-                      extension
-                    ) // filename changed in spark 3.4.
+                  val expectedCodec = codec match {
+                    case "none" => "uncompressed"
+                    case _ => codec
                   }
+                  val parquetFiles = f.list((_, name) => name.contains("parquet"))
+                  assert(parquetFiles.nonEmpty, expectedCodec)
+                  assert(
+                    parquetFiles.forall {
+                      file =>
+                        val path = new Path(f.getCanonicalPath, file)
+                        assert(file.endsWith(getParquetFileExtension(codec)))
+                        val in = HadoopInputFile.fromPath(path, spark.sessionState.newHadoopConf())
+                        Utils.tryWithResource(ParquetFileReader.open(in)) {
+                          reader =>
+                            val column = reader.getFooter.getBlocks.get(0).getColumns.get(0)
+                            expectedCodec.equalsIgnoreCase(column.getCodec.toString)
+                        }
+                    },
+                    expectedCodec
+                  )
 
                   val parquetDf = spark.read
                     .format("parquet")

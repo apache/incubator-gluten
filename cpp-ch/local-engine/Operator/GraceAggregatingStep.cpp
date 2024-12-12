@@ -17,15 +17,10 @@
 
 #include "GraceAggregatingStep.h"
 #include <Interpreters/JoinUtils.h>
+#include <Operator/GraceAggregatingTransform.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Common/BitHelpers.h>
 #include <Common/CHUtil.h>
-#include <Common/CurrentThread.h>
-#include <Common/GlutenConfig.h>
-#include <Common/QueryContext.h>
-#include <Common/formatReadable.h>
-#include "GraceAggregatingTransform.h"
 
 namespace DB::ErrorCodes
 {
@@ -52,8 +47,8 @@ static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Ag
 }
 
 GraceAggregatingStep::GraceAggregatingStep(
-    DB::ContextPtr context_, const DB::DataStream & input_stream_, DB::Aggregator::Params params_, bool no_pre_aggregated_)
-    : DB::ITransformingStep(input_stream_, buildOutputHeader(input_stream_.header, params_, false), getTraits())
+    DB::ContextPtr context_, const DB::Block & input_header, DB::Aggregator::Params params_, bool no_pre_aggregated_)
+    : DB::ITransformingStep(input_header, buildOutputHeader(input_header, params_, false), getTraits())
     , context(context_)
     , params(std::move(params_))
     , no_pre_aggregated(no_pre_aggregated_)
@@ -87,7 +82,7 @@ void GraceAggregatingStep::transformPipeline(DB::QueryPipelineBuilder & pipeline
 
 void GraceAggregatingStep::describeActions(DB::IQueryPlanStep::FormatSettings & settings) const
 {
-    return params.explain(settings.out, settings.offset);
+    params.explain(settings.out, settings.offset);
 }
 
 void GraceAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) const
@@ -95,10 +90,9 @@ void GraceAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) const
     params.explain(map);
 }
 
-void GraceAggregatingStep::updateOutputStream()
+void GraceAggregatingStep::updateOutputHeader()
 {
-    output_stream
-        = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, false), getDataStreamTraits());
+    output_header = buildOutputHeader(input_headers.front(), params, false);
 }
 
 

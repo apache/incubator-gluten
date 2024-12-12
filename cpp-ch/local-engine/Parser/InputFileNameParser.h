@@ -52,7 +52,7 @@ public:
     void setBlockLength(const Int64 block_length) { this->block_length = block_length; }
 
     [[nodiscard]] std::optional<DB::IQueryPlanStep *> addInputFileProjectStep(DB::QueryPlan & plan);
-    void addInputFileColumnsToChunk(const DB::Block & header, DB::Chunk & chunk);
+    void addInputFileColumnsToChunk(const DB::Block & header, DB::Chunk & chunk) const;
 
 private:
     std::optional<String> file_name;

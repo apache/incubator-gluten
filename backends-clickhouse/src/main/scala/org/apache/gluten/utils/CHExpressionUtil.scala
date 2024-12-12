@@ -167,7 +167,6 @@ case class FormatStringValidator() extends FunctionValidator {
 }
 
 object CHExpressionUtil {
-
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
     MAX_BY -> DefaultValidator(),
     MIN_BY -> DefaultValidator()

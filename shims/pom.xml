@@ -30,7 +30,6 @@
 
   <modules>
     <module>common</module>
-    <module>${sparkshim.module.name}</module>
   </modules>
 
   <dependencies>
@@ -53,6 +52,42 @@
       <artifactId>hadoop-client</artifactId>
     </dependency>
   </dependencies>
+
+  <profiles>
+    <profile>
+      <id>spark-3.2</id>
+      <modules>
+        <module>spark32</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.3</id>
+      <modules>
+        <module>spark33</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <modules>
+        <module>spark34</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.5</id>
+      <modules>
+        <module>spark35</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>default</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>spark34</module>
+      </modules>
+    </profile>
+  </profiles>
 
   <build>
     <pluginManagement>

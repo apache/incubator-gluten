@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
 #include <Interpreters/Aggregator.h>
 #include <Interpreters/Context.h>
-#include <Processors/IProcessor.h>
-#include <Processors/Port.h>
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <Processors/QueryPlan/ITransformingStep.h>
 #include <Processors/Transforms/AggregatingTransform.h>
@@ -33,10 +32,7 @@ class GraceAggregatingStep : public DB::ITransformingStep
 {
 public:
     explicit GraceAggregatingStep(
-        DB::ContextPtr context_,
-        const DB::DataStream & input_stream_,
-        DB::Aggregator::Params params_,
-        bool no_pre_aggregated_);
+        DB::ContextPtr context_, const DB::Block & input_header, DB::Aggregator::Params params_, bool no_pre_aggregated_);
     ~GraceAggregatingStep() override = default;
 
     String getName() const override { return "GraceAggregatingStep"; }
@@ -45,10 +41,13 @@ public:
 
     void describeActions(DB::JSONBuilder::JSONMap & map) const override;
     void describeActions(DB::IQueryPlanStep::FormatSettings & settings) const override;
+
 private:
     DB::ContextPtr context;
     DB::Aggregator::Params params;
     bool no_pre_aggregated;
-    void updateOutputStream() override; 
+
+protected:
+    void updateOutputHeader() override;
 };
 }

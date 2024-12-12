@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.TransformerApi
-import org.apache.gluten.execution.{CHHashAggregateExecTransformer, WriteFilesExecTransformer}
+import org.apache.gluten.execution.CHHashAggregateExecTransformer
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
@@ -26,18 +26,23 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.delta.MergeTreeFileFormat
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.v1.Write
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
 
 import com.google.common.collect.Lists
-import com.google.protobuf.{Any, Message, StringValue}
+import com.google.protobuf.{Any, Message}
+import org.apache.hadoop.fs.Path
 
 import java.util
 
@@ -177,10 +182,13 @@ class CHTransformerApi extends TransformerApi with Logging {
         // output name will be different from grouping expressions,
         // so using output attribute instead of grouping expression
         val groupingExpressions = hash.output.splitAt(hash.groupingExpressions.size)._1
-        val aggResultAttributes = CHHashAggregateExecTransformer.getAggregateResultAttributes(
-          groupingExpressions,
-          hash.aggregateExpressions
-        )
+        val aggResultAttributes = CHHashAggregateExecTransformer
+          .getCHAggregateResultExpressions(
+            groupingExpressions,
+            hash.aggregateExpressions,
+            hash.resultExpressions
+          )
+          .map(_.toAttribute)
         if (aggResultAttributes.size == hash.output.size) {
           aggResultAttributes
         } else {
@@ -243,16 +251,27 @@ class CHTransformerApi extends TransformerApi with Logging {
         register.shortName
       case _ => "UnknownFileFormat"
     }
-    val compressionCodec =
-      WriteFilesExecTransformer.getCompressionCodec(writeOptions).capitalize
-    val writeParametersStr = new StringBuffer("WriteParameters:")
-    writeParametersStr.append("is").append(compressionCodec).append("=1")
-    writeParametersStr.append(";format=").append(fileFormatStr).append("\n")
+    val write = Write
+      .newBuilder()
+      .setCommon(
+        Write.Common
+          .newBuilder()
+          .setFormat(fileFormatStr)
+          .setJobTaskAttemptId("") // we can get job and task id at the driver side
+          .build())
 
-    packPBMessage(
-      StringValue
-        .newBuilder()
-        .setValue(writeParametersStr.toString)
-        .build())
+    fileFormat match {
+      case d: MergeTreeFileFormat =>
+        write.setMergetree(MergeTreeFileFormat.createWrite(d.metadata))
+      case _: ParquetFileFormat =>
+        write.setParquet(Write.ParquetWrite.newBuilder().build())
+      case _: OrcFileFormat =>
+        write.setOrc(Write.OrcWrite.newBuilder().build())
+    }
+    packPBMessage(write.build())
   }
+
+  /** use Hadoop Path class to encode the file path */
+  override def encodeFilePathIfNeed(filePath: String): String =
+    (new Path(filePath)).toUri.toASCIIString
 }

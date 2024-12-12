@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-batchsize=10240
 SPARK_HOME=/home/sparkuser/spark/
 spark_sql_perf_jar=/PATH/TO/spark-sql-perf_2.12-0.5.1-SNAPSHOT.jar
 cat tpch_datagen_parquet.scala | ${SPARK_HOME}/bin/spark-shell \
@@ -25,11 +24,10 @@ cat tpch_datagen_parquet.scala | ${SPARK_HOME}/bin/spark-shell \
   --driver-memory 50g \
   --deploy-mode client \
   --conf spark.executor.memoryOverhead=1g \
-  --conf spark.sql.parquet.columnarReaderBatchSize=${batchsize} \
-  --conf spark.sql.inMemoryColumnarStorage.batchSize=${batchsize} \
-  --conf spark.sql.execution.arrow.maxRecordsPerBatch=${batchsize} \
   --conf spark.sql.broadcastTimeout=4800 \
   --conf spark.driver.maxResultSize=4g \
-  --conf spark.sql.sources.useV1SourceList=avro \
   --conf spark.sql.shuffle.partitions=224 \
+  --conf spark.sql.parquet.compression.codec=snappy \
+  --conf spark.network.timeout=800s \
+  --conf spark.executor.heartbeatInterval=200s \
   --jars ${spark_sql_perf_jar}

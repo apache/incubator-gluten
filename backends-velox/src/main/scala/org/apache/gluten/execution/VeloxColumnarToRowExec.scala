@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.iterator.Iterators
@@ -26,7 +27,7 @@ import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeRow}
 import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -112,7 +113,6 @@ object VeloxColumnarToRowExec {
       convertTime
     )
   }
-
   def toRowIterator(
       batches: Iterator[ColumnarBatch],
       output: Seq[Attribute],
@@ -123,8 +123,8 @@ object VeloxColumnarToRowExec {
       return Iterator.empty
     }
 
-    val runtime = Runtimes.contextInstance("ColumnarToRow")
-    // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
+    val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ColumnarToRow")
+    // TODO: Pass the jni jniWrapper and arrowSchema and serializeSchema method by broadcast.
     val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     val c2rId = jniWrapper.nativeColumnarToRowInit()
 
@@ -141,53 +141,49 @@ object VeloxColumnarToRowExec {
 
         if (batch.numRows == 0) {
           batch.close()
-          Iterator.empty
-        } else if (
-          batch.numCols() > 0 &&
-          !ColumnarBatches.isLightBatch(batch)
-        ) {
-          // Fallback to ColumnarToRow of vanilla Spark.
-          val localOutput = output
-          val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-          batch.rowIterator().asScala.map(toUnsafe)
-        } else if (output.isEmpty) {
+          return Iterator.empty
+        }
+
+        if (output.isEmpty) {
           numInputBatches += 1
           numOutputRows += batch.numRows()
           val rows = ColumnarBatches.emptyRowIterator(batch.numRows()).asScala
           batch.close()
-          rows
-        } else {
-          val cols = batch.numCols()
-          val rows = batch.numRows()
-          val beforeConvert = System.currentTimeMillis()
-          val batchHandle = ColumnarBatches.getNativeHandle(batch)
-          var info =
-            jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, 0)
+          return rows
+        }
 
-          convertTime += (System.currentTimeMillis() - beforeConvert)
+        VeloxColumnarBatches.checkVeloxBatch(batch)
 
-          new Iterator[InternalRow] {
-            var rowId = 0
-            var baseLength = 0
-            val row = new UnsafeRow(cols)
+        val cols = batch.numCols()
+        val rows = batch.numRows()
+        val beforeConvert = System.currentTimeMillis()
+        val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
+        var info =
+          jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, 0)
 
-            override def hasNext: Boolean = {
-              rowId < rows
+        convertTime += (System.currentTimeMillis() - beforeConvert)
+
+        new Iterator[InternalRow] {
+          var rowId = 0
+          var baseLength = 0
+          val row = new UnsafeRow(cols)
+
+          override def hasNext: Boolean = {
+            rowId < rows
+          }
+
+          override def next: UnsafeRow = {
+            if (rowId == baseLength + info.lengths.length) {
+              baseLength += info.lengths.length
+              val before = System.currentTimeMillis()
+              info = jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, rowId)
+              convertTime += (System.currentTimeMillis() - before)
             }
-
-            override def next: UnsafeRow = {
-              if (rowId == baseLength + info.lengths.length) {
-                baseLength += info.lengths.length
-                val before = System.currentTimeMillis()
-                info = jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, rowId)
-                convertTime += (System.currentTimeMillis() - before)
-              }
-              val (offset, length) =
-                (info.offsets(rowId - baseLength), info.lengths(rowId - baseLength))
-              row.pointTo(null, info.memoryAddress + offset, length)
-              rowId += 1
-              row
-            }
+            val (offset, length) =
+              (info.offsets(rowId - baseLength), info.lengths(rowId - baseLength))
+            row.pointTo(null, info.memoryAddress + offset, length)
+            rowId += 1
+            row
           }
         }
       }

@@ -17,6 +17,7 @@
 #include <config.h>
 #if USE_ROCKSDB
 #include "MetadataStorageFromRocksDBTransactionOperations.h"
+
 #include <ranges>
 
 namespace DB
@@ -39,7 +40,12 @@ void throwRockDBErrorNotOk(const rocksdb::Status & status)
 bool exist(rocksdb::DB & db, const std::string & path)
 {
     std::string data;
-    auto status = db.Get({}, path, &data);
+    return tryGetData(db, path, &data);
+}
+
+bool tryGetData(rocksdb::DB & db, const std::string & path, std::string * value)
+{
+    auto status = db.Get({}, path, value);
     if (status.IsNotFound())
         return false;
     throwRockDBErrorNotOk(status);

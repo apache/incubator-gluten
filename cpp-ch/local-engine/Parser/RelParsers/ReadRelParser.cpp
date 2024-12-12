@@ -30,7 +30,7 @@
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/BlockTypeUtils.h>
-
+#include <Common/DebugUtils.h>
 
 namespace DB
 {
@@ -64,7 +64,7 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
 
         if (getContext()->getSettingsRef()[Setting::max_threads] > 1)
         {
-            auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentDataStream());
+            auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentHeader());
             steps.emplace_back(buffer_step.get());
             query_plan->addStep(std::move(buffer_step));
         }
@@ -77,7 +77,7 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
         else
         {
             extension_table = BinaryToMessage<substrait::ReadRel::ExtensionTable>(split_info);
-            logDebugMessage(extension_table, "extension_table");
+            debug::dumpMessage(extension_table, "extension_table");
         }
         MergeTreeRelParser mergeTreeParser(parser_context, getContext());
         query_plan = mergeTreeParser.parseReadRel(std::make_unique<DB::QueryPlan>(), read, extension_table);
@@ -131,7 +131,7 @@ QueryPlanStepPtr ReadRelParser::parseReadRelWithLocalFile(const substrait::ReadR
     else
     {
         local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(split_info);
-        logDebugMessage(local_files, "local_files");
+        debug::dumpMessage(local_files, "local_files");
     }
     auto source = std::make_shared<SubstraitFileSource>(getContext(), header, local_files);
     auto source_pipe = Pipe(source);

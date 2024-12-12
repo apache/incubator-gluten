@@ -101,22 +101,27 @@ object Transition {
           case (ConventionReq.RowType.Is(toRowType), ConventionReq.BatchType.Any) =>
             from.rowType match {
               case Convention.RowType.None =>
+                // Input query plan doesn't have recognizable row-based output,
+                // find columnar-to-row transition.
                 graph.transitionOfOption(from.batchType, toRowType).getOrElse(orElse)
-              case fromRowType =>
+              case fromRowType if toRowType == fromRowType =>
                 // We have only one single built-in row type.
-                assert(toRowType == fromRowType)
                 Transition.empty
+              case _ =>
+                throw new UnsupportedOperationException(
+                  "Row-to-row transition is not yet supported")
             }
           case (ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)) =>
             from.batchType match {
               case Convention.BatchType.None =>
+                // Input query plan doesn't have recognizable columnar output,
+                // find row-to-columnar transition.
                 graph.transitionOfOption(from.rowType, toBatchType).getOrElse(orElse)
+              case fromBatchType if toBatchType == fromBatchType =>
+                Transition.empty
               case fromBatchType =>
-                if (toBatchType == fromBatchType) {
-                  Transition.empty
-                } else {
-                  graph.transitionOfOption(fromBatchType, toBatchType).getOrElse(orElse)
-                }
+                // Find columnar-to-columnar transition.
+                graph.transitionOfOption(fromBatchType, toBatchType).getOrElse(orElse)
             }
           case (ConventionReq.RowType.Any, ConventionReq.BatchType.Any) =>
             Transition.empty

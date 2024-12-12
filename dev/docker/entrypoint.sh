@@ -1,4 +1,4 @@
 #! /bin/sh
 
-. /opt/rh/devtoolset-9/enable
+. /opt/rh/devtoolset-11/enable
 exec "$@"

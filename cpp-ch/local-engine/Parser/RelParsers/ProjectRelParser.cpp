@@ -22,6 +22,7 @@
 #include <Processors/QueryPlan/ArrayJoinStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Rewriter/ExpressionRewriter.h>
+#include <Common/ArrayJoinHelper.h>
 
 namespace DB
 {
@@ -63,13 +64,13 @@ ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel
     if (project_rel.expressions_size())
     {
         std::vector<substrait::Expression> expressions;
-        auto header = query_plan->getCurrentDataStream().header;
+        auto header = query_plan->getCurrentHeader();
         for (int i = 0; i < project_rel.expressions_size(); ++i)
         {
             expressions.emplace_back(project_rel.expressions(i));
         }
         auto actions_dag = expressionsToActionsDAG(expressions, header);
-        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(actions_dag));
+        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
         expression_step->setStepDescription("Project");
         steps.emplace_back(expression_step.get());
         query_plan->addStep(std::move(expression_step));
@@ -77,46 +78,12 @@ ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel
     }
     else
     {
-        auto empty_project_step = std::make_unique<EmptyProjectStep>(query_plan->getCurrentDataStream());
+        auto empty_project_step = std::make_unique<EmptyProjectStep>(query_plan->getCurrentHeader());
         empty_project_step->setStepDescription("EmptyProject");
         steps.emplace_back(empty_project_step.get());
         query_plan->addStep(std::move(empty_project_step));
         return query_plan;
     }
-}
-
-const DB::ActionsDAG::Node * ProjectRelParser::findArrayJoinNode(const ActionsDAG & actions_dag)
-{
-    const ActionsDAG::Node * array_join_node = nullptr;
-    const auto & nodes = actions_dag.getNodes();
-    for (const auto & node : nodes)
-    {
-        if (node.type == ActionsDAG::ActionType::ARRAY_JOIN)
-        {
-            if (array_join_node)
-                throw Exception(ErrorCodes::LOGICAL_ERROR, "Expect single ARRAY JOIN node in generate rel");
-            array_join_node = &node;
-        }
-    }
-    return array_join_node;
-}
-
-ProjectRelParser::SplittedActionsDAGs ProjectRelParser::splitActionsDAGInGenerate(const ActionsDAG & actions_dag)
-{
-    SplittedActionsDAGs res;
-
-    auto array_join_node = findArrayJoinNode(actions_dag);
-    std::unordered_set<const ActionsDAG::Node *> first_split_nodes(array_join_node->children.begin(), array_join_node->children.end());
-    auto first_split_result = actions_dag.split(first_split_nodes);
-    res.before_array_join = std::move(first_split_result.first);
-
-    array_join_node = findArrayJoinNode(first_split_result.second);
-    std::unordered_set<const ActionsDAG::Node *> second_split_nodes = {array_join_node};
-    auto second_split_result = first_split_result.second.split(second_split_nodes);
-    res.array_join = std::move(second_split_result.first);
-    second_split_result.second.removeUnusedActions();
-    res.after_array_join = std::move(second_split_result.second);
-    return res;
 }
 
 bool ProjectRelParser::isReplicateRows(substrait::GenerateRel rel)
@@ -132,14 +99,14 @@ DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_pla
     {
         expressions.emplace_back(generate_rel.generator().scalar_function().arguments(i).value());
     }
-    auto header = query_plan->getCurrentDataStream().header;
+    auto header = query_plan->getCurrentHeader();
     auto actions_dag = expressionsToActionsDAG(expressions, header);
-    auto before_replicate_rows = std::make_unique<DB::ExpressionStep>(query_plan->getCurrentDataStream(), std::move(actions_dag));
+    auto before_replicate_rows = std::make_unique<DB::ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
     before_replicate_rows->setStepDescription("Before ReplicateRows");
     steps.emplace_back(before_replicate_rows.get());
     query_plan->addStep(std::move(before_replicate_rows));
 
-    auto replicate_rows_step = std::make_unique<ReplicateRowsStep>(query_plan->getCurrentDataStream());
+    auto replicate_rows_step = std::make_unique<ReplicateRowsStep>(query_plan->getCurrentHeader());
     replicate_rows_step->setStepDescription("ReplicateRows");
     steps.emplace_back(replicate_rows_step.get());
     query_plan->addStep(std::move(replicate_rows_step));
@@ -161,72 +128,21 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
     }
 
     expressions.emplace_back(generate_rel.generator());
-    auto header = query_plan->getCurrentDataStream().header;
+    auto header = query_plan->getCurrentHeader();
     auto actions_dag = expressionsToActionsDAG(expressions, header);
 
-    if (!findArrayJoinNode(actions_dag))
+    if (!ArrayJoinHelper::findArrayJoinNode(actions_dag))
     {
         /// If generator in generate rel is not explode/posexplode, e.g. json_tuple
-        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(actions_dag));
+        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
         expression_step->setStepDescription("Generate");
         steps.emplace_back(expression_step.get());
         query_plan->addStep(std::move(expression_step));
     }
     else
     {
-        /// If generator in generate rel is explode/posexplode, transform arrayJoin function to ARRAY JOIN STEP to apply max_block_size
-        /// which avoids OOM when several lateral view explode/posexplode is used in spark sqls
-        LOG_DEBUG(logger, "original actions_dag:{}", actions_dag.dumpDAG());
-        auto splitted_actions_dags = splitActionsDAGInGenerate(actions_dag);
-        LOG_DEBUG(logger, "actions_dag before arrayJoin:{}", splitted_actions_dags.before_array_join.dumpDAG());
-        LOG_DEBUG(logger, "actions_dag during arrayJoin:{}", splitted_actions_dags.array_join.dumpDAG());
-        LOG_DEBUG(logger, "actions_dag after arrayJoin:{}", splitted_actions_dags.after_array_join.dumpDAG());
-
-        auto ignore_actions_dag = [](const ActionsDAG & actions_dag_) -> bool
-        {
-            /*
-            We should ignore actions_dag like:
-            0 : INPUT () (no column) String a
-            1 : INPUT () (no column) String b
-            Output nodes: 0, 1
-             */
-            return actions_dag_.getOutputs().size() == actions_dag_.getNodes().size()
-                && actions_dag_.getInputs().size() == actions_dag_.getNodes().size();
-        };
-
-        /// Pre-projection before array join
-        if (!ignore_actions_dag(splitted_actions_dags.before_array_join))
-        {
-            auto step_before_array_join
-                = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(splitted_actions_dags.before_array_join));
-            step_before_array_join->setStepDescription("Pre-projection In Generate");
-            steps.emplace_back(step_before_array_join.get());
-            query_plan->addStep(std::move(step_before_array_join));
-            // LOG_DEBUG(logger, "plan1:{}", PlanUtil::explainPlan(*query_plan));
-        }
-
-        /// ARRAY JOIN
-        Names array_joined_columns{findArrayJoinNode(splitted_actions_dags.array_join)->result_name};
-        ArrayJoin array_join;
-        array_join.columns = std::move(array_joined_columns);
-        array_join.is_left = generate_rel.outer();
-        auto array_join_step = std::make_unique<ArrayJoinStep>(
-            query_plan->getCurrentDataStream(), std::move(array_join), false, getContext()->getSettingsRef()[Setting::max_block_size]);
-        array_join_step->setStepDescription("ARRAY JOIN In Generate");
-        steps.emplace_back(array_join_step.get());
-        query_plan->addStep(std::move(array_join_step));
-        // LOG_DEBUG(logger, "plan2:{}", PlanUtil::explainPlan(*query_plan));
-
-        /// Post-projection after array join(Optional)
-        if (!ignore_actions_dag(splitted_actions_dags.after_array_join))
-        {
-            auto step_after_array_join
-                = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(splitted_actions_dags.after_array_join));
-            step_after_array_join->setStepDescription("Post-projection In Generate");
-            steps.emplace_back(step_after_array_join.get());
-            query_plan->addStep(std::move(step_after_array_join));
-            // LOG_DEBUG(logger, "plan3:{}", PlanUtil::explainPlan(*query_plan));
-        }
+        auto new_steps = ArrayJoinHelper::addArrayJoinStep(getContext(), *query_plan, actions_dag, generate_rel.outer());
+        steps.insert(steps.end(), new_steps.begin(), new_steps.end());
     }
 
     return query_plan;

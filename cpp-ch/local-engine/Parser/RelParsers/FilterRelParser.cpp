@@ -35,7 +35,7 @@ FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     const auto & filter_rel = final_rel.filter();
     std::string filter_name;
 
-    auto input_header = query_plan->getCurrentDataStream().header;
+    auto input_header = query_plan->getCurrentHeader();
     DB::ActionsDAG actions_dag{input_header.getColumnsWithTypeAndName()};
     const auto condition_node = parseExpression(actions_dag, filter_rel.condition());
     if (filter_rel.condition().has_scalar_function())
@@ -45,7 +45,7 @@ FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     filter_name = condition_node->result_name;
 
     bool remove_filter_column = true;
-    auto input_names = query_plan->getCurrentDataStream().header.getNames();
+    auto input_names = query_plan->getCurrentHeader().getNames();
     DB::NameSet input_with_condition(input_names.begin(), input_names.end());
     if (input_with_condition.contains(condition_node->result_name))
         remove_filter_column = false;
@@ -57,13 +57,13 @@ FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     auto non_nullable_columns = non_nullable_columns_resolver.resolve();
 
     auto filter_step
-        = std::make_unique<DB::FilterStep>(query_plan->getCurrentDataStream(), std::move(actions_dag), filter_name, remove_filter_column);
+        = std::make_unique<DB::FilterStep>(query_plan->getCurrentHeader(), std::move(actions_dag), filter_name, remove_filter_column);
     filter_step->setStepDescription("WHERE");
     steps.emplace_back(filter_step.get());
     query_plan->addStep(std::move(filter_step));
 
     // header maybe changed, need to rollback it
-    if (!blocksHaveEqualStructure(input_header, query_plan->getCurrentDataStream().header))
+    if (!blocksHaveEqualStructure(input_header, query_plan->getCurrentHeader()))
     {
         steps.emplace_back(PlanUtil::adjustQueryPlanHeader(*query_plan, input_header, "Rollback filter header"));
     }

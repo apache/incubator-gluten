@@ -120,7 +120,8 @@ shared libraries into another jar named `gluten-thirdparty-lib-$LINUX_OS-$VERSIO
 
 ## HDFS support
 
-Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/tree/master/depends/libhdfs3) library. The libhdfs3 provides native API for Hadoop I/O without the drawbacks of JNI. It also provides advanced authentication like Kerberos based. Please note this library has several dependencies which may require extra installations on Driver and Worker node.
+Gluten supports dynamically loading both libhdfs.so and libhdfs3.so at runtime by using dlopen, allowing the JVM to load the appropriate shared library file as needed. This means you do not need to set the library path during the compilation phase.
+To enable this functionality, you must set the JAVA_HOME and HADOOP_HOME environment variables. Gluten will then locate and load the ${HADOOP_HOME}/lib/native/libhdfs.so file at runtime. If you prefer to use libhdfs3.so instead, simply replace the ${HADOOP_HOME}/lib/native/libhdfs.so file with libhdfs3.so.
 
 ### Build with HDFS support
 
@@ -131,7 +132,7 @@ cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh --enable_hdfs=ON
 ```
 
-### Configuration about HDFS support
+### Configuration about HDFS support in Libhdfs3
 
 HDFS uris (hdfs://host:port) will be extracted from a valid hdfs file path to initialize hdfs client, you do not need to specify it explicitly.
 
@@ -172,7 +173,7 @@ You also need to add configuration to the "hdfs-site.xml" as below:
 </property>
 ```
 
-### Kerberos support
+### Kerberos support in libhdfs3
 
 Here are two steps to enable kerberos.
 
@@ -216,7 +217,7 @@ cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh --enable_s3=ON
 ```
 
-Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
+Currently there are several ways to access S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
 
 ## Celeborn support
 
@@ -271,7 +272,7 @@ spark.dynamicAllocation.enabled false
 
 ## Uniffle support
 
-Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.0`.
+Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.1`.
 
 First refer to this URL(https://uniffle.apache.org/docs/intro) to get start with uniffle.
 
@@ -667,8 +668,8 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend.
 The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
 [TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
 
-The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original)
-and [TPC-H queries](../../gluten-core/src/test/resources/tpch-queries).
+The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../tools/gluten-it/common/src/main/resources/tpcds-queries)
+and [TPC-H queries](../../tools/gluten-it/common/src/main/resources/tpch-queries).
 
 Some other versions of TPC-DS queries are also provided, but are **not** recommended for testing, including:
 

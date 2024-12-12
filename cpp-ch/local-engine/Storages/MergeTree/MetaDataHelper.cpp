@@ -90,7 +90,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
     for (const auto & part : mergeTreeTable.getPartNames())
     {
         auto part_path = table_path / part;
-        if (!metadata_storage->exists(part_path))
+        if (!metadata_storage->existsDirectory(part_path))
             not_exists_part.emplace(part);
     }
 
@@ -104,7 +104,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
         auto s3 = data_disk->getObjectStorage();
         auto transaction = metadata_storage->createTransaction();
 
-        if (!metadata_storage->exists(table_path))
+        if (!metadata_storage->existsDirectory(table_path))
             transaction->createDirectoryRecursive(table_path.generic_string());
 
         for (const auto & part : not_exists_part)
@@ -112,7 +112,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
                 auto part_path = table_path / part;
                 auto metadata_file_path = part_path / METADATA_FILE_NAME;
 
-                if (metadata_storage->exists(part_path))
+                if (metadata_storage->existsDirectory(part_path))
                     return;
                 else
                     transaction->createDirectoryRecursive(part_path);
@@ -143,7 +143,7 @@ void restoreMetaData<LOCAL>(
     for (const auto & part : mergeTreeTable.getPartNames())
     {
         auto part_path = table_path / part;
-        if (!metadata_disk->exists(part_path))
+        if (!metadata_disk->existsDirectory(part_path))
             not_exists_part.emplace(part);
     }
 
@@ -166,7 +166,7 @@ void restoreMetaData<LOCAL>(
             not_exists_part.size());
         auto s3 = data_disk->getObjectStorage();
 
-        if (!metadata_disk->exists(table_path))
+        if (!metadata_disk->existsDirectory(table_path))
             metadata_disk->createDirectories(table_path.generic_string());
 
         for (const auto & part : not_exists_part)
@@ -176,7 +176,7 @@ void restoreMetaData<LOCAL>(
                 auto part_path = table_path / part;
                 auto metadata_file_path = part_path / METADATA_FILE_NAME;
 
-                if (metadata_disk->exists(part_path))
+                if (metadata_disk->existsDirectory(part_path))
                     return;
                 else
                     metadata_disk->createDirectories(part_path);
@@ -190,6 +190,7 @@ void restoreMetaData<LOCAL>(
                     auto item_path = part_path / item.first;
                     auto out = metadata_disk->writeFile(item_path);
                     out->write(item.second.data(), item.second.size());
+                    out->finalize();
                 }
             };
             thread_pool.scheduleOrThrow(job);
@@ -253,7 +254,6 @@ void saveFileStatus(
 
 std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
-    std::unordered_map<String, String> & partition_values,
     const String & new_part_uuid,
     SparkStorageMergeTree & storage,
     const String  & partition_dir,
@@ -264,13 +264,8 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
 
     future_part->assign(std::move(selected_parts));
     future_part->part_info = MergeListElement::FAKE_RESULT_PART_FOR_PROJECTION;
+    future_part->name = partition_dir.empty() ? "" : partition_dir + "/";
 
-    future_part->name = "";
-    if(!partition_dir.empty())
-    {
-        future_part->name =  partition_dir + "/";
-        extractPartitionValues(partition_dir, partition_values);
-    }
     if(!bucket_dir.empty())
     {
         future_part->name = future_part->name + bucket_dir + "/";
@@ -294,6 +289,8 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     return merged;
 }
 
+/** TODO: Remove it.
+ * Extract partition values from partition directory, we implement it in the java */
 void extractPartitionValues(const String & partition_dir, std::unordered_map<String, String> & partition_values)
 {
     Poco::StringTokenizer partitions(partition_dir, "/");

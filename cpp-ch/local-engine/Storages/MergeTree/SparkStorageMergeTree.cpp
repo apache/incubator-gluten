@@ -16,11 +16,19 @@
  */
 #include "SparkStorageMergeTree.h"
 
+#include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
+#include <Disks/SingleDiskVolume.h>
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <Storages/MergeTree/checkDataPart.h>
+
+namespace ProfileEvents
+{
+extern const Event LoadedDataParts;
+extern const Event LoadedDataPartsMicroseconds;
+}
 
 namespace DB
 {
@@ -67,7 +75,7 @@ void SparkStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source
         sum_ranges += part.ranges.size();
         sum_marks += part.getMarksCount();
         sum_rows += part.getRowsCount();
-        total_marks_pk += part.data_part->index_granularity.getMarksCountWithoutFinal();
+        total_marks_pk += part.data_part->index_granularity->getMarksCountWithoutFinal();
 
         for (auto range : part.ranges)
             sum_marks_pk += range.getNumberOfMarks();
@@ -153,29 +161,39 @@ SparkStorageMergeTree::SparkStorageMergeTree(
 
 std::atomic<int> SparkStorageMergeTree::part_num;
 
-void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
+void SparkStorageMergeTree::prefetchPartDataFile(const std::unordered_set<std::string> & parts) const
+{
+    prefetchPartFiles(parts, CompactObjectStorageDiskTransaction::PART_DATA_FILE_NAME);
+}
+
+void SparkStorageMergeTree::prefetchPartFiles(const std::unordered_set<std::string> & parts, String file_name) const
 {
     auto disk = getDisks().front();
     if (!disk->isRemote())
         return;
-    std::vector<String> meta_paths;
-    std::ranges::for_each(parts, [&](const String & name) { meta_paths.emplace_back(fs::path(relative_data_path) / name / "meta.bin"); });
+    std::vector<String> data_paths;
+    std::ranges::for_each(parts, [&](const String & name) { data_paths.emplace_back(fs::path(relative_data_path) / name / file_name); });
     auto read_settings = ReadSettings{};
-    // read_settings.enable_filesystem_cache = false;
     read_settings.remote_fs_method = RemoteFSReadMethod::read;
-    for (const auto & meta_path : meta_paths)
+    for (const auto & data_path : data_paths)
     {
-        if (!disk->exists(meta_path))
+        if (!disk->existsFile(data_path))
             continue;
-
-        auto in = disk->readFile(meta_path, read_settings);
+        LOG_DEBUG(log, "Prefetching part file {}", data_path);
+        auto in = disk->readFile(data_path, read_settings);
         String ignore_data;
         readStringUntilEOF(ignore_data, *in);
     }
 }
 
+void SparkStorageMergeTree::prefetchMetaDataFile(const std::unordered_set<std::string> & parts) const
+{
+    prefetchPartFiles(parts, CompactObjectStorageDiskTransaction::PART_META_FILE_NAME);
+}
+
 std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(const std::unordered_set<std::string> & parts)
 {
+    Stopwatch watch;
     prefetchMetaDataFile(parts);
     std::vector<MergeTreeDataPartPtr> data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
@@ -187,6 +205,10 @@ std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(
         data_parts.emplace_back(res.part);
     }
 
+    watch.stop();
+    LOG_DEBUG(log, "Loaded data parts ({} items) took {} microseconds", parts.size(), watch.elapsedMicroseconds());
+    ProfileEvents::increment(ProfileEvents::LoadedDataParts, parts.size());
+    ProfileEvents::increment(ProfileEvents::LoadedDataPartsMicroseconds, watch.elapsedMicroseconds());
     return data_parts;
 }
 
@@ -203,7 +225,10 @@ MergeTreeData::LoadPartResult SparkStorageMergeTree::loadDataPart(
 
     try
     {
-        res.part = getDataPartBuilder(part_name, single_disk_volume, part_name).withPartInfo(part_info).withPartFormatFromDisk().build();
+        res.part = getDataPartBuilder(part_name, single_disk_volume, part_name, getContext()->getReadSettings())
+                       .withPartInfo(part_info)
+                       .withPartFormatFromDisk()
+                       .build();
     }
     catch (...)
     {
@@ -359,13 +384,8 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     BlockWithPartition & block_with_partition,
     const StorageMetadataPtr & metadata_snapshot,
     const ContextPtr & context,
-    const SparkMergeTreeWritePartitionSettings & write_settings,
-    int part_num) const
+    const std::string & part_dir) const
 {
-    const std::string & part_name_prefix = write_settings.part_name_prefix;
-    const std::string & partition_dir = write_settings.partition_dir;
-    const std::string & bucket_dir = write_settings.bucket_dir;
-
     MergeTreeDataWriter::TemporaryPart temp_part;
 
     Block & block = block_with_partition.block;
@@ -382,20 +402,6 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     MergeTreePartition partition(block_with_partition.partition);
 
     MergeTreePartInfo new_part_info(partition.getID(metadata_snapshot->getPartitionKey().sample_block), 1, 1, 0);
-
-    std::string part_dir;
-    if (!partition_dir.empty() && !bucket_dir.empty())
-        part_dir = fmt::format("{}/{}/{}_{:03d}", partition_dir, bucket_dir, part_name_prefix, part_num);
-    else if (!partition_dir.empty())
-        part_dir = fmt::format("{}/{}_{:03d}", partition_dir, part_name_prefix, part_num);
-    else if (!bucket_dir.empty())
-        part_dir = fmt::format("{}/{}_{:03d}", bucket_dir, part_name_prefix, part_num);
-    else
-        part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
-
-    // assert(part_num > 0 && !part_name_prefix.empty());
-
-    String part_name = part_dir;
 
     temp_part.temporary_directory_lock = data.getTemporaryPartDirectoryHolder(part_dir);
 
@@ -437,7 +443,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 
     VolumePtr volume = data.getStoragePolicy()->getVolume(0);
     VolumePtr data_part_volume = std::make_shared<SingleDiskVolume>(volume->getName(), volume->getDisk(), volume->max_data_part_size);
-    auto new_data_part = data.getDataPartBuilder(part_name, data_part_volume, part_dir)
+    auto new_data_part = data.getDataPartBuilder(part_dir, data_part_volume, part_dir, context->getReadSettings())
                              .withPartFormat(data.choosePartFormat(expected_size, block.rows()))
                              .withPartInfo(new_part_info)
                              .build();
@@ -482,6 +488,12 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     ///  either default lz4 or compression method with zero thresholds on absolute and relative part size.
     auto compression_codec = data.getContext()->chooseCompressionCodec(0, 0);
     auto txn = context->getCurrentTransaction();
+    auto index_granularity_ptr = createMergeTreeIndexGranularity(
+        block.rows(),
+        block.bytes(),
+        *data.getSettings(),
+        new_data_part->index_granularity_info,
+        /*blocks_are_granules=*/false);
     auto out = std::make_unique<MergedBlockOutputStream>(
         new_data_part,
         metadata_snapshot,
@@ -489,7 +501,9 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
         indices,
         MergeTreeStatisticsFactory::instance().getMany(metadata_snapshot->getColumns()),
         compression_codec,
+        index_granularity_ptr,
         txn ? txn->tid : Tx::PrehistoricTID,
+        block.bytes(),
         false,
         false,
         context->getWriteSettings());
@@ -507,15 +521,11 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 SinkToStoragePtr SparkWriteStorageMergeTree::write(
     const ASTPtr &, const StorageMetadataPtr & /*storage_in_memory_metadata*/, ContextPtr context, bool /*async_insert*/)
 {
-    SparkMergeTreeWriteSettings settings{.partition_settings{SparkMergeTreeWritePartitionSettings::get(context)}};
-    settings.load(context);
-    SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
 #ifndef NDEBUG
     auto dest_storage = table.getStorage(getContext());
     assert(dest_storage.get() == this);
 #endif
-
-    return std::make_shared<SparkMergeTreeSink>(sink_helper, context);
+    return SparkMergeTreeSink::create(table, SparkMergeTreeWriteSettings{context}, getContext());
 }
 
 }

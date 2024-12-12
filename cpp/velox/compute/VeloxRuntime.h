@@ -66,8 +66,6 @@ class VeloxRuntime final : public Runtime {
     return iter->getMetrics(exportNanos);
   }
 
-  std::shared_ptr<VeloxDataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
-
   std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ShuffleReaderOptions options) override;
@@ -77,6 +75,10 @@ class VeloxRuntime final : public Runtime {
   std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override;
 
   void dumpConf(const std::string& path) override;
+
+  std::shared_ptr<ArrowWriter> createArrowWriter(const std::string& path) override;
+
+  std::shared_ptr<VeloxDataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;
@@ -98,7 +100,7 @@ class VeloxRuntime final : public Runtime {
   std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_;
   bool debugModeEnabled_{false};
 
-  std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;
+  std::unordered_map<int32_t, std::shared_ptr<VeloxColumnarBatch>> emptySchemaBatchLoopUp_;
 };
 
 } // namespace gluten

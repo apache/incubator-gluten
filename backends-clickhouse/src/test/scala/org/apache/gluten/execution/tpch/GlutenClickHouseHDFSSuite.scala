@@ -33,7 +33,7 @@ class GlutenClickHouseHDFSSuite
 
   override protected val tablesPath: String = HDFS_URL_ENDPOINT + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   private val hdfsCachePath = "/tmp/gluten_hdfs_cache/"
@@ -144,11 +144,11 @@ class GlutenClickHouseHDFSSuite
 
   test("GLUTEN-7542: Fix cache refresh") {
     withSQLConf("spark.sql.hive.manageFilesourcePartitions" -> "false") {
-      val file_path = s"$tablesPath/issue_7542/"
-      val targetDirs = new Path(file_path)
+      val filePath = s"$tablesPath/$SPARK_DIR_NAME/issue_7542/"
+      val targetDirs = new Path(filePath)
       val fs = targetDirs.getFileSystem(spark.sessionState.newHadoopConf())
       fs.mkdirs(targetDirs)
-      val out = fs.create(new Path(s"$file_path/00000_0"))
+      val out = fs.create(new Path(s"$filePath/00000_0"))
       IOUtils.write("1\n2\n3\n4\n5", out, Charset.defaultCharset())
       out.close()
       sql(s"""
@@ -156,12 +156,12 @@ class GlutenClickHouseHDFSSuite
              |  `c_custkey` int )
              |using CSV
              |LOCATION
-             |  '$file_path/'
+             |  '$filePath/'
              |""".stripMargin)
 
       sql(s"""select * from issue_7542""").collect()
-      fs.delete(new Path(s"$file_path/00000_0"), false)
-      val out2 = fs.create(new Path(s"$file_path/00000_0"))
+      fs.delete(new Path(s"$filePath/00000_0"), false)
+      val out2 = fs.create(new Path(s"$filePath/00000_0"))
       IOUtils.write("1\n2\n3\n4\n3\n3\n3", out2, Charset.defaultCharset())
       out2.close()
       val df = sql(s"""select count(*) from issue_7542 where c_custkey=3""")
@@ -175,5 +175,40 @@ class GlutenClickHouseHDFSSuite
 
       sql("drop table issue_7542")
     }
+  }
+
+  test("test set_read_util_position") {
+    val tableName = "read_until_test"
+    val tablePath = s"$tablesPath/$SPARK_DIR_NAME/$tableName/"
+    val targetFile = new Path(tablesPath)
+    val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
+    fs.delete(new Path(tablePath), true)
+    sql(s"""
+           | CREATE TABLE $tableName
+           | USING csv
+           | LOCATION '$tablePath'
+           | as
+           | select * from lineitem
+           |""".stripMargin)
+
+    val sql_str =
+      s"""
+         |SELECT
+         |    sum(l_extendedprice * l_discount) AS revenue
+         |FROM
+         |    $tableName
+         |WHERE
+         |    l_shipdate >= date'1994-01-01'
+         |    AND l_shipdate < date'1994-01-01' + interval 1 year
+         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+         |    AND l_quantity < 24;
+         |
+         |""".stripMargin
+
+    withSQLConf("spark.sql.files.maxPartitionBytes" -> "1M") {
+      compareResultsAgainstVanillaSpark(sql_str, compareResult = true, _ => {})
+    }
+
+    fs.delete(new Path(tablePath), true)
   }
 }

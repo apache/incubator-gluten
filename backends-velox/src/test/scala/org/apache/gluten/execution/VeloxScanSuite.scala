@@ -18,18 +18,22 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
+import org.apache.gluten.benchmarks.RandomParquetDataGenerator
 import org.apache.gluten.utils.VeloxFileSystemValidationJniWrapper
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.GreaterThan
 import org.apache.spark.sql.execution.ScalarSubquery
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types._
 
 class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
-  protected val veloxTPCHQueries: String = rootPath + "/tpch-queries-velox"
+  protected val tpchQueries: String =
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def sparkConf: SparkConf = super.sparkConf
@@ -41,7 +45,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
 
   test("tpch q22 subquery filter pushdown - v1") {
     createTPCHNotNullTables()
-    runTPCHQuery(22, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(22, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
       df =>
         val plan = df.queryExecution.executedPlan
         val exist = plan.collect { case scan: FileSourceScanExecTransformer => scan }.exists {
@@ -59,12 +63,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
     withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
       // Tables must be created here, otherwise v2 scan will not be used.
       createTPCHNotNullTables()
-      runTPCHQuery(
-        22,
-        veloxTPCHQueries,
-        queriesResults,
-        compareResult = false,
-        noFallBack = false) {
+      runTPCHQuery(22, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
         df =>
           val plan = df.queryExecution.executedPlan
           val exist = plan.collect { case scan: BatchScanExecTransformer => scan }.exists {
@@ -117,5 +116,75 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
     assert(
       !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
         Array("file:/test_path/", "unsupported://test_path")))
+  }
+
+  test("scan with filter on decimal/timestamp/binary field") {
+    withTempView("t") {
+      withTempDir {
+        dir =>
+          val path = dir.getAbsolutePath
+          val schema = StructType(
+            Array(
+              StructField("short_decimal_field", DecimalType(5, 2), nullable = true),
+              StructField("long_decimal_field", DecimalType(32, 8), nullable = true),
+              StructField("binary_field", BinaryType, nullable = true),
+              StructField("timestamp_field", TimestampType, nullable = true)
+            ))
+          RandomParquetDataGenerator(0).generateRandomData(spark, schema, 10, Some(path))
+          spark.catalog.createTable("t", path, "parquet")
+
+          runQueryAndCompare(
+            """select * from t where long_decimal_field = 3.14""".stripMargin
+          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+
+          runQueryAndCompare(
+            """select * from t where short_decimal_field = 3.14""".stripMargin
+          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+
+          runQueryAndCompare(
+            """select * from t where binary_field = '3.14'""".stripMargin
+          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+
+          runQueryAndCompare(
+            """select * from t where timestamp_field = current_timestamp()""".stripMargin
+          )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
+      }
+    }
+  }
+
+  test("push partial filters to offload scan when filter need fallback - v1") {
+    withSQLConf(GlutenConfig.EXPRESSION_BLACK_LIST.key -> "add") {
+      createTPCHNotNullTables()
+      val query = "select l_partkey from lineitem where l_partkey + 1 > 5 and l_partkey - 1 < 8"
+      runQueryAndCompare(query) {
+        df =>
+          {
+            val executedPlan = getExecutedPlan(df)
+            val scans = executedPlan.collect { case p: FileSourceScanExecTransformer => p }
+            assert(scans.size == 1)
+            // isnotnull(l_partkey) and l_partkey - 1 < 8
+            assert(scans.head.filterExprs().size == 2)
+          }
+      }
+    }
+  }
+
+  test("push partial filters to offload scan when filter need fallback - v2") {
+    withSQLConf(
+      GlutenConfig.EXPRESSION_BLACK_LIST.key -> "add",
+      SQLConf.USE_V1_SOURCE_LIST.key -> "") {
+      createTPCHNotNullTables()
+      val query = "select l_partkey from lineitem where l_partkey + 1 > 5 and l_partkey - 1 < 8"
+      runQueryAndCompare(query) {
+        df =>
+          {
+            val executedPlan = getExecutedPlan(df)
+            val scans = executedPlan.collect { case p: BatchScanExecTransformer => p }
+            assert(scans.size == 1)
+            // isnotnull(l_partkey) and l_partkey - 1 < 8
+            assert(scans.head.filterExprs().size == 2)
+          }
+      }
+    }
   }
 }

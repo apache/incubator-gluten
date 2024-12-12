@@ -97,7 +97,7 @@ function compile {
   set -exu
 
   CXX_FLAGS='-Wno-missing-field-initializers'
-  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON"
+  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
@@ -158,7 +158,8 @@ function compile {
     if [ -d gtest-build ]; then
       echo "INSTALL gtest."
       if [ $OS == 'Linux' ]; then
-        sudo cmake --install gtest-build/
+        cd gtest-src; cmake . ; sudo make install -j
+        #sudo cmake --install gtest-build/
       elif [ $OS == 'Darwin' ]; then
         sudo cmake --install gtest-build/
       fi

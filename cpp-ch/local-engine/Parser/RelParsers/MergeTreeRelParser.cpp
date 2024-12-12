@@ -153,7 +153,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     query_plan->addStep(std::move(read_step));
     if (!non_nullable_columns.empty())
     {
-        auto input_header = query_plan->getCurrentDataStream().header;
+        auto input_header = query_plan->getCurrentHeader();
         std::erase_if(non_nullable_columns, [input_header](auto item) -> bool { return !input_header.has(item); });
         auto * remove_null_step = PlanUtil::addRemoveNullableStep(parser_context->queryContext(), *query_plan, non_nullable_columns);
         if (remove_null_step)

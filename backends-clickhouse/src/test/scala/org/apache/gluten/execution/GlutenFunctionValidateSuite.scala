@@ -35,7 +35,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   protected val tablesPath: String = basePath + "/tpch-data"
   protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
   private var parquetPath: String = _
@@ -827,5 +827,37 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |as data(a)
     """.stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-7455 negative modulo") {
+    withTable("test_7455") {
+      spark.sql("create table test_7455(x bigint) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7455 values
+          |(327696126396414574)
+          |,(618162455457852376)
+          |,(-1)
+          |,(-2)
+          |""".stripMargin
+      spark.sql(insert_sql)
+      val sql =
+        """
+          |select x,
+          |x % 4294967296,
+          |x % -4294967296,
+          |x % 4294967295,
+          |x % -4294967295,
+          |x % 100,
+          |x % -100
+          |from test_7455
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
+  test("GLUTEN-7796 cast bool to string") {
+    val sql = "select cast(id % 2 = 1 as string) from range(10)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }

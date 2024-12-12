@@ -25,6 +25,7 @@ namespace local_engine
 {
 void throwRockDBErrorNotOk(const rocksdb::Status & status);
 bool exist(rocksdb::DB & db, const std::string & path);
+bool tryGetData(rocksdb::DB & db, const std::string & path, std::string* value);
 String getData(rocksdb::DB & db, const std::string & path);
 std::vector<String> listKeys(rocksdb::DB & db, const std::string & path);
 

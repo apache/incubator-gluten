@@ -16,21 +16,12 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backend.Backend
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.TransformerState
-import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.logging.LogLevelUtil
-import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.plan.PlanBuilder
-import org.apache.gluten.substrait.rel.RelNode
-import org.apache.gluten.test.TestStats
+import org.apache.gluten.extension.columnar.FallbackTag
+import org.apache.gluten.extension.columnar.FallbackTag.{Appendable, Converter}
+import org.apache.gluten.extension.columnar.FallbackTags.add
+import org.apache.gluten.extension.columnar.validator.Validator
 
-import org.apache.spark.sql.execution.SparkPlan
-
-import com.google.common.collect.Lists
+import org.apache.spark.sql.catalyst.trees.TreeNode
 
 sealed trait ValidationResult {
   def ok(): Boolean
@@ -38,6 +29,15 @@ sealed trait ValidationResult {
 }
 
 object ValidationResult {
+  implicit object FromValidationResult extends Converter[ValidationResult] {
+    override def from(result: ValidationResult): Option[FallbackTag] = {
+      if (result.ok()) {
+        return None
+      }
+      Some(Appendable(result.reason()))
+    }
+  }
+
   private case object Succeeded extends ValidationResult {
     override def ok(): Boolean = true
     override def reason(): String = throw new UnsupportedOperationException(
@@ -50,85 +50,20 @@ object ValidationResult {
 
   def succeeded: ValidationResult = Succeeded
   def failed(reason: String): ValidationResult = Failed(reason)
-}
 
-/** Every Gluten Operator should extend this trait. */
-trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelUtil {
-
-  private lazy val validationLogLevel = glutenConf.validationLogLevel
-  private lazy val printStackOnValidationFailure = glutenConf.printStackOnValidationFailure
-  protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
-
-  protected def glutenConf: GlutenConfig = GlutenConfig.getConf
-
-  /**
-   * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
-   */
-  final def doValidate(): ValidationResult = {
-    val schemaVaidationResult = BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason =>
-          ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
+  implicit class EncodeFallbackTagImplicits(result: ValidationResult) {
+    def tagOnFallback(plan: TreeNode[_]): Unit = {
+      if (result.ok()) {
+        return
       }
-      .getOrElse(ValidationResult.succeeded)
-    if (!schemaVaidationResult.ok()) {
-      TestStats.addFallBackClassName(this.getClass.toString)
-      return schemaVaidationResult
+      add(plan, result)
     }
-    try {
-      TransformerState.enterValidation
-      val res = doValidateInternal()
-      if (!res.ok()) {
-        TestStats.addFallBackClassName(this.getClass.toString)
+
+    def toValidatorOutcome(): Validator.OutCome = {
+      if (result.ok()) {
+        return Validator.Passed
       }
-      res
-    } catch {
-      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
-        }
-        // FIXME: Use a validation-specific method to catch validation failures
-        TestStats.addFallBackClassName(this.getClass.toString)
-        logValidationMessage(
-          s"Validation failed with exception for plan: $nodeName, due to: ${e.getMessage}",
-          e)
-        ValidationResult.failed(e.getMessage)
-    } finally {
-      TransformerState.finishValidation
-    }
-  }
-
-  final override def batchType(): Convention.BatchType = {
-    if (!supportsColumnar) {
-      return Convention.BatchType.None
-    }
-    val batchType = batchType0()
-    assert(batchType != Convention.BatchType.None)
-    batchType
-  }
-
-  protected def batchType0(): Convention.BatchType = {
-    Backend.get().defaultBatchType
-  }
-
-  protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
-
-  protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
-    if (node != null && enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
-      BackendsApiManager.getValidatorApiInstance
-        .doNativeValidateWithFailureReason(planNode)
-    } else {
-      ValidationResult.succeeded
-    }
-  }
-
-  private def logValidationMessage(msg: => String, e: Throwable): Unit = {
-    if (printStackOnValidationFailure) {
-      logOnLevel(validationLogLevel, msg, e)
-    } else {
-      logOnLevel(validationLogLevel, msg)
+      Validator.Failed(result.reason())
     }
   }
 }

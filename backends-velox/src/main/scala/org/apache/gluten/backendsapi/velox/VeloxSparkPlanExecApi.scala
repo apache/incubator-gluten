@@ -153,7 +153,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         left.dataType.isInstanceOf[DecimalType] && right.dataType
           .isInstanceOf[DecimalType] && !SQLConf.get.decimalOperationsAllowPrecisionLoss
       ) {
-        val newName = "not_allow_precision_loss_"
+        // https://github.com/facebookincubator/velox/pull/10383
+        val newName = substraitExprName + "_deny_precision_loss"
         GenericExpressionTransformer(newName, Seq(left, right), original)
       } else {
         GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
@@ -559,7 +560,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     ShuffleUtil.genColumnarShuffleWriter(parameters)
   }
   override def createColumnarWriteFilesExec(
-      child: SparkPlan,
+      child: WriteFilesExecTransformer,
       noop: SparkPlan,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],
@@ -569,6 +570,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     VeloxColumnarWriteFilesExec(
       child,
       noop,
+      child,
       fileFormat,
       partitionColumns,
       bucketSpec,
@@ -631,7 +633,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
-    ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized))
+    ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
   }
 
   override def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
@@ -723,30 +725,29 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val trimParaSepStr = "\u2029"
     // Needs to be trimmed for casting to float/double/decimal
     val trimSpaceStr = ('\u0000' to '\u0020').toList.mkString
+    // ISOControl characters, refer java.lang.Character.isISOControl(int)
+    val isoControlStr = (('\u0000' to '\u001F') ++ ('\u007F' to '\u009F')).toList.mkString
     // scalastyle:on nonascii
-    c.dataType match {
-      case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
-        c
-      case FloatType | DoubleType | _: DecimalType =>
-        c.child.dataType match {
-          case StringType =>
-            val trimNode = StringTrim(c.child, Some(Literal(trimSpaceStr)))
-            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
-          case _ =>
-            c
+    if (GlutenConfig.getConf.castFromVarcharAddTrimNode && c.child.dataType == StringType) {
+      val trimStr = c.dataType match {
+        case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
+          None
+        case FloatType | DoubleType | _: DecimalType =>
+          Some(trimSpaceStr)
+        case _ =>
+          Some(
+            (trimWhitespaceStr + trimSpaceSepStr + trimLineSepStr
+              + trimParaSepStr + isoControlStr).toSet.mkString
+          )
+      }
+      trimStr
+        .map {
+          trim =>
+            c.withNewChildren(Seq(StringTrim(c.child, Some(Literal(trim))))).asInstanceOf[Cast]
         }
-      case _ =>
-        c.child.dataType match {
-          case StringType =>
-            val trimNode = StringTrim(
-              c.child,
-              Some(
-                Literal(trimWhitespaceStr +
-                  trimSpaceSepStr + trimLineSepStr + trimParaSepStr)))
-            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
-          case _ =>
-            c
-        }
+        .getOrElse(c)
+    } else {
+      c
     }
   }
 
@@ -807,7 +808,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = {
     // This to-top-n optimization assumes exchange operators were already placed in input plan.
     plan.transformUp {
-      case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
+      case p @ LimitExecTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
         val global = child.outputPartitioning.satisfies(AllTuples)
         val topN = TopNTransformer(count, sortOrder, global, child)
         if (topN.doValidate().ok()) {
