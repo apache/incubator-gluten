@@ -63,7 +63,7 @@ case class UnsafeColumnarBuildSideRelation(
   with Logging
   with KryoSerializable {
 
-  def this(output: Seq[Attribute], bytesBufferArray: Array[Array[Byte]], mode: BroadcastMode) {
+  def this(output: Seq[Attribute], bytesBufferArray: Array[Array[Byte]], mode: BroadcastMode) = {
     // only used in driver side when broadcast the whole batches
     this(
       output,
