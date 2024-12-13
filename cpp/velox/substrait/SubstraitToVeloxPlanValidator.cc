@@ -661,16 +661,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     }
   }
 
-  // Validate supported aggregate functions.
-  static const std::unordered_set<std::string> unsupportedFuncs = {"collect_set"};
-  for (const auto& funcSpec : funcSpecs) {
-    auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);
-    if (unsupportedFuncs.find(funcName) != unsupportedFuncs.end()) {
-      LOG_VALIDATION_MSG(funcName + " was not supported in WindowRel.");
-      return false;
-    }
-  }
-
   // Validate groupby expression
   const auto& groupByExprs = windowRel.partition_expressions();
   std::vector<core::TypedExprPtr> expressions;
