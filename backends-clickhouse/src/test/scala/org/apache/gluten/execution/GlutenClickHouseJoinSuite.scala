@@ -147,10 +147,17 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
   test("GLUTEN-8216 Fix OOM when cartesian product with empty data") {
     // prepare
     spark.sql("create table test_join(a int, b int, c int) using parquet")
-    withSQLConf(
-      "spark.sql.shuffle.partitions" -> "100",
-      "spark.sql.autoBroadcastJoinThreshold" -> "-1"
-    ) {
+    var overrideConfs = Map(
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1",
+      "spark.sql.shuffle.partitions" -> "1"
+    )
+    if (isSparkVersionGE("3.5")) {
+      // Range partitions will not be reduced if EliminateSorts is enabled in spark35.
+      overrideConfs += "spark.sql.optimizer.excludedRules" ->
+        "org.apache.spark.sql.catalyst.optimizer.EliminateSorts"
+    }
+
+    withSQLConf(overrideConfs.toSeq: _*) {
       val taskCount = new AtomicInteger(0)
       val taskListener = new SparkListener {
         override def onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit = {
