@@ -35,7 +35,7 @@ import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
@@ -759,7 +759,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       Sig[UserDefinedAggregateFunction](ExpressionNames.UDAF_PLACEHOLDER),
       Sig[NaNvl](ExpressionNames.NANVL),
       Sig[VeloxCollectList](ExpressionNames.COLLECT_LIST),
+      Sig[CollectList](ExpressionNames.COLLECT_LIST),
       Sig[VeloxCollectSet](ExpressionNames.COLLECT_SET),
+      Sig[CollectSet](ExpressionNames.COLLECT_SET),
       Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
       Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG),
       // For test purpose.
