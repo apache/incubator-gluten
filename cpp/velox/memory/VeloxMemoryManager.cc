@@ -335,17 +335,23 @@ bool VeloxMemoryManager::tryDestructSafe() {
 
   // Velox memory manager considered safe to destruct when no alive pools.
   if (veloxMemoryManager_) {
-    if (veloxMemoryManager_->numPools() > 2) {
+    if (veloxMemoryManager_->numPools() > 3) {
+      GLUTEN_CHECK(false, "Unreachable code");
       return false;
     }
-    if (veloxMemoryManager_->numPools() == 2) {
+    if (veloxMemoryManager_->numPools() == 3) {
       // Assert the pool is spill pool
       // See https://github.com/facebookincubator/velox/commit/e6f84e8ac9ef6721f527a2d552a13f7e79bdf72e
+      // https://github.com/facebookincubator/velox/commit/ac134400b5356c5ba3f19facee37884aa020afdc
       int32_t spillPoolCount = 0;
+      int32_t cachePoolCount = 0;
       int32_t tracePoolCount = 0;
       veloxMemoryManager_->testingDefaultRoot().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
         if (child == veloxMemoryManager_->spillPool()) {
           spillPoolCount++;
+        }
+        if (child == veloxMemoryManager_->cachePool()) {
+          cachePoolCount++;
         }
         if (child == veloxMemoryManager_->tracePool()) {
           tracePoolCount++;
@@ -353,9 +359,10 @@ bool VeloxMemoryManager::tryDestructSafe() {
         return true;
       });
       GLUTEN_CHECK(spillPoolCount == 1, "Illegal pool count state: spillPoolCount: " + std::to_string(spillPoolCount));
+      GLUTEN_CHECK(cachePoolCount == 1, "Illegal pool count state: cachePoolCount: " + std::to_string(cachePoolCount));
       GLUTEN_CHECK(tracePoolCount == 1, "Illegal pool count state: tracePoolCount: " + std::to_string(tracePoolCount));
     }
-    if (veloxMemoryManager_->numPools() < 2) {
+    if (veloxMemoryManager_->numPools() < 3) {
       GLUTEN_CHECK(false, "Unreachable code");
     }
   }
