@@ -2260,5 +2260,5 @@ object GlutenConfig {
       .doc("If enabled, broadcast build relation will use offheap memory. " +
         "Otherwise, broadcast build relation will use onheap memory.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 }
