@@ -300,7 +300,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
     uint32_t& numRows,
     int64_t& deserializeTime,
     int64_t& decompressTime) {
-  auto timer = std::make_unique<ScopedTimer>(&deserializeTime);
+  Timer timer;
   static const std::vector<std::shared_ptr<arrow::Buffer>> kEmptyBuffers{};
   ARROW_ASSIGN_OR_RAISE(auto type, readType(inputStream));
   if (type == 0) {
@@ -310,7 +310,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numRows));
   uint32_t numBuffers;
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numBuffers));
-  timer.reset();
+  deserializeTime += timer.realTimeUsed();
 
   bool isCompressionEnabled = type == Type::kCompressed;
   std::vector<std::shared_ptr<arrow::Buffer>> buffers;
