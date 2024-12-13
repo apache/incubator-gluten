@@ -42,6 +42,11 @@ static bool canCastLower(const Int128 & a, const Int128 & b)
     return a.items[1] == 0 && b.items[1] == 0;
 }
 
+static bool canCastLower(const UInt128 & a, const UInt128 & b)
+{
+    return a.items[1] == 0 && b.items[1] == 0;
+}
+
 static const Int256 & toInt256(const NewInt256 & value)
 {
     return *reinterpret_cast<const Int256 *>(&value);
@@ -58,7 +63,8 @@ struct DecimalPlusImpl
     template <typename T>
     static bool apply(T a, T b, T & r)
     {
-        return !common::addOverflow(a, b, r);
+        r = a + b;
+        return true;
     }
 
     template <>
@@ -67,13 +73,16 @@ struct DecimalPlusImpl
         if (canCastLower(a, b))
         {
             UInt64 low_result;
-            if (common::addOverflow(static_cast<UInt64>(a), static_cast<UInt64>(b), low_result))
-                return !common::addOverflow(a, b, r);
-
-            r = static_cast<Int128>(low_result);
-            return true;
+            if (!common::addOverflow(static_cast<UInt64>(a), static_cast<UInt64>(b), low_result))
+            {
+                r = static_cast<Int128>(low_result);
+                chassert(r == a + b);
+                return true;
+            }
         }
-        return !common::addOverflow(a, b, r);
+
+        r = a + b;
+        return true;
     }
 
     template <>
@@ -82,16 +91,17 @@ struct DecimalPlusImpl
         if (canCastLower(a, b))
         {
             UInt128 low_result;
-            if (common::addOverflow(static_cast<UInt128>(a), static_cast<UInt128>(b), low_result))
-                return !common::addOverflow(a, b, r);
-
-            r = static_cast<Int256>(low_result);
-            return true;
+            if (!common::addOverflow(static_cast<UInt128>(a), static_cast<UInt128>(b), low_result))
+            {
+                r = static_cast<Int256>(low_result);
+                chassert(r == a + b);
+                return true;
+            }
         }
 
-        return !common::addOverflow(a, b, r);
-        // r = toInt256(toNewInt256(a) + toNewInt256(b));
-        // return true;
+        r = toInt256(toNewInt256(a) + toNewInt256(b));
+        chassert(r == a + b);
+        return true;
     }
 
 #if USE_EMBEDDED_COMPILER
@@ -110,7 +120,8 @@ struct DecimalMinusImpl
     template <typename T>
     static bool apply(T a, T b, T & r)
     {
-        return !common::subOverflow(a, b, r);
+        r = a - b;
+        return true;
     }
 
     template <>
@@ -118,15 +129,17 @@ struct DecimalMinusImpl
     {
         if (canCastLower(a, b))
         {
-            UInt64 low_result;
-            if (common::subOverflow(static_cast<UInt64>(a), static_cast<UInt64>(b), low_result))
-                return !common::subOverflow(a, b, r);
-
-            r = static_cast<Int128>(low_result);
-            return true;
+            Int64 low_result;
+            if (!common::subOverflow(static_cast<Int64>(a), static_cast<Int64>(b), low_result))
+            {
+                r = static_cast<Int128>(low_result);
+                chassert(r == a - b);
+                return true;
+            }
         }
 
-        return !common::subOverflow(a, b, r);
+        r = a - b;
+        return true;
     }
 
     template <>
@@ -134,17 +147,18 @@ struct DecimalMinusImpl
     {
         if (canCastLower(a, b))
         {
-            UInt128 low_result;
-            if (common::subOverflow(static_cast<UInt128>(a), static_cast<UInt128>(b), low_result))
-                return !common::subOverflow(a, b, r);
-
-            r = static_cast<Int256>(low_result);
-            return true;
+            Int128 low_result;
+            if (!common::subOverflow(static_cast<Int128>(a), static_cast<Int128>(b), low_result))
+            {
+                r = static_cast<Int256>(low_result);
+                chassert(r == a - b);
+                return true;
+            }
         }
 
-        return !common::subOverflow(a, b, r);
-        // r = toInt256(toNewInt256(a) - toNewInt256(b));
-        // return true;
+        r = toInt256(toNewInt256(a) - toNewInt256(b));
+        chassert(r == a - b);
+        return true;
     }
 
 
@@ -165,30 +179,34 @@ struct DecimalMultiplyImpl
     template <typename T>
     static bool apply(T a, T b, T & c)
     {
-        return !common::mulOverflow(a, b, c);
+        c = a * b;
+        return true;
     }
 
-    template <Int128>
+    template <>
     static bool apply(Int128 a, Int128 b, Int128 & r)
     {
         if (canCastLower(a, b))
         {
             UInt64 low_result = 0;
-            if (common::mulOverflow(static_cast<UInt64>(a), static_cast<UInt64>(b), low_result))
-                return !common::mulOverflow(a, b, r);
-
-            r = static_cast<Int128>(low_result);
-            return true;
+            if (!common::mulOverflow(static_cast<UInt64>(a), static_cast<UInt64>(b), low_result))
+            {
+                r = static_cast<Int128>(low_result);
+                chassert(r == a * b);
+                return true;
+            }
         }
 
-        return !common::mulOverflow(a, b, r);
+        r = a * b;
+        return true;
     }
 
     template <>
     static bool apply(Int256 a, Int256 b, Int256 & r)
     {
-        // r = toInt256(toNewInt256(a) * toNewInt256(b));
-        r = a * b;
+        /// Notice that we can't use common::mulOverflow here because it doesn't support checking overflow on Int128 multiplication.
+        r = toInt256(toNewInt256(a) * toNewInt256(b));
+        chassert(r == a * b);
         return true;
     }
 
@@ -222,13 +240,34 @@ struct DecimalDivideImpl
 
         if (canCastLower(a, b))
         {
+            /// We must cast to UInt64 to avoid overflow in the division.
             r = static_cast<Int128>(static_cast<UInt64>(a) / static_cast<UInt64>(b));
+            chassert(r == a / b);
             return true;
         }
 
         r = a / b;
         return true;
     }
+
+    template <>
+    static bool apply(UInt128 a, UInt128 b, UInt128 & r)
+    {
+        if (b == 0)
+            return false;
+
+        if (canCastLower(a, b))
+        {
+            /// We must cast to UInt64 to avoid overflow in the division.
+            r = static_cast<UInt128>(static_cast<UInt64>(a) / static_cast<UInt64>(b));
+            chassert(r == a / b);
+            return true;
+        }
+
+        r = a / b;
+        return true;
+    }
+
 
     template <>
     static bool apply(Int256 a, Int256 b, Int256 & r)
@@ -238,16 +277,16 @@ struct DecimalDivideImpl
 
         if (canCastLower(a, b))
         {
-            UInt128 low_result = 0;
-            UInt128 low_a = static_cast<UInt128>(a);
-            UInt128 low_b = static_cast<UInt128>(b);
-            apply(low_a, low_b, low_result);
+            /// We must cast to UInt128 to avoid overflow in the division.
+            UInt128 low_result;
+            apply(static_cast<UInt128>(a), static_cast<UInt128>(b), low_result);
             r = static_cast<Int256>(low_result);
+            chassert(r == a / b);
             return true;
         }
 
-        r = a / b;
-        // r = toInt256(toNewInt256(a) / toNewInt256(b));
+        r = toInt256(toNewInt256(a) / toNewInt256(b));
+        chassert(r == a / b);
         return true;
     }
 
@@ -272,6 +311,44 @@ struct DecimalModuloImpl
             return false;
 
         r = a % b;
+        return true;
+    }
+
+    template <>
+    static bool apply(Int128 a, Int128 b, Int128 & r)
+    {
+        if (b == 0)
+            return false;
+
+        if (canCastLower(a, b))
+        {
+            /// We must cast to UInt64 to avoid overflow in the division.
+            r = static_cast<Int128>(static_cast<UInt64>(a) % static_cast<UInt64>(b));
+            chassert(r == a % b);
+            return true;
+        }
+
+        r = a % b;
+        return true;
+    }
+
+
+    template <>
+    static bool apply(Int256 a, Int256 b, Int256 & r)
+    {
+        if (b == 0)
+            return false;
+
+        if (canCastLower(a, b))
+        {
+            /// We must cast to UInt128 to avoid overflow in the division.
+            r = static_cast<Int256>(static_cast<UInt128>(a) % static_cast<UInt128>(b));
+            chassert(r == a % b);
+            return true;
+        }
+
+        r = toInt256(toNewInt256(a) % toNewInt256(b));
+        chassert(r == a % b);
         return true;
     }
 
