@@ -19,11 +19,11 @@
 
 #include <chrono>
 
-using TimePoint = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>;
-
 namespace gluten {
+template <typename T = std::chrono::nanoseconds>
 class Timer {
  public:
+  using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
   explicit Timer() = default;
 
   void start() {
@@ -36,8 +36,7 @@ class Timer {
       return;
     }
     running_ = false;
-    realTimeUsed_ +=
-        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime_).count();
+    realTimeUsed_ += std::chrono::duration_cast<T>(std::chrono::steady_clock::now() - startTime_).count();
   }
 
   void reset() {
@@ -62,6 +61,7 @@ class Timer {
   int64_t realTimeUsed_ = 0;
 };
 
+template <typename T = std::chrono::nanoseconds>
 class ScopedTimer {
  public:
   explicit ScopedTimer(int64_t* toAdd) : toAdd_(toAdd) {
@@ -79,7 +79,7 @@ class ScopedTimer {
   }
 
  private:
-  Timer timer_{};
+  Timer<T> timer_{};
   int64_t* toAdd_;
 
   void stopInternal() {
@@ -92,4 +92,9 @@ class ScopedTimer {
     timer_.start();
   }
 };
+
+using ScopedSecondsTimer = ScopedTimer<std::chrono::seconds>;
+using ScopedMillisecondsTimer = ScopedTimer<std::chrono::milliseconds>;
+using ScopedMicrosecondsTimer = ScopedTimer<std::chrono::microseconds>;
+
 } // namespace gluten
