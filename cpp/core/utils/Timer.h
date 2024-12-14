@@ -62,13 +62,13 @@ class Timer {
 };
 
 template <typename T = std::chrono::nanoseconds>
-class ScopedTimer {
+class ScopedTimerImpl {
  public:
-  explicit ScopedTimer(int64_t* toAdd) : toAdd_(toAdd) {
+  explicit ScopedTimerImpl(int64_t* toAdd) : toAdd_(toAdd) {
     startInternal();
   }
 
-  ~ScopedTimer() {
+  ~ScopedTimerImpl() {
     stopInternal();
   }
 
@@ -93,8 +93,9 @@ class ScopedTimer {
   }
 };
 
-using ScopedSecondsTimer = ScopedTimer<std::chrono::seconds>;
-using ScopedMillisecondsTimer = ScopedTimer<std::chrono::milliseconds>;
-using ScopedMicrosecondsTimer = ScopedTimer<std::chrono::microseconds>;
+using ScopedTimer = ScopedTimerImpl<std::chrono::nanoseconds>;
+using ScopedSecondsTimer = ScopedTimerImpl<std::chrono::seconds>;
+using ScopedMillisecondsTimer = ScopedTimerImpl<std::chrono::milliseconds>;
+using ScopedMicrosecondsTimer = ScopedTimerImpl<std::chrono::microseconds>;
 
 } // namespace gluten
