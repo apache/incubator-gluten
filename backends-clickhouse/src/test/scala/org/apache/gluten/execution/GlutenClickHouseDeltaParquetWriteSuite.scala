@@ -1025,6 +1025,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     }
   }
 
+  // FIXME: optimize
   testSparkVersionLE33("test parquet optimize with the path based table") {
     val dataPath = s"$basePath/lineitem_delta_parquet_optimize_path_based"
     clearDataPath(dataPath)
