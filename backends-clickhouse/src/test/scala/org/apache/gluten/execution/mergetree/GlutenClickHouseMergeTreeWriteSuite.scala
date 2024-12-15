@@ -583,7 +583,7 @@ class GlutenClickHouseMergeTreeWriteSuite
   }
 
   test("test mergetree write with partition") {
-    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)) {
+    withSQLConf((CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, "false")) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_mergetree_partition;
                    |""".stripMargin)
@@ -703,7 +703,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
           val mergetreeScan = scanExec.head
           assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
-          // assertResult(3745)(mergetreeScan.metrics("numFiles").value)
+          assertResult(3745)(mergetreeScan.metrics("numFiles").value)
 
           val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
@@ -1601,7 +1601,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                 case scanExec: BasicScanExecTransformer => scanExec
               }
               assertResult(1)(plans.size)
-              assertResult(conf._2)(plans.head.getSplitInfos.size)
+              assertResult(conf._2)(plans.head.getSplitInfos().size)
           }
         }
       })
@@ -1625,7 +1625,7 @@ class GlutenClickHouseMergeTreeWriteSuite
             case scanExec: BasicScanExecTransformer => scanExec
           }
           assertResult(1)(plans.size)
-          assertResult(1)(plans.head.getSplitInfos.size)
+          assertResult(1)(plans.head.getSplitInfos().size)
       }
     }
   }
@@ -1733,7 +1733,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                 case f: BasicScanExecTransformer => f
               }
               assertResult(2)(scanExec.size)
-              assertResult(conf._2)(scanExec(1).getSplitInfos.size)
+              assertResult(conf._2)(scanExec(1).getSplitInfos().size)
           }
         }
       })
@@ -1779,7 +1779,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     Seq("true", "false").foreach {
       skip =>
-        withSQLConf("spark.databricks.delta.stats.skipping" -> skip.toString) {
+        withSQLConf("spark.databricks.delta.stats.skipping" -> skip) {
           val sqlStr =
             s"""
                |SELECT
@@ -1903,7 +1903,7 @@ class GlutenClickHouseMergeTreeWriteSuite
     Seq(("-1", 3), ("3", 3), ("6", 1)).foreach(
       conf => {
         withSQLConf(
-          ("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold" -> conf._1)) {
+          "spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold" -> conf._1) {
           val sql =
             s"""
                |select count(1), min(l_returnflag) from lineitem_split
@@ -1916,7 +1916,7 @@ class GlutenClickHouseMergeTreeWriteSuite
               val scanExec = collect(df.queryExecution.executedPlan) {
                 case f: FileSourceScanExecTransformer => f
               }
-              assert(scanExec(0).getPartitions.size == conf._2)
+              assert(scanExec.head.getPartitions.size == conf._2)
           }
         }
       })

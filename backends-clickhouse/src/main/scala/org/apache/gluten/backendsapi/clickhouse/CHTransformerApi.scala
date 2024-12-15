@@ -249,14 +249,23 @@ class CHTransformerApi extends TransformerApi with Logging {
         register.shortName
       case _ => "UnknownFileFormat"
     }
-    val write = Write
+    val childOutput = writeExec.child.output
+
+    val partitionIndexes =
+      writeExec.partitionColumns.map(p => childOutput.indexWhere(_.exprId == p.exprId))
+    require(partitionIndexes.forall(_ >= 0))
+
+    val common = Write.Common
       .newBuilder()
-      .setCommon(
-        Write.Common
-          .newBuilder()
-          .setFormat(fileFormatStr)
-          .setJobTaskAttemptId("") // we cannot get job and task id at the driver side
-          .build())
+      .setFormat(s"$fileFormatStr")
+      .setJobTaskAttemptId("") // we cannot get job and task id at the driver side)
+    partitionIndexes.foreach {
+      idx =>
+        require(idx >= 0)
+        common.addPartitionColIndex(idx)
+    }
+
+    val write = Write.newBuilder().setCommon(common.build())
 
     writeExec.fileFormat match {
       case d: MergeTreeFileFormat =>
@@ -271,5 +280,5 @@ class CHTransformerApi extends TransformerApi with Logging {
 
   /** use Hadoop Path class to encode the file path */
   override def encodeFilePathIfNeed(filePath: String): String =
-    (new Path(filePath)).toUri.toASCIIString
+    new Path(filePath).toUri.toASCIIString
 }

@@ -258,11 +258,18 @@ TEST(MergeTree, SparkMergeTree)
 INCBIN(_3_mergetree_plan_input_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/lineitem_parquet_input.json");
 namespace
 {
-void writeMerge(std::string_view json_plan,
-    const std::string & outputPath ,
-    const std::function<void(const DB::Block &)> & callback, std::optional<std::string> input = std::nullopt)
+void writeMerge(
+    std::string_view json_plan,
+    const std::string & outputPath,
+    const std::function<void(const DB::Block &)> & callback,
+    std::optional<std::string> input = std::nullopt)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
+
+    auto queryid = QueryContext::instance().initializeQuery("gtest_mergetree");
+    SCOPE_EXIT({ QueryContext::instance().finalizeQuery(queryid); });
+
+
     GlutenWriteSettings settings{.task_write_tmp_dir = outputPath};
     settings.set(context);
     SparkMergeTreeWritePartitionSettings partition_settings{.part_name_prefix = "pipline_prefix"};
@@ -279,18 +286,24 @@ INCBIN(_3_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mer
 INCBIN(_4_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/4_one_pipeline.json");
 TEST(MergeTree, Pipeline)
 {
-    writeMerge(EMBEDDED_PLAN(_3_mergetree_plan_),"tmp/lineitem_mergetree",[&](const DB::Block & block)
-    {
-        EXPECT_EQ(1, block.rows());
-        debug::headBlock(block);
-    });
+    writeMerge(
+        EMBEDDED_PLAN(_3_mergetree_plan_),
+        "tmp/lineitem_mergetree",
+        [&](const DB::Block & block)
+        {
+            EXPECT_EQ(1, block.rows());
+            debug::headBlock(block);
+        });
 }
 
 TEST(MergeTree, PipelineWithPartition)
 {
-    writeMerge(EMBEDDED_PLAN(_4_mergetree_plan_),"tmp/lineitem_mergetree_p",[&](const DB::Block & block)
-    {
-        EXPECT_EQ(2525, block.rows());
-        debug::headBlock(block);
-    });
+    writeMerge(
+        EMBEDDED_PLAN(_4_mergetree_plan_),
+        "tmp/lineitem_mergetree_p",
+        [&](const DB::Block & block)
+        {
+            EXPECT_EQ(3815, block.rows());
+            debug::headBlock(block);
+        });
 }
