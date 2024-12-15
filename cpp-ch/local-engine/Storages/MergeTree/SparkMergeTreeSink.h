@@ -55,7 +55,7 @@ public:
         deq.emplace_back(value);
     }
 
-    void emplace_back(std::vector<T> values)
+    void emplace_back(const std::vector<T> & values)
     {
         std::lock_guard<std::mutex> lock(mtx);
         deq.insert(deq.end(), values.begin(), values.end());
@@ -190,8 +190,9 @@ public:
 
     String getName() const override { return "MergeTreeStats"; }
 
-    void collectStats(const std::deque<DB::MergeTreeDataPartPtr> & parts, const std::string & partition) const
+    void collectStats(const std::deque<DB::MergeTreeDataPartPtr> & parts, const std::string & partition_dir) const
     {
+        const std::string & partition = partition_dir.empty() ? WriteStatsBase::NO_PARTITION_ID : partition_dir;
         const size_t size = parts.size() + columns_[part_name]->size();
         columns_[part_name]->reserve(size);
         columns_[partition_id]->reserve(size);
@@ -214,6 +215,10 @@ public:
             marksColData.emplace_back(part->getMarksCount());
             bytesColData.emplace_back(part->getBytesOnDisk());
         }
+
+        for (size_t index = size_in_bytes + 1; index < columns_.size(); ++index)
+            for (size_t i = 0; i < parts.size(); ++i)
+                columns_[index]->insertDefault();
     }
 };
 
@@ -289,7 +294,7 @@ public:
         write_settings.partition_settings.partition_dir = partition_id;
 
         return SparkMergeTreeSink::create(
-            table, write_settings, context_->getGlobalContext(), {std::dynamic_pointer_cast<MergeTreeStats>(stats_)});
+            table, write_settings, context_->getQueryContext(), {std::dynamic_pointer_cast<MergeTreeStats>(stats_)});
     }
 
     // TODO implement with bucket

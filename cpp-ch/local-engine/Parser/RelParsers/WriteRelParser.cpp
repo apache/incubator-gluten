@@ -155,11 +155,9 @@ void addMergeTreeSinkTransform(
     //
 
     SparkMergeTreeWriteSettings write_settings{context};
-    if (partition_by.empty())
-        write_settings.partition_settings.partition_dir = SubstraitFileSink::NO_PARTITION_ID;
 
     auto sink = partition_by.empty()
-        ? SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getGlobalContext(), {stats})
+        ? SparkMergeTreeSink::create(merge_tree_table, write_settings, context->getQueryContext(), {stats})
         : std::make_shared<SparkMergeTreePartitionedFileSink>(header, partition_by, merge_tree_table, write_settings, context, stats);
 
     chain.addSource(sink);

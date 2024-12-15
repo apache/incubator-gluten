@@ -38,7 +38,7 @@ case class DeltaFileCommitInfo(committer: FileDelayedCommitProtocol)
   val addedFiles: ArrayBuffer[(Map[String, String], String)] =
     new ArrayBuffer[(Map[String, String], String)]
   override def apply(stat: NativeFileWriteResult): Unit = {
-    if (stat.partition_id == "__NO_PARTITION_ID__") {
+    if (stat.partition_id == CHColumnarWrite.EMPTY_PARTITION_ID) {
       addedFiles.append((Map.empty[String, String], stat.filename))
     } else {
       val partitionValues = committer.parsePartitions(stat.partition_id)
