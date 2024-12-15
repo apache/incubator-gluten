@@ -67,7 +67,7 @@ case class WriteFilesExecTransformer(
 
   override def output: Seq[Attribute] = Seq.empty
 
-  private val caseInsensitiveOptions = CaseInsensitiveMap(options)
+  val caseInsensitiveOptions: CaseInsensitiveMap[String] = CaseInsensitiveMap(options)
 
   def getRelNode(
       context: SubstraitContext,
@@ -99,8 +99,7 @@ case class WriteFilesExecTransformer(
       ConverterUtils.collectAttributeNames(inputAttributes.toSeq)
     val extensionNode = if (!validation) {
       ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance
-          .genWriteParameters(fileFormat, caseInsensitiveOptions),
+        BackendsApiManager.getTransformerApiInstance.genWriteParameters(this),
         SubstraitUtil.createEnhancement(originalInputAttributes)
       )
     } else {
