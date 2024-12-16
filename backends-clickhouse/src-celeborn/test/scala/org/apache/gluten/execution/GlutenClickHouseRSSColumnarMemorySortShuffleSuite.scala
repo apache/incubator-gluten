@@ -26,10 +26,10 @@ class GlutenClickHouseRSSColumnarMemorySortShuffleSuite
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String =
-    rootPath + "../../../../../backends-clickhouse/src/test/resources/mergetree-queries-output"
+    rootPath + "../../../../backends-clickhouse/src/test/resources/mergetree-queries-output"
 
   override protected val parquetTableDataPath: String =
-    "../../../../../gluten-core/src/test/resources/tpch-data"
+    "../../../../gluten-core/src/test/resources/tpch-data"
 
   /** Run Gluten + ClickHouse Backend with ColumnarShuffleManager */
   override protected def sparkConf: SparkConf = {
