@@ -78,7 +78,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-uniffle-package</artifactId>
+          <artifactId>gluten-uniffle</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>

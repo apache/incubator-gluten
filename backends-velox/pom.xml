@@ -58,6 +58,25 @@
       </dependencies>
     </profile>
     <profile>
+      <id>uniffle</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-uniffle</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.uniffle</groupId>
+          <artifactId>rss-client-spark${spark.major.version}-shaded</artifactId>
+          <version>${uniffle.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
       <id>iceberg</id>
       <activation>
         <activeByDefault>false</activeByDefault>
