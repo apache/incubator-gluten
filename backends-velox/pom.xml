@@ -59,49 +59,7 @@
           <scope>test</scope>
         </dependency>
       </dependencies>
-      <build>
-        <resources>
-          <resource>
-            <directory>${project.basedir}/src/main-iceberg/resource</directory>
-          </resource>
-        </resources>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-iceberg-sources</id>
-                <phase>generate-sources</phase>
-                <goals>
-                  <goal>add-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src/main-iceberg/scala</source>
-                    <source>${project.basedir}/src/main-iceberg/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-iceberg-test-sources</id>
-                <phase>generate-test-sources</phase>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src/test-iceberg/scala</source>
-                    <source>${project.basedir}/src/test-iceberg/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
-
     <profile>
       <id>delta</id>
       <dependencies>
@@ -123,42 +81,6 @@
           <scope>provided</scope>
         </dependency>
       </dependencies>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-delta-sources</id>
-                <phase>generate-sources</phase>
-                <goals>
-                  <goal>add-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src/main-delta/scala</source>
-                    <source>${project.basedir}/src/main-delta/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-delta-test-sources</id>
-                <phase>generate-test-sources</phase>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src/test-delta/scala</source>
-                    <source>${project.basedir}/src/test-delta/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
   </profiles>
 
@@ -317,11 +239,11 @@
   <build>
     <resources>
       <resource>
-        <directory>${cpp.releases.dir}</directory>
-        <targetPath>${platform}/${arch}</targetPath>
+        <directory>${project.basedir}/src/main/resources</directory>
       </resource>
       <resource>
-        <directory>${project.basedir}/src/main/resources</directory>
+        <directory>${cpp.releases.dir}</directory>
+        <targetPath>${platform}/${arch}</targetPath>
       </resource>
     </resources>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>

@@ -336,7 +336,8 @@ bool VeloxMemoryManager::tryDestructSafe() {
   // Velox memory manager considered safe to destruct when no alive pools.
   if (veloxMemoryManager_) {
     if (veloxMemoryManager_->numPools() > 3) {
-      GLUTEN_CHECK(false, "Unreachable code");
+      VLOG(2) << "Attempt to destruct VeloxMemoryManager failed because there are " << veloxMemoryManager_->numPools()
+              << " outstanding memory pools.";
       return false;
     }
     if (veloxMemoryManager_->numPools() == 3) {
