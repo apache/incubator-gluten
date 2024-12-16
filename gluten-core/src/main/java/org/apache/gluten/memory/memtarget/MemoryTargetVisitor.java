@@ -35,4 +35,6 @@ public interface MemoryTargetVisitor<T> {
   T visit(NoopMemoryTarget noopMemoryTarget);
 
   T visit(DynamicOffHeapSizingMemoryTarget dynamicOffHeapSizingMemoryTarget);
+
+  T visit(RetryOnOomMemoryTarget retryOnOomMemoryTarget);
 }
