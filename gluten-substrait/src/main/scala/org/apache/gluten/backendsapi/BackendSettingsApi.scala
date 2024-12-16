@@ -18,22 +18,26 @@ package org.apache.gluten.backendsapi
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.types.StructField
 
 trait BackendSettingsApi {
-  def validateScan(
+
+  /** The columnar-batch type this backend is by default using. */
+  def primaryBatchType: Convention.BatchType
+
+  def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
-      rootPaths: Seq[String]): ValidationResult = ValidationResult.succeeded
+      rootPaths: Seq[String],
+      properties: Map[String, String]): ValidationResult = ValidationResult.succeeded
 
   def supportWriteFilesExec(
       format: FileFormat,
@@ -75,12 +79,6 @@ trait BackendSettingsApi {
 
   def recreateJoinExecOnFallback(): Boolean = false
 
-  /**
-   * A shuffle key may be an expression. We would add a projection for this expression shuffle key
-   * and make it into a new column which the shuffle will refer to. But we need to remove it from
-   * the result columns from the shuffle.
-   */
-  def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def rescaleDecimalArithmetic: Boolean = false
 
@@ -122,6 +120,8 @@ trait BackendSettingsApi {
   def shouldRewriteCount(): Boolean = false
 
   def supportCartesianProductExec(): Boolean = false
+
+  def supportCartesianProductExecWithCondition(): Boolean = true
 
   def supportBroadcastNestedLoopJoinExec(): Boolean = true
 

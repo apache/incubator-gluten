@@ -164,6 +164,7 @@ WindowGroupOptimizationInfo WindowGroupOptimizationInfo::parse(const String & ad
     auto kkvs = convertToKVs(advance);
     auto & kvs = kkvs["WindowGroupLimitParameters"];
     tryAssign(kvs, "window_function", info.window_function);
+    tryAssign(kvs, "is_aggregate_group_limit", info.is_aggregate_group_limit);
     return info;
 }
 }

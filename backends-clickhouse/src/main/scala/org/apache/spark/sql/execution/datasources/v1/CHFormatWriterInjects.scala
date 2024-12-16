@@ -78,7 +78,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
     val datasourceJniWrapper =
       new CHDatasourceJniWrapper(outputPath, createWriteRel(outputPath, dataSchema, context))
-    new FakeRowOutputWriter(datasourceJniWrapper, outputPath)
+    new FakeRowOutputWriter(Some(datasourceJniWrapper), outputPath)
   }
 
   override def inferSchema(

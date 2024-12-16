@@ -79,7 +79,7 @@ abstract class GenerateExecTransformerBase(
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val relNode = getRelNode(context, childCtx.root, getGeneratorNode(context), validation = false)
-    TransformContext(child.output, output, relNode)
+    TransformContext(output, relNode)
   }
 
   protected def getExtensionNodeForValidation: AdvancedExtensionNode = {

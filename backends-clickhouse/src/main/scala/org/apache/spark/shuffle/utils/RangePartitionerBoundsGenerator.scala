@@ -16,7 +16,7 @@
  */
 package org.apache.spark.shuffle.utils
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backendsapi.clickhouse.CHValidatorApi
 import org.apache.gluten.execution.SortExecTransformer
 import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.substrait.SubstraitContext
@@ -210,27 +210,30 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     arrayNode
   }
 
-  private def buildRangeBoundsJson(jsonMapper: ObjectMapper, arrayNode: ArrayNode): Unit = {
+  private def buildRangeBoundsJson(jsonMapper: ObjectMapper, arrayNode: ArrayNode): Int = {
     val bounds = getRangeBounds
     bounds.foreach {
       bound =>
         val row = bound.asInstanceOf[UnsafeRow]
         arrayNode.add(buildRangeBoundJson(row, ordering, jsonMapper))
     }
+    bounds.length
   }
 
   // Make a json structure that can be passed to native engine
-  def getRangeBoundsJsonString: String = {
+  def getRangeBoundsJsonString: RangeBoundsInfo = {
     val context = new SubstraitContext()
     val mapper = new ObjectMapper
     val rootNode = mapper.createObjectNode
     val orderingArray = rootNode.putArray("ordering")
     buildOrderingJson(context, ordering, inputAttributes, mapper, orderingArray)
     val boundArray = rootNode.putArray("range_bounds")
-    buildRangeBoundsJson(mapper, boundArray)
-    mapper.writeValueAsString(rootNode)
+    val boundLength = buildRangeBoundsJson(mapper, boundArray)
+    RangeBoundsInfo(mapper.writeValueAsString(rootNode), boundLength)
   }
 }
+
+case class RangeBoundsInfo(json: String, boundsSize: Int)
 
 object RangePartitionerBoundsGenerator {
   def supportedFieldType(dataType: DataType): Boolean = {
@@ -261,8 +264,9 @@ object RangePartitionerBoundsGenerator {
           break
         }
         if (
-          !ordering.child.isInstanceOf[Attribute] && !BackendsApiManager.getSettings
-            .supportShuffleWithProject(rangePartitioning, child)
+          !ordering.child.isInstanceOf[Attribute] && !CHValidatorApi.supportShuffleWithProject(
+            rangePartitioning,
+            child)
         ) {
           enableRangePartitioning = false
           break

@@ -50,7 +50,8 @@ class CHCelebornColumnarShuffleWriter[K, V](
     writeMetrics) {
 
   private val capitalizedCompressionCodec =
-    customizedCompressionCodec.toUpperCase(Locale.ROOT)
+    if (customizedCompressionCodec != null) customizedCompressionCodec.toUpperCase(Locale.ROOT)
+    else "NONE"
 
   private val jniWrapper = new CHShuffleSplitterJniWrapper
 

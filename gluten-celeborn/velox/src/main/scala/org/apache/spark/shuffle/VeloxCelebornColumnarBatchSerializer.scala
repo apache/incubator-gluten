@@ -18,6 +18,7 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.GlutenConfig.{GLUTEN_RSS_SORT_SHUFFLE_WRITER, GLUTEN_SORT_SHUFFLE_WRITER}
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
@@ -65,7 +66,8 @@ private class CelebornColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private val runtime = Runtimes.contextInstance("CelebornShuffleReader")
+  private val runtime =
+    Runtimes.contextInstance(BackendsApiManager.getBackendName, "CelebornShuffleReader")
 
   private val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
@@ -88,12 +90,14 @@ private class CelebornColumnarBatchSerializerInstance(
       .replace(GLUTEN_SORT_SHUFFLE_WRITER, GLUTEN_RSS_SORT_SHUFFLE_WRITER)
     val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val batchSize = GlutenConfig.getConf.maxBatchSize
+    val bufferSize = GlutenConfig.getConf.columnarShuffleReaderBufferSize
     val handle = jniWrapper
       .make(
         cSchema.memoryAddress(),
         compressionCodec,
         compressionCodecBackend,
         batchSize,
+        bufferSize,
         shuffleWriterType
       )
     // Close shuffle reader instance as lately as the end of task processing,

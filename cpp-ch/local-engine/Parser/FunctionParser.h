@@ -60,6 +60,7 @@ protected:
     {
         return parseFunctionArguments(substrait_func, actions_dag);
     }
+
     virtual DB::ActionsDAG::NodeRawConstPtrs
     parseFunctionArguments(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const;
 

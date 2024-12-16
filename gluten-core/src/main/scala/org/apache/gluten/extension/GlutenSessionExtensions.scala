@@ -17,8 +17,8 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backend.Backend
-import org.apache.gluten.extension.injector.RuleInjector
+import org.apache.gluten.component.Component
+import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
@@ -28,11 +28,11 @@ private[gluten] class GlutenSessionExtensions
   with Logging {
   import GlutenSessionExtensions._
   override def apply(exts: SparkSessionExtensions): Unit = {
-    val injector = new RuleInjector(exts)
+    val injector = new Injector(exts)
     injector.control.disableOn {
       session =>
         val glutenEnabledGlobally = session.conf
-          .get(GlutenConfig.GLUTEN_ENABLED_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
+          .get(GlutenConfig.GLUTEN_ENABLED_KEY, GlutenConfig.GLUTEN_ENABLED_BY_DEFAULT.toString)
           .toBoolean
         val disabled = !glutenEnabledGlobally
         logDebug(s"Gluten is disabled by variable: glutenEnabledGlobally: $glutenEnabledGlobally")
@@ -47,7 +47,8 @@ private[gluten] class GlutenSessionExtensions
         logDebug(s"Gluten is disabled by variable: glutenEnabledForThread: $glutenEnabledForThread")
         disabled
     }
-    Backend.get().injectRules(injector)
+    // Components should override Backend's rules. Hence, reversed injection order is applied.
+    Component.sorted().reverse.foreach(_.injectRules(injector))
     injector.inject()
   }
 }

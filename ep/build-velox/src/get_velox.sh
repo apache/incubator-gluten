@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_10_26
+VELOX_BRANCH=2024_12_14
 VELOX_HOME=""
 
 OS=`uname -s`
@@ -69,17 +69,6 @@ function process_setup_ubuntu {
   # Do not install libunwind which can cause interruption when catching native exception.
   ensure_pattern_matched '\${SUDO} apt install -y libunwind-dev' scripts/setup-ubuntu.sh
   sed -i 's/${SUDO} apt install -y libunwind-dev//' scripts/setup-ubuntu.sh
-  # Overwrite gcc installed by build-essential.
-  ensure_pattern_matched '\${SUDO} pip3 install cmake==3.28.3' scripts/setup-ubuntu.sh
-  sed -i '/^  ${SUDO} pip3 install cmake==3.28.3/a\
-  \VERSION=`cat /etc/os-release | grep VERSION_ID`\
-  if [[ $VERSION =~ "20.04" ]]; then\
-    sudo apt install -y software-properties-common\
-    sudo add-apt-repository ppa:ubuntu-toolchain-r/test\
-    sudo apt update && sudo apt install -y gcc-11 g++-11\
-    sudo ln -sf /usr/bin/gcc-11 /usr/bin/gcc\
-    sudo ln -sf /usr/bin/g++-11 /usr/bin/g++\
-  fi' scripts/setup-ubuntu.sh
   ensure_pattern_matched 'ccache' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\    *thrift* \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\    libiberty-dev \\' scripts/setup-ubuntu.sh
@@ -200,7 +189,6 @@ function setup_linux {
   local LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
 
   # apply patches
-  sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
   sed -i 's/SUDO="${SUDO:-""}"/SUDO="${SUDO:-"sudo --preserve-env"}"/g' scripts/setup-helper-functions.sh
   if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" || "$LINUX_DISTRIBUTION" == "pop" ]]; then
     process_setup_ubuntu

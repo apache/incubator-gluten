@@ -14,8 +14,7 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | build_tests            | Build gluten cpp tests.                                                                            | OFF     |
 | build_examples         | Build udf example.                                                                                 | OFF     |
 | build_benchmarks       | Build gluten cpp benchmarks.                                                                       | OFF     |
-| enable_jemalloc_stats         | Print jemalloc stats for debugging.                                                                               | OFF     |
-| build_protobuf         | Build protobuf lib.                                                                                | OFF     |
+| enable_jemalloc_stats  | Print jemalloc stats for debugging.                                                                | OFF     |
 | enable_qat             | Enable QAT for shuffle data de/compression.                                                        | OFF     |
 | enable_iaa             | Enable IAA for shuffle data de/compression.                                                        | OFF     |
 | enable_hbm             | Enable HBM allocator.                                                                              | OFF     |

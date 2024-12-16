@@ -20,6 +20,7 @@ import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.plans.LeftSemi
 import org.apache.spark.sql.execution.{ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 
@@ -211,6 +212,23 @@ class GlutenClickHouseTPCHParquetAQESuite
 
   test("TPCH Q21") {
     runTPCHQuery(21) { df => }
+  }
+
+  test(
+    "TPCH Q21 with GLUTEN-7971: Support using left side as the build table for the left anti/semi join") {
+    withSQLConf(
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.backend.ch.convert.left.anti_semi.to.right", "true")) {
+      runTPCHQuery(21, compareResult = false) {
+        df =>
+          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+          val shuffledHashJoinExecs = collect(df.queryExecution.executedPlan) {
+            case h: CHShuffledHashJoinExecTransformer if h.joinType == LeftSemi => h
+          }
+          assertResult(1)(shuffledHashJoinExecs.size)
+          assertResult(BuildLeft)(shuffledHashJoinExecs(0).buildSide)
+      }
+    }
   }
 
   test("TPCH Q22") {

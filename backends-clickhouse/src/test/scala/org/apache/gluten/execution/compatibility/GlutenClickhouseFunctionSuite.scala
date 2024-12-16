@@ -17,7 +17,7 @@
 package org.apache.gluten.execution.compatibility
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
+import org.apache.gluten.execution.{GlutenClickHouseTPCHAbstractSuite, ProjectExecTransformer}
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
@@ -64,7 +64,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   test("test uuid - write and read") {
     withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
+      (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
       (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
       withTable("uuid_test") {
         spark.sql("create table if not exists uuid_test (id string) using parquet")
@@ -269,6 +269,22 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7594: cast const map to string") {
+    withSQLConf(
+      (
+        "spark.sql.optimizer.excludedRules",
+        "org.apache.spark.sql.catalyst.optimizer.ConstantFolding," +
+          "org.apache.spark.sql.catalyst.optimizer.NullPropagation")) {
+      runQueryAndCompare(
+        """
+          |select cast(map(1,'2') as string)
+          |""".stripMargin,
+        true,
+        false
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("GLUTEN-7550 get_json_object in IN") {
     withTable("test_7550") {
       sql("create table test_7550(a string) using parquet")
@@ -378,6 +394,34 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
           |select regexp_replace(id,
           |'([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})',
           |'$1-$2-$3') from regexp_test
+        """.stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
+  test("GLUTEN-8148: Fix corr with NaN") {
+    withTable("corr_nan") {
+      sql("create table if not exists corr_nan (x double, y double) using parquet")
+      sql("insert into corr_nan values(0,1)")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select corr(x,y), corr(y,x) from corr_nan
+        """.stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
+  test("GLUTEN-7755: translate support args with unequal length") {
+    withTable("test_7755") {
+      sql("create table if not exists test_7755 (id string) using parquet")
+      sql("insert into test_7755 values('aAbBcC')")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select translate(id, 'abc', '12') from test_7755
         """.stripMargin,
         true,
         { _ => }

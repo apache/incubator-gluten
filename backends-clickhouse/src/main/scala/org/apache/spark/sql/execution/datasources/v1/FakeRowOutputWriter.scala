@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeR
 
 import scala.collection.mutable.ArrayBuffer
 
-class FakeRowOutputWriter(datasourceJniWrapper: CHDatasourceJniWrapper, outputPath: String)
+class FakeRowOutputWriter(datasourceJniWrapper: Option[CHDatasourceJniWrapper], outputPath: String)
   extends OutputWriter {
 
   protected var addFiles: ArrayBuffer[AddFile] = new ArrayBuffer[AddFile]()
@@ -35,12 +35,12 @@ class FakeRowOutputWriter(datasourceJniWrapper: CHDatasourceJniWrapper, outputPa
 
     if (nextBatch.numRows > 0) {
       val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-      datasourceJniWrapper.write(col.getBlockAddress)
+      datasourceJniWrapper.foreach(_.write(col.getBlockAddress))
     } // else ignore this empty block
   }
 
   override def close(): Unit = {
-    datasourceJniWrapper.close()
+    datasourceJniWrapper.foreach(_.close())
   }
 
   // Do NOT add override keyword for compatibility on spark 3.1.

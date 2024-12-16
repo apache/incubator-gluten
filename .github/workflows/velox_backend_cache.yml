@@ -31,9 +31,8 @@ concurrency:
 jobs:
   cache-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:vcpkg-centos-7
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -43,9 +42,11 @@ jobs:
             ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
-          df -a
-          yum install ccache -y
-          bash dev/ci-velox-buildstatic-centos-7.sh
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            export CCACHE_DIR=/work/.ccache
+            mkdir -p /work/.ccache
+            bash dev/ci-velox-buildstatic-centos-7.sh
+          "
       - name: Save Ccache
         uses: actions/cache/save@v3
         id: ccache
@@ -65,12 +66,6 @@ jobs:
           key: ccache-centos8-release-default-${{github.sha}}
           restore-keys: |
             ccache-centos8-release-default
-      - name: Setup java and maven
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          bash .github/workflows/util/setup_helper.sh install_maven
       - name: Build Gluten native libraries
         run: |
           df -a

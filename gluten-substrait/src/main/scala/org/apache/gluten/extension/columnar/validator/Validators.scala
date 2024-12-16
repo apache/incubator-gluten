@@ -18,10 +18,14 @@ package org.apache.gluten.extension.columnar.validator
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
+import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.extension.columnar.heuristic.LegacyOffload
+import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.sql.shims.SparkShimLoader
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -31,21 +35,14 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-
 object Validators {
-  def builder(): Builder = Builder()
-
-  class Builder private {
+  implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
     private val conf = GlutenConfig.getConf
     private val settings = BackendsApiManager.getSettings
-    private val buffer: ListBuffer[Validator] = mutable.ListBuffer()
 
     /** Fails validation if a plan node was already tagged with TRANSFORM_UNSUPPORTED. */
-    def fallbackByHint(): Builder = {
-      buffer += FallbackByHint
-      this
+    def fallbackByHint(): Validator.Builder = {
+      builder.add(FallbackByHint)
     }
 
     /**
@@ -53,57 +50,51 @@ object Validators {
      * executed by native library. By default, we use a threshold option in config to make the
      * decision.
      */
-    def fallbackComplexExpressions(): Builder = {
-      buffer += new FallbackComplexExpressions(conf.fallbackExpressionsThreshold)
-      this
+    def fallbackComplexExpressions(): Validator.Builder = {
+      builder.add(new FallbackComplexExpressions(conf.fallbackExpressionsThreshold))
     }
 
     /** Fails validation on non-scan plan nodes if Gluten is running as scan-only mode. */
-    def fallbackIfScanOnly(): Builder = {
-      buffer += new FallbackIfScanOnly(conf.enableScanOnly)
-      this
+    def fallbackIfScanOnly(): Validator.Builder = {
+      builder.add(new FallbackIfScanOnly(conf.enableScanOnly))
     }
 
     /**
      * Fails validation if native-execution of a plan node is not supported by current backend
      * implementation by checking the active BackendSettings.
      */
-    def fallbackByBackendSettings(): Builder = {
-      buffer += new FallbackByBackendSettings(settings)
-      this
+    def fallbackByBackendSettings(): Validator.Builder = {
+      builder.add(new FallbackByBackendSettings(settings))
     }
 
     /**
      * Fails validation if native-execution of a plan node is disabled by Gluten/Spark
      * configuration.
      */
-    def fallbackByUserOptions(): Builder = {
-      buffer += new FallbackByUserOptions(conf)
-      this
+    def fallbackByUserOptions(): Validator.Builder = {
+      builder.add(new FallbackByUserOptions(conf))
     }
 
-    def fallbackByTestInjects(): Builder = {
-      buffer += new FallbackByTestInjects()
-      this
+    def fallbackByTestInjects(): Validator.Builder = {
+      builder.add(new FallbackByTestInjects())
     }
 
-    /** Add a custom validator to pipeline. */
-    def add(validator: Validator): Builder = {
-      buffer += validator
-      this
+    /**
+     * Fails validation on non-scan plan nodes if Gluten is running as scan-only mode. Also, passes
+     * validation on filter for the exception that filter + scan is detected. Because filters can be
+     * pushed into scan then the filter conditions will be processed only in scan.
+     */
+    def fallbackIfScanOnlyWithFilterPushed(scanOnly: Boolean): Validator.Builder = {
+      builder.add(new FallbackIfScanOnlyWithFilterPushed(scanOnly))
     }
 
-    def build(): Validator = {
-      if (buffer.isEmpty) {
-        NoopValidator
-      } else {
-        new ValidatorPipeline(buffer.toSeq)
-      }
+    /**
+     * Attempts to offload the input query plan node and check native validation result. Fails when
+     * native validation failed.
+     */
+    def fallbackByNativeValidation(rules: Seq[OffloadSingleNode]): Validator.Builder = {
+      builder.add(new FallbackByNativeValidation(rules))
     }
-  }
-
-  private object Builder {
-    def apply(): Builder = new Builder()
   }
 
   private object FallbackByHint extends Validator {
@@ -149,47 +140,50 @@ object Validators {
     }
   }
 
-  private class FallbackByUserOptions(conf: GlutenConfig) extends Validator {
+  private class FallbackByUserOptions(glutenConf: GlutenConfig) extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = plan match {
-      case p: SortExec if !conf.enableColumnarSort => fail(p)
-      case p: WindowExec if !conf.enableColumnarWindow => fail(p)
-      case p: SortMergeJoinExec if !conf.enableColumnarSortMergeJoin => fail(p)
-      case p: BatchScanExec if !conf.enableColumnarBatchScan => fail(p)
-      case p: FileSourceScanExec if !conf.enableColumnarFileScan => fail(p)
-      case p: ProjectExec if !conf.enableColumnarProject => fail(p)
-      case p: FilterExec if !conf.enableColumnarFilter => fail(p)
-      case p: UnionExec if !conf.enableColumnarUnion => fail(p)
-      case p: ExpandExec if !conf.enableColumnarExpand => fail(p)
-      case p: SortAggregateExec if !conf.forceToUseHashAgg => fail(p)
-      case p: ShuffledHashJoinExec if !conf.enableColumnarShuffledHashJoin => fail(p)
-      case p: ShuffleExchangeExec if !conf.enableColumnarShuffle => fail(p)
-      case p: BroadcastExchangeExec if !conf.enableColumnarBroadcastExchange => fail(p)
-      case p @ (_: LocalLimitExec | _: GlobalLimitExec) if !conf.enableColumnarLimit => fail(p)
-      case p: GenerateExec if !conf.enableColumnarGenerate => fail(p)
-      case p: CoalesceExec if !conf.enableColumnarCoalesce => fail(p)
-      case p: CartesianProductExec if !conf.cartesianProductTransformerEnabled => fail(p)
-      case p: TakeOrderedAndProjectExec
-          if !(conf.enableTakeOrderedAndProject && conf.enableColumnarSort &&
-            conf.enableColumnarShuffle && conf.enableColumnarProject) =>
+      case p: SortExec if !glutenConf.enableColumnarSort => fail(p)
+      case p: WindowExec if !glutenConf.enableColumnarWindow => fail(p)
+      case p: SortMergeJoinExec if !glutenConf.enableColumnarSortMergeJoin => fail(p)
+      case p: BatchScanExec if !glutenConf.enableColumnarBatchScan => fail(p)
+      case p: FileSourceScanExec if !glutenConf.enableColumnarFileScan => fail(p)
+      case p: ProjectExec if !glutenConf.enableColumnarProject => fail(p)
+      case p: FilterExec if !glutenConf.enableColumnarFilter => fail(p)
+      case p: UnionExec if !glutenConf.enableColumnarUnion => fail(p)
+      case p: ExpandExec if !glutenConf.enableColumnarExpand => fail(p)
+      case p: SortAggregateExec if !glutenConf.forceToUseHashAgg => fail(p)
+      case p: ShuffledHashJoinExec if !glutenConf.enableColumnarShuffledHashJoin => fail(p)
+      case p: ShuffleExchangeExec if !glutenConf.enableColumnarShuffle => fail(p)
+      case p: BroadcastExchangeExec if !glutenConf.enableColumnarBroadcastExchange => fail(p)
+      case p @ (_: LocalLimitExec | _: GlobalLimitExec) if !glutenConf.enableColumnarLimit =>
         fail(p)
-      case p: BroadcastHashJoinExec if !conf.enableColumnarBroadcastJoin =>
+      case p: GenerateExec if !glutenConf.enableColumnarGenerate => fail(p)
+      case p: CoalesceExec if !glutenConf.enableColumnarCoalesce => fail(p)
+      case p: CartesianProductExec if !glutenConf.cartesianProductTransformerEnabled => fail(p)
+      case p: TakeOrderedAndProjectExec
+          if !(glutenConf.enableTakeOrderedAndProject && glutenConf.enableColumnarSort &&
+            glutenConf.enableColumnarShuffle && glutenConf.enableColumnarProject) =>
+        fail(p)
+      case p: BroadcastHashJoinExec if !glutenConf.enableColumnarBroadcastJoin =>
         fail(p)
       case p: BroadcastNestedLoopJoinExec
-          if !(conf.enableColumnarBroadcastJoin &&
-            conf.broadcastNestedLoopJoinTransformerTransformerEnabled) =>
+          if !(glutenConf.enableColumnarBroadcastJoin &&
+            glutenConf.broadcastNestedLoopJoinTransformerTransformerEnabled) =>
         fail(p)
       case p @ (_: HashAggregateExec | _: SortAggregateExec | _: ObjectHashAggregateExec)
-          if !conf.enableColumnarHashAgg =>
+          if !glutenConf.enableColumnarHashAgg =>
         fail(p)
       case p
           if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(
-            plan) && !conf.enableColumnarWindowGroupLimit =>
+            plan) && !glutenConf.enableColumnarWindowGroupLimit =>
         fail(p)
       case p
-          if HiveTableScanExecTransformer.isHiveTableScan(p) && !conf.enableColumnarHiveTableScan =>
+          if HiveTableScanExecTransformer.isHiveTableScan(
+            p) && !glutenConf.enableColumnarHiveTableScan =>
         fail(p)
       case p: SampleExec
-          if !(conf.enableColumnarSample && BackendsApiManager.getSettings.supportSampleExec()) =>
+          if !(glutenConf.enableColumnarSample && BackendsApiManager.getSettings
+            .supportSampleExec()) =>
         fail(p)
       case _ => pass()
     }
@@ -204,21 +198,79 @@ object Validators {
     }
   }
 
-  private class ValidatorPipeline(validators: Seq[Validator]) extends Validator {
+  private class FallbackIfScanOnlyWithFilterPushed(scanOnly: Boolean) extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      val init: Validator.OutCome = pass()
-      val finalOut = validators.foldLeft(init) {
-        case (out, validator) =>
-          out match {
-            case Validator.Passed => validator.validate(plan)
-            case Validator.Failed(_) => out
-          }
+      if (!scanOnly) {
+        return pass()
       }
-      finalOut
+      // Scan-only mode
+      plan match {
+        case _: BatchScanExec => pass()
+        case _: FileSourceScanExec => pass()
+        case p if HiveTableScanExecTransformer.isHiveTableScan(p) => pass()
+        case filter: FilterExec =>
+          val childIsScan = filter.child.isInstanceOf[FileSourceScanExec] ||
+            filter.child.isInstanceOf[BatchScanExec]
+          if (childIsScan) {
+            pass()
+          } else {
+            fail(filter)
+          }
+        case other => fail(other)
+      }
     }
   }
 
-  private object NoopValidator extends Validator {
-    override def validate(plan: SparkPlan): Validator.OutCome = pass()
+  private class FallbackByNativeValidation(offloadRules: Seq[OffloadSingleNode])
+    extends Validator
+    with Logging {
+    private val offloadAttempt: LegacyOffload = LegacyOffload(offloadRules)
+    override def validate(plan: SparkPlan): Validator.OutCome = {
+      val offloadedNode = offloadAttempt.apply(plan)
+      val out = offloadedNode match {
+        case v: ValidatablePlan =>
+          v.doValidate().toValidatorOutcome()
+        case other =>
+          // Currently we assume a plan to be offload-able by default.
+          pass()
+      }
+      out
+    }
+  }
+
+  /**
+   * A standard validator for legacy planner that does native validation.
+   *
+   * The native validation is ordered in the latest validator, namely the one created by
+   * #fallbackByNativeValidation. The validator accepts offload rules for doing offload attempts,
+   * then call native validation code on the offloaded plan.
+   *
+   * Once the native validation fails, the validator then gives negative outcome.
+   */
+  def newValidator(conf: GlutenConfig, offloads: Seq[OffloadSingleNode]): Validator = {
+    val nativeValidator = Validator.builder().fallbackByNativeValidation(offloads).build()
+    newValidator(conf).andThen(nativeValidator)
+  }
+
+  /**
+   * A validator that doesn't involve native validation.
+   *
+   * This is typically RAS planner that does native validation inline without relying on tags. Thus,
+   * validator `#fallbackByNativeValidation` is not required. See
+   * [[org.apache.gluten.extension.columnar.enumerated.RasOffload]].
+   *
+   * This could also be used in legacy planner for doing trivial offload without the help of rewrite
+   * rules.
+   */
+  def newValidator(conf: GlutenConfig): Validator = {
+    Validator
+      .builder()
+      .fallbackByHint()
+      .fallbackIfScanOnlyWithFilterPushed(conf.enableScanOnly)
+      .fallbackComplexExpressions()
+      .fallbackByBackendSettings()
+      .fallbackByUserOptions()
+      .fallbackByTestInjects()
+      .build()
   }
 }

@@ -19,7 +19,7 @@ package org.apache.gluten.execution.tpch
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution._
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.DataFrame
@@ -41,6 +41,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   override protected val tpchQueries: String =
     rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
+  val runtimeConfigPrefix = "spark.gluten.sql.columnar.backend.ch.runtime_config."
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -1318,7 +1319,8 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       "to_date(date_add(date'2024-05-07', cast(id as int)), 'yyyy') as a6, " +
       "to_date(to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String))), 'yyyy-MM-dd HH:mm:ss') as a7, " +
       "to_timestamp(date_add(date'2024-05-07', cast(id as int)), 'yyyy-MM') as a8, " +
-      "to_timestamp(to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String))), 'yyyy-MM-dd HH:mm:ss') as a9 " +
+      "to_timestamp(to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String))), 'yyyy-MM-dd HH:mm:ss') as a9," +
+      "to_timestamp('2024-10-09 11:22:33.123', 'yyyy-MM-dd HH:mm:ss.SSS') " +
       "from range(9)"
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
@@ -2191,7 +2193,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
-  test("GLUTEN-3135: Bug fix to_date") {
+  test("GLUTEN-3135/GLUTEN-7896: Bug fix to_date") {
     val create_table_sql =
       """
         | create table test_tbl_3135(id bigint, data string) using parquet
@@ -2208,13 +2210,27 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |(7, '1970-01-01 00:00:00'),
         |(8, '2024-3-2'),
         |(9, '2024-03-2'),
-        |(10, '2024-03')
+        |(10, '2024-03'),
+        |(11, '2024-03-02 11:22:33')
         |""".stripMargin
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
 
     val select_sql = "select id, to_date(data) from test_tbl_3135"
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+
+    withSQLConf(("spark.sql.legacy.timeParserPolicy" -> "corrected")) {
+      compareResultsAgainstVanillaSpark(
+        "select id, to_date('2024-03-2 11:22:33', 'yyyy-MM-dd') from test_tbl_3135 where id = 11",
+        true,
+        { _ => })
+    }
+    withSQLConf(("spark.sql.legacy.timeParserPolicy" -> "legacy")) {
+      compareResultsAgainstVanillaSpark(
+        "select id, to_date(data, 'yyyy-MM-dd') from test_tbl_3135 where id = 11",
+        true,
+        { _ => })
+    }
     spark.sql("drop table test_tbl_3135")
   }
 
@@ -2457,6 +2473,56 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(sql, noFallBack = true)({ _ => })
   }
 
+  test("GLUTEN-7979: fix different output schema array<void> and array<string> before union") {
+    val sql =
+      """
+        |select
+        |    a.multi_peer_user_id,
+        |    max(a.user_id) as max_user_id,
+        |    max(a.peer_user_id) as max_peer_user_id,
+        |    max(a.is_match_line) as max_is_match_line
+        |from
+        |(
+        |    select
+        |        t1.user_id,
+        |        t1.peer_user_id,
+        |        t1.is_match_line,
+        |        t1.pk_type,
+        |        t1.pk_start_time,
+        |        t1.pk_end_time,
+        |        t1.multi_peer_user_id
+        |    from
+        |    (
+        |        select
+        |            id as user_id,
+        |            id as peer_user_id,
+        |            id % 2 as is_match_line,
+        |            id % 3 as pk_type,
+        |            id as pk_start_time,
+        |            id as pk_end_time,
+        |            array() as multi_peer_user_id
+        |        from range(10)
+        |
+        |        union all
+        |
+        |        select
+        |            id as user_id,
+        |            id as peer_user_id,
+        |            id % 2 as is_match_line,
+        |            id % 3 as pk_type,
+        |            id as pk_start_time,
+        |            id as pk_end_time,
+        |            array('a', 'b', 'c') as multi_peer_user_id
+        |        from range(10)
+        |    ) t1
+        |    where t1.user_id > 0 and t1.peer_user_id > 0
+        |) a
+        |group by
+        |    a.multi_peer_user_id
+        |""".stripMargin
+    runQueryAndCompare(sql, noFallBack = true)({ _ => })
+  }
+
   test("GLUTEN-4190: crush on flattening a const null column") {
     val sql =
       """
@@ -2486,15 +2552,24 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(sql)({ _ => })
   }
 
-  test("GLUTEN-4085: Fix unix_timestamp") {
+  test("GLUTEN-4085: Fix unix_timestamp/to_unix_timestamp") {
     val tbl_create_sql = "create table test_tbl_4085(id bigint, data string) using parquet"
     val data_insert_sql =
       "insert into test_tbl_4085 values(1, '2023-12-18'),(2, '2023-12-19'), (3, '2023-12-20')"
     val select_sql =
       "select id, unix_timestamp(to_date(data), 'yyyy-MM-dd') from test_tbl_4085"
+    val select_sql_1 = "select id, to_unix_timestamp(to_date(data)) from test_tbl_4085"
+    val select_sql_2 = "select id, to_unix_timestamp(to_timestamp(data)) from test_tbl_4085"
+    val select_sql_3 =
+      "select id, unix_timestamp('2024-10-15 07:35:26.486', 'yyyy-MM-dd HH:mm:ss') from test_tbl_4085"
     spark.sql(tbl_create_sql)
     spark.sql(data_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
+    withSQLConf("spark.sql.legacy.timeParserPolicy" -> "LEGACY") {
+      compareResultsAgainstVanillaSpark(select_sql_3, true, { _ => })
+    }
     spark.sql("drop table test_tbl_4085")
   }
 
@@ -2595,6 +2670,19 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     // multiple percentages
     val sql2 =
       "select l_linenumber % 10, approx_percentile(l_extendedprice, array(0.1, 0.2, 0.3)) " +
+        "from lineitem group by l_linenumber % 10"
+    runQueryAndCompare(sql2)({ _ => })
+  }
+
+  test("aggregate function percentile") {
+    // single percentage
+    val sql1 = "select l_linenumber % 10, percentile(l_extendedprice, 0.5) " +
+      "from lineitem group by l_linenumber % 10"
+    runQueryAndCompare(sql1)({ _ => })
+
+    // multiple percentages
+    val sql2 =
+      "select l_linenumber % 10, percentile(l_extendedprice, array(0.1, 0.2, 0.3)) " +
         "from lineitem group by l_linenumber % 10"
     runQueryAndCompare(sql2)({ _ => })
   }
@@ -2998,6 +3086,269 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql(insert_data_sql)
     compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
     spark.sql("drop table test_tbl_7220")
+  }
+
+  test("GLLUTEN-7647 lazy expand") {
+    def checkLazyExpand(df: DataFrame): Unit = {
+      val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case e: ExpandExecTransformer if (e.child.isInstanceOf[HashAggregateExecBaseTransformer]) =>
+          e
+      }
+      assert(expands.size == 1)
+    }
+    var sql =
+      """
+        |select n_regionkey, n_nationkey,
+        |sum(n_regionkey), count(n_name), max(n_regionkey), min(n_regionkey)
+        |from nation group by n_regionkey, n_nationkey with cube
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+
+    sql = """
+            |select n_regionkey, n_nationkey, sum(n_regionkey), count(distinct n_name)
+            |from nation group by n_regionkey, n_nationkey with cube
+            |order by n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+
+    sql = """
+            |select * from(
+            |select n_regionkey, n_nationkey,
+            |sum(n_regionkey), count(n_name), max(n_regionkey), min(n_regionkey)
+            |from nation group by n_regionkey, n_nationkey with cube
+            |) where n_regionkey != 0
+            |order by n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+
+    sql = """
+            |select * from(
+            |select n_regionkey, n_nationkey,
+            |sum(n_regionkey), count(distinct n_name), max(n_regionkey), min(n_regionkey)
+            |from nation group by n_regionkey, n_nationkey with cube
+            |) where n_regionkey != 0
+            |order by n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+
+    sql = """
+            |select x, n_regionkey, n_nationkey,
+            |sum(n_regionkey), count(n_name), max(n_regionkey), min(n_regionkey)
+            |from (select '123' as x, * from nation) group by x, n_regionkey, n_nationkey with cube
+            |order by x, n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+  }
+
+  test("GLUTEN-7647 lazy expand for avg and sum") {
+    val create_table_sql =
+      """
+        |create table test_7647(x bigint, y bigint, z bigint, v decimal(10, 2)) using parquet
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    val insert_data_sql =
+      """
+        |insert into test_7647 values
+        |(1, 1, 1, 1.0),
+        |(2, 2, 2, 2.0),
+        |(3, 3, 3, 3.0),
+        |(2,2,1, 4.0)
+        |""".stripMargin
+    spark.sql(insert_data_sql)
+
+    def checkLazyExpand(df: DataFrame): Unit = {
+      val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case e: ExpandExecTransformer if (e.child.isInstanceOf[HashAggregateExecBaseTransformer]) =>
+          e
+      }
+      assert(expands.size == 1)
+    }
+
+    var sql = "select x, y, avg(z), sum(v) from test_7647 group by x, y with cube order by x, y"
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+    sql =
+      "select x, y, count(distinct z), avg(v) from test_7647 group by x, y with cube order by x, y"
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+    sql =
+      "select x, y, count(distinct z), sum(v) from test_7647 group by x, y with cube order by x, y"
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+    spark.sql("drop table if exists test_7647")
+  }
+
+  test("GLUTEN-7905 get topk of window by aggregate") {
+    withSQLConf(
+      (runtimeConfigPrefix + "enable_window_group_limit_to_aggregate", "true"),
+      (runtimeConfigPrefix + "window.aggregate_topk_high_cardinality_threshold", "2.0")) {
+      def checkWindowGroupLimit(df: DataFrame): Unit = {
+        val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case e: CHAggregateGroupLimitExecTransformer => e
+          case wgl: CHWindowGroupLimitExecTransformer => wgl
+        }
+        assert(expands.size >= 1)
+      }
+      spark.sql("create table test_win_top (a string, b int, c int) using parquet")
+      spark.sql("""
+                  |insert into test_win_top values
+                  |('a', 3, 3), ('a', 1, 5), ('a', 2, 2), ('a', null, null), ('a', null, 1),
+                  |('b', 1, 1), ('b', 2, 1),
+                  |('c', 2, 3)
+                  |""".stripMargin)
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c,
+          |row_number() over (partition by a order by b desc nulls first, c nulls last) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b desc, c nulls last) as r
+          |from test_win_top
+          |)where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b asc nulls first, c) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b asc nulls last) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b , c) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      spark.sql("drop table if exists test_win_top")
+    }
+
+  }
+
+  test("GLUTEN-7905 get topk of window by window") {
+    withSQLConf(
+      (runtimeConfigPrefix + "enable_window_group_limit_to_aggregate", "true"),
+      (runtimeConfigPrefix + "window.aggregate_topk_high_cardinality_threshold", "0.0")) {
+      def checkWindowGroupLimit(df: DataFrame): Unit = {
+        // for spark 3.5, CHWindowGroupLimitExecTransformer is in used
+        val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case e: CHAggregateGroupLimitExecTransformer => e
+          case wgl: CHWindowGroupLimitExecTransformer => wgl
+        }
+        assert(expands.size >= 1)
+      }
+      spark.sql("drop table if exists test_win_top")
+      spark.sql("create table test_win_top (a string, b int, c int) using parquet")
+      spark.sql("""
+                  |insert into test_win_top values
+                  |('a', 3, 3), ('a', 1, 5), ('a', 2, 2), ('a', null, null), ('a', null, 1),
+                  |('b', 1, 1), ('b', 2, 1),
+                  |('c', 2, 3)
+                  |""".stripMargin)
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c,
+          |row_number() over (partition by a order by b desc nulls first, c nulls last) as r
+          |from test_win_top
+          |)where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b desc, c nulls last) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          | select * from(
+          |select a, b, c, row_number() over (partition by a order by b asc nulls first, c) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b asc nulls last) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select * from(
+          |select a, b, c, row_number() over (partition by a order by b , c) as r
+          |from test_win_top)
+          |where r <= 1
+          |""".stripMargin,
+        true,
+        checkWindowGroupLimit
+      )
+      spark.sql("drop table if exists test_win_top")
+    }
+
+  }
+
+  test("GLUTEN-7759: Fix bug of agg pre-project push down") {
+    val table_create_sql =
+      "create table test_tbl_7759(id bigint, name string, day string) using parquet"
+    val insert_data_sql =
+      "insert into test_tbl_7759 values(1, 'a123', '2024-11-01'),(2, 'a124', '2024-11-01')"
+    val query_sql =
+      """
+        |select distinct day, name from(
+        |select '2024-11-01' as day
+        |,coalesce(name,'all') name
+        |,cnt
+        |from
+        |(
+        |select count(distinct id) as cnt, name
+        |from test_tbl_7759
+        |group by name
+        |with cube
+        |)) limit 10
+        |""".stripMargin
+    spark.sql(table_create_sql)
+    spark.sql(insert_data_sql)
+    compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+    spark.sql("drop table test_tbl_7759")
   }
 }
 // scalastyle:on line.size.limit

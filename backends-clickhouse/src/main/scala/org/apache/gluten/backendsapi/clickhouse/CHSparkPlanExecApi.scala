@@ -23,8 +23,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ExpressionNames.MONOTONICALLY_INCREASING_ID
 import org.apache.gluten.extension.ExpressionExtensionTrait
-import org.apache.gluten.extension.columnar.AddFallbackTagRule
-import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
+import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
@@ -158,16 +157,21 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       aggregateAttributes: Seq[Attribute],
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
-      child: SparkPlan): HashAggregateExecBaseTransformer =
+      child: SparkPlan): HashAggregateExecBaseTransformer = {
+    val replacedResultExpressions = CHHashAggregateExecTransformer.getCHAggregateResultExpressions(
+      groupingExpressions,
+      aggregateExpressions,
+      resultExpressions)
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
-      groupingExpressions.distinct,
+      groupingExpressions,
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
-      resultExpressions.distinct,
+      replacedResultExpressions,
       child
     )
+  }
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
@@ -219,9 +223,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
         }
         // FIXME: The operation happens inside ReplaceSingleNode().
         //  Caller may not know it adds project on top of the shuffle.
-        val project = TransformPreOverrides().apply(
-          AddFallbackTagRule().apply(
-            ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
+        val project =
+          HeuristicTransform.static()(
+            ProjectExec(plan.child.output ++ projectExpressions, plan.child))
         var newExprs = Seq[Expression]()
         for (i <- exprs.indices) {
           val pos = newExpressionsPosition(i)
@@ -244,9 +249,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
         }
         // FIXME: The operation happens inside ReplaceSingleNode().
         //  Caller may not know it adds project on top of the shuffle.
-        val project = TransformPreOverrides().apply(
-          AddFallbackTagRule().apply(
-            ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
+        val project =
+          HeuristicTransform.static()(
+            ProjectExec(plan.child.output ++ projectExpressions, plan.child))
         var newOrderings = Seq[SortOrder]()
         for (i <- orderings.indices) {
           val oldOrdering = orderings(i)
@@ -267,9 +273,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   override def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan = {
     val child = shuffle.child
-    if (
-      BackendsApiManager.getSettings.supportShuffleWithProject(shuffle.outputPartitioning, child)
-    ) {
+    if (CHValidatorApi.supportShuffleWithProject(shuffle.outputPartitioning, child)) {
       val (projectColumnNumber, newPartitioning, newChild) =
         addProjectionForShuffleExchange(shuffle)
 
@@ -359,15 +363,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       left: SparkPlan,
       right: SparkPlan,
       condition: Option[Expression]): CartesianProductExecTransformer =
-    if (!condition.isEmpty) {
-      throw new GlutenNotSupportException(
-        "CartesianProductExecTransformer with condition is not supported in ch backend.")
-    } else {
-      CartesianProductExecTransformer(
-        ColumnarCartesianProductBridge(left),
-        ColumnarCartesianProductBridge(right),
-        condition)
-    }
+    CartesianProductExecTransformer(
+      ColumnarCartesianProductBridge(left),
+      ColumnarCartesianProductBridge(right),
+      condition)
 
   override def genBroadcastNestedLoopJoinExecTransformer(
       left: SparkPlan,
@@ -657,7 +656,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   }
 
   override def createColumnarWriteFilesExec(
-      child: SparkPlan,
+      child: WriteFilesExecTransformer,
       noop: SparkPlan,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],
@@ -667,6 +666,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     CHColumnarWriteFilesExec(
       child,
       noop,
+      child,
       fileFormat,
       partitionColumns,
       bucketSpec,

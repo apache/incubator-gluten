@@ -113,12 +113,8 @@ object CHExecUtil extends Logging {
           iter =>
             iter.flatMap(
               batch => {
-                val blockAddress = CHNativeBlock.fromColumnarBatch(batch).blockAddress()
-
                 // generate rows from a columnar batch
-                val rowItr: Iterator[InternalRow] =
-                  getRowIterFromSparkRowInfo(blockAddress, batch.numCols(), batch.numRows())
-
+                val rowItr: Iterator[InternalRow] = c2r(batch)
                 val projection =
                   UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
                 val mutablePair = new MutablePair[InternalRow, Null]()
@@ -164,6 +160,14 @@ object CHExecUtil extends Logging {
     val rowInfo = CHBlockConverterJniWrapper.convertColumnarToRow(blockAddress, null)
     getRowIterFromSparkRowInfo(rowInfo, columns, rows)
   }
+
+  def c2r(batch: ColumnarBatch): Iterator[InternalRow] = {
+    getRowIterFromSparkRowInfo(
+      CHNativeBlock.fromColumnarBatch(batch).blockAddress(),
+      batch.numCols(),
+      batch.numRows())
+  }
+
   private def buildPartitionedBlockIterator(
       cbIter: Iterator[ColumnarBatch],
       options: IteratorOptions,
@@ -307,7 +311,7 @@ object CHExecUtil extends Logging {
           rddForSampling,
           sortingExpressions,
           childOutputAttributes)
-        val orderingAndRangeBounds = generator.getRangeBoundsJsonString
+        val rangeBoundsInfo = generator.getRangeBoundsJsonString
         val attributePos = if (projectOutputAttributes != null) {
           projectOutputAttributes.map(
             attr =>
@@ -320,10 +324,11 @@ object CHExecUtil extends Logging {
         }
         new NativePartitioning(
           GlutenShuffleUtils.RangePartitioningShortName,
-          numPartitions,
+          rangeBoundsInfo.boundsSize + 1,
           Array.empty[Byte],
-          orderingAndRangeBounds.getBytes(),
-          attributePos.mkString(",").getBytes)
+          rangeBoundsInfo.json.getBytes,
+          attributePos.mkString(",").getBytes
+        )
       case p =>
         throw new IllegalStateException(s"Unknow partition type: ${p.getClass.toString}")
     }
@@ -364,7 +369,7 @@ object CHExecUtil extends Logging {
     val dependency =
       new ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch](
         rddWithPartitionKey,
-        new PartitionIdPassthrough(newPartitioning.numPartitions),
+        new PartitionIdPassthrough(nativePartitioning.getNumPartitions),
         serializer,
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,

@@ -321,7 +321,8 @@ object ExpressionMappings {
     Sig[First](FIRST),
     Sig[Skewness](SKEWNESS),
     Sig[Kurtosis](KURTOSIS),
-    Sig[ApproximatePercentile](APPROX_PERCENTILE)
+    Sig[ApproximatePercentile](APPROX_PERCENTILE),
+    Sig[Percentile](PERCENTILE)
   ) ++ SparkShimLoader.getSparkShims.aggregateExpressionMappings
 
   /** Mapping Spark window expression to Substrait function name */

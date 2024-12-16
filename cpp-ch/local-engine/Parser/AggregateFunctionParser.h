@@ -92,7 +92,7 @@ public:
 
     /// In most cases, arguments size and types are enough to determine the CH function implementation.
     /// It is only be used in TypeParser::buildBlockFromNamedStruct
-    /// Users are allowed to modify arg types to make it fit for ggregateFunctionFactory::instance().get(...) in TypeParser::buildBlockFromNamedStruct
+    /// Users are allowed to modify arg types to make it fit for AggregateFunctionFactory::instance().get(...) in TypeParser::buildBlockFromNamedStruct
     virtual String getCHFunctionName(DB::DataTypes & args) const = 0;
 
     /// Do some preprojections for the function arguments, and return the necessary arguments for the CH function.
@@ -114,8 +114,8 @@ public:
 
     /// Parameters are only used in aggregate functions at present. e.g. percentiles(0.5)(x).
     /// 0.5 is the parameter of percentiles function.
-    virtual DB::Array
-    parseFunctionParameters(const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & /*arg_nodes*/) const
+    virtual DB::Array parseFunctionParameters(
+        const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & /*arg_nodes*/, DB::ActionsDAG & /*actions_dag*/) const
     {
         return DB::Array();
     }
@@ -143,6 +143,9 @@ protected:
     const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel) const;
 
     std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const;
+
+    const DB::ActionsDAG::Node * convertNanToNullIfNeed(
+        const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAG & actions_dag) const;
 
     ParserContextPtr parser_context;
     std::unique_ptr<ExpressionParser> expression_parser;

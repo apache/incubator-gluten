@@ -265,6 +265,9 @@ object JoinUtils {
         case _: ExistenceJoin =>
           inputBuildOutput.indices.map(ExpressionBuilder.makeSelection(_)) :+
             ExpressionBuilder.makeSelection(buildOutput.size)
+        case LeftSemi | LeftAnti =>
+          // When the left semi/anti join support the BuildLeft
+          leftOutput.indices.map(idx => ExpressionBuilder.makeSelection(idx + streamedOutput.size))
         case LeftExistence(_) =>
           leftOutput.indices.map(ExpressionBuilder.makeSelection(_))
         case _ =>
@@ -312,7 +315,7 @@ object JoinUtils {
     } else {
       inputStreamedOutput ++ inputBuildOutput
     }
-    TransformContext(inputAttributes, output, rel)
+    TransformContext(output, rel)
   }
 
   def createCrossRel(

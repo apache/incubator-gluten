@@ -16,8 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.execution.{HashAggregateExecBaseTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer}
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.{GlutenPlan, HashAggregateExecBaseTransformer, ShuffledHashJoinExecTransformerBase, SortExecTransformer}
 import org.apache.gluten.ras.path.Pattern._
 import org.apache.gluten.ras.path.Pattern.Matchers._
 import org.apache.gluten.ras.rule.{RasRule, Shape}

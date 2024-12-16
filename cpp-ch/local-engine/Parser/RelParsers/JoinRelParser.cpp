@@ -45,6 +45,8 @@ namespace DB
 namespace Setting
 {
 extern const SettingsJoinAlgorithm join_algorithm;
+extern const SettingsUInt64 max_block_size;
+extern const SettingsUInt64 min_joined_block_size_bytes;
 }
 namespace ErrorCodes
 {
@@ -313,8 +315,16 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
         JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentHeader().cloneEmpty(), -1);
         MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
-        QueryPlanStepPtr join_step
-            = std::make_unique<DB::JoinStep>(left->getCurrentHeader(), right->getCurrentHeader(), smj_join, 8192, 1, false);
+        QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+            left->getCurrentHeader(),
+            right->getCurrentHeader(),
+            smj_join,
+            context->getSettingsRef()[Setting::max_block_size],
+            context->getSettingsRef()[Setting::min_joined_block_size_bytes],
+            1,
+            /* required_output_ = */ NameSet{},
+            false,
+            /* use_new_analyzer_ = */ false);
 
         join_step->setStepDescription("SORT_MERGE_JOIN");
         steps.emplace_back(join_step.get());
@@ -382,7 +392,11 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
     NameSet left_columns_set;
     for (const auto & col : left.getCurrentHeader().getNames())
         left_columns_set.emplace(col);
-    table_join.setColumnsFromJoinedTable(right.getCurrentHeader().getNamesAndTypesList(), left_columns_set, getUniqueName("right") + ".");
+    table_join.setColumnsFromJoinedTable(
+        right.getCurrentHeader().getNamesAndTypesList(),
+        left_columns_set,
+        getUniqueName("right") + ".",
+        left.getCurrentHeader().getNamesAndTypesList());
 
     // fix right table key duplicate
     NamesWithAliases right_table_alias;
@@ -447,7 +461,7 @@ void JoinRelParser::collectJoinKeys(
     table_join.addDisjunct();
     const auto & expr = join_rel.expression();
     auto & join_clause = table_join.getClauses().back();
-    std::list<const const substrait::Expression *> expressions_stack;
+    std::list<const substrait::Expression *> expressions_stack;
     expressions_stack.push_back(&expr);
     while (!expressions_stack.empty())
     {
@@ -627,13 +641,9 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
     const DB::Block & left_header,
     const DB::Block & right_header)
 {
-    /// There is only one join clause
     if (!join_rel.has_post_join_filter())
         return false;
-
     const auto & filter_expr = join_rel.post_join_filter();
-    std::list<const substrait::Expression *> expression_stack;
-    expression_stack.push_back(&filter_expr);
 
     auto check_function = [&](const String function_name_, const substrait::Expression & e)
     {
@@ -643,15 +653,42 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
         return function_name.has_value() && *function_name == function_name_;
     };
 
+    std::function<void(std::vector<const substrait::Expression *> &, const substrait::Expression &)> dfs_visit_or_expr
+        = [&](std::vector<const substrait::Expression *> & or_exprs, const substrait::Expression & e) -> void
+    {
+        if (!check_function("or", e))
+        {
+            or_exprs.push_back(&e);
+            return;
+        }
+        const auto & args = e.scalar_function().arguments();
+        dfs_visit_or_expr(or_exprs, args[0].value());
+        dfs_visit_or_expr(or_exprs, args[1].value());
+    };
+
+    std::function<void(std::vector<const substrait::Expression *> &, const substrait::Expression &)> dfs_visit_and_expr
+        = [&](std::vector<const substrait::Expression *> & and_exprs, const substrait::Expression & e) -> void
+    {
+        if (!check_function("and", e))
+        {
+            and_exprs.push_back(&e);
+            return;
+        }
+        const auto & args = e.scalar_function().arguments();
+        dfs_visit_and_expr(and_exprs, args[0].value());
+        dfs_visit_and_expr(and_exprs, args[1].value());
+    };
+
     auto get_field_ref = [](const substrait::Expression & e) -> std::optional<Int32>
     {
         if (e.has_selection() && e.selection().has_direct_reference() && e.selection().direct_reference().has_struct_field())
             return std::optional<Int32>(e.selection().direct_reference().struct_field().field());
         return {};
     };
-
-    auto parse_join_keys = [&](const substrait::Expression & e) -> std::optional<std::pair<String, String>>
+    auto visit_equal_expr = [&](const substrait::Expression & e) -> std::optional<std::pair<String, String>>
     {
+        if (!check_function("equals", e))
+            return {};
         const auto & args = e.scalar_function().arguments();
         auto l_field_ref = get_field_ref(args[0].value());
         auto r_field_ref = get_field_ref(args[1].value());
@@ -669,90 +706,28 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
         return {};
     };
 
-    auto parse_and_expression = [&](const substrait::Expression & e, DB::TableJoin::JoinOnClause & join_on_clause)
+
+    std::vector<const substrait::Expression *> or_exprs;
+    dfs_visit_or_expr(or_exprs, filter_expr);
+    if (or_exprs.empty())
+        return false;
+    for (const auto * or_expr : or_exprs)
     {
-        std::vector<const substrait::Expression *> and_expression_stack;
-        and_expression_stack.push_back(&e);
-        while (!and_expression_stack.empty())
+        DB::TableJoin::JoinOnClause new_clause = prefix_clause;
+        clauses.push_back(new_clause);
+        auto & current_clause = clauses.back();
+        std::vector<const substrait::Expression *> and_exprs;
+        dfs_visit_and_expr(and_exprs, *or_expr);
+        for (const auto * and_expr : and_exprs)
         {
-            const auto & current_expr = *(and_expression_stack.back());
-            and_expression_stack.pop_back();
-            if (check_function("and", current_expr))
-            {
-                for (const auto & arg : current_expr.scalar_function().arguments())
-                    and_expression_stack.push_back(&arg.value());
-            }
-            else if (check_function("equals", current_expr))
-            {
-                auto optional_keys = parse_join_keys(current_expr);
-                if (!optional_keys)
-                {
-                    LOG_DEBUG(getLogger("JoinRelParser"), "Not equal comparison for keys from both tables");
-                    return false;
-                }
-                join_on_clause.addKey(optional_keys->first, optional_keys->second, false);
-            }
-            else
-            {
-                LOG_DEBUG(getLogger("JoinRelParser"), "And or equals function is expected");
+            auto join_keys = visit_equal_expr(*and_expr);
+            if (!join_keys)
                 return false;
-            }
-        }
-        return true;
-    };
-
-    while (!expression_stack.empty())
-    {
-        const auto & current_expr = *(expression_stack.back());
-        expression_stack.pop_back();
-        if (!check_function("or", current_expr))
-        {
-            LOG_DEBUG(getLogger("JoinRelParser"), "Not an or expression");
-            return false;
-        }
-
-        auto get_current_join_on_clause = [&]()
-        {
-            DB::TableJoin::JoinOnClause new_clause = prefix_clause;
-            clauses.push_back(new_clause);
-            return &clauses.back();
-        };
-
-        const auto & args = current_expr.scalar_function().arguments();
-        for (const auto & arg : args)
-        {
-            if (check_function("equals", arg.value()))
-            {
-                auto optional_keys = parse_join_keys(arg.value());
-                if (!optional_keys)
-                {
-                    LOG_DEBUG(getLogger("JoinRelParser"), "Not equal comparison for keys from both tables");
-                    return false;
-                }
-                get_current_join_on_clause()->addKey(optional_keys->first, optional_keys->second, false);
-            }
-            else if (check_function("and", arg.value()))
-            {
-                if (!parse_and_expression(arg.value(), *get_current_join_on_clause()))
-                {
-                    LOG_DEBUG(getLogger("JoinRelParser"), "Parse and expression failed");
-                    return false;
-                }
-            }
-            else if (check_function("or", arg.value()))
-            {
-                expression_stack.push_back(&arg.value());
-            }
-            else
-            {
-                LOG_DEBUG(getLogger("JoinRelParser"), "Unknow function");
-                return false;
-            }
+            current_clause.addKey(join_keys->first, join_keys->second, false);
         }
     }
     return true;
 }
-
 
 DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
     std::shared_ptr<DB::TableJoin> table_join,
@@ -772,8 +747,16 @@ DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
     LOG_INFO(getLogger("JoinRelParser"), "multi join on clauses:\n{}", DB::TableJoin::formatClauses(table_join->getClauses()));
 
     JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentHeader());
-    QueryPlanStepPtr join_step
-        = std::make_unique<DB::JoinStep>(left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), hash_join, 8192, 1, false);
+    QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+        left_plan->getCurrentHeader(),
+        right_plan->getCurrentHeader(),
+        hash_join,
+        context->getSettingsRef()[Setting::max_block_size],
+        context->getSettingsRef()[Setting::min_joined_block_size_bytes],
+        1,
+        /* required_output_ = */ NameSet{},
+        false,
+        /* use_new_analyzer_ = */ false);
     join_step->setStepDescription("Multi join on clause hash join");
     steps.emplace_back(join_step.get());
     std::vector<QueryPlanPtr> plans;
@@ -806,8 +789,16 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
     {
         hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentHeader().cloneEmpty());
     }
-    QueryPlanStepPtr join_step
-        = std::make_unique<DB::JoinStep>(left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), hash_join, 8192, 1, false);
+    QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+        left_plan->getCurrentHeader(),
+        right_plan->getCurrentHeader(),
+        hash_join,
+        context->getSettingsRef()[Setting::max_block_size],
+        context->getSettingsRef()[Setting::min_joined_block_size_bytes],
+        1,
+        /* required_output_ = */ NameSet{},
+        false,
+        /* use_new_analyzer_ = */ false);
 
     join_step->setStepDescription("HASH_JOIN");
     steps.emplace_back(join_step.get());

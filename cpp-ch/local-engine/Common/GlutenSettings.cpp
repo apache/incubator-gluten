@@ -41,8 +41,12 @@ bool settingsEqual(const DB::Settings & settings, std::string_view name, const s
 }
 void updateSettings(const DB::ContextMutablePtr & context, std::string_view plan)
 {
-    std::map<std::string, std::string> spark_conf_map = SparkConfigs::load(plan);
-    for (const auto & [key, value] : spark_conf_map)
-        context->setSetting(key, value);
+    SparkConfigs::update(
+        plan,
+        [&](const SparkConfigs::ConfigMap & config_map)
+        {
+            for (const auto & [key, value] : config_map)
+                context->setSetting(key, value);
+        });
 }
 }

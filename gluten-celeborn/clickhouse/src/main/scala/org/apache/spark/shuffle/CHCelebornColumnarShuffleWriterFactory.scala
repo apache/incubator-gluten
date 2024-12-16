@@ -16,7 +16,7 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.backend.Backend
+import org.apache.gluten.backendsapi.BackendsApiManager
 
 import org.apache.spark.TaskContext
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
@@ -26,7 +26,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
 class CHCelebornColumnarShuffleWriterFactory extends CelebornShuffleWriterFactory {
-  override def backendName(): String = Backend.get().name()
+  override def backendName(): String = BackendsApiManager.getBackendName
 
   override def createShuffleWriterInstance[K, V](
       shuffleId: Int,

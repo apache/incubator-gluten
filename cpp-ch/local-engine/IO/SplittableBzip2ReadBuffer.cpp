@@ -21,6 +21,8 @@
 #include <IO/SeekableReadBuffer.h>
 #include <IO/VarInt.h>
 #include <base/find_symbols.h>
+#include <Common/logger_useful.h>
+#include <iostream>
 
 
 namespace DB
@@ -188,6 +190,12 @@ SplittableBzip2ReadBuffer::SplittableBzip2ReadBuffer(
         adjusted_start = seekable->getPosition();
     }
     changeStateToProcessABlock();
+    LOG_DEBUG(
+        getLogger("SplittableBzip2ReadBuffer"),
+        "adjusted_start:{} first_block_need_special_process:{} last_block_need_special_process:{}",
+        *adjusted_start,
+        first_block_need_special_process,
+        last_block_need_special_process);
 }
 
 Int32 SplittableBzip2ReadBuffer::read(char * dest, size_t dest_size, size_t offs, size_t len)
@@ -208,6 +216,7 @@ Int32 SplittableBzip2ReadBuffer::read(char * dest, size_t dest_size, size_t offs
     {
         result = b;
         skipResult = skipToNextMarker(SplittableBzip2ReadBuffer::BLOCK_DELIMITER, DELIMITER_BIT_LENGTH);
+
         changeStateToProcessABlock();
     }
     return result;
@@ -215,16 +224,25 @@ Int32 SplittableBzip2ReadBuffer::read(char * dest, size_t dest_size, size_t offs
 
 bool SplittableBzip2ReadBuffer::nextImpl()
 {
-    Position dest = internal_buffer.begin();
-    size_t dest_size = internal_buffer.size();
+    const Position dest = internal_buffer.begin();
+    const size_t dest_size = internal_buffer.size();
     size_t offset = 0;
+
+    if (last_block_need_special_process && !last_incomplete_line.empty())
+    {
+        /// If we have last incomplete line, append it to the beginning of internal buffer
+        memcpy(dest, last_incomplete_line.data(), last_incomplete_line.size());
+        offset += last_incomplete_line.size();
+        last_incomplete_line.clear();
+    }
+
     Int32 result;
     do
     {
         result = read(dest, dest_size, offset, dest_size - offset);
         if (result > 0)
             offset += result;
-        else if (result == BZip2Constants::END_OF_BLOCK && is_first_block && first_block_need_special_process)
+        else if (first_block_need_special_process && result == BZip2Constants::END_OF_BLOCK && is_first_block)
         {
             /// Special processing for the first block
             /// Notice that row delim could be \n (Unix) or \r\n (DOS/Windows) or \n\r (Mac OS Classic)
@@ -250,27 +268,50 @@ bool SplittableBzip2ReadBuffer::nextImpl()
                     offset = last_line_size;
                 }
             }
-        }
-        else if (result == BZip2Constants::END_OF_STREAM && last_block_need_special_process)
-        {
-            /// Special processing for the last block
-            Position end = dest + offset;
-            auto * pos = find_last_symbols_or_null<'\n'>(dest, end);
-
-            if (!pos)
-            {
-                /// Only one incomplete row in the last block, discard it
-                offset = 0;
-            }
-            else
-            {
-                /// Discard the last incomplete row(if there is) in last block.
-                offset = pos - dest + 1;
-                if (pos + 1 < end && *(pos + 1) == '\r')
-                    offset++;
-            }
+            LOG_DEBUG(
+                getLogger("SplittableBzip2ReadBuffer"),
+                "Header of first block after special processed:{}",
+                std::string(dest, std::min(offset, 100UL)));
         }
     } while (result != BZip2Constants::END_OF_STREAM && offset < dest_size);
+
+    if (last_block_need_special_process && offset)
+    {
+        /// Trim the last incomplete line from [dest, dest+offset), and record it in last_incomplete_line
+        bool reach_eof = (result == BZip2Constants::END_OF_STREAM);
+        if (reach_eof)
+        {
+            LOG_DEBUG(
+                getLogger("SplittableBzip2ReadBuffer"),
+                "Header of last block before special processed:{}",
+                std::string(dest, std::min(offset, 100UL)));
+        }
+
+        /// Trim the last incomplete line from [dest, dest+offset), and record it in last_incomplete_line
+        Position end = dest + offset;
+        auto * pos = find_last_symbols_or_null<'\n'>(dest, end);
+        if (!pos)
+        {
+            if (reach_eof)
+                offset = 0;
+            else
+                throw Exception(ErrorCodes::LOGICAL_ERROR, "Can't find row delimiter in working buffer with size:{}", offset);
+        }
+        else
+        {
+            /// Discard the last incomplete row(if has), and record it in last_incomplete_line
+            size_t old_offset = offset;
+            offset = pos - dest + 1;
+            if (pos + 1 < end && *(pos + 1) == '\r')
+                offset++;
+
+            if (!reach_eof)
+            {
+                /// Only record last incomplete line when eof not reached
+                last_incomplete_line.assign(&dest[offset], old_offset - offset);
+            }
+        }
+    }
 
     if (offset)
     {
@@ -278,9 +319,7 @@ bool SplittableBzip2ReadBuffer::nextImpl()
         return true;
     }
     else
-    {
         return false;
-    }
 }
 
 Int32 SplittableBzip2ReadBuffer::read0()
@@ -372,7 +411,13 @@ bool SplittableBzip2ReadBuffer::skipToNextMarker(Int64 marker, Int32 markerBitLe
 
 void SplittableBzip2ReadBuffer::reportCRCError()
 {
-    throw Exception(ErrorCodes::LOGICAL_ERROR, "CRC error");
+    auto * seekable = dynamic_cast<SeekableReadBuffer*>(in.get());
+    throw Exception(
+        ErrorCodes::LOGICAL_ERROR,
+        "CRC error in position:{} computedBlockCRC:{} storedBlockCRC:{}",
+        seekable->getPosition(),
+        computedBlockCRC,
+        storedBlockCRC);
 }
 
 void SplittableBzip2ReadBuffer::makeMaps()
@@ -399,6 +444,8 @@ void SplittableBzip2ReadBuffer::changeStateToProcessABlock()
 
 void SplittableBzip2ReadBuffer::initBlock()
 {
+    auto * seekable = dynamic_cast<SeekableReadBuffer*>(in.get());
+    size_t position = seekable->getPosition();
     storedBlockCRC = bsGetInt();
     blockRandomised = (bsR(1) == 1);
 
@@ -873,7 +920,7 @@ void SplittableBzip2ReadBuffer::setupRandPartB()
     }
     else if (++su_count >= 4)
     {
-        su_z = static_cast<char>(data->ll8[su_tPos] & 0xff);
+        su_z = data->ll8[su_tPos] & 0xff;
         su_tPos = data->tt[su_tPos];
         if (su_rNToGo == 0)
         {
@@ -924,7 +971,7 @@ void SplittableBzip2ReadBuffer::setupNoRandPartB()
     }
     else if (++su_count >= 4)
     {
-        su_z = static_cast<char>(data->ll8[su_tPos] & 0xff);
+        su_z = data->ll8[su_tPos] & 0xff;
         su_tPos = data->tt[su_tPos];
         su_j2 = 0;
         setupNoRandPartC();

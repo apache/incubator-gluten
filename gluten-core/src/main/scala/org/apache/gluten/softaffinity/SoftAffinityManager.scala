@@ -50,7 +50,8 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
     GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
 
   // (execId, host) list
-  val fixedIdForExecutors = new mutable.ListBuffer[Option[(String, String)]]()
+  private val idForExecutors = new mutable.ListBuffer[(String, String)]()
+  var sortedIdForExecutors = new mutable.ListBuffer[(String, String)]()
   // host list
   val nodesExecutorsMap = new mutable.HashMap[String, mutable.HashSet[String]]()
 
@@ -96,27 +97,23 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
     try {
       // first, check whether the execId exists
       if (
-        !fixedIdForExecutors.exists(
+        !idForExecutors.exists(
           exec => {
-            exec.isDefined && exec.get._1.equals(execHostId._1)
+            exec._1.equals(execHostId._1)
           })
       ) {
         val executorsSet =
           nodesExecutorsMap.getOrElseUpdate(execHostId._2, new mutable.HashSet[String]())
         executorsSet.add(execHostId._1)
-        if (fixedIdForExecutors.exists(_.isEmpty)) {
-          // replace the executor which was removed
-          val replaceIdx = fixedIdForExecutors.indexWhere(_.isEmpty)
-          fixedIdForExecutors(replaceIdx) = Option(execHostId)
-        } else {
-          fixedIdForExecutors += Option(execHostId)
-        }
+        idForExecutors += execHostId
+        sortedIdForExecutors = idForExecutors.sortBy(_._2)
         totalRegisteredExecutors.addAndGet(1)
       }
       logOnLevel(
         GlutenConfig.getConf.softAffinityLogLevel,
         s"After adding executor ${execHostId._1} on host ${execHostId._2}, " +
-          s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
+          s"idForExecutors is ${idForExecutors.mkString(",")}, " +
+          s"sortedIdForExecutors is ${sortedIdForExecutors.mkString(",")}, " +
           s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
           s"actual executors count is ${totalRegisteredExecutors.intValue()}."
       )
@@ -128,29 +125,27 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
   def handleExecutorRemoved(execId: String): Unit = {
     resourceRWLock.writeLock().lock()
     try {
-      val execIdx = fixedIdForExecutors.indexWhere(
+      val execIdx = idForExecutors.indexWhere(
         execHost => {
-          if (execHost.isDefined) {
-            execHost.get._1.equals(execId)
-          } else {
-            false
-          }
+          execHost._1.equals(execId)
         })
       if (execIdx != -1) {
-        val findedExecId = fixedIdForExecutors(execIdx)
-        fixedIdForExecutors(execIdx) = None
-        val nodeExecs = nodesExecutorsMap(findedExecId.get._2)
-        nodeExecs -= findedExecId.get._1
+        val findedExecId = idForExecutors(execIdx)
+        idForExecutors.remove(execIdx)
+        val nodeExecs = nodesExecutorsMap(findedExecId._2)
+        nodeExecs -= findedExecId._1
         if (nodeExecs.isEmpty) {
           // there is no executor on this host, remove
-          nodesExecutorsMap.remove(findedExecId.get._2)
+          nodesExecutorsMap.remove(findedExecId._2)
         }
+        sortedIdForExecutors = idForExecutors.sortBy(_._2)
         totalRegisteredExecutors.addAndGet(-1)
       }
       logOnLevel(
         GlutenConfig.getConf.softAffinityLogLevel,
         s"After removing executor $execId, " +
-          s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
+          s"idForExecutors is ${idForExecutors.mkString(",")}, " +
+          s"sortedIdForExecutors is ${sortedIdForExecutors.mkString(",")}, " +
           s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
           s"actual executors count is ${totalRegisteredExecutors.intValue()}."
       )
@@ -242,7 +237,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
       if (nodesExecutorsMap.size < 1) {
         Array.empty
       } else {
-        softAffinityAllocation.allocateExecs(file, fixedIdForExecutors)
+        softAffinityAllocation.allocateExecs(file, sortedIdForExecutors)
       }
     } finally {
       resourceRWLock.readLock().unlock()
@@ -252,11 +247,11 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
   def askExecutors(f: FilePartition): Array[(String, String)] = {
     resourceRWLock.readLock().lock()
     try {
-      if (fixedIdForExecutors.size < 1) {
+      if (sortedIdForExecutors.size < 1) {
         Array.empty
       } else {
         val result = getDuplicateReadingLocation(f)
-        result.filter(r => fixedIdForExecutors.exists(s => s.isDefined && s.get._1 == r._1)).toArray
+        result.filter(r => sortedIdForExecutors.exists(s => s._1 == r._1)).toArray
       }
     } finally {
       resourceRWLock.readLock().unlock()

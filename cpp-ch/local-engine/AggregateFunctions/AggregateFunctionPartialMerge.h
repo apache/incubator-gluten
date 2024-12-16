@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include <AggregateFunctions/IAggregateFunction_fwd.h>
+#include <AggregateFunctions/IAggregateFunction.h>
 #include <Columns/ColumnAggregateFunction.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <Common/assert_cast.h>
@@ -41,8 +41,6 @@ struct Settings;
  * this class is copied from AggregateFunctionMerge with little enhancement.
  * we use this PartialMerge for both spark PartialMerge and Final
  */
-
-
 class AggregateFunctionPartialMerge final : public IAggregateFunctionHelper<AggregateFunctionPartialMerge>
 {
 private:

@@ -16,9 +16,9 @@
  */
 package org.apache.spark.sql.delta.files
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.RuntimeSettings
 import org.apache.gluten.memory.CHThreadGroup
-import org.apache.gluten.vectorized.ExpressionEvaluatorJniWrapper
+import org.apache.gluten.vectorized.NativeExpressionEvaluator
 
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
@@ -30,8 +30,6 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.util.UUID
-
-import scala.collection.JavaConverters._
 
 trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
 
@@ -45,8 +43,8 @@ trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
     val jobID = taskContext.getJobID.toString
     val taskAttemptID = taskContext.getTaskAttemptID.toString
     MergeTreeCommiterHelper.prepareTaskWriteInfo(jobID, taskAttemptID)
-    val settings = Map(CHConf.runtimeSettings("gluten.write.reserve_partition_columns") -> "true")
-    ExpressionEvaluatorJniWrapper.updateQueryRuntimeSettings(settings.asJava)
+    val settings = Map(RuntimeSettings.NATIVE_WRITE_RESERVE_PARTITION_COLUMNS.key -> "true")
+    NativeExpressionEvaluator.updateQueryRuntimeSettings(settings)
   }
 
   override def newTaskTempFile(
@@ -54,22 +52,22 @@ trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
       dir: Option[String],
       ext: String): String = {
 
-    taskContext.getConfiguration.set(
-      "mapreduce.task.gluten.mergetree.partition",
-      dir.map(p => new Path(p).toUri.toString).getOrElse(""))
-
+    val partitionStr = dir.map(p => new Path(p).toUri.toString)
     val bucketIdStr = ext.split("\\.").headOption.filter(_.startsWith("_")).map(_.substring(1))
-    taskContext.getConfiguration.set(
-      "mapreduce.task.gluten.mergetree.bucketid",
-      bucketIdStr.getOrElse(""))
+    val split = taskContext.getTaskAttemptID.getTaskID.getId
 
-    val partition = dir.map(p => new Path(p).toUri.toString + "/").getOrElse("")
+    // The partPrefix is used to generate the part name in the MergeTree table.
+    // outputPath/partition-dir/bucket-id/UUID_split
+    val partition = partitionStr.map(_ + "/").getOrElse("")
     val bucket = bucketIdStr.map(_ + "/").getOrElse("")
-    val taskID = taskContext.getTaskAttemptID.getTaskID.getId.toString
-    val partPrefix = s"$partition$bucket${UUID.randomUUID.toString}_$taskID"
+    val partPrefix = s"$partition$bucket${UUID.randomUUID.toString}_$split"
 
-    taskContext.getConfiguration.set("mapreduce.task.gluten.mergetree.partPrefix", partPrefix)
-
+    val settings = Map(
+      RuntimeSettings.PART_NAME_PREFIX.key -> partPrefix,
+      RuntimeSettings.PARTITION_DIR.key -> partitionStr.getOrElse(""),
+      RuntimeSettings.BUCKET_DIR.key -> bucketIdStr.getOrElse("")
+    )
+    NativeExpressionEvaluator.updateQueryRuntimeSettings(settings)
     outputPath
   }
 
@@ -86,5 +84,9 @@ trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
         Seq(Utils.localHostName()))
     )
     new TaskCommitMessage(statuses)
+  }
+
+  override def abortTask(taskContext: TaskAttemptContext): Unit = {
+    MergeTreeCommiterHelper.resetCurrentTaskWriteInfo()
   }
 }

@@ -22,10 +22,7 @@ include(FindPkgConfig)
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
-# Only set arch=native for non-AppleClang compilers.
-if(NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-endif()
+message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
@@ -53,8 +50,10 @@ if(CCACHE_FOUND)
 endif(CCACHE_FOUND)
 
 macro(find_protobuf)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(Protobuf)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
   if("${Protobuf_LIBRARY}" STREQUAL "Protobuf_LIBRARY-NOTFOUND")
     message(FATAL_ERROR "Protobuf Library Not Found")
   endif()
@@ -63,20 +62,6 @@ macro(find_protobuf)
       "${Protobuf_INCLUDE_DIRS}"
       CACHE PATH "Protobuf include path")
 endmacro()
-
-if(USE_AVX512)
-  # Only enable additional instruction sets if they are supported
-  message(STATUS "System processor: ${CMAKE_SYSTEM_PROCESSOR}")
-  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-    set(AVX512_FLAG "-march=skylake-avx512")
-    check_cxx_compiler_flag(${AVX512_FLAG} CXX_SUPPORTS_AVX512)
-    if(NOT CXX_SUPPORTS_AVX512)
-      message(FATAL_ERROR "AVX512 required but compiler doesn't support it.")
-    endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${AVX512_FLAG}")
-    add_definitions(-DCOLUMNAR_PLUGIN_USE_AVX512)
-  endif()
-endif()
 
 # Set up Proto
 set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
@@ -110,11 +95,6 @@ set(GLUTEN_PROTO_OUTPUT_FILES ${GLUTEN_PROTO_HDRS} ${GLUTEN_PROTO_SRCS})
 set_source_files_properties(${GLUTEN_PROTO_OUTPUT_FILES} PROPERTIES GENERATED
                                                                     TRUE)
 get_filename_component(GLUTEN_PROTO_DIR ${GLUTEN_PROTO_SRC_DIR}/ DIRECTORY)
-
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
-
-message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 set(SPARK_COLUMNAR_PLUGIN_SRCS
     ${SUBSTRAIT_PROTO_SRCS}

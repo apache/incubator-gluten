@@ -41,6 +41,8 @@ static constexpr std::string_view kMemoryPoolInitialCapacity{"memory-pool-initia
 static constexpr uint64_t kDefaultMemoryPoolInitialCapacity{256 << 20};
 static constexpr std::string_view kMemoryPoolTransferCapacity{"memory-pool-transfer-capacity"};
 static constexpr uint64_t kDefaultMemoryPoolTransferCapacity{128 << 20};
+static constexpr std::string_view kMemoryReclaimMaxWaitMs{"memory-reclaim-max-wait-time"};
+static constexpr std::string_view kDefaultMemoryReclaimMaxWaitMs{"3600000ms"};
 
 template <typename T>
 T getConfig(
@@ -57,6 +59,7 @@ T getConfig(
   return defaultValue;
 }
 } // namespace
+
 /// We assume in a single Spark task. No thread-safety should be guaranteed.
 class ListenableArbitrator : public velox::memory::MemoryArbitrator {
  public:
@@ -74,7 +77,13 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
                 config.extraConfigs,
                 kMemoryPoolTransferCapacity,
                 std::to_string(kDefaultMemoryPoolTransferCapacity)),
-            velox::config::CapacityUnit::BYTE)) {}
+            velox::config::CapacityUnit::BYTE)),
+        memoryReclaimMaxWaitMs_(
+            std::chrono::duration_cast<std::chrono::milliseconds>(velox::config::toDuration(getConfig<std::string>(
+                                                                      config.extraConfigs,
+                                                                      kMemoryReclaimMaxWaitMs,
+                                                                      std::string(kDefaultMemoryReclaimMaxWaitMs))))
+                .count()) {}
   std::string kind() const override {
     return kind_;
   }
@@ -99,7 +108,9 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   bool growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    velox::memory::ScopedMemoryArbitrationContext ctx(pool);
+    // Set arbitration context to allow memory over-use during recursive arbitration.
+    // See MemoryPoolImpl::maybeIncrementReservation.
+    velox::memory::ScopedMemoryArbitrationContext ctx{};
     velox::memory::MemoryPool* candidate;
     {
       std::unique_lock guard{mutex_};
@@ -108,7 +119,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     }
     VELOX_CHECK(pool->root() == candidate, "Illegal state in ListenableArbitrator");
 
-    growCapacity0(pool->root(), targetBytes);
+    growCapacityInternal(pool->root(), targetBytes);
     return true;
   }
 
@@ -121,12 +132,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
       pool = candidates_.begin()->first;
     }
-    pool->reclaim(targetBytes, 0, status); // ignore the output
-    return shrinkCapacity0(pool, 0);
+    pool->reclaim(targetBytes, memoryReclaimMaxWaitMs_, status); // ignore the output
+    return shrinkCapacityInternal(pool, 0);
   }
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    return shrinkCapacity0(pool, targetBytes);
+    return shrinkCapacityInternal(pool, targetBytes);
   }
 
   Stats stats() const override {
@@ -139,7 +150,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  void growCapacity0(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  void growCapacityInternal(velox::memory::MemoryPool* pool, uint64_t bytes) {
     // Since
     // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
@@ -161,7 +172,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
         pool->toString());
   }
 
-  uint64_t shrinkCapacity0(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  uint64_t shrinkCapacityInternal(velox::memory::MemoryPool* pool, uint64_t bytes) {
     uint64_t freeBytes = shrinkPool(pool, bytes);
     listener_->allocationChanged(-freeBytes);
     return freeBytes;
@@ -170,6 +181,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   gluten::AllocationListener* listener_;
   const uint64_t memoryPoolInitialCapacity_; // FIXME: Unused.
   const uint64_t memoryPoolTransferCapacity_;
+  const uint64_t memoryReclaimMaxWaitMs_;
 
   mutable std::mutex mutex_;
   inline static std::string kind_ = "GLUTEN";
@@ -208,14 +220,16 @@ VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   auto memInitCapacity =
       VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
+  auto memReclaimMaxWaitMs =
+      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
 
   std::unordered_map<std::string, std::string> extraArbitratorConfigs;
-  extraArbitratorConfigs["memory-pool-initial-capacity"] = folly::to<std::string>(memInitCapacity) + "B";
-  extraArbitratorConfigs["memory-pool-transfer-capacity"] = folly::to<std::string>(reservationBlockSize) + "B";
-  extraArbitratorConfigs["memory-reclaim-max-wait-time"] = folly::to<std::string>(0) + "ms";
+  extraArbitratorConfigs[std::string(kMemoryPoolInitialCapacity)] = folly::to<std::string>(memInitCapacity) + "B";
+  extraArbitratorConfigs[std::string(kMemoryPoolTransferCapacity)] = folly::to<std::string>(reservationBlockSize) + "B";
+  extraArbitratorConfigs[std::string(kMemoryReclaimMaxWaitMs)] = folly::to<std::string>(memReclaimMaxWaitMs) + "ms";
 
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
@@ -321,17 +335,23 @@ bool VeloxMemoryManager::tryDestructSafe() {
 
   // Velox memory manager considered safe to destruct when no alive pools.
   if (veloxMemoryManager_) {
-    if (veloxMemoryManager_->numPools() > 2) {
+    if (veloxMemoryManager_->numPools() > 3) {
+      GLUTEN_CHECK(false, "Unreachable code");
       return false;
     }
-    if (veloxMemoryManager_->numPools() == 2) {
+    if (veloxMemoryManager_->numPools() == 3) {
       // Assert the pool is spill pool
       // See https://github.com/facebookincubator/velox/commit/e6f84e8ac9ef6721f527a2d552a13f7e79bdf72e
+      // https://github.com/facebookincubator/velox/commit/ac134400b5356c5ba3f19facee37884aa020afdc
       int32_t spillPoolCount = 0;
+      int32_t cachePoolCount = 0;
       int32_t tracePoolCount = 0;
       veloxMemoryManager_->testingDefaultRoot().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
         if (child == veloxMemoryManager_->spillPool()) {
           spillPoolCount++;
+        }
+        if (child == veloxMemoryManager_->cachePool()) {
+          cachePoolCount++;
         }
         if (child == veloxMemoryManager_->tracePool()) {
           tracePoolCount++;
@@ -339,9 +359,10 @@ bool VeloxMemoryManager::tryDestructSafe() {
         return true;
       });
       GLUTEN_CHECK(spillPoolCount == 1, "Illegal pool count state: spillPoolCount: " + std::to_string(spillPoolCount));
+      GLUTEN_CHECK(cachePoolCount == 1, "Illegal pool count state: cachePoolCount: " + std::to_string(cachePoolCount));
       GLUTEN_CHECK(tracePoolCount == 1, "Illegal pool count state: tracePoolCount: " + std::to_string(tracePoolCount));
     }
-    if (veloxMemoryManager_->numPools() < 2) {
+    if (veloxMemoryManager_->numPools() < 3) {
       GLUTEN_CHECK(false, "Unreachable code");
     }
   }
@@ -380,7 +401,7 @@ VeloxMemoryManager::~VeloxMemoryManager() {
                << "ms as there are still outstanding memory resources. ";
   }
 #ifdef ENABLE_JEMALLOC_STATS
-  je_gluten_malloc_stats_print(NULL, NULL, NULL);
+  malloc_stats_print(NULL, NULL, NULL);
 #endif
 }
 

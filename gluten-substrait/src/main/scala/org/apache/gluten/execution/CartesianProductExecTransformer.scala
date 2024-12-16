@@ -18,7 +18,8 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ExpressionConverter
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.rel.RelBuilder
@@ -45,7 +46,8 @@ import java.io.{IOException, ObjectOutputStream}
  */
 case class ColumnarCartesianProductBridge(child: SparkPlan) extends UnaryExecNode with GlutenPlan {
   override def output: Seq[Attribute] = child.output
-  override def supportsColumnar: Boolean = true
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+  override def rowType0(): Convention.RowType = Convention.RowType.None
   override protected def doExecute(): RDD[InternalRow] =
     throw new UnsupportedOperationException()
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = child.executeColumnar()
@@ -105,10 +107,18 @@ case class CartesianProductExecTransformer(
       context,
       operatorId
     )
-    TransformContext(inputLeftOutput ++ inputRightOutput, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
+    if (
+      !BackendsApiManager.getSettings.supportCartesianProductExecWithCondition() &&
+      condition.nonEmpty
+    ) {
+      return ValidationResult.failed(
+        "CartesianProductExecTransformer with condition is not supported in this backend.")
+    }
+
     if (!BackendsApiManager.getSettings.supportCartesianProductExec()) {
       return ValidationResult.failed("Cartesian product is not supported in this backend")
     }

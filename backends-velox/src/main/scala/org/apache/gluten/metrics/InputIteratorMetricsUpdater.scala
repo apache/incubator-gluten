@@ -17,20 +17,23 @@
 package org.apache.gluten.metrics
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric], forBroadcast: Boolean)
+  extends MetricsUpdater {
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
       metrics("cpuCount") += operatorMetrics.cpuCount
       metrics("wallNanos") += operatorMetrics.wallNanos
-      if (operatorMetrics.outputRows == 0 && operatorMetrics.outputVectors == 0) {
-        // Sometimes, velox does not update metrics for intermediate operator,
-        // here we try to use the input metrics
-        metrics("numOutputRows") += operatorMetrics.inputRows
-        metrics("outputVectors") += operatorMetrics.inputVectors
-      } else {
-        metrics("numOutputRows") += operatorMetrics.outputRows
-        metrics("outputVectors") += operatorMetrics.outputVectors
+      if (!forBroadcast) {
+        if (operatorMetrics.outputRows == 0 && operatorMetrics.outputVectors == 0) {
+          // Sometimes, velox does not update metrics for intermediate operator,
+          // here we try to use the input metrics
+          metrics("numOutputRows") += operatorMetrics.inputRows
+          metrics("outputVectors") += operatorMetrics.inputVectors
+        } else {
+          metrics("numOutputRows") += operatorMetrics.outputRows
+          metrics("outputVectors") += operatorMetrics.outputVectors
+        }
       }
     }
   }

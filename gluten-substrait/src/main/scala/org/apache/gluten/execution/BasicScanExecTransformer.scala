@@ -30,8 +30,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
-import org.apache.spark.util.SerializableConfiguration
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.NamedStruct
@@ -63,13 +62,11 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def getProperties: Map[String, String] = Map.empty
 
   /** Returns the split infos that will be processed by the underlying native engine. */
-  def getSplitInfos(serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
-    getSplitInfosFromPartitions(getPartitions, serializableHadoopConf)
+  def getSplitInfos(): Seq[SplitInfo] = {
+    getSplitInfosFromPartitions(getPartitions)
   }
 
-  def getSplitInfosFromPartitions(
-      partitions: Seq[InputPartition],
-      serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
+  def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
     partitions.map(
       BackendsApiManager.getIteratorApiInstance
         .genSplitInfo(
@@ -77,8 +74,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
           getPartitionSchema,
           fileFormat,
           getMetadataColumns.map(_.name),
-          getProperties,
-          serializableHadoopConf))
+          getProperties))
   }
 
   override protected def doValidateInternal(): ValidationResult = {
@@ -95,7 +91,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val validationResult = BackendsApiManager.getSettings
-      .validateScan(fileFormat, fields, getRootFilePaths)
+      .validateScanExec(fileFormat, fields, getRootFilePaths, getProperties)
     if (!validationResult.ok()) {
       return validationResult
     }
@@ -135,11 +131,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }.asJava
     // Will put all filter expressions into an AND expression
     val transformer = filterExprs()
-      .map {
-        case ar: AttributeReference if ar.dataType == BooleanType =>
-          EqualNullSafe(ar, Literal.TrueLiteral)
-        case e => e
-      }
+      .map(ExpressionConverter.replaceAttributeReference)
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
     val filterNodes = transformer.map(_.doTransform(context.registeredFunction))
@@ -162,6 +154,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))
-    TransformContext(output, output, readNode)
+    TransformContext(output, readNode)
   }
 }

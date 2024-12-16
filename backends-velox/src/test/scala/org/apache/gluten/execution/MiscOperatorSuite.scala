@@ -36,7 +36,7 @@ import scala.collection.JavaConverters
 class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
 
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   import testImplicits._
@@ -208,6 +208,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674) or l_partkey in (1552) and l_orderkey > 1") { _ => }
     checkLengthAndPlan(df, 73)
+
+    runQueryAndCompare(
+      "select count(1) from lineitem " +
+        "where (l_shipmode in ('TRUCK', 'MAIL') or l_shipmode in ('AIR', 'FOB')) " +
+        "and l_shipmode in ('RAIL','SHIP')") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
   }
 
   test("in_not") {
@@ -505,6 +512,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             checkGlutenOperatorMatch[WindowExecTransformer]
           }
         }
+
+        // Foldable input of nth_value is not supported.
+        runQueryAndCompare(
+          "select l_suppkey, l_orderkey, nth_value(1, 2) over" +
+            " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+          checkSparkOperatorMatch[WindowExec]
+        }
     }
   }
 
@@ -523,8 +537,34 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
                          |""".stripMargin) {
       df =>
         {
-          getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)
+          assert(
+            getExecutedPlan(df).exists(
+              plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined))
         }
+    }
+  }
+
+  test("union_all two tables with known partitioning") {
+    withSQLConf(GlutenConfig.NATIVE_UNION_ENABLED.key -> "true") {
+      compareDfResultsAgainstVanillaSpark(
+        () => {
+          val df1 = spark.sql("select l_orderkey as orderkey from lineitem")
+          val df2 = spark.sql("select o_orderkey as orderkey from orders")
+          df1.repartition(5).union(df2.repartition(5))
+        },
+        compareResult = true,
+        checkGlutenOperatorMatch[UnionExecTransformer]
+      )
+
+      compareDfResultsAgainstVanillaSpark(
+        () => {
+          val df1 = spark.sql("select l_orderkey as orderkey from lineitem")
+          val df2 = spark.sql("select o_orderkey as orderkey from orders")
+          df1.repartition(5).union(df2.repartition(6))
+        },
+        compareResult = true,
+        checkGlutenOperatorMatch[ColumnarUnionExec]
+      )
     }
   }
 
@@ -566,7 +606,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
                          | select * from lineitem limit 10
                          |) where l_suppkey != 0 limit 100;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[LimitTransformer]
+      checkGlutenOperatorMatch[LimitExecTransformer]
     }
   }
 
@@ -845,7 +885,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
       withSQLConf(
         GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE.key -> "true",
-        GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+        GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
         SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1"
       ) {
         val query =

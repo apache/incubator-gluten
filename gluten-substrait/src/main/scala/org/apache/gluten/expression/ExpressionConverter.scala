@@ -55,6 +55,25 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     replaceWithExpressionTransformer0(expr, attributeSeq, expressionsMap)
   }
 
+  def canReplaceWithExpressionTransformer(
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): Boolean = {
+    try {
+      replaceWithExpressionTransformer(expr, attributeSeq)
+      true
+    } catch {
+      case e: Exception =>
+        logInfo(e.getMessage)
+        false
+    }
+  }
+
+  def replaceAttributeReference(expr: Expression): Expression = expr match {
+    case ar: AttributeReference if ar.dataType == BooleanType =>
+      EqualNullSafe(ar, Literal.TrueLiteral)
+    case e => e
+  }
+
   private def replacePythonUDFWithExpressionTransformer(
       udf: PythonUDF,
       attributeSeq: Seq[Attribute],
@@ -484,7 +503,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           c)
       case c if c.getClass.getSimpleName.equals("CheckOverflowInTableInsert") =>
         throw new GlutenNotSupportException(
-          "CheckOverflowInTableInsert is used in ansi mode, but gluten does not support ANSI mode."
+          "CheckOverflowInTableInsert is used in ANSI mode, but Gluten does not support ANSI mode."
         )
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()

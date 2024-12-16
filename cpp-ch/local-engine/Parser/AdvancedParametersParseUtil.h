@@ -49,6 +49,7 @@ struct AggregateOptimizationInfo
 struct WindowGroupOptimizationInfo
 {
     String window_function;
+    bool is_aggregate_group_limit = false;
     static WindowGroupOptimizationInfo parse(const String & advnace);
 };
 }

@@ -16,9 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
-import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
+import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -28,29 +26,19 @@ import org.apache.spark.sql.execution.{SortExec, SparkPlan}
  * This rule is similar with `EnsureRequirements` but only handle local `SortExec`.
  *
  * The reason is that, during transform SparkPlan to GlutenPlan, some operators do not need local
- * sort any more, e.g., convert SortAggregate to HashAggregateTransformer, and we remove local sort
+ * sort anymore, e.g., convert SortAggregate to HashAggregateTransformer, and we remove local sort
  * eagerly. However, it may break the other operator's requirements, e.g., A SortMergeJoin on top of
  * SortAggregate with the same key. So, this rule adds local sort back if necessary.
  */
 object EnsureLocalSortRequirements extends Rule[SparkPlan] {
-  private lazy val offload = TransformPreOverrides.apply()
+  private lazy val transform: HeuristicTransform = HeuristicTransform.static()
 
   private def addLocalSort(
       originalChild: SparkPlan,
       requiredOrdering: Seq[SortOrder]): SparkPlan = {
+    // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
     val newChild = SortExec(requiredOrdering, global = false, child = originalChild)
-    if (!GlutenConfig.getConf.enableColumnarSort) {
-      FallbackTags.add(newChild, "columnar Sort is not enabled in SortExec")
-      newChild
-    } else {
-      val rewrittenPlan = RewriteSparkPlanRulesManager.apply().apply(newChild)
-      if (rewrittenPlan.eq(newChild) && FallbackTags.nonEmpty(rewrittenPlan)) {
-        // The sort can not be offloaded
-        rewrittenPlan
-      } else {
-        offload.apply(rewrittenPlan)
-      }
-    }
+    transform.apply(newChild)
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {

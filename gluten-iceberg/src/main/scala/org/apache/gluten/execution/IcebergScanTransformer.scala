@@ -27,7 +27,6 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.SerializableConfiguration
 
 import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
 
@@ -47,7 +46,9 @@ case class IcebergScanTransformer(
     commonPartitionValues = commonPartitionValues
   ) {
 
-  override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
+  protected[this] def supportsBatchScan(scan: Scan): Boolean = {
+    IcebergScanTransformer.supportsBatchScan(scan)
+  }
 
   override lazy val getPartitionSchema: StructType =
     GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
@@ -59,9 +60,7 @@ case class IcebergScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
-  override def getSplitInfosFromPartitions(
-      partitions: Seq[InputPartition],
-      serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
+  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
     val groupedPartitions = SparkShimLoader.getSparkShims.orderPartitions(
       scan,
       keyGroupedPartitioning,
@@ -96,5 +95,9 @@ object IcebergScanTransformer {
       keyGroupedPartitioning = SparkShimLoader.getSparkShims.getKeyGroupedPartitioning(batchScan),
       commonPartitionValues = SparkShimLoader.getSparkShims.getCommonPartitionValues(batchScan)
     )
+  }
+
+  def supportsBatchScan(scan: Scan): Boolean = {
+    scan.getClass.getName == "org.apache.iceberg.spark.source.SparkBatchQueryScan"
   }
 }

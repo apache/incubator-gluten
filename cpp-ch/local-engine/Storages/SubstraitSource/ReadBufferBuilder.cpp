@@ -28,10 +28,11 @@
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/ReadSettings.h>
-#include <IO/SplittableBzip2ReadBuffer.h>
 #include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
+#include <IO/SharedThreadPools.h>
+#include <IO/SplittableBzip2ReadBuffer.h>
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
@@ -70,6 +71,9 @@ namespace Setting
 extern const SettingsUInt64 s3_max_redirects;
 extern const SettingsBool s3_disable_checksum;
 extern const SettingsUInt64 s3_retry_attempts;
+extern const SettingsMaxThreads max_download_threads;
+extern const SettingsUInt64 max_download_buffer_size;
+extern const SettingsBool input_format_allow_seeks;
 }
 namespace ErrorCodes
 {
@@ -183,7 +187,7 @@ adjustReadRangeIfNeeded(std::unique_ptr<SeekableReadBuffer> read_buffer, const s
         return std::move(read_buffer);
 
     /// Skip text/json files with compression.
-    /// TODO implement adjustFileReadPosition when compression method is bzip2
+    /// When the file is compressed, its read range is adjusted in [[buildWithCompressionWrapper]]
     Poco::URI file_uri(file_info.uri_file());
     DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
     if (compression != CompressionMethod::None)
@@ -201,7 +205,8 @@ adjustReadRangeIfNeeded(std::unique_ptr<SeekableReadBuffer> read_buffer, const s
         start_end.second);
 
     /// If read buffer doesn't support right bounded reads, wrap it with BoundedReadBuffer to enable right bounded reads.
-    if (dynamic_cast<DB::ReadBufferFromHDFS *>(read_buffer.get()) || dynamic_cast<DB::ReadBufferFromFile *>(read_buffer.get()))
+    if (dynamic_cast<DB::ReadBufferFromHDFS *>(read_buffer.get()) || dynamic_cast<DB::AsynchronousReadBufferFromHDFS *>(read_buffer.get())
+        || dynamic_cast<DB::ReadBufferFromFile *>(read_buffer.get()))
         read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
 
     read_buffer->seek(start_end.first, SEEK_SET);
@@ -214,6 +219,8 @@ class LocalFileReadBufferBuilder : public ReadBufferBuilder
 public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
+
+    bool isRemote() const override { return false; }
 
     std::unique_ptr<DB::ReadBuffer>
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
@@ -251,9 +258,16 @@ public:
         /// Get hdfs_uri
         Poco::URI uri(file_info.uri_file());
         auto hdfs_file_path = uri.getPath();
-        std::string hdfs_uri = "hdfs://" + uri.getHost();
-        if (uri.getPort())
-            hdfs_uri += ":" + std::to_string(uri.getPort());
+
+        std::string new_file_uri = uri.toString();
+        if (uri.getUserInfo().empty() && BackendInitializerUtil::spark_user.has_value())
+        {
+            uri.setUserInfo(*BackendInitializerUtil::spark_user);
+            new_file_uri = uri.toString();
+        }
+
+        auto begin_of_path = new_file_uri.find('/', new_file_uri.find("//") + 2);
+        auto hdfs_uri = new_file_uri.substr(0, begin_of_path);
 
         std::optional<size_t> file_size;
         std::optional<size_t> modified_time;
@@ -320,8 +334,11 @@ public:
             DB::StoredObjects stored_objects{DB::StoredObject{remote_path, "", *file_size}};
             auto cache_creator = wrapWithCache(
                 read_buffer_creator, read_settings, remote_path, *modified_time, *file_size);
+            size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
+            if (*file_size > 0)
+                buffer_size = std::min(*file_size, buffer_size);
             auto cache_hdfs_read = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-                std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false);
+                std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false, buffer_size);
             read_buffer = std::move(cache_hdfs_read);
         }
 
@@ -405,11 +422,14 @@ public:
 
         DB::StoredObjects stored_objects{DB::StoredObject{pathKey, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
+            std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true, 0);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
+        size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
+        if (object_size > 0)
+            buffer_size = std::min(object_size, buffer_size);
         auto async_reader
-            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings);
+            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, buffer_size);
 
         if (read_settings.remote_fs_prefetch)
             async_reader->prefetch(Priority{});
@@ -596,21 +616,20 @@ ConcurrentLRU<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuil
 class AzureBlobReadBuffer : public ReadBufferBuilder
 {
 public:
-    explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
+    explicit AzureBlobReadBuffer(const DB::ContextPtr & context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
     std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        std::unique_ptr<DB::ReadBuffer> read_buffer;
-        read_buffer = std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
-        return read_buffer;
+        return std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
     }
 
 private:
-    std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> shared_client;
 
-    std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> getClient()
+    std::shared_ptr<DB::AzureBlobStorage::ContainerClient> shared_client;
+
+    std::shared_ptr<DB::AzureBlobStorage::ContainerClient> getClient()
     {
         if (shared_client)
             return shared_client;
@@ -653,10 +672,6 @@ void registerReadBufferBuilders()
 #endif
 }
 
-ReadBufferBuilder::ReadBufferBuilder(DB::ContextPtr context_) : context(context_)
-{
-}
-
 DB::ReadSettings ReadBufferBuilder::getReadSettings() const
 {
     DB::ReadSettings read_settings = context->getReadSettings();
@@ -669,6 +684,10 @@ DB::ReadSettings ReadBufferBuilder::getReadSettings() const
     read_settings.remote_fs_prefetch = config.getBool("hdfs.enable_async_io", false);
 
     return read_settings;
+}
+
+ReadBufferBuilder::ReadBufferBuilder(const DB::ContextPtr & context_) : context(context_)
+{
 }
 
 std::unique_ptr<DB::ReadBuffer>
@@ -724,7 +743,8 @@ ReadBufferBuilder::wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const subst
         new_end);
 
     std::unique_ptr<SeekableReadBuffer> bounded_in;
-    if (dynamic_cast<DB::ReadBufferFromHDFS *>(seekable_in.get()) || dynamic_cast<DB::ReadBufferFromFile *>(seekable_in.get()))
+    if (dynamic_cast<DB::ReadBufferFromHDFS *>(seekable_in.get()) || dynamic_cast<DB::AsynchronousReadBufferFromHDFS *>(seekable_in.get())
+        || dynamic_cast<DB::ReadBufferFromFile *>(seekable_in.get()))
         bounded_in = std::make_unique<BoundedReadBuffer>(std::move(seekable_in));
     else
         bounded_in = std::move(seekable_in);
@@ -750,7 +770,11 @@ ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFi
     if (compression == CompressionMethod::Bzip2)
         return wrapWithBzip2(std::move(in), file_info);
     else
-        return wrapReadBufferWithCompressionMethod(std::move(in), compression);
+    {
+        /// In this case we are pretty sure that current split covers the whole file because only bzip2 compression is splittable
+        auto parallel = wrapWithParallelIfNeeded(std::move(in), file_info);
+        return wrapReadBufferWithCompressionMethod(std::move(parallel), compression);
+    }
 }
 
 ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
@@ -833,6 +857,39 @@ void ReadBufferBuilder::updateCaches(const String & key, size_t last_modified_ti
         //   we recommend continuing to use caching instead of renew it
         files_cache_time_map.insert(file_cache_key, last_modified_time, file_size);
     }
+}
+
+std::unique_ptr<DB::ReadBuffer> ReadBufferBuilder::wrapWithParallelIfNeeded(
+    std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+{
+    /// Only use parallel downloading for text and json format because data are read serially in those formats.
+    if (!file_info.has_text() && !file_info.has_json())
+        return std::move(in);
+
+    const auto & settings = context->getSettingsRef();
+    auto max_download_threads = settings[DB::Setting::max_download_threads];
+    auto max_download_buffer_size = settings[DB::Setting::max_download_buffer_size];
+
+    bool parallel_read = isRemote() && max_download_threads > 1 && isBufferWithFileSize(*in);
+    if (!parallel_read)
+        return std::move(in);
+
+    size_t file_size = getFileSizeFromReadBuffer(*in);
+    if (file_size < 4 * max_download_buffer_size)
+        return std::move(in);
+
+    LOG_TRACE(
+        getLogger("ReadBufferBuilder"),
+        "Using ParallelReadBuffer with {} workers with chunks of {} bytes",
+        max_download_threads,
+        max_download_buffer_size);
+
+    return wrapInParallelReadBufferIfSupported(
+        {std::move(in)},
+        DB::threadPoolCallbackRunnerUnsafe<void>(DB::getIOThreadPool().get(), "ParallelRead"),
+        max_download_threads,
+        max_download_buffer_size,
+        file_size);
 }
 
 ReadBufferBuilderFactory & ReadBufferBuilderFactory::instance()

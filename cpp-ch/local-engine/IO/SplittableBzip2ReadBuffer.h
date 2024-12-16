@@ -22,6 +22,8 @@
 #if USE_BZIP2
 #include <vector>
 #include <IO/CompressedReadBufferWrapper.h>
+#include <base/StringRef.h>
+#include <iostream>
 
 namespace DB
 {
@@ -156,6 +158,7 @@ private:
             if (temp < 0)
                 temp = 256 + temp;
             globalCrc = (globalCrc << 8) ^ static_cast<Int32>(crc32Table[temp]);
+            // std::cout << "input:" << inCh << " crc:" << globalCrc << std::endl;
         }
         void updateCRC(Int32 inCh, Int32 repeat)
         {
@@ -201,7 +204,14 @@ private:
     /// Case2:
     /// e.g. "line1 \n line2 \n line3 \n", all lines will be processed because we are pretty sure that line3 is a completed line.
     const bool last_block_need_special_process;
+
+    /// Whether the compressed block is the first one. It is used to apply special process for the first block.
     bool is_first_block;
+
+    /// Record the last incomplete line in the latest `nextImpl`
+    /// It is excluded from the output of latest `nextImpl` because we are not sure if it is completed in the lifetime of the current split until next `nextImpl`.
+    String last_incomplete_line;
+
 
     Int32 blockSize100k;
     STATE currentState;
@@ -229,7 +239,7 @@ private:
     Int32 su_rNToGo;
     Int32 su_rTPos;
     Int32 su_tPos;
-    char su_z;
+    UInt16 su_z;
 
     /// SplittableBzip2ReadBuffer will skip bytes before the first block header. adjusted_start records file position after skipping.
     /// It is only valid when input stream is seekable and block header could be found in input stream.

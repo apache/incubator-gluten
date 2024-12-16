@@ -43,6 +43,45 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 object CHHashAggregateExecTransformer {
+  // The result attributes of aggregate expressions from vanilla may be different from CH native.
+  // For example, the result attributes of `avg(x)` are `sum(x)` and `count(x)`. This could bring
+  // some unexpected issues. So we need to make the result attributes consistent with CH native.
+  def getCHAggregateResultExpressions(
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      resultExpressions: Seq[NamedExpression]): Seq[NamedExpression] = {
+    var adjustedResultExpressions = resultExpressions.slice(0, groupingExpressions.length)
+    var resultExpressionIndex = groupingExpressions.length
+    adjustedResultExpressions ++ aggregateExpressions.flatMap {
+      aggExpr =>
+        aggExpr.mode match {
+          case Partial | PartialMerge =>
+            // For partial aggregate, the size of the result expressions of an aggregate expression
+            // is the same as aggBufferAttributes' length
+            val aggBufferAttributesCount = aggExpr.aggregateFunction.aggBufferAttributes.length
+            aggExpr.aggregateFunction match {
+              case avg: Average =>
+                val res = Seq(aggExpr.resultAttribute)
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+              case sum: Sum if (sum.dataType.isInstanceOf[DecimalType]) =>
+                val res = Seq(resultExpressions(resultExpressionIndex))
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+              case _ =>
+                val res = resultExpressions
+                  .slice(resultExpressionIndex, resultExpressionIndex + aggBufferAttributesCount)
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+            }
+          case _ =>
+            val res = Seq(resultExpressions(resultExpressionIndex))
+            resultExpressionIndex += 1
+            res
+        }
+    }
+  }
+
   def getAggregateResultAttributes(
       groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression]): Seq[Attribute] = {
@@ -170,7 +209,7 @@ case class CHHashAggregateExecTransformer(
         RelBuilder.makeReadRelForInputIteratorWithoutRegister(typeList, nameList, context)
       (getAggRel(context, operatorId, aggParams, readRel), inputAttrs, outputAttrs)
     }
-    TransformContext(inputAttributes, outputAttributes, relNode)
+    TransformContext(outputAttributes, relNode)
   }
 
   override def getAggRel(
@@ -389,6 +428,15 @@ case class CHHashAggregateExecTransformer(
               fields = fields :+ (
                 approxPercentile.percentageExpression.dataType,
                 approxPercentile.percentageExpression.nullable)
+              (makeStructType(fields), attr.nullable)
+            case percentile: Percentile =>
+              var fields = Seq[(DataType, Boolean)]()
+              // Use percentile.nullable as the nullable of the struct type
+              // to make sure it returns null when input is empty
+              fields = fields :+ (percentile.child.dataType, percentile.nullable)
+              fields = fields :+ (
+                percentile.percentageExpression.dataType,
+                percentile.percentageExpression.nullable)
               (makeStructType(fields), attr.nullable)
             case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)

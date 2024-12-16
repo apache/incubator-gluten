@@ -26,10 +26,8 @@ public class CHDatasourceJniWrapper {
     this.instance = createFilerWriter(filePath, write.toByteArray());
   }
 
-  public CHDatasourceJniWrapper(
-      String prefix, String partition, String bucket, WriteRel write, byte[] confArray) {
-    this.instance =
-        createMergeTreeWriter(prefix, partition, bucket, write.toByteArray(), confArray);
+  public CHDatasourceJniWrapper(WriteRel write, byte[] confArray) {
+    this.instance = createMergeTreeWriter(write.toByteArray(), confArray);
   }
 
   public void write(long blockAddress) {
@@ -48,8 +46,7 @@ public class CHDatasourceJniWrapper {
   private native long createFilerWriter(String filePath, byte[] writeRel);
 
   /// MergeTreeWriter
-  private native long createMergeTreeWriter(
-      String prefix, String partition, String bucket, byte[] writeRel, byte[] confArray);
+  private native long createMergeTreeWriter(byte[] writeRel, byte[] confArray);
 
   public static native String nativeMergeMTParts(
       byte[] splitInfo, String partition_dir, String bucket_dir);

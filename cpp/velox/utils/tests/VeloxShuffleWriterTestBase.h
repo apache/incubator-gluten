@@ -90,6 +90,10 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
 
  protected:
   void setUp() {
+    if (!isRegisteredNamedVectorSerde(facebook::velox::VectorSerde::Kind::kPresto)) {
+      // RSS shuffle serde.
+      facebook::velox::serializer::presto::PrestoVectorSerde::registerNamedVectorSerde();
+    }
     // Set up test data.
     children1_ = {
         makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt, 4, std::nullopt, 5, 6, std::nullopt, 7}),
@@ -257,7 +261,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
     ShuffleTestParams params = GetParam();
     shuffleWriterOptions_.useRadixSort = params.useRadixSort;
-    shuffleWriterOptions_.compressionBufferSize = params.compressionBufferSize;
+    shuffleWriterOptions_.sortEvictBufferSize = params.compressionBufferSize;
     partitionWriterOptions_.compressionType = params.compressionType;
     switch (partitionWriterOptions_.compressionType) {
       case arrow::Compression::UNCOMPRESSED:
@@ -362,6 +366,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         veloxCompressionType,
         rowType,
         std::numeric_limits<int32_t>::max(),
+        kDefaultReadBufferSize,
         defaultArrowMemoryPool().get(),
         pool_,
         GetParam().shuffleWriterType);

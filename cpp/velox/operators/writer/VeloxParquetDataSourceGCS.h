@@ -32,6 +32,7 @@
 #include "velox/dwio/common/Options.h"
 
 namespace gluten {
+
 class VeloxParquetDataSourceGCS final : public VeloxParquetDataSource {
  public:
   VeloxParquetDataSourceGCS(
@@ -43,9 +44,10 @@ class VeloxParquetDataSourceGCS final : public VeloxParquetDataSource {
 
   void initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) override {
     auto fileSystem = filesystems::getFileSystem(filePath_, nullptr);
-    auto* gcsFileSystem = dynamic_cast<filesystems::GCSFileSystem*>(fileSystem.get());
+    auto* gcsFileSystem = dynamic_cast<filesystems::GcsFileSystem*>(fileSystem.get());
     sink_ = std::make_unique<dwio::common::WriteFileSink>(
         gcsFileSystem->openFileForWrite(filePath_, {{}, sinkPool_.get()}), filePath_);
   }
 };
+
 } // namespace gluten

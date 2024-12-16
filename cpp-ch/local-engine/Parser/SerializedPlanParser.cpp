@@ -20,35 +20,21 @@
 #include <string>
 #include <string_view>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
-#include <Columns/ColumnSet.h>
+#include <Columns/ColumnConst.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
-#include <Core/Field.h>
 #include <Core/Names.h>
 #include <Core/NamesAndTypes.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
-#include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeDate32.h>
-#include <DataTypes/DataTypeDateTime64.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeNothing.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeSet.h>
-#include <DataTypes/DataTypeString.h>
-#include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
-#include <DataTypes/Serializations/ISerialization.h>
-#include <DataTypes/getLeastSupertype.h>
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/PreparedSets.h>
 #include <Interpreters/ProcessList.h>
 #include <Interpreters/QueryPriorities.h>
-#include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
@@ -73,6 +59,7 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
+#include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
@@ -115,19 +102,24 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
-void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel)
+void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::Plan & plan)
 {
+    const substrait::PlanRel & root_rel = plan.relations().at(0);
     if (root_rel.root().names_size())
     {
         ActionsDAG actions_dag{blockToNameAndTypeList(query_plan->getCurrentHeader())};
         NamesWithAliases aliases;
-        auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
+        const auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
+        {
+            debug::dumpPlan(*query_plan, "clickhouse plan", true);
+            debug::dumpMessage(plan, "substrait::Plan", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
-                "Missmatch result columns size. plan column size {}, subtrait plan size {}.",
+                "Missmatch result columns size. plan column size {}, subtrait plan name size {}.",
                 cols.getNames().size(),
                 root_rel.root().names_size());
+        }
         for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
         actions_dag.project(aliases);
@@ -140,48 +132,60 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
     const auto & output_schema = root_rel.root().output_schema();
     if (output_schema.types_size())
     {
-        auto original_header = query_plan->getCurrentHeader();
-        const auto & original_cols = original_header.getColumnsWithTypeAndName();
-        if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
+        auto origin_header = query_plan->getCurrentHeader();
+        const auto & origin_columns = origin_header.getColumnsWithTypeAndName();
+
+        if (static_cast<size_t>(output_schema.types_size()) != origin_columns.size())
         {
+            debug::dumpPlan(*query_plan, "clickhouse plan", true);
+            debug::dumpMessage(plan, "substrait::Plan", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
-                "Mismatch output schema. plan column size {} [header: '{}'], subtrait plan size {}[schema: {}].",
-                original_cols.size(),
-                original_header.dumpStructure(),
+                "Missmatch result columns size. plan column size {}, subtrait plan output schema size {}, subtrait plan name size {}.",
+                origin_columns.size(),
                 output_schema.types_size(),
-                dumpMessage(output_schema));
+                root_rel.root().names_size());
         }
+
         bool need_final_project = false;
-        ColumnsWithTypeAndName final_cols;
+        ColumnsWithTypeAndName final_columns;
         for (int i = 0; i < output_schema.types_size(); ++i)
         {
-            const auto & col = original_cols[i];
-            auto type = TypeParser::parseType(output_schema.types(i));
-            // At present, we only check nullable mismatch.
-            // intermediate aggregate data is special, no check here.
-            if (type->isNullable() != col.type->isNullable() && !typeid_cast<const DataTypeAggregateFunction *>(col.type.get()))
+            const auto & origin_column = origin_columns[i];
+            const auto & origin_type = origin_column.type;
+            auto final_type = TypeParser::parseType(output_schema.types(i));
+
+            /// Intermediate aggregate data is special, no check here.
+            if (typeid_cast<const DataTypeAggregateFunction *>(origin_column.type.get()) || origin_type->equals(*final_type))
+                final_columns.push_back(origin_column);
+            else
             {
-                if (type->isNullable())
+                need_final_project = true;
+                if (origin_column.column && isColumnConst(*origin_column.column))
                 {
-                    auto wrapped = wrapNullableType(true, col.type);
-                    final_cols.emplace_back(type->createColumn(), wrapped, col.name);
-                    need_final_project = !wrapped->equals(*col.type);
+                    /// For const column, we need to cast it individually. Otherwise, the const column will be converted to full column in
+                    /// ActionsDAG::makeConvertingActions.
+                    /// Note: creating fianl_column with Field of origin_column will cause Exception in some case.
+                    const DB::ContextPtr context = DB::CurrentThread::get().getQueryContext();
+                    const FunctionOverloadResolverPtr & cast_resolver = FunctionFactory::instance().get("CAST", context);
+                    const DataTypePtr string_type = std::make_shared<DataTypeString>();
+                    ColumnWithTypeAndName to_type_column = {string_type->createColumnConst(1, final_type->getName()), string_type, "__cast_const__"};
+                    FunctionBasePtr cast_function = cast_resolver->build({origin_column, to_type_column});
+                    ColumnPtr const_col = ColumnConst::create(cast_function->execute({origin_column, to_type_column}, final_type, 1, false), 1);
+                    ColumnWithTypeAndName final_column(const_col, final_type, origin_column.name);
+                    final_columns.emplace_back(std::move(final_column));
                 }
                 else
                 {
-                    final_cols.emplace_back(type->createColumn(), removeNullable(col.type), col.name);
-                    need_final_project = true;
+                    ColumnWithTypeAndName final_column(final_type->createColumn(), final_type, origin_column.name);
+                    final_columns.emplace_back(std::move(final_column));
                 }
             }
-            else
-            {
-                final_cols.push_back(col);
-            }
         }
+
         if (need_final_project)
         {
-            ActionsDAG final_project = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
+            ActionsDAG final_project = ActionsDAG::makeConvertingActions(origin_columns, final_columns, ActionsDAG::MatchColumnsMode::Position, true);
             QueryPlanStepPtr final_project_step
                 = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(final_project));
             final_project_step->setStepDescription("Project for output schema");
@@ -192,7 +196,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
 
 QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 {
-    logDebugMessage(plan, "substrait plan");
+    debug::dumpMessage(plan, "substrait::Plan");
     //parseExtensions(plan.extensions());
     if (plan.relations_size() != 1)
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "too many relations found");
@@ -207,18 +211,13 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     std::list<const substrait::Rel *> rel_stack;
     auto query_plan = parseOp(first_read_rel, rel_stack);
     if (!writePipeline)
-        adjustOutput(query_plan, root_rel);
+        adjustOutput(query_plan, plan);
 
 #ifndef NDEBUG
     PlanUtil::checkOuputType(*query_plan);
 #endif
 
-    if (auto * logger = &Poco::Logger::get("SerializedPlanParser"); logger->debug())
-    {
-        auto out = PlanUtil::explainPlan(*query_plan);
-        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
-    }
-
+    debug::dumpPlan(*query_plan);
     return query_plan;
 }
 
@@ -229,11 +228,10 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const substr
 
 QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
-    DB::QueryPlanPtr query_plan;
     auto rel_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(parser_context);
 
     auto all_input_rels = rel_parser->getInputs(rel);
-    assert(all_input_rels.size() == 1 || all_input_rels.size() == 2);
+    assert(all_input_rels.empty() || all_input_rels.size() == 1 || all_input_rels.size() == 2);
     std::vector<DB::QueryPlanPtr> input_query_plans;
     rel_stack.push_back(&rel);
     for (const auto * input_rel : all_input_rels)
@@ -276,7 +274,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
         }
     }
 
-    query_plan = rel_parser->parse(input_query_plans, rel, rel_stack);
+    DB::QueryPlanPtr query_plan = rel_parser->parse(input_query_plans, rel, rel_stack);
     for (auto & extra_plan : rel_parser->extraPlans())
     {
         extra_plan_holder.push_back(std::move(extra_plan));
@@ -298,7 +296,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     return query_plan;
 }
 
-DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan)
+DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan) const
 {
     const Settings & settings = parser_context->queryContext()->getSettingsRef();
     QueryPriorities priorities;
@@ -312,12 +310,10 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         settings,
         0);
     const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
-    return query_plan.buildQueryPipeline(
-        optimization_settings,
-        BuildQueryPipelineSettings{
-            .actions_settings
-            = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
-            .process_list_element = query_status});
+    BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings::fromContext(context);
+    build_settings.process_list_element = query_status;
+    build_settings.progress_callback = nullptr;
+    return query_plan.buildQueryPipeline(optimization_settings, build_settings);
 }
 
 std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
@@ -326,11 +322,10 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::s
     return createExecutor(parse(s_plan), s_plan);
 }
 
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan) const
 {
     Stopwatch stopwatch;
 
-    const Settings & settings = parser_context->queryContext()->getSettingsRef();
     DB::QueryPipelineBuilderPtr builder = nullptr;
     try
     {
@@ -338,7 +333,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     }
     catch (...)
     {
-        LOG_ERROR(getLogger("SerializedPlanParser"), "Invalid plan:\n{}", PlanUtil::explainPlan(*query_plan));
+        debug::dumpPlan(*query_plan, "Invalid clickhouse plan", true);
         throw;
     }
 
@@ -347,13 +342,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     assert(root_rel.has_root());
     if (root_rel.root().input().has_write())
         addSinkTransform(parser_context->queryContext(), root_rel.root().input().write(), builder);
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
-    LOG_DEBUG(
-        logger,
-        "clickhouse plan [optimization={}]:\n{}",
-        settings[Setting::query_plan_enable_optimizations],
-        PlanUtil::explainPlan(*query_plan));
+    LOG_INFO(getLogger("SerializedPlanParser"), "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
 
     auto config = ExecutorConfig::loadFromContext(parser_context->queryContext());
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);
@@ -371,11 +360,7 @@ NonNullableColumnsResolver::NonNullableColumnsResolver(
     expression_parser = std::make_unique<ExpressionParser>(parser_context);
 }
 
-NonNullableColumnsResolver::~NonNullableColumnsResolver()
-{
-}
-
-// make it simple at present, if the condition contains or, return empty for both side.
+// make it simple at present if the condition contains or, return empty for both side.
 std::set<String> NonNullableColumnsResolver::resolve()
 {
     collected_columns.clear();

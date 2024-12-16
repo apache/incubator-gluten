@@ -18,9 +18,7 @@ package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.execution.{ProjectExecTransformer, SortExecTransformer, TransformSupport, WholeStageTransformer}
 import org.apache.gluten.execution.datasource.GlutenFormatWriterInjects
-import org.apache.gluten.extension.columnar.AddFallbackTagRule
-import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
-import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
+import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -28,6 +26,7 @@ import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPla
 import org.apache.spark.sql.execution.ColumnarCollapseTransformStages.transformStageCounter
 
 trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
+  private lazy val transform = HeuristicTransform.static()
 
   /**
    * FileFormatWriter wraps some Project & Sort on the top of the original output spark plan, we
@@ -42,12 +41,9 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
       return plan.execute()
     }
 
-    val rules = List(
-      RewriteSparkPlanRulesManager(),
-      AddFallbackTagRule(),
-      TransformPreOverrides()
-    )
-    val transformed = rules.foldLeft(plan) { case (latestPlan, rule) => rule.apply(latestPlan) }
+    // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
+    val transformed = transform(plan)
+
     if (!transformed.isInstanceOf[TransformSupport]) {
       throw new IllegalStateException(
         "Cannot transform the SparkPlans wrapped by FileFormatWriter, " +

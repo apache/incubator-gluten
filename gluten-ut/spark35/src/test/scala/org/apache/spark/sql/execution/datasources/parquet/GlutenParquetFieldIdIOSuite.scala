@@ -16,6 +16,27 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
 
-class GlutenParquetFieldIdIOSuite extends ParquetFieldIdIOSuite with GlutenSQLTestsBaseTrait {}
+class GlutenParquetFieldIdIOSuite extends ParquetFieldIdIOSuite with GlutenSQLTestsBaseTrait {
+  testGluten("Parquet writer with ARRAY and MAP") {
+    spark.sql("""
+                |CREATE TABLE T1 (
+                | a INT,
+                | b ARRAY<STRING>,
+                | c MAP<STRING,STRING>
+                |)
+                |USING PARQUET
+                |""".stripMargin)
+
+    spark.sql("""
+                | INSERT OVERWRITE T1 VALUES
+                |  (1, ARRAY(1, 2, 3), MAP("key1","value1"))
+                |""".stripMargin)
+
+    checkAnswer(
+      spark.sql("SELECT * FROM T1"),
+      Row(1, Array("1", "2", "3"), Map("key1" -> "value1")) :: Nil
+    )
+  }
+}

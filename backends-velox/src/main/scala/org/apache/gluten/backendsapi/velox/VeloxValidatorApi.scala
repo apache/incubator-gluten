@@ -16,13 +16,13 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.backendsapi.ValidatorApi
+import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.NativePlanEvaluator
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
@@ -38,7 +38,7 @@ class VeloxValidatorApi extends ValidatorApi {
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult = {
     TaskResources.runUnsafe {
-      val validator = NativePlanEvaluator.create()
+      val validator = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
       asValidationResult(validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray))
     }
   }
@@ -87,11 +87,16 @@ class VeloxValidatorApi extends ValidatorApi {
   }
 
   override def doColumnarShuffleExchangeExecValidate(
+      outputAttributes: Seq[Attribute],
       outputPartitioning: Partitioning,
       child: SparkPlan): Option[String] = {
+    if (outputAttributes.isEmpty) {
+      // See: https://github.com/apache/incubator-gluten/issues/7600.
+      return Some("Shuffle with empty output schema is not supported")
+    }
     if (child.output.isEmpty) {
       // See: https://github.com/apache/incubator-gluten/issues/7600.
-      return Some("Shuffle with empty schema is not supported")
+      return Some("Shuffle with empty input schema is not supported")
     }
     doSchemaValidate(child.schema)
   }

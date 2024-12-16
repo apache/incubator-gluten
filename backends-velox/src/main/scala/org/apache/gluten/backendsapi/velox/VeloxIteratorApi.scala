@@ -39,9 +39,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{ExecutorManager, SerializableConfiguration, SparkDirectoryUtil}
-
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.util.{ExecutorManager, SparkDirectoryUtil}
 
 import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
@@ -57,8 +55,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      properties: Map[String, String],
-      serializableHadoopConf: SerializableConfiguration): SplitInfo = {
+      properties: Map[String, String]): SplitInfo = {
     partition match {
       case f: FilePartition =>
         val (
@@ -69,7 +66,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           modificationTimes,
           partitionColumns,
           metadataColumns) =
-          constructSplitInfo(partitionSchema, f.files, metadataColumnNames, serializableHadoopConf)
+          constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
         val preferredLocations =
           SoftAffinity.getFilePartitionLocations(f)
         LocalFilesBuilder.makeLocalFiles(
@@ -112,8 +109,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   private def constructSplitInfo(
       schema: StructType,
       files: Array[PartitionedFile],
-      metadataColumnNames: Seq[String],
-      serializableHadoopConf: SerializableConfiguration) = {
+      metadataColumnNames: Seq[String]) = {
     val paths = new JArrayList[String]()
     val starts = new JArrayList[JLong]
     val lengths = new JArrayList[JLong]()
@@ -125,15 +121,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       file =>
         // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded
         // path is incorrect in some cases and here fix the case of ' ' by using GlutenURLDecoder
-        var filePath = file.filePath.toString
-        if (filePath.startsWith("viewfs")) {
-          val viewPath = new Path(filePath)
-          val viewFileSystem = FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
-          filePath = viewFileSystem.resolvePath(viewPath).toString
-        }
         paths.add(
           GlutenURLDecoder
-            .decode(filePath, StandardCharsets.UTF_8.name()))
+            .decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
         val (fileSize, modificationTime) =
@@ -193,9 +183,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
     val columnarNativeIterators =
       new JArrayList[ColumnarBatchInIterator](inputIterators.map {
-        iter => new ColumnarBatchInIterator(iter.asJava)
+        iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
       }.asJava)
-    val transKernel = NativePlanEvaluator.create()
+    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
 
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
@@ -245,10 +235,10 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
-    val transKernel = NativePlanEvaluator.create()
+    val transKernel = NativePlanEvaluator.create(BackendsApiManager.getBackendName)
     val columnarNativeIterator =
       new JArrayList[ColumnarBatchInIterator](inputIterators.map {
-        iter => new ColumnarBatchInIterator(iter.asJava)
+        iter => new ColumnarBatchInIterator(BackendsApiManager.getBackendName, iter.asJava)
       }.asJava)
     val spillDirPath = SparkDirectoryUtil
       .get()

@@ -16,12 +16,7 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf;
 import org.apache.gluten.execution.ColumnarNativeIterator;
-import org.apache.gluten.utils.ConfigUtil;
-
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * This class is implemented in JNI. This provides the Java interface to invoke functions in JNI.
@@ -48,23 +43,5 @@ public class ExpressionEvaluatorJniWrapper {
       byte[] confArray,
       boolean materializeInput);
 
-  /**
-   * Set the temp path for writing files.
-   *
-   * @param path the temp path for writing files
-   */
-  public static native void injectWriteFilesTempPath(byte[] path, byte[] filename);
-
-  /// The following methods are used to update the query settings in the native engine.
-  public static void updateQueryRuntimeSettings(Map<String, String> settings) {
-    Map<String, String> newSettings =
-        settings.entrySet().stream()
-            .filter(entry -> CHConf.startWithSettingsPrefix(entry.getKey()))
-            .collect(
-                Collectors.toMap(
-                    e -> CHConf.removeSettingsPrefix(e.getKey()), Map.Entry::getValue));
-    updateQueryRuntimeSettings(ConfigUtil.serialize(newSettings));
-  }
-
-  private static native void updateQueryRuntimeSettings(byte[] settings);
+  public static native void updateQueryRuntimeSettings(byte[] settings);
 }

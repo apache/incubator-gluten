@@ -41,12 +41,16 @@ public class Metrics implements IMetrics {
   public long[] numDynamicFiltersAccepted;
   public long[] numReplacedWithDynamicFilterRows;
   public long[] flushRowCount;
+  public long[] loadedToValueHook;
   public long[] skippedSplits;
   public long[] processedSplits;
   public long[] skippedStrides;
   public long[] processedStrides;
   public long[] remainingFilterTime;
   public long[] ioWaitTime;
+  public long[] storageReadBytes;
+  public long[] localReadBytes;
+  public long[] ramReadBytes;
   public long[] preloadSplits;
 
   public long[] physicalWrittenBytes;
@@ -79,6 +83,7 @@ public class Metrics implements IMetrics {
       long[] numDynamicFiltersAccepted,
       long[] numReplacedWithDynamicFilterRows,
       long[] flushRowCount,
+      long[] loadedToValueHook,
       long[] scanTime,
       long[] skippedSplits,
       long[] processedSplits,
@@ -86,6 +91,9 @@ public class Metrics implements IMetrics {
       long[] processedStrides,
       long[] remainingFilterTime,
       long[] ioWaitTime,
+      long[] storageReadBytes,
+      long[] localReadBytes,
+      long[] ramReadBytes,
       long[] preloadSplits,
       long[] physicalWrittenBytes,
       long[] writeIOTime,
@@ -113,12 +121,16 @@ public class Metrics implements IMetrics {
     this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
     this.flushRowCount = flushRowCount;
+    this.loadedToValueHook = loadedToValueHook;
     this.skippedSplits = skippedSplits;
     this.processedSplits = processedSplits;
     this.skippedStrides = skippedStrides;
     this.processedStrides = processedStrides;
     this.remainingFilterTime = remainingFilterTime;
     this.ioWaitTime = ioWaitTime;
+    this.storageReadBytes = storageReadBytes;
+    this.localReadBytes = localReadBytes;
+    this.ramReadBytes = ramReadBytes;
     this.preloadSplits = preloadSplits;
     this.physicalWrittenBytes = physicalWrittenBytes;
     this.writeIOTime = writeIOTime;
@@ -152,6 +164,7 @@ public class Metrics implements IMetrics {
         numDynamicFiltersAccepted[index],
         numReplacedWithDynamicFilterRows[index],
         flushRowCount[index],
+        loadedToValueHook[index],
         scanTime[index],
         skippedSplits[index],
         processedSplits[index],
@@ -159,6 +172,9 @@ public class Metrics implements IMetrics {
         processedStrides[index],
         remainingFilterTime[index],
         ioWaitTime[index],
+        storageReadBytes[index],
+        localReadBytes[index],
+        ramReadBytes[index],
         preloadSplits[index],
         physicalWrittenBytes[index],
         writeIOTime[index],

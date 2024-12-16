@@ -26,7 +26,7 @@ import java.nio.file.Files
 import scala.collection.JavaConverters._
 
 class FunctionsValidateSuite extends WholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
   private var parquetPath: String = _
 

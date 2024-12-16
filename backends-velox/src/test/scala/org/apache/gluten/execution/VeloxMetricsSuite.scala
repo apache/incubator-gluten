@@ -22,12 +22,13 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerStageCompleted}
 import org.apache.spark.sql.TestUtils
-import org.apache.spark.sql.execution.CommandResultExec
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.{ColumnarInputAdapter, CommandResultExec, InputIteratorTransformer}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, BroadcastQueryStageExec}
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.internal.SQLConf
 
 class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {
@@ -62,7 +63,7 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
   test("test sort merge join metrics") {
     withSQLConf(
-      GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
       // without preproject
       runQueryAndCompare(
@@ -226,5 +227,52 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
 
     assert(inputRecords == (partTableRecords + itemTableRecords))
+  }
+
+  test("Metrics for input iterator of broadcast exchange") {
+    createTPCHNotNullTables()
+    val partTableRecords = spark.sql("select * from part").count()
+
+    // Repartition to make sure we have multiple tasks executing the join.
+    spark
+      .sql("select * from lineitem")
+      .repartition(2)
+      .createOrReplaceTempView("lineitem")
+
+    Seq("true", "false").foreach {
+      adaptiveEnabled =>
+        withSQLConf("spark.sql.adaptive.enabled" -> adaptiveEnabled) {
+          val sqlStr =
+            """
+              |select /*+ BROADCAST(part) */ * from part join lineitem
+              |on l_partkey = p_partkey
+              |""".stripMargin
+
+          runQueryAndCompare(sqlStr) {
+            df =>
+              val inputIterator = find(df.queryExecution.executedPlan) {
+                case InputIteratorTransformer(ColumnarInputAdapter(child)) =>
+                  child.isInstanceOf[BroadcastQueryStageExec] || child
+                    .isInstanceOf[BroadcastExchangeLike]
+                case _ => false
+              }
+              assert(inputIterator.isDefined)
+              val metrics = inputIterator.get.metrics
+              assert(metrics("numOutputRows").value == partTableRecords)
+          }
+        }
+    }
+  }
+
+  test("Velox cache metrics") {
+    val df = spark.sql(s"SELECT * FROM metrics_t1")
+    val scans = collect(df.queryExecution.executedPlan) {
+      case scan: FileSourceScanExecTransformer => scan
+    }
+    df.collect()
+    assert(scans.length === 1)
+    val metrics = scans.head.metrics
+    assert(metrics("storageReadBytes").value > 0)
+    assert(metrics("ramReadBytes").value == 0)
   }
 }

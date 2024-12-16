@@ -71,6 +71,7 @@ public:
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
     std::vector<MergeTreeDataPartPtr> loadDataPartsWithNames(const std::unordered_set<std::string> & parts);
     void removePartFromMemory(const MergeTreeData::DataPart & part_to_detach);
+    void prefetchPartDataFile(const std::unordered_set<std::string>& parts) const;
 
     MergeTreeDataSelectExecutor reader;
     MergeTreeDataMergerMutator merger_mutator;
@@ -91,7 +92,8 @@ private:
     static std::atomic<int> part_num;
     SimpleIncrement increment;
 
-    void prefetchMetaDataFile(std::unordered_set<std::string> parts) const;
+    void prefetchPartFiles(const std::unordered_set<std::string>& parts, String file_name) const;
+    void prefetchMetaDataFile(const std::unordered_set<std::string>& parts) const;
     void startBackgroundMovesIfNeeded() override;
     std::unique_ptr<MergeTreeSettings> getDefaultSettings() const override;
     LoadPartResult loadDataPart(

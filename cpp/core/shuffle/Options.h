@@ -30,7 +30,7 @@ static constexpr int64_t kDefaultSortBufferThreshold = 64 << 20;
 static constexpr int64_t kDefaultPushMemoryThreshold = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
-static constexpr int32_t kDefaultCompressionBufferSize = 32 * 1024;
+static constexpr int32_t kDefaultSortEvictBufferSize = 32 * 1024;
 static const std::string kDefaultCompressionTypeStr = "lz4";
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
@@ -38,6 +38,8 @@ static constexpr double kDefaultMergeBufferThreshold = 0.25;
 static constexpr bool kEnableBufferedWrite = true;
 static constexpr bool kDefaultUseRadixSort = true;
 static constexpr int32_t kDefaultSortBufferSize = 4096;
+static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
+static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
 
 enum ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
 enum PartitionWriterType { kLocal, kRss };
@@ -49,6 +51,7 @@ struct ShuffleReaderOptions {
   ShuffleWriterType shuffleWriterType = kHashShuffle;
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t batchSize = kDefaultBatchSize;
+  int64_t bufferSize = kDefaultReadBufferSize;
 };
 
 struct ShuffleWriterOptions {
@@ -63,7 +66,7 @@ struct ShuffleWriterOptions {
 
   // Sort shuffle writer.
   int32_t sortBufferInitialSize = kDefaultSortBufferSize;
-  int32_t compressionBufferSize = kDefaultCompressionBufferSize;
+  int32_t sortEvictBufferSize = kDefaultSortEvictBufferSize;
   bool useRadixSort = kDefaultUseRadixSort;
 };
 
@@ -84,6 +87,8 @@ struct PartitionWriterOptions {
   int64_t pushBufferMaxSize = kDefaultPushMemoryThreshold;
 
   int64_t sortBufferMaxSize = kDefaultSortBufferThreshold;
+
+  int64_t shuffleFileBufferSize = kDefaultShuffleFileBufferSize;
 };
 
 struct ShuffleWriterMetrics {

@@ -25,7 +25,7 @@ import org.apache.spark.SparkConf
 
 abstract class FuzzerBase extends VeloxWholeStageTransformerSuite {
 
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   protected val dataGenerator = RandomParquetDataGenerator(System.currentTimeMillis())
