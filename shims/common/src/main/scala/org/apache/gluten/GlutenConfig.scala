@@ -1431,7 +1431,7 @@ object GlutenConfig {
           "performance profits by default. Try exploring option `spark.gluten.ras.costModel` " +
           "for advanced usage.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val RAS_COST_MODEL =
     buildConf("spark.gluten.ras.costModel")
