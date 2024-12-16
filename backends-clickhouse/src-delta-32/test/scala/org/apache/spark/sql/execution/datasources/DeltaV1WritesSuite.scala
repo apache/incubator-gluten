@@ -18,10 +18,9 @@ package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, GlutenPlan, SortExecTransformer}
-
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.{SortExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.{SortExec, SparkPlan}
 
 class DeltaV1WritesSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
