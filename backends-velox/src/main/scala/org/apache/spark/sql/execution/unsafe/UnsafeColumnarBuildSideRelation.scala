@@ -65,7 +65,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   // Needed for serialization
   def this() = {
-    this(null, null, null)
+    this(null, null.asInstanceOf[UnsafeBytesBufferArray], null)
   }
 
   def this(output: Seq[Attribute], bytesBufferArray: Array[Array[Byte]], mode: BroadcastMode) = {
