@@ -36,19 +36,28 @@ public class RetryOnOomMemoryTarget implements TreeMemoryTarget {
   public long borrow(long size) {
     long granted = target.borrow(size);
     if (granted < size) {
-
-      LOGGER.info(
-          "Exceed Spark perTaskLimit with maxTaskSizeDynamic when "
-              + "require:{} got:{}, try spill all.",
-          size,
-          granted);
-      final long spilled = TreeMemoryTargets.spillTree(target, Long.MAX_VALUE);
+      LOGGER.info("Retrying spill require:{} got:{}", size, granted);
+      final long spilled = retryingSpill(Long.MAX_VALUE);
       final long remaining = size - granted;
       if (spilled >= remaining) {
         granted += target.borrow(remaining);
       }
+      LOGGER.info("Retrying spill spilled:{} final granted:{}", spilled, granted);
     }
     return granted;
+  }
+
+  private long retryingSpill(long size) {
+    TreeMemoryTarget rootTarget = target;
+    while (true) {
+      try {
+        rootTarget = rootTarget.parent();
+      } catch (IllegalStateException e) {
+        // Reached the root node
+        break;
+      }
+    }
+    return TreeMemoryTargets.spillTree(rootTarget, size);
   }
 
   @Override
