@@ -138,7 +138,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
   @Override
   public TreeMemoryTarget parent() {
     // we are root
-    throw new IllegalStateException("Unreachable code");
+    throw new IllegalStateException("Unreachable code org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumer.parent");
   }
 
   @Override

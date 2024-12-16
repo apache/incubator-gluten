@@ -300,7 +300,9 @@ class TaskResourceRegistry extends Logging {
         val diff = o2.getKey - o1.getKey // descending by priority
         if (diff > 0) 1
         else if (diff < 0) -1
-        else throw new IllegalStateException("Unreachable code")
+        else
+          throw new IllegalStateException(
+            "Unreachable code from org.apache.spark.task.TaskResourceRegistry.releaseAll")
       }
     )
     table.forEach {
