@@ -52,10 +52,7 @@ public final class ReservationListeners {
             tmm, name, Spillers.withMinSpillSize(spiller, reservationBlockSize), mutableStats);
     final MemoryTarget overConsumer =
         MemoryTargets.newConsumer(
-            tmm,
-            consumer.name() + ".OverAcquire",
-            Spillers.NOOP,
-            Collections.emptyMap());
+            tmm, consumer.name() + ".OverAcquire", Spillers.NOOP, Collections.emptyMap());
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
