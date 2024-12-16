@@ -17,6 +17,7 @@
 package org.apache.gluten.memory.memtarget;
 
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
+import org.apache.gluten.proto.MemoryUsageStats;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,5 +98,9 @@ public class RetryOnOomMemoryTarget implements TreeMemoryTarget {
   @Override
   public Spiller getNodeSpiller() {
     return target.getNodeSpiller();
+  }
+
+  public TreeMemoryTarget target() {
+    return target;
   }
 }
