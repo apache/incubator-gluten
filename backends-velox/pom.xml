@@ -82,6 +82,29 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>hudi</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-hudi</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-hudi</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hudi</groupId>
+          <artifactId>hudi-spark${sparkbundle.version}-bundle_${scala.binary.version}</artifactId>
+          <version>${hudi.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <dependencies>
