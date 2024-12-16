@@ -54,15 +54,7 @@ public final class ReservationListeners {
         MemoryTargets.newConsumer(
             tmm,
             consumer.name() + ".OverAcquire",
-            new Spiller() {
-              @Override
-              public long spill(MemoryTarget self, Phase phase, long size) {
-                if (!Spillers.PHASE_SET_ALL.contains(phase)) {
-                  return 0L;
-                }
-                return self.repay(size);
-              }
-            },
+            Spillers.NOOP,
             Collections.emptyMap());
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
