@@ -20,7 +20,7 @@
     <option name="links">
       <list>
         <IssueNavigationLink>
-          <option name="issueRegexp" value="#(\d+)" />
+          <option name="issueRegexp" value="#(\d+)|GLUTEN-(\d+)" />
           <!--
             GitHub share the sequence number of issues and pull requests, and it will redirect to
             the right place when the the sequence number not match kind.
