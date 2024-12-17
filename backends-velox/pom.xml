@@ -29,6 +29,35 @@
       </properties>
     </profile>
     <profile>
+      <id>celeborn</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-celeborn</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.celeborn</groupId>
+          <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
+          <version>${celeborn.version}</version>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.celeborn</groupId>
+              <artifactId>celeborn-client-spark-${spark.major.version}_${scala.binary.version}</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.celeborn</groupId>
+              <artifactId>celeborn-spark-${spark.major.version}-columnar-shuffle_${scala.binary.version}</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
       <id>iceberg</id>
       <activation>
         <activeByDefault>false</activeByDefault>

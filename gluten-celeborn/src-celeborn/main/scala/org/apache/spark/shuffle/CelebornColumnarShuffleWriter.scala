@@ -16,8 +16,9 @@
  */
 package org.apache.spark.shuffle
 
+import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 import org.apache.gluten.GlutenConfig
-
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
@@ -25,9 +26,6 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.BlockManager
-
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 import java.util.Locale
