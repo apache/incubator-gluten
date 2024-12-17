@@ -45,14 +45,6 @@ public final class MemoryTargets {
     return new OverAcquire(target, overTarget, overAcquiredRatio);
   }
 
-  public static TreeMemoryTarget retrySpillOnOom(TreeMemoryTarget target) {
-    SparkEnv env = SparkEnv.get();
-    if (env != null && env.conf() != null && SparkResourceUtil.getTaskSlots(env.conf()) > 1) {
-      return new RetryOnOomMemoryTarget(target);
-    }
-    return target;
-  }
-
   @Experimental
   public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
     if (GlutenConfig.getConf().dynamicOffHeapSizingEnabled()) {
@@ -67,14 +59,20 @@ public final class MemoryTargets {
       String name,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-    final TreeMemoryConsumers.Factory factory;
+    final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.factory(tmm);
     if (GlutenConfig.getConf().memoryIsolation()) {
-      return TreeMemoryConsumers.isolated().newConsumer(tmm, name, spiller, virtualChildren);
-    } else {
-      // Retry of spilling is needed in shared mode because the maxMemoryPerTask of Vanilla Spark
-      // ExecutionMemoryPool is dynamic when with multi-slot config.
-      return MemoryTargets.retrySpillOnOom(
-          TreeMemoryConsumers.shared().newConsumer(tmm, name, spiller, virtualChildren));
+      return factory.newIsolatedConsumer(name, spiller, virtualChildren);
     }
+    final TreeMemoryTarget consumer = factory.newLegacyConsumer(name, spiller, virtualChildren);
+    final int taskSlots = SparkResourceUtil.getTaskSlots(SparkEnv.get().conf());
+    if (taskSlots == 1) {
+      return consumer;
+    }
+    // Since https://github.com/apache/incubator-gluten/pull/8132.
+    // Retry of spilling is needed in multi-slot and legacy mode (formerly named as share mode)
+    // because the maxMemoryPerTask defined by vanilla Spark's ExecutionMemoryPool is dynamic.
+    //
+    // See the original issue https://github.com/apache/incubator-gluten/issues/8128.
+    return new RetryOnOomMemoryTarget(consumer);
   }
 }
