@@ -38,7 +38,7 @@ public class RetryOnOomMemoryTarget implements TreeMemoryTarget {
   public long borrow(long size) {
     long granted = target.borrow(size);
     if (granted < size) {
-      LOGGER.info("Granted size {} is smaller than requested size {}, retrying...", granted, size);
+      LOGGER.info("Granted size {} is less than requested size {}, retrying...", granted, size);
       final long remaining = size - granted;
       // Invoke the `onRetry` callback, then retry borrowing.
       // It's usually expected to run extra spilling logics in
