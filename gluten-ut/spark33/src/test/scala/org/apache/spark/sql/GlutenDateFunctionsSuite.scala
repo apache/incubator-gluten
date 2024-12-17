@@ -310,6 +310,10 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
         df.select(to_date(col("s"), "yyyy-MM-dd")),
         Seq(Row(null), Row(Date.valueOf("2014-12-31")), Row(null)))
     }
+    // legacyParserPolicy is not respected by Gluten.
+    // withSQLConf(confKey -> "exception") {
+    //   checkExceptionMessage(df.select(to_date(col("s"), "yyyy-MM-dd")))
+    // }
 
     // now switch format
     checkAnswer(
@@ -318,6 +322,10 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
 
     // invalid format
     checkAnswer(df.select(to_date(col("s"), "yyyy-hh-MM")), Seq(Row(null), Row(null), Row(null)))
+    // velox getTimestamp function does not throw exception when format is "yyyy-dd-aa".
+    // val e = intercept[SparkUpgradeException](df.select(to_date(col("s"), "yyyy-dd-aa")).collect())
+    // assert(e.getCause.isInstanceOf[IllegalArgumentException])
+    // assert(e.getMessage.contains("You may get a different result due to the upgrading to Spark"))
 
     // February
     val x1 = "2016-02-29"
