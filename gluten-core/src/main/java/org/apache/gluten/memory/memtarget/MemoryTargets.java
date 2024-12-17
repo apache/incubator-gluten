@@ -20,8 +20,10 @@ import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
+import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.util.SparkResourceUtil;
 
 import java.util.Map;
 
@@ -43,6 +45,14 @@ public final class MemoryTargets {
     return new OverAcquire(target, overTarget, overAcquiredRatio);
   }
 
+  public static TreeMemoryTarget retrySpillOnOom(TreeMemoryTarget target) {
+    SparkEnv env = SparkEnv.get();
+    if (env != null && env.conf() != null && SparkResourceUtil.getTaskSlots(env.conf()) > 1) {
+      return new RetryOnOomMemoryTarget(target);
+    }
+    return target;
+  }
+
   @Experimental
   public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
     if (GlutenConfig.getConf().dynamicOffHeapSizingEnabled()) {
@@ -59,11 +69,12 @@ public final class MemoryTargets {
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     final TreeMemoryConsumers.Factory factory;
     if (GlutenConfig.getConf().memoryIsolation()) {
-      factory = TreeMemoryConsumers.isolated();
+      return TreeMemoryConsumers.isolated().newConsumer(tmm, name, spiller, virtualChildren);
     } else {
-      factory = TreeMemoryConsumers.shared();
+      // Retry of spilling is needed in shared mode because the maxMemoryPerTask of Vanilla Spark
+      // ExecutionMemoryPool is dynamic when with multi-slot config.
+      return MemoryTargets.retrySpillOnOom(
+          TreeMemoryConsumers.shared().newConsumer(tmm, name, spiller, virtualChildren));
     }
-
-    return factory.newConsumer(tmm, name, spiller, virtualChildren);
   }
 }
