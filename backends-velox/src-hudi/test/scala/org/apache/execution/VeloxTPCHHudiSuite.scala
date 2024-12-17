@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.execution
 
+import org.apache.gluten.execution.VeloxTPCHSuite
 import org.apache.spark.SparkConf
 
 import java.io.File
 
 class VeloxTPCHHudiSuite extends VeloxTPCHSuite {
-
-  protected val tpchBasePath: String = new File(
-    "../backends-velox/src/test/resources").getAbsolutePath
+  protected val tpchBasePath: String =
+    getClass.getResource("/").getPath + "../../../src/test/resources"
 
   override protected val resourcePath: String =
     new File(tpchBasePath, "tpch-data-parquet").getCanonicalPath

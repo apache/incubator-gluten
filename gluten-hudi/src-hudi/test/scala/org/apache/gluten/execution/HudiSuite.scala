@@ -19,7 +19,7 @@ package org.apache.gluten.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 
-class VeloxHudiSuite extends WholeStageTransformerSuite {
+abstract class HudiSuite extends WholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val resourcePath: String = "/tpch-data-parquet"
