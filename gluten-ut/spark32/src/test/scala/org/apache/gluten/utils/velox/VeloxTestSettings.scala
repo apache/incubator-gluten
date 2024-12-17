@@ -265,6 +265,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp")
     // Legacy mode is not supported, assuming this mode is not commonly used.
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
+    // Legacy mode is not supported and velox getTimestamp function does not throw
+    // exception when format is "yyyy-dd-aa".
     .exclude("function to_date")
   enableSuite[GlutenDataFrameFunctionsSuite]
     // blocked by Velox-5768
