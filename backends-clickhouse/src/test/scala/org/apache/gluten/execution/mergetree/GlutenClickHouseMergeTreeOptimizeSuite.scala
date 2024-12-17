@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeConfig, RuntimeSettings}
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
@@ -50,6 +51,8 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
+      .set(CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
       .set(RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key, "10000")
       .set(
         "spark.databricks.delta.retentionDurationCheck.enabled",
@@ -327,7 +330,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     assertResult(600572)(ret.apply(0).get(0))
   }
 
-  test("test mergetree optimize table with partition and bucket") {
+  testSparkVersionLE33("test mergetree optimize table with partition and bucket") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_optimize_p6;
                  |""".stripMargin)

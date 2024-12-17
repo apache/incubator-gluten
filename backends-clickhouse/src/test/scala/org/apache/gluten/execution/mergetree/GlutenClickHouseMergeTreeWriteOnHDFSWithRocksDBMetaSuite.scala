@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeConfig, RuntimeSettings}
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
@@ -58,6 +59,8 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
+      .set(CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
       .setCHSettings("mergetree.merge_after_insert", false)
   }
 
@@ -359,7 +362,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
     spark.sql("drop table lineitem_mergetree_partition_hdfs")
   }
 
-  test("test mergetree write with bucket table") {
+  testSparkVersionLE33("test mergetree write with bucket table") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_bucket_hdfs;
                  |""".stripMargin)
@@ -435,7 +438,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
     spark.sql("drop table lineitem_mergetree_bucket_hdfs purge")
   }
 
-  test("test mergetree write with the path based") {
+  testSparkVersionLE33("test mergetree write with the path based") {
     val dataPath = s"$HDFS_URL/test/lineitem_mergetree_bucket_hdfs"
 
     val sourceDF = spark.sql(s"""
