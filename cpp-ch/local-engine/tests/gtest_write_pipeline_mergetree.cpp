@@ -285,6 +285,8 @@ void writeMerge(
 }
 INCBIN(_3_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/3_one_pipeline.json");
 INCBIN(_4_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/4_one_pipeline.json");
+INCBIN(_lowcard_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/lowcard.json");
+INCBIN(_case_sensitive_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/case_sensitive.json");
 TEST(MergeTree, Pipeline)
 {
     // context->setSetting("mergetree.max_num_part_per_merge_task", 1);
@@ -309,5 +311,33 @@ TEST(MergeTree, PipelineWithPartition)
         {
             EXPECT_EQ(3815, block.rows());
             debug::headBlock(block);
+        });
+}
+
+TEST(MergeTree, lowcard)
+{
+    writeMerge(
+        EMBEDDED_PLAN(_lowcard_plan_),
+        "tmp/lineitem_mergetre_lowcard",
+        {},
+        [&](const DB::Block & block)
+        {
+            EXPECT_EQ(1, block.rows());
+            std::cerr << debug::verticalShowString(block, 10, 50) << std::endl;
+        });
+}
+
+TEST(MergeTree, case_sensitive)
+{
+    //TODO: case_sensitive
+    GTEST_SKIP();
+    writeMerge(
+        EMBEDDED_PLAN(_case_sensitive_plan_),
+        "tmp/LINEITEM_MERGETREE_CASE_SENSITIVE",
+        {},
+        [&](const DB::Block & block)
+        {
+            EXPECT_EQ(1, block.rows());
+            std::cerr << debug::showString(block, 20, 50) << std::endl;
         });
 }
