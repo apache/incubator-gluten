@@ -22,11 +22,6 @@ PAUS=$HOME/PAUS
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --ts)
-      TS="$2"
-      shift # past argument
-      shift # past value
-      ;;
     --base-dir)
       BASEDIR="$2"
       shift # past argument
@@ -39,6 +34,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --appid)
       APPID="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --pr)
+      PR="$2"
       shift # past argument
       shift # past value
       ;;
@@ -62,6 +62,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --emails)
+      EMAILS="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --comp-appid)
       COMP_APPID="$2"
       shift # past argument
@@ -77,6 +82,16 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --baseline-appid)
+      BASELINE_APPID="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --baseline-base-dir)
+      BASELINE_BASEDIR="$2"
+      shift # past argument
+      shift # past value
+      ;;
     *)
       echo "Error: Unknown argument: $1"
       exit 1
@@ -85,7 +100,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validation: Check if any of the required variables are empty
-if [[ -z "${TS+x}" || -z "${BASEDIR+x}" || -z "${NAME+x}" || -z "${APPID+x}" || -z "${DISK+x}" || -z "${NIC+x}" || -z "${SPARK_TZ+x}" ]]; then
+if [[ -z "${BASEDIR+x}" || -z "${NAME+x}" || -z "${APPID+x}" || -z "${DISK+x}" || -z "${NIC+x}" || -z "${SPARK_TZ+x}" ]]; then
   echo "Error: One or more required arguments are missing or empty."
   exit 1
 fi
@@ -98,16 +113,16 @@ if [ ! -f "$PAUS/sparklog.ipynb" ]; then
   cp $SCRIPT_LOCATION/sparklog.ipynb $PAUS/
 fi
 
-mkdir -p $PAUS/$BASEDIR
-cd $PAUS/$BASEDIR
-mkdir -p html
+workdir=$PAUS/$BASEDIR
+mkdir -p $workdir
+mkdir -p $workdir/html
 
-nb_name0=${TS}_${NAME}_${APPID}
+nb_name0=${NAME}_${APPID}
 nb_name=${nb_name0}.ipynb
 
-cp -f $PAUS/perf_analysis_template.ipynb $nb_name
-hadoop fs -mkdir -p /history
-hadoop fs -cp -f /$BASEDIR/$APPID/app.log /history/$APPID
+cp -f $PAUS/perf_analysis_template.ipynb $workdir/$nb_name
+hdfs dfs -mkdir -p /history
+hdfs dfs -ls /history/$APPID >/dev/null 2>&1 || { hdfs dfs -cp /$BASEDIR/$APPID/app.log /history/$APPID || exit 1; }
 
 EXTRA_ARGS=""
 if [ -v COMP_APPID ]
@@ -116,18 +131,49 @@ then
 	echo "Missing --comp-base-dir or --comp-name"
 	exit 1
   fi
-  hadoop fs -cp -f /$COMP_BASEDIR/$COMP_APPID/app.log /history/$COMP_APPID
-  EXTRA_ARGS="--comp_appid $COMP_APPID --comp_base_dir $COMP_BASEDIR --comp_name $COMP_NAME"
-  sed -i "s/# Compare to/# Compare to $COMP_NAME/g" ${nb_name}
+  hdfs dfs -ls /history/$COMP_APPID >/dev/null 2>&1 || { hdfs dfs -cp /$COMP_BASEDIR/$COMP_APPID/app.log /history/$COMP_APPID || exit 1; }
+  EXTRA_ARGS=$EXTRA_ARGS" -r comp_appid $COMP_APPID -r comp_base_dir $COMP_BASEDIR -r comp_name $COMP_NAME"
+  sed -i "s/# Compare to/# Compare to $COMP_NAME/g" $workdir/$nb_name
+fi
+if [ -v BASELINE_APPID ]
+then
+  if [[ -z "${BASELINE_BASEDIR+x}" ]]; then
+	echo "Missing --baseline-base-dir"
+	exit 1
+  fi
+  hdfs dfs -ls /history/$BASELINE_APPID >/dev/null 2>&1 || { hdfs dfs -cp /$BASELINE_BASEDIR/$BASELINE_APPID/app.log /history/$BASELINE_APPID || exit 1; }
+  EXTRA_ARGS=$EXTRA_ARGS" -r baseline_appid $BASELINE_APPID -r baseline_base_dir $BASELINE_BASEDIR"
+fi
+
+
+if [ -n "${PR}" ]
+then
+  EXTRA_ARGS=$EXTRA_ARGS" -r pr $PR"
 fi
 
 if [ -n "${PROXY}" ]
 then
-  EXTRA_ARGS=$EXTRA_ARGS" --proxy $PROXY"
+  EXTRA_ARGS=$EXTRA_ARGS" -r proxy $PROXY"
+fi
+
+if [ -n "${EMAILS}" ]
+then
+  EXTRA_ARGS=$EXTRA_ARGS" -r emails $EMAILS"
 fi
 
 source ~/paus-env/bin/activate
 
-python3 $SCRIPT_LOCATION/run.py --inputnb $nb_name --outputnb ${nb_name0}.nbconvert.ipynb --appid $APPID --disk $DISK --nic $NIC --tz $SPARK_TZ --base_dir $BASEDIR --name $NAME $EXTRA_ARGS
+notebook_html=html/${nb_name0}.html
 
-jupyter nbconvert --to html  --no-input ./${nb_name0}.nbconvert.ipynb --output html/${nb_name0}.html --template classic > /dev/null 2>&1
+papermill --cwd $workdir \
+	-r appid $APPID \
+	-r disk $DISK \
+	-r nic $NIC \
+	-r tz $SPARK_TZ \
+	-r base_dir $BASEDIR \
+	-r name $NAME \
+	-r notebook $nb_name \
+	-r notebook_html $notebook_html \
+	$EXTRA_ARGS $workdir/$nb_name $workdir/$nb_name
+
+jupyter nbconvert --to html --no-input $workdir/$nb_name --output $workdir/$notebook_html --template classic > /dev/null 2>&1
