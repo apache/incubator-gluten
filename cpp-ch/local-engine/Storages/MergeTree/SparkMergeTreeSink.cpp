@@ -31,27 +31,37 @@ extern const Metric GlobalThreadActive;
 extern const Metric GlobalThreadScheduled;
 }
 
+namespace DB::Setting
+{
+extern const SettingsUInt64 min_insert_block_size_rows;
+extern const SettingsUInt64 min_insert_block_size_bytes;
+}
 namespace local_engine
 {
 
-void SparkMergeTreeSink::consume(Chunk & chunk)
+void SparkMergeTreeSink::write(const Chunk & chunk)
 {
-    assert(!sink_helper->metadata_snapshot->hasPartitionKey());
+    CurrentThread::flushUntrackedMemory();
 
+    /// Reset earlier, so put it in the scope
     BlockWithPartition item{getHeader().cloneWithColumns(chunk.getColumns()), Row{}};
-    size_t before_write_memory = 0;
-    if (auto * memory_tracker = CurrentThread::getMemoryTracker())
-    {
-        CurrentThread::flushUntrackedMemory();
-        before_write_memory = memory_tracker->get();
-    }
+
     sink_helper->writeTempPart(item, context, part_num);
     part_num++;
-    /// Reset earlier to free memory
-    item.block.clear();
-    item.partition.clear();
+}
 
-    sink_helper->checkAndMerge();
+void SparkMergeTreeSink::consume(Chunk & chunk)
+{
+    Chunk tmp;
+    tmp.swap(chunk);
+    squashed_chunk = squashing.add(std::move(tmp));
+    if (static_cast<bool>(squashed_chunk))
+    {
+        write(Squashing::squash(std::move(squashed_chunk)));
+        sink_helper->checkAndMerge();
+    }
+    assert(squashed_chunk.getNumRows() == 0);
+    assert(chunk.getNumRows() == 0);
 }
 
 void SparkMergeTreeSink::onStart()
@@ -61,6 +71,11 @@ void SparkMergeTreeSink::onStart()
 
 void SparkMergeTreeSink::onFinish()
 {
+    assert(squashed_chunk.getNumRows() == 0);
+    squashed_chunk = squashing.flush();
+    if (static_cast<bool>(squashed_chunk))
+        write(Squashing::squash(std::move(squashed_chunk)));
+    assert(squashed_chunk.getNumRows() == 0);
     sink_helper->finish(context);
     if (stats_.has_value())
         (*stats_)->collectStats(sink_helper->unsafeGet(), sink_helper->write_settings.partition_settings.partition_dir);
@@ -91,7 +106,9 @@ SinkToStoragePtr SparkMergeTreeSink::create(
     }
     else
         sink_helper = std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
-    return std::make_shared<SparkMergeTreeSink>(sink_helper, context, stats);
+    const DB::Settings & settings = context->getSettingsRef();
+    return std::make_shared<SparkMergeTreeSink>(
+        sink_helper, context, stats, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]);
 }
 
 SinkHelper::SinkHelper(const SparkStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
