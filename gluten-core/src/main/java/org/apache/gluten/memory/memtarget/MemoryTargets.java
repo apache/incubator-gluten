@@ -19,11 +19,8 @@ package org.apache.gluten.memory.memtarget;
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
-
-import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.SparkResourceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +64,7 @@ public final class MemoryTargets {
       return factory.newIsolatedConsumer(name, spiller, virtualChildren);
     }
     final TreeMemoryTarget consumer = factory.newLegacyConsumer(name, spiller, virtualChildren);
-    final int taskSlots = SparkResourceUtil.getTaskSlots(SparkEnv.get().conf());
+    final int taskSlots = GlutenConfig.getConf().numTaskSlotsPerExecutor();
     if (taskSlots == 1) {
       return consumer;
     }
