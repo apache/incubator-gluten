@@ -206,7 +206,8 @@ public class TreeMemoryTargets {
         long capacity,
         Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-      final Node child = new Node(this, name, capacity, spiller, virtualChildren);
+      final Node child =
+          new Node(this, name, Math.min(this.capacity, capacity), spiller, virtualChildren);
       if (children.containsKey(child.name())) {
         throw new IllegalArgumentException("Child already registered: " + child.name());
       }
