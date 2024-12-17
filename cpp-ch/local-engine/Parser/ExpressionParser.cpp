@@ -418,23 +418,46 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
             }
 
             DB::DataTypePtr elem_type;
-            std::tie(elem_type, std::ignore) = LiteralParser::parse(options[0].literal());
-            elem_type = wrapNullableType(nullable, elem_type);
-
-            DB::MutableColumnPtr elem_column = elem_type->createColumn();
-            elem_column->reserve(options_len);
-            for (int i = 0; i < options_len; ++i)
+            std::vector<std::pair<DB::DataTypePtr, DB::Field>> options_type_and_field;
+            auto first_option = LiteralParser::parse(options[0].literal());
+            elem_type = first_option.first;
+            options_type_and_field.emplace_back(first_option);
+            for (int i = 1; i < options_len; ++i)
             {
                 auto type_and_field = LiteralParser::parse(options[i].literal());
-                auto option_type = wrapNullableType(nullable, type_and_field.first);
+                auto option_type = type_and_field.first;
                 if (!elem_type->equals(*option_type))
                     throw DB::Exception(
                         DB::ErrorCodes::LOGICAL_ERROR,
                         "SingularOrList options type mismatch:{} and {}",
                         elem_type->getName(),
                         option_type->getName());
+                options_type_and_field.emplace_back(type_and_field);
+            }
 
-                elem_column->insert(type_and_field.second);
+            // check tuple internal types
+            if (isTuple(elem_type) && isTuple(args[0]->result_type))
+            {
+                // align tuple inner types with nullable
+                auto tuple_type = std::static_pointer_cast<const DB::DataTypeTuple>(elem_type);
+                auto result_type = std::static_pointer_cast<const DB::DataTypeTuple>(args[0]->result_type);
+                assert(tuple_type->getElements().size() == result_type->getElements().size());
+                DataTypes new_types;
+                for (int i = 0; i < tuple_type->getElements().size(); ++i)
+                {
+                    auto tuple_elem_type = tuple_type->getElements()[i];
+                    auto result_elem_type = result_type->getElements()[i];
+                    if (result_elem_type->isNullable() && !tuple_elem_type->isNullable())
+                        new_types.emplace_back(wrapNullableType(tuple_elem_type));
+                }
+                elem_type = std::make_shared<DB::DataTypeTuple>(new_types);
+            }
+            elem_type = wrapNullableType(nullable, elem_type);
+            DB::MutableColumnPtr elem_column = elem_type->createColumn();
+            elem_column->reserve(options_len);
+            for (int i = 0; i < options_len; ++i)
+            {
+                elem_column->insert(options_type_and_field[i].second);
             }
             auto name = getUniqueName("__set");
             ColumnWithTypeAndName elem_block{std::move(elem_column), elem_type, name};
