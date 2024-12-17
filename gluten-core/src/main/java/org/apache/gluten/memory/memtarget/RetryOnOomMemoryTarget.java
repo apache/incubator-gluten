@@ -46,7 +46,7 @@ public class RetryOnOomMemoryTarget implements TreeMemoryTarget {
       // to allocate the remaining bytes.
       onRetry.run();
       granted += target.borrow(remaining);
-      LOGGER.info("Newest granted size: {}, requested size {}.", granted, size);
+      LOGGER.info("Newest granted size after retrying: {}, requested size {}.", granted, size);
     }
     return granted;
   }
