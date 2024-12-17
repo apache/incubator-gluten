@@ -23,18 +23,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.resource.ResourceProfile
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, Partitioning}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-private case class ApplyResourceProfileExecAdaptor(child: LogicalPlan)
-  extends OrderPreservingUnaryNode {
-  override def output: Seq[Attribute] = child.output
-
-  // For spark 3.2.
-  protected def withNewChildInternal(newChild: LogicalPlan): ApplyResourceProfileExecAdaptor =
-    copy(child = newChild)
-}
 
 /**
  * Used to apply specified resource profile for the whole stage.
@@ -45,10 +35,6 @@ private case class ApplyResourceProfileExecAdaptor(child: LogicalPlan)
 case class ApplyResourceProfileExec(child: SparkPlan, resourceProfile: ResourceProfile)
   extends UnaryExecNode
   with GlutenPlan {
-
-  if (child.logicalLink.isDefined) {
-    setLogicalLink(ApplyResourceProfileExecAdaptor(child.logicalLink.get))
-  }
 
   override def batchType(): Convention.BatchType = {
     Convention.get(child).batchType
