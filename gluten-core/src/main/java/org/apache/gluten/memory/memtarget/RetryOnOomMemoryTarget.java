@@ -27,37 +27,29 @@ import java.util.Map;
 public class RetryOnOomMemoryTarget implements TreeMemoryTarget {
   private static final Logger LOGGER = LoggerFactory.getLogger(RetryOnOomMemoryTarget.class);
   private final TreeMemoryTarget target;
+  private final Runnable onRetry;
 
-  RetryOnOomMemoryTarget(TreeMemoryTarget target) {
+  RetryOnOomMemoryTarget(TreeMemoryTarget target, Runnable onRetry) {
     this.target = target;
+    this.onRetry = onRetry;
   }
 
   @Override
   public long borrow(long size) {
     long granted = target.borrow(size);
     if (granted < size) {
-      LOGGER.info("Retrying spill require:{} got:{}", size, granted);
-      final long spilled = retryingSpill(Long.MAX_VALUE);
+      LOGGER.info("Granted size {} is smaller than requested size {}, retrying...", granted, size);
       final long remaining = size - granted;
-      if (spilled >= remaining) {
-        granted += target.borrow(remaining);
-      }
-      LOGGER.info("Retrying spill spilled:{} final granted:{}", spilled, granted);
+      // Invoke the `onRetry` callback, then retry borrowing.
+      // It's usually expected to run extra spilling logics in
+      // the `onRetry` callback so we may get enough memory space
+      // to allocate the remaining bytes.
+      onRetry.run();
+      granted += target.borrow(remaining);
+      LOGGER.info("Newest granted size: {}, requested size {}.", granted, size);
+
     }
     return granted;
-  }
-
-  private long retryingSpill(long size) {
-    TreeMemoryTarget rootTarget = target;
-    while (true) {
-      try {
-        rootTarget = rootTarget.parent();
-      } catch (IllegalStateException e) {
-        // Reached the root node
-        break;
-      }
-    }
-    return TreeMemoryTargets.spillTree(rootTarget, size);
   }
 
   @Override

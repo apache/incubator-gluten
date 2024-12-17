@@ -24,10 +24,13 @@ import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.SparkResourceUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
 public final class MemoryTargets {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MemoryTargets.class);
 
   private MemoryTargets() {
     // enclose factory ctor
@@ -73,6 +76,10 @@ public final class MemoryTargets {
     // because the maxMemoryPerTask defined by vanilla Spark's ExecutionMemoryPool is dynamic.
     //
     // See the original issue https://github.com/apache/incubator-gluten/issues/8128.
-    return new RetryOnOomMemoryTarget(consumer);
+    return new RetryOnOomMemoryTarget(consumer, () -> {
+      LOGGER.info("Request for spilling on consumer {}...", consumer.name());
+      long spilled = TreeMemoryTargets.spillTree(consumer, Long.MAX_VALUE);
+      LOGGER.info("Consumer {} spilled {} bytes.", consumer.name(), spilled);
+    });
   }
 }
