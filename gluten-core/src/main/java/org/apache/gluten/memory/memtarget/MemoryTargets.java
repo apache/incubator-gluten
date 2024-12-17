@@ -74,7 +74,7 @@ public final class MemoryTargets {
     }
     final int taskSlots = SparkResourceUtil.getTaskSlots(SparkEnv.get().conf());
     if (taskSlots == 1) {
-      // We don't need to retry on OOM when one single task occupies the whole executor.
+      // We don't need to retry on OOM in the case one single task occupies the whole executor.
       return consumer;
     }
     // Since https://github.com/apache/incubator-gluten/pull/8132.
