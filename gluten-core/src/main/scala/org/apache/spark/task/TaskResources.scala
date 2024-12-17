@@ -16,6 +16,7 @@
  */
 package org.apache.spark.task
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.task.TaskListener
 
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException, UnknownReason}
@@ -65,8 +66,9 @@ object TaskResources extends TaskListener with Logging {
         properties.put(key, value)
       case _ =>
     }
-    properties.setIfMissing("spark.memory.offHeap.enabled", "true")
-    properties.setIfMissing("spark.memory.offHeap.size", "1TB")
+    properties.setIfMissing(GlutenConfig.SPARK_OFFHEAP_ENABLED, "true")
+    properties.setIfMissing(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, "1TB")
+    properties.setIfMissing(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "1")
     TaskContext.setTaskContext(newUnsafeTaskContext(properties))
   }
 
