@@ -20,8 +20,10 @@ import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
+import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.util.SparkResourceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,8 +67,14 @@ public final class MemoryTargets {
       return factory.newIsolatedConsumer(name, spiller, virtualChildren);
     }
     final TreeMemoryTarget consumer = factory.newLegacyConsumer(name, spiller, virtualChildren);
-    final int taskSlots = GlutenConfig.getConf().numTaskSlotsPerExecutor();
+    if (SparkEnv.get() == null) {
+      // We are likely in test code. Return the consumer directly.
+      LOGGER.info("SparkEnv not found. We are likely in test code.");
+      return consumer;
+    }
+    final int taskSlots = SparkResourceUtil.getTaskSlots(SparkEnv.get().conf());
     if (taskSlots == 1) {
+      // We don't need to retry on OOM when one single task occupies the whole executor.
       return consumer;
     }
     // Since https://github.com/apache/incubator-gluten/pull/8132.
