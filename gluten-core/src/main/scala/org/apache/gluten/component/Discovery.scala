@@ -60,7 +60,7 @@ private object Discovery extends Logging {
     val prev = System.currentTimeMillis()
     val allFiles = ResourceUtil.getResources(componentFilePattern.pattern).asScala
     val duration = System.currentTimeMillis() - prev
-    logInfo(s"Discovered component files: ${allFiles.mkString(",")}. Duration: $duration ms.")
+    logInfo(s"Discovered component files: ${allFiles.mkString(", ")}. Duration: $duration ms.")
     val out = allFiles
       .flatMap {
         case componentFilePattern(className) =>
