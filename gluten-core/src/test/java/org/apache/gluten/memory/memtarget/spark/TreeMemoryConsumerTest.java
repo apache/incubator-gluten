@@ -52,7 +52,13 @@ public class TreeMemoryConsumerTest {
           final TreeMemoryConsumers.Factory factory =
               TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager());
           final TreeMemoryTarget consumer =
-              factory.newIsolatedConsumer("FOO", Spillers.NOOP, Collections.emptyMap());
+              factory
+                  .isolatedRoot()
+                  .newChild(
+                      "FOO",
+                      TreeMemoryTarget.CAPACITY_UNLIMITED,
+                      Spillers.NOOP,
+                      Collections.emptyMap());
           Assert.assertEquals(20, consumer.borrow(20));
           Assert.assertEquals(70, consumer.borrow(70));
           Assert.assertEquals(10, consumer.borrow(20));
@@ -67,7 +73,13 @@ public class TreeMemoryConsumerTest {
           final TreeMemoryConsumers.Factory factory =
               TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager());
           final TreeMemoryTarget consumer =
-              factory.newLegacyConsumer("FOO", Spillers.NOOP, Collections.emptyMap());
+              factory
+                  .legacyRoot()
+                  .newChild(
+                      "FOO",
+                      TreeMemoryTarget.CAPACITY_UNLIMITED,
+                      Spillers.NOOP,
+                      Collections.emptyMap());
           Assert.assertEquals(20, consumer.borrow(20));
           Assert.assertEquals(70, consumer.borrow(70));
           Assert.assertEquals(20, consumer.borrow(20));
@@ -81,11 +93,21 @@ public class TreeMemoryConsumerTest {
         () -> {
           final TreeMemoryTarget legacy =
               TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager())
-                  .newLegacyConsumer("FOO", Spillers.NOOP, Collections.emptyMap());
+                  .legacyRoot()
+                  .newChild(
+                      "FOO",
+                      TreeMemoryTarget.CAPACITY_UNLIMITED,
+                      Spillers.NOOP,
+                      Collections.emptyMap());
           Assert.assertEquals(110, legacy.borrow(110));
           final TreeMemoryTarget isolated =
               TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager())
-                  .newIsolatedConsumer("FOO", Spillers.NOOP, Collections.emptyMap());
+                  .isolatedRoot()
+                  .newChild(
+                      "FOO",
+                      TreeMemoryTarget.CAPACITY_UNLIMITED,
+                      Spillers.NOOP,
+                      Collections.emptyMap());
           Assert.assertEquals(100, isolated.borrow(110));
         });
   }
@@ -97,7 +119,9 @@ public class TreeMemoryConsumerTest {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget legacy =
               TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager())
-                  .newLegacyConsumer("FOO", spillers, Collections.emptyMap());
+                  .legacyRoot()
+                  .newChild(
+                      "FOO", TreeMemoryTarget.CAPACITY_UNLIMITED, spillers, Collections.emptyMap());
           final AtomicInteger numSpills = new AtomicInteger(0);
           final AtomicLong numSpilledBytes = new AtomicLong(0L);
           spillers.append(
@@ -131,7 +155,9 @@ public class TreeMemoryConsumerTest {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget legacy =
               TreeMemoryConsumers.factory(TaskContext.get().taskMemoryManager())
-                  .newLegacyConsumer("FOO", spillers, Collections.emptyMap());
+                  .legacyRoot()
+                  .newChild(
+                      "FOO", TreeMemoryTarget.CAPACITY_UNLIMITED, spillers, Collections.emptyMap());
           final AtomicInteger numSpills = new AtomicInteger(0);
           final AtomicLong numSpilledBytes = new AtomicLong(0L);
           spillers.append(

@@ -28,7 +28,7 @@ public interface MemoryTargetVisitor<T> {
 
   T visit(TreeMemoryConsumer treeMemoryConsumer);
 
-  T visit(TreeMemoryTargets.Node node);
+  T visit(TreeMemoryConsumer.Node node);
 
   T visit(LoggingMemoryTarget loggingMemoryTarget);
 
