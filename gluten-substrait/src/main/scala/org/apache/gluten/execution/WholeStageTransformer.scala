@@ -382,14 +382,18 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
             splitInfos.foreach {
               case splitInfo: LocalFilesNode =>
                 val paths = splitInfo.getPaths.asScala
-                if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
+                if (paths.nonEmpty && paths.exists(_.startsWith("viewfs"))) {
                   // Convert the viewfs path into hdfs
                   val newPaths = paths.map {
                     viewfsPath =>
-                      val viewPath = new Path(viewfsPath)
-                      val viewFileSystem =
-                        FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
-                      viewFileSystem.resolvePath(viewPath).toString
+                      var finalPath = viewfsPath
+                      while (finalPath.startsWith("viewfs")) {
+                        val viewPath = new Path(finalPath)
+                        val viewFileSystem =
+                          FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
+                        finalPath = viewFileSystem.resolvePath(viewPath).toString
+                      }
+                      finalPath
                   }
                   splitInfo.setPaths(newPaths.asJava)
                 }
