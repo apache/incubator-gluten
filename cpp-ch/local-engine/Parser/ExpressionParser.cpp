@@ -420,12 +420,12 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
             DB::DataTypePtr elem_type;
             std::vector<std::pair<DB::DataTypePtr, DB::Field>> options_type_and_field;
             auto first_option = LiteralParser::parse(options[0].literal());
-            elem_type = first_option.first;
+            elem_type = wrapNullableType(nullable, first_option.first);
             options_type_and_field.emplace_back(first_option);
             for (int i = 1; i < options_len; ++i)
             {
                 auto type_and_field = LiteralParser::parse(options[i].literal());
-                auto option_type = type_and_field.first;
+                auto option_type = wrapNullableType(nullable, type_and_field.first);
                 if (!elem_type->equals(*option_type))
                     throw DB::Exception(
                         DB::ErrorCodes::LOGICAL_ERROR,
@@ -452,7 +452,6 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
                 }
                 elem_type = std::make_shared<DB::DataTypeTuple>(new_types);
             }
-            elem_type = wrapNullableType(nullable, elem_type);
             DB::MutableColumnPtr elem_column = elem_type->createColumn();
             elem_column->reserve(options_len);
             for (int i = 0; i < options_len; ++i)
