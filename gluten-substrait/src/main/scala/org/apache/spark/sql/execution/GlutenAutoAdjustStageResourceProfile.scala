@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{ColumnarToRowExecBase, GlutenPlan}
 import org.apache.gluten.logging.LogLevelUtil
-
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, ResourceProfileManager, TaskResourceRequest}
@@ -29,6 +28,7 @@ import org.apache.spark.sql.execution.GlutenAutoAdjustStageResourceProfile.{appl
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
 import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.util.SparkTestUtil
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -133,6 +133,11 @@ object GlutenAutoAdjustStageResourceProfile extends Logging {
   private def getFinalResourceProfile(
       rpManager: ResourceProfileManager,
       newRP: ResourceProfile): ResourceProfile = {
+    // Just for test
+    // ResourceProfiles are only supported on YARN and Kubernetes with dynamic allocation enabled
+    if (SparkTestUtil.isTesting) {
+      return rpManager.defaultResourceProfile
+    }
     val maybeEqProfile = rpManager.getEquivalentProfile(newRP)
     if (maybeEqProfile.isDefined) {
       maybeEqProfile.get
