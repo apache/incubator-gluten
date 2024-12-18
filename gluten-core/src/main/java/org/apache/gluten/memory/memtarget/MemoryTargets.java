@@ -24,10 +24,13 @@ import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.SparkResourceUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
 public final class MemoryTargets {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MemoryTargets.class);
 
   private MemoryTargets() {
     // enclose factory ctor
@@ -45,14 +48,6 @@ public final class MemoryTargets {
     return new OverAcquire(target, overTarget, overAcquiredRatio);
   }
 
-  public static TreeMemoryTarget retrySpillOnOom(TreeMemoryTarget target) {
-    SparkEnv env = SparkEnv.get();
-    if (env != null && env.conf() != null && SparkResourceUtil.getTaskSlots(env.conf()) > 1) {
-      return new RetryOnOomMemoryTarget(target);
-    }
-    return target;
-  }
-
   @Experimental
   public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
     if (GlutenConfig.getConf().dynamicOffHeapSizingEnabled()) {
@@ -67,14 +62,32 @@ public final class MemoryTargets {
       String name,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-    final TreeMemoryConsumers.Factory factory;
+    final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.factory(tmm);
     if (GlutenConfig.getConf().memoryIsolation()) {
-      return TreeMemoryConsumers.isolated().newConsumer(tmm, name, spiller, virtualChildren);
-    } else {
-      // Retry of spilling is needed in shared mode because the maxMemoryPerTask of Vanilla Spark
-      // ExecutionMemoryPool is dynamic when with multi-slot config.
-      return MemoryTargets.retrySpillOnOom(
-          TreeMemoryConsumers.shared().newConsumer(tmm, name, spiller, virtualChildren));
+      return factory.newIsolatedConsumer(name, spiller, virtualChildren);
     }
+    final TreeMemoryTarget consumer = factory.newLegacyConsumer(name, spiller, virtualChildren);
+    if (SparkEnv.get() == null) {
+      // We are likely in test code. Return the consumer directly.
+      LOGGER.info("SparkEnv not found. We are likely in test code.");
+      return consumer;
+    }
+    final int taskSlots = SparkResourceUtil.getTaskSlots(SparkEnv.get().conf());
+    if (taskSlots == 1) {
+      // We don't need to retry on OOM in the case one single task occupies the whole executor.
+      return consumer;
+    }
+    // Since https://github.com/apache/incubator-gluten/pull/8132.
+    // Retry of spilling is needed in multi-slot and legacy mode (formerly named as share mode)
+    // because the maxMemoryPerTask defined by vanilla Spark's ExecutionMemoryPool is dynamic.
+    //
+    // See the original issue https://github.com/apache/incubator-gluten/issues/8128.
+    return new RetryOnOomMemoryTarget(
+        consumer,
+        () -> {
+          LOGGER.info("Request for spilling on consumer {}...", consumer.name());
+          long spilled = TreeMemoryTargets.spillTree(consumer, Long.MAX_VALUE);
+          LOGGER.info("Consumer {} spilled {} bytes.", consumer.name(), spilled);
+        });
   }
 }
