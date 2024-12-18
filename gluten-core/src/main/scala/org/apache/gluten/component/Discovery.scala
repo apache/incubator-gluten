@@ -27,8 +27,6 @@ import scala.collection.JavaConverters._
 import scala.util.matching.Regex
 
 
-
-
 // format: off
 /**
  * Gluten's global discovery to find all [[Component]] definitions in the classpath.
