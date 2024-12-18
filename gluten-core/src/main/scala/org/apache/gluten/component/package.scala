@@ -16,14 +16,9 @@
  */
 package org.apache.gluten
 
-import org.apache.gluten.backend.Backend
-
 import org.apache.spark.internal.Logging
 
-import java.util.ServiceLoader
 import java.util.concurrent.atomic.AtomicBoolean
-
-import scala.collection.JavaConverters._
 
 package object component extends Logging {
   private val allComponentsLoaded: AtomicBoolean = new AtomicBoolean(false)
@@ -34,9 +29,7 @@ package object component extends Logging {
     }
 
     // Load all components in classpath.
-    val discoveredBackends = ServiceLoader.load(classOf[Backend]).asScala
-    val discoveredComponents = ServiceLoader.load(classOf[Component]).asScala
-    val all = discoveredBackends ++ discoveredComponents
+    val all = Discovery.discoverAll()
 
     // Register all components.
     all.foreach(_.ensureRegistered())
