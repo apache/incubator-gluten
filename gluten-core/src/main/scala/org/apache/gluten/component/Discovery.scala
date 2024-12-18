@@ -31,10 +31,10 @@ import scala.util.matching.Regex
 /**
  * Gluten's global discovery to find all [[Component]] definitions in the classpath.
  *
- * We don't use [[java.util.ServiceLoader]] since it requires all the service files have
+ * We don't use [[java.util.ServiceLoader]] since it requires all the service files to have
  * the same file name which is the class name of [[Component]], this causes the service files
- * easily be overwritten during Maven build. Typically, See code of `DefaultMavenFileFilter`
- * used by Maven's `maven-resources-plugin`.
+ * easily be overwritten by each other during Maven build. Typically, See code of
+ * `DefaultMavenFileFilter` used by Maven's `maven-resources-plugin`.
  *
  * Instead, Gluten defines its own way to register components. For example, placing the following
  * component files to resource folder:
