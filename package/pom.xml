@@ -68,7 +68,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-celeborn-package</artifactId>
+          <artifactId>gluten-celeborn</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -78,7 +78,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-uniffle-package</artifactId>
+          <artifactId>gluten-uniffle</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>

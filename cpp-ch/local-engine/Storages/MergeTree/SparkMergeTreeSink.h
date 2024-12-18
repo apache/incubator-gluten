@@ -227,8 +227,17 @@ public:
         const DB::ContextMutablePtr & context,
         const SinkStatsOption & stats = {});
 
-    explicit SparkMergeTreeSink(const SinkHelperPtr & sink_helper_, const ContextPtr & context_, const SinkStatsOption & stats)
-        : SinkToStorage(sink_helper_->metadata_snapshot->getSampleBlock()), context(context_), sink_helper(sink_helper_), stats_(stats)
+    explicit SparkMergeTreeSink(
+        const SinkHelperPtr & sink_helper_,
+        const ContextPtr & context_,
+        const SinkStatsOption & stats,
+        size_t min_block_size_rows,
+        size_t min_block_size_bytes)
+        : SinkToStorage(sink_helper_->metadata_snapshot->getSampleBlock())
+        , context(context_)
+        , sink_helper(sink_helper_)
+        , stats_(stats)
+        , squashing(sink_helper_->metadata_snapshot->getSampleBlock(), min_block_size_rows, min_block_size_bytes)
     {
     }
     ~SparkMergeTreeSink() override = default;
@@ -241,9 +250,13 @@ public:
     const SinkHelper & sinkHelper() const { return *sink_helper; }
 
 private:
+    void write(const Chunk & chunk);
+
     ContextPtr context;
     SinkHelperPtr sink_helper;
     std::optional<std::shared_ptr<MergeTreeStats>> stats_;
+    Squashing squashing;
+    Chunk squashed_chunk;
     int part_num = 1;
 };
 

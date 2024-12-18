@@ -137,7 +137,8 @@ case class FileDeltaColumnarWrite(
       // stats.map(row => x.apply(row).getString(0)).foreach(println)
       // process stats
       val commitInfo = DeltaFileCommitInfo(committer)
-      val basicNativeStat = NativeBasicWriteTaskStatsTracker(description, basicWriteJobStatsTracker)
+      val basicNativeStat =
+        NativeBasicWriteTaskStatsTracker(description.path, basicWriteJobStatsTracker)
       val basicNativeStats = Seq(commitInfo, basicNativeStat)
       NativeStatCompute(stats)(basicNativeStats, nativeDeltaStats)
 
