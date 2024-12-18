@@ -47,7 +47,6 @@ public:
         actions_dag.addOrReplaceInOutputs(*parsed_args[0]);
         /// Skip alias because alias name is equal to the name of first argument.
         return parsed_args[0];
-        // return &actions_dag.addAlias(actions_dag.findInOutputs(result_name), result_name);
     }
 
 };
