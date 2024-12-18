@@ -24,7 +24,10 @@
     "gflags",
     "glog",
     "libevent",
-    "openssl",
+    {
+      "name": "openssl",
+      "platform": "x64-linux-dynamic"
+    },
     "libdwarf",
     {
       "name": "vcpkg-cmake",

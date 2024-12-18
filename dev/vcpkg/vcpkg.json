@@ -7,7 +7,10 @@
       "description": "Velox backend",
       "dependencies": [
         "libevent",
-        "openssl",
+        {
+          "name": "openssl",
+          "platform": "x64-linux-dynamic"
+        },
         "zstd",
         "lz4",
         "double-conversion",
