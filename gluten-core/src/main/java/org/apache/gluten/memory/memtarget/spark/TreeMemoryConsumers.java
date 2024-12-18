@@ -17,8 +17,6 @@
 package org.apache.gluten.memory.memtarget.spark;
 
 import org.apache.gluten.GlutenConfig;
-import org.apache.gluten.memory.MemoryUsageStatsBuilder;
-import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
@@ -61,22 +59,12 @@ public final class TreeMemoryConsumers {
                   Collections.emptyMap()));
     }
 
-    private TreeMemoryTarget legacyRoot() {
-      return ofCapacity(TreeMemoryTarget.CAPACITY_UNLIMITED);
-    }
-
-    private TreeMemoryTarget isolatedRoot() {
-      return ofCapacity(GlutenConfig.getConf().conservativeTaskOffHeapMemorySize());
-    }
-
     /**
      * This works as a legacy Spark memory consumer which grants as much as possible of memory
      * capacity to each task.
      */
-    public TreeMemoryTarget newLegacyConsumer(
-        String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-      final TreeMemoryTarget parent = legacyRoot();
-      return parent.newChild(name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spiller, virtualChildren);
+    public TreeMemoryTarget legacyRoot() {
+      return ofCapacity(TreeMemoryTarget.CAPACITY_UNLIMITED);
     }
 
     /**
@@ -88,10 +76,8 @@ public final class TreeMemoryConsumers {
      *
      * <p>See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
      */
-    public TreeMemoryTarget newIsolatedConsumer(
-        String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-      final TreeMemoryTarget parent = isolatedRoot();
-      return parent.newChild(name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spiller, virtualChildren);
+    public TreeMemoryTarget isolatedRoot() {
+      return ofCapacity(GlutenConfig.getConf().conservativeTaskOffHeapMemorySize());
     }
   }
 }

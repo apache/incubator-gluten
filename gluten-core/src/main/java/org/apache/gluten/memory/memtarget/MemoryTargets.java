@@ -64,9 +64,11 @@ public final class MemoryTargets {
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.factory(tmm);
     if (GlutenConfig.getConf().memoryIsolation()) {
-      return factory.newIsolatedConsumer(name, spiller, virtualChildren);
+      return TreeMemoryTargets.newChild(factory.isolatedRoot(), name, spiller, virtualChildren);
     }
-    final TreeMemoryTarget consumer = factory.newLegacyConsumer(name, spiller, virtualChildren);
+    final TreeMemoryTarget root = factory.legacyRoot();
+    final TreeMemoryTarget consumer =
+        TreeMemoryTargets.newChild(root, name, spiller, virtualChildren);
     if (SparkEnv.get() == null) {
       // We are likely in test code. Return the consumer directly.
       LOGGER.info("SparkEnv not found. We are likely in test code.");
@@ -86,7 +88,8 @@ public final class MemoryTargets {
         consumer,
         () -> {
           LOGGER.info("Request for spilling on consumer {}...", consumer.name());
-          long spilled = TreeMemoryTargets.spillTree(consumer, Long.MAX_VALUE);
+          // Note: Spill from root node so other consumers also get spilled.
+          long spilled = TreeMemoryTargets.spillTree(root, Long.MAX_VALUE);
           LOGGER.info("Consumer {} spilled {} bytes.", consumer.name(), spilled);
         });
   }

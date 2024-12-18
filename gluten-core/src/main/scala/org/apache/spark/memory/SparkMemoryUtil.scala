@@ -111,7 +111,7 @@ object SparkMemoryUtil {
         collectFromTaskMemoryManager(treeMemoryConsumer.getTaskMemoryManager)
       }
 
-      override def visit(node: TreeMemoryTargets.Node): String = {
+      override def visit(node: TreeMemoryConsumer.Node): String = {
         node.parent().accept(this) // walk up to find the one bound with task memory manager
       }
 
