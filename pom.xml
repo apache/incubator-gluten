@@ -1200,11 +1200,6 @@
         <version>${fasterxml.version}</version>
         <scope>provided</scope>
       </dependency>
-      <dependency>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <version>3.2.1</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
