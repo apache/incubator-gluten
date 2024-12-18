@@ -19,17 +19,18 @@
 
 set -e
 
+WGET_CMD="wget --tries=100 --waitretry=30 --wait=20 --random-wait  -nv"
 INSTALL_DIR=$GITHUB_WORKSPACE
 case "$1" in
 3.2)
     # Spark-3.2
     cd ${INSTALL_DIR} && \
-    wget --tries=100 -nv https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz && \
+    ${WGET_CMD} https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz && \
     tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.2.tgz spark-3.2.2-bin-hadoop3.2/jars/ && \
     rm -rf spark-3.2.2-bin-hadoop3.2.tgz && \
     mkdir -p ${INSTALL_DIR}/shims/spark32/spark_home/assembly/target/scala-2.12 && \
     mv jars ${INSTALL_DIR}/shims/spark32/spark_home/assembly/target/scala-2.12 && \
-    wget --tries=100 -nv https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
+    ${WGET_CMD} https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
     tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
     mkdir -p shims/spark32/spark_home/ && \
     mv sql shims/spark32/spark_home/
@@ -37,12 +38,12 @@ case "$1" in
 3.3)
     # Spark-3.3
     cd ${INSTALL_DIR} && \
-    wget --tries=100 -nv https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz && \
+    ${WGET_CMD} https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz && \
     tar --strip-components=1 -xf spark-3.3.1-bin-hadoop3.tgz spark-3.3.1-bin-hadoop3/jars/ && \
     rm -rf spark-3.3.1-bin-hadoop3.tgz && \
     mkdir -p ${INSTALL_DIR}/shims/spark33/spark_home/assembly/target/scala-2.12 && \
     mv jars ${INSTALL_DIR}/shims/spark33/spark_home/assembly/target/scala-2.12 && \
-    wget --tries=100 -nv https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
+    ${WGET_CMD} https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
     tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
     mkdir -p shims/spark33/spark_home/ && \
     mv sql shims/spark33/spark_home/
@@ -50,12 +51,12 @@ case "$1" in
 3.4)
     # Spark-3.4
     cd ${INSTALL_DIR} && \
-    wget --tries=100 -nv https://archive.apache.org/dist/spark/spark-3.4.3/spark-3.4.3-bin-hadoop3.tgz && \
+    ${WGET_CMD} https://archive.apache.org/dist/spark/spark-3.4.3/spark-3.4.3-bin-hadoop3.tgz && \
     tar --strip-components=1 -xf spark-3.4.3-bin-hadoop3.tgz spark-3.4.3-bin-hadoop3/jars/ && \
     rm -rf spark-3.4.3-bin-hadoop3.tgz && \
     mkdir -p ${INSTALL_DIR}/shims/spark34/spark_home/assembly/target/scala-2.12 && \
     mv jars ${INSTALL_DIR}/shims/spark34/spark_home/assembly/target/scala-2.12 && \
-    wget --tries=100 -nv https://github.com/apache/spark/archive/refs/tags/v3.4.3.tar.gz && \
+    ${WGET_CMD} https://github.com/apache/spark/archive/refs/tags/v3.4.3.tar.gz && \
     tar --strip-components=1 -xf v3.4.3.tar.gz spark-3.4.3/sql/core/src/test/resources/  && \
     mkdir -p shims/spark34/spark_home/ && \
     mv sql shims/spark34/spark_home/
@@ -63,12 +64,12 @@ case "$1" in
 3.5)
     # Spark-3.5
     cd ${INSTALL_DIR} && \
-    wget --tries=100 -nv https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz && \
+    ${WGET_CMD} https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz && \
     tar --strip-components=1 -xf spark-3.5.2-bin-hadoop3.tgz spark-3.5.2-bin-hadoop3/jars/ && \
     rm -rf spark-3.5.2-bin-hadoop3.tgz && \
     mkdir -p ${INSTALL_DIR}/shims/spark35/spark_home/assembly/target/scala-2.12 && \
     mv jars ${INSTALL_DIR}/shims/spark35/spark_home/assembly/target/scala-2.12 && \
-    wget --tries=100 -nv https://github.com/apache/spark/archive/refs/tags/v3.5.2.tar.gz && \
+    ${WGET_CMD} https://github.com/apache/spark/archive/refs/tags/v3.5.2.tar.gz && \
     tar --strip-components=1 -xf v3.5.2.tar.gz spark-3.5.2/sql/core/src/test/resources/  && \
     mkdir -p shims/spark35/spark_home/ && \
     mv sql shims/spark35/spark_home/
@@ -76,12 +77,12 @@ case "$1" in
 3.5-scala2.13)
     # Spark-3.5, scala 2.13
     cd ${INSTALL_DIR} && \
-    wget --tries=100 -nv https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz && \
+    ${WGET_CMD} https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz && \
     tar --strip-components=1 -xf spark-3.5.2-bin-hadoop3.tgz spark-3.5.2-bin-hadoop3/jars/ && \
     rm -rf spark-3.5.2-bin-hadoop3.tgz && \
     mkdir -p ${INSTALL_DIR}/shims/spark35/spark_home/assembly/target/scala-2.13 && \
     mv jars ${INSTALL_DIR}/shims/spark35/spark_home/assembly/target/scala-2.13 && \
-    wget --tries=100 -nv https://github.com/apache/spark/archive/refs/tags/v3.5.2.tar.gz && \
+    ${WGET_CMD} https://github.com/apache/spark/archive/refs/tags/v3.5.2.tar.gz && \
     tar --strip-components=1 -xf v3.5.2.tar.gz spark-3.5.2/sql/core/src/test/resources/  && \
     mkdir -p shims/spark35/spark_home/ && \
     mv sql shims/spark35/spark_home/
