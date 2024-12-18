@@ -7,7 +7,6 @@ ENABLE_S3=OFF
 ENABLE_GCS=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
-USE_SYSTEM_OPENSSL=OFF
 
 for arg in "$@"; do
   case $arg in
@@ -29,10 +28,6 @@ for arg in "$@"; do
     ;;
   --enable_abfs=*)
     ENABLE_ABFS=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --use_system_openssl=*)
-    USE_SYSTEM_OPENSSL=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -80,9 +75,6 @@ if [ "$ENABLE_HDFS" = "ON" ]; then
 fi
 if [ "$ENABLE_ABFS" = "ON" ]; then
   EXTRA_FEATURES+="--x-feature=velox-abfs"
-fi
-if [ "$USE_SYSTEM_OPENSSL" = "OFF" ]; then
-  EXTRA_FEATURES+="--x-feature=openssl"
 fi
 
 

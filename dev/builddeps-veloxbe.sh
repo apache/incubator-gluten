@@ -30,7 +30,6 @@ VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
-USE_SYSTEM_OPENSSL=OFF
 SPARK_VERSION=ALL
 
 # set default number of threads as cpu cores minus 2
@@ -95,10 +94,6 @@ do
         ;;
         --enable_abfs=*)
         ENABLE_ABFS=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --use_system_openssl=*)
-        USE_SYSTEM_OPENSSL=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_ep_cache=*)
@@ -172,7 +167,7 @@ function concat_velox_param {
 if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
     BUILD_OPTIONS="--build_tests=$BUILD_TESTS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS \
-                   --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS --use_system_openssl=$USE_SYSTEM_OPENSSL"
+                   --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS"
     source ./dev/vcpkg/env.sh ${BUILD_OPTIONS}
 fi
 

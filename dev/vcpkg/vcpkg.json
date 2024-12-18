@@ -7,6 +7,7 @@
       "description": "Velox backend",
       "dependencies": [
         "libevent",
+        "openssl",
         "zstd",
         "lz4",
         "double-conversion",
@@ -91,12 +92,6 @@
         "azure-storage-blobs-cpp",
         "azure-storage-files-datalake-cpp",
         "azure-identity-cpp"
-      ]
-    },
-    "openssl": {
-      "description": "openssl",
-      "dependencies": [
-        "openssl"
       ]
     },
     "duckdb": {
