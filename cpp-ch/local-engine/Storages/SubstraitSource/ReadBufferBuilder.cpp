@@ -33,6 +33,7 @@
 #include <IO/SeekableReadBuffer.h>
 #include <IO/SharedThreadPools.h>
 #include <IO/SplittableBzip2ReadBuffer.h>
+#include <IO/ParallelReadBuffer.h>
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
