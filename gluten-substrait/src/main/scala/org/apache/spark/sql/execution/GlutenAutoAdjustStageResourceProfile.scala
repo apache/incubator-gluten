@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{ColumnarToRowExecBase, GlutenPlan}
 import org.apache.gluten.logging.LogLevelUtil
+
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.resource.{ExecutorResourceRequest, ResourceProfile, ResourceProfileManager, TaskResourceRequest}
