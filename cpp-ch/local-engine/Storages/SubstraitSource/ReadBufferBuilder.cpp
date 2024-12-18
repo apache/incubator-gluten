@@ -429,8 +429,7 @@ public:
         if (object_size > 0)
             buffer_size = std::min(object_size, buffer_size);
         auto async_reader
-            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, buffer_size);
-
+            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, buffer_size,read_settings.remote_read_min_bytes_for_seek);
         if (read_settings.remote_fs_prefetch)
             async_reader->prefetch(Priority{});
 
