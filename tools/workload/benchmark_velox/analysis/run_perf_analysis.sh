@@ -120,6 +120,7 @@ mkdir -p $workdir/html
 nb_name0=${NAME}_${APPID}
 nb_name=${nb_name0}.ipynb
 
+# Upload eventlog
 cp -f $PAUS/perf_analysis_template.ipynb $workdir/$nb_name
 hdfs dfs -mkdir -p /history
 hdfs dfs -ls /history/$APPID >/dev/null 2>&1 || { hdfs dfs -cp /$BASEDIR/$APPID/app.log /history/$APPID || exit 1; }
@@ -133,7 +134,7 @@ then
   fi
   hdfs dfs -ls /history/$COMP_APPID >/dev/null 2>&1 || { hdfs dfs -cp /$COMP_BASEDIR/$COMP_APPID/app.log /history/$COMP_APPID || exit 1; }
   EXTRA_ARGS=$EXTRA_ARGS" -r comp_appid $COMP_APPID -r comp_base_dir $COMP_BASEDIR -r comp_name $COMP_NAME"
-  sed -i "s/# Compare to/# Compare to $COMP_NAME/g" $workdir/$nb_name
+  sed -i "s/# Compare to\"/# Compare to $COMP_NAME\"/g" $workdir/$nb_name
 fi
 if [ -v BASELINE_APPID ]
 then
