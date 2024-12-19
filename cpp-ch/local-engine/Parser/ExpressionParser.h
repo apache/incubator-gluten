@@ -77,11 +77,16 @@ private:
     static std::atomic<UInt64> unique_name_counter;
     std::shared_ptr<const ParserContext> context;
 
+    bool reuseCSE() const;
+
     DB::ActionsDAG::NodeRawConstPtrs
     parseArrayJoin(const substrait::Expression_ScalarFunction & func, DB::ActionsDAG & actions_dag, bool position) const;
     DB::ActionsDAG::NodeRawConstPtrs parseArrayJoinArguments(
         const substrait::Expression_ScalarFunction & func, DB::ActionsDAG & actions_dag, bool position, bool & is_map) const;
 
     DB::ActionsDAG::NodeRawConstPtrs parseJsonTuple(const substrait::Expression_ScalarFunction & func, DB::ActionsDAG & actions_dag) const;
+
+    static bool areEqualNodes(const DB::ActionsDAG::Node * a, const DB::ActionsDAG::Node * b);
+    const DB::ActionsDAG::Node * findOneStructureEqualNode(const DB::ActionsDAG::Node * node_, const DB::ActionsDAG & actions_dag) const;
 };
 }
