@@ -1357,6 +1357,26 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("concat_ws") {
+    runQueryAndCompare("SELECT concat_ws('~~', c_comment, c_address) FROM customer LIMIT 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath {
+      path =>
+        Seq[Seq[String]](Seq("ab", null, "cd", "", "ef"), Seq(null, "x", "", "y"), Seq.empty, null)
+          .toDF("col")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("SELECT concat_ws('~~', col, 'end') AS res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test input_file_name function") {
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {

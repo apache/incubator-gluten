@@ -35,12 +35,6 @@ object RuntimeSettings {
       .stringConf
       .createWithDefault("")
 
-  val TASK_WRITE_FILENAME =
-    buildConf(runtimeSettings("gluten.task_write_filename"))
-      .doc("The temporary file name for writing data")
-      .stringConf
-      .createWithDefault("")
-
   val TASK_WRITE_FILENAME_PATTERN =
     buildConf(runtimeSettings("gluten.task_write_filename_pattern"))
       .doc("The pattern to generate file name for writing delta parquet in spark 3.5")

@@ -17,6 +17,7 @@
 #include "SparkStorageMergeTree.h"
 
 #include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
+#include <Disks/SingleDiskVolume.h>
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
@@ -502,6 +503,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
         compression_codec,
         index_granularity_ptr,
         txn ? txn->tid : Tx::PrehistoricTID,
+        block.bytes(),
         false,
         false,
         context->getWriteSettings());

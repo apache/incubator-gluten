@@ -237,19 +237,29 @@ DB::Aggregator::Params AggregatorParamsHelper::buildParams(
     aggregate_settings[DB::Setting::max_block_size] = max_block_size;
     aggregate_settings[DB::Setting::enable_software_prefetch_in_aggregation] = enable_prefetch;
     aggregate_settings[DB::Setting::optimize_group_by_constant_keys] = optimize_group_by_constant_keys;
-    DB::Aggregator::Params params(
-        aggregate_settings,
+    return DB::Aggregator::Params{
         grouping_keys,
         agg_descriptions,
-        false,
+        /*overflow_row*/ false,
+        aggregate_settings[DB::Setting::max_rows_to_group_by],
+        aggregate_settings[DB::Setting::group_by_overflow_mode],
         group_by_two_level_threshold,
         group_by_two_level_threshold_bytes,
+        DB::Aggregator::Params::getMaxBytesBeforeExternalGroupBy(
+            aggregate_settings[DB::Setting::max_bytes_before_external_group_by],
+            aggregate_settings[DB::Setting::max_bytes_ratio_before_external_group_by]),
         empty_result_for_aggregation_by_empty_set,
         tmp_data_scope,
+        aggregate_settings[DB::Setting::max_threads],
+        aggregate_settings[DB::Setting::min_free_disk_space_for_temporary_data],
+        aggregate_settings[DB::Setting::compile_aggregate_expressions],
+        aggregate_settings[DB::Setting::min_count_to_compile_aggregate_expression],
+        aggregate_settings[DB::Setting::max_block_size],
+        aggregate_settings[DB::Setting::enable_software_prefetch_in_aggregation],
         only_merge,
-        {});
-
-    return params;
+        aggregate_settings[DB::Setting::optimize_group_by_constant_keys],
+        aggregate_settings[DB::Setting::min_hit_rate_to_use_consecutive_keys_optimization],
+        {}};
 }
 
 

@@ -16,14 +16,16 @@
  */
 package org.apache.gluten.backendsapi
 
-import org.apache.gluten.backend.Backend
+import org.apache.gluten.component.Component
 
 object BackendsApiManager {
   private lazy val backend: SubstraitBackend = initializeInternal()
 
   /** Initialize all backends api. */
   private def initializeInternal(): SubstraitBackend = {
-    Backend.get().asInstanceOf[SubstraitBackend]
+    val loadedSubstraitBackends = Component.sorted().filter(_.isInstanceOf[SubstraitBackend])
+    assert(loadedSubstraitBackends.size == 1, "More than one Substrait backends are loaded")
+    loadedSubstraitBackends.head.asInstanceOf[SubstraitBackend]
   }
 
   /**

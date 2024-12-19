@@ -18,9 +18,9 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.columnarbatch.CHBatch
+import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
@@ -49,8 +49,8 @@ import scala.util.control.Breaks.{break, breakable}
 class CHBackend extends SubstraitBackend {
   import CHBackend._
   override def name(): String = CHConf.BACKEND_NAME
-  override def buildInfo(): Backend.BuildInfo =
-    Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+  override def buildInfo(): BuildInfo =
+    BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
   override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
@@ -246,20 +246,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       }
     }
 
-    def validateBucketSpec(): Option[String] = {
-      if (bucketSpec.nonEmpty) {
-        Some("Unsupported native write: bucket write is not supported.")
-      } else {
-        None
-      }
-    }
-
     validateCompressionCodec()
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
       .orElse(validateDateTypes())
-      .orElse(validateWriteFilesOptions())
-      .orElse(validateBucketSpec()) match {
+      .orElse(validateWriteFilesOptions()) match {
       case Some(reason) => ValidationResult.failed(reason)
       case _ => ValidationResult.succeeded
     }
@@ -359,6 +350,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  def enablePreProjectionForJoinConditions(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_pre_projection_for_join_conditions"),
+      defaultValue = true
+    )
+  }
+
   // If the partition keys are high cardinality, the aggregation method is slower.
   def enableConvertWindowGroupLimitToAggregate(): Boolean = {
     SparkEnv.get.conf.getBoolean(
@@ -372,6 +370,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   }
 
   override def supportCartesianProductExec(): Boolean = true
+
+  override def supportCartesianProductExecWithCondition(): Boolean = false
 
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>

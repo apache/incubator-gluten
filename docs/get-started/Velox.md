@@ -217,7 +217,7 @@ cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh --enable_s3=ON
 ```
 
-Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
+Currently there are several ways to access S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
 
 ## Celeborn support
 
@@ -272,7 +272,7 @@ spark.dynamicAllocation.enabled false
 
 ## Uniffle support
 
-Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.0`.
+Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.1`.
 
 First refer to this URL(https://uniffle.apache.org/docs/intro) to get start with uniffle.
 

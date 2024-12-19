@@ -20,7 +20,7 @@ import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.{GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenDecimalPrecisionSuite, GlutenHashExpressionsSuite, GlutenHigherOrderFunctionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryCastSuite, GlutenTryEvalSuite}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
 import org.apache.spark.sql.execution._
@@ -131,6 +131,22 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenHigherOrderFunctionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
+  enableSuite[GlutenJsonExpressionsSuite]
+    // https://github.com/apache/incubator-gluten/issues/8102
+    .exclude("$.store.book")
+    .exclude("$")
+    .exclude("$.store.book[0]")
+    .exclude("$.store.book[*]")
+    .exclude("$.store.book[*].category")
+    .exclude("$.store.book[*].isbn")
+    .exclude("$.store.book[*].reader")
+    .exclude("$.store.basket[*]")
+    .exclude("$.store.basket[*][0]")
+    .exclude("$.store.basket[0][*]")
+    .exclude("$.store.basket[*][*]")
+    .exclude("$.store.basket[0][*].b")
+    // Exception class different.
+    .exclude("from_json - invalid data")
   enableSuite[GlutenJsonFunctionsSuite]
     // * in get_json_object expression not supported in velox
     .exclude("SPARK-42782: Hive compatibility check for get_json_object")
@@ -1117,6 +1133,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp")
     // Legacy mode is not supported, assuming this mode is not commonly used.
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
+    // Legacy mode is not supported and velox getTimestamp function does not throw
+    // exception when format is "yyyy-dd-aa".
+    .exclude("function to_date")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]

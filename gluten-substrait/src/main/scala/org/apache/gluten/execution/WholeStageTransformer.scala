@@ -198,7 +198,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     val transformStageId: Int
 ) extends WholeStageTransformerGenerateTreeStringShim
   with UnaryTransformSupport {
-  assert(child.isInstanceOf[TransformSupport])
 
   def stageId: Int = transformStageId
 
@@ -353,6 +352,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    assert(child.isInstanceOf[TransformSupport])
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
     // We should do transform first to make sure all subqueries are materialized
     val wsCtx = GlutenTimeMetric.withMillisTime {
@@ -373,7 +373,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
        * rather than genFinalStageIterator will be invoked
        */
-      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
+      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions.toIndexedSeq)
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
       if (GlutenConfig.getConf.enableHdfsViewfs) {

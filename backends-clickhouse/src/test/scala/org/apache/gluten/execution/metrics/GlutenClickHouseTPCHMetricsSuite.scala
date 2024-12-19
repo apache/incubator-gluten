@@ -51,6 +51,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .setCHConfig("logger.level", "error")
       .setCHSettings("input_format_parquet_max_block_size", parquetMaxBlockSize)
+      .setCHConfig("enable_pre_projection_for_join_conditions", "false")
       .setCHConfig("enable_streaming_aggregating", true)
   }
   // scalastyle:on line.size.limit

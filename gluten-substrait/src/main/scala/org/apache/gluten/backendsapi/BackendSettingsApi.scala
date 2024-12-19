@@ -121,6 +121,8 @@ trait BackendSettingsApi {
 
   def supportCartesianProductExec(): Boolean = false
 
+  def supportCartesianProductExecWithCondition(): Boolean = true
+
   def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
   def supportSampleExec(): Boolean = false

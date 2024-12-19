@@ -487,7 +487,7 @@ public:
             right_generic,
             removeNullable(arguments[2].type).get(),
             [&](const auto & left, const auto & right, const auto & result) {
-                return (res = SparkDecimalBinaryOperation<Operation, Mode>::template executeDecimal(arguments, left, right, result))
+                return (res = SparkDecimalBinaryOperation<Operation, Mode>::template executeDecimal<>(arguments, left, right, result))
                     != nullptr;
             });
 

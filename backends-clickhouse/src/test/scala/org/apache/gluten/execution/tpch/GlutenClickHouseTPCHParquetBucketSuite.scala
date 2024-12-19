@@ -54,6 +54,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "-1") // for test bucket join
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
+      .setCHConfig("enable_pre_projection_for_join_conditions", "false")
       .setCHConfig("enable_grace_aggregate_spill_test", "true")
   }
 

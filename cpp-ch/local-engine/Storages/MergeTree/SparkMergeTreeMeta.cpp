@@ -115,14 +115,14 @@ doBuildMetadata(const DB::NamesAndTypesList & columns, const ContextPtr & contex
     setSecondaryIndex(columns, context, table, metadata);
 
     metadata->partition_key.expression_list_ast = std::make_shared<ASTExpressionList>();
-    metadata->sorting_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
+    metadata->sorting_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context, true);
     if (table.primary_key.empty())
         if (table.order_by_key != MergeTreeTable::TUPLE)
-            metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
+            metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context, true);
         else
             metadata->primary_key.expression = std::make_shared<ExpressionActions>(ActionsDAG{});
     else
-        metadata->primary_key = KeyDescription::parse(table.primary_key, metadata->getColumns(), context);
+        metadata->primary_key = KeyDescription::parse(table.primary_key, metadata->getColumns(), context, true);
     return metadata;
 }
 

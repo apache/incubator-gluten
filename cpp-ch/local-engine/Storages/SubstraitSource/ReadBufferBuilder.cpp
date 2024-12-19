@@ -258,9 +258,16 @@ public:
         /// Get hdfs_uri
         Poco::URI uri(file_info.uri_file());
         auto hdfs_file_path = uri.getPath();
-        std::string hdfs_uri = "hdfs://" + uri.getHost();
-        if (uri.getPort())
-            hdfs_uri += ":" + std::to_string(uri.getPort());
+
+        std::string new_file_uri = uri.toString();
+        if (uri.getUserInfo().empty() && BackendInitializerUtil::spark_user.has_value())
+        {
+            uri.setUserInfo(*BackendInitializerUtil::spark_user);
+            new_file_uri = uri.toString();
+        }
+
+        auto begin_of_path = new_file_uri.find('/', new_file_uri.find("//") + 2);
+        auto hdfs_uri = new_file_uri.substr(0, begin_of_path);
 
         std::optional<size_t> file_size;
         std::optional<size_t> modified_time;
@@ -422,8 +429,7 @@ public:
         if (object_size > 0)
             buffer_size = std::min(object_size, buffer_size);
         auto async_reader
-            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, buffer_size);
-
+            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, buffer_size,read_settings.remote_read_min_bytes_for_seek);
         if (read_settings.remote_fs_prefetch)
             async_reader->prefetch(Priority{});
 
@@ -609,21 +615,20 @@ ConcurrentLRU<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuil
 class AzureBlobReadBuffer : public ReadBufferBuilder
 {
 public:
-    explicit AzureBlobReadBuffer(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
+    explicit AzureBlobReadBuffer(const DB::ContextPtr & context_) : ReadBufferBuilder(context_) { }
     ~AzureBlobReadBuffer() override = default;
 
     std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         Poco::URI file_uri(file_info.uri_file());
-        std::unique_ptr<DB::ReadBuffer> read_buffer;
-        read_buffer = std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
-        return read_buffer;
+        return std::make_unique<DB::ReadBufferFromAzureBlobStorage>(getClient(), file_uri.getPath(), DB::ReadSettings(), 5, 5);
     }
 
 private:
-    std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> shared_client;
 
-    std::shared_ptr<Azure::Storage::Blobs::BlobContainerClient> getClient()
+    std::shared_ptr<DB::AzureBlobStorage::ContainerClient> shared_client;
+
+    std::shared_ptr<DB::AzureBlobStorage::ContainerClient> getClient()
     {
         if (shared_client)
             return shared_client;
@@ -680,7 +685,7 @@ DB::ReadSettings ReadBufferBuilder::getReadSettings() const
     return read_settings;
 }
 
-ReadBufferBuilder::ReadBufferBuilder(DB::ContextPtr context_) : context(context_)
+ReadBufferBuilder::ReadBufferBuilder(const DB::ContextPtr & context_) : context(context_)
 {
 }
 

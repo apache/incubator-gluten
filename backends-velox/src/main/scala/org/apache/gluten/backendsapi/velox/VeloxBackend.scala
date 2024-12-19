@@ -18,9 +18,9 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.columnarbatch.VeloxBatch
+import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
@@ -52,9 +52,10 @@ import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends SubstraitBackend {
   import VeloxBackend._
+
   override def name(): String = VeloxBackend.BACKEND_NAME
-  override def buildInfo(): Backend.BuildInfo =
-    Backend.BuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
+  override def buildInfo(): BuildInfo =
+    BuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
   override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def iteratorApi(): IteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
