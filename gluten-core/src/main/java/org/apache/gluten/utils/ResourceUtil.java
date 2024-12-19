@@ -16,6 +16,9 @@
  */
 package org.apache.gluten.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,6 +36,9 @@ import java.util.zip.ZipFile;
  * and then modified for Gluten's use.
  */
 public class ResourceUtil {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ResourceUtil.class);
+
   /**
    * Get a collection of resource paths by the input RegEx pattern.
    *
@@ -52,6 +58,10 @@ public class ResourceUtil {
   private static void getResources(
       final String element, final Pattern pattern, final List<String> buffer) {
     final File file = new File(element);
+    if (!file.exists()) {
+      LOG.info("Skip non-existing classpath: {}", element);
+      return;
+    }
     if (file.isDirectory()) {
       getResourcesFromDirectory(file, file, pattern, buffer);
     } else {
