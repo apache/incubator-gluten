@@ -16,8 +16,32 @@
  */
 package org.apache.gluten.softaffinity.strategy
 
-trait SoftAffinityAllocationTrait {
+import org.apache.gluten.hash.ConsistentHash
+
+import java.util.Objects
+
+import scala.collection.JavaConverters._
+
+class ConsistentHashSoftAffinityStrategy(candidates: ConsistentHash[ExecutorNode])
+  extends SoftAffinityAllocationTrait {
 
   /** Allocate the executors of count number from the candidates. */
-  def allocateExecs(file: String, count: Int): Array[(String, String)]
+  override def allocateExecs(file: String, count: Int): Array[(String, String)] = {
+    candidates.allocateNodes(file, count).asScala.map(node => (node.exeId, node.host)).toArray
+  }
+}
+
+case class ExecutorNode(exeId: String, host: String) extends ConsistentHash.Node {
+  override def key(): String = s"$exeId-$host"
+
+  override def toString: String = s"$exeId-$host"
+
+  override def equals(o: Any): Boolean = {
+    o match {
+      case ExecutorNode(exeId, host) => this.exeId == exeId && this.host == host
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = Objects.hashCode(exeId, host)
 }
