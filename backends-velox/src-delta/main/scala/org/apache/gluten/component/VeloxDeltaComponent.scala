@@ -20,9 +20,12 @@ package org.apache.gluten.component
 import org.apache.gluten.backendsapi.velox.VeloxBackend
 import org.apache.gluten.execution.OffloadDeltaScan
 import org.apache.gluten.extension.DeltaRewriteTransformerRules
+import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
+
+import org.apache.spark.sql.execution.FileSourceScanExec
 
 class VeloxDeltaComponent extends Component {
   override def name(): String = "velox-delta"
@@ -31,14 +34,23 @@ class VeloxDeltaComponent extends Component {
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[VeloxBackend] :: Nil
   override def injectRules(injector: Injector): Unit = {
     val legacy = injector.gluten.legacy
+    val ras = injector.gluten.ras
     legacy.injectTransform {
       c =>
         val offload = Seq(OffloadDeltaScan())
         HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
     }
+    ras.injectRasRule {
+      c =>
+        RasOffload.Rule(
+          RasOffload.from[FileSourceScanExec](OffloadDeltaScan()),
+          Validators.newValidator(c.glutenConf),
+          Nil)
+    }
     DeltaRewriteTransformerRules.rules.foreach {
       r =>
         legacy.injectPostTransform(_ => r)
+        ras.injectPostTransform(_ => r)
     }
   }
 }
