@@ -44,7 +44,7 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] {
           logDebug(s"Collapse project $p1 and $p2.")
           collapsedProject
         } else {
-          logDebug(s"Failed to collapse project, due to ${validationResult.reason()}")
+          logWarning(s"Failed to collapse project, due to ${validationResult.reason()}")
           p1
         }
     }
