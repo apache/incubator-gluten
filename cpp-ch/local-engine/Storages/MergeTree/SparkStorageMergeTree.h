@@ -20,10 +20,12 @@
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeDataSelectExecutor.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
+#include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/RangesInDataPart.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MutationCommands.h>
 #include <Storages/StorageMergeTree.h>
+#include <Common/GlutenSettings.h>
 
 namespace local_engine
 {
@@ -71,7 +73,7 @@ public:
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
     std::vector<MergeTreeDataPartPtr> loadDataPartsWithNames(const std::unordered_set<std::string> & parts);
     void removePartFromMemory(const MergeTreeData::DataPart & part_to_detach);
-    void prefetchPartDataFile(const std::unordered_set<std::string>& parts) const;
+    void prefetchPartDataFile(const std::unordered_set<std::string> & parts) const;
 
     MergeTreeDataSelectExecutor reader;
     MergeTreeDataMergerMutator merger_mutator;
@@ -92,8 +94,8 @@ private:
     static std::atomic<int> part_num;
     SimpleIncrement increment;
 
-    void prefetchPartFiles(const std::unordered_set<std::string>& parts, String file_name) const;
-    void prefetchMetaDataFile(const std::unordered_set<std::string>& parts) const;
+    void prefetchPartFiles(const std::unordered_set<std::string> & parts, String file_name) const;
+    void prefetchMetaDataFile(const std::unordered_set<std::string> & parts) const;
     void startBackgroundMovesIfNeeded() override;
     std::unique_ptr<MergeTreeSettings> getDefaultSettings() const override;
     LoadPartResult loadDataPart(
@@ -119,6 +121,9 @@ public:
 
 class SparkWriteStorageMergeTree final : public SparkStorageMergeTree
 {
+    static std::unique_ptr<MergeTreeSettings>
+    buildMergeTreeSettings(const ContextMutablePtr & context, const MergeTreeTableSettings & config);
+
 public:
     SparkWriteStorageMergeTree(const MergeTreeTable & table_, const StorageInMemoryMetadata & metadata, const ContextMutablePtr & context_)
         : SparkStorageMergeTree(
@@ -129,7 +134,7 @@ public:
               context_,
               "",
               MergingParams(),
-              buildMergeTreeSettings(table_.table_configs),
+              buildMergeTreeSettings(context_, table_.table_configs),
               false /*has_force_restore_data_flag*/)
         , table(table_)
         , writer(*this)

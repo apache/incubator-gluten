@@ -39,21 +39,12 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, UnaryNode}
 import org.apache.spark.sql.execution.command.RunnableCommand
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.metric.SQLMetrics.createMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.util.{SystemClock, ThreadUtils}
 
-/**
- * Gluten overwrite Delta:
- *
- * This file is copied from Delta 3.2.1. It is modified in:
- *   1. getDeltaTable supports to get ClickHouseTableV2
- *   2. runOptimizeBinJobClickhouse
- *   3. groupFilesIntoBinsClickhouse
- */
+// TODO: Remove this file once we needn't support bucket
 
 /** Base class defining abstract optimize command */
 abstract class OptimizeTableCommandBase extends RunnableCommand with DeltaCommand {
@@ -152,10 +143,7 @@ case class OptimizeTableCommand(
     copy(child = newChild)(zOrderBy)
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    // --- modified start
-    val table = OptimizeTableCommandOverwrites.getDeltaTable(child, "OPTIMIZE")
-    // --- modified end
-
+    val table = getDeltaTable(child, "OPTIMIZE")
     val txn = table.startTransaction()
     if (txn.readVersion == -1) {
       throw DeltaErrors.notADeltaTableException(table.deltaLog.dataPath.toString)
@@ -268,12 +256,6 @@ class OptimizeExecutor(
 
   def optimize(): Seq[Row] = {
     recordDeltaOperation(txn.deltaLog, "delta.optimize") {
-
-      // --- modified start
-      val isMergeTreeFormat = ClickHouseConfig
-        .isMergeTreeFormatEngine(txn.deltaLog.unsafeVolatileMetadata.configuration)
-      // --- modified end
-
       val minFileSize = optimizeContext.minFileSize.getOrElse(
         sparkSession.sessionState.conf.getConf(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE))
       val maxFileSize = optimizeContext.maxFileSize.getOrElse(
@@ -288,39 +270,15 @@ class OptimizeExecutor(
         case Some(reorgOperation) => reorgOperation.filterFilesToReorg(txn.snapshot, candidateFiles)
         case None => filterCandidateFileList(minFileSize, maxDeletedRowsRatio, candidateFiles)
       }
-      // --- modified start
+      val partitionsToCompact = filesToProcess.groupBy(_.partitionValues).toSeq
+
+      val jobs = groupFilesIntoBins(partitionsToCompact)
+
       val maxThreads =
         sparkSession.sessionState.conf.getConf(DeltaSQLConf.DELTA_OPTIMIZE_MAX_THREADS)
-      val (updates, jobs) = if (isMergeTreeFormat) {
-        val partitionsToCompact = filesToProcess
-          .groupBy(file => (file.asInstanceOf[AddMergeTreeParts].bucketNum, file.partitionValues))
-          .toSeq
-        val jobs = OptimizeTableCommandOverwrites
-          .groupFilesIntoBinsClickhouse(partitionsToCompact, maxFileSize)
-        val updates = ThreadUtils.parmap(jobs, "OptimizeJob", maxThreads) {
-          partitionBinGroup =>
-          // --- modified start
-            OptimizeTableCommandOverwrites.runOptimizeBinJobClickhouse(
-            txn,
-            partitionBinGroup._1._2,
-            partitionBinGroup._1._1,
-            partitionBinGroup._2,
-            maxFileSize)
-          // --- modified end
-        }.flatten
-        // uniform the jobs type
-        (updates, jobs.map(v => (v._1._2 ++ Map("bucketNum" -> v._1.toString()), v._2)))
-      } else {
-        val partitionsToCompact = filesToProcess.groupBy(_.partitionValues).toSeq
-
-        val jobs = groupFilesIntoBins(partitionsToCompact)
-
-        val updates = ThreadUtils.parmap(jobs, "OptimizeJob", maxThreads) { partitionBinGroup =>
-          runOptimizeBinJob(txn, partitionBinGroup._1, partitionBinGroup._2, maxFileSize)
-        }.flatten
-        (updates, jobs)
-      }
-      // --- modified end
+      val updates = ThreadUtils.parmap(jobs, "OptimizeJob", maxThreads) { partitionBinGroup =>
+        runOptimizeBinJob(txn, partitionBinGroup._1, partitionBinGroup._2, maxFileSize)
+      }.flatten
 
       val addedFiles = updates.collect { case a: AddFile => a }
       val removedFiles = updates.collect { case r: RemoveFile => r }
