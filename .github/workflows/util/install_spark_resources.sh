@@ -25,7 +25,7 @@ case "$1" in
 3.2)
     # Spark-3.2
     cd ${INSTALL_DIR} && \
-    ${WGET_CMD} https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz && \
+    ${WGET_CMD} https://github.com/zhouyuan/gluten_testing/raw/refs/heads/main/spark_release/spark-3.2.2-bin-hadoop3.2.tgz && \
     tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.2.tgz spark-3.2.2-bin-hadoop3.2/jars/ && \
     rm -rf spark-3.2.2-bin-hadoop3.2.tgz && \
     mkdir -p ${INSTALL_DIR}/shims/spark32/spark_home/assembly/target/scala-2.12 && \
@@ -38,7 +38,7 @@ case "$1" in
 3.3)
     # Spark-3.3
     cd ${INSTALL_DIR} && \
-    ${WGET_CMD} https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz && \
+    ${WGET_CMD} https://github.com/zhouyuan/gluten_testing/raw/refs/heads/main/spark_release/spark-3.3.1-bin-hadoop3.tgz && \
     tar --strip-components=1 -xf spark-3.3.1-bin-hadoop3.tgz spark-3.3.1-bin-hadoop3/jars/ && \
     rm -rf spark-3.3.1-bin-hadoop3.tgz && \
     mkdir -p ${INSTALL_DIR}/shims/spark33/spark_home/assembly/target/scala-2.12 && \
