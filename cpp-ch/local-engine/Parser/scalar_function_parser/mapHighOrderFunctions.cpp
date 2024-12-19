@@ -25,7 +25,8 @@
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
-#include "DataTypes/DataTypeMap.h"
+#include <DataTypes/DataTypeMap.h>
+#include <Functions/FunctionHelpers.h>
 
 namespace DB::ErrorCodes
 {
