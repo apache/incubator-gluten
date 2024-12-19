@@ -21,17 +21,17 @@ import org.apache.gluten.component.Component
 object BackendsApiManager {
   private lazy val backend: SubstraitBackend = initializeInternal()
 
-  /** Initialize all backends api. */
+  /** Initialize all backends apis. */
   private def initializeInternal(): SubstraitBackend = {
     val loadedSubstraitBackends = Component.sorted().filter(_.isInstanceOf[SubstraitBackend])
-    assert(loadedSubstraitBackends.size == 1, "More than one Substrait backends are loaded")
+    assert(
+      loadedSubstraitBackends.size == 1,
+      s"More than one Substrait backends are loaded: " +
+        s"${loadedSubstraitBackends.map(_.name()).mkString(", ")}")
     loadedSubstraitBackends.head.asInstanceOf[SubstraitBackend]
   }
 
-  /**
-   * Automatically detect the backend api.
-   * @return
-   */
+  /** Automatically detect the backend api. */
   def initialize(): String = {
     getBackendName
   }
