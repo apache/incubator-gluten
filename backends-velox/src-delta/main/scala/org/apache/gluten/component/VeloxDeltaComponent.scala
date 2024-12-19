@@ -19,7 +19,7 @@ package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.velox.VeloxBackend
 import org.apache.gluten.execution.OffloadDeltaScan
-import org.apache.gluten.extension.DeltaRewriteTransformerRules
+import org.apache.gluten.extension.DeltaPostTransformRules
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
@@ -47,7 +47,7 @@ class VeloxDeltaComponent extends Component {
           Validators.newValidator(c.glutenConf),
           Nil)
     }
-    DeltaRewriteTransformerRules.rules.foreach {
+    DeltaPostTransformRules.rules.foreach {
       r =>
         legacy.injectPostTransform(_ => r)
         ras.injectPostTransform(_ => r)

@@ -28,7 +28,7 @@ import org.apache.spark.sql.execution.datasources.FileFormat
 
 import scala.collection.mutable.ListBuffer
 
-object DeltaRewriteTransformerRules {
+object DeltaPostTransformRules {
   def rules: Seq[Rule[SparkPlan]] =
     columnMappingRule :: filterRule :: projectRule :: pushDownInputFileExprRule :: Nil
   private val COLUMN_MAPPING_RULE_TAG: TreeNodeTag[String] =
