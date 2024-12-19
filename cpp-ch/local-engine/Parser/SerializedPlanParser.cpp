@@ -298,9 +298,9 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
 DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan) const
 {
-    const Settings & settings = parser_context->queryContext()->getSettingsRef();
+    const auto & settings = parser_context->queryContext()->getSettingsRef();
     QueryPriorities priorities;
-    const auto query_status = std::make_shared<QueryStatus>(
+    auto query_status = std::make_shared<QueryStatus>(
         parser_context->queryContext(),
         "",
         parser_context->queryContext()->getClientInfo(),
@@ -309,7 +309,7 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         IAST::QueryKind::Select,
         settings,
         0);
-    const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
+    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
     BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings::fromContext(context);
     build_settings.process_list_element = query_status;
     build_settings.progress_callback = nullptr;

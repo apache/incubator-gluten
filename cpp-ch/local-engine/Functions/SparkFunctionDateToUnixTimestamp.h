@@ -49,16 +49,13 @@ public:
     size_t getNumberOfArguments() const override { return 0; }
     bool isVariadic() const override { return true; }
     bool useDefaultImplementationForConstants() const override { return true; }
-    DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName &) const override
-    {
-        return std::make_shared<DataTypeUInt32>();
-    }
+    DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName &) const override { return std::make_shared<DataTypeUInt32>(); }
 
     ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DataTypePtr & result_type, size_t input_rows) const override
     {
        if (arguments.size() != 1 && arguments.size() != 2)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} argument size must be 1 or 2", name);
-        
+
        ColumnWithTypeAndName first_arg = arguments[0];
        if (isDate(first_arg.type))
             return executeInternal<UInt16>(first_arg.column, input_rows);
@@ -74,7 +71,7 @@ public:
         PaddedPODArray<UInt32> & data = assert_cast<ColumnVector<UInt32> *>(res.get())->getData();
         if (col->size() == 0)
             return res;
-        
+
         const DateLUTImpl * local_date_lut = &DateLUT::instance();
         for (size_t i = 0; i < input_rows; ++i)
         {
