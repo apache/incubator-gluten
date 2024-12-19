@@ -255,12 +255,23 @@ std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expr
     return std::make_pair(std::move(type), std::move(field));
 }
 
+const static std::string REUSE_COMMON_SUBEXPRESSION_CONF = "reuse_cse_in_expression_parser";
+bool ExpressionParser::reuseCSE() const
+{
+    return context->queryContext()->getConfigRef().getBool(REUSE_COMMON_SUBEXPRESSION_CONF, true);
+}
+
 const DB::ActionsDAG::Node *
 ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr type, const DB::Field & field) const
 {
     String name = toString(field).substr(0, 10);
     name = getUniqueName(name);
-    return &actions_dag.addColumn(DB::ColumnWithTypeAndName(type->createColumnConst(1, field), type, name));
+    LOG_ERROR(getLogger("ExpressionParser"), "xxx add new const col: {}", name);
+    const auto * res_node = &actions_dag.addColumn(DB::ColumnWithTypeAndName(type->createColumnConst(1, field), type, name));
+    if (reuseCSE())
+        if (const auto * exists_node = findOneStructureEqualNode(res_node, actions_dag))
+            res_node = exists_node;
+    return res_node;
 }
 
 
@@ -628,7 +639,18 @@ const DB::ActionsDAG::Node * ExpressionParser::toFunctionNode(
         std::string args_name = join(args, ',');
         result_name = ch_function_name + "(" + args_name + ")";
     }
-    return &actions_dag.addFunction(function_builder, args, result_name);
+    const auto * res_node = &actions_dag.addFunction(function_builder, args, result_name);
+    if (reuseCSE())
+    {
+        if (const auto * exists_node = findOneStructureEqualNode(res_node, actions_dag))
+        {
+            if (result_name_.empty() || result_name == exists_node->result_name)
+                res_node = exists_node;
+            else
+                res_node = &actions_dag.addAlias(*exists_node, result_name);
+        }
+    }
+    return res_node;
 }
 
 std::atomic<UInt64> ExpressionParser::unique_name_counter = 0;
@@ -842,5 +864,60 @@ ExpressionParser::parseJsonTuple(const substrait::Expression_ScalarFunction & fu
         res_nodes.push_back(tuple_node);
     }
     return res_nodes;
+}
+
+bool ExpressionParser::areEqualNodes(const DB::ActionsDAG::Node * a, const ActionsDAG::Node * b)
+{
+    if (a->type != b->type || !a->result_type->equals(*(b->result_type)) || a->children.size() != b->children.size())
+        return false;
+
+    switch (a->type)
+    {
+        case DB::ActionsDAG::ActionType::INPUT: {
+            if (a->result_name != b->result_name)
+                return false;
+            break;
+        }
+        case DB::ActionsDAG::ActionType::ALIAS: {
+            if (a->result_name != b->result_name)
+                return false;
+            break;
+        }
+        case DB::ActionsDAG::ActionType::COLUMN: {
+            if (a->column->compareAt(0, 0, *(b->column), 1) != 0)
+                return false;
+            break;
+        }
+        case DB::ActionsDAG::ActionType::ARRAY_JOIN: {
+            break;
+        }
+        case DB::ActionsDAG::ActionType::FUNCTION: {
+            if (a->function_base->getName() != b->function_base->getName())
+                return false;
+            break;
+        }
+        default:
+            break;
+    }
+
+    for (size_t i = 0; i < a->children.size(); ++i)
+        if (!areEqualNodes(a->children[i], b->children[i]))
+            return false;
+
+    return true;
+}
+
+// since each new node is added at the end of ActionsDAG::nodes, we expect to find the previous node and the new node will be dropped later.
+const DB::ActionsDAG::Node *
+ExpressionParser::findOneStructureEqualNode(const DB::ActionsDAG::Node * node_, const DB::ActionsDAG & actions_dag) const
+{
+    for (const auto & node : actions_dag.getNodes())
+    {
+        if (node_ == &node)
+            continue;
+        if (areEqualNodes(node_, &node))
+            return &node;
+    }
+    return nullptr;
 }
 }
