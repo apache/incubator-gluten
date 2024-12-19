@@ -26,7 +26,7 @@ object BackendsApiManager {
     val loadedSubstraitBackends = Component.sorted().filter(_.isInstanceOf[SubstraitBackend])
     assert(
       loadedSubstraitBackends.size == 1,
-      s"More than one Substrait backends are loaded: " +
+      s"Zero or more than one Substrait backends are loaded: " +
         s"${loadedSubstraitBackends.map(_.name()).mkString(", ")}")
     loadedSubstraitBackends.head.asInstanceOf[SubstraitBackend]
   }
