@@ -24,7 +24,10 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.util.SparkReflectionUtil
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.matching.Regex
+
+
 
 
 // format: off
@@ -59,9 +62,13 @@ private object Discovery extends Logging {
     val allFiles = ResourceUtil.getResources(componentFilePattern.pattern).asScala
     val duration = System.currentTimeMillis() - prev
     logInfo(s"Discovered component files: ${allFiles.mkString(", ")}. Duration: $duration ms.")
-    val out = allFiles
-      .flatMap {
-        case componentFilePattern(className) =>
+    val deDup = mutable.Set[String]()
+    val out = allFiles.flatMap {
+      case componentFilePattern(className) =>
+        if (!deDup.add(className)) {
+          logWarning(s"Found duplicated component class $className in then classpath, ignoring.")
+          None
+        } else {
           val clazz =
             try {
               SparkReflectionUtil.classForName(className)
@@ -71,10 +78,9 @@ private object Discovery extends Logging {
             }
           val instance = clazz.getDeclaredConstructor().newInstance().asInstanceOf[Component]
           Some(instance)
-        case _ => None
-      }
-      .distinct
-      .toSeq
+        }
+      case _ => None
+    }.toSeq
     out
   }
 }
