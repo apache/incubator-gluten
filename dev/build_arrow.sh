@@ -16,6 +16,8 @@
 
 set -exu
 
+BUILD_ARROW_JAVA=ON
+
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 export SUDO=sudo
 source ${CURRENT_DIR}/build_helper_functions.sh
@@ -23,12 +25,25 @@ VELOX_ARROW_BUILD_VERSION=15.0.0
 ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
 BUILD_TYPE=Release
 
+for arg in "$@"
+do
+    case $arg in
+        --build_arrow_java=*)
+        BUILD_ARROW_JAVA=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+	      *)
+        OTHER_ARGUMENTS+=("$1")
+        shift # Remove generic argument from processing
+        ;;
+    esac
+done
+
 function prepare_arrow_build() {
   mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && sudo rm -rf arrow_ep/
   wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
   cd arrow_ep
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
-  patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
   popd
 }
 
@@ -108,5 +123,9 @@ echo "Start to build Arrow"
 prepare_arrow_build
 build_arrow_cpp
 echo "Finished building arrow CPP"
-build_arrow_java
-echo "Finished building arrow Java"
+
+if [ $BUILD_ARROW_JAVA == "ON" ]; then
+  build_arrow_java
+  echo "Finished building arrow Java"
+fi
+

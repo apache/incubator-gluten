@@ -29,7 +29,6 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import org.apache.arrow.c.{ArrowSchema, CDataDictionaryProvider, Data}
 import org.apache.arrow.dataset.file.{FileFormat, FileSystemDatasetFactory}
 import org.apache.arrow.dataset.jni.NativeMemoryPool
-import org.apache.arrow.dataset.scanner.FragmentScanOptions
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
@@ -37,7 +36,6 @@ import org.apache.hadoop.fs.FileStatus
 
 import java.net.{URI, URLDecoder}
 import java.util
-import java.util.Optional
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -120,23 +118,21 @@ object ArrowUtil extends Logging {
   def makeArrowDiscovery(
       encodedUri: String,
       format: FileFormat,
-      option: Optional[FragmentScanOptions],
       allocator: BufferAllocator,
       pool: NativeMemoryPool
   ): FileSystemDatasetFactory = {
     val factory =
-      new FileSystemDatasetFactory(allocator, pool, format, rewriteUri(encodedUri), option)
+      new FileSystemDatasetFactory(allocator, pool, format, rewriteUri(encodedUri))
     factory
   }
 
   def readArrowSchema(
       file: String,
       format: FileFormat,
-      option: FragmentScanOptions,
       allocator: BufferAllocator,
       pool: NativeMemoryPool): Schema = {
     val factory: FileSystemDatasetFactory =
-      makeArrowDiscovery(file, format, Optional.of(option), allocator, pool)
+      makeArrowDiscovery(file, format, allocator, pool)
     val schema = factory.inspect()
     factory.close()
     schema
@@ -145,11 +141,10 @@ object ArrowUtil extends Logging {
   def readArrowFileColumnNames(
       file: String,
       format: FileFormat,
-      option: FragmentScanOptions,
       allocator: BufferAllocator,
       pool: NativeMemoryPool): Array[String] = {
     val fileFields = ArrowUtil
-      .readArrowSchema(URLDecoder.decode(file, "UTF-8"), format, option, allocator, pool)
+      .readArrowSchema(URLDecoder.decode(file, "UTF-8"), format, allocator, pool)
       .getFields
       .asScala
     fileFields.map(_.getName).toArray
@@ -158,11 +153,10 @@ object ArrowUtil extends Logging {
   def readSchema(
       file: FileStatus,
       format: FileFormat,
-      option: FragmentScanOptions,
       allocator: BufferAllocator,
       pool: NativeMemoryPool): Option[StructType] = {
     val factory: FileSystemDatasetFactory =
-      makeArrowDiscovery(file.getPath.toString, format, Optional.of(option), allocator, pool)
+      makeArrowDiscovery(file.getPath.toString, format, allocator, pool)
     val schema = factory.inspect()
     try {
       Option(SparkSchemaUtil.fromArrowSchema(schema))
@@ -174,14 +168,13 @@ object ArrowUtil extends Logging {
   def readSchema(
       files: Seq[FileStatus],
       format: FileFormat,
-      option: FragmentScanOptions,
       allocator: BufferAllocator,
       pool: NativeMemoryPool): Option[StructType] = {
     if (files.isEmpty) {
       throw new IllegalArgumentException("No input file specified")
     }
 
-    readSchema(files.head, format, option, allocator, pool)
+    readSchema(files.head, format, allocator, pool)
   }
 
   def loadMissingColumns(

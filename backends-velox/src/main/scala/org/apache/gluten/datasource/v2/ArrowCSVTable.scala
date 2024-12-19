@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.datasource.v2
 
-import org.apache.gluten.datasource.ArrowCSVOptionConverter
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool
 import org.apache.gluten.utils.ArrowUtil
@@ -58,11 +57,9 @@ case class ArrowCSVTable(
       sparkSession.sessionState.conf.sessionLocalTimeZone,
       sparkSession.sessionState.conf.columnNameOfCorruptRecord
     )
-    val arrowConfig = ArrowCSVOptionConverter.convert(parsedOptions)
     ArrowUtil.readSchema(
       files.head,
       org.apache.arrow.dataset.file.FileFormat.CSV,
-      arrowConfig,
       allocator,
       pool
     )

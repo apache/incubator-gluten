@@ -43,7 +43,6 @@ import org.apache.spark.util.SerializableConfiguration
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.dataset.file.FileSystemDatasetFactory
 import org.apache.arrow.dataset.scanner.ScanOptions
-import org.apache.arrow.dataset.scanner.csv.CsvFragmentScanOptions
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorUnloader
 import org.apache.arrow.vector.types.pojo.Schema
@@ -76,11 +75,9 @@ class ArrowCSVFileFormat(parsedOptions: CSVOptions)
       sparkSession: SparkSession,
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
-    val arrowConfig = ArrowCSVOptionConverter.convert(parsedOptions)
     ArrowUtil.readSchema(
       files,
       fileFormat,
-      arrowConfig,
       ArrowBufferAllocators.contextInstance(),
       ArrowNativeMemoryPool.arrowPool("infer schema"))
   }
@@ -116,14 +113,12 @@ class ArrowCSVFileFormat(parsedOptions: CSVOptions)
         actualFilters,
         broadcastedHadoopConf.value.value)
 
-      val arrowConfig = ArrowCSVOptionConverter.convert(parsedOptions)
       val allocator = ArrowBufferAllocators.contextInstance()
       // todo predicate validation / pushdown
       val fileNames = ArrowUtil
         .readArrowFileColumnNames(
           URLDecoder.decode(file.filePath.toString, "UTF-8"),
           fileFormat,
-          arrowConfig,
           ArrowBufferAllocators.contextInstance(),
           pool)
       val tokenIndexArr =
@@ -140,18 +135,15 @@ class ArrowCSVFileFormat(parsedOptions: CSVOptions)
       val cSchema: ArrowSchema = ArrowSchema.allocateNew(allocator)
       val cSchema2: ArrowSchema = ArrowSchema.allocateNew(allocator)
       try {
-        ArrowCSVOptionConverter.schema(requestSchema, cSchema, allocator, arrowConfig)
         val factory =
           ArrowUtil.makeArrowDiscovery(
             URLDecoder.decode(file.filePath.toString, "UTF-8"),
             fileFormat,
-            Optional.of(arrowConfig),
             ArrowBufferAllocators.contextInstance(),
             pool)
         val fields = factory.inspect().getFields
         val actualReadFields = new Schema(
           fileIndex.map(index => fields.get(index)).toIterable.asJava)
-        ArrowCSVOptionConverter.schema(requestSchema, cSchema2, allocator, arrowConfig)
         ArrowCSVFileFormat
           .readArrow(
             ArrowBufferAllocators.contextInstance(),
@@ -160,8 +152,7 @@ class ArrowCSVFileFormat(parsedOptions: CSVOptions)
             missingSchema,
             partitionSchema,
             factory,
-            batchSize,
-            arrowConfig)
+            batchSize)
           .asInstanceOf[Iterator[InternalRow]]
       } catch {
         case e: SchemaMismatchException =>
@@ -222,13 +213,11 @@ object ArrowCSVFileFormat {
       missingSchema: StructType,
       partitionSchema: StructType,
       factory: FileSystemDatasetFactory,
-      batchSize: Int,
-      arrowConfig: CsvFragmentScanOptions): Iterator[ColumnarBatch] = {
+      batchSize: Int): Iterator[ColumnarBatch] = {
     val actualReadFieldNames = actualReadFields.getFields.asScala.map(_.getName).toArray
     val dataset = factory.finish(actualReadFields)
     val scanOptions = new ScanOptions.Builder(batchSize)
       .columns(Optional.of(actualReadFieldNames))
-      .fragmentScanOptions(arrowConfig)
       .build()
     val scanner = dataset.newScan(scanOptions)
 
