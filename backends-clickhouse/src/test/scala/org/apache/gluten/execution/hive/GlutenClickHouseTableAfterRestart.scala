@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution.hive
 
-import org.apache.gluten.backendsapi.clickhouse.{RuntimeConfig, RuntimeSettings}
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeConfig, RuntimeSettings}
 import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 
 import org.apache.spark.SparkConf
@@ -59,6 +60,8 @@ class GlutenClickHouseTableAfterRestart
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.ui.enabled", "true")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
+      .set(CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
       .set(RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key, "100000")
       .setCHSettings("mergetree.merge_after_insert", false)
       .setCHSettings("input_format_parquet_max_block_size", 8192)
