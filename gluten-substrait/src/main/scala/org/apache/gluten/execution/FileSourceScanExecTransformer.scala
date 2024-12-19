@@ -190,15 +190,7 @@ abstract class FileSourceScanExecTransformerBase(
   }
 
   @transient override lazy val fileFormat: ReadFileFormat =
-    relation.fileFormat.getClass.getSimpleName match {
-      case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
-      case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
-      case "DeltaParquetFileFormat" => ReadFileFormat.ParquetReadFormat
-      case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
-      case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
-      case "CSVFileFormat" => ReadFileFormat.TextReadFormat
-      case _ => ReadFileFormat.UnknownFormat
-    }
+    BackendsApiManager.getSettings.getSubstraitReadFileFormatV1(relation.fileFormat)
 
   override def simpleString(maxFields: Int): String = {
     val metadataEntries = metadata.toSeq.sorted.map {

@@ -25,6 +25,7 @@ import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
+import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 
@@ -34,6 +35,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.FileFormat
@@ -195,6 +197,27 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         }
       case JsonReadFormat => ValidationResult.succeeded
       case _ => ValidationResult.failed(s"Unsupported file format $format")
+    }
+  }
+
+  override def getSubstraitReadFileFormatV1(
+      fileFormat: FileFormat): LocalFilesNode.ReadFileFormat = {
+    fileFormat.getClass.getSimpleName match {
+      case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
+      case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DeltaParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
+      case "CSVFileFormat" => ReadFileFormat.TextReadFormat
+      case _ => ReadFileFormat.UnknownFormat
+    }
+  }
+
+  override def getSubstraitReadFileFormatV2(scan: Scan): LocalFilesNode.ReadFileFormat = {
+    scan.getClass.getSimpleName match {
+      case "OrcScan" => ReadFileFormat.OrcReadFormat
+      case "ParquetScan" => ReadFileFormat.ParquetReadFormat
+      case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
+      case _ => ReadFileFormat.UnknownFormat
     }
   }
 

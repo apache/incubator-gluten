@@ -340,8 +340,8 @@
         <iceberg.version>1.5.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>3.2.0</delta.version>
-	    <delta.binary.version>32</delta.binary.version>
-	    <hudi.version>0.15.0</hudi.version>
+        <delta.binary.version>32</delta.binary.version>
+        <hudi.version>0.15.0</hudi.version>
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
         <antlr4.version>4.9.3</antlr4.version>
@@ -1199,11 +1199,6 @@
         <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
         <version>${fasterxml.version}</version>
         <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <version>3.2.1</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

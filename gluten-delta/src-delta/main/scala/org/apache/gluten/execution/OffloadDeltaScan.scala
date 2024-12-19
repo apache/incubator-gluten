@@ -16,14 +16,15 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 
-class HudiScanTransformerProvider extends DataSourceScanTransformerRegister {
+import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 
-  override val scanClassName: String = "HoodieParquetFileFormat"
-
-  override def createDataSourceTransformer(
-      batchScan: FileSourceScanExec): FileSourceScanExecTransformerBase = {
-    HudiScanTransformer(batchScan)
+case class OffloadDeltaScan() extends OffloadSingleNode {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
+    case scan: FileSourceScanExec
+        if scan.relation.fileFormat.getClass.getName == "org.apache.spark.sql.delta.DeltaParquetFileFormat" =>
+      DeltaScanTransformer(scan)
+    case other => other
   }
 }

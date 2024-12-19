@@ -175,13 +175,8 @@ abstract class BatchScanExecTransformerBase(
   @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten
 
-  @transient override lazy val fileFormat: ReadFileFormat = scan.getClass.getSimpleName match {
-    case "OrcScan" => ReadFileFormat.OrcReadFormat
-    case "ParquetScan" => ReadFileFormat.ParquetReadFormat
-    case "DwrfScan" => ReadFileFormat.DwrfReadFormat
-    case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
-    case _ => ReadFileFormat.UnknownFormat
-  }
+  @transient override lazy val fileFormat: ReadFileFormat =
+    BackendsApiManager.getSettings.getSubstraitReadFileFormatV2(scan)
 
   override def simpleString(maxFields: Int): String = {
     val truncatedOutputString = truncatedString(output, "[", ", ", "]", maxFields)
