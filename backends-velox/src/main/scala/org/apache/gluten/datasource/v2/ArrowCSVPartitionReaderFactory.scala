@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.datasource.v2
 
-import org.apache.gluten.datasource.{ArrowCSVFileFormat, ArrowCSVOptionConverter}
+import org.apache.gluten.datasource.ArrowCSVFileFormat
 import org.apache.gluten.exception.SchemaMismatchException
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool
@@ -40,7 +40,6 @@ import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.vector.types.pojo.Schema
 
 import java.net.URLDecoder
-import java.util.Optional
 
 import scala.collection.JavaConverters.asJavaIterableConverter
 
@@ -91,12 +90,10 @@ case class ArrowCSVPartitionReaderFactory(
         ArrowBufferAllocators.contextInstance(),
         ArrowNativeMemoryPool.arrowPool("FileSystemFactory"))
     }
-    val arrowConfig = ArrowCSVOptionConverter.convert(options)
     val fileNames = ArrowUtil
       .readArrowFileColumnNames(
         URLDecoder.decode(partitionedFile.filePath.toString, "UTF-8"),
         fileFormat,
-        arrowConfig,
         ArrowBufferAllocators.contextInstance(),
         pool)
     val tokenIndexArr =
@@ -113,18 +110,15 @@ case class ArrowCSVPartitionReaderFactory(
     // TODO: support array/map/struct types in out-of-order schema reading.
     val iter =
       try {
-        ArrowCSVOptionConverter.schema(requestSchema, cSchema, allocator, arrowConfig)
         val factory =
           ArrowUtil.makeArrowDiscovery(
             URLDecoder.decode(partitionedFile.filePath.toString, "UTF-8"),
             fileFormat,
-            Optional.of(arrowConfig),
             ArrowBufferAllocators.contextInstance(),
             pool)
         val fields = factory.inspect().getFields
         val actualReadFields = new Schema(
           fileIndex.map(index => fields.get(index)).toIterable.asJava)
-        ArrowCSVOptionConverter.schema(requestSchema, cSchema2, allocator, arrowConfig)
         ArrowCSVFileFormat
           .readArrow(
             ArrowBufferAllocators.contextInstance(),
@@ -133,8 +127,7 @@ case class ArrowCSVPartitionReaderFactory(
             missingSchema,
             readPartitionSchema,
             factory,
-            batchSize,
-            arrowConfig)
+            batchSize)
       } catch {
         case e: SchemaMismatchException =>
           logWarning(e.getMessage)

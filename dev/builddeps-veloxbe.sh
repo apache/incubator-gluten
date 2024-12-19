@@ -30,6 +30,7 @@ VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
+BUILD_ARROW_JAVA=ON
 SPARK_VERSION=ALL
 
 # set default number of threads as cpu cores minus 2
@@ -184,7 +185,7 @@ concat_velox_param
 
 function build_arrow {
   cd $GLUTEN_DIR/dev
-  ./build_arrow.sh
+  ./build_arrow.sh --build_arrow_java=$BUILD_ARROW_JAVA
 }
 
 function build_velox {
