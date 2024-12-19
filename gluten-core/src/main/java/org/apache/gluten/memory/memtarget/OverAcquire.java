@@ -74,7 +74,6 @@ public class OverAcquire implements MemoryTarget {
     if (size == 0) {
       return 0;
     }
-    Preconditions.checkState(overTarget.usedBytes() == 0);
     return target.repay(size);
   }
 
