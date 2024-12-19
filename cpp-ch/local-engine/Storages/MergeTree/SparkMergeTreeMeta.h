@@ -16,11 +16,9 @@
  */
 #pragma once
 
+#include <Interpreters/MergeTreeTransaction.h>
 #include <Interpreters/TableJoin.h>
 #include <Interpreters/TreeRewriter.h>
-
-#include <Interpreters/MergeTreeTransaction.h>
-#include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/RangesInDataPart.h>
 #include <Storages/SelectQueryInfo.h>
 #include <Storages/StorageInMemoryMetadata.h>
@@ -95,8 +93,6 @@ struct MergeTreeTableInstance : MergeTreeTable
     explicit MergeTreeTableInstance(const substrait::ReadRel::ExtensionTable & extension_table);
     explicit MergeTreeTableInstance(const std::string & info);
 };
-
-std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config);
 
 std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list);
 }

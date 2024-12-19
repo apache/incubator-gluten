@@ -262,15 +262,6 @@ MergeTreeTable::MergeTreeTable(const local_engine::Write & write, const substrai
     table_configs.storage_policy = merge_tree_write.storage_policy();
 }
 
-std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config)
-{
-    auto settings = std::make_unique<DB::MergeTreeSettings>();
-    settings->set("allow_nullable_key", Field(1));
-    if (!config.storage_policy.empty())
-        settings->set("storage_policy", Field(config.storage_policy));
-    return settings;
-}
-
 std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list)
 {
     std::unique_ptr<SelectQueryInfo> query_info = std::make_unique<SelectQueryInfo>();

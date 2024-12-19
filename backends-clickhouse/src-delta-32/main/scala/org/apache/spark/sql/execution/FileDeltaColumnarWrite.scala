@@ -26,9 +26,8 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Projection, UnsafeProjection}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
 import org.apache.spark.sql.delta.files.{FileDelayedCommitProtocol, MergeTreeDelayedCommitProtocol2}
-import org.apache.spark.sql.delta.stats.DeltaFileStatistics
+import org.apache.spark.sql.delta.stats.{DeltaFileStatistics, DeltaJobStatisticsTracker}
 import org.apache.spark.sql.execution.datasources.{ExecutedWriteSummary, WriteJobDescription, WriteTaskResult}
-import org.apache.spark.sql.types.StringType
 import org.apache.spark.util.Utils
 
 import scala.collection.mutable.ArrayBuffer
@@ -38,7 +37,7 @@ case class DeltaFileCommitInfo(committer: FileDelayedCommitProtocol)
   val addedFiles: ArrayBuffer[(Map[String, String], String)] =
     new ArrayBuffer[(Map[String, String], String)]
   override def apply(stat: NativeFileWriteResult): Unit = {
-    if (stat.partition_id == "__NO_PARTITION_ID__") {
+    if (stat.partition_id == CHColumnarWrite.EMPTY_PARTITION_ID) {
       addedFiles.append((Map.empty[String, String], stat.filename))
     } else {
       val partitionValues = committer.parsePartitions(stat.partition_id)
@@ -61,14 +60,15 @@ case class NativeDeltaStats(projection: Projection) extends (InternalRow => Unit
 
   def result: DeltaFileStatistics = DeltaFileStatistics(results.toMap)
 }
-case class FileDeltaColumnarWrite(
-    override val jobTrackerID: String,
-    override val description: WriteJobDescription,
-    override val committer: FileDelayedCommitProtocol)
-  extends CHColumnarWrite[FileDelayedCommitProtocol]
-  with Logging {
 
-  private lazy val nativeDeltaStats: Option[NativeDeltaStats] = {
+trait SupportNativeDeltaStats[T <: FileCommitProtocol] extends CHColumnarWrite[T] {
+
+  private lazy val deltaWriteJobStatsTracker: Option[DeltaJobStatisticsTracker] =
+    description.statsTrackers
+      .find(_.isInstanceOf[DeltaJobStatisticsTracker])
+      .map(_.asInstanceOf[DeltaJobStatisticsTracker])
+
+  lazy val nativeDeltaStats: Option[NativeDeltaStats] = {
     deltaWriteJobStatsTracker
       .map(
         delta => {
@@ -77,10 +77,7 @@ case class FileDeltaColumnarWrite(
                 if ae.aggregateFunction.isInstanceOf[DeclarativeAggregate] =>
               ae.aggregateFunction.asInstanceOf[DeclarativeAggregate].evaluateExpression
           }
-          val z = Seq(
-            AttributeReference("filename", StringType, nullable = false)(),
-            AttributeReference("partition_id", StringType, nullable = false)())
-          val s =
+          val vanillaSchema =
             delta.statsColExpr
               .collect {
                 case ae: AggregateExpression
@@ -92,10 +89,24 @@ case class FileDeltaColumnarWrite(
           NativeDeltaStats(
             UnsafeProjection.create(
               exprs = Seq(r),
-              inputSchema = z :++ s
+              inputSchema = nativeStatsSchema(vanillaSchema)
             ))
         })
   }
+
+  def nativeStatsSchema(vanilla: Seq[AttributeReference]): Seq[AttributeReference]
+}
+
+case class FileDeltaColumnarWrite(
+    override val jobTrackerID: String,
+    override val description: WriteJobDescription,
+    override val committer: FileDelayedCommitProtocol)
+  extends SupportNativeDeltaStats[FileDelayedCommitProtocol]
+  with Logging {
+
+  override def nativeStatsSchema(vanilla: Seq[AttributeReference]): Seq[AttributeReference] =
+    NativeFileWriteResult.nativeStatsSchema(vanilla)
+
   override def doSetupNativeTask(): Unit = {
     assert(description.path == committer.outputPath)
     val nameSpec = CreateFileNameSpec(taskAttemptContext, description)

@@ -116,11 +116,4 @@ private:
 
 using MergeSparkMergeTreeTaskPtr = std::shared_ptr<MergeSparkMergeTreeTask>;
 
-
-[[maybe_unused]] static void executeHere(MergeSparkMergeTreeTaskPtr task)
-{
-    while (task->executeStep()) {}
-}
-
-
 }

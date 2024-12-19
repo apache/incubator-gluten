@@ -17,6 +17,7 @@
 package org.apache.gluten.execution.hive
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
 import org.apache.gluten.test.AllDataTypesWithComplexType.genTestData
 import org.apache.gluten.utils.UTSystemParameters
@@ -37,8 +38,6 @@ class GlutenClickHouseNativeWriteTableSuite
   with NativeWriteChecker {
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConf._
-
     var sessionTimeZone = "GMT"
     if (isSparkVersionGE("3.5")) {
       sessionTimeZone = java.util.TimeZone.getDefault.getID
@@ -67,7 +66,7 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
       .set("spark.sql.session.timeZone", sessionTimeZone)
-      .setCHConfig("logger.level", "error")
+      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .setMaster("local[1]")
   }
 

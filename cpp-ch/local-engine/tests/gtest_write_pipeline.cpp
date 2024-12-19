@@ -157,7 +157,7 @@ TEST(WritePipeline, SubstraitFileSink)
     const auto & col_a = *(x.getColumns()[0]);
     EXPECT_EQ(settings.task_write_filename_pattern, col_a.getDataAt(0));
     const auto & col_b = *(x.getColumns()[1]);
-    EXPECT_EQ(SubstraitFileSink::NO_PARTITION_ID, col_b.getDataAt(0));
+    EXPECT_EQ(WriteStatsBase::NO_PARTITION_ID, col_b.getDataAt(0));
     const auto & col_c = *(x.getColumns()[2]);
     EXPECT_EQ(10000, col_c.getInt(0));
 }

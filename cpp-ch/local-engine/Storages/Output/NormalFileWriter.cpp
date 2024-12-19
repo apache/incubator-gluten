@@ -16,19 +16,19 @@
  */
 #include "NormalFileWriter.h"
 
+#include <Columns/ColumnArray.h>
+#include <Columns/ColumnConst.h>
+#include <Columns/ColumnMap.h>
 #include <QueryPipeline/QueryPipeline.h>
 #include <Poco/URI.h>
 #include <Common/DebugUtils.h>
-#include <Columns/ColumnConst.h>
-#include <Columns/ColumnArray.h>
-#include <Columns/ColumnMap.h>
 
 namespace local_engine
 {
 
 using namespace DB;
 
-const std::string SubstraitFileSink::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
+const std::string WriteStatsBase::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
 const std::string SparkPartitionedBaseSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
 const std::string SparkPartitionedBaseSink::BUCKET_COLUMN_NAME{"__bucket_value__"};
 const std::vector<std::string> FileNameGenerator::SUPPORT_PLACEHOLDERS{"{id}", "{bucket}"};

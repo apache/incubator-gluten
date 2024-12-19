@@ -154,10 +154,10 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
     for (const auto & part : parts)
     {
         res.emplace_back(PartInfo{
-            part->name,
-            part->getMarksCount(),
-            part->getBytesOnDisk(),
-            part->rows_count,
+            part.data_part->name,
+            part.data_part->getMarksCount(),
+            part.data_part->getBytesOnDisk(),
+            part.data_part->rows_count,
             sink_helper.write_settings.partition_settings.partition_dir,
             sink_helper.write_settings.partition_settings.bucket_dir});
     }
