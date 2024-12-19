@@ -36,13 +36,12 @@ namespace local_engine
 class FunctionParserConcat : public FunctionParser
 {
 public:
-    explicit FunctionParserConcat(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserConcat(ParserContextPtr ctx) : FunctionParser(std::move(ctx)) { }
     ~FunctionParserConcat() override = default;
 
     static constexpr auto name = "concat";
 
     String getName() const override { return name; }
-    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return name; }
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
@@ -50,28 +49,15 @@ public:
     {
         /*
           parse concat(args) as:
-            1. if output type is array, return arrayConcat(args)
-            2. otherwise:
-                1) if args is empty, return empty string
-                2) if args have size 1, return identity(args[0])
-                3) otherwise return concat(args)
+            1. if input single argument is array, then return arrayConcat(args)
+            2. otherwise return concat(args)
         */
+        String ch_function_name = "concat";
         auto args = parseFunctionArguments(substrait_func, actions_dag);
-        const auto & output_type = substrait_func.output_type();
-        const ActionsDAG::Node * result_node = nullptr;
-        if (output_type.has_list())
-        {
-             result_node = toFunctionNode(actions_dag, "arrayConcat", args);
-        }
-        else
-        {
-            if (args.empty())
-                result_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "");
-            else if (args.size() == 1)
-                result_node = toFunctionNode(actions_dag, "identity", args);
-            else
-                result_node = toFunctionNode(actions_dag, "concat", args);
-        }
+        if (args.size() == 1 && isArray(removeNullable(args[0]->result_type)))
+            ch_function_name = "arrayConcat";
+
+        auto * result_node = toFunctionNode(actions_dag, "concat", args);
         return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
