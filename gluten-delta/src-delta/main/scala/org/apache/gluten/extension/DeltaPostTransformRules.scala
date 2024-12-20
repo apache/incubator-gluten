@@ -31,7 +31,8 @@ import scala.collection.mutable.ListBuffer
 
 object DeltaPostTransformRules {
   def rules: Seq[Rule[SparkPlan]] =
-    RemoveTransitions :: columnMappingRule :: filterRule :: projectRule :: pushDownInputFileExprRule :: Nil
+    RemoveTransitions :: columnMappingRule :: filterRule :: projectRule ::
+      pushDownInputFileExprRule :: Nil
 
   private val COLUMN_MAPPING_RULE_TAG: TreeNodeTag[String] =
     TreeNodeTag[String]("org.apache.gluten.delta.column.mapping")
