@@ -27,6 +27,7 @@ import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 import org.apache.gluten.utils._
@@ -36,6 +37,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, De
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Percentile}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, CharVarcharUtils}
+import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.{ColumnarCachedBatchSerializer, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
@@ -173,7 +175,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
             }
             validateTypes(typeValidator)
           }
-        case _ => Some(s"Unsupported file format for $format.")
+        case _ => Some(s"Unsupported file format $format.")
       }
     }
 
@@ -192,6 +194,26 @@ object VeloxBackendSettings extends BackendSettingsApi {
       .filter(_._1 != "file")
       .map(_._2.head._2)
       .toSeq
+  }
+
+  override def getSubstraitReadFileFormatV1(
+      fileFormat: FileFormat): LocalFilesNode.ReadFileFormat = {
+    fileFormat.getClass.getSimpleName match {
+      case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
+      case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
+      case "CSVFileFormat" => ReadFileFormat.TextReadFormat
+      case _ => ReadFileFormat.UnknownFormat
+    }
+  }
+
+  override def getSubstraitReadFileFormatV2(scan: Scan): LocalFilesNode.ReadFileFormat = {
+    scan.getClass.getSimpleName match {
+      case "OrcScan" => ReadFileFormat.OrcReadFormat
+      case "ParquetScan" => ReadFileFormat.ParquetReadFormat
+      case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+      case _ => ReadFileFormat.UnknownFormat
+    }
   }
 
   override def supportWriteFilesExec(

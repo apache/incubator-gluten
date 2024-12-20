@@ -21,76 +21,29 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
-import java.util.ServiceLoader
-import java.util.concurrent.ConcurrentHashMap
-
-import scala.collection.JavaConverters._
-
 object ScanTransformerFactory {
-
-  private val scanTransformerMap = new ConcurrentHashMap[String, Class[_]]()
 
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec): FileSourceScanExecTransformerBase = {
-    val fileFormat = scanExec.relation.fileFormat
-    lookupDataSourceScanTransformer(fileFormat.getClass.getName) match {
-      case Some(clz) =>
-        clz
-          .getDeclaredConstructor()
-          .newInstance()
-          .asInstanceOf[DataSourceScanTransformerRegister]
-          .createDataSourceTransformer(scanExec)
-      case _ =>
-        FileSourceScanExecTransformer(
-          scanExec.relation,
-          scanExec.output,
-          scanExec.requiredSchema,
-          scanExec.partitionFilters,
-          scanExec.optionalBucketSet,
-          scanExec.optionalNumCoalescedBuckets,
-          scanExec.dataFilters,
-          scanExec.tableIdentifier,
-          scanExec.disableBucketedScan
-        )
-    }
+    FileSourceScanExecTransformer(
+      scanExec.relation,
+      scanExec.output,
+      scanExec.requiredSchema,
+      scanExec.partitionFilters,
+      scanExec.optionalBucketSet,
+      scanExec.optionalNumCoalescedBuckets,
+      scanExec.dataFilters,
+      scanExec.tableIdentifier,
+      scanExec.disableBucketedScan
+    )
   }
 
   def createBatchScanTransformer(batchScanExec: BatchScanExec): BatchScanExecTransformerBase = {
-    val scan = batchScanExec.scan
-    lookupDataSourceScanTransformer(scan.getClass.getName) match {
-      case Some(clz) =>
-        clz
-          .getDeclaredConstructor()
-          .newInstance()
-          .asInstanceOf[DataSourceScanTransformerRegister]
-          .createDataSourceV2Transformer(batchScanExec)
-      case _ =>
-        BatchScanExecTransformer(
-          batchScanExec.output,
-          batchScanExec.scan,
-          batchScanExec.runtimeFilters,
-          table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
-        )
-    }
-  }
-
-  private def lookupDataSourceScanTransformer(scanClassName: String): Option[Class[_]] = {
-    val clz = scanTransformerMap.computeIfAbsent(
-      scanClassName,
-      _ => {
-        val loader = Option(Thread.currentThread().getContextClassLoader)
-          .getOrElse(getClass.getClassLoader)
-        val serviceLoader = ServiceLoader.load(classOf[DataSourceScanTransformerRegister], loader)
-        serviceLoader.asScala
-          .filter(service => scanClassName.contains(service.scanClassName))
-          .toList match {
-          case head :: Nil =>
-            // there is exactly one registered alias
-            head.getClass
-          case _ => null
-        }
-      }
+    BatchScanExecTransformer(
+      batchScanExec.output,
+      batchScanExec.scan,
+      batchScanExec.runtimeFilters,
+      table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScanExec)
     )
-    Option(clz)
   }
 }

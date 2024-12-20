@@ -17,8 +17,7 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.execution.{DeltaFilterExecTransformer, DeltaProjectExecTransformer, DeltaScanTransformer, ProjectExecTransformer}
-import org.apache.gluten.extension.DeltaRewriteTransformerRules.{columnMappingRule, filterRule, projectRule, pushDownInputFileExprRule}
-import org.apache.gluten.extension.columnar.RewriteTransformerRules
+import org.apache.gluten.extension.columnar.transition.RemoveTransitions
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName}
@@ -30,12 +29,10 @@ import org.apache.spark.sql.execution.datasources.FileFormat
 
 import scala.collection.mutable.ListBuffer
 
-class DeltaRewriteTransformerRules extends RewriteTransformerRules {
-  override def rules: Seq[Rule[SparkPlan]] =
-    columnMappingRule :: filterRule :: projectRule :: pushDownInputFileExprRule :: Nil
-}
-
-object DeltaRewriteTransformerRules {
+object DeltaPostTransformRules {
+  def rules: Seq[Rule[SparkPlan]] =
+    RemoveTransitions :: columnMappingRule :: filterRule :: projectRule ::
+      pushDownInputFileExprRule :: Nil
 
   private val COLUMN_MAPPING_RULE_TAG: TreeNodeTag[String] =
     TreeNodeTag[String]("org.apache.gluten.delta.column.mapping")

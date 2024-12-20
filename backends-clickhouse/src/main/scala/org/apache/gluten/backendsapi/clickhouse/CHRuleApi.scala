@@ -93,7 +93,6 @@ object CHRuleApi {
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => PruneNestedColumnsInHiveTableScan)
-    injector.injectPostTransform(c => intercept(RewriteTransformer.apply(c.session)))
     injector.injectPostTransform(_ => PushDownFilterToScan)
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
     injector.injectPostTransform(_ => EnsureLocalSortRequirements)
