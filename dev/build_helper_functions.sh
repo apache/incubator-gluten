@@ -208,9 +208,3 @@ function setup_linux {
     exit 1
   fi
 }
-
-function install_libhdfs3 {
-  github_checkout oap-project/libhdfs3 master
-  cmake_install
-}
-
