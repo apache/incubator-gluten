@@ -58,7 +58,7 @@ case class UnsafeBytesBufferArray(
   private val bytesBufferOffset = if (bytesBufferLengths.isEmpty) {
     new Array(0)
   } else {
-    bytesBufferLengths.init.scanLeft(0)( _ + _)
+    bytesBufferLengths.init.scanLeft(0)(_ + _)
   }
 
   override def spill(l: Long, memoryConsumer: MemoryConsumer): Long = 0L

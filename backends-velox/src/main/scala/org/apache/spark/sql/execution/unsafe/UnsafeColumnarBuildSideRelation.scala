@@ -24,8 +24,10 @@ import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
+
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.MEMORY_OFFHEAP_ENABLED
 import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
@@ -36,12 +38,13 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.Utils
+
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import org.apache.arrow.c.ArrowSchema
-import org.apache.spark.internal.config.MEMORY_OFFHEAP_ENABLED
 
 import java.io.{Externalizable, ObjectInput, ObjectOutput}
+
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 /**
@@ -124,8 +127,9 @@ case class UnsafeColumnarBuildSideRelation(
 
     // scalastyle:off
     /**
-     * This is used in Broadcast, shared by multiple tasks, we use off-heap memory to reduce on-heap pressure
-     * Similar to https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/execution/joins/HashedRelation.scala#L389-L410
+     * This is used in Broadcast, shared by multiple tasks, we use off-heap memory to reduce on-heap
+     * pressure Similar to
+     * https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/execution/joins/HashedRelation.scala#L389-L410
      */
     // scalastyle:on
     val taskMemoryManager = new TaskMemoryManager(
