@@ -48,11 +48,13 @@ if("fips" IN_LIST FEATURES)
     vcpkg_list(APPEND CONFIGURE_OPTIONS enable-fips)
 endif()
 
-if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
-    vcpkg_list(APPEND CONFIGURE_OPTIONS shared)
-else()
-    vcpkg_list(APPEND CONFIGURE_OPTIONS no-shared no-module)
-endif()
+#if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
+#    vcpkg_list(APPEND CONFIGURE_OPTIONS shared)
+#else()
+#    vcpkg_list(APPEND CONFIGURE_OPTIONS no-shared no-module)
+#endif()
+# Always use dynamic.
+vcpkg_list(APPEND CONFIGURE_OPTIONS shared)
 
 if(NOT "tools" IN_LIST FEATURES)
     vcpkg_list(APPEND CONFIGURE_OPTIONS no-apps)
