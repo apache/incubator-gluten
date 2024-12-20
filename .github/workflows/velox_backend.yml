@@ -546,7 +546,7 @@ jobs:
         spark: [ "spark-3.2" ]
         celeborn: [ "celeborn-0.5.2", "celeborn-0.4.2", "celeborn-0.3.2-incubating" ]
     runs-on: ubuntu-20.04
-    container: ubuntu:22.04
+    container: apache/gluten:centos-8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Native Artifacts
@@ -559,15 +559,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup tzdata
-        run: |
-          apt-get update
-          TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
-      - name: Setup java and maven
-        run: |
-          apt-get update && apt-get install -y openjdk-8-jdk maven wget
-          apt remove openjdk-11* -y
-          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
