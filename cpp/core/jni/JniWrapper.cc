@@ -1201,7 +1201,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerialize
 }
 
 JNIEXPORT jlong JNICALL
-Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_deserializeDirectAddress( // NOLINT
+Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_deserializeDirect( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong serializerHandle,

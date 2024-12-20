@@ -24,7 +24,6 @@ import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
-
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
@@ -37,13 +36,12 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.Utils
-
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import org.apache.arrow.c.ArrowSchema
+import org.apache.spark.internal.config.MEMORY_OFFHEAP_ENABLED
 
 import java.io.{Externalizable, ObjectInput, ObjectOutput}
-
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 /**
@@ -124,8 +122,18 @@ case class UnsafeColumnarBuildSideRelation(
     val bytesBufferLengths = in.readObject().asInstanceOf[Array[Int]]
     val totalBytes = in.readLong()
 
+    // scalastyle:off
+    /**
+     * This is used in Broadcast, shared by multiple tasks, we use off-heap memory to reduce on-heap pressure
+     * Similar to https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/execution/joins/HashedRelation.scala#L389-L410
+     */
+    // scalastyle:on
     val taskMemoryManager = new TaskMemoryManager(
-      new UnifiedMemoryManager(SparkEnv.get.conf, Long.MaxValue, Long.MaxValue / 2, 1),
+      new UnifiedMemoryManager(
+        SparkEnv.get.conf.set(MEMORY_OFFHEAP_ENABLED.key, "true"),
+        Long.MaxValue,
+        Long.MaxValue / 2,
+        1),
       0)
 
     batches =
@@ -148,7 +156,11 @@ case class UnsafeColumnarBuildSideRelation(
     val totalBytes = in.readLong()
 
     val taskMemoryManager = new TaskMemoryManager(
-      new UnifiedMemoryManager(SparkEnv.get.conf, Long.MaxValue, Long.MaxValue / 2, 1),
+      new UnifiedMemoryManager(
+        SparkEnv.get.conf.set(MEMORY_OFFHEAP_ENABLED.key, "true"),
+        Long.MaxValue,
+        Long.MaxValue / 2,
+        1),
       0)
 
     batches =
@@ -174,7 +186,7 @@ case class UnsafeColumnarBuildSideRelation(
     val runtime =
       Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
     val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
-    val serializeHandle: Long = {
+    val serializerHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
       val arrowSchema = SparkArrowUtil.toArrowSchema(
@@ -200,13 +212,13 @@ case class UnsafeColumnarBuildSideRelation(
             batches.getBytesBufferOffsetAndLength(batchId)
           batchId += 1
           val handle =
-            jniWrapper.deserializeDirectAddress(serializeHandle, offset, length)
+            jniWrapper.deserializeDirect(serializerHandle, offset, length)
           ColumnarBatches.create(handle)
         }
       })
       .protectInvocationFlow()
       .recycleIterator {
-        jniWrapper.close(serializeHandle)
+        jniWrapper.close(serializerHandle)
       }
       .recyclePayload(ColumnarBatches.forceClose) // FIXME why force close?
       .create()
@@ -223,7 +235,7 @@ case class UnsafeColumnarBuildSideRelation(
       Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
-    val serializeHandle = {
+    val serializerHandle = {
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
       val arrowSchema = SparkArrowUtil.toArrowSchema(
@@ -249,7 +261,7 @@ case class UnsafeColumnarBuildSideRelation(
           val itHasNext = batchId < batches.arraySize
           if (!itHasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
-            serializerJniWrapper.close(serializeHandle)
+            serializerJniWrapper.close(serializerHandle)
             closed = true
           }
           itHasNext
@@ -259,7 +271,7 @@ case class UnsafeColumnarBuildSideRelation(
           val (offset, length) = batches.getBytesBufferOffsetAndLength(batchId)
           batchId += 1
           val batchHandle =
-            serializerJniWrapper.deserializeDirectAddress(serializeHandle, offset, length)
+            serializerJniWrapper.deserializeDirect(serializerHandle, offset, length)
           val batch = ColumnarBatches.create(batchHandle)
           if (batch.numRows == 0) {
             batch.close()

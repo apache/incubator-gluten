@@ -43,6 +43,11 @@ case class UnsafeBytesBufferArray(
   extends MemoryConsumer(tmm, MemoryMode.OFF_HEAP)
   with Logging {
 
+  {
+    assert(arraySize == bytesBufferLengths.length)
+    assert(totalBytes >= 0)
+  }
+
   /**
    * A single array to store all bytesBufferArray's value, it's inited once when first time get
    * accessed.
@@ -50,17 +55,10 @@ case class UnsafeBytesBufferArray(
   private var longArray: LongArray = _
 
   /** Index the start of each byteBuffer's offset to underlying LongArray's initial position. */
-  private val bytesBufferOffset = new Array[Int](arraySize)
-
-  {
-    assert(arraySize == bytesBufferLengths.length)
-    assert(totalBytes >= 0)
-    if (arraySize > 0) {
-      for (i <- 0 until arraySize) {
-        bytesBufferOffset(i) =
-          if (i > 0) bytesBufferLengths(i - 1) + bytesBufferOffset(i - 1) else 0
-      }
-    }
+  private val bytesBufferOffset = if (bytesBufferLengths.isEmpty) {
+    new Array(0)
+  } else {
+    bytesBufferLengths.init.scanLeft(0)( _ + _)
   }
 
   override def spill(l: Long, memoryConsumer: MemoryConsumer): Long = 0L
