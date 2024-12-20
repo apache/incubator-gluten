@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated.planner.plan
 
 import org.apache.gluten.execution.GlutenPlan
-import org.apache.gluten.extension.columnar.enumerated.planner.metadata.{GlutenMetadata, LogicalLink}
+import org.apache.gluten.extension.columnar.enumerated.planner.metadata.GlutenMetadata
 import org.apache.gluten.extension.columnar.enumerated.planner.property.{Conv, ConvDef}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.ras.{Metadata, PlanModel}
@@ -28,11 +28,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.task.{SparkTaskUtil, TaskResources}
 
 import java.util.{Objects, Properties}
+import java.util.concurrent.atomic.AtomicBoolean
 
 object GlutenPlanModel {
   def apply(): PlanModel[SparkPlan] = {
@@ -48,7 +50,14 @@ object GlutenPlanModel {
     with Convention.KnownBatchType
     with Convention.KnownRowTypeForSpark33OrLater
     with GlutenPlan.SupportsRowBasedCompatible {
+
+    private val frozen = new AtomicBoolean(false)
     private val req: Conv.Req = constraintSet.get(ConvDef).asInstanceOf[Conv.Req]
+
+    // Set the logical link then make the plan node immutable. All future
+    // mutable operations related to tagging will be aborted.
+    setLogicalLink(metadata.logicalLink().plan)
+    frozen.set(true)
 
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
@@ -77,15 +86,29 @@ object GlutenPlanModel {
       rowType() != Convention.RowType.None
     }
 
-    override def logicalLink: Option[LogicalPlan] = {
-      if (metadata.logicalLink() eq LogicalLink.notFound) {
-        return None
+    private def ensureNotFrozen(): Unit = {
+      if (frozen.get()) {
+        throw new UnsupportedOperationException()
       }
-      Some(metadata.logicalLink().plan)
     }
 
-    override def setLogicalLink(logicalPlan: LogicalPlan): Unit =
-      throw new UnsupportedOperationException()
+    // Enclose mutable APIs.
+    override def setLogicalLink(logicalPlan: LogicalPlan): Unit = {
+      ensureNotFrozen()
+      super.setLogicalLink(logicalPlan)
+    }
+    override def setTagValue[T](tag: TreeNodeTag[T], value: T): Unit = {
+      ensureNotFrozen()
+      super.setTagValue(tag, value)
+    }
+    override def unsetTagValue[T](tag: TreeNodeTag[T]): Unit = {
+      ensureNotFrozen()
+      super.unsetTagValue(tag)
+    }
+    override def copyTagsFrom(other: SparkPlan): Unit = {
+      ensureNotFrozen()
+      super.copyTagsFrom(other)
+    }
   }
 
   private object PlanModelImpl extends PlanModel[SparkPlan] {
