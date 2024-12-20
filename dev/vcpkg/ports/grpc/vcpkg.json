@@ -18,10 +18,7 @@
         "codegen"
       ]
     },
-    {
-      "name": "openssl",
-      "platform": "x64-linux-dynamic"
-    },
+    "openssl",
     "protobuf",
     {
       "name": "protobuf",
