@@ -46,10 +46,10 @@ Please check the **Set up perf analysis tools (optional)** section in [initializ
 - analyze_perf: Whether to upload profile to perf analysis server and run perf analysis scripts. Only takes effect if server is set. In this case set to `True`
 - proxy: Proxy used to connect to server for perf analysis. Only needed if the perf analysis server is accessed via proxy.
 
-After the workload completes, the tool generates a notebook, executes it automatically, and saves the output notebook in the `$HOME/PAUS/base_dir` directory with a suffix of `[APPLICATION ID].nbconvert.ipynb`. Additionally, the output notebook is converted into an HTML format for improved readability, with the same filename, and stored in the `html` sub-folder.
+After the workload completes, the tool generates a notebook, executes it automatically, and saves the output notebook in the `$HOME/PAUS/base_dir` directory with the name of `[APP_NAME]_[APP_ID].ipynb`. Additionally, the output notebook is converted into an HTML format for improved readability, with the same filename, and stored in the `html` sub-folder.
 
 A sample generated notebook for TPCH Q1 and its corresponding HTML file are available for reference:
-- Notebook: [tpch_q1.nbconvert.ipynb](./sample/tpch_q1.nbconvert.ipynb)
+- Notebook: [tpch_q1.ipynb](./sample/tpch_q1.ipynb)
 - HTML file: [tpch_q1.html](./sample/tpch_q1.html)
 
 The notebook also produces a trace-viewer JSON file to analyze workload statistics. This includes SAR metrics and stage/task-level breakdowns. Using this tool, users can compare statistics across stages and queries, identify performance bottlenecks, and target specific stages for optimization.
