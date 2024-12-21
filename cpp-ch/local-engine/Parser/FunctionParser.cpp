@@ -181,9 +181,7 @@ FunctionParserPtr FunctionParserFactory::get(const String & name, ParserContextP
 {
     auto res = tryGet(name, ctx);
     if (!res)
-    {
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unknown function parser {}", name);
-    }
 
     return res;
 }

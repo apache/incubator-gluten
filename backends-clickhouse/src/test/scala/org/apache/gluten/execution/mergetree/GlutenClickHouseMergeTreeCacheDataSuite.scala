@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeConfig}
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
@@ -55,8 +56,10 @@ class GlutenClickHouseMergeTreeCacheDataSuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .setCHConfig("logger.level", "error")
+      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set("spark.gluten.soft-affinity.enabled", "true")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
+      .set(CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
       .setCHSettings("mergetree.merge_after_insert", false)
   }
 
@@ -398,7 +401,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
     spark.sql("drop table lineitem_mergetree_hdfs purge")
   }
 
-  test("test cache mergetree data no partition columns") {
+  testSparkVersionLE33("test cache mergetree data no partition columns") {
 
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_hdfs;
@@ -487,7 +490,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
     spark.sql("drop table lineitem_mergetree_hdfs purge")
   }
 
-  test("test cache mergetree data with upper case column name") {
+  testSparkVersionLE33("test cache mergetree data with upper case column name") {
 
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_hdfs;
