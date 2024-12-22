@@ -51,6 +51,7 @@ extern const int BAD_ARGUMENTS;
 
 namespace local_engine
 {
+using namespace DB;
 std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expression_Literal & literal)
 {
     DB::DataTypePtr type;

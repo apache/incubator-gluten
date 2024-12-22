@@ -30,7 +30,6 @@
 namespace local_engine
 {
 struct SparkMergeTreeWritePartitionSettings;
-using namespace DB;
 
 class SparkMergeTreeDataWriter
 {

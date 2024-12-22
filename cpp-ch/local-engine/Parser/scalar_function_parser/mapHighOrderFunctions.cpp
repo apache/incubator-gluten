@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-#include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeFunction.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <Functions/FunctionHelpers.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
 #include <Parser/scalar_function_parser/lambdaFunction.h>
@@ -25,8 +25,6 @@
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
-#include <DataTypes/DataTypeMap.h>
-#include <Functions/FunctionHelpers.h>
 
 namespace DB::ErrorCodes
 {
@@ -64,9 +62,9 @@ public:
         const auto * map_node = parsed_args[0];
         const auto * func_node = parsed_args[1];
         const auto & map_type = map_node->result_type;
-        auto array_type = checkAndGetDataType<DataTypeMap>(removeNullable(map_type).get())->getNestedType();
+        auto array_type = checkAndGetDataType<DB::DataTypeMap>(removeNullable(map_type).get())->getNestedType();
         if (map_type->isNullable())
-            array_type = std::make_shared<DataTypeNullable>(array_type);
+            array_type = std::make_shared<DB::DataTypeNullable>(array_type);
         const auto * array_node = ActionsDAGUtil::convertNodeTypeIfNeeded(actions_dag, map_node, array_type);
         const auto * transformed_node = toFunctionNode(actions_dag, "arrayMap", {func_node, array_node});
 

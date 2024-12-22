@@ -18,9 +18,9 @@
 
 #include <memory>
 #include <optional>
-#include <substrait/algebra.pb.h>
-
 #include <Parser/RelParsers/RelParser.h>
+#include <Storages/SelectQueryInfo.h>
+#include <substrait/algebra.pb.h>
 
 namespace DB
 {
@@ -82,7 +82,7 @@ public:
 
 private:
     void parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name);
-    PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
+    DB::PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
     ActionsDAG optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block);
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
     static void collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block);

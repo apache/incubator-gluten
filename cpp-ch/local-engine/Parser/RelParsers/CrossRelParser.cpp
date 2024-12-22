@@ -51,10 +51,10 @@ extern const int BAD_ARGUMENTS;
 }
 }
 
-using namespace DB;
-
 namespace local_engine
 {
+using namespace DB;
+
 std::shared_ptr<DB::TableJoin> createCrossTableJoin(substrait::CrossRel_JoinType join_type)
 {
     auto global_context = QueryContext::globalContext();
