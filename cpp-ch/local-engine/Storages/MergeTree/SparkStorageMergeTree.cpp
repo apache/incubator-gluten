@@ -50,7 +50,7 @@ extern const int NO_SUCH_DATA_PART;
 
 namespace local_engine
 {
-
+using namespace DB;
 void SparkStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts)
 {
     ReadFromMergeTree::AnalysisResult result;

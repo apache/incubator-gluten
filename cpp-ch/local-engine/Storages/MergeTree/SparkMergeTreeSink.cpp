@@ -38,7 +38,7 @@ extern const SettingsUInt64 min_insert_block_size_bytes;
 }
 namespace local_engine
 {
-
+using namespace DB;
 void SparkMergeTreeSink::write(const Chunk & chunk)
 {
     CurrentThread::flushUntrackedMemory();
