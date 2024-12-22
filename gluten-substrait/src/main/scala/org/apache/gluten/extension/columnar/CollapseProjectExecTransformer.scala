@@ -71,8 +71,6 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] with AliasHelper {
       upper: ProjectExecTransformer,
       lower: ProjectExecTransformer): Boolean = {
     !upper.projectList.exists {
-      // The logicalLink of pre-project has been set to the logicalLink of its parent node,
-      // so it will not be a Project.
       case alias: Alias =>
         val aliases = getAliasMap(lower.projectList)
         aliases.nonEmpty &&
