@@ -21,7 +21,6 @@ import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, AliasHelper, Attribute, CreateNamedStruct, NamedExpression}
 import org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim
-import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -64,9 +63,9 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] with AliasHelper {
   }
 
   /**
-   * We should not collapse the pre-project with its child project, if the Alias(Expression) in
-   * pre-project contains other computed results of Expressions in child project. This would lead to
-   * the Expression being computed multiple times.
+   * We should not collapse the upper project with its child project, if the Alias(Expression) in
+   * upper project contains other computed results of Expressions in child project. This would lead
+   * to the Expression being computed multiple times.
    */
   private def canCollapsePreProject(
       upper: ProjectExecTransformer,
@@ -74,8 +73,7 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] with AliasHelper {
     !upper.projectList.exists {
       // The logicalLink of pre-project has been set to the logicalLink of its parent node,
       // so it will not be a Project.
-      case alias: Alias
-          if alias.name.startsWith("_pre_") && upper.logicalLink.exists(!_.isInstanceOf[Project]) =>
+      case alias: Alias =>
         val aliases = getAliasMap(lower.projectList)
         aliases.nonEmpty &&
         alias.collectFirst {

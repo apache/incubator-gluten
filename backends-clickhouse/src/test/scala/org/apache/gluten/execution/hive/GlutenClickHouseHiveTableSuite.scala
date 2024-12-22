@@ -1447,7 +1447,7 @@ class GlutenClickHouseHiveTableSuite
 
     spark.sql(createTableSql)
     spark.sql(insertDataSql)
-    runQueryAndCompare(selectSql)(df => checkOperatorCount[ProjectExecTransformer](3)(df))
+    runQueryAndCompare(selectSql)(df => checkOperatorCount[ProjectExecTransformer](4)(df))
     spark.sql("DROP TABLE test_tbl_7054")
   }
 
