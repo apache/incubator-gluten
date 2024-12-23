@@ -155,18 +155,12 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
       format match {
         case ParquetReadFormat =>
-          val typeValidator: PartialFunction[StructField, String] = {
-            // Parquet timestamp is not fully supported yet
-            case StructField(_, TimestampType, _, _)
-                if GlutenConfig.get.forceParquetTimestampTypeScanFallbackEnabled =>
-              "TimestampType(force fallback)"
-          }
           val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
           if (parquetOptions.mergeSchema) {
             // https://github.com/apache/incubator-gluten/issues/7174
             Some(s"not support when merge schema is true")
           } else {
-            validateTypes(typeValidator)
+            None
           }
         case DwrfReadFormat => None
         case OrcReadFormat =>
