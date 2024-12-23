@@ -53,6 +53,15 @@ class ComponentSuite extends AnyFunSuite with BeforeAndAfterAll {
       new DummyBackendA().ensureRegistered()
     }
   }
+
+  test("Exclusions") {
+    Component.excludeByNames(Set("dummy-component-c")) // This should exclude C.
+    assert(Set(Seq(a, b, d, e), Seq(b, a, d, e)).contains(Component.sorted()))
+    Component.excludeByNames(Set("dummy-backend-b")) // This should exclude B, D, E.
+    assert(Component.sorted() == Seq(a))
+    Component.excludeByNames(Set("dummy-backend-a")) // This should exclude A.
+    assert(Component.sorted().isEmpty)
+  }
 }
 
 object ComponentSuite {

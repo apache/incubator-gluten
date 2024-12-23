@@ -41,6 +41,15 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
 
+  def componentExclusion: Set[String] = {
+    conf
+      .getConf(GLUTEN_COMPONENT_EXCLUSION)
+      .toLowerCase(Locale.ROOT)
+      .split(",")
+      .map(_.trim)
+      .toSet
+  }
+
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = conf.getConf(NATIVE_VALIDATION_ENABLED)
 
@@ -863,6 +872,17 @@ object GlutenConfig {
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(GLUTEN_ENABLED_BY_DEFAULT)
+
+  val GLUTEN_COMPONENT_EXCLUSION =
+    buildStaticConf("spark.gluten.component.exclusion")
+      .internal()
+      .doc(
+        "A comma-separated list of the excluded Gluten components during loading. This can " +
+          "be used to disable features completely at runtime. E.g., set to \"velox-iceberg\" " +
+          "to disable Velox Iceberg support. Set to \"velox,velox-iceberg\" to disable " +
+          "Velox backend and Velox Iceberg support at the same time.")
+      .stringConf
+      .createWithDefault("")
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
