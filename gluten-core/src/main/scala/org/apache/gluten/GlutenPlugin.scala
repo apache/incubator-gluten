@@ -55,8 +55,8 @@ private object GlutenPlugin {
   private def getExcludedComponents(conf: SparkConf) = {
     conf
       .get(
-        GlutenConfig.GLUTEN_COMPONENT_EXCLUSION.key,
-        GlutenConfig.GLUTEN_COMPONENT_EXCLUSION.defaultValueString)
+        GlutenConfig.GLUTEN_COMPONENT_EXCLUSIONS.key,
+        GlutenConfig.GLUTEN_COMPONENT_EXCLUSIONS.defaultValueString)
       .toLowerCase(Locale.ROOT)
       .split(",")
       .map(_.trim)

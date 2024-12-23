@@ -104,7 +104,7 @@ object Component {
     require(
       out.nonEmpty,
       s"No available components found in classpath! Check whether you have excluded all the " +
-        s"components with option ${GlutenConfig.GLUTEN_COMPONENT_EXCLUSION.key}."
+        s"components with option ${GlutenConfig.GLUTEN_COMPONENT_EXCLUSIONS.key}."
     )
     out
   }

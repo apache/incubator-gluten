@@ -41,9 +41,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
 
-  def componentExclusion: Set[String] = {
+  def componentExclusions: Set[String] = {
     conf
-      .getConf(GLUTEN_COMPONENT_EXCLUSION)
+      .getConf(GLUTEN_COMPONENT_EXCLUSIONS)
       .toLowerCase(Locale.ROOT)
       .split(",")
       .map(_.trim)
@@ -873,8 +873,8 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(GLUTEN_ENABLED_BY_DEFAULT)
 
-  val GLUTEN_COMPONENT_EXCLUSION =
-    buildStaticConf("spark.gluten.component.exclusion")
+  val GLUTEN_COMPONENT_EXCLUSIONS =
+    buildStaticConf("spark.gluten.component.exclusions")
       .internal()
       .doc(
         "A comma-separated list of the excluded Gluten components during loading. This can " +
