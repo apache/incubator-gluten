@@ -123,9 +123,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def forceOrcCharTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
 
-  def forceParquetTimestampTypeScanFallbackEnabled: Boolean =
-    conf.getConf(VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK)
-
   def scanFileSchemeValidationEnabled: Boolean =
     conf.getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
 
@@ -2163,13 +2160,6 @@ object GlutenConfig {
       .doc("Force fallback for orc char type scan.")
       .booleanConf
       .createWithDefault(true)
-
-  val VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK =
-    buildConf("spark.gluten.sql.parquet.timestampType.scan.fallback.enabled")
-      .internal()
-      .doc("Force fallback for parquet timestamp type scan.")
-      .booleanConf
-      .createWithDefault(false)
 
   val VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED =
     buildConf("spark.gluten.sql.scan.fileSchemeValidation.enabled")
