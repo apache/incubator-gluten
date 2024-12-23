@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.component
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.columnar.transition.ConventionFunc
 import org.apache.gluten.extension.injector.Injector
 
@@ -99,7 +100,13 @@ object Component {
   // format: on
   def sorted(): Seq[Component] = {
     ensureAllComponentsRegistered()
-    graph.sorted()
+    val out = graph.sorted()
+    require(
+      out.nonEmpty,
+      s"No available components found in classpath! Check whether you have excluded all the " +
+        s"components with option ${GlutenConfig.GLUTEN_COMPONENT_EXCLUSION.key}."
+    )
+    out
   }
 
   /** Add a set of component names to disable from sorting. */
