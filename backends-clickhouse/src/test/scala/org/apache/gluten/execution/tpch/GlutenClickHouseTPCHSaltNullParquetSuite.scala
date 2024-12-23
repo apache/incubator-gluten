@@ -1455,7 +1455,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       """
         |select reverse(split(n_comment, ' ')), reverse(n_comment),
         |concat(split(n_comment, ' ')), concat(n_comment), concat(n_comment, n_name),
-        |concat(split(n_comment, ' '), split(n_name, ' '))
+        |concat(split(n_comment, ' '), split(n_name, ' ')), concat(array()), concat(array(n_name))
         |from nation
         |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
