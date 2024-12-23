@@ -23,11 +23,15 @@ import org.apache.gluten.memory.memtarget.*;
 
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.task.TaskResources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Map;
 
 public final class ReservationListeners {
+  private static final Logger LOG = LoggerFactory.getLogger(ReservationListeners.class);
+
   public static final ReservationListener NOOP =
       new ManagedReservationListener(
           new NoopMemoryTarget(), new SimpleMemoryUsageRecorder(), new Object());
@@ -45,6 +49,12 @@ public final class ReservationListeners {
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
     // Memory target.
     final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
+    if (overAcquiredRatio > 0) {
+      LOG.warn(
+          "Deprecated config option "
+              + GlutenConfig.COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO().key()
+              + " is used.");
+    }
     final long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
     final TreeMemoryTarget consumer =
