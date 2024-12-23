@@ -74,19 +74,15 @@ class RewriteGetJsonObjectExpressionRule(spark: SparkSession) extends Rule[Logic
         val gPath = getPath(g.path).replace("$", "")
         val newPath = gPath + path
         optimizeNestedFunctionCalls(g.json, newPath, isNested = true)
-      case a: Alias =>
-        val newChild = optimizeNestedFunctionCalls(a.child)
-        Alias(newChild, a.name)(a.exprId)
-      case _: LeafExpression =>
-        if (isNested) {
-          val pathExpr = Literal.apply("$" + path)
-          GetJsonObject(expr, pathExpr)
-        } else {
-          expr
-        }
       case _ =>
         val newChildren = expr.children.map(x => optimizeNestedFunctionCalls(x, path))
-        expr.withNewChildren(newChildren)
+        val newExpr = expr.withNewChildren(newChildren)
+        if (isNested) {
+          val pathExpr = Literal.apply("$" + path)
+          GetJsonObject(newExpr, pathExpr)
+        } else {
+          newExpr
+        }
     }
   }
 }
