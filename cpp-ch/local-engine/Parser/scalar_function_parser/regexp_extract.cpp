@@ -17,6 +17,8 @@
 
 #include <stack>
 
+#include <DataTypes/DataTypeString.h>
+#include <IO/ReadBufferFromString.h>
 #include <Parser/FunctionParser.h>
 
 namespace DB

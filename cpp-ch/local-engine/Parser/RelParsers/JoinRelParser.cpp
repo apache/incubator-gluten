@@ -19,8 +19,6 @@
 #include <Core/Block.h>
 #include <Core/Settings.h>
 #include <Functions/FunctionFactory.h>
-#include <IO/ReadBufferFromString.h>
-#include <IO/ReadHelpers.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/FullSortingMergeJoin.h>
 #include <Interpreters/GraceHashJoin.h>

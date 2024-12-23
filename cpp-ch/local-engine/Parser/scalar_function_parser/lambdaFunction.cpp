@@ -78,7 +78,7 @@ public:
         DB::NamesAndTypesList parent_header;
         for (const auto * output_node : actions_dag.getOutputs())
             parent_header.emplace_back(output_node->result_name, output_node->result_type);
-        ActionsDAG lambda_actions_dag{parent_header};
+        DB::ActionsDAG lambda_actions_dag{parent_header};
 
         /// The first argument is the lambda function body, followings are the lambda arguments which is
         /// needed by the lambda function body.
@@ -90,7 +90,7 @@ public:
         const auto & substrait_lambda_body = substrait_func.arguments()[0].value();
         const auto * lambda_body_node = parseExpression(lambda_actions_dag, substrait_lambda_body);
         lambda_actions_dag.getOutputs().push_back(lambda_body_node);
-        lambda_actions_dag.removeUnusedActions(Names(1, lambda_body_node->result_name));
+        lambda_actions_dag.removeUnusedActions(DB::Names(1, lambda_body_node->result_name));
 
         DB::Names captured_column_names;
         DB::Names required_column_names = lambda_actions_dag.getRequiredColumnsNames();

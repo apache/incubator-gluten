@@ -32,7 +32,7 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
+using namespace DB;
 class FunctionParserConcat : public FunctionParser
 {
 public:

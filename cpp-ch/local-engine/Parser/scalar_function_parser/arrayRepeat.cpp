@@ -32,6 +32,7 @@ extern const int SIZES_OF_COLUMNS_DOESNT_MATCH;
 
 namespace local_engine
 {
+using namespace DB;
 class FunctionParserArrayRepeat : public FunctionParser
 {
 public:

@@ -35,6 +35,8 @@ namespace DB::ErrorCodes
 
 namespace local_engine
 {
+using namespace DB;
+
 class FunctionParserArrayFilter : public FunctionParser
 {
 public:

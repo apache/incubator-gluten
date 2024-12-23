@@ -316,8 +316,8 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
     for (const auto & block : blocks)
         num_rows += block.rows();
 
-    Block out = blocks[0].cloneEmpty();
-    MutableColumns columns = out.mutateColumns();
+    DB::Block out = blocks[0].cloneEmpty();
+    DB::MutableColumns columns = out.mutateColumns();
 
     for (size_t i = 0; i < columns.size(); ++i)
     {
@@ -338,7 +338,7 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
 size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
 {
     /// According to definition of DEFUALT_BLOCK_SIZE
-    size_t padding_n = 2 * PADDING_FOR_SIMD - 1;
+    size_t padding_n = 2 * DB::PADDING_FOR_SIMD - 1;
     size_t rounded_n = roundUpToPowerOfTwoOrZero(n);
     size_t padded_n = n;
     if (rounded_n > n + n / 2)
@@ -381,19 +381,19 @@ void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
         const DB::WhichDataType which(ch_type_without_nullable);
         if (which.isDateTime64())
         {
-            const auto * ch_type_datetime64 = checkAndGetDataType<DataTypeDateTime64>(ch_type_without_nullable.get());
+            const auto * ch_type_datetime64 = checkAndGetDataType<DB::DataTypeDateTime64>(ch_type_without_nullable.get());
             if (ch_type_datetime64->getScale() != 6)
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
         }
         else if (which.isDecimal())
         {
             if (which.isDecimal256())
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
 
             const auto scale = getDecimalScale(*ch_type_without_nullable);
             const auto precision = getDecimalPrecision(*ch_type_without_nullable);
             if (scale == 0 && precision == 0)
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
         }
     }
 }
@@ -402,8 +402,7 @@ DB::IQueryPlanStep * PlanUtil::adjustQueryPlanHeader(DB::QueryPlan & plan, const
 {
     auto convert_actions_dag = DB::ActionsDAG::makeConvertingActions(
         plan.getCurrentHeader().getColumnsWithTypeAndName(),
-        to_header.getColumnsWithTypeAndName(),
-        ActionsDAG::MatchColumnsMode::Name);
+        to_header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Name);
     auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(convert_actions_dag));
     expression_step->setStepDescription(step_desc);
     auto * step_ptr = expression_step.get();
@@ -504,9 +503,9 @@ const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     DB::ActionsDAG & actions_dag,
     const DB::ActionsDAG::Node * node,
-    const DataTypePtr & cast_to_type,
+    const DB::DataTypePtr & cast_to_type,
     const std::string & result_name,
-    CastType cast_type)
+    DB::CastType cast_type)
 {
     DB::ColumnWithTypeAndName type_name_col;
     type_name_col.name = cast_to_type->getName();
@@ -515,7 +514,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     const auto * right_arg = &actions_dag.addColumn(std::move(type_name_col));
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
-    ColumnWithTypeAndName left_column{nullptr, node->result_type, {}};
+    DB::ColumnWithTypeAndName left_column{nullptr, node->result_type, {}};
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
     auto func_base_cast = createInternalCast(std::move(left_column), cast_to_type, cast_type, diagnostic);
 
@@ -527,7 +526,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeTypeIfNeeded(
     const DB::ActionsDAG::Node * node,
     const DB::DataTypePtr & dst_type,
     const std::string & result_name,
-    CastType cast_type)
+    DB::CastType cast_type)
 {
     if (node->result_type->equals(*dst_type))
         return node;

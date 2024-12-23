@@ -43,6 +43,7 @@ extern const int LOGICAL_ERROR;
 }
 namespace local_engine
 {
+using namespace DB;
 PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num, bool use_external_sort_shuffle)
 {
     if (use_external_sort_shuffle)
