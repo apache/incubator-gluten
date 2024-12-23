@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated.planner.plan
 
 import org.apache.gluten.execution.GlutenPlan
-import org.apache.gluten.extension.columnar.enumerated.planner.metadata.GlutenMetadata
+import org.apache.gluten.extension.columnar.enumerated.planner.metadata.{GlutenMetadata, LogicalLink}
 import org.apache.gluten.extension.columnar.enumerated.planner.property.{Conv, ConvDef}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.ras.{Metadata, PlanModel}
@@ -56,7 +56,9 @@ object GlutenPlanModel {
 
     // Set the logical link then make the plan node immutable. All future
     // mutable operations related to tagging will be aborted.
-    setLogicalLink(metadata.logicalLink().plan)
+    if (metadata.logicalLink() != LogicalLink.notFound) {
+      setLogicalLink(metadata.logicalLink().plan)
+    }
     frozen.set(true)
 
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
