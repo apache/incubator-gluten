@@ -48,9 +48,7 @@ import java.io.{Externalizable, ObjectInput, ObjectOutput}
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 /**
- * UnsafeColumnarBuildSideRelation should backed by offheap to avoid on-heap oom. Almost the same as
- * ColumnarBuildSideRelation, we should remove ColumnarBuildSideRelation when
- * UnsafeColumnarBuildSideRelation get matured.
+ * UnsafeColumnarBuildSideRelation should backed by offheap to avoid on-heap oom.
  *
  * @param output
  * @param batches
@@ -83,8 +81,6 @@ case class UnsafeColumnarBuildSideRelation(
     )
     val batchesSize = bytesBufferArray.length
     for (i <- 0 until batchesSize) {
-      val length = bytesBufferArray(i).length
-      log.debug(s"this $i--- $length")
       batches.putBytesBuffer(i, bytesBufferArray(i))
     }
   }
@@ -99,7 +95,6 @@ case class UnsafeColumnarBuildSideRelation(
     for (i <- 0 until batches.arraySize) {
       val bytes = batches.getBytesBuffer(i)
       out.write(bytes)
-      log.debug(s"writeExternal index $i with length ${bytes.length}")
     }
   }
 
@@ -113,7 +108,6 @@ case class UnsafeColumnarBuildSideRelation(
     for (i <- 0 until batches.arraySize) {
       val bytes = batches.getBytesBuffer(i)
       out.write(bytes)
-      log.debug(s"write index $i with length ${bytes.length}")
     }
   }
 
@@ -145,7 +139,6 @@ case class UnsafeColumnarBuildSideRelation(
 
     for (i <- 0 until totalArraySize) {
       val length = bytesBufferLengths(i)
-      log.debug(s"readExternal $i--- ${bytesBufferLengths(i)}")
       val tmpBuffer = new Array[Byte](length)
       in.read(tmpBuffer)
       batches.putBytesBuffer(i, tmpBuffer)
@@ -172,7 +165,6 @@ case class UnsafeColumnarBuildSideRelation(
 
     for (i <- 0 until totalArraySize) {
       val length = bytesBufferLengths(i)
-      log.debug(s"readExternal $i--- $length")
       val tmpBuffer = new Array[Byte](length)
       in.read(tmpBuffer)
       batches.putBytesBuffer(i, tmpBuffer)
@@ -311,7 +303,7 @@ case class UnsafeColumnarBuildSideRelation(
                 }
                 val (offset, length) =
                   (info.offsets(rowId - baseLength), info.lengths(rowId - baseLength))
-                row.pointTo(null, info.memoryAddress + offset, length.toInt)
+                row.pointTo(null, info.memoryAddress + offset, length)
                 rowId += 1
                 row
               }

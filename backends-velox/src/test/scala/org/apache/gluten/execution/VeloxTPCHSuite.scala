@@ -307,7 +307,7 @@ class VeloxTPCHV1BhjSuite extends VeloxTPCHSuite {
 
 /** BroadcastBuildSideRelation use onheap. */
 class VeloxTPCHV1BhjOnheapSuite extends VeloxTPCHSuite {
-  override def subType(): String = "v1-bhj-offheap"
+  override def subType(): String = "v1-bhj-onheap"
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf

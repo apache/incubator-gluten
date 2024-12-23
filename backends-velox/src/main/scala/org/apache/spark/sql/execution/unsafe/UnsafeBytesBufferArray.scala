@@ -44,8 +44,11 @@ case class UnsafeBytesBufferArray(
   with Logging {
 
   {
-    assert(arraySize == bytesBufferLengths.length)
-    assert(totalBytes >= 0)
+    assert(
+      arraySize == bytesBufferLengths.length,
+      "Unsafe buffer array size " +
+        "not equal to buffer lengths!")
+    assert(totalBytes >= 0, "Unsafe buffer array total bytes can't be negative!")
   }
 
   /**
