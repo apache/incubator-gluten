@@ -220,6 +220,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       case "OrcScan" => ReadFileFormat.OrcReadFormat
       case "ParquetScan" => ReadFileFormat.ParquetReadFormat
       case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
+      case "KafkaScan" => ReadFileFormat.KafkaReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
   }
