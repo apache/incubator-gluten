@@ -73,6 +73,10 @@ case class MicroBatchScanExecTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenStreamKafkaSourceUtil.getFileFormat(scan)
 
+  protected[this] def supportsBatchScan(scan: Scan): Boolean = {
+    MicroBatchScanExecTransformer.supportsBatchScan(scan)
+  }
+
   override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
     val groupedPartitions = filteredPartitions.flatten
     groupedPartitions.zipWithIndex.map {
@@ -104,5 +108,9 @@ object MicroBatchScanExecTransformer {
       throw new UnsupportedOperationException(
         s"Unsupported DataSourceV2ScanExecBase: ${batch.output.getClass.getName}")
     }
+  }
+
+  def supportsBatchScan(scan: Scan): Boolean = {
+    scan.getClass.getName == "org.apache.spark.sql.kafka010.KafkaSourceProvider$KafkaScan"
   }
 }
