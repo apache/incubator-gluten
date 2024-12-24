@@ -1200,6 +1200,22 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerialize
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_deserializeDirect( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong serializerHandle,
+    jlong address,
+    jint size) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+
+  auto serializer = ObjectStore::retrieve<ColumnarBatchSerializer>(serializerHandle);
+  GLUTEN_DCHECK(serializer != nullptr, "ColumnarBatchSerializer cannot be null");
+  auto batch = serializer->deserialize((uint8_t*)address, size);
+  return ctx->saveObject(batch);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_close( // NOLINT
     JNIEnv* env,
     jobject wrapper,

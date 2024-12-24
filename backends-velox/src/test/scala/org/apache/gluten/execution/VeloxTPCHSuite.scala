@@ -305,6 +305,18 @@ class VeloxTPCHV1BhjSuite extends VeloxTPCHSuite {
   }
 }
 
+/** BroadcastBuildSideRelation use onheap. */
+class VeloxTPCHV1BhjOnheapSuite extends VeloxTPCHSuite {
+  override def subType(): String = "v1-bhj-onheap"
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+      .set(GlutenConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key, "false")
+  }
+}
+
 class VeloxTPCHV2Suite extends VeloxTPCHSuite {
   override def subType(): String = "v2"
 
