@@ -16,14 +16,14 @@
  */
 package org.apache.gluten.execution.kafka
 
-import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
-
-class ClickhouseGlutenKafkaScanSuite
-  extends GlutenClickHouseWholeStageTransformerSuite
-  with GlutenKafkaScanSuite {
-
-  override protected val fileFormat: String = "parquet"
-
-  protected val kafkaBootstrapServers: String = "localhost:9092"
-
-}
+// TODO: need add profile kafka
+// import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
+//
+// class ClickhouseGlutenKafkaScanSuite
+//  extends GlutenClickHouseWholeStageTransformerSuite
+//  with GlutenKafkaScanSuite {
+//
+//  override protected val fileFormat: String = "parquet"
+//
+//  protected val kafkaBootstrapServers: String = "localhost:9092"
+// }
