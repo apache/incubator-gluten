@@ -34,7 +34,7 @@ class BroadcastFactoryUnsafeAccessSuite extends SharedSparkSession {
     BroadcastFactoryUnsafeAccess.get().stop()
     val factory = new DummyBroadcastFactory()
     assert(!factory.initialized)
-    BroadcastFactoryUnsafeAccess.inject(factory)
+    BroadcastFactoryUnsafeAccess.set(factory)
     assert(BroadcastFactoryUnsafeAccess.get() eq factory)
     assert(factory.initialized)
     val text: String = "DUMMY"

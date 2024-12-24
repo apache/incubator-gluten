@@ -45,7 +45,7 @@ object BroadcastFactoryUnsafeAccess {
     }
   }
 
-  def inject(factory: BroadcastFactory): Unit = {
+  def set(factory: BroadcastFactory): Unit = {
     require(SparkEnv.get != null, "No SparkEnv instance founded")
     val bm = SparkEnv.get.broadcastManager
     bm.synchronized {
