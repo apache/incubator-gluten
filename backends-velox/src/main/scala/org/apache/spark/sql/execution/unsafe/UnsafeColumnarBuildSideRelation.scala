@@ -81,6 +81,7 @@ case class UnsafeColumnarBuildSideRelation(
     )
     val batchesSize = bytesBufferArray.length
     for (i <- 0 until batchesSize) {
+      log.warn(s"this $i--- ${bytesBufferArray(i).length}")
       batches.putBytesBuffer(i, bytesBufferArray(i))
     }
   }
@@ -94,6 +95,7 @@ case class UnsafeColumnarBuildSideRelation(
     out.writeLong(batches.totalBytes)
     for (i <- 0 until batches.arraySize) {
       val bytes = batches.getBytesBuffer(i)
+      log.warn(s"writeExternal index $i with length ${bytes.length}")
       out.write(bytes)
     }
   }
@@ -107,6 +109,7 @@ case class UnsafeColumnarBuildSideRelation(
     out.writeLong(batches.totalBytes)
     for (i <- 0 until batches.arraySize) {
       val bytes = batches.getBytesBuffer(i)
+      log.warn(s"writeExternal index $i with length ${bytes.length}")
       out.write(bytes)
     }
   }
@@ -141,6 +144,7 @@ case class UnsafeColumnarBuildSideRelation(
       val length = bytesBufferLengths(i)
       val tmpBuffer = new Array[Byte](length)
       in.read(tmpBuffer)
+      log.warn(s"readExternal $i--- $length")
       batches.putBytesBuffer(i, tmpBuffer)
     }
   }
@@ -167,6 +171,7 @@ case class UnsafeColumnarBuildSideRelation(
       val length = bytesBufferLengths(i)
       val tmpBuffer = new Array[Byte](length)
       in.read(tmpBuffer)
+      log.warn(s"readExternal $i--- $length")
       batches.putBytesBuffer(i, tmpBuffer)
     }
   }

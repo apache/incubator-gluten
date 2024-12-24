@@ -76,15 +76,13 @@ case class UnsafeBytesBufferArray(
     assert(bytesBuffer.length == bytesBufferLengths(index))
     // first to allocate underlying long array
     if (null == longArray && index == 0) {
-      log.debug(s"allocate array $totalBytes, actual longArray size ${(totalBytes + 7) / 8}")
+      log.warn(s"allocate array $totalBytes, actual longArray size ${(totalBytes + 7) / 8}")
       longArray = allocateArray((totalBytes + 7) / 8)
     }
-    if (log.isDebugEnabled) {
-      log.debug(s"put bytesBuffer at index $index bytesBuffer's length is ${bytesBuffer.length}")
-      log.debug(
-        s"bytesBuffer at index $index " +
-          s"digest ${calculateMD5(bytesBuffer).mkString("Array(", ", ", ")")}")
-    }
+    log.warn(s"put bytesBuffer at index $index bytesBuffer's length is ${bytesBuffer.length}")
+    log.warn(
+      s"bytesBuffer at index $index " +
+        s"digest ${calculateMD5(bytesBuffer).mkString("Array(", ", ", ")")}")
     Platform.copyMemory(
       bytesBuffer,
       Platform.BYTE_ARRAY_OFFSET,
@@ -104,18 +102,16 @@ case class UnsafeBytesBufferArray(
       return new Array[Byte](0)
     }
     val bytes = new Array[Byte](bytesBufferLengths(index))
-    log.debug(s"get bytesBuffer at index $index bytesBuffer length ${bytes.length}")
+    log.warn(s"get bytesBuffer at index $index bytesBuffer length ${bytes.length}")
     Platform.copyMemory(
       longArray.getBaseObject,
       longArray.getBaseOffset + bytesBufferOffset(index),
       bytes,
       Platform.BYTE_ARRAY_OFFSET,
       bytesBufferLengths(index))
-    if (log.isDebugEnabled) {
-      log.debug(
-        s"get bytesBuffer at index $index " +
-          s"digest ${calculateMD5(bytes).mkString("Array(", ", ", ")")}")
-    }
+    log.warn(
+      s"get bytesBuffer at index $index " +
+        s"digest ${calculateMD5(bytes).mkString("Array(", ", ", ")")}")
     bytes
   }
 
@@ -141,7 +137,7 @@ case class UnsafeBytesBufferArray(
   override def finalize(): Unit = {
     try {
       if (longArray != null) {
-        log.debug(s"BytesArrayInOffheap finalize $arraySize")
+        log.warn(s"BytesArrayInOffheap finalize $arraySize")
         freeArray(longArray)
         longArray = null
       }
