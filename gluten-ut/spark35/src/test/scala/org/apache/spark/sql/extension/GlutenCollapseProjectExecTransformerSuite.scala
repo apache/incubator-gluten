@@ -108,12 +108,41 @@ class GlutenCollapseProjectExecTransformerSuite extends GlutenSQLTestsTrait {
             )
             assert(
               getExecutedPlan(df).exists {
-                case _ @ProjectExecTransformer(_, _: ProjectExecTransformer) => true
+                case ProjectExecTransformer(_, _: ProjectExecTransformer) => true
                 case _ => false
               } == !collapsed
             )
           }
       }
+    }
+  }
+
+  testGluten("GLUTEN-8183 - Not collapse pre-project for duplicated expression evaluation") {
+    val query =
+      """
+        |SELECT
+        |  max(n1),
+        |  max(n2),
+        |  sum(IF(n1 + n2 + n3 % 2 = 0, 1, 0))
+        |FROM
+        |  (
+        |    SELECT
+        |      id + 1 AS n1,
+        |      id + 2 AS n2,
+        |      IF(id % 2 = 0, id + 3, id + 4) AS n3
+        |    FROM
+        |      RANGE(10)
+        |  )
+        |""".stripMargin
+
+    withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+      val df = sql(query)
+      assert(
+        getExecutedPlan(df).exists {
+          case ProjectExecTransformer(_, _: ProjectExecTransformer) => true
+          case _ => false
+        }
+      )
     }
   }
 }

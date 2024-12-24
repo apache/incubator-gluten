@@ -19,12 +19,12 @@ package org.apache.gluten.extension.columnar
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, CreateNamedStruct, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AliasHelper, Attribute, CreateNamedStruct, NamedExpression}
 import org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
-object CollapseProjectExecTransformer extends Rule[SparkPlan] {
+object CollapseProjectExecTransformer extends Rule[SparkPlan] with AliasHelper {
 
   override def apply(plan: SparkPlan): SparkPlan = {
     if (!GlutenConfig.getConf.enableColumnarProjectCollapse) {
@@ -32,7 +32,8 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] {
     }
     plan.transformUp {
       case p1 @ ProjectExecTransformer(_, p2: ProjectExecTransformer)
-          if !containsNamedStructAlias(p2.projectList)
+          if canCollapsePreProject(p1, p2)
+            && !containsNamedStructAlias(p2.projectList)
             && CollapseProjectShim.canCollapseExpressions(
               p1.projectList,
               p2.projectList,
@@ -56,7 +57,26 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] {
    */
   private def containsNamedStructAlias(projectList: Seq[NamedExpression]): Boolean = {
     projectList.exists {
-      case _ @Alias(_: CreateNamedStruct, _) => true
+      case Alias(_: CreateNamedStruct, _) => true
+      case _ => false
+    }
+  }
+
+  /**
+   * We should not collapse the upper project with its child project, if the Alias(Expression) in
+   * upper project contains other computed results of Expressions in child project. This would lead
+   * to the Expression being computed multiple times.
+   */
+  private def canCollapsePreProject(
+      upper: ProjectExecTransformer,
+      lower: ProjectExecTransformer): Boolean = {
+    !upper.projectList.exists {
+      case alias: Alias =>
+        val aliases = getAliasMap(lower.projectList)
+        aliases.nonEmpty &&
+        alias.collectFirst {
+          case a: Attribute => aliases.get(a).exists(!_.child.isInstanceOf[Attribute])
+        }.isDefined
       case _ => false
     }
   }
