@@ -419,12 +419,11 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
             }
 
             DB::DataTypePtr elem_type;
-            std::tie(elem_type, std::ignore) = LiteralParser::parse(options[0].literal());
-            elem_type = wrapNullableType(nullable, elem_type);
-
-            DB::MutableColumnPtr elem_column = elem_type->createColumn();
-            elem_column->reserve(options_len);
-            for (int i = 0; i < options_len; ++i)
+            std::vector<std::pair<DB::DataTypePtr, DB::Field>> options_type_and_field;
+            auto first_option = LiteralParser::parse(options[0].literal());
+            elem_type = wrapNullableType(nullable, first_option.first);
+            options_type_and_field.emplace_back(std::move(first_option));
+            for (int i = 1; i < options_len; ++i)
             {
                 auto type_and_field = LiteralParser::parse(options[i].literal());
                 auto option_type = wrapNullableType(nullable, type_and_field.first);
@@ -434,8 +433,23 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
                         "SingularOrList options type mismatch:{} and {}",
                         elem_type->getName(),
                         option_type->getName());
+                options_type_and_field.emplace_back(std::move(type_and_field));
+            }
 
-                elem_column->insert(type_and_field.second);
+            // check tuple internal types
+            if (isTuple(elem_type) && isTuple(args[0]->result_type))
+            {
+                // Spark guarantees that the types of tuples in the 'in' filter are completely consistent.
+                // See org.apache.spark.sql.types.DataType#equalsStructurally
+                // Additionally, the mapping from Spark types to ClickHouse types is one-to-one, See TypeParser.cpp
+                // So we can directly use the first tuple type as the type of the tuple to avoid nullable mismatch
+                elem_type = args[0]->result_type;
+            }
+            DB::MutableColumnPtr elem_column = elem_type->createColumn();
+            elem_column->reserve(options_len);
+            for (int i = 0; i < options_len; ++i)
+            {
+                elem_column->insert(options_type_and_field[i].second);
             }
             auto name = getUniqueName("__set");
             ColumnWithTypeAndName elem_block{std::move(elem_column), elem_type, name};
