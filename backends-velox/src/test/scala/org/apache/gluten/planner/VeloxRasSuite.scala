@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.planner
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
 import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
 import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LegacyCoster, LongCostModel}

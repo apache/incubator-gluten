@@ -17,10 +17,10 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenBuildInfo._
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.component.Component.BuildInfo
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
@@ -107,9 +107,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       val filteredRootPaths = distinctRootPaths(rootPaths)
       if (filteredRootPaths.nonEmpty) {
         val resolvedPaths =
-          if (
-            GlutenConfig.getConf.enableHdfsViewfs && filteredRootPaths.head.startsWith("viewfs")
-          ) {
+          if (GlutenConfig.get.enableHdfsViewfs && filteredRootPaths.head.startsWith("viewfs")) {
             // Convert the viewfs path to hdfs path.
             filteredRootPaths.map {
               viewfsPath =>
@@ -149,7 +147,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
       def isCharType(stringType: StringType, metadata: Metadata): Boolean = {
         val charTypePattern = "char\\((\\d+)\\)".r
-        GlutenConfig.getConf.forceOrcCharTypeScanFallbackEnabled && charTypePattern
+        GlutenConfig.get.forceOrcCharTypeScanFallbackEnabled && charTypePattern
           .findFirstIn(
             CharVarcharUtils
               .getRawTypeString(metadata)
@@ -162,7 +160,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
           val typeValidator: PartialFunction[StructField, String] = {
             // Parquet timestamp is not fully supported yet
             case StructField(_, TimestampType, _, _)
-                if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
+                if GlutenConfig.get.forceParquetTimestampTypeScanFallbackEnabled =>
               "TimestampType(force fallback)"
           }
           val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
@@ -174,7 +172,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
           }
         case DwrfReadFormat => None
         case OrcReadFormat =>
-          if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
+          if (!GlutenConfig.get.veloxOrcScanEnabled) {
             Some(s"Velox ORC scan is turned off, ${GlutenConfig.VELOX_ORC_SCAN_ENABLED.key}")
           } else {
             val typeValidator: PartialFunction[StructField, String] = {
@@ -319,7 +317,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     def validateFileFormat(): Option[String] = {
       format match {
         case _: ParquetFileFormat => None // Parquet is directly supported
-        case h: HiveFileFormat if GlutenConfig.getConf.enableHiveFileFormatWriter =>
+        case h: HiveFileFormat if GlutenConfig.get.enableHiveFileFormatWriter =>
           validateHiveFileFormat(h) // Parquet via Hive SerDe
         case _ =>
           Some(
@@ -379,7 +377,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def supportSortExec(): Boolean = true
 
   override def supportSortMergeJoinExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarSortMergeJoin
+    GlutenConfig.get.enableColumnarSortMergeJoin
   }
 
   override def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
@@ -460,9 +458,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarShuffle && (GlutenConfig.getConf.isUseColumnarShuffleManager
-      || GlutenConfig.getConf.isUseCelebornShuffleManager
-      || GlutenConfig.getConf.isUseUniffleShuffleManager)
+    GlutenConfig.get.enableColumnarShuffle && (GlutenConfig.get.isUseColumnarShuffleManager
+      || GlutenConfig.get.isUseCelebornShuffleManager
+      || GlutenConfig.get.isUseUniffleShuffleManager)
   }
 
   override def enableJoinKeysRewrite(): Boolean = false
@@ -515,7 +513,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def alwaysFailOnMapExpression(): Boolean = true
 
   override def requiredChildOrderingForWindow(): Boolean = {
-    GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")
+    GlutenConfig.get.veloxColumnarWindowType.equals("streaming")
   }
 
   override def requiredChildOrderingForWindowGroupLimit(): Boolean = false
@@ -525,13 +523,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def allowDecimalArithmetic: Boolean = true
 
   override def enableNativeWriteFiles(): Boolean = {
-    GlutenConfig.getConf.enableNativeWriter.getOrElse(
+    GlutenConfig.get.enableNativeWriter.getOrElse(
       SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
     )
   }
 
   override def enableNativeArrowReadFiles(): Boolean = {
-    GlutenConfig.getConf.enableNativeArrowReader
+    GlutenConfig.get.enableNativeArrowReader
   }
 
   override def shouldRewriteCount(): Boolean = {

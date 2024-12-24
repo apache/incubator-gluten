@@ -16,7 +16,7 @@
  */
 package org.apache.spark.rpc
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging

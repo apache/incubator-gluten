@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution.tpch
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.execution.GlutenPlan
 

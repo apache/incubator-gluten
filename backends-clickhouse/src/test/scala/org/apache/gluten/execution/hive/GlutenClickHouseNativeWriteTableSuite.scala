@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution.hive
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
 import org.apache.gluten.test.AllDataTypesWithComplexType.genTestData
 import org.apache.gluten.utils.UTSystemParameters

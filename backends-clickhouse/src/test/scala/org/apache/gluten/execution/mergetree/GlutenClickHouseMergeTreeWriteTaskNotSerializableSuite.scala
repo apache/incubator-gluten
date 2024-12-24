@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 
 import org.apache.spark.SparkConf

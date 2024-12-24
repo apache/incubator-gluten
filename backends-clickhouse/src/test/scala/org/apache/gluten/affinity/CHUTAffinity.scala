@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.affinity
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.softaffinity.AffinityManager
 
 import org.apache.spark.affinity.MixedAffinity

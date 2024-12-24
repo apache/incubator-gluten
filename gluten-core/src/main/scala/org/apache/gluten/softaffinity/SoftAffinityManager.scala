@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.softaffinity
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.hash.ConsistentHash
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.softaffinity.strategy.{ConsistentHashSoftAffinityStrategy, ExecutorNode}
@@ -116,7 +116,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
         totalRegisteredExecutors.addAndGet(1)
       }
       logOnLevel(
-        GlutenConfig.getConf.softAffinityLogLevel,
+        GlutenConfig.get.softAffinityLogLevel,
         s"After adding executor ${execHostId._1} on host ${execHostId._2}, " +
           s"idForExecutors is ${idForExecutors.mkString(",")}, " +
           s"sortedIdForExecutors is ${sortedIdForExecutors.mkString(",")}, " +
@@ -149,7 +149,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
         totalRegisteredExecutors.addAndGet(-1)
       }
       logOnLevel(
-        GlutenConfig.getConf.softAffinityLogLevel,
+        GlutenConfig.get.softAffinityLogLevel,
         s"After removing executor $execId, " +
           s"idForExecutors is ${idForExecutors.mkString(",")}, " +
           s"sortedIdForExecutors is ${sortedIdForExecutors.mkString(",")}, " +
@@ -196,7 +196,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
                   (originalValues ++ value)
                 }
                 logOnLevel(
-                  GlutenConfig.getConf.softAffinityLogLevel,
+                  GlutenConfig.get.softAffinityLogLevel,
                   s"update host for $key: ${values.mkString(",")}")
                 duplicateReadingInfos.put(key, values)
               }
@@ -279,7 +279,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
     if (!hosts.isEmpty) {
       rand.shuffle(hosts)
       logOnLevel(
-        GlutenConfig.getConf.softAffinityLogLevel,
+        GlutenConfig.get.softAffinityLogLevel,
         s"get host for $f: ${hosts.distinct.mkString(",")}")
     }
     hosts.distinct.toSeq

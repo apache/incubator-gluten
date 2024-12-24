@@ -16,14 +16,14 @@
  */
 package org.apache.spark.sql
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{ProjectExecTransformer, TransformSupport, WholeStageTransformerSuite}
 import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{BinaryArrayExpressionWithImplicitCast, _}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.LeafExecNode
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._

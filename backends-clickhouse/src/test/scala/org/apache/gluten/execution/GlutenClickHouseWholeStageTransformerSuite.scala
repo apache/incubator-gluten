@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}

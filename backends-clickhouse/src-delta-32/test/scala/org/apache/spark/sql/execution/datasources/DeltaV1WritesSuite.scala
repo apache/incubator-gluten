@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, GlutenPlan, SortExecTransformer}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat

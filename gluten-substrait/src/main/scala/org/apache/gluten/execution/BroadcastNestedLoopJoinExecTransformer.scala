@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.{JoinParams, SubstraitContext}
@@ -185,7 +185,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (!GlutenConfig.getConf.broadcastNestedLoopJoinTransformerTransformerEnabled) {
+    if (!GlutenConfig.get.broadcastNestedLoopJoinTransformerTransformerEnabled) {
       return ValidationResult.failed(
         s"Config ${GlutenConfig.BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED.key} not enabled")
     }

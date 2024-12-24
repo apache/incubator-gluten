@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -38,11 +38,11 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession)
   extends Rule[SparkPlan]
   with Logging {
 
-  val glutenConf: GlutenConfig = GlutenConfig.getConf
+  val glutenConf: GlutenConfig = GlutenConfig.get
   val scanOnly: Boolean = glutenConf.enableScanOnly
   val enableColumnarHashAgg: Boolean = !scanOnly && glutenConf.enableColumnarHashAgg
-  val replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
-  val mergeTwoPhasesAggEnabled: Boolean = GlutenConfig.getConf.mergeTwoPhasesAggEnabled
+  val replaceSortAggWithHashAgg: Boolean = GlutenConfig.get.forceToUseHashAgg
+  val mergeTwoPhasesAggEnabled: Boolean = GlutenConfig.get.mergeTwoPhasesAggEnabled
 
   private def isPartialAgg(partialAgg: BaseAggregateExec, finalAgg: BaseAggregateExec): Boolean = {
     // TODO: now it can not support to merge agg which there are the filters in the aggregate exprs.

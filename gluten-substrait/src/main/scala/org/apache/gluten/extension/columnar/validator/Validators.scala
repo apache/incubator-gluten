@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.validator
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags
@@ -37,7 +37,7 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
-    private val conf = GlutenConfig.getConf
+    private val conf = GlutenConfig.get
     private val settings = BackendsApiManager.getSettings
 
     /** Fails validation if a plan node was already tagged with TRANSFORM_UNSUPPORTED. */

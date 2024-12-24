@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.{ArrowProjection, ExpressionUtils}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -138,7 +138,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (!GlutenConfig.getConf.enableColumnarPartialProject) {
+    if (!GlutenConfig.get.enableColumnarPartialProject) {
       return ValidationResult.failed("Config disable this feature")
     }
     if (UDFAttrNotExists) {
@@ -164,9 +164,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
       return ValidationResult.failed("Contains expression not supported")
     }
     if (
-      ExpressionUtils.hasComplexExpressions(
-        original,
-        GlutenConfig.getConf.fallbackExpressionsThreshold)
+      ExpressionUtils.hasComplexExpressions(original, GlutenConfig.get.fallbackExpressionsThreshold)
     ) {
       return ValidationResult.failed("Fallback by complex expression")
     }

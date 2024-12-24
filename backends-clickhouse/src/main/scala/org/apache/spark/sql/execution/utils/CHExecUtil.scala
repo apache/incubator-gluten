@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution.utils
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.row.SparkRowInfo
 import org.apache.gluten.vectorized._
@@ -32,7 +32,7 @@ import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BindReferences, BoundReference, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
-import org.apache.spark.sql.catalyst.plans.physical.{SinglePartition, _}
+import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
@@ -239,7 +239,7 @@ object CHExecUtil extends Logging {
 
   private def buildPartitioningOptions(nativePartitioning: NativePartitioning): IteratorOptions = {
     val options = new IteratorOptions
-    options.setBufferSize(GlutenConfig.getConf.maxBatchSize)
+    options.setBufferSize(GlutenConfig.get.maxBatchSize)
     options.setName(nativePartitioning.getShortName)
     options.setPartitionNum(nativePartitioning.getNumPartitions)
     options.setExpr(new String(nativePartitioning.getExprList))
@@ -345,8 +345,8 @@ object CHExecUtil extends Logging {
 
     val rddWithPartitionKey: RDD[Product2[Int, ColumnarBatch]] =
       if (
-        GlutenConfig.getConf.isUseColumnarShuffleManager
-        || GlutenConfig.getConf.isUseCelebornShuffleManager
+        GlutenConfig.get.isUseColumnarShuffleManager
+        || GlutenConfig.get.isUseCelebornShuffleManager
       ) {
         newPartitioning match {
           case _ =>

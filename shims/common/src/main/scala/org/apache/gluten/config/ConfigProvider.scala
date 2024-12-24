@@ -14,23 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.joins
+package org.apache.gluten.config
 
-import org.apache.gluten.config.GlutenConfig
+import scala.collection.immutable
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-
-class GlutenOuterJoinSuiteForceShjOn extends OuterJoinSuite with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
-  }
-}
-
-class GlutenOuterJoinSuiteForceShjOff extends OuterJoinSuite with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
+class ConfigProvider(conf: immutable.Map[String, String]) {
+  def get(key: String): Option[String] = {
+    conf.get(key)
   }
 }

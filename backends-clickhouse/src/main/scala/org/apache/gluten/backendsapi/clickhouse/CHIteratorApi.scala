@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.GlutenNumaBindingInfo
 import org.apache.gluten.backendsapi.IteratorApi
+import org.apache.gluten.config.GlutenNumaBindingInfo
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.logging.LogLevelUtil

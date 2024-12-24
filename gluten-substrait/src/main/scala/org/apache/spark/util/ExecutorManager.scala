@@ -16,9 +16,9 @@
  */
 package org.apache.spark.util
 
-import org.apache.spark.{SparkContext, SparkEnv}
+import org.apache.gluten.config.GlutenNumaBindingInfo
 
-import _root_.org.apache.gluten._
+import org.apache.spark.{SparkContext, SparkEnv}
 
 import java.lang.management.ManagementFactory
 

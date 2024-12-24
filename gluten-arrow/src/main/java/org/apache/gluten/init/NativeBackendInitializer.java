@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.init;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.utils.ConfigUtil;
 
 import org.apache.spark.util.SparkShutdownManagerUtil;

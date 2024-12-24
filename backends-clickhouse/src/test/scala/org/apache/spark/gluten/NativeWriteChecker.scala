@@ -16,7 +16,7 @@
  */
 package org.apache.spark.gluten
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
 
 import org.apache.spark.sql.{Dataset, Row}

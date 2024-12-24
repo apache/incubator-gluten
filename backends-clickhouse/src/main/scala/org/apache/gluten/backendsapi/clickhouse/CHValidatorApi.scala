@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.ValidatorApi
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.SubstraitContext
@@ -95,7 +95,7 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
         }
       case rangePartitoning: RangePartitioning =>
         if (
-          GlutenConfig.getConf.enableColumnarSort &&
+          GlutenConfig.get.enableColumnarSort &&
           RangePartitionerBoundsGenerator.supportedOrderings(rangePartitoning, child)
         ) {
           None

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, ProjectExecTransformer, WholeStageTransformer}
 import org.apache.gluten.sql.shims.SparkShimLoader
 

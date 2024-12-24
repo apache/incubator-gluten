@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -42,8 +42,8 @@ class RewriteToDateExpresstionRule(spark: SparkSession) extends Rule[LogicalPlan
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       plan.resolved &&
-      GlutenConfig.getConf.enableGluten &&
-      GlutenConfig.getConf.enableCHRewriteDateConversion
+      GlutenConfig.get.enableGluten &&
+      GlutenConfig.get.enableCHRewriteDateConversion
     ) {
       visitPlan(plan)
     } else {

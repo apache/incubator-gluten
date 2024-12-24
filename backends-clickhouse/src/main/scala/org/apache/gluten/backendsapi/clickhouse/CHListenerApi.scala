@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.columnarbatch.CHBatch
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings

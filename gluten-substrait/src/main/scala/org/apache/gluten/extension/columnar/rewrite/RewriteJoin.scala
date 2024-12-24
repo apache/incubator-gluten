@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.rewrite
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.columnar.offload.OffloadJoin
 
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide, JoinSelectionHelper}
@@ -56,7 +56,7 @@ object RewriteJoin extends RewriteSingleNode with JoinSelectionHelper {
   }
 
   override def rewrite(plan: SparkPlan): SparkPlan = plan match {
-    case smj: SortMergeJoinExec if GlutenConfig.getConf.forceShuffledHashJoin =>
+    case smj: SortMergeJoinExec if GlutenConfig.get.forceShuffledHashJoin =>
       getSmjBuildSide(smj) match {
         case Some(buildSide) =>
           ShuffledHashJoinExec(

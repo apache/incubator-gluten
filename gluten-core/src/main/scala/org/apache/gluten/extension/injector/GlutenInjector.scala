@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.injector
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.GlutenColumnarRule
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall

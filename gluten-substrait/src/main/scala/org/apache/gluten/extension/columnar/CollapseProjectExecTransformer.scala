@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, CreateNamedStruct, NamedExpression}
@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.SparkPlan
 object CollapseProjectExecTransformer extends Rule[SparkPlan] {
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.getConf.enableColumnarProjectCollapse) {
+    if (!GlutenConfig.get.enableColumnarProjectCollapse) {
       return plan
     }
     plan.transformUp {

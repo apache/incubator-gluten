@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.runtime
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.NativeMemoryManager
 import org.apache.gluten.utils.ConfigUtil

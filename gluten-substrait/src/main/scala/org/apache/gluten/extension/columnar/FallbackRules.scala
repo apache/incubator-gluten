@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.joins._
 
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (GlutenConfig.getConf.enableAnsiMode) {
+    if (GlutenConfig.get.enableAnsiMode) {
       plan.foreach(FallbackTags.add(_, "does not support ansi mode"))
     }
     plan
@@ -35,7 +35,7 @@ case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
 }
 
 case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] {
-  lazy val glutenConf: GlutenConfig = GlutenConfig.getConf
+  lazy val glutenConf: GlutenConfig = GlutenConfig.get
   lazy val physicalJoinOptimize = glutenConf.enablePhysicalJoinOptimize
   lazy val optimizeLevel: Integer = glutenConf.physicalJoinOptimizationThrottle
 
@@ -47,7 +47,7 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
       case plan: ShuffledHashJoinExec =>
         if ((count + 1) >= optimizeLevel) return true
         plan.children.exists(existsMultiCodegens(_, count + 1))
-      case plan: SortMergeJoinExec if GlutenConfig.getConf.forceShuffledHashJoin =>
+      case plan: SortMergeJoinExec if GlutenConfig.get.forceShuffledHashJoin =>
         if ((count + 1) >= optimizeLevel) return true
         plan.children.exists(existsMultiCodegens(_, count + 1))
       case _ => false

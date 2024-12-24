@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.benchmark
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.storage.StorageLevel
@@ -33,7 +33,7 @@ object ColumnarTableCacheBenchmark extends SqlBasedBenchmark {
 
   private def doBenchmark(name: String, cardinality: Long)(f: => Unit): Unit = {
     val benchmark = new Benchmark(name, cardinality, output = output)
-    val flag = if (spark.sessionState.conf.getConf(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED)) {
+    val flag = if (GlutenConfig.get.getConf(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED)) {
       "enable"
     } else {
       "disable"

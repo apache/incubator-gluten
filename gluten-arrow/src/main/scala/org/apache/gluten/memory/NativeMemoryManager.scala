@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.listener.ReservationListeners
 import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, Spiller, Spillers}
