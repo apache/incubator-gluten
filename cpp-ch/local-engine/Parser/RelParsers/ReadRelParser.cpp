@@ -22,6 +22,7 @@
 #include <Interpreters/Context.h>
 #include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/RelParsers/MergeTreeRelParser.h>
+#include <Parser/RelParsers/StreamKafkaRelParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
@@ -51,7 +52,7 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
     if (query_plan)
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Source node's input plan should be null");
     const auto & read = rel.read();
-    if (read.has_local_files() || (!read.has_extension_table() && !isReadFromMergeTree(read)))
+    if (isReadFromDefault(read))
     {
         assert(read.has_base_schema());
         DB::QueryPlanStepPtr read_step;
@@ -70,6 +71,13 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
             query_plan->addStep(std::move(buffer_step));
         }
     }
+    else if (isReadFromStreamKafka(read))
+    {
+        StreamKafkaRelParser kafka_parser(parser_context, getContext());
+        kafka_parser.setSplitInfo(split_info);
+        query_plan = kafka_parser.parseReadRel(std::make_unique<DB::QueryPlan>(), read);
+        steps = kafka_parser.getSteps();
+    }
     else
     {
         substrait::ReadRel::ExtensionTable extension_table;
@@ -87,6 +95,11 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
     return query_plan;
 }
 
+bool ReadRelParser::isReadFromDefault(const substrait::ReadRel & read)
+{
+    return read.has_local_files() || (!read.has_extension_table() && !isReadFromMergeTree(read) && !isReadFromStreamKafka(read));
+}
+
 bool ReadRelParser::isReadRelFromJava(const substrait::ReadRel & rel)
 {
     return rel.has_local_files() && rel.local_files().items().size() == 1
@@ -95,7 +108,9 @@ bool ReadRelParser::isReadRelFromJava(const substrait::ReadRel & rel)
 
 bool ReadRelParser::isReadFromMergeTree(const substrait::ReadRel & rel)
 {
-    assert(rel.has_advanced_extension());
+    if (!rel.has_advanced_extension())
+        return false;
+
     bool is_read_from_merge_tree;
     google::protobuf::StringValue optimization;
     optimization.ParseFromString(rel.advanced_extension().optimization().value());
@@ -105,6 +120,12 @@ bool ReadRelParser::isReadFromMergeTree(const substrait::ReadRel & rel)
     readBoolText(is_read_from_merge_tree, in);
     assertChar('\n', in);
     return is_read_from_merge_tree;
+}
+
+
+bool ReadRelParser::isReadFromStreamKafka(const substrait::ReadRel & rel)
+{
+    return rel.has_stream_kafka() && rel.stream_kafka();
 }
 
 DB::QueryPlanStepPtr ReadRelParser::parseReadRelWithJavaIter(const substrait::ReadRel & rel)
