@@ -483,6 +483,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
 
   def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
+
+  def enableVeloxFromJsonFunction: Boolean = conf.getConf(VELOX_FROM_JSON_FUNC_ENABLED)
 }
 
 object GlutenConfig {
@@ -2250,4 +2252,11 @@ object GlutenConfig {
       .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala side")
       .booleanConf
       .createWithDefault(false)
+
+  val VELOX_FROM_JSON_FUNC_ENABLED =
+    buildConf("spark.gluten.sql.velox.fromJson.enabled")
+      .internal()
+      .doc("When true, offload from_json function to Velox.")
+      .booleanConf
+      .createWithDefault(true)
 }
