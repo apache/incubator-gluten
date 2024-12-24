@@ -376,8 +376,6 @@ private:
 
 namespace local_engine
 {
-SignalHandler::SignalHandler() = default;
-SignalHandler::~SignalHandler() = default;
 
 struct SignalHandler::Impl
 {
@@ -446,4 +444,7 @@ void SignalHandler::init()
         LOG_WARNING(log, "LD_PRELOAD is not set, SignalHandler is disabled");
     }
 }
+
+SignalHandler::SignalHandler() = default;
+SignalHandler::~SignalHandler() = default;
 }
