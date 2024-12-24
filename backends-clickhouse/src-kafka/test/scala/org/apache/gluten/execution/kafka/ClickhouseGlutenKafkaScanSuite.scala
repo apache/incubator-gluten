@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution.kafka
 
-// TODO: need add profile kafka
 import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
 
 class ClickhouseGlutenKafkaScanSuite
