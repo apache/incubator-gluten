@@ -29,6 +29,7 @@ import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.util.SerializableConfiguration
 
 trait BackendSettingsApi {
 
@@ -39,7 +40,9 @@ trait BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       rootPaths: Seq[String],
-      properties: Map[String, String]): ValidationResult = ValidationResult.succeeded
+      properties: Map[String, String],
+      serializableHadoopConf: Option[SerializableConfiguration] = None): ValidationResult =
+    ValidationResult.succeeded
 
   def getSubstraitReadFileFormatV1(fileFormat: FileFormat): LocalFilesNode.ReadFileFormat
 
