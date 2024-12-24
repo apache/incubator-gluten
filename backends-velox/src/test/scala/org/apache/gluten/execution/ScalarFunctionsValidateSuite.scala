@@ -1517,12 +1517,17 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("date_format") {
-    withTable("t") {
-      sql("CREATE TABLE t (c0 STRING) USING parquet")
-      sql("INSERT INTO t VALUES('2008-02-20'), ('2022-01-01')")
-      runQueryAndCompare("SELECT date_format(c0, 'yyyy') FROM t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")
+        val t2 = Timestamp.valueOf("2014-12-31 00:00:00.012")
+        val t3 = Timestamp.valueOf("1968-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("c0").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+        runQueryAndCompare("SELECT date_format(c0, 'yyyy') FROM t") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 }
