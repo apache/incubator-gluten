@@ -31,12 +31,11 @@ import org.apache.spark.util.{SerializableConfiguration, Utils}
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.input.FileSplit
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 import org.apache.orc.{OrcUtils => _, _}
-import org.apache.orc.OrcConf.{COMPRESS, MAPRED_OUTPUT_SCHEMA}
+import org.apache.orc.OrcConf.COMPRESS
 import org.apache.orc.mapred.OrcStruct
 import org.apache.orc.mapreduce._
 
@@ -90,19 +89,8 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
       options: Map[String, String],
       dataSchema: StructType): OutputWriterFactory = {
     val orcOptions = new OrcOptions(options, sparkSession.sessionState.conf)
-
-    val conf = job.getConfiguration
-
-    conf.set(MAPRED_OUTPUT_SCHEMA.getAttribute, OrcFileFormat.getQuotedSchemaString(dataSchema))
-
-    conf.set(COMPRESS.getAttribute, orcOptions.compressionCodec)
-
-    conf
-      .asInstanceOf[JobConf]
-      .setOutputFormat(classOf[org.apache.orc.mapred.OrcOutputFormat[OrcStruct]])
-
     if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")) {
-      // pass compression to job conf so that the file extension can be aware of it.
+      // Pass compression to job conf so that the file extension can be aware of it.
       val nativeConf =
         GlutenFormatFactory(shortName()).nativeConf(options, orcOptions.compressionCodec)
 
