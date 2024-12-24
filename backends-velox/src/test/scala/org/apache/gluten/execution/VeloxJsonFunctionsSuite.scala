@@ -25,6 +25,42 @@ class VeloxJsonFunctionsSuite extends FunctionsValidateSuite {
   disableFallbackCheck
   import testImplicits._
 
+  test("get_json_object") {
+    runQueryAndCompare(
+      "SELECT get_json_object(string_field1, '$.a') " +
+        "from datatab limit 1;") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare(
+      "SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
+        "from lineitem limit 1;") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    // Invalid UTF-8 encoding.
+    spark.sql(
+      "CREATE TABLE t USING parquet SELECT concat('{\"a\": 2, \"'," +
+        " string(X'80'), '\": 3, \"c\": 100}') AS c1")
+    withTable("t") {
+      runQueryAndCompare("SELECT get_json_object(c1, '$.c') FROM t;") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  ignore("json_array_length") {
+    runQueryAndCompare(
+      s"select *, json_array_length(string_field1) " +
+        s"from datatab limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, json_array_length('[1,2,3,4]') " +
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, json_array_length(null) " +
+        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
   test("from_json function int") {
     if (SparkShimLoader.getSparkShims.fromJsonSupportPartialResults) {
       withTempPath {
@@ -180,7 +216,9 @@ class VeloxJsonFunctionsSuite extends FunctionsValidateSuite {
           Seq[(String)](
             ("""{"id":10}"""),
             ("""{"id":false}"""),
-            ("""{"id":"00010"}""")
+            ("""{"id":"00010"}"""),
+            ("""{"id":[1,2]}"""),
+            ("""{"id":{"a":1}}""")
           )
             .toDF("txt")
             .write
