@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, MicroBatchScanExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
@@ -207,6 +207,8 @@ object OffloadOthers {
           // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HiveTableScanExecTransformer(plan)
+        case plan: MicroBatchScanExec =>
+          applyScanTransformer(plan)
         case plan: CoalesceExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
