@@ -18,7 +18,7 @@ package org.apache.spark.broadcast
 
 import org.apache.spark.SparkEnv
 
-object BroadcastFactoryInjection {
+object BroadcastFactoryUnsafeAccess {
   private val FIELD_INITIALIZED = {
     val f = classOf[BroadcastManager].getDeclaredField("initialized")
     f.setAccessible(true)

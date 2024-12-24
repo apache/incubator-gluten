@@ -23,19 +23,19 @@ import org.apache.spark.sql.test.SharedSparkSession
 
 import scala.reflect.ClassTag
 
-class BroadcastFactoryInjectionSuite extends SharedSparkSession {
-  import BroadcastFactoryInjectionSuite._
+class BroadcastFactoryUnsafeAccessSuite extends SharedSparkSession {
+  import BroadcastFactoryUnsafeAccessSuite._
   test("Get") {
-    val factory = BroadcastFactoryInjection.get()
+    val factory = BroadcastFactoryUnsafeAccess.get()
     assert(factory.isInstanceOf[TorrentBroadcastFactory])
   }
 
   test("Inject") {
-    BroadcastFactoryInjection.get().stop()
+    BroadcastFactoryUnsafeAccess.get().stop()
     val factory = new DummyBroadcastFactory()
     assert(!factory.initialized)
-    BroadcastFactoryInjection.inject(factory)
-    assert(BroadcastFactoryInjection.get() eq factory)
+    BroadcastFactoryUnsafeAccess.inject(factory)
+    assert(BroadcastFactoryUnsafeAccess.get() eq factory)
     assert(factory.initialized)
     val text: String = "DUMMY"
     val b = SparkShimLoader.getSparkShims.broadcastInternal(sparkContext, text)
@@ -43,7 +43,7 @@ class BroadcastFactoryInjectionSuite extends SharedSparkSession {
   }
 }
 
-object BroadcastFactoryInjectionSuite {
+object BroadcastFactoryUnsafeAccessSuite {
   private class DummyBroadcast[T: ClassTag](id: Long, value: T) extends Broadcast[T](id) {
     override protected def getValue(): T = value
     override protected def doUnpersist(blocking: Boolean): Unit = {
