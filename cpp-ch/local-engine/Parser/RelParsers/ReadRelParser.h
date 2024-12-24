@@ -38,8 +38,10 @@ public:
     // This is source node, there is no input
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return {}; }
 
+    bool isReadFromDefault(const substrait::ReadRel & rel);
     bool isReadRelFromJava(const substrait::ReadRel & rel);
     bool isReadFromMergeTree(const substrait::ReadRel & rel);
+    bool isReadFromStreamKafka(const substrait::ReadRel & rel);
 
     void setInputIter(jobject input_iter_, bool is_materialze)
     {
