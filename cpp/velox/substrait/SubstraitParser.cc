@@ -404,7 +404,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"murmur3hash", "hash_with_seed"},
     {"xxhash64", "xxhash64_with_seed"},
     {"modulus", "remainder"},
-    {"date_format", "format_datetime"},
     {"negative", "unaryminus"},
     {"get_array_item", "get"}};
 

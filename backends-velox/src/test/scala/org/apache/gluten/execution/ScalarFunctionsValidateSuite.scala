@@ -1515,4 +1515,14 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
       }
     }
   }
+
+  test("date_format") {
+    withTable("t") {
+      sql("CREATE TABLE t (c0 STRING) USING parquet")
+      sql("INSERT INTO t VALUES('2008-02-20'), ('2022-01-01')")
+      runQueryAndCompare("SELECT date_format(c0, 'yyyy') FROM t") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
 }
