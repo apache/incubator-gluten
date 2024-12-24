@@ -30,7 +30,7 @@ class BroadcastFactoryUnsafeAccessSuite extends SharedSparkSession {
     assert(factory.isInstanceOf[TorrentBroadcastFactory])
   }
 
-  test("Inject") {
+  test("Set") {
     BroadcastFactoryUnsafeAccess.get().stop()
     val factory = new DummyBroadcastFactory()
     assert(!factory.initialized)
