@@ -1,5 +1,5 @@
 /*
-* Licensed to the Apache Software Foundation (ASF) under one or more
+ * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
@@ -18,12 +18,20 @@
 
 #include <Parser/RelParsers/RelParser.h>
 
+namespace DB
+{
+namespace ErrorCodes
+{
+extern const int LOGICAL_ERROR;
+}
+}
+
 namespace local_engine
 {
 class StreamKafkaRelParser : public RelParser
 {
 public:
-    explicit StreamKafkaRelParser(ParserContextPtr parser_context_, const ContextPtr & context_)
+    explicit StreamKafkaRelParser(ParserContextPtr parser_context_, const DB::ContextPtr & context_)
         : RelParser(parser_context_), context(context_)
     {
     }
@@ -32,21 +40,20 @@ public:
 
     DB::QueryPlanPtr parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override
     {
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "StreamKafkaRelParser can't call parse(), call parseReadRel instead.");
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "StreamKafkaRelParser can't call parse(), call parseReadRel instead.");
     }
 
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel &) override
     {
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "StreamKafkaRelParser can't call getSingleInput().");
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "StreamKafkaRelParser can't call getSingleInput().");
     }
 
-    DB::QueryPlanPtr parseReadRel(
-        DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel);
+    DB::QueryPlanPtr parseReadRel(DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel);
 
     void setSplitInfo(String split_info_) { split_info = split_info_; }
 
 private:
-    ContextPtr context;
+    DB::ContextPtr context;
 
     String split_info;
 };
