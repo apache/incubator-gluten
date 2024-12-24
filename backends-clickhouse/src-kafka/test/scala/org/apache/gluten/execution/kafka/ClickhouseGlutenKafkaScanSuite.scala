@@ -14,17 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.kafka
 
-import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2ScanExecBase, MicroBatchScanExec}
+// TODO: need add profile kafka
+import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
 
-class StreamKafkaTransformerProvider extends DataSourceScanTransformerRegister {
+class ClickhouseGlutenKafkaScanSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with GlutenKafkaScanSuite {
 
-  override val scanClassName: String =
-    "org.apache.spark.sql.kafka010.KafkaSourceProvider$KafkaScan"
+  override protected val fileFormat: String = "parquet"
 
-  override def createDataSourceV2Transformer(
-      batchScan: DataSourceV2ScanExecBase): BatchScanExecTransformerBase = {
-    MicroBatchScanExecTransformer(batchScan.asInstanceOf[MicroBatchScanExec])
-  }
+  protected val kafkaBootstrapServers: String = "localhost:9092"
 }
