@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.planner
+package org.apache.gluten.extension.columnar.enumerated.planner
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
-import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
 import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LegacyCoster, LongCostModel}
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
 import org.apache.gluten.extension.columnar.transition.ConventionReq
