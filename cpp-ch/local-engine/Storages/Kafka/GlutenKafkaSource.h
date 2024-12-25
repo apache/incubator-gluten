@@ -19,26 +19,26 @@
 
 
 #include <Processors/ISource.h>
-#include <Storages/Kafka/StorageKafka.h>
+#include <Storages/Kafka/KafkaConsumer.h>
+#include <Storages/Kafka/KafkaSettings.h>
 
 namespace local_engine
 {
-using namespace DB;
 
-class GlutenKafkaSource : public ISource
+class GlutenKafkaSource : public DB::ISource
 {
 public:
     GlutenKafkaSource(
-        const Block & result_header_,
-        const ContextPtr & context_,
-        const Names & topics_,
+        const DB::Block & result_header_,
+        const DB::ContextPtr & context_,
+        const DB::Names & topics_,
         const size_t & partition_,
         const String & brokers_,
         const String & group_,
         const size_t & poll_timeout_ms_,
         const size_t & start_offset_,
         const size_t & end_offset_,
-        const std::shared_ptr<KafkaSettings> & kafka_settings_);
+        const std::shared_ptr<DB::KafkaSettings> & kafka_settings_);
 
     ~GlutenKafkaSource() override;
 
@@ -55,10 +55,10 @@ public:
     String getName() const override { return "GlutenKafkaSource"; }
 
 protected:
-    Chunk generate() override;
+    DB::Chunk generate() override;
 
 private:
-    Chunk generateImpl();
+    DB::Chunk generateImpl();
     void initConsumer();
 
     size_t getPollMaxBatchSize() const;
@@ -66,23 +66,23 @@ private:
     size_t getPollTimeoutMillisecond() const;
 
     LoggerPtr log;
-    ContextPtr context;
+    DB::ContextPtr context;
     UInt64 max_block_size;
-    KafkaConsumerPtr consumer;
+    std::shared_ptr<DB::KafkaConsumer> consumer;
 
-    Block result_header;
-    Block virtual_header;
-    Block non_virtual_header;
-    std::shared_ptr<KafkaSettings> kafka_settings;
+    DB::Block result_header;
+    DB::Block virtual_header;
+    DB::Block non_virtual_header;
+    std::shared_ptr<DB::KafkaSettings> kafka_settings;
 
-    const Names topics;
+    const DB::Names topics;
     const size_t partition;
     const String brokers;
     const String group;
-    const String client_id = "123";
     const size_t poll_timeout_ms;
     const size_t start_offset;
     const size_t end_offset;
+    String client_id;
     bool finished = false;
 };
 
@@ -105,5 +105,5 @@ struct hash<local_engine::GlutenKafkaSource::TopicPartition>
 namespace local_engine
 {
 static std::mutex consumer_mutex;
-static std::unordered_map<GlutenKafkaSource::TopicPartition, std::vector<KafkaConsumerPtr>> consumers_in_memory;
+static std::unordered_map<GlutenKafkaSource::TopicPartition, std::vector<std::shared_ptr<DB::KafkaConsumer>>> consumers_in_memory;
 }
