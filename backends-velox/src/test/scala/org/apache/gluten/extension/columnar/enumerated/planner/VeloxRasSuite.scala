@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.planner
+package org.apache.gluten.extension.columnar.enumerated.planner
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
