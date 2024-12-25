@@ -383,7 +383,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
             splitInfos.foreach {
               case splitInfo: LocalFilesNode =>
                 val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
-                  splitInfo.getPaths.asScala,
+                  splitInfo.getPaths.asScala.toSeq,
                   viewfsToHdfsCache,
                   serializableHadoopConf.value)
                 splitInfo.setPaths(newPaths.asJava)
