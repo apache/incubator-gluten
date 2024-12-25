@@ -129,7 +129,7 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     val benchmark = new Benchmark(
       this.getClass.getCanonicalName,
-      rounds * allQueryIds.size,
+      allQueryIds.size,
       output = output,
       warmupTime = 15.seconds,
       minTime = 60.seconds)
