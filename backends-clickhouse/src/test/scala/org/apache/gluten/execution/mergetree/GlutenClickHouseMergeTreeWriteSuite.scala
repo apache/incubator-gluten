@@ -1793,7 +1793,7 @@ class GlutenClickHouseMergeTreeWriteSuite
     }
   }
 
-  testSparkVersionLE33("test mergetree with column case sensitive") {
+  test("test mergetree with column case sensitive") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS LINEITEM_MERGETREE_CASE_SENSITIVE;
                  |""".stripMargin)

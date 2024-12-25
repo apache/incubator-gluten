@@ -157,7 +157,7 @@ object CHMergeTreeWriterInjects {
       primaryKeyOption: Option[Seq[String]],
       partitionColumns: Seq[String],
       partList: Seq[String],
-      tableSchemaJson: String,
+      tableSchema: StructType,
       clickhouseTableConfigs: Map[String, String],
       output: Seq[Attribute]): PlanWithSplitInfo = {
     // scalastyle:on argcount
@@ -187,7 +187,7 @@ object CHMergeTreeWriterInjects {
       setIndexKeyOption,
       primaryKeyOption,
       PartSerializer.fromPartNames(partList),
-      tableSchemaJson,
+      tableSchema,
       clickhouseTableConfigs.asJava
     )
 

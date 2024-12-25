@@ -16,16 +16,13 @@
  */
 package org.apache.spark.sql.execution.datasources.mergetree
 
-import org.apache.gluten.expression.ConverterUtils
-
 import org.apache.spark.sql.delta.actions.Metadata
 
 case class DeltaMetaReader(metadata: Metadata)
   extends TablePropertiesReader
   with StorageConfigProvider {
 
-  override lazy val partitionColumns: Seq[String] =
-    metadata.partitionColumns.map(ConverterUtils.normalizeColName)
+  override lazy val partitionColumns: Seq[String] = metadata.partitionColumns
 
   override lazy val configuration: Map[String, String] = metadata.configuration
 

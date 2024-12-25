@@ -44,7 +44,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     SubstraitUtil
       .createNameStructBuilder(
         ConverterUtils.collectAttributeTypeNodes(dataSchema),
-        dataSchema.fieldNames.map(ConverterUtils.normalizeColName).toSeq.asJava,
+        dataSchema.fieldNames.toSeq.asJava,
         ju.Collections.emptyList()
       )
       .build()

@@ -79,11 +79,11 @@ class GlutenClickHouseTableAfterRestart
 
   test("test mergetree after restart") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree;
+                 |DROP TABLE IF EXISTS LINEITEM_MERGETREE;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree
+                 |CREATE TABLE IF NOT EXISTS LINEITEM_MERGETREE
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,

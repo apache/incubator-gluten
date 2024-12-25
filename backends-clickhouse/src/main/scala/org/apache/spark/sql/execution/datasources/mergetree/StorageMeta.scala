@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources.mergetree
 
-import org.apache.gluten.expression.ConverterUtils
-
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.delta.actions.Metadata
 
@@ -79,7 +77,7 @@ object StorageMeta {
   def columnsToStr(option: Option[Seq[String]], default: String = ""): String =
     option
       .filter(_.nonEmpty)
-      .map(keys => keys.map(ConverterUtils.normalizeColName).mkString(","))
+      .map(keys => keys.mkString(","))
       .getOrElse(default)
 }
 
@@ -97,7 +95,7 @@ trait TablePropertiesReader {
   private def getCommaSeparatedColumns(keyName: String): Option[Seq[String]] = {
     configuration.get(keyName).map {
       v =>
-        val keys = v.split(",").map(n => ConverterUtils.normalizeColName(n.trim)).toSeq
+        val keys = v.split(",").map(_.trim).toSeq
         keys.foreach {
           s =>
             if (s.contains(".")) {
@@ -142,7 +140,7 @@ trait TablePropertiesReader {
   lazy val orderByKeyOption: Option[Seq[String]] = {
     val orderByKeys =
       if (bucketOption.exists(_.sortColumnNames.nonEmpty)) {
-        bucketOption.map(_.sortColumnNames.map(ConverterUtils.normalizeColName))
+        bucketOption.map(_.sortColumnNames)
       } else {
         getCommaSeparatedColumns("orderByKey")
       }

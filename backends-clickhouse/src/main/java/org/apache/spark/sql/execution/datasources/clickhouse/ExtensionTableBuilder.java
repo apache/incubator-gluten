@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources.clickhouse;
 
 import org.apache.spark.sql.execution.datasources.mergetree.MetaSerializer;
 import org.apache.spark.sql.execution.datasources.mergetree.PartSerializer;
+import org.apache.spark.sql.types.StructType;
 
 import java.util.List;
 import java.util.Map;
@@ -38,7 +39,7 @@ public class ExtensionTableBuilder {
       String setIndexKey,
       String primaryKey,
       PartSerializer partSerializer,
-      String tableSchemaJson,
+      StructType tableSchema,
       Map<String, String> clickhouseTableConfigs,
       List<String> preferredLocations) {
 
@@ -56,7 +57,7 @@ public class ExtensionTableBuilder {
             setIndexKey,
             primaryKey,
             partSerializer,
-            tableSchemaJson,
+            tableSchema,
             clickhouseTableConfigs);
     return new ExtensionTableNode(
         preferredLocations, result, partSerializer.pathList(absoluteTablePath));
