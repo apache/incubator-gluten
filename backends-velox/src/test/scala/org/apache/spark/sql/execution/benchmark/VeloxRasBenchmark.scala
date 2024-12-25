@@ -27,6 +27,7 @@ import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
 
+import scala.concurrent.duration.DurationInt
 import scala.io.Source
 
 /**
@@ -127,7 +128,12 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
 
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     val rounds = 5
-    val benchmark = new Benchmark(this.getClass.getCanonicalName, rounds, output = output)
+    val benchmark = new Benchmark(
+      this.getClass.getCanonicalName,
+      rounds * allQueryIds.size,
+      output = output,
+      warmupTime = 15.seconds,
+      minTime = 60.seconds)
     benchmark.addTimerCase("Legacy") {
       timer =>
         val spark = createLegacySession()
