@@ -133,7 +133,7 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
       output = output,
       warmupTime = 15.seconds,
       minTime = 60.seconds)
-    benchmark.addTimerCase("RAS") {
+    benchmark.addTimerCase("RAS Planner") {
       timer =>
         val spark = createRasSession()
         createTpchTables(spark)
@@ -145,7 +145,7 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
         }
         timer.stopTiming()
     }
-    benchmark.addTimerCase("Legacy") {
+    benchmark.addTimerCase("Legacy Planner") {
       timer =>
         val spark = createLegacySession()
         createTpchTables(spark)
