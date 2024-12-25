@@ -90,4 +90,31 @@ inline DB::DataTypePtr wrapNullableType(const substrait::Type_Nullability nullab
     return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);
 }
 
+inline bool sameName(const DB::Block & left, const DB::Block & right)
+{
+    auto mismatch_pair = std::mismatch(
+        left.begin(),
+        left.end(),
+        right.begin(),
+        [](const DB::ColumnWithTypeAndName & lhs, const DB::ColumnWithTypeAndName & rhs) { return lhs.name == rhs.name; });
+    return mismatch_pair.first == left.end();
+}
+
+inline bool sameType(const DB::Block & left, const DB::Block & right)
+{
+    auto mismatch_pair = std::mismatch(
+        left.begin(),
+        left.end(),
+        right.begin(),
+        [](const DB::ColumnWithTypeAndName & lhs, const DB::ColumnWithTypeAndName & rhs) { return lhs.type->equals(*rhs.type); });
+    return mismatch_pair.first == left.end();
+}
+
+inline DB::NamesWithAliases buildNamesWithAliases(const DB::Block & input, const DB::Block & output)
+{
+    DB::NamesWithAliases aliases;
+    for (auto output_name = output.begin(), input_iter = input.begin(); output_name != output.end(); ++output_name, ++input_iter)
+        aliases.emplace_back(DB::NameWithAlias(input_iter->name, output_name->name));
+    return aliases;
+}
 }

@@ -175,4 +175,15 @@ namespace PathConfig
 inline constexpr const char * USE_CURRENT_DIRECTORY_AS_TMP = "use_current_directory_as_tmp";
 inline constexpr const char * DEFAULT_TEMP_FILE_PATH = "/tmp/libch";
 };
+
+/// Configurations for spark.sql.
+/// TODO: spark_version
+/// TODO: pass spark configs to clickhouse backend.
+struct SparkSQLConfig
+{
+    bool caseSensitive = false; // spark.sql.caseSensitive
+
+    static SparkSQLConfig loadFromContext(const DB::ContextPtr & context);
+};
+
 }
