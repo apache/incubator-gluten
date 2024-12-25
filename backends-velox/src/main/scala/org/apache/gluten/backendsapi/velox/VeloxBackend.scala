@@ -111,23 +111,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
         val resolvedPaths =
           if (GlutenConfig.getConf.enableHdfsViewfs) {
             val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
-            // Convert the viewfs path to hdfs path.
-            filteredRootPaths.map {
-              path =>
-                if (path.startsWith("viewfs")) {
-                  val pathSplit = path.split(Path.SEPARATOR)
-                  val prefixIndex = pathSplit.size - 1
-                  val pathPrefix = pathSplit.take(prefixIndex).mkString(Path.SEPARATOR)
-                  val hdfsPathPrefix = viewfsToHdfsCache.getOrElseUpdate(
-                    pathPrefix,
-                    ViewFileSystemUtils
-                      .convertViewfsToHdfs(pathPrefix, serializableHadoopConf.get.value))
-                  hdfsPathPrefix + Path.SEPARATOR +
-                    pathSplit.drop(prefixIndex).mkString(Path.SEPARATOR)
-                } else {
-                  path
-                }
-            }
+            ViewFileSystemUtils.convertViewfsToHdfs(
+              filteredRootPaths,
+              viewfsToHdfsCache,
+              serializableHadoopConf.get.value)
           } else {
             filteredRootPaths
           }

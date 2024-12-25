@@ -19,6 +19,8 @@ package org.apache.hadoop.fs.viewfs
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
+import scala.collection.mutable
+
 object ViewFileSystemUtils {
 
   /**
@@ -40,6 +42,37 @@ object ViewFileSystemUtils {
         }
       case otherFileSystem =>
         otherFileSystem.resolvePath(path).toString
+    }
+  }
+
+  /**
+   * Convert a sequence of viewfs path to a sequence of hdfs path.
+   * @param paths
+   *   sequence of viewfs path
+   * @param viewfsToHdfsCache
+   *   A map use to cache converted paths
+   * @param hadoopConfig
+   *   Hadoop configuration
+   * @return
+   *   sequence of hdfs path
+   */
+  def convertViewfsToHdfs(
+      paths: Seq[String],
+      viewfsToHdfsCache: mutable.Map[String, String],
+      hadoopConfig: Configuration): Seq[String] = {
+    paths.map {
+      path =>
+        if (path.startsWith("viewfs")) {
+          val pathSplit = path.split(Path.SEPARATOR)
+          val prefixIndex = pathSplit.size - 1
+          val pathPrefix = pathSplit.take(prefixIndex).mkString(Path.SEPARATOR)
+          val hdfsPath = viewfsToHdfsCache.getOrElseUpdate(
+            pathPrefix,
+            convertViewfsToHdfs(pathPrefix, hadoopConfig))
+          hdfsPath + Path.SEPARATOR + pathSplit.drop(prefixIndex).mkString(Path.SEPARATOR)
+        } else {
+          path
+        }
     }
   }
 }

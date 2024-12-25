@@ -46,7 +46,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
-import org.apache.hadoop.fs.Path
 import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
 import scala.collection.JavaConverters._
@@ -383,22 +382,10 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
           splitInfos =>
             splitInfos.foreach {
               case splitInfo: LocalFilesNode =>
-                val newPaths = splitInfo.getPaths.asScala.map {
-                  path =>
-                    if (path.startsWith("viewfs")) {
-                      val pathSplit = path.split(Path.SEPARATOR)
-                      val prefixIndex = pathSplit.size - 1
-                      val pathPrefix = pathSplit.take(prefixIndex).mkString(Path.SEPARATOR)
-                      val hdfsPathPrefix = viewfsToHdfsCache.getOrElseUpdate(
-                        pathPrefix,
-                        ViewFileSystemUtils
-                          .convertViewfsToHdfs(pathPrefix, serializableHadoopConf.value))
-                      hdfsPathPrefix + Path.SEPARATOR +
-                        pathSplit.drop(prefixIndex).mkString(Path.SEPARATOR)
-                    } else {
-                      path
-                    }
-                }
+                val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
+                  splitInfo.getPaths.asScala,
+                  viewfsToHdfsCache,
+                  serializableHadoopConf.value)
                 splitInfo.setPaths(newPaths.asJava)
             }
         }
