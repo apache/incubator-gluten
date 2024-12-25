@@ -90,7 +90,7 @@ class AutoAdjustStageResourceProfileSuite
   test("stage contains r2c and apply new resource profile") {
     withSQLConf(
       GlutenConfig.COLUMNAR_SHUFFLE_ENABLED.key -> "false",
-      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_THRESHOLD.key -> "1") {
+      GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_RATIO_THRESHOLD.key -> "0.1") {
       runQueryAndCompare("select c1, count(*) from tmp1 group by c1") {
         df =>
           val plan = df.queryExecution.executedPlan
@@ -129,7 +129,8 @@ class AutoAdjustStageResourceProfileSuite
     withSQLConf(
       GlutenConfig.COLUMNAR_FALLBACK_PREFER_COLUMNAR.key -> "false",
       GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
-      GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1"
+      GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
+      GlutenConfig.RAS_ENABLED.key -> "false"
     ) {
       runQueryAndCompare(
         "select " +
