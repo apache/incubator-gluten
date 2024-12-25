@@ -141,7 +141,9 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
         allQueryIds.foreach {
           id =>
             val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
+            // scalastyle:off println
             println("[RAS] Optimized query plan: " + p.toString())
+            // scalastyle:on println
         }
         timer.stopTiming()
     }
@@ -153,7 +155,9 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
         allQueryIds.foreach {
           id =>
             val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
+            // scalastyle:off println
             println("[Legacy] Optimized query plan: " + p.toString())
+            // scalastyle:on println
         }
         timer.stopTiming()
     }
