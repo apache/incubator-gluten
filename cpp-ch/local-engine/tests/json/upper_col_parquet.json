@@ -1,0 +1,51 @@
+{
+  "relations": [
+    {
+      "root": {
+        "input": {
+          "read": {
+            "common": {
+              "direct": {}
+            },
+            "baseSchema": {
+              "names": [
+                "id"
+              ],
+              "struct": {
+                "types": [
+                  {
+                    "i32": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  }
+                ]
+              },
+              "columnTypes": [
+                "NORMAL_COL"
+              ]
+            },
+            "advancedExtension": {
+              "optimization": {
+                "@type": "type.googleapis.com/google.protobuf.StringValue",
+                "value": "isMergeTree=0\n"
+              }
+            }
+          }
+        },
+        "names": [
+          "id#23"
+        ],
+        "outputSchema": {
+          "types": [
+            {
+              "i32": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            }
+          ],
+          "nullability": "NULLABILITY_REQUIRED"
+        }
+      }
+    }
+  ]
+}
