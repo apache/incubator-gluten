@@ -59,7 +59,7 @@ public:
     DB::DataTypePtr getReturnTypeImpl(const DB::DataTypes & arguments) const override
     {
         if (arguments.size() != 1)
-            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1", name);
+            throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1", name);
 
         return makeNullable(std::make_shared<const DB::DataTypeNumber<T>>());
     }
@@ -67,10 +67,10 @@ public:
     DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
     {
         if (arguments.size() != 1)
-            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1", name);
+            throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1", name);
 
         if (!isFloat(removeNullable(arguments[0].type)))
-            throw Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s 1st argument must be float type", name);
+            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s 1st argument must be float type", name);
 
         DB::ColumnPtr src_col = arguments[0].column;
         size_t size = src_col->size();
