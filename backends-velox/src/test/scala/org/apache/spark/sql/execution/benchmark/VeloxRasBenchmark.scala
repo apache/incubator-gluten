@@ -127,7 +127,6 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
   )
 
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
-    val rounds = 5
     val benchmark = new Benchmark(
       this.getClass.getCanonicalName,
       rounds * allQueryIds.size,
@@ -139,13 +138,10 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
         val spark = createLegacySession()
         createTpchTables(spark)
         timer.startTiming()
-        (0 until rounds).foreach {
-          _ =>
-            allQueryIds.foreach {
-              id =>
-                val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
-                println("[Legacy] Optimized query plan: " + p.toString())
-            }
+        allQueryIds.foreach {
+          id =>
+            val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
+            println("[Legacy] Optimized query plan: " + p.toString())
         }
         timer.stopTiming()
     }
@@ -154,13 +150,10 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
         val spark = createRasSession()
         createTpchTables(spark)
         timer.startTiming()
-        (0 until rounds).foreach {
-          _ =>
-            allQueryIds.foreach {
-              id =>
-                val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
-                println("[RAS] Optimized query plan: " + p.toString())
-            }
+        allQueryIds.foreach {
+          id =>
+            val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
+            println("[RAS] Optimized query plan: " + p.toString())
         }
         timer.stopTiming()
     }
