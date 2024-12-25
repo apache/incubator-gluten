@@ -505,8 +505,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO)
   }
 
-  def autoAdjustStageC2RorR2CThreshold: Int = {
-    conf.getConf(AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_THRESHOLD)
+  def autoAdjustStageC2RorR2CRatioThreshold: Double = {
+    conf.getConf(AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_RATIO_THRESHOLD)
   }
 
 }
@@ -2302,10 +2302,11 @@ object GlutenConfig {
       .doubleConf
       .createWithDefault(2.0d)
 
-  val AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_THRESHOLD =
-    buildConf("spark.gluten.auto.adjustStageResources.c2rORr2c.threshold")
+  val AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_RATIO_THRESHOLD =
+    buildConf("spark.gluten.auto.adjustStageResources.c2rORr2c.ratio.threshold")
       .internal()
-      .doc("Increase executor heap memory when match c2r and r2c exceeds the threshold.")
-      .intConf
-      .createWithDefault(4)
+      .doc("Increase executor heap memory when stage contains c2r and r2c node " +
+        "count exceeds the total node count ratio.")
+      .doubleConf
+      .createWithDefault(0.5d)
 }
