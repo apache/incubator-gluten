@@ -17,7 +17,6 @@
 
 #include "GlutenKafkaSource.h"
 
-#include <Access/KerberosInit.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Formats/FormatFactory.h>
@@ -131,6 +130,7 @@ GlutenKafkaSource::GlutenKafkaSource(
     , partition(partition_)
 {
     max_block_size = end_offset - start_offset;
+    client_id = topics[0] + "_" + std::to_string(partition);
 
     for (const auto & columns_with_type_and_name : result_header.getColumnsWithTypeAndName())
     {
@@ -156,7 +156,7 @@ void GlutenKafkaSource::initConsumer()
 {
     std::lock_guard lock(consumer_mutex);
     auto topic_partition = TopicPartition{topics[0], partition};
-    consumers_in_memory.try_emplace(topic_partition, std::vector<KafkaConsumerPtr>());
+    consumers_in_memory.try_emplace(topic_partition, std::vector<std::shared_ptr<DB::KafkaConsumer>>());
 
     auto & consumers = consumers_in_memory[topic_partition];
 
@@ -170,7 +170,7 @@ void GlutenKafkaSource::initConsumer()
     {
         LOG_DEBUG(log, "Creating new Kafka consumer for topic: {}, partition: {}", topics[0], partition);
         String collection_name = "";
-        KafkaConsumerPtr kafka_consumer_ptr = std::make_shared<KafkaConsumer>(
+        std::shared_ptr<DB::KafkaConsumer> kafka_consumer_ptr = std::make_shared<KafkaConsumer>(
             log,
             getPollMaxBatchSize(),
             getPollTimeoutMillisecond(),
