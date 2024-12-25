@@ -133,18 +133,6 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
       output = output,
       warmupTime = 15.seconds,
       minTime = 60.seconds)
-    benchmark.addTimerCase("Legacy") {
-      timer =>
-        val spark = createLegacySession()
-        createTpchTables(spark)
-        timer.startTiming()
-        allQueryIds.foreach {
-          id =>
-            val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
-            println("[Legacy] Optimized query plan: " + p.toString())
-        }
-        timer.stopTiming()
-    }
     benchmark.addTimerCase("RAS") {
       timer =>
         val spark = createRasSession()
@@ -154,6 +142,18 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
           id =>
             val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
             println("[RAS] Optimized query plan: " + p.toString())
+        }
+        timer.stopTiming()
+    }
+    benchmark.addTimerCase("Legacy") {
+      timer =>
+        val spark = createLegacySession()
+        createTpchTables(spark)
+        timer.startTiming()
+        allQueryIds.foreach {
+          id =>
+            val p = spark.sql(tpchSQL(id)).queryExecution.executedPlan
+            println("[Legacy] Optimized query plan: " + p.toString())
         }
         timer.stopTiming()
     }
