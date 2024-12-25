@@ -31,8 +31,8 @@ import scala.concurrent.duration.DurationInt
 import scala.io.Source
 
 /**
- * The benchmark measures on RAS query optimization performance only. Query performance is not
- * considered.
+ * The benchmark measures on RAS query optimization performance only. Performance of query execution
+ * is not considered.
  */
 object VeloxRasBenchmark extends SqlBasedBenchmark {
   private val tpchQueries: String =
