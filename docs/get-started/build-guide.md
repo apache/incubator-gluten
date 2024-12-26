@@ -22,7 +22,6 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_gcs             | Build with GCS support.                                                                            | OFF     |
 | enable_hdfs            | Build with HDFS support.                                                                           | OFF     |
 | enable_abfs            | Build with ABFS support.                                                                           | OFF     |
-| enable_ep_cache        | Enable caching for external project build (Velox).                                                 | OFF     |
 | enable_vcpkg           | Enable vcpkg for static build.                                                                     | OFF     |
 | run_setup_script       | Run setup script to install Velox dependencies.                                                    | ON      |
 | velox_repo             | Specify your own Velox repo to build.                                                              | ""      |
@@ -45,7 +44,6 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 | enable_hdfs      | Build Velox with HDFS support.                                | OFF                                      |
 | enable_abfs      | Build Velox with ABFS support.                                | OFF                                      |
 | run_setup_script | Run setup script to install Velox dependencies before build.  | ON                                       |
-| enable_ep_cache  | Enable and reuse cache of Velox build.                        | OFF                                      |
 | build_test_utils | Build Velox with cmake arg -DVELOX_BUILD_TEST_UTILS=ON if ON. | OFF                                      |
 | build_tests      | Build Velox test.                                             | OFF                                      |
 | build_benchmarks | Build Velox benchmarks.                                       | OFF                                      |
