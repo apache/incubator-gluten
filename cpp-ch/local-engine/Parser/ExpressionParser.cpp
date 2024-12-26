@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "ExpressionParser.h"
+#include <Columns/ColumnSet.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate32.h>
@@ -35,6 +36,7 @@
 #include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
+#include <Poco/Logger.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/logger_useful.h>
@@ -266,7 +268,6 @@ ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTyp
 {
     String name = toString(field).substr(0, 10);
     name = getUniqueName(name);
-    LOG_ERROR(getLogger("ExpressionParser"), "xxx add new const col: {}", name);
     const auto * res_node = &actions_dag.addColumn(DB::ColumnWithTypeAndName(type->createColumnConst(1, field), type, name));
     if (reuseCSE())
         if (const auto * exists_node = findOneStructureEqualNode(res_node, actions_dag))
@@ -882,12 +883,15 @@ bool ExpressionParser::areEqualNodes(const DB::ActionsDAG::Node * a, const Actio
             break;
         }
         case DB::ActionsDAG::ActionType::COLUMN: {
+            // dummpy columns cannot be compared
+            if (typeid_cast<const DB::ColumnSet *>(a->column.get()))
+                return a->result_name == b->result_name;
             if (a->column->compareAt(0, 0, *(b->column), 1) != 0)
                 return false;
             break;
         }
         case DB::ActionsDAG::ActionType::ARRAY_JOIN: {
-            break;
+            return false;
         }
         case DB::ActionsDAG::ActionType::FUNCTION: {
             if (!a->function_base->isDeterministic() || a->function_base->getName() != b->function_base->getName())
@@ -895,14 +899,15 @@ bool ExpressionParser::areEqualNodes(const DB::ActionsDAG::Node * a, const Actio
 
             break;
         }
-        default:
-            break;
+        default: {
+            LOG_DEBUG(getLogger("ExpressionParser"), "Unknow node type: {}|{}|{}", a->type, a->result_type->getName(), a->result_name);
+            return false;
+        }
     }
 
     for (size_t i = 0; i < a->children.size(); ++i)
         if (!areEqualNodes(a->children[i], b->children[i]))
             return false;
-
     return true;
 }
 
