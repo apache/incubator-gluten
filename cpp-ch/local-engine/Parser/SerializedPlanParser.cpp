@@ -296,9 +296,9 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
 DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan) const
 {
-    const auto & settings = parser_context->queryContext()->getSettingsRef();
+    const Settings & settings = parser_context->queryContext()->getSettingsRef();
     QueryPriorities priorities;
-    auto query_status = std::make_shared<QueryStatus>(
+    const auto query_status = std::make_shared<QueryStatus>(
         parser_context->queryContext(),
         "",
         parser_context->queryContext()->getClientInfo(),
@@ -307,7 +307,7 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         IAST::QueryKind::Select,
         settings,
         0);
-    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
+    const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
     BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings::fromContext(context);
     build_settings.process_list_element = query_status;
     build_settings.progress_callback = nullptr;
@@ -331,7 +331,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     }
     catch (...)
     {
-        // debug::dumpPlan(*query_plan, "Invalid clickhouse plan", true);
+        debug::dumpPlan(*query_plan, "Invalid clickhouse plan", true);
         throw;
     }
 
