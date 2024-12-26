@@ -20,12 +20,11 @@ import org.apache.gluten.execution.MergeTreePartSplit
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
-import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableNode
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.StructType
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.substrait.proto.{NamedStruct, ReadRel, Type}
+import io.substrait.proto.{NamedStruct, Type}
 
 import java.util.{Map => jMap}
 
@@ -79,46 +78,6 @@ object PartSerializer {
 
 object MetaSerializer {
   // scalastyle:off argcount
-  def apply1(
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      relativePath: String,
-      absolutePath: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      partSerializer: PartSerializer,
-      tableSchema: StructType,
-      clickhouseTableConfigs: jMap[String, String]): ReadRel.ExtensionTable = {
-
-    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
-      orderByKeyOption,
-      primaryKeyOption
-    )
-
-    val result = apply(
-      database,
-      tableName,
-      snapshotId,
-      relativePath,
-      absolutePath,
-      orderByKey0,
-      StorageMeta.columnsToStr(lowCardKeyOption),
-      StorageMeta.columnsToStr(minmaxIndexKeyOption),
-      StorageMeta.columnsToStr(bfIndexKeyOption),
-      StorageMeta.columnsToStr(setIndexKeyOption),
-      primaryKey0,
-      partSerializer,
-      tableSchema,
-      clickhouseTableConfigs
-    )
-    ExtensionTableNode.toProtobuf(result)
-  }
-
   def apply(
       database: String,
       tableName: String,

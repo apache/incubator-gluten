@@ -30,21 +30,17 @@ case class DeltaMetaReader(metadata: Metadata)
   override protected lazy val tableSchema: StructType = metadata.schema
 
   lazy val storageConf: Map[String, String] = {
-    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
-      orderByKeyOption,
-      primaryKeyOption
-    )
     Map(
       StorageMeta.DB -> configuration(StorageMeta.DB),
       StorageMeta.TABLE -> configuration(StorageMeta.TABLE),
       StorageMeta.SNAPSHOT_ID -> configuration(StorageMeta.SNAPSHOT_ID),
       StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"),
-      StorageMeta.ORDER_BY_KEY -> orderByKey0,
-      StorageMeta.LOW_CARD_KEY -> StorageMeta.columnsToStr(lowCardKeyOption),
-      StorageMeta.MINMAX_INDEX_KEY -> StorageMeta.columnsToStr(minmaxIndexKeyOption),
-      StorageMeta.BF_INDEX_KEY -> StorageMeta.columnsToStr(bfIndexKeyOption),
-      StorageMeta.SET_INDEX_KEY -> StorageMeta.columnsToStr(setIndexKeyOption),
-      StorageMeta.PRIMARY_KEY -> primaryKey0
+      StorageMeta.ORDER_BY_KEY -> orderByKey,
+      StorageMeta.LOW_CARD_KEY -> lowCardKey,
+      StorageMeta.MINMAX_INDEX_KEY -> minmaxIndexKey,
+      StorageMeta.BF_INDEX_KEY -> bfIndexKey,
+      StorageMeta.SET_INDEX_KEY -> setIndexKey,
+      StorageMeta.PRIMARY_KEY -> primaryKey
     )
   }
 }

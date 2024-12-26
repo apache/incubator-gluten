@@ -51,16 +51,6 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
     Map(StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"))
   }
 
-  def primaryKey(): String = StorageMeta.columnsToStr(primaryKeyOption)
-
-  def orderByKey(): String =
-    StorageMeta.columnsToStr(orderByKeyOption, StorageMeta.DEFAULT_ORDER_BY_KEY)
-
-  def lowCardKey(): String = StorageMeta.columnsToStr(lowCardKeyOption)
-  def minmaxIndexKey(): String = StorageMeta.columnsToStr(minmaxIndexKeyOption)
-  def bfIndexKey(): String = StorageMeta.columnsToStr(bfIndexKeyOption)
-  def setIndexKey(): String = StorageMeta.columnsToStr(setIndexKeyOption)
-
   def normalizedBucketSpec(tableCols: Seq[String], resolver: Resolver): Option[BucketSpec] = {
     if (deltaCatalog.isDefined) {
       bucketOption
