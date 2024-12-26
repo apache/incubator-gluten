@@ -41,6 +41,7 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup)
       mapId: Long,
       context: TaskContext,
       metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
+    ensureShuffleManagerRegistered(handle)
     cache.get(handle.shuffleId).getWriter(handle, mapId, context, metrics)
   }
 
@@ -52,6 +53,7 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup)
       endPartition: Int,
       context: TaskContext,
       metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+    ensureShuffleManagerRegistered(handle)
     cache
       .get(handle.shuffleId)
       .getReader(handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics)
@@ -71,12 +73,33 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup)
     }
     lookup.all().foreach(_.stop())
   }
+
+  private def ensureShuffleManagerRegistered(handle: ShuffleHandle): Unit = {
+    val baseShuffleHandle = handle match {
+      case b: BaseShuffleHandle[_, _, _] => b
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"${handle.getClass} is not a BaseShuffleHandle so is not supported by " +
+            s"GlutenShuffleManager")
+    }
+    val shuffleId = baseShuffleHandle.shuffleId
+    if (!cache.has(shuffleId)) {
+      return
+    }
+    val dependency = baseShuffleHandle.dependency
+    val manager = lookup.findShuffleManager(dependency)
+    cache.store(shuffleId, manager)
+  }
 }
 
 private object ShuffleManagerRouter {
   private class Cache {
     private val cache: java.util.Map[Int, ShuffleManager] =
       new java.util.concurrent.ConcurrentHashMap()
+
+    def has(shuffleId: Int): Boolean = {
+      cache.containsKey(shuffleId)
+    }
 
     def store(shuffleId: Int, manager: ShuffleManager): ShuffleManager = {
       cache.compute(
