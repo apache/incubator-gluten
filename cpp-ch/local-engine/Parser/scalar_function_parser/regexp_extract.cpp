@@ -58,7 +58,8 @@ public:
             if (literal_expr.has_string())
             {
                 std::string expr_str = literal_expr.string();
-                expr_str = adaptPattern(expr_str);
+                /// FIXEDME:  This only works for RE2
+                expr_str = adaptPatternForRE2(expr_str);
 
                 String sparkRegexp = adjustSparkRegexpRule(expr_str);
                 const auto * regex_expr_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), sparkRegexp);
@@ -75,24 +76,18 @@ public:
     }
 
 private:
-    String adaptPattern(const String & pattern_) const
+    String adaptPatternForRE2(const String & pattern_) const
     {
+        LOG_DEBUG(getLogger("FunctionParserRegexpExtract"), "xxx original pattern: {}", pattern_);
         String res = pattern_;
-        {
-            // adaptation for $, see issue #8325. equal two cases in re2: $ and \n$, but not include strings which contains \n in middle.
-            static const std::string replaced_str = "($|\\\\n$|(?:(.*\\\\n.\+$)))";
-            static const re2::RE2 regexp1("([^\\\\])(\\|\\$)");
-            re2::RE2::GlobalReplace(&res, regexp1, "\\1|" + replaced_str);
-            LOG_DEBUG(getLogger("FunctionParserRegexpExtract"), "xxx 1 res: {}", res);
+        // adaptation for $, see issue #8325. equal two cases in re2: $ and \n$, but not include strings which contains \n in middle.
+        static const std::string replaced_str = "($|\\\\n$)";
+        static const re2::RE2 replace_dollar_pattern("([^\\\\])(\\$)");
+        re2::RE2::GlobalReplace(&res, replace_dollar_pattern, "\\1" + replaced_str);
+        LOG_DEBUG(getLogger("FunctionParserRegexpExtract"), "xxx adaption for $: {}", res);
 
-            static const re2::RE2 regexp2("([^\\\\])(\\(\\$)");
-            re2::RE2::GlobalReplace(&res, regexp2, "\\1(" + replaced_str);
-            LOG_DEBUG(getLogger("FunctionParserRegexpExtract"), "xxx 2 res: {}", res);
-
-            static const re2::RE2 regexp3("(^\\(\\$)");
-            re2::RE2::GlobalReplace(&res, regexp3, "(" + replaced_str);
-            LOG_DEBUG(getLogger("FunctionParserRegexpExtract"), "xxx 3 res: {}", res);
-        }
+        // adaption for `.` . Need to remove flag s.
+        res = "(?-s)" + res;
         return res;
     }
 
