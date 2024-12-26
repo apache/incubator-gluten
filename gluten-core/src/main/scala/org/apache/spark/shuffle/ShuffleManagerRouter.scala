@@ -69,7 +69,7 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup)
         s"Shuffle router cache is not empty when being stopped. This might be because the " +
           s"shuffle is not unregistered.")
     }
-    lookup.all().reverse.foreach(_.stop())
+    lookup.all().foreach(_.stop())
   }
 }
 
