@@ -456,9 +456,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarShuffle && (GlutenConfig.getConf.isUseColumnarShuffleManager
-      || GlutenConfig.getConf.isUseCelebornShuffleManager
-      || GlutenConfig.getConf.isUseUniffleShuffleManager)
+    GlutenConfig.getConf.enableColumnarShuffle
   }
 
   override def enableJoinKeysRewrite(): Boolean = false
