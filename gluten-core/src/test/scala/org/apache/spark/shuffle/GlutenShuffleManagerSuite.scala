@@ -33,6 +33,11 @@ class GlutenShuffleManagerSuite extends SharedSparkSession {
       .set(SHUFFLE_MANAGER.key, classOf[GlutenShuffleManager].getName)
   }
 
+  override protected def beforeEach(): Unit = {
+    val registry = ShuffleManagerRegistry.get()
+    registry.clear()
+  }
+
   override protected def afterEach(): Unit = {
     val registry = ShuffleManagerRegistry.get()
     registry.clear()

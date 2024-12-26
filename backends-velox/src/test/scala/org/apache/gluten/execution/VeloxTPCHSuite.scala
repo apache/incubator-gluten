@@ -295,6 +295,17 @@ class VeloxTPCHV1Suite extends VeloxTPCHSuite {
   }
 }
 
+class VeloxTPCHV1GlutenShuffleManagerSuite extends VeloxTPCHSuite {
+  override def subType(): String = "v1-gluten-shuffle-manager"
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.GlutenShuffleManager")
+  }
+}
+
 class VeloxTPCHV1BhjSuite extends VeloxTPCHSuite {
   override def subType(): String = "v1-bhj"
 

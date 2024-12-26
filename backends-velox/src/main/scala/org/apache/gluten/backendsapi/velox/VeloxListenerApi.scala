@@ -27,10 +27,12 @@ import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
 
-import org.apache.spark.{HdfsConfGenerator, SparkConf, SparkContext}
+import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.shuffle.{ColumnarShuffleDependency, LookupKey, ShuffleManagerRegistry}
+import org.apache.spark.shuffle.sort.ColumnarShuffleManager
 import org.apache.spark.sql.execution.ColumnarCachedBatchSerializer
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjects, VeloxRowSplitter}
@@ -127,6 +129,19 @@ class VeloxListenerApi extends ListenerApi with Logging {
     VeloxBatch.ensureRegistered()
     ArrowJavaBatch.ensureRegistered()
     ArrowNativeBatch.ensureRegistered()
+
+    // Register shuffle so can be considered when `org.apache.spark.shuffle.GlutenShuffleManager`
+    // is set as Spark shuffle manager.
+    ShuffleManagerRegistry
+      .get()
+      .register(
+        new LookupKey {
+          override def accepts[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean = {
+            dependency.isInstanceOf[ColumnarShuffleDependency[_, _, _]]
+          }
+        },
+        classOf[ColumnarShuffleManager].getName
+      )
 
     // Sets this configuration only once, since not undoable.
     if (conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)) {
