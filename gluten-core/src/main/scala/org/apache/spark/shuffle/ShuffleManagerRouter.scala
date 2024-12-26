@@ -83,7 +83,7 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup)
             s"GlutenShuffleManager")
     }
     val shuffleId = baseShuffleHandle.shuffleId
-    if (!cache.has(shuffleId)) {
+    if (cache.has(shuffleId)) {
       return
     }
     val dependency = baseShuffleHandle.dependency
