@@ -25,11 +25,12 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
-import _root_.org.apache.commons.io.FileUtils
-import io.minio._
+import io.minio.{BucketExistsArgs, ListObjectsArgs, MakeBucketArgs, MinioClient, RemoveBucketArgs, RemoveObjectsArgs}
 import io.minio.messages.DeleteObject
+import org.apache.commons.io.FileUtils
 
 import java.io.File
 import java.util
@@ -142,7 +143,10 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKey.isEmpty)
+        assert(
+          ClickHouseTableV2
+            .getTable(fileIndex.deltaLog)
+            .orderByKey === StorageMeta.DEFAULT_ORDER_BY_KEY)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKey.isEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])

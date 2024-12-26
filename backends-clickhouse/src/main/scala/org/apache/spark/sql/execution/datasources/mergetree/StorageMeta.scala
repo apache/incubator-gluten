@@ -77,7 +77,7 @@ trait TablePropertiesReader {
 
   def configuration: Map[String, String]
 
-  protected val rawPartitionColumns: Seq[String]
+  protected def rawPartitionColumns: Seq[String]
 
   protected val tableSchema: StructType
 

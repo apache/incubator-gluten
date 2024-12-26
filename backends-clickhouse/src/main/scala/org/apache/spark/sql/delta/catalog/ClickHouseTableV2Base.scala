@@ -35,9 +35,8 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
 
   def configuration: Map[String, String] = deltaProperties
 
-  override protected val rawPartitionColumns: Seq[String] = deltaCatalog
-    .map(_.partitionColumnNames)
-    .getOrElse(deltaSnapshot.metadata.partitionColumns)
+  override protected def rawPartitionColumns: Seq[String] =
+    deltaSnapshot.metadata.partitionColumns
 
   lazy val dataBaseName: String = deltaCatalog
     .map(_.identifier.database.getOrElse(StorageMeta.DEFAULT_CREATE_TABLE_DATABASE))

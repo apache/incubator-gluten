@@ -110,7 +110,7 @@ class TempClickHouseTableV2(
     override val catalogTable: Option[CatalogTable] = None)
   extends ClickHouseTableV2(spark, null, catalogTable) {
   override def properties(): ju.Map[String, String] = catalogTable.get.properties.asJava
-  override lazy val partitionColumns: Seq[String] = catalogTable.get.partitionColumnNames
+  override protected def rawPartitionColumns: Seq[String] = catalogTable.get.partitionColumnNames
   override def cacheThis(): Unit = {}
 }
 
