@@ -29,6 +29,7 @@ import org.apache.spark.sql.execution.GlutenAutoAdjustStageResourceProfile.{appl
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
 import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SparkTestUtil
 
 import scala.collection.mutable
@@ -48,6 +49,9 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
 
   override def apply(plan: SparkPlan): SparkPlan = {
     if (!glutenConf.enableAutoAdjustStageResourceProfile) {
+      return plan
+    }
+    if (!SQLConf.get.adaptiveExecutionEnabled) {
       return plan
     }
     if (!plan.isInstanceOf[Exchange]) {
@@ -78,17 +82,12 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
     logInfo(s"default memory request $memoryRequest")
     logInfo(s"default offheap request $offheapRequest")
 
-    // case 1: whole stage fallback to vanilla spark in such case we swap the heap
-    // and offheap amount.
+    // case 1: whole stage fallback to vanilla spark in such case we increase the heap
     if (wholeStageFallback) {
-      val newMemoryAmount = offheapRequest.get.amount
-      val newOffheapAmount = memoryRequest.get.amount
+      val newMemoryAmount = memoryRequest.get.amount * glutenConf.autoAdjustStageRPHeapRatio
       val newExecutorMemory =
-        new ExecutorResourceRequest(ResourceProfile.MEMORY, newMemoryAmount)
-      val newExecutorOffheap =
-        new ExecutorResourceRequest(ResourceProfile.OFFHEAP_MEM, newOffheapAmount)
+        new ExecutorResourceRequest(ResourceProfile.MEMORY, newMemoryAmount.toLong)
       executorResource.put(ResourceProfile.MEMORY, newExecutorMemory)
-      executorResource.put(ResourceProfile.OFFHEAP_MEM, newExecutorOffheap)
       val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
       return applyNewResourceProfileIfPossible(plan, newRP, rpManager)
     }
