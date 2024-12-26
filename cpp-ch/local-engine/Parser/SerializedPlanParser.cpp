@@ -331,7 +331,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     }
     catch (...)
     {
-        debug::dumpPlan(*query_plan, "Invalid clickhouse plan", true);
+        // debug::dumpPlan(*query_plan, "Invalid clickhouse plan", true);
         throw;
     }
 
