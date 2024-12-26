@@ -33,13 +33,11 @@ import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePart
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.collection.BitSet
-
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.types.StructType
 
 import java.{util => ju}
-
 import scala.collection.JavaConverters._
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
@@ -63,20 +61,13 @@ class ClickHouseTableV2(
     }
   }
 
+  override protected lazy val tableSchema: StructType = schema()
+
   override def name(): String =
     catalogTable
       .map(_.identifier.unquotedString)
       .orElse(tableIdentifier)
       .getOrElse(s"clickhouse.`${deltaLog.dataPath}`")
-
-  private lazy val timeTravelSpec: Option[DeltaTimeTravelSpec] = {
-    if (timeTravelOpt.isDefined && timeTravelByPath.isDefined) {
-      throw DeltaErrors.multipleTimeTravelSyntaxUsed
-    }
-    timeTravelOpt.orElse(timeTravelByPath)
-  }
-
-  private lazy val caseInsensitiveOptions = new CaseInsensitiveStringMap(options.asJava)
 
   override def properties(): ju.Map[String, String] = {
     val ret = super.properties()

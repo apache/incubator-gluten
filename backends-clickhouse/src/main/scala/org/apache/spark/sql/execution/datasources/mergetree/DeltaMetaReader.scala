@@ -17,14 +17,17 @@
 package org.apache.spark.sql.execution.datasources.mergetree
 
 import org.apache.spark.sql.delta.actions.Metadata
+import org.apache.spark.sql.types.StructType
 
 case class DeltaMetaReader(metadata: Metadata)
   extends TablePropertiesReader
   with StorageConfigProvider {
 
-  override lazy val partitionColumns: Seq[String] = metadata.partitionColumns
+  override protected val rawPartitionColumns: Seq[String] = metadata.partitionColumns
 
-  override lazy val configuration: Map[String, String] = metadata.configuration
+  override val configuration: Map[String, String] = metadata.configuration
+
+  override protected lazy val tableSchema: StructType = metadata.schema
 
   lazy val storageConf: Map[String, String] = {
     val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(

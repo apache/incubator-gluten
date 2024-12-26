@@ -18,8 +18,11 @@ package org.apache.spark.sql.execution.datasources.mergetree
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.delta.actions.Metadata
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StructType
 
 import java.net.URI
+import java.util.Locale
 
 /** Reserved table property for MergeTree table. */
 object StorageMeta {
@@ -90,12 +93,26 @@ trait TablePropertiesReader {
 
   def configuration: Map[String, String]
 
-  val partitionColumns: Seq[String]
+  protected val rawPartitionColumns: Seq[String]
+
+  protected val tableSchema: StructType
+
+  private lazy val columnNameMapping =
+    tableSchema.fieldNames.map(n => n.toLowerCase(Locale.ROOT) -> n).toMap
+
+  private def normalizeColName(columnName: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) {
+      columnName
+    } else {
+      columnNameMapping.getOrElse(columnName.toLowerCase(Locale.ROOT), columnName)
+    }
+  }
 
   private def getCommaSeparatedColumns(keyName: String): Option[Seq[String]] = {
     configuration.get(keyName).map {
       v =>
-        val keys = v.split(",").map(_.trim).toSeq
+        val keys = v.split(",").map(k => normalizeColName(k.trim)).toSeq
         keys.foreach {
           s =>
             if (s.contains(".")) {
@@ -105,6 +122,10 @@ trait TablePropertiesReader {
         }
         keys
     }
+  }
+
+  lazy val partitionColumns: Seq[String] = {
+    rawPartitionColumns.map(normalizeColName)
   }
 
   lazy val bucketOption: Option[BucketSpec] = {
