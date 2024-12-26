@@ -130,6 +130,7 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Uuid, uuid, generateUUIDv4);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Levenshtein, levenshtein, editDistanceUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(FormatString, format_string, printf);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(SoundEx, soundex, soundex);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(PartitionEscape, partition_escape, sparkPartitionEscape);
 
 // hash functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Crc32, crc32, CRC32);

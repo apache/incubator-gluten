@@ -894,8 +894,9 @@ BENCHMARK(BM_ParquetRead)->Unit(benchmark::kMillisecond)->Iterations(10);
 int main(int argc, char ** argv)
 {
     std::string empty;
-    // BackendInitializerUtil::init(empty);
-    //SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
+    const SparkConfigs::ConfigMap spark_conf_map;
+    BackendInitializerUtil::initBackend(spark_conf_map);
+    SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
 
     ::benchmark::Initialize(&argc, argv);
     if (::benchmark::ReportUnrecognizedArguments(argc, argv))
