@@ -112,6 +112,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
+    // Set timezone through config.
+    .exclude("data type casting")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
