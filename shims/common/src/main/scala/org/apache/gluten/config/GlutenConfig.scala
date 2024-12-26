@@ -499,7 +499,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
 
   def enableAutoAdjustStageResourceProfile: Boolean =
-    conf.getConf(AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED) && conf.adaptiveExecutionEnabled
+    conf.getConf(AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED)
 
   def autoAdjustStageRPHeapRatio: Double = {
     conf.getConf(AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO)
