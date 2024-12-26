@@ -459,9 +459,7 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
             DB::MutableColumnPtr elem_column = elem_type->createColumn();
             elem_column->reserve(options_len);
             for (int i = 0; i < options_len; ++i)
-            {
                 elem_column->insert(options_type_and_field[i].second);
-            }
             auto name = getUniqueName("__set");
             ColumnWithTypeAndName elem_block{std::move(elem_column), elem_type, name};
 
@@ -892,8 +890,9 @@ bool ExpressionParser::areEqualNodes(const DB::ActionsDAG::Node * a, const Actio
             break;
         }
         case DB::ActionsDAG::ActionType::FUNCTION: {
-            if (a->function_base->getName() != b->function_base->getName())
+            if (!a->function_base->isDeterministic() || a->function_base->getName() != b->function_base->getName())
                 return false;
+
             break;
         }
         default:
