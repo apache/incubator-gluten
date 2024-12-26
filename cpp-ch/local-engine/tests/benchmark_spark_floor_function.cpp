@@ -29,6 +29,7 @@
 #include <benchmark/benchmark.h>
 #include <Common/QueryContext.h>
 #include <Common/TargetSpecific.h>
+#include <Columns/ColumnsCommon.h>
 
 using namespace DB;
 
