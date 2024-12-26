@@ -46,7 +46,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -377,26 +377,16 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
       if (GlutenConfig.getConf.enableHdfsViewfs) {
+        val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
         allScanSplitInfos.foreach {
           splitInfos =>
             splitInfos.foreach {
               case splitInfo: LocalFilesNode =>
-                val paths = splitInfo.getPaths.asScala
-                if (paths.nonEmpty && paths.exists(_.startsWith("viewfs"))) {
-                  // Convert the viewfs path into hdfs
-                  val newPaths = paths.map {
-                    viewfsPath =>
-                      var finalPath = viewfsPath
-                      while (finalPath.startsWith("viewfs")) {
-                        val viewPath = new Path(finalPath)
-                        val viewFileSystem =
-                          FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
-                        finalPath = viewFileSystem.resolvePath(viewPath).toString
-                      }
-                      finalPath
-                  }
-                  splitInfo.setPaths(newPaths.asJava)
-                }
+                val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
+                  splitInfo.getPaths.asScala.toSeq,
+                  viewfsToHdfsCache,
+                  serializableHadoopConf.value)
+                splitInfo.setPaths(newPaths.asJava)
             }
         }
       }

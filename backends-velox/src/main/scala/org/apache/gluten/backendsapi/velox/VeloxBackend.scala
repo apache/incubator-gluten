@@ -49,8 +49,10 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.util.SerializableConfiguration
 
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
+import scala.collection.mutable
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends SubstraitBackend {
@@ -107,17 +109,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
       val filteredRootPaths = distinctRootPaths(rootPaths)
       if (filteredRootPaths.nonEmpty) {
         val resolvedPaths =
-          if (
-            GlutenConfig.getConf.enableHdfsViewfs && filteredRootPaths.head.startsWith("viewfs")
-          ) {
-            // Convert the viewfs path to hdfs path.
-            filteredRootPaths.map {
-              viewfsPath =>
-                val viewPath = new Path(viewfsPath)
-                val viewFileSystem =
-                  FileSystem.get(viewPath.toUri, serializableHadoopConf.get.value)
-                viewFileSystem.resolvePath(viewPath).toString
-            }
+          if (GlutenConfig.getConf.enableHdfsViewfs) {
+            ViewFileSystemUtils.convertViewfsToHdfs(
+              filteredRootPaths,
+              mutable.Map.empty[String, String],
+              serializableHadoopConf.get.value)
           } else {
             filteredRootPaths
           }
