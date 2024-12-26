@@ -61,11 +61,11 @@ First time build for all supported spark versions.
 ./dev/buildbundle-veloxbe.sh
 ```
 
-After a complete build, if only some gluten code is changed, you can use the following command to skip building velox/arrow and
+After a complete build, if only some gluten code is changed, you can use the following command to skip building arrow and
 setting up build dependencies.
 
 ```bash
-./dev/buildbundle-veloxbe.sh --enable_ep_cache=ON --build_arrow=OFF --run_setup_script=OFF
+./dev/buildbundle-veloxbe.sh --build_arrow=OFF --run_setup_script=OFF
 ```
 
 **For aarch64 build**
