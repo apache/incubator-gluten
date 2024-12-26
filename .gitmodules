@@ -1,0 +1,3 @@
+[submodule "ep/build-velox/build/velox_ep"]
+	path = ep/build-velox/build/velox_ep
+	url = https://github.com/oap-project/velox
