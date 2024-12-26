@@ -16,12 +16,14 @@
  */
 package org.apache.gluten.component
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.columnar.transition.ConventionFunc
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.SparkContext
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.api.plugin.PluginContext
+import org.apache.spark.internal.Logging
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
@@ -98,7 +100,18 @@ object Component {
   // format: on
   def sorted(): Seq[Component] = {
     ensureAllComponentsRegistered()
-    graph.sorted()
+    val out = graph.sorted()
+    require(
+      out.nonEmpty,
+      s"No available components found in classpath! Check whether you have excluded all the " +
+        s"components with option ${GlutenConfig.GLUTEN_COMPONENT_EXCLUSIONS.key}."
+    )
+    out
+  }
+
+  /** Add a set of component names to disable from sorting. */
+  def excludeByNames(exclusions: Set[String]): Unit = {
+    graph.excludeByNames(exclusions)
   }
 
   private[component] def sortedUnsafe(): Seq[Component] = {
@@ -143,10 +156,11 @@ object Component {
     }
   }
 
-  private class Graph {
+  private class Graph extends Logging {
     import Graph._
     private val registry: Registry = new Registry()
     private val dependencies: mutable.Buffer[(Int, Class[_ <: Component])] = mutable.Buffer()
+    private val nameExclusions: mutable.Set[String] = mutable.Set()
 
     private var sortedComponents: Option[Seq[Component]] = None
 
@@ -168,6 +182,11 @@ object Component {
         dependencies += comp.uid -> dependencyCompClass
         sortedComponents = None
       }
+
+    def excludeByNames(exclusions: Set[String]): Unit = synchronized {
+      this.nameExclusions ++= exclusions
+      sortedComponents = None
+    }
 
     private def newLookup(): mutable.Map[Int, Node] = {
       val lookup: mutable.Map[Int, Node] = mutable.Map()
@@ -206,7 +225,7 @@ object Component {
 
       val lookup: mutable.Map[Int, Node] = newLookup()
 
-      val out = mutable.Buffer[Component]()
+      val sorted = mutable.Buffer[Component]()
       val uidToNumParents = lookup.map { case (uid, node) => uid -> node.parents.size }
       val removalQueue = mutable.Queue[Int]()
 
@@ -217,7 +236,7 @@ object Component {
       while (removalQueue.nonEmpty) {
         val parentUid = removalQueue.dequeue()
         val node = lookup(parentUid)
-        out += registry.findByUid(parentUid)
+        sorted += registry.findByUid(parentUid)
         node.children.keys.foreach {
           childUid =>
             uidToNumParents += childUid -> (uidToNumParents(childUid) - 1)
@@ -238,8 +257,25 @@ object Component {
           s"Cycle detected in the component graph: $cycleNodeNames")
       }
 
-      // 4. Return the ordered nodes.
-      sortedComponents = Some(out.toSeq)
+      // 4. Remove items (and their children recursively) that are in the exclusion list.
+      val excludedUids = mutable.Set[Int]()
+      sorted.foreach {
+        comp =>
+          def excludeRecursively(n: Node): Unit = {
+            if (excludedUids.add(n.uid)) {
+              logInfo(s"Component [${registry.findByUid(n.uid).name()}] is excluded.")
+            }
+            n.children.foreach(child => excludeRecursively(child._2))
+          }
+          if (nameExclusions.contains(comp.name())) {
+            val node = lookup(comp.uid)
+            excludeRecursively(node)
+          }
+      }
+      val remaining = sorted.filter(c => !excludedUids.contains(c.uid)).toSeq
+
+      // 5. Return the ordered nodes.
+      sortedComponents = Some(remaining)
       sortedComponents.get
     }
   }
