@@ -130,8 +130,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
     ArrowJavaBatch.ensureRegistered()
     ArrowNativeBatch.ensureRegistered()
 
-    // Register shuffle so can be considered when `org.apache.spark.shuffle.GlutenShuffleManager`
-    // is set as Spark shuffle manager.
+    // Register columnar shuffle so can be considered when
+    // `org.apache.spark.shuffle.GlutenShuffleManager` is set as Spark shuffle manager.
     ShuffleManagerRegistry
       .get()
       .register(
