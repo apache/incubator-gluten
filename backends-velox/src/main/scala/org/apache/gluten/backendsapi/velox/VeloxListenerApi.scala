@@ -137,7 +137,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
       .register(
         new LookupKey {
           override def accepts[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean = {
-            dependency.isInstanceOf[ColumnarShuffleDependency[_, _, _]]
+            dependency.getClass == classOf[ColumnarShuffleDependency[_, _, _]]
           }
         },
         classOf[ColumnarShuffleManager].getName

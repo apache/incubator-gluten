@@ -16,8 +16,8 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.{ShuffleDependency, SparkConf}
+import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.util.{SparkTestUtil, Utils}
 
 import scala.collection.mutable
@@ -73,9 +73,14 @@ class ShuffleManagerRegistry private[ShuffleManagerRegistry] {
 object ShuffleManagerRegistry {
   private val instance = {
     val r = new ShuffleManagerRegistry()
-    r.register(new LookupKey {
-      override def accepts[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean = true
-    }, classOf[SortShuffleManager].getName)
+    r.register(
+      new LookupKey {
+        override def accepts[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean = {
+          dependency.getClass == classOf[ShuffleDependency[_, _, _]]
+        }
+      },
+      classOf[SortShuffleManager].getName
+    )
     r
   }
 

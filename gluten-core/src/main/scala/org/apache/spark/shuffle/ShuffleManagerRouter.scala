@@ -16,12 +16,15 @@
  */
 package org.apache.spark.shuffle
 import org.apache.spark.{ShuffleDependency, TaskContext}
+import org.apache.spark.internal.Logging
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.storage.{BlockId, ShuffleBlockBatchId, ShuffleBlockId, ShuffleMergedBlockId}
 
 /** The internal shuffle manager instance used by GlutenShuffleManager. */
-private class ShuffleManagerRouter(lookup: ShuffleManagerLookup) extends ShuffleManager {
+private class ShuffleManagerRouter(lookup: ShuffleManagerLookup)
+  extends ShuffleManager
+  with Logging {
   import ShuffleManagerRouter._
   private val cache = new Cache()
   private val resolver = new BlockResolver(cache)
@@ -61,7 +64,11 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup) extends Shuffle
   override def shuffleBlockResolver: ShuffleBlockResolver = resolver
 
   override def stop(): Unit = {
-    assert(cache.size() == 0)
+    if (!(cache.size() == 0)) {
+      logWarning(
+        s"Shuffle router cache is not empty when being stopped. This might be because the " +
+          s"shuffle is not unregistered.")
+    }
     lookup.all().reverse.foreach(_.stop())
   }
 }
