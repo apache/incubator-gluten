@@ -1363,6 +1363,16 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("drop table test_tbl_6506")
   }
 
+  test("GLUTEN-7502: Orc write time zone") {
+    val create_table_sql = "create table test_tbl_7502(id bigint, t timestamp) using orc"
+    val insert_sql = "insert into test_tbl_7502 values(1, '2024-10-09 20:00:00')"
+    val select_sql = "select * from test_tbl_7502"
+    spark.sql(create_table_sql)
+    spark.sql(insert_sql);
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("drop table test_tbl_7502")
+  }
+
   test("GLUTEN-6879: Fix partition value diff when it contains blanks") {
     val tableName = "test_tbl_6879"
     sql(s"drop table if exists $tableName")
