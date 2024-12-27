@@ -160,7 +160,8 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def deserialized: Iterator[ColumnarBatch] = {
     val runtime =
-      Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
+      Runtimes.contextInstance(BackendsApiManager.getBackendName,
+        "UnsafeBuildSideRelation##deserialized")
     val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializerHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()
@@ -208,7 +209,8 @@ case class UnsafeColumnarBuildSideRelation(
    */
   override def transform(key: Expression): Array[InternalRow] = TaskResources.runUnsafe {
     val runtime =
-      Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
+      Runtimes.contextInstance(BackendsApiManager.getBackendName,
+        "UnsafeBuildSideRelation#transform")
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializerHandle = {
