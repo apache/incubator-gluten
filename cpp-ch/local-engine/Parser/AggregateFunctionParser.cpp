@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "AggregateFunctionParser.h"
+
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
@@ -25,6 +26,7 @@
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {

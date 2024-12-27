@@ -27,17 +27,16 @@ class SparkFunctionExtractYear : public FunctionGetDateData<true, false, DataTyp
 public:
     static constexpr auto name = "sparkExtractYear";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionExtractYear>(); }
+
     SparkFunctionExtractYear() = default;
     ~SparkFunctionExtractYear() override = default;
+
+    String getName() const override { return name; }
     bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo &) const override { return true; }
     size_t getNumberOfArguments() const override { return 1; }
     bool useDefaultImplementationForConstants() const override { return true; }
-    String getName() const override { return name; }
 
-    DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName &) const override
-    {
-        return makeNullable(std::make_shared<DataTypeInt32>());
-    }
+    DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName &) const override { return makeNullable(std::make_shared<DataTypeInt32>()); }
 };
 
 REGISTER_FUNCTION(SparkExtractYear)
