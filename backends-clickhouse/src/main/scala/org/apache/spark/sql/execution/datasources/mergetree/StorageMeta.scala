@@ -124,25 +124,25 @@ trait TablePropertiesReader {
     }
   }
 
-  private lazy val orderByKeyOption: Seq[String] = {
-    val orderByKeys =
+  private lazy val orderByKeys: Seq[String] = {
+    val orderBys =
       if (bucketOption.exists(_.sortColumnNames.nonEmpty)) {
         bucketOption.map(_.sortColumnNames).getOrElse(Nil)
       } else {
         getCommaSeparatedColumns("orderByKey")
       }
-    val invalidKey = orderByKeys.intersect(partitionColumns).mkString(",")
+    val invalidKey = orderBys.intersect(partitionColumns).mkString(",")
     if (invalidKey.nonEmpty) {
       throw new IllegalStateException(
         s"partition column(s) $invalidKey can not be in the order by keys.")
     }
-    orderByKeys
+    orderBys
   }
 
-  private lazy val primaryKeyOption: Seq[String] = {
-    val orderBys = orderByKeyOption.mkString(",")
+  private lazy val primaryKeys: Seq[String] = {
+    val orderBys = orderByKeys.mkString(",")
     val primaryKeys = getCommaSeparatedColumns("primaryKey")
-    primaryKeys.zip(orderByKeyOption).foreach {
+    primaryKeys.zip(orderByKeys).foreach {
       case (primaryKey, orderBy) =>
         if (orderBy != primaryKey) {
           throw new IllegalStateException(
@@ -160,10 +160,8 @@ trait TablePropertiesReader {
 
   lazy val setIndexKey: String = getCommaSeparatedColumns("setIndexKey").mkString(",")
 
-  lazy val primaryKey: String = primaryKeyOption.mkString(",")
+  lazy val primaryKey: String = primaryKeys.mkString(",")
 
   lazy val orderByKey: String =
-    if (orderByKeyOption.nonEmpty) orderByKeyOption.mkString(",")
-    else StorageMeta.DEFAULT_ORDER_BY_KEY
-
+    if (orderByKeys.nonEmpty) orderByKeys.mkString(",") else StorageMeta.DEFAULT_ORDER_BY_KEY
 }
