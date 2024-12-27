@@ -489,4 +489,30 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
         }
     }
   }
+
+  test("test read v1 iceberg with partition drop") {
+    val testTable = "test_table_with_partition"
+    withTable(testTable) {
+      spark.sql(s"""
+                   |CREATE TABLE test_catalog.$testTable (id INT, data STRING, p1 STRING, p2 STRING)
+                   |USING iceberg
+                   |tblproperties (
+                   |  'format-version' = '1'
+                   |)
+                   |PARTITIONED BY (p1, p2);
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |INSERT INTO test_catalog.$testTable VALUES
+                   |(1, 'test_data', 'test_p1', 'test_p2');
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |ALTER TABLE test_catalog.$testTable DROP PARTITION FIELD p2;
+                   |""".stripMargin)
+      val resultDf = spark.sql(s"SELECT id, data, p1, p2 FROM test_catalog.$testTable")
+      val result = resultDf.collect()
+
+      assert(result.length == 1)
+      assert(result.head.getString(2) == "test_p2")
+    }
+  }
 }
