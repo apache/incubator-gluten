@@ -20,21 +20,23 @@
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/ActionsDAG.h>
+#include <Parser/ExpressionParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <base/types.h>
-#include <boost/noncopyable.hpp>
 #include <substrait/algebra.pb.h>
 #include <Common/IFactoryWithAliases.h>
 
 namespace local_engine
 {
 class SerializedPlanParser;
+class ExpressionParser;
 
 /// Parse a single substrait scalar function
 class FunctionParser
 {
 public:
-    explicit FunctionParser(SerializedPlanParser * plan_parser_) : plan_parser(plan_parser_) { }
+    explicit FunctionParser(ParserContextPtr ctx);
 
     virtual ~FunctionParser() = default;
 
@@ -45,68 +47,56 @@ public:
     /// - add const columns for literal arguments into actions_dag.
     /// - make pre-projections for input arguments. e.g. type conversion.
     /// - make a post-projection for the function result. e.g. type conversion.
-    virtual const DB::ActionsDAG::Node * parse(
-        const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAG & actions_dag) const;
+    virtual const DB::ActionsDAG::Node *
+    parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const;
 
     virtual String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
+
 protected:
     /// Deprecated method
     virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
-        const substrait::Expression_ScalarFunction & substrait_func,
-        const String & /*function_name*/,
-        DB::ActionsDAG & actions_dag) const
+        const substrait::Expression_ScalarFunction & substrait_func, const String & /*function_name*/, DB::ActionsDAG & actions_dag) const
     {
         return parseFunctionArguments(substrait_func, actions_dag);
     }
-    virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
-        const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAG & actions_dag) const;
+
+    virtual DB::ActionsDAG::NodeRawConstPtrs
+    parseFunctionArguments(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const;
 
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const substrait::Expression_ScalarFunction & substrait_func,
         const DB::ActionsDAG::Node * func_node,
         DB::ActionsDAG & actions_dag) const;
 
-    DB::ContextPtr getContext() const { return plan_parser->context; }
+    DB::ContextPtr getContext() const { return parser_context->queryContext(); }
 
-    String getUniqueName(const String & name) const { return plan_parser->getUniqueName(name); }
-
-    const DB::ActionsDAG::Node * addColumnToActionsDAG(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
-    {
-        return &actions_dag.addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
-    }
+    String getUniqueName(const String & name) const;
 
     const DB::ActionsDAG::Node *
-    toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
-    {
-        return plan_parser->toFunctionNode(action_dag, func_name, args);
-    }
+    addColumnToActionsDAG(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const;
 
     const DB::ActionsDAG::Node *
-    toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const String & result_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
-    {
-        auto function_builder = DB::FunctionFactory::instance().get(func_name, getContext());
-        return &action_dag.addFunction(function_builder, args, result_name);
-    }
+    toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const;
 
-    const ActionsDAG::Node *
-        parseFunctionWithDAG(const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG& actions_dag, bool keep_result = false) const
-    {
-        return plan_parser->parseFunctionWithDAG(rel, result_name, actions_dag, keep_result);
-    }
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG& actions_dag, const substrait::Expression & rel) const
-    {
-        return plan_parser->parseExpression(actions_dag, rel);
-    }
+    const DB::ActionsDAG::Node * toFunctionNode(
+        DB::ActionsDAG & action_dag,
+        const String & func_name,
+        const String & result_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & args) const;
 
-    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const { return plan_parser->parseLiteral(literal); }
+    const DB::ActionsDAG::Node * parseFunctionWithDAG(
+        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG & actions_dag, bool keep_result = false) const;
 
-    mutable SerializedPlanParser * plan_parser;
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel) const;
+
+    std::pair<DB::DataTypePtr, DB::Field> parseLiteral(const substrait::Expression_Literal & literal) const;
+
+    ParserContextPtr parser_context;
+    std::unique_ptr<ExpressionParser> expression_parser;
 };
 
 using FunctionParserPtr = std::shared_ptr<FunctionParser>;
-using FunctionParserCreator = std::function<FunctionParserPtr(SerializedPlanParser *)>;
+using FunctionParserCreator = std::function<FunctionParserPtr(ParserContextPtr)>;
 
 /// Creates FunctionParser by name.
 class FunctionParserFactory : private boost::noncopyable, public DB::IFactoryWithAliases<FunctionParserCreator>
@@ -124,17 +114,15 @@ public:
     void registerFunctionParser()
     {
         // std::cout << "register function parser with name:" << Parser::name << std::endl;
-        auto creator
-            = [](SerializedPlanParser * plan_parser) -> std::shared_ptr<FunctionParser> { return std::make_shared<Parser>(plan_parser); };
+        auto creator = [](ParserContextPtr ctx) -> std::shared_ptr<FunctionParser> { return std::make_shared<Parser>(ctx); };
         registerFunctionParser(Parser::name, creator);
     }
 
-    FunctionParserPtr get(const String & name, SerializedPlanParser * plan_parser);
-    FunctionParserPtr tryGet(const String & name, SerializedPlanParser * plan_parser);
-    const Parsers & getMap() const override {return parsers;}
+    FunctionParserPtr get(const String & name, ParserContextPtr ctx);
+    FunctionParserPtr tryGet(const String & name, ParserContextPtr ctx);
+    const Parsers & getMap() const override { return parsers; }
 
 private:
-
     Parsers parsers;
 
     /// Always empty

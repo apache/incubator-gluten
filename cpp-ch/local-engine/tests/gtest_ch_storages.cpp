@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 #include <Functions/FunctionFactory.h>
+#include <Parser/ParserContext.h>
 #include <Parser/RelParsers/MergeTreeRelParser.h>
 #include <Processors/Executors/PipelineExecutor.h>
+#include <Processors/Executors/PullingPipelineExecutor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
@@ -261,10 +263,10 @@ TEST(TestPrewhere, OptimizePrewhereCondition)
     Block block(std::move(columns));
 
     ContextPtr context = QueryContext::globalContext();
-    SerializedPlanParser * parser = new SerializedPlanParser(context);
-    parser->parseExtensions(plan_ptr->extensions());
+    ParserContextPtr parser_context = ParserContext::build(context, *plan_ptr);
+    SerializedPlanParser * parser = new SerializedPlanParser(parser_context);
 
-    MergeTreeRelParser mergeTreeParser(parser, QueryContext::globalContext());
+    MergeTreeRelParser mergeTreeParser(parser_context, QueryContext::globalContext());
 
     mergeTreeParser.column_sizes["l_discount"] = 0;
     mergeTreeParser.column_sizes["l_quantity"] = 1;

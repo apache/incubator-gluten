@@ -74,7 +74,7 @@ class JniReadFile : public facebook::velox::ReadFile {
 
   ~JniReadFile() override {
     try {
-      close0();
+      closeInternal();
       JNIEnv* env = nullptr;
       attachCurrentThreadAsDaemonOrThrow(vm, &env);
       env->DeleteGlobalRef(obj_);
@@ -130,7 +130,7 @@ class JniReadFile : public facebook::velox::ReadFile {
   }
 
  private:
-  void close0() {
+  void closeInternal() {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->CallVoidMethod(obj_, jniReadFileClose);
@@ -151,7 +151,7 @@ class JniWriteFile : public facebook::velox::WriteFile {
 
   ~JniWriteFile() override {
     try {
-      close0();
+      closeInternal();
       JNIEnv* env = nullptr;
       attachCurrentThreadAsDaemonOrThrow(vm, &env);
       env->DeleteGlobalRef(obj_);
@@ -178,7 +178,7 @@ class JniWriteFile : public facebook::velox::WriteFile {
   }
 
   void close() override {
-    close0();
+    closeInternal();
   }
 
   uint64_t size() const override {
@@ -190,7 +190,7 @@ class JniWriteFile : public facebook::velox::WriteFile {
   }
 
  private:
-  void close0() {
+  void closeInternal() {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->CallVoidMethod(obj_, jniWriteFileClose);
@@ -241,7 +241,7 @@ class FileSystemWrapper : public facebook::velox::filesystems::FileSystem {
     return fs_->list(rewrite(path));
   }
 
-  void mkdir(std::string_view path) override {
+  void mkdir(std::string_view path, const facebook::velox::filesystems::DirectoryOptions& options = {}) override {
     fs_->mkdir(rewrite(path));
   }
 
@@ -349,7 +349,7 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     return out;
   }
 
-  void mkdir(std::string_view path) override {
+  void mkdir(std::string_view path, const facebook::velox::filesystems::DirectoryOptions& options = {}) override {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->CallVoidMethod(obj_, jniFileSystemMkdir, createJString(env, path));

@@ -22,7 +22,7 @@ namespace local_engine
 class SparkFunctionDateFormatParser : public FunctionParser
 {
 public:
-    SparkFunctionDateFormatParser(SerializedPlanParser * plan_paser_) : FunctionParser(plan_paser_) {}
+    SparkFunctionDateFormatParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionDateFormatParser() override = default;
 
     static constexpr auto name = "date_format";

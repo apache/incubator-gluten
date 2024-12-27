@@ -196,7 +196,17 @@ bool VectorizedParquetRecordReader::initialize(
     /// column pruning
     DB::ArrowFieldIndexUtil field_util(
         format_settings_.parquet.case_insensitive_column_matching, format_settings_.parquet.allow_missing_columns);
-    const std::vector<Int32> column_indices = field_util.findRequiredIndices(header, schema);
+    auto index_mapping = field_util.findRequiredIndices(header, schema, *metadata);
+
+    std::vector<Int32> column_indices;
+    for (const auto & [clickhouse_header_index, parquet_indexes] : index_mapping)
+    {
+        for (auto parquet_index : parquet_indexes)
+        {
+            column_indices.push_back(parquet_index);
+        }
+    }
+
     THROW_ARROW_NOT_OK_OR_ASSIGN(std::vector<int> field_indices, manifest.GetFieldIndices(column_indices));
 
     /// row groups pruning
@@ -367,7 +377,7 @@ void VectorizedParquetBlockInputFormat::resetParser()
 {
     IInputFormat::resetParser();
     record_reader_.reset();
- }
+}
 
 DB::Chunk VectorizedParquetBlockInputFormat::read()
 {

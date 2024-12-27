@@ -24,7 +24,7 @@ namespace local_engine
 class AggregateFunctionParserBloomFilterAgg : public AggregateFunctionParser
 {
 public:
-    explicit AggregateFunctionParserBloomFilterAgg(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit AggregateFunctionParserBloomFilterAgg(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~AggregateFunctionParserBloomFilterAgg() override = default;
     String getName() const override { return name; }
     static constexpr auto name = "bloom_filter_agg";
@@ -32,6 +32,6 @@ public:
     String getCHFunctionName(DB::DataTypes &) const override { return "groupBloomFilterState"; }
 
     DB::Array
-    parseFunctionParameters(const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes) const override;
+    parseFunctionParameters(const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes, DB::ActionsDAG & /*actions_dag*/) const override;
 };
 }

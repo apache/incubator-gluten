@@ -16,56 +16,46 @@
  */
 
 #include "Runtime.h"
-#include "utils/Print.h"
+#include "utils/Registry.h"
 
 namespace gluten {
-
 namespace {
-class FactoryRegistry {
- public:
-  void registerFactory(const std::string& kind, Runtime::Factory factory) {
-    std::lock_guard<std::mutex> l(mutex_);
-    GLUTEN_CHECK(map_.find(kind) == map_.end(), "Runtime factory already registered for " + kind);
-    map_[kind] = std::move(factory);
-  }
 
-  Runtime::Factory& getFactory(const std::string& kind) {
-    std::lock_guard<std::mutex> l(mutex_);
-    GLUTEN_CHECK(map_.find(kind) != map_.end(), "Runtime factory not registered for " + kind);
-    return map_[kind];
-  }
-
-  bool unregisterFactory(const std::string& kind) {
-    std::lock_guard<std::mutex> l(mutex_);
-    GLUTEN_CHECK(map_.find(kind) != map_.end(), "Runtime factory not registered for " + kind);
-    return map_.erase(kind);
-  }
-
- private:
-  std::mutex mutex_;
-  std::unordered_map<std::string, Runtime::Factory> map_;
-};
-
-FactoryRegistry& runtimeFactories() {
-  static FactoryRegistry registry;
+Registry<Runtime::Factory>& runtimeFactories() {
+  static Registry<Runtime::Factory> registry;
   return registry;
 }
+Registry<Runtime::Releaser>& runtimeReleasers() {
+  static Registry<Runtime::Releaser> registry;
+  return registry;
+}
+
 } // namespace
 
-void Runtime::registerFactory(const std::string& kind, Runtime::Factory factory) {
-  runtimeFactories().registerFactory(kind, std::move(factory));
+void Runtime::registerFactory(const std::string& kind, Runtime::Factory factory, Runtime::Releaser releaser) {
+  runtimeFactories().registerObj(kind, std::move(factory));
+  runtimeReleasers().registerObj(kind, std::move(releaser));
 }
 
 Runtime* Runtime::create(
     const std::string& kind,
-    std::unique_ptr<AllocationListener> listener,
+    MemoryManager* memoryManager,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-  auto& factory = runtimeFactories().getFactory(kind);
-  return factory(std::move(listener), sessionConf);
+  auto& factory = runtimeFactories().get(kind);
+  return factory(kind, std::move(memoryManager), sessionConf);
 }
 
 void Runtime::release(Runtime* runtime) {
-  delete runtime;
+  const std::string kind = runtime->kind();
+  auto& releaser = runtimeReleasers().get(kind);
+  releaser(runtime);
+}
+
+std::optional<std::string>* Runtime::localWriteFilesTempPath() {
+  // This is thread-local to conform to Java side ColumnarWriteFilesExec's design.
+  // FIXME: Pass the path through relevant member functions.
+  static thread_local std::optional<std::string> path;
+  return &path;
 }
 
 } // namespace gluten

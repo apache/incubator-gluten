@@ -22,6 +22,7 @@
 #include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/DataTypeFixedString.h>
+#include <DataTypes/DataTypeLowCardinality.h>
 #include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeNothing.h>
 #include <DataTypes/DataTypeNullable.h>
@@ -31,6 +32,7 @@
 #include <DataTypes/DataTypesNumber.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Parser/FunctionParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
@@ -49,6 +51,7 @@ extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 
 namespace local_engine
 {
+using namespace DB;
 std::unordered_map<String, String> TypeParser::type_names_mapping
     = {{"BooleanType", "UInt8"},
        {"ByteType", "Int8"},
@@ -274,13 +277,14 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             auto args_types = tuple_type->getElements();
             AggregateFunctionProperties properties;
             auto tmp_ctx = DB::Context::createCopy(QueryContext::globalContext());
-            SerializedPlanParser tmp_plan_parser(tmp_ctx);
-            auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
+            auto parser_context = ParserContext::build(tmp_ctx);
+            auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], parser_context);
             /// This may remove elements from args_types, because some of them are used to determine CH function name, but not needed for the following
             /// call `AggregateFunctionFactory::instance().get`
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
-            ch_type = RelParser::getAggregateFunction(agg_function_name, args_types, properties, function_parser->getDefaultFunctionParameters())
-                                 ->getStateType();
+            ch_type = RelParser::getAggregateFunction(
+                          agg_function_name, args_types, properties, function_parser->getDefaultFunctionParameters())
+                          ->getStateType();
         }
 
         internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));

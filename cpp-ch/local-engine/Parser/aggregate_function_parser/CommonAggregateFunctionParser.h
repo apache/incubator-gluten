@@ -24,7 +24,7 @@ namespace local_engine
     class AggregateFunctionParser##cls_name : public AggregateFunctionParser \
     { \
     public: \
-        AggregateFunctionParser##cls_name(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) \
+        AggregateFunctionParser##cls_name(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) \
         { \
         } \
         ~AggregateFunctionParser##cls_name() override = default; \

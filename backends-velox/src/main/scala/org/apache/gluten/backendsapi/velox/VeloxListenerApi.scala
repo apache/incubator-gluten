@@ -20,7 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
 import org.apache.gluten.columnarbatch.VeloxBatch
-import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
@@ -31,7 +31,9 @@ import org.apache.spark.{HdfsConfGenerator, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.ByteUnit
-import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
+import org.apache.spark.sql.execution.ColumnarCachedBatchSerializer
+import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
+import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
@@ -74,7 +76,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
       conf.set(
         StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
-        "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
+        classOf[ColumnarCachedBatchSerializer].getName)
     }
 
     // Static initializers for driver.
@@ -88,7 +90,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = true)
-    initialize(conf)
+    initialize(conf, isDriver = true)
     UdfJniWrapper.registerFunctionSignatures()
   }
 
@@ -115,16 +117,16 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = false)
-    initialize(conf)
+    initialize(conf, isDriver = false)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
 
-  private def initialize(conf: SparkConf): Unit = {
+  private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Force batch type initializations.
-    VeloxBatch.getClass
-    ArrowJavaBatch.getClass
-    ArrowNativeBatch.getClass
+    VeloxBatch.ensureRegistered()
+    ArrowJavaBatch.ensureRegistered()
+    ArrowNativeBatch.ensureRegistered()
 
     // Sets this configuration only once, since not undoable.
     if (conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)) {
@@ -156,13 +158,19 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     // Initial native backend with configurations.
-    val parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
-    NativeBackendInitializer.initializeBackend(parsed)
+    var parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+
+    // Workaround for https://github.com/apache/incubator-gluten/issues/7837
+    if (isDriver && !inLocalMode(conf)) {
+      parsed += (GlutenConfig.COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
+    }
+    NativeBackendInitializer.forBackend(VeloxBackend.BACKEND_NAME).initialize(parsed)
 
     // Inject backend-specific implementations to override spark classes.
-    GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
-    GlutenOrcWriterInjects.setInstance(new VeloxOrcWriterInjects())
-    GlutenRowSplitter.setInstance(new VeloxRowSplitter())
+    GlutenFormatFactory.register(new VeloxParquetWriterInjects)
+    GlutenFormatFactory.injectPostRuleFactory(
+      session => GlutenWriterColumnarRules.NativeWritePostRule(session))
+    GlutenFormatFactory.register(new VeloxRowSplitter())
   }
 
   private def shutdown(): Unit = {

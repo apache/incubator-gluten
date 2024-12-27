@@ -19,11 +19,12 @@ package org.apache.gluten.execution;
 import java.util.Set;
 
 public class CHNativeCacheManager {
-  public static String cacheParts(String table, Set<String> columns) {
-    return nativeCacheParts(table, String.join(",", columns));
+  public static String cacheParts(String table, Set<String> columns, boolean onlyMetaCache) {
+    return nativeCacheParts(table, String.join(",", columns), onlyMetaCache);
   }
 
-  private static native String nativeCacheParts(String table, String columns);
+  private static native String nativeCacheParts(
+      String table, String columns, boolean onlyMetaCache);
 
   public static CacheResult getCacheStatus(String jobId) {
     return nativeGetCacheStatus(jobId);

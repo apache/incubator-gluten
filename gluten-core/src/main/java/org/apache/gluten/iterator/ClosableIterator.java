@@ -32,6 +32,9 @@ public abstract class ClosableIterator
 
   @Override
   public final boolean hasNext() {
+    if (closed.get()) {
+      throw new GlutenException("Iterator has been closed.");
+    }
     try {
       return hasNext0();
     } catch (Exception e) {
@@ -41,6 +44,9 @@ public abstract class ClosableIterator
 
   @Override
   public final ColumnarBatch next() {
+    if (closed.get()) {
+      throw new GlutenException("Iterator has been closed.");
+    }
     try {
       return next0();
     } catch (Exception e) {

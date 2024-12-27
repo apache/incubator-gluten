@@ -25,24 +25,23 @@ namespace local_engine
 class ReplicateRowsStep : public DB::ITransformingStep
 {
 public:
-    ReplicateRowsStep(const DB::DataStream& input_stream);
+    ReplicateRowsStep(const DB::Block & input_header);
 
-    static DB::Block transformHeader(const DB::Block& input);
+    static DB::Block transformHeader(const DB::Block & input);
 
     String getName() const override { return "ReplicateRowsStep"; }
-    void transformPipeline(DB::QueryPipelineBuilder& pipeline,
-                           const DB::BuildQueryPipelineSettings& settings) override;
+    void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings) override;
+
 private:
-    void updateOutputStream() override;
+    void updateOutputHeader() override;
 };
 
 class ReplicateRowsTransform : public DB::ISimpleTransform
 {
 public:
-    ReplicateRowsTransform(const DB::Block& input_header_);
+    ReplicateRowsTransform(const DB::Block & input_header_);
 
     String getName() const override { return "ReplicateRowsTransform"; }
-    void transform(DB::Chunk&) override;
-
+    void transform(DB::Chunk &) override;
 };
 }

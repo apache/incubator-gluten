@@ -18,10 +18,12 @@
 
 #include <functional>
 #include <memory>
+#include <Disks/ObjectStorages/StoredObject.h>
+#include <IO/CompressionMethod.h>
 #include <IO/ReadBuffer.h>
 #include <IO/ReadBufferFromFileBase.h>
-#include <Disks/ObjectStorages/StoredObject.h>
 #include <substrait/plan.pb.h>
+#include <Common/FileCacheConcurrentMap.h>
 
 
 namespace local_engine
@@ -30,28 +32,45 @@ namespace local_engine
 class ReadBufferBuilder
 {
 public:
-    explicit ReadBufferBuilder(DB::ContextPtr context_);
+    explicit ReadBufferBuilder(const DB::ContextPtr & context_);
 
     virtual ~ReadBufferBuilder() = default;
 
+    virtual bool isRemote() const { return true; }
+
     /// build a new read buffer
     virtual std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position = false) = 0;
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) = 0;
 
     /// build a new read buffer, consider compression method
-    std::unique_ptr<DB::ReadBuffer> buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position = false);
+    std::unique_ptr<DB::ReadBuffer> buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info);
 
 protected:
     using ReadBufferCreator = std::function<std::unique_ptr<DB::ReadBufferFromFileBase>(bool restricted_seek, const DB::StoredObject & object)>;
 
-    ReadBufferCreator
-    wrapWithCache(ReadBufferCreator read_buffer_creator, DB::ReadSettings & read_settings);
+    std::unique_ptr<DB::ReadBuffer>
+    wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info);
+
+    ReadBufferCreator wrapWithCache(
+        ReadBufferCreator read_buffer_creator,
+        DB::ReadSettings & read_settings,
+        const String & key,
+        size_t last_modified_time,
+        size_t file_size);
+
+    std::unique_ptr<DB::ReadBuffer>
+    wrapWithParallelIfNeeded(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info);
 
     DB::ReadSettings getReadSettings() const;
+
     DB::ContextPtr context;
+
+private:
+    void updateCaches(const String & key, size_t last_modified_time, size_t file_size) const;
 
 public:
     DB::FileCachePtr file_cache = nullptr;
+    static FileCacheConcurrentMap files_cache_time_map;
 };
 
 using ReadBufferBuilderPtr = std::shared_ptr<ReadBufferBuilder>;

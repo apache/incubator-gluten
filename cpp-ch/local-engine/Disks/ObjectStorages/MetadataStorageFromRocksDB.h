@@ -22,6 +22,7 @@
 #include <Disks/ObjectStorages/IMetadataStorage.h>
 #include <Disks/ObjectStorages/MetadataOperationsHolder.h>
 #include <rocksdb/db.h>
+#include <shared_mutex>
 
 namespace local_engine
 {
@@ -39,9 +40,9 @@ public:
     DB::MetadataTransactionPtr createTransaction() override;
     const std::string & getPath() const override;
     DB::MetadataStorageType getType() const override;
-    bool exists(const std::string & path) const override;
-    bool isFile(const std::string & path) const override;
-    bool isDirectory(const std::string & path) const override;
+    bool existsFile(const std::string & path) const override;
+    bool existsDirectory(const std::string & path) const override;
+    bool existsFileOrDirectory(const std::string & path) const override;
     uint64_t getFileSize(const std::string & path) const override;
     Poco::Timestamp getLastModified(const std::string & path) const override;
     bool supportsChmod() const override;

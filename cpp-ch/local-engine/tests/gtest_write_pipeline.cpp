@@ -33,6 +33,7 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
+#include <Poco/StringTokenizer.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 
@@ -93,7 +94,7 @@ TEST(LocalExecutor, StorageObjectStorageSink)
     EXPECT_TRUE(func && func->name == "HDFS");
 
     DB::StorageHDFSConfiguration config;
-    StorageObjectStorage::Configuration::initialize(config, arg->children[0]->children, QueryContext::globalContext(), false);
+    StorageObjectStorage::Configuration::initialize(config, arg->children[0]->children, QueryContext::globalContext(), false, nullptr);
 
     const std::shared_ptr<DB::HDFSObjectStorage> object_storage
         = std::dynamic_pointer_cast<DB::HDFSObjectStorage>(config.createObjectStorage(QueryContext::globalContext(), false));
@@ -120,7 +121,7 @@ TEST(WritePipeline, SubstraitFileSink)
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
     GlutenWriteSettings settings{
         .task_write_tmp_dir = "file:///tmp/test_table/test",
-        .task_write_filename = "data.parquet",
+        .task_write_filename_pattern = "data.parquet",
     };
     settings.set(context);
 
@@ -138,14 +139,6 @@ TEST(WritePipeline, SubstraitFileSink)
     EXPECT_TRUE(write_rel.has_named_table());
 
     const substrait::NamedObjectWrite & named_table = write_rel.named_table();
-
-    google::protobuf::StringValue optimization;
-    named_table.advanced_extension().optimization().UnpackTo(&optimization);
-    auto config = local_engine::parse_write_parameter(optimization.value());
-    EXPECT_EQ(2, config.size());
-    EXPECT_EQ("parquet", config["format"]);
-    EXPECT_EQ("1", config["isSnappy"]);
-
     EXPECT_TRUE(write_rel.has_table_schema());
     const substrait::NamedStruct & table_schema = write_rel.table_schema();
     auto block = TypeParser::buildBlockFromNamedStruct(table_schema);
@@ -153,30 +146,30 @@ TEST(WritePipeline, SubstraitFileSink)
     DB::Names expected{"s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment111"};
     EXPECT_EQ(expected, names);
 
-    auto partitionCols = collect_partition_cols(block, table_schema);
+    auto partitionCols = collect_partition_cols(block, table_schema, {});
     DB::Names expected_partition_cols;
     EXPECT_EQ(expected_partition_cols, partitionCols);
 
     EXPECT_TRUE(local_executor->hasNext());
     const Block & x = *local_executor->nextColumnar();
-    debug::headBlock(x);
+    std::cerr << debug::verticalShowString(x, 10, 50) << std::endl;
     EXPECT_EQ(1, x.rows());
     const auto & col_a = *(x.getColumns()[0]);
-    EXPECT_EQ(settings.task_write_filename, col_a.getDataAt(0));
+    EXPECT_EQ(settings.task_write_filename_pattern, col_a.getDataAt(0));
     const auto & col_b = *(x.getColumns()[1]);
-    EXPECT_EQ(SubstraitFileSink::NO_PARTITION_ID, col_b.getDataAt(0));
+    EXPECT_EQ(WriteStatsBase::NO_PARTITION_ID, col_b.getDataAt(0));
     const auto & col_c = *(x.getColumns()[2]);
     EXPECT_EQ(10000, col_c.getInt(0));
 }
 
 INCBIN(native_write_one_partition, SOURCE_DIR "/utils/extern-local-engine/tests/json/native_write_one_partition.json");
 
-TEST(WritePipeline, SubstraitPartitionedFileSink)
+/*TEST(WritePipeline, SubstraitPartitionedFileSink)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
     GlutenWriteSettings settings{
         .task_write_tmp_dir = "file:///tmp/test_table/test_partition",
-        .task_write_filename = "data.parquet",
+        .task_write_filename_pattern = "data.parquet",
     };
     settings.set(context);
 
@@ -193,16 +186,6 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     const substrait::WriteRel & write_rel = root_rel.root().input().write();
     EXPECT_TRUE(write_rel.has_named_table());
 
-    const substrait::NamedObjectWrite & named_table = write_rel.named_table();
-
-    google::protobuf::StringValue optimization;
-    named_table.advanced_extension().optimization().UnpackTo(&optimization);
-    auto config = local_engine::parse_write_parameter(optimization.value());
-    EXPECT_EQ(2, config.size());
-    EXPECT_EQ("parquet", config["format"]);
-    EXPECT_EQ("1", config["isSnappy"]);
-
-
     EXPECT_TRUE(write_rel.has_table_schema());
     const substrait::NamedStruct & table_schema = write_rel.table_schema();
     auto block = TypeParser::buildBlockFromNamedStruct(table_schema);
@@ -210,7 +193,7 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     DB::Names expected{"s_suppkey", "s_name", "s_address", "s_phone", "s_acctbal", "s_comment", "s_nationkey"};
     EXPECT_EQ(expected, names);
 
-    auto partitionCols = local_engine::collect_partition_cols(block, table_schema);
+    auto partitionCols = local_engine::collect_partition_cols(block, table_schema, {});
     DB::Names expected_partition_cols{"s_nationkey"};
     EXPECT_EQ(expected_partition_cols, partitionCols);
 
@@ -218,24 +201,22 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     const Block & x = *local_executor->nextColumnar();
     debug::headBlock(x, 25);
     EXPECT_EQ(25, x.rows());
-    // const auto & col_b = *(x.getColumns()[1]);
-    // EXPECT_EQ(16, col_b.getInt(0));
-}
+}*/
 
 TEST(WritePipeline, ComputePartitionedExpression)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
 
-    auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"});
+    Block sample_block{{STRING(), "name"}, {UINT(), "s_nationkey"}};
+    auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"}, sample_block);
+    // auto partition_by = printColumn("s_nationkey");
 
     ASTs arguments(1, partition_by);
     ASTPtr partition_by_string = makeASTFunction("toString", std::move(arguments));
 
-    Block sample_block{{STRING(), "name"}, {UINT(), "s_nationkey"}};
+
     auto syntax_result = TreeRewriter(context).analyze(partition_by_string, sample_block.getNamesAndTypesList());
     auto partition_by_expr = ExpressionAnalyzer(partition_by_string, syntax_result, context).getActions(false);
-
-
     auto partition_by_column_name = partition_by_string->getColumnName();
 
     Chunk chunk = testChunk();

@@ -19,7 +19,6 @@
 #include <Interpreters/ActionsDAG.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Parser/aggregate_function_parser/BloomFilterAggParser.h>
-#include <Poco/StringTokenizer.h>
 #include "substrait/algebra.pb.h"
 
 namespace DB
@@ -33,6 +32,7 @@ namespace ErrorCodes
 
 namespace local_engine
 {
+using namespace DB;
 // This is copied from Spark, org.apache.spark.util.sketch.BloomFilter#optimalNumOfHashFunctions,
 // which in return learned from https://en.wikipedia.org/wiki/Bloom_filter#Optimal_number_of_hash_functions.
 Int64 optimalNumOfHashFunctions(Int64 n, Int64 m)
@@ -52,7 +52,7 @@ DB::Array get_parameters(Int64 insert_num, Int64 bits_num)
 }
 
 DB::Array AggregateFunctionParserBloomFilterAgg::parseFunctionParameters(
-    const CommonFunctionInfo & func_info, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes) const
+    const CommonFunctionInfo & func_info, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes, DB::ActionsDAG & /*actions_dag*/) const
 {
     if (func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE || func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT)
     {

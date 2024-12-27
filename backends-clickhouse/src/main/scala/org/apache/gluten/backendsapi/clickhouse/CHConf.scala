@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi.clickhouse
 import org.apache.gluten.GlutenConfig
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf
 
 object CHConf {
   private[clickhouse] val BACKEND_NAME: String = "ch"
@@ -47,9 +48,26 @@ object CHConf {
     }
   }
 
+  /** CH configuration prefix at Java side */
   def prefixOf(key: String): String = s"$CONF_PREFIX.$key"
   def runtimeConfig(key: String): String = s"$RUNTIME_CONFIG.$key"
   def runtimeSettings(key: String): String = s"$RUNTIME_SETTINGS.$key"
 
-  def startWithSettings(key: String): Boolean = key.startsWith(RUNTIME_SETTINGS)
+  def startWithSettingsPrefix(key: String): Boolean = key.startsWith(RUNTIME_SETTINGS)
+  def removeSettingsPrefix(key: String): String = key.substring(RUNTIME_SETTINGS.length + 1)
+
+  def get: CHConf = new CHConf(SQLConf.get)
+
+  import SQLConf._
+
+  val ENABLE_ONEPIPELINE_MERGETREE_WRITE =
+    buildConf(prefixOf("mergetree.write.pipeline"))
+      .doc("Using one pipeline to write data to MergeTree table in Spark 3.5")
+      .booleanConf
+      .createWithDefault(false)
+}
+
+class CHConf(conf: SQLConf) extends GlutenConfig(conf) {
+  def enableOnePipelineMergeTreeWrite: Boolean =
+    conf.getConf(CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE)
 }

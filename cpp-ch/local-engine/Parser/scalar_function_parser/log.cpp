@@ -17,8 +17,10 @@
 
 #include <Core/Field.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypesNumber.h>
+#include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
-
+#include <Common/CHUtil.h>
 
 namespace DB
 {
@@ -32,10 +34,11 @@ namespace ErrorCodes
 
 namespace local_engine
 {
+using namespace DB;
 class FunctionParserLog : public FunctionParser
 {
 public:
-    explicit FunctionParserLog(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserLog(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserLog() override = default;
 
     static constexpr auto name = "log";

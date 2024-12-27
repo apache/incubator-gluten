@@ -22,7 +22,7 @@ namespace local_engine
 class LeadParser : public AggregateFunctionParser
 {
 public:
-    explicit LeadParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit LeadParser(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~LeadParser() override = default;
     static constexpr auto name = "lead";
     String getName() const override { return name; }
@@ -35,7 +35,7 @@ public:
 class LagParser : public AggregateFunctionParser
 {
 public:
-    explicit LagParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit LagParser(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~LagParser() override = default;
     static constexpr auto name = "lag";
     String getName() const override { return name; }

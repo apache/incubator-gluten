@@ -35,7 +35,7 @@ class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
   override protected val fileFormat: String = "parquet"
 
   private val queryPath = System.getProperty("user.dir") +
-    "/gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original/"
+    "/tools/gluten-it/common/src/main/resources/tpcds-queries"
 
   protected var queryTables: Map[String, DataFrame] = _
 

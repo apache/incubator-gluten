@@ -22,10 +22,7 @@ include(FindPkgConfig)
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
-# Only set arch=native for non-AppleClang compilers.
-if(NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-endif()
+message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
@@ -52,68 +49,11 @@ if(CCACHE_FOUND)
   set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
 endif(CCACHE_FOUND)
 
-# Building Protobuf
-macro(build_protobuf)
-  message(STATUS "Building Protocol Buffers from Source")
-
-  if(DEFINED ENV{GLUTEN_PROTOBUF_URL})
-    set(PROTOBUF_SOURCE_URL "$ENV{GLUTEN_PROTOBUF_URL}")
-  else()
-    set(PROTOBUF_BUILD_VERSION "21.4")
-    set(PROTOBUF_SOURCE_URL
-        "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_BUILD_VERSION}/protobuf-all-${PROTOBUF_BUILD_VERSION}.tar.gz"
-    )
-  endif()
-  set(PROTOBUF_BUILD_SHA256_CHECKSUM
-      "6c5e1b0788afba4569aeebb2cfe205cb154aa01deacaba0cd26442f3b761a836")
-
-  set(PROTOBUF_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/protobuf_ep-install")
-  set(PROTOBUF_INCLUDE_DIR "${PROTOBUF_PREFIX}/include")
-  set(PROTOBUF_STATIC_LIB
-      "${PROTOBUF_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}protobuf${CMAKE_STATIC_LIBRARY_SUFFIX}"
-  )
-  set(PROTOC_STATIC_LIB
-      "${PROTOBUF_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}protoc${CMAKE_STATIC_LIBRARY_SUFFIX}"
-  )
-  set(PROTOC_BIN "${PROTOBUF_PREFIX}/bin/protoc")
-  set(PROTOBUF_INCLUDE
-      "${PROTOBUF_PREFIX}/include"
-      CACHE PATH "Protobuf include path")
-  set(PROTOBUF_COMPILER "${PROTOBUF_PREFIX}/bin/protoc")
-  set(PROTOBUF_CONFIGURE_ARGS
-      "AR=${CMAKE_AR}"
-      "RANLIB=${CMAKE_RANLIB}"
-      "CC=${CMAKE_C_COMPILER}"
-      "CXX=${CMAKE_CXX_COMPILER}"
-      "--disable-shared"
-      "--prefix=${PROTOBUF_PREFIX}"
-      "CFLAGS=-fPIC"
-      "CXXFLAGS=-fPIC")
-  set(PROTOBUF_BUILD_COMMAND ${MAKE} ${MAKE_BUILD_ARGS})
-  ExternalProject_Add(
-    protobuf_ep
-    PREFIX protobuf_ep
-    CONFIGURE_COMMAND ./autogen.sh
-    COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
-    BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
-    BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
-    BUILD_IN_SOURCE 1
-    URL ${PROTOBUF_SOURCE_URL}
-    URL_HASH "SHA256=${PROTOBUF_BUILD_SHA256_CHECKSUM}")
-
-  file(MAKE_DIRECTORY "${PROTOBUF_INCLUDE_DIR}")
-  add_library(protobuf::libprotobuf STATIC IMPORTED)
-  set_target_properties(
-    protobuf::libprotobuf
-    PROPERTIES IMPORTED_LOCATION "${PROTOBUF_STATIC_LIB}"
-               INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF_INCLUDE_DIR}")
-  add_dependencies(protobuf::libprotobuf protobuf_ep)
-endmacro()
-
 macro(find_protobuf)
-  # Find the existing Protobuf
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(Protobuf)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
   if("${Protobuf_LIBRARY}" STREQUAL "Protobuf_LIBRARY-NOTFOUND")
     message(FATAL_ERROR "Protobuf Library Not Found")
   endif()
@@ -122,20 +62,6 @@ macro(find_protobuf)
       "${Protobuf_INCLUDE_DIRS}"
       CACHE PATH "Protobuf include path")
 endmacro()
-
-if(USE_AVX512)
-  # Only enable additional instruction sets if they are supported
-  message(STATUS "System processor: ${CMAKE_SYSTEM_PROCESSOR}")
-  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-    set(AVX512_FLAG "-march=skylake-avx512")
-    check_cxx_compiler_flag(${AVX512_FLAG} CXX_SUPPORTS_AVX512)
-    if(NOT CXX_SUPPORTS_AVX512)
-      message(FATAL_ERROR "AVX512 required but compiler doesn't support it.")
-    endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${AVX512_FLAG}")
-    add_definitions(-DCOLUMNAR_PLUGIN_USE_AVX512)
-  endif()
-endif()
 
 # Set up Proto
 set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
@@ -170,11 +96,6 @@ set_source_files_properties(${GLUTEN_PROTO_OUTPUT_FILES} PROPERTIES GENERATED
                                                                     TRUE)
 get_filename_component(GLUTEN_PROTO_DIR ${GLUTEN_PROTO_SRC_DIR}/ DIRECTORY)
 
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
-
-message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
-
 set(SPARK_COLUMNAR_PLUGIN_SRCS
     ${SUBSTRAIT_PROTO_SRCS}
     ${GLUTEN_PROTO_SRCS}
@@ -185,6 +106,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     jni/JniWrapper.cc
     memory/AllocationListener.cc
     memory/MemoryAllocator.cc
+    memory/MemoryManager.cc
     memory/ArrowMemoryPool.cc
     memory/ColumnarBatch.cc
     operators/writer/ArrowWriter.cc
@@ -216,8 +138,10 @@ add_dependencies(gluten jni_proto)
 # Hide symbols of some static dependencies. Otherwise, if such dependencies are
 # already statically linked to libvelox.so, a runtime error will be reported:
 # xxx is being linked both statically and dynamically.
-target_link_options(
-  gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  target_link_options(
+    gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+endif()
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
   execute_process(
@@ -261,15 +185,9 @@ if(ENABLE_IAA)
   target_link_libraries(gluten PUBLIC qpl::qpl)
 endif()
 
-if(BUILD_PROTOBUF)
-  build_protobuf()
-  message(STATUS "Building ProtoBuf from Source: ${BUILD_PROTOBUF}")
-  target_link_libraries(gluten LINK_PRIVATE protobuf::libprotobuf)
-else()
-  find_protobuf()
-  message(STATUS "Use existing ProtoBuf libraries: ${PROTOBUF_LIBRARY}")
-  target_link_libraries(gluten LINK_PUBLIC ${PROTOBUF_LIBRARY})
-endif()
+find_protobuf()
+message(STATUS "Found Protobuf: ${PROTOBUF_LIBRARY}")
+target_link_libraries(gluten LINK_PUBLIC ${PROTOBUF_LIBRARY})
 
 add_custom_command(
   OUTPUT ${SUBSTRAIT_PROTO_OUTPUT_FILES}

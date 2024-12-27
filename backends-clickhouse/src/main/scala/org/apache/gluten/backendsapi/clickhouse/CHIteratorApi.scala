@@ -21,7 +21,6 @@ import org.apache.gluten.backendsapi.IteratorApi
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.logging.LogLevelUtil
-import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
@@ -323,10 +322,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
   }
 
-  override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
-    CHThreadGroup.registerNewThreadGroup()
-    CHNativeExpressionEvaluator.injectWriteFilesTempPath(path, fileName)
-  }
 }
 
 class CollectMetricIterator(

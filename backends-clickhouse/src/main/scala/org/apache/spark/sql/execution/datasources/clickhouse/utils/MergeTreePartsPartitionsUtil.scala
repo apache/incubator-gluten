@@ -232,7 +232,14 @@ object MergeTreePartsPartitionsUtil extends Logging {
       val splitFiles = selectRanges
         .map {
           part =>
-            MergeTreePartSplit(part.name, part.dirName, part.targetNode, 0, part.marks, part.size)
+            MergeTreePartSplit(
+              part.name,
+              part.dirName,
+              part.targetNode,
+              part.start,
+              part.marks,
+              part.size
+            )
         }
       genInputPartitionSeqByFileCnt(
         engine,

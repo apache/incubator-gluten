@@ -34,7 +34,7 @@ namespace local_engine
 bool readDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
 {
     bool is_us_style = settings.date_time_input_format == DB::FormatSettings::DateTimeInputFormat::BestEffortUS;
-    return readDateTextWithExcel(date, buf, is_us_style);
+    return readDateTextWithExcel(date, buf, is_us_style, settings);
 }
 
 bool readDateTime64Text(
@@ -84,6 +84,20 @@ bool readDatetime64TextWithExcel(
     ///           yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
     /// Other will fallback to ch read.
     /// The whole value is in buffer.
+    ///
+    auto quick_return
+        = [&time_zone, &scale, &datetime64](
+              UInt16 year, UInt8 month, UInt8 day, UInt8 hour, UInt8 minute, UInt8 second, DB::DateTime64::NativeType fractional) -> bool
+    {
+        if (!day)
+            day = 1;
+
+        if (!checkDate(year, month, day))
+            return false;
+
+        time_t datetime = time_zone.makeDateTime(year, month, day, hour, minute, second);
+        return DB::DecimalUtils::tryGetDecimalFromComponents<DB::DateTime64>(datetime, fractional, scale, datetime64);
+    };
 
     UInt16 year = 0;
     UInt8 month = 0;
@@ -91,6 +105,7 @@ bool readDatetime64TextWithExcel(
     UInt8 hour = 0;
     UInt8 minute = 0;
     UInt8 second = 0;
+    DB::DateTime64::NativeType fractional = 0;
 
     char year_digits[std::numeric_limits<UInt64>::digits10];
     size_t num_year_digits = readDigits(year_digits, sizeof(year_digits), buf);
@@ -106,10 +121,12 @@ bool readDatetime64TextWithExcel(
     char month_digits[std::numeric_limits<UInt64>::digits10];
     size_t num_month_digits = readDigits(month_digits, sizeof(month_digits), buf);
 
-    if (num_month_digits != 2)
+    if (num_month_digits == 1)
+        readDecimalNumber<1>(month, month_digits);
+    else if (num_month_digits == 2)
+        readDecimalNumber<2>(month, month_digits);
+    else
         return false;
-
-    readDecimalNumber<2>(month, month_digits);
 
     if (*buf.position() != delimiter_after_year) // delimiter must same char
         return false;
@@ -118,12 +135,17 @@ bool readDatetime64TextWithExcel(
     char day_digits[std::numeric_limits<UInt64>::digits10];
     size_t num_day_digits = readDigits(day_digits, sizeof(day_digits), buf);
 
-    if (num_day_digits != 2)
+    if (num_day_digits == 1)
+        readDecimalNumber<1>(day, day_digits);
+    else if (num_day_digits == 2)
+        readDecimalNumber<2>(day, day_digits);
+    else
         return false;
 
-    readDecimalNumber<2>(day, day_digits);
-
     char delimiter_after_day = *buf.position();
+
+    if (delimiter_after_day == settings.delimiter)
+        return quick_return(year, month, day, hour, minute, second, fractional);
 
     if (delimiter_after_day != ' ' && delimiter_after_day != '\'')
         return false;
@@ -159,7 +181,6 @@ bool readDatetime64TextWithExcel(
 
     /// .SSS'Z'
     /// if not has quote, not allow ',' after 'ss'
-    DB::DateTime64::NativeType fractional = 0;
     bool allow_comma = (settings.delimiter == ',' && quote) || (!quote && settings.delimiter != ',');
     if (!buf.eof() && (*buf.position() == '.' || (allow_comma && *buf.position() == ',')))
     {
@@ -186,17 +207,10 @@ bool readDatetime64TextWithExcel(
             buf.position() = buf.position() + 3;
     }
 
-    if (!day)
-        day = 1;
-
-    if (!checkDate(year, month, day))
-        return false;
-
-    time_t datetime = time_zone.makeDateTime(year, month, day, hour, minute, second);
-    return DB::DecimalUtils::tryGetDecimalFromComponents<DB::DateTime64>(datetime, fractional, scale, datetime64);
+    return quick_return(year, month, day, hour, minute, second, fractional);
 }
 
-inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool is_us_style)
+inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool is_us_style, const DB::FormatSettings & settings)
 {
     if (buf.eof())
         return false;
@@ -268,6 +282,9 @@ inline bool readDateTextWithExcel(LocalDate & date, DB::ReadBuffer & buf, bool i
             readDecimalNumber<2>(month, first_digits);
 
         char delimiter_after_year = *buf.position();
+        if (delimiter_after_year == settings.csv.delimiter)
+            return false;
+
         ++buf.position();
 
 

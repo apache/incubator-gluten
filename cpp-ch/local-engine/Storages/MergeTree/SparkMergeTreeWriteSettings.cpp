@@ -26,7 +26,8 @@ namespace local_engine
 
 IMPLEMENT_GLUTEN_SETTINGS(SparkMergeTreeWritePartitionSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
 
-void SparkMergeTreeWriteSettings::load(const DB::ContextPtr & context)
+SparkMergeTreeWriteSettings::SparkMergeTreeWriteSettings(const DB::ContextPtr & context)
+    : partition_settings(SparkMergeTreeWritePartitionSettings::get(context))
 {
     const DB::Settings & settings = context->getSettingsRef();
     merge_after_insert = settings.get(MERGETREE_MERGE_AFTER_INSERT).safeGet<bool>();
@@ -37,6 +38,9 @@ void SparkMergeTreeWriteSettings::load(const DB::ContextPtr & context)
 
     if (DB::Field limit_cnt_field; settings.tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
         merge_limit_parts = limit_cnt_field.safeGet<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.safeGet<Int64>();
+
+    if (settingsEqual(context->getSettingsRef(), MergeTreeConf::OPTIMIZE_TASK, "true"))
+        is_optimize_task = true;
 }
 
 }

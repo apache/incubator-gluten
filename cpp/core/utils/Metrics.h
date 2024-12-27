@@ -65,6 +65,7 @@ struct Metrics {
     kNumDynamicFiltersAccepted,
     kNumReplacedWithDynamicFilterRows,
     kFlushRowCount,
+    kLoadedToValueHook,
     kScanTime,
     kSkippedSplits,
     kProcessedSplits,
@@ -72,6 +73,9 @@ struct Metrics {
     kProcessedStrides,
     kRemainingFilterTime,
     kIoWaitTime,
+    kStorageReadBytes,
+    kLocalReadBytes,
+    kRamReadBytes,
     kPreloadSplits,
 
     // Write metrics.
@@ -94,8 +98,8 @@ struct Metrics {
   Metrics& operator=(Metrics&&) = delete;
 
   long* get(TYPE type) {
-    assert((int)type >= (int)kBegin && (int)type < (int)kEnd);
-    auto offset = ((int)type - (int)kBegin) * numMetrics;
+    assert(static_cast<int>(type) >= static_cast<int>(kBegin) && static_cast<int>(type) < static_cast<int>(kEnd));
+    auto offset = (static_cast<int>(type) - static_cast<int>(kBegin)) * numMetrics;
     return &arrayRawPtr[offset];
   }
 };

@@ -1,17 +1,18 @@
 ---
 layout: page
 title: Profile memory consumption of Gluten
-nav_order: 15
+nav_order: 8
 has_children: true
 parent: /developer-overview/
 ---
-Gluten offloads most of computation to native engine. We can use [gperftools](https://github.com/gperftools/gperftools) or [jemalloc](https://github.com/jemalloc/jemalloc) to analyze the offheap memory and cpu profile.
+Gluten offloads most of Spark SQL execution to native engine. We can use [gperftools](https://github.com/gperftools/gperftools) or [jemalloc](https://github.com/jemalloc/jemalloc)
+to analyze the offheap memory and cpu profile.
 
-# Profiling using gperftools
+# Profile with gperftools
 
 `gperftools` is a collection of a high-performance multi-threaded
 malloc() implementation, plus some pretty nifty performance analysis
-tools, see more: https://github.com/gperftools/gperftools/wiki
+tools, see more: https://github.com/gperftools/gperftools/wiki.
 
 ## Build and install gperftools
 
@@ -29,10 +30,10 @@ Then we can find the tcmalloc libraries in `$GPERFTOOLS_HOME/.lib`.
 
 ## Run Gluten with gperftools
 
-Use `--file` or `spark.files` to upload tcmalloc library.
+Configure `--files` or `spark.files` for Spark.
 
 ```
---file /path/to/gperftools/libtcmalloc_and_profiler.so
+--files /path/to/gperftools/libtcmalloc_and_profiler.so
 or
 spark.files /path/to/gperftools/libtcmalloc_and_profiler.so
 ```
@@ -48,14 +49,14 @@ spark.executorEnv.LD_PRELOAD  ./libtcmalloc_and_profiler.so
 spark.executorEnv.HEAPPROFILE /tmp/gluten_heap_perf_${CONTAINER_ID} 
 ```
 
-Finally, profiling files starting with `/tmp/gluten_heap_perf_${CONTAINER_ID}` will be generated in each spark executor.
+Finally, profiling files prefixed with `/tmp/gluten_heap_perf_${CONTAINER_ID}` will be generated for each spark executor.
 
-## Analyze output profiles
+## Analyze profiling output
 
-Prepare the required native libraries. We can extract the gluten and velox libraries from gluten bundle jar. (Maybe also need dependency libraries for non-static compilation)
+Prepare the required native libraries. Assume static build is used for Gluten, there is no other shared dependency libs.
 
 ```bash
-jar xf gluten-velox-bundle-spark3.5_2.12-centos_7_x86_64-1.2.0.jar libvelox.so libgluten.so
+jar xf gluten-velox-bundle-spark3.5_2.12-centos_7_x86_64-1.2.0.jar relative/path/to/libvelox.so ralative/path/to/libgluten.so
 mv libvelox.so libgluten.so /path/to/gluten_lib_prefix
 ```
 
@@ -82,9 +83,11 @@ Result like:
 
 **\*\*** Get more help from https://github.com/gperftools/gperftools/wiki#documentation.
 
-# Profiling using jemalloc
+# Profile with jemalloc
 
-`jemalloc` is a general purpose malloc(3) implementation that emphasizes fragmentation avoidance and scalable concurrency support. We can also use it to analyze Gluten performance. Getting Started with `jemalloc`: https://github.com/jemalloc/jemalloc/wiki/Getting-Started.
+`jemalloc` is a general purpose malloc(3) implementation that emphasizes fragmentation
+avoidance and scalable concurrency support. We can also use it to analyze Gluten performance.
+Getting Started with `jemalloc`: https://github.com/jemalloc/jemalloc/wiki/Getting-Started.
 
 ## Build and install jemalloc
 
@@ -99,10 +102,10 @@ Then we can find the jemalloc library in `$JEMALLOC_HOME/.lib`.
 
 ## Run Gluten with jemalloc
 
-Use `--file` or `spark.files` to upload jemalloc library.
+Configure `--files` or `spark.files` for Spark.
 
 ```
---file /path/to/jemalloc/libjemalloc.so
+--files /path/to/jemalloc/libjemalloc.so
 or
 spark.files /path/to/jemalloc/libjemalloc.so
 ```
@@ -114,14 +117,14 @@ spark.executorEnv.LD_PRELOAD  ./libjemalloc.so
 spark.executorEnv.MALLOC_CONF prof:true,lg_prof_interval:30,prof_prefix:/tmp/gluten_heap_perf
 ```
 
-Finally, profiling files starting with `/tmp/gluten_heap_perf.${PID}` will be generated in each spark executor.
+Finally, profiling files prefixed with `/tmp/gluten_heap_perf.${PID}` will be generated for each spark executor.
 
-## Analyze output profiles
+## Analyze profiling output
 
-Prepare the required native libraries. We can extract the gluten and velox libraries from gluten bundle jar. (Maybe also need dependency libraries for non-static compilation)
+Prepare the required native libraries. Assume static build is used for Gluten, so there is no other shared dependency libs.
 
 ```bash
-jar xf gluten-velox-bundle-spark3.5_2.12-centos_7_x86_64-1.2.0.jar libvelox.so libgluten.so
+jar xf gluten-velox-bundle-spark3.5_2.12-centos_7_x86_64-1.2.0.jar relative/path/to/libvelox.so relative/path/to/libgluten.so
 mv libvelox.so libgluten.so /path/to/gluten_lib_prefix
 ```
 

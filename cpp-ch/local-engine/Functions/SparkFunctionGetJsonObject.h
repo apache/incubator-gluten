@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 #pragma once
+#include <cerrno>
+#include <limits>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
@@ -156,8 +159,54 @@ private:
             // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeField. not field");
             return nullptr;
         }
-        copyToDst(dst, start_pos, pos - start_pos);
+        if (*start_pos == '"' || *start_pos == '\'')
+        {
+            copyToDst(dst, start_pos, pos - start_pos);
+        }
+        else
+        {
+            // If it's a too large number, replace it with "Infinity".
+            const char * inf_str = "\"\\\"Infinity\\\"\"";
+            size_t inf_str_len = 14;
+            const char * large_e = "308";
+            const auto * ep = find_first_symbols<'e', 'E'>(start_pos, pos);
+            if (pos - ep < 3)
+                copyToDst(dst, start_pos, pos - start_pos);
+            else if (pos - ep > 4 || (pos - ep == 4 and memcmp(ep + 1, large_e, 3) >= 0))
+            {
+                if (isTooLargeNumber(start_pos, pos))
+                {
+                    copyToDst(dst, inf_str, inf_str_len);
+                }
+                else
+                {
+                    copyToDst(dst, start_pos, pos - start_pos);
+                }
+            }
+            else
+            {
+                copyToDst(dst, start_pos, pos - start_pos);
+            }
+        }
         return pos;
+    }
+
+    inline static bool isTooLargeNumber(const char * start, const char * end)
+    {
+        bool res = false;
+        try
+        {
+            double num2 = std::stod(String(start, end));
+        }
+        catch (const std::invalid_argument & e)
+        {
+            res = false;
+        }
+        catch (const std::out_of_range & e)
+        {
+            res = true;
+        }
+        return res;
     }
 
     inline static const char * normalizeString(const char * pos, const char * end, char *& dst)
@@ -241,7 +290,7 @@ private:
         pos = find_first_symbols<'\''>(pos, end);
         if (!isExpectedChar('\'', pos, end))
         {
-            LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeSingleQuotesString. not '");
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeSingleQuotesString. not '");
             return nullptr;
         }
         pos += 1;
@@ -345,6 +394,8 @@ private:
                     pos = normalizeSingleQuotesString(pos, end, dst);
                 else if (*pos == '"')
                     pos = normalizeString(pos, end, dst);
+                else if (*pos == '}')
+                    continue;
                 else
                     return nullptr;
             }
@@ -461,15 +512,15 @@ public:
         {
             const char * array_begin = "[";
             const char * array_end = "]";
-            const char * comma = ", ";
+            const char * comma = ",";
             bool flag = false;
             serializer.addRawData(array_begin, 1);
+            nullable_col_str.getNullMapData().push_back(0);
             for (auto & element : elements)
             {
-                nullable_col_str.getNullMapData().push_back(0);
                 if (flag)
                 {
-                    serializer.addRawData(comma, 2);
+                    serializer.addRawData(comma, 1);
                 }
                 serializer.addElement(element);
                 flag = true;
@@ -481,6 +532,7 @@ public:
     }
 };
 
+/// CH uses the lexer to parse the json path, it's not a good idea.
 /// If a json field containt spaces, we wrap it by double quotes.
 /// FIXME: If it contains \t, \n, simdjson cannot parse.
 class JSONPathNormalizer
@@ -489,89 +541,41 @@ public:
     static String normalize(const String & json_path_)
     {
         DB::Tokens tokens(json_path_.data(), json_path_.data() + json_path_.size());
-        DB::IParser::Pos pos(tokens, 0, 0);
+        DB::IParser::Pos iter(tokens, 0, 0);
         String res;
-        while (pos->type != DB::TokenType::EndOfStream)
+        while (iter->type != DB::TokenType::EndOfStream)
         {
-            if (pos->type == DB::TokenType::Number)
+            if (isSubPathBegin(iter))
             {
-                ++pos;
-                // Two tokens are seperated by white spaces.
-                if (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
+                if (iter->type == DB::TokenType::Number)
                 {
-                    --pos;
-                    if (*pos->begin == '.')
-                        res += ".";
-                    ++pos;
-                    res += "\"";
-
-                    while (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
-                    {
-                        --pos;
-                        const auto * last_end = pos->end;
-                        const auto * begin = *pos->begin == '.' ? pos->begin + 1 : pos->begin;
-                        res += String(begin, pos->end);
-                        ++pos;
-                        res += String(last_end, pos->begin);
-                        ++pos;
-                    }
-                    --pos;
-                    const auto * last_end = pos->end;
-                    res += String(pos->begin, pos->end);
-                    ++pos;
-                    res += String(last_end, pos->begin);
-                    res += "\"";
-                }
-                else if (
-                    pos->type == DB::TokenType::Dot || pos->type == DB::TokenType::OpeningSquareBracket
-                    || pos->type == DB::TokenType::EndOfStream)
-                {
-                    --pos;
-                    if (*pos->begin == '.')
-                        res += ".";
-                    res += "\"";
-                    const auto * last_end = pos->end;
-                    const auto * begin = *pos->begin == '.' ? pos->begin + 1 : pos->begin;
-                    res += String(begin, pos->end);
-                    ++pos;
-                    res += String(last_end, pos->begin);
-                    res += "\"";
+                    normalizeOnNumber(iter, res);
                 }
                 else
                 {
-                    --pos;
-                    res += String(pos->begin, pos->end);
-                    ++pos;
+                    // It may begins with '=', '==' and so on.
+                    res += ".";
+                    ++iter;
+                    normalizeOnBareWord(iter, res);
                 }
-            }
-            else if (pos->type == DB::TokenType::BareWord)
-            {
-                res += "\"";
-                ++pos;
-                while (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
-                {
-                    --pos;
-                    const auto * last_end = pos->end;
-                    res += String(pos->begin, pos->end);
-                    ++pos;
-                    res += String(last_end, pos->begin);
-                    ++pos;
-                }
-                --pos;
-                const auto * last_end = pos->end;
-                res += String(pos->begin, pos->end);
-                ++pos;
-                res += String(last_end, pos->begin);
-                res += "\"";
             }
             else
-            {
-                res += String(pos->begin, pos->end);
-                ++pos;
-            }
+                normalizeOnOtherTokens(iter, res);
         }
         return res;
     }
+
+private:
+    static std::pair<DB::TokenType, StringRef> prevToken(DB::IParser::Pos & iter, size_t n = 1);
+
+    static std::pair<DB::TokenType, StringRef> nextToken(DB::IParser::Pos & iter, size_t n = 1);
+
+    static bool isSubPathBegin(DB::IParser::Pos & iter);
+
+    static void normalizeOnNumber(DB::IParser::Pos & iter, String & res);
+
+    static void normalizeOnBareWord(DB::IParser::Pos & iter, String & res);
+    static void normalizeOnOtherTokens(DB::IParser::Pos & iter, String & res);
 };
 
 /// Flatten a json string into a tuple.
@@ -654,7 +658,7 @@ private:
         {
             is_doc_ok = parser.parse(str, doc);
         }
-        if (!is_doc_ok)
+        if (!is_doc_ok && str.size() > 0)
         {
             total_normalized_rows++;
             std::vector<char> buf;
@@ -689,6 +693,7 @@ private:
             for (const auto & field : tokenizer)
             {
                 auto normalized_field = JSONPathNormalizer::normalize(field);
+                // LOG_ERROR(getLogger("JSONPatch"), "xxx field {} -> {}", field, normalized_field);
                 required_fields.push_back(normalized_field);
                 tuple_columns.emplace_back(str_type->createColumn());
 

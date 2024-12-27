@@ -46,7 +46,7 @@ case class CachedColumnarBatch(
     bytes: Array[Byte])
   extends CachedBatch {}
 
-// spotless:off
+// format: off
 /**
  * Feature:
  * 1. This serializer supports column pruning
@@ -75,7 +75,7 @@ case class CachedColumnarBatch(
  *   - Deserializer DefaultCachedBatch -> InternalRow (unsupport ColumnarToRow)
  *     -> Convert DefaultCachedBatch to InternalRow using vanilla Spark serializer
  */
-// spotless:on
+// format: on
 class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHelper with Logging {
   private lazy val rowBasedCachedBatchSerializer = new DefaultCachedBatchSerializer
 
@@ -176,8 +176,12 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
             val batch = it.next()
             val results =
               ColumnarBatchSerializerJniWrapper
-                .create(Runtimes.contextInstance("ColumnarCachedBatchSerializer#serialize"))
-                .serialize(Array(ColumnarBatches.getNativeHandle(batch)))
+                .create(
+                  Runtimes.contextInstance(
+                    BackendsApiManager.getBackendName,
+                    "ColumnarCachedBatchSerializer#serialize"))
+                .serialize(
+                  Array(ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)))
             CachedColumnarBatch(
               results.getNumRows.toInt,
               results.getSerialized.length,
@@ -201,7 +205,9 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     val timezoneId = SQLConf.get.sessionLocalTimeZone
     input.mapPartitions {
       it =>
-        val runtime = Runtimes.contextInstance("ColumnarCachedBatchSerializer#read")
+        val runtime = Runtimes.contextInstance(
+          BackendsApiManager.getBackendName,
+          "ColumnarCachedBatchSerializer#read")
         val jniWrapper = ColumnarBatchSerializerJniWrapper
           .create(runtime)
         val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
@@ -224,7 +230,10 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
               val batch = ColumnarBatches.create(batchHandle)
               if (shouldSelectAttributes) {
                 try {
-                  ColumnarBatches.select(batch, requestedColumnIndices.toArray)
+                  ColumnarBatches.select(
+                    BackendsApiManager.getBackendName,
+                    batch,
+                    requestedColumnIndices.toArray)
                 } finally {
                   batch.close()
                 }

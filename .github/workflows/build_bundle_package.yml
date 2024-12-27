@@ -17,6 +17,7 @@ name: Build bundle package
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -25,10 +26,6 @@ concurrency:
 on:
   workflow_dispatch:
     inputs:
-      os:
-        description: 'OS version: ubuntu:20.04, ubuntu:22.04, centos:7 or centos:8'
-        required: true
-        default: 'ubuntu:20.04'
       spark:
         description: 'Spark version: spark-3.2, spark-3.3, spark-3.4 or spark-3.5'
         required: true
@@ -41,123 +38,58 @@ on:
 jobs:
   build-native-lib:
     runs-on: ubuntu-20.04
-    container: apache/gluten:gluten-vcpkg-builder_2024_05_29
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos7-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos7-release-default
       - name: Build Gluten velox third party
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel -y && \
-          cd $GITHUB_WORKSPACE/ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/devtoolset-9/enable && \
-          cd $GITHUB_WORKSPACE/ && \
-          export NUM_THREADS=4
-          ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=OFF  --build_benchmarks=OFF --enable_s3=OFF \
-          --enable_gcs=OFF --enable_hdfs=ON --enable_abfs=OFF
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            df -a
+            cd /work
+            export CCACHE_DIR=/work/.ccache
+            bash dev/ci-velox-buildstatic-centos-7.sh
+            ccache -s
+            mkdir -p /work/.m2/repository/org/apache/arrow/
+            cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
+          "
       - name: Upload native libs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: ./cpp/build/releases/
           name: velox-native-lib-${{github.sha}}
           retention-days: 1
       - name: Upload Artifact Arrow Jar
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
-          path: /root/.m2/repository/org/apache/arrow/
+          path: ${{ github.workspace }}/.m2/repository/org/apache/arrow/
           name: velox-arrow-jar-centos-7-${{github.sha}}
-
-  build-bundle-package-ubuntu:
-    if: startsWith(github.event.inputs.os, 'ubuntu')
-    needs: build-native-lib
-    runs-on: ubuntu-20.04
-    container: ${{ github.event.inputs.os }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
-      - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
-        run: |
-          apt-get update && \
-          apt-get install -y openjdk-8-jdk maven && \
-          apt remove openjdk-11* -y
-      - name: Build for Spark ${{ github.event.inputs.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/ && \
-          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Pceleborn -DskipTests -Dmaven.source.skip
-      - name: Upload bundle package
-        uses: actions/upload-artifact@v2
-        with:
-          name: gluten-velox-bundle-package
-          path: package/target/gluten-velox-bundle-*.jar
-          retention-days: 7
-
-  build-bundle-package-centos7:
-    if: ${{ github.event.inputs.os == 'centos:7' }}
-    needs: build-native-lib
-    runs-on: ubuntu-20.04
-    container: ${{ github.event.inputs.os }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
-      - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
-        run: |
-          yum update -y && yum install -y java-1.8.0-openjdk-devel wget && \
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-          mv apache-maven-3.8.8 /usr/lib/maven
-      - name: Build for Spark ${{ github.event.inputs.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Pceleborn -DskipTests -Dmaven.source.skip
-      - name: Upload bundle package
-        uses: actions/upload-artifact@v2
-        with:
-          name: gluten-velox-bundle-package
-          path: package/target/gluten-velox-bundle-*.jar
-          retention-days: 7
 
   build-bundle-package-centos8:
-    if: ${{ github.event.inputs.os == 'centos:8' }}
     needs: build-native-lib
     runs-on: ubuntu-20.04
-    container: ${{ github.event.inputs.os }}
+    container: centos:8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true && \
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
       - name: Setup java and maven
         run: |
+          sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* && \
+          sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* && \
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget && \
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
           tar -xvf apache-maven-3.8.8-bin.tar.gz && \
@@ -167,10 +99,11 @@ jobs:
           cd $GITHUB_WORKSPACE/ && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Pceleborn -DskipTests -Dmaven.source.skip
+          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: gluten-velox-bundle-package
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
+

@@ -18,10 +18,9 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Convention.{KnownRowType, RowType}
-import org.apache.gluten.extension.columnar.transition.ConventionReq
-import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
+import org.apache.gluten.execution.{ValidatablePlan, WriteFilesExecTransformer}
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
+import org.apache.gluten.extension.columnar.transition.Convention.RowType
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.TaskContext
@@ -31,6 +30,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet}
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -43,19 +43,20 @@ abstract class ColumnarWriteFilesExec protected (
     override val left: SparkPlan,
     override val right: SparkPlan)
   extends BinaryExecNode
-  with GlutenPlan
-  with KnownChildrenConventions
-  with KnownRowType
+  with ValidatablePlan
   with ColumnarWriteFilesExec.ExecuteWriteCompatible {
 
   val child: SparkPlan = left
 
   override lazy val references: AttributeSet = AttributeSet.empty
 
-  override def supportsColumnar: Boolean = true
-
-  override def requiredChildrenConventions(): Seq[ConventionReq] = {
-    List(ConventionReq.backendBatch)
+  override def requiredChildConvention(): Seq[ConventionReq] = {
+    val req = ConventionReq.ofBatch(
+      ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType))
+    Seq.tabulate(2)(
+      _ => {
+        req
+      })
   }
 
   /**
@@ -68,7 +69,8 @@ abstract class ColumnarWriteFilesExec protected (
    *
    * Since https://github.com/apache/incubator-gluten/pull/6745.
    */
-  override def rowType(): RowType = {
+  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
+  override def rowType0(): RowType = {
     RowType.VanillaRow
   }
 
@@ -116,7 +118,7 @@ abstract class ColumnarWriteFilesExec protected (
 object ColumnarWriteFilesExec {
 
   def apply(
-      child: SparkPlan,
+      child: WriteFilesExecTransformer,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
@@ -139,6 +141,7 @@ object ColumnarWriteFilesExec {
         bucketSpec,
         options,
         staticPartitions)
+    right.foreach(node => node.setTagValue(NoopTag, true))
 
     BackendsApiManager.getSparkPlanExecApiInstance.createColumnarWriteFilesExec(
       child,
@@ -148,6 +151,33 @@ object ColumnarWriteFilesExec {
       bucketSpec,
       options,
       staticPartitions)
+  }
+
+  private val NoopTag =
+    TreeNodeTag[Boolean]("org.apache.spark.sql.execution.ColumnarWriteFilesExec.NoopTag")
+
+  // Decides whether a plan node is on the dummy `WriteFilesExec + NoopLeaf` path.
+  object OnNoopLeafPath {
+    def unapply(plan: SparkPlan): Option[NoopLeaf] = {
+      val leafs = traverseDown(plan)
+      if (leafs.size > 1) {
+        throw new IllegalArgumentException(s"More than one noop leafs were found in plan: $plan")
+      }
+      leafs.headOption
+    }
+
+    private def traverseDown(plan: SparkPlan): Seq[NoopLeaf] = {
+      val hasNoopTag = plan.getTagValue(NoopTag).getOrElse(false)
+      if (!hasNoopTag) {
+        return Nil
+      }
+      plan match {
+        case leaf: NoopLeaf =>
+          Seq(leaf)
+        case other =>
+          other.children.map(traverseDown).reduce(_ ++ _)
+      }
+    }
   }
 
   case class NoopLeaf() extends LeafExecNode {

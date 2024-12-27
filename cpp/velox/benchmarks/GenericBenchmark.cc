@@ -25,12 +25,12 @@
 #include <operators/writer/ArrowWriter.h>
 
 #include "benchmarks/common/BenchmarkUtils.h"
-#include "benchmarks/common/FileReaderIterator.h"
 #include "compute/VeloxBackend.h"
-#include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
+#include "operators/reader/FileReaderIterator.h"
+#include "operators/writer/VeloxArrowWriter.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
@@ -45,7 +45,6 @@ using namespace gluten;
 
 namespace {
 
-DEFINE_bool(run_example, false, "Run the example and exit.");
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(save_output, "", "Path to parquet file for saving the task output iterator");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
@@ -103,6 +102,50 @@ void setUpBenchmark(::benchmark::internal::Benchmark* bm) {
   }
   if (FLAGS_iterations > 0) {
     bm->Iterations(FLAGS_iterations);
+  }
+}
+
+std::string generateUniqueSubdir(const std::string& parent, const std::string& prefix = "") {
+  auto path = std::filesystem::path(parent) / (prefix + generateUuid());
+  std::error_code ec{};
+  while (!std::filesystem::create_directories(path, ec)) {
+    if (ec) {
+      LOG(ERROR) << fmt::format("Failed to created spill directory: {}, error code: {}", path, ec.message());
+      std::exit(EXIT_FAILURE);
+    }
+    path = std::filesystem::path(parent) / (prefix + generateUuid());
+  }
+  return path;
+}
+
+std::vector<std::string> createLocalDirs() {
+  static const std::string kBenchmarkDirPrefix = "generic-benchmark-";
+  std::vector<std::string> localDirs;
+
+  auto joinedDirsC = std::getenv(gluten::kGlutenSparkLocalDirs.c_str());
+  // Check if local dirs are set from env.
+  if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
+    auto joinedDirs = std::string(joinedDirsC);
+    auto dirs = gluten::splitPaths(joinedDirs);
+    for (const auto& dir : dirs) {
+      localDirs.push_back(generateUniqueSubdir(dir, kBenchmarkDirPrefix));
+    }
+  } else {
+    // Otherwise create 1 temp dir.
+    localDirs.push_back(generateUniqueSubdir(std::filesystem::temp_directory_path(), kBenchmarkDirPrefix));
+  }
+  return localDirs;
+}
+
+void cleanupLocalDirs(const std::vector<std::string>& localDirs) {
+  for (const auto& localDir : localDirs) {
+    std::error_code ec;
+    std::filesystem::remove_all(localDir, ec);
+    if (ec) {
+      LOG(WARNING) << fmt::format("Failed to remove directory: {}, error message: {}", localDir, ec.message());
+    } else {
+      LOG(INFO) << "Removed local dir: " << localDir;
+    }
   }
 }
 
@@ -204,11 +247,10 @@ void runShuffle(
     const std::shared_ptr<gluten::ResultIterator>& resultIter,
     WriterMetrics& writerMetrics,
     ReaderMetrics& readerMetrics,
-    bool readAfterWrite) {
-  std::string dataFile;
-  std::vector<std::string> localDirs;
-  bool isFromEnv;
-  GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(dataFile, localDirs, isFromEnv));
+    bool readAfterWrite,
+    const std::vector<std::string>& localDirs,
+    const std::string& dataFileDir) {
+  GLUTEN_ASSIGN_OR_THROW(auto dataFile, gluten::createTempShuffleFile(dataFileDir));
 
   auto partitionWriterOptions = createPartitionWriterOptions();
   auto partitionWriter = createPartitionWriter(runtime, partitionWriterOptions, dataFile, localDirs);
@@ -252,8 +294,12 @@ void runShuffle(
     readerMetrics.decompressTime = reader->getDecompressTime();
     readerMetrics.deserializeTime = reader->getDeserializeTime();
   }
-  // Cleanup shuffle outputs
-  cleanupShuffleOutput(dataFile, localDirs, isFromEnv);
+
+  if (std::filesystem::remove(dataFile)) {
+    LOG(INFO) << "Removed shuffle data file: " << dataFile;
+  } else {
+    LOG(WARNING) << "Failed to remove shuffle data file. File does not exist: " << dataFile;
+  }
 }
 
 void updateBenchmarkMetrics(
@@ -292,28 +338,42 @@ void updateBenchmarkMetrics(
         writerMetrics.bytesWritten, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
   }
 }
-
 } // namespace
 
-using RuntimeFactory = std::function<VeloxRuntime*(std::unique_ptr<AllocationListener> listener)>;
+using RuntimeFactory = std::function<VeloxRuntime*(MemoryManager* memoryManager)>;
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& planFile,
                      const std::vector<std::string>& splitFiles,
                      const std::vector<std::string>& dataFiles,
+                     const std::vector<std::string>& localDirs,
                      RuntimeFactory runtimeFactory,
                      FileReaderType readerType) {
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
   auto* listenerPtr = listener.get();
-  auto runtime = runtimeFactory(std::move(listener));
+  auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
+  auto runtime = runtimeFactory(memoryManager);
 
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
   for (const auto& splitFile : splitFiles) {
     splits.push_back(getPlanFromFile("ReadRel.LocalFiles", splitFile));
   }
+
+  const auto tid = std::hash<std::thread::id>{}(std::this_thread::get_id());
+  const auto spillDirIndex = tid % localDirs.size();
+  const auto veloxSpillDir = generateUniqueSubdir(std::filesystem::path(localDirs[spillDirIndex]) / "gluten-spill");
+
+  std::vector<std::string> shuffleSpillDirs;
+  std::transform(localDirs.begin(), localDirs.end(), std::back_inserter(shuffleSpillDirs), [](const auto& dir) {
+    auto path = std::filesystem::path(dir) / "shuffle-write";
+    return path;
+  });
+  // Use a different directory for data file.
+  const auto dataFileDir = gluten::getShuffleSpillDir(
+      shuffleSpillDirs[(spillDirIndex + 1) % localDirs.size()], state.thread_index() % gluten::kDefaultNumSubDirs);
 
   WriterMetrics writerMetrics{};
   ReaderMetrics readerMetrics{};
@@ -327,7 +387,8 @@ auto BM_Generic = [](::benchmark::State& state,
       std::vector<FileReaderIterator*> inputItersRaw;
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
-          inputIters.push_back(getInputIteratorFromFileReader(input, readerType));
+          inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
+              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get()));
         }
         std::transform(
             inputIters.begin(),
@@ -337,16 +398,18 @@ auto BM_Generic = [](::benchmark::State& state,
               return static_cast<FileReaderIterator*>(iter->getInputIter());
             });
       }
-      runtime->injectWriteFilesTempPath(FLAGS_write_path);
+      *Runtime::localWriteFilesTempPath() = FLAGS_write_path;
       runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), std::nullopt);
       for (auto& split : splits) {
         runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
       }
-      auto resultIter = runtime->createResultIterator("/tmp/test-spill", std::move(inputIters), runtime->getConfMap());
+
+      auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters), runtime->getConfMap());
       listenerPtr->setIterator(resultIter.get());
 
       if (FLAGS_with_shuffle) {
-        runShuffle(runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, false);
+        runShuffle(
+            runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, false, shuffleSpillDirs, dataFileDir);
       } else {
         // May write the output into file.
         auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
@@ -354,10 +417,11 @@ auto BM_Generic = [](::benchmark::State& state,
         ArrowSchema cSchema;
         toArrowSchema(veloxPlan->outputType(), runtime->memoryManager()->getLeafMemoryPool().get(), &cSchema);
         GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
-        ArrowWriter writer{FLAGS_save_output};
+        auto writer = std::make_shared<VeloxArrowWriter>(
+            FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
         state.PauseTiming();
         if (!FLAGS_save_output.empty()) {
-          GLUTEN_THROW_NOT_OK(writer.initWriter(*(outputSchema.get())));
+          GLUTEN_THROW_NOT_OK(writer->initWriter(*(outputSchema.get())));
         }
         state.ResumeTiming();
 
@@ -373,13 +437,13 @@ auto BM_Generic = [](::benchmark::State& state,
             LOG(WARNING) << maybeBatch.ValueOrDie()->ToString();
           }
           if (!FLAGS_save_output.empty()) {
-            GLUTEN_THROW_NOT_OK(writer.writeInBatches(maybeBatch.ValueOrDie()));
+            GLUTEN_THROW_NOT_OK(writer->writeInBatches(maybeBatch.ValueOrDie()));
           }
         }
 
         state.PauseTiming();
         if (!FLAGS_save_output.empty()) {
-          GLUTEN_THROW_NOT_OK(writer.closeWriter());
+          GLUTEN_THROW_NOT_OK(writer->closeWriter());
         }
         state.ResumeTiming();
       }
@@ -399,17 +463,24 @@ auto BM_Generic = [](::benchmark::State& state,
 
   updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics, readerMetrics);
   Runtime::release(runtime);
+  MemoryManager::release(memoryManager);
 };
 
 auto BM_ShuffleWriteRead = [](::benchmark::State& state,
                               const std::string& inputFile,
+                              const std::vector<std::string>& localDirs,
                               RuntimeFactory runtimeFactory,
                               FileReaderType readerType) {
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
   auto* listenerPtr = listener.get();
-  auto runtime = runtimeFactory(std::move(listener));
+  auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
+  auto runtime = runtimeFactory(memoryManager);
+
+  const size_t dirIndex = std::hash<std::thread::id>{}(std::this_thread::get_id()) % localDirs.size();
+  const auto dataFileDir =
+      gluten::getShuffleSpillDir(localDirs[dirIndex], state.thread_index() % gluten::kDefaultNumSubDirs);
 
   WriterMetrics writerMetrics{};
   ReaderMetrics readerMetrics{};
@@ -418,8 +489,17 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
   {
     ScopedTimer timer(&elapsedTime);
     for (auto _ : state) {
-      auto resultIter = getInputIteratorFromFileReader(inputFile, readerType);
-      runShuffle(runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, FLAGS_run_shuffle_read);
+      auto resultIter = FileReaderIterator::getInputIteratorFromFileReader(
+          readerType, inputFile, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
+      runShuffle(
+          runtime,
+          listenerPtr,
+          resultIter,
+          writerMetrics,
+          readerMetrics,
+          FLAGS_run_shuffle_read,
+          localDirs,
+          dataFileDir);
 
       auto reader = static_cast<FileReaderIterator*>(resultIter->getInputIter());
       readInputTime += reader->getCollectBatchTime();
@@ -428,6 +508,7 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
 
   updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics, readerMetrics);
   Runtime::release(runtime);
+  MemoryManager::release(memoryManager);
 };
 
 int main(int argc, char** argv) {
@@ -512,19 +593,7 @@ int main(int argc, char** argv) {
   std::vector<std::string> splitFiles{};
   std::vector<std::string> dataFiles{};
 
-  if (FLAGS_run_example) {
-    LOG(WARNING) << "Running example...";
-    dataFiles.resize(2);
-    try {
-      substraitJsonFile = getGeneratedFilePath("example.json");
-      dataFiles[0] = getGeneratedFilePath("example_orders");
-      dataFiles[1] = getGeneratedFilePath("example_lineitem");
-    } catch (const std::exception& e) {
-      LOG(ERROR) << "Failed to run example. " << e.what();
-      ::benchmark::Shutdown();
-      std::exit(EXIT_FAILURE);
-    }
-  } else if (FLAGS_run_shuffle) {
+  if (FLAGS_run_shuffle) {
     std::string errorMsg{};
     if (FLAGS_data.empty()) {
       errorMsg = "Missing '--split' or '--data' option.";
@@ -592,27 +661,35 @@ int main(int argc, char** argv) {
     }
   }
 
-  RuntimeFactory runtimeFactory = [=](std::unique_ptr<AllocationListener> listener) {
-    return dynamic_cast<VeloxRuntime*>(Runtime::create(kVeloxRuntimeKind, std::move(listener), sessionConf));
+  RuntimeFactory runtimeFactory = [=](MemoryManager* memoryManager) {
+    return dynamic_cast<VeloxRuntime*>(Runtime::create(kVeloxBackendKind, memoryManager, sessionConf));
   };
 
-#define GENERIC_BENCHMARK(READER_TYPE)                                                                             \
-  do {                                                                                                             \
-    auto* bm =                                                                                                     \
-        ::benchmark::RegisterBenchmark(                                                                            \
-            "GenericBenchmark", BM_Generic, substraitJsonFile, splitFiles, dataFiles, runtimeFactory, READER_TYPE) \
-            ->MeasureProcessCPUTime()                                                                              \
-            ->UseRealTime();                                                                                       \
-    setUpBenchmark(bm);                                                                                            \
+  const auto localDirs = createLocalDirs();
+
+#define GENERIC_BENCHMARK(READER_TYPE)         \
+  do {                                         \
+    auto* bm = ::benchmark::RegisterBenchmark( \
+                   "GenericBenchmark",         \
+                   BM_Generic,                 \
+                   substraitJsonFile,          \
+                   splitFiles,                 \
+                   dataFiles,                  \
+                   localDirs,                  \
+                   runtimeFactory,             \
+                   READER_TYPE)                \
+                   ->MeasureProcessCPUTime()   \
+                   ->UseRealTime();            \
+    setUpBenchmark(bm);                        \
   } while (0)
 
-#define SHUFFLE_WRITE_READ_BENCHMARK(READER_TYPE)                                                      \
-  do {                                                                                                 \
-    auto* bm = ::benchmark::RegisterBenchmark(                                                         \
-                   "ShuffleWriteRead", BM_ShuffleWriteRead, dataFiles[0], runtimeFactory, READER_TYPE) \
-                   ->MeasureProcessCPUTime()                                                           \
-                   ->UseRealTime();                                                                    \
-    setUpBenchmark(bm);                                                                                \
+#define SHUFFLE_WRITE_READ_BENCHMARK(READER_TYPE)                                                                 \
+  do {                                                                                                            \
+    auto* bm = ::benchmark::RegisterBenchmark(                                                                    \
+                   "ShuffleWriteRead", BM_ShuffleWriteRead, dataFiles[0], localDirs, runtimeFactory, READER_TYPE) \
+                   ->MeasureProcessCPUTime()                                                                      \
+                   ->UseRealTime();                                                                               \
+    setUpBenchmark(bm);                                                                                           \
   } while (0)
 
   if (dataFiles.empty()) {
@@ -637,6 +714,8 @@ int main(int argc, char** argv) {
   ::benchmark::Shutdown();
 
   gluten::VeloxBackend::get()->tearDown();
+
+  cleanupLocalDirs(localDirs);
 
   return 0;
 }

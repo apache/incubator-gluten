@@ -21,6 +21,7 @@
 #include "velox/common/base/tests/GTestUtils.h"
 
 namespace gluten {
+
 using namespace facebook::velox;
 
 class MockAllocationListener : public gluten::AllocationListener {
@@ -53,7 +54,7 @@ class MemoryManagerTest : public ::testing::Test {
   }
 
   void SetUp() override {
-    vmm_ = std::make_unique<VeloxMemoryManager>(std::make_unique<MockAllocationListener>());
+    vmm_ = std::make_unique<VeloxMemoryManager>(gluten::kVeloxBackendKind, std::make_unique<MockAllocationListener>());
     listener_ = vmm_->getListener();
     allocator_ = vmm_->allocator();
   }
@@ -273,7 +274,8 @@ void MockSparkTaskMemoryManager::release(uint64_t bytes) {
 
 class MockMemoryReclaimer : public facebook::velox::memory::MemoryReclaimer {
  public:
-  explicit MockMemoryReclaimer(std::vector<void*>& buffs, int32_t size) : buffs_(buffs), size_(size) {}
+  explicit MockMemoryReclaimer(std::vector<void*>& buffs, int32_t size)
+      : facebook::velox::memory::MemoryReclaimer(0), buffs_(buffs), size_(size) {}
 
   bool reclaimableBytes(const memory::MemoryPool& pool, uint64_t& reclaimableBytes) const override {
     uint64_t total = 0;
@@ -335,7 +337,7 @@ class MultiMemoryManagerTest : public ::testing::Test {
   }
 
   std::unique_ptr<VeloxMemoryManager> newVeloxMemoryManager(std::unique_ptr<AllocationListener> listener) {
-    return std::make_unique<VeloxMemoryManager>(std::move(listener));
+    return std::make_unique<VeloxMemoryManager>(gluten::kVeloxBackendKind, std::move(listener));
   }
 };
 
@@ -398,4 +400,5 @@ TEST_F(MultiMemoryManagerTest, spill) {
 
   ASSERT_EQ(tmm.currentBytes(), 0);
 }
+
 } // namespace gluten

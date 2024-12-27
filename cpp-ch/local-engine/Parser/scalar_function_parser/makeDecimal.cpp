@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <DataTypes/DataTypesNumber.h>
 #include <Parser/FunctionParser.h>
 #include <Common/Exception.h>
 
@@ -30,7 +31,7 @@ namespace local_engine
 class SparkFunctionMakeDecimalParser : public FunctionParser
 {
 public:
-    SparkFunctionMakeDecimalParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionMakeDecimalParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionMakeDecimalParser() override = default;
 
     static constexpr auto name = "make_decimal";

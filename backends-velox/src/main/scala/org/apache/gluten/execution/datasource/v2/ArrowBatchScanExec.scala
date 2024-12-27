@@ -16,26 +16,19 @@
  */
 package org.apache.gluten.execution.datasource.v2
 
-import org.apache.gluten.columnarbatch.ArrowBatches
-import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Convention
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.{Batch, PartitionReaderFactory, Scan}
+import org.apache.spark.sql.execution.BaseArrowScanExec
 import org.apache.spark.sql.execution.datasources.v2.{ArrowBatchScanExecShim, BatchScanExec}
 
 case class ArrowBatchScanExec(original: BatchScanExec)
   extends ArrowBatchScanExecShim(original)
-  with GlutenPlan {
+  with BaseArrowScanExec {
 
   @transient lazy val batch: Batch = original.batch
-
-  override protected def batchType0(): Convention.BatchType = {
-    ArrowBatches.ArrowJavaBatch
-  }
 
   override lazy val readerFactory: PartitionReaderFactory = original.readerFactory
 

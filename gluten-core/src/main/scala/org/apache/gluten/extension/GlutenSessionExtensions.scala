@@ -16,19 +16,44 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.backend.Backend
-import org.apache.gluten.extension.injector.RuleInjector
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.component.Component
+import org.apache.gluten.extension.injector.Injector
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 
-private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
+private[gluten] class GlutenSessionExtensions
+  extends (SparkSessionExtensions => Unit)
+  with Logging {
+  import GlutenSessionExtensions._
   override def apply(exts: SparkSessionExtensions): Unit = {
-    val injector = new RuleInjector(exts)
-    Backend.get().injectRules(injector)
+    val injector = new Injector(exts)
+    injector.control.disableOn {
+      session =>
+        val glutenEnabledGlobally = session.conf
+          .get(GlutenConfig.GLUTEN_ENABLED_KEY, GlutenConfig.GLUTEN_ENABLED_BY_DEFAULT.toString)
+          .toBoolean
+        val disabled = !glutenEnabledGlobally
+        logDebug(s"Gluten is disabled by variable: glutenEnabledGlobally: $glutenEnabledGlobally")
+        disabled
+    }
+    injector.control.disableOn {
+      session =>
+        val glutenEnabledForThread =
+          Option(session.sparkContext.getLocalProperty(GLUTEN_ENABLE_FOR_THREAD_KEY))
+            .forall(_.toBoolean)
+        val disabled = !glutenEnabledForThread
+        logDebug(s"Gluten is disabled by variable: glutenEnabledForThread: $glutenEnabledForThread")
+        disabled
+    }
+    // Components should override Backend's rules. Hence, reversed injection order is applied.
+    Component.sorted().reverse.foreach(_.injectRules(injector))
     injector.inject()
   }
 }
 
-private[gluten] object GlutenSessionExtensions {
+object GlutenSessionExtensions {
   val GLUTEN_SESSION_EXTENSION_NAME: String = classOf[GlutenSessionExtensions].getCanonicalName
+  val GLUTEN_ENABLE_FOR_THREAD_KEY: String = "gluten.enabledForCurrentThread"
 }

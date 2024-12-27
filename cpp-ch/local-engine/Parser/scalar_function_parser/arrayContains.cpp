@@ -17,6 +17,7 @@
 #include <Core/Field.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Functions/FunctionHelpers.h>
 #include <Parser/FunctionParser.h>
 
@@ -31,11 +32,11 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
+using namespace DB;
 class FunctionParserArrayContains : public FunctionParser
 {
 public:
-    explicit FunctionParserArrayContains(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArrayContains(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserArrayContains() override = default;
 
     static constexpr auto name = "array_contains";

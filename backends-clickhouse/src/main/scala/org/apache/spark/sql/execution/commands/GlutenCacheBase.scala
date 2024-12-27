@@ -72,9 +72,8 @@ object GlutenCacheBase {
               case Status.ERROR =>
                 status = false
                 messages.append(
-                  s"executor : {}, failed with message: {};",
-                  job._1,
-                  result.getMessage)
+                  s"executor : ${job._1}, failed with message: ${result.getMessage};"
+                )
                 complete = true
               case Status.SUCCESS =>
                 complete = true
@@ -111,10 +110,16 @@ object GlutenCacheBase {
     } else {
       val fetchStatus: (String, String) => Future[CacheResult] =
         (executorId: String, jobId: String) => {
-          GlutenDriverEndpoint.executorDataMap
-            .get(toExecutorId(executorId))
-            .executorEndpointRef
-            .ask[CacheResult](GlutenCacheLoadStatus(jobId))
+          val data = GlutenDriverEndpoint.executorDataMap.get(toExecutorId(executorId))
+          if (data == null) {
+            Future.successful(
+              new CacheResult(
+                CacheResult.Status.ERROR,
+                s"The executor($executorId) status has changed, please try again later"))
+          } else {
+            data.executorEndpointRef
+              .ask[CacheResult](GlutenCacheLoadStatus(jobId))
+          }
         }
       val res = waitAllJobFinish(resultList, fetchStatus)
       Seq(Row(res._1, res._2))

@@ -30,11 +30,11 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
+using namespace DB;
 class FunctionParserArrayPosition : public FunctionParser
 {
 public:
-    explicit FunctionParserArrayPosition(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArrayPosition(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserArrayPosition() override = default;
 
     static constexpr auto name = "array_position";

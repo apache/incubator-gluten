@@ -16,6 +16,7 @@
  */
 #pragma once
 #include <vector>
+#include <jni.h>
 #include <Core/Block.h>
 #include <Core/Field.h>
 #include <Common/Allocator.h>
@@ -44,8 +45,8 @@ public:
     explicit SparkRowInfo(
         const DB::ColumnsWithTypeAndName & cols,
         const DB::DataTypes & types,
-        const size_t & col_size,
-        const size_t & row_size,
+        size_t col_size,
+        size_t row_size,
         const MaskVector & masks = nullptr);
 
     const DB::DataTypes & getDataTypes() const;
@@ -84,7 +85,7 @@ private:
 
 using SparkRowInfoPtr = std::unique_ptr<local_engine::SparkRowInfo>;
 
-class CHColumnToSparkRow : private Allocator<false/* clear_memory */>
+class CHColumnToSparkRow : private Allocator<false /* clear_memory */>
 // class CHColumnToSparkRow : public DB::Arena
 {
 public:
@@ -197,5 +198,12 @@ private:
     const DB::DataTypePtr type_without_nullable;
     const DB::WhichDataType which;
 };
+
+namespace SparkRowInfoJNI
+{
+void init(JNIEnv *);
+void destroy(JNIEnv *);
+jobject create(JNIEnv * env, const SparkRowInfo & spark_row_info);
+}
 
 }

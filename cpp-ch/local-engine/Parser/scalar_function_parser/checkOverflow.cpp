@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <DataTypes/DataTypesNumber.h>
 #include <Parser/FunctionParser.h>
 #include <Common/Exception.h>
 
@@ -30,7 +31,7 @@ namespace local_engine
 class SparkFunctionCheckOverflow : public FunctionParser
 {
 public:
-    SparkFunctionCheckOverflow(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionCheckOverflow(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionCheckOverflow() override = default;
 
     static constexpr auto name = "check_overflow";

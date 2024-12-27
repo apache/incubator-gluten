@@ -19,6 +19,7 @@
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
 #include <Parser/LocalExecutor.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <gtest/gtest.h>
@@ -87,9 +88,10 @@ INCBIN(_pr_65234_, SOURCE_DIR "/utils/extern-local-engine/tests/json/clickhouse_
 TEST(Clickhouse, PR65234)
 {
     const std::string split = R"({"items":[{"uriFile":"file:///foo","length":"84633","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
-    SerializedPlanParser parser(QueryContext::globalContext());
-    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(EMBEDDED_PLAN(_pr_65234_));
+    auto parser_context = ParserContext::build(QueryContext::globalContext(), plan);
+    SerializedPlanParser parser(parser_context);
+    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     auto query_plan = parser.parse(plan);
 }
 

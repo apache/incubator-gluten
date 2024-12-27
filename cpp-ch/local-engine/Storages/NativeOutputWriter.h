@@ -31,6 +31,6 @@ public:
 
     //TODO: change to write(const DB::Block & block)
     virtual void write(DB::Block & block) = 0;
-    virtual std::string close() = 0;
+    virtual void close() = 0;
 };
 }

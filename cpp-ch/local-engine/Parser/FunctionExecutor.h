@@ -20,6 +20,8 @@
 #include <DataTypes/IDataType.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/ExpressionActions.h>
+#include <Parser/ExpressionParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <base/types.h>
 #include <substrait/algebra.pb.h>
@@ -43,14 +45,13 @@ public:
         : name(name_)
         , input_types(input_types_)
         , output_type(output_type_)
-        , plan_parser(context_)
+        , context(context_)
         , log(&Poco::Logger::get("FunctionExecutor"))
     {
-        buildExtensions();
+        buildExpressionParser();
         buildExpression();
         buildHeader();
 
-        parseExtensions();
         parseExpression();
     }
 
@@ -58,29 +59,29 @@ public:
 
     bool executeAndCompare(const std::vector<TestCase> & cases);
 
-    Block getHeader() const;
+    DB::Block getHeader() const;
 
     String getResultName() const;
 
 private:
-    void buildExtensions();
+    void buildExpressionParser();
     void buildExpression();
     void buildHeader();
 
-    void parseExtensions();
     void parseExpression();
 
     /// substrait scalar function name
     String name;
     DB::DataTypes input_types;
     DB::DataTypePtr output_type;
-    SerializedPlanParser plan_parser;
+    DB::ContextPtr context;
+    std::unique_ptr<ExpressionParser> expression_parser;
 
     ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> extensions;
     substrait::Expression expression;
     DB::Block header;
     String result_name;
-    std::unique_ptr<ExpressionActions> expression_actions;
+    std::unique_ptr<DB::ExpressionActions> expression_actions;
 
     Poco::Logger * log;
 };

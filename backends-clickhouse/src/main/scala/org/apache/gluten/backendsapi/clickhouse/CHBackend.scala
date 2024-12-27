@@ -18,13 +18,14 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.columnarbatch.CHBatch
+import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
+import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 
@@ -34,24 +35,26 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
+import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+import org.apache.spark.util.SerializableConfiguration
 
 import java.util.Locale
 
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends SubstraitBackend {
+  import CHBackend._
   override def name(): String = CHConf.BACKEND_NAME
-  override def defaultBatchType: Convention.BatchType = CHBatch
-  override def buildInfo(): Backend.BuildInfo =
-    Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+  override def buildInfo(): BuildInfo =
+    BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
@@ -62,7 +65,17 @@ class CHBackend extends SubstraitBackend {
   override def settings(): BackendSettingsApi = CHBackendSettings
 }
 
+object CHBackend {
+  private class ConvFunc() extends ConventionFunc.Override {
+    override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
+      case a: AdaptiveSparkPlanExec if a.supportsColumnar =>
+        CHBatch
+    }
+  }
+}
+
 object CHBackendSettings extends BackendSettingsApi with Logging {
+  override def primaryBatchType: Convention.BatchType = CHBatch
 
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
@@ -133,6 +146,14 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE: String =
     CHConf.prefixOf("table.path.to.mtps.cache.size")
 
+  val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE: String =
+    CHConf.prefixOf("delta.metadata.optimize")
+  val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE_DEFAULT_VALUE: String = "true"
+
+  val GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT: String =
+    CHConf.prefixOf("convert.left.anti_semi.to.right")
+  val GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT_DEFAULT_VALUE: String = "false"
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -142,10 +163,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .toLowerCase(Locale.getDefault)
   }
 
-  override def validateScan(
+  override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
-      rootPaths: Seq[String]): ValidationResult = {
+      rootPaths: Seq[String],
+      properties: Map[String, String],
+      serializableHadoopConf: Option[SerializableConfiguration] = None): ValidationResult = {
 
     // Validate if all types are supported.
     def hasComplexType: Boolean = {
@@ -176,6 +199,27 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         }
       case JsonReadFormat => ValidationResult.succeeded
       case _ => ValidationResult.failed(s"Unsupported file format $format")
+    }
+  }
+
+  override def getSubstraitReadFileFormatV1(
+      fileFormat: FileFormat): LocalFilesNode.ReadFileFormat = {
+    fileFormat.getClass.getSimpleName match {
+      case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
+      case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DeltaParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
+      case "CSVFileFormat" => ReadFileFormat.TextReadFormat
+      case _ => ReadFileFormat.UnknownFormat
+    }
+  }
+
+  override def getSubstraitReadFileFormatV2(scan: Scan): LocalFilesNode.ReadFileFormat = {
+    scan.getClass.getSimpleName match {
+      case "OrcScan" => ReadFileFormat.OrcReadFormat
+      case "ParquetScan" => ReadFileFormat.ParquetReadFormat
+      case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
+      case _ => ReadFileFormat.UnknownFormat
     }
   }
 
@@ -227,42 +271,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       }
     }
 
-    def validateBucketSpec(): Option[String] = {
-      if (bucketSpec.nonEmpty) {
-        Some("Unsupported native write: bucket write is not supported.")
-      } else {
-        None
-      }
-    }
-
     validateCompressionCodec()
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
       .orElse(validateDateTypes())
-      .orElse(validateWriteFilesOptions())
-      .orElse(validateBucketSpec()) match {
+      .orElse(validateWriteFilesOptions()) match {
       case Some(reason) => ValidationResult.failed(reason)
       case _ => ValidationResult.succeeded
-    }
-  }
-
-  override def supportShuffleWithProject(
-      outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean = {
-    child match {
-      case hash: HashAggregateExec =>
-        if (hash.aggregateExpressions.isEmpty) {
-          true
-        } else {
-          outputPartitioning match {
-            case hashPartitioning: HashPartitioning =>
-              hashPartitioning.expressions.exists(x => !x.isInstanceOf[AttributeReference])
-            case _ =>
-              false
-          }
-        }
-      case _ =>
-        true
     }
   }
 
@@ -348,11 +363,40 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  // It try to move the expand node after the pre-aggregate node. That is to make the plan from
+  //  expand -> pre-aggregate -> shuffle -> final-aggregate
+  // to
+  //  pre-aggregate -> expand -> shuffle -> final-aggregate
+  // It could reduce the overhead of pre-aggregate node.
+  def enableLazyAggregateExpand(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_lazy_aggregate_expand"),
+      defaultValue = true
+    )
+  }
+
+  def enablePreProjectionForJoinConditions(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_pre_projection_for_join_conditions"),
+      defaultValue = true
+    )
+  }
+
+  // If the partition keys are high cardinality, the aggregation method is slower.
+  def enableConvertWindowGroupLimitToAggregate(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_window_group_limit_to_aggregate"),
+      defaultValue = true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }
 
   override def supportCartesianProductExec(): Boolean = true
+
+  override def supportCartesianProductExecWithCondition(): Boolean = false
 
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>
@@ -360,6 +404,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         true
       } else {
         t match {
+          case LeftAnti | LeftSemi
+              if (SQLConf.get
+                .getConfString(
+                  GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT,
+                  GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT_DEFAULT_VALUE)
+                .toBoolean) =>
+            true
           case LeftOuter => true
           case _ => false
         }

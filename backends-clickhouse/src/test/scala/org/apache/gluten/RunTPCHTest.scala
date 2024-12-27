@@ -16,7 +16,7 @@
  */
 package org.apache.gluten
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.benchmarks.GenTPCHTableScripts
 
 import org.apache.spark.sql.SparkSession
@@ -65,7 +65,7 @@ object RunTPCHTest {
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
 
-    val resourcePath = rootPath + "../../../../gluten-core/src/test/resources/"
+    val resourcePath = rootPath + "../../../../tools/gluten-it/common/src/main/resources/"
     val queryPath = resourcePath + "/tpch-queries/"
     // which sql to execute
     val sqlFilePath = queryPath + "q01.sql"
@@ -101,7 +101,7 @@ object RunTPCHTest {
       .config("spark.sql.columnVector.offheap.enabled", "true")
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", offHeapSize)
-      .config(CHConf.runtimeConfig("logger.level"), "error")
+      .config(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .config("spark.sql.warehouse.dir", warehouse)
       .config(
         "javax.jdo.option.ConnectionURL",

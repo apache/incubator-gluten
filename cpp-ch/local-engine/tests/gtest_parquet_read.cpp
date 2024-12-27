@@ -109,7 +109,7 @@ void readData(const String & path, const std::map<String, Field> & fields)
 
     InputFormatPtr format;
     if constexpr (std::is_same_v<InputFormat, DB::ParquetBlockInputFormat>)
-        format = std::make_shared<InputFormat>(in, header, settings, 1, 8192);
+        format = std::make_shared<InputFormat>(in, header, settings, 1, 1, 8192);
     else
         format = std::make_shared<InputFormat>(in, header, settings);
 
@@ -142,27 +142,27 @@ TEST(ParquetRead, ReadSchema)
 
 TEST(ParquetRead, VerifyPageindexReaderSupport)
 {
-    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_FALSE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("alltypes/alltypes_notnull.parquet")))));
-    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_FALSE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("alltypes/alltypes_null.parquet")))));
 
 
-    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_FALSE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("array.parquet")))));
-    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_TRUE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("date.parquet")))));
-    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_TRUE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("datetime64.parquet")))));
-    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_TRUE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("decimal.parquet")))));
-    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_TRUE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("iris.parquet")))));
-    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_FALSE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("map.parquet")))));
-    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_TRUE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("sample.parquet")))));
-    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+    EXPECT_FALSE(local_engine::ParquetFormatFile::supportPageindexReader(
         toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("struct.parquet")))));
 }
 

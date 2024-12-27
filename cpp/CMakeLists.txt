@@ -46,10 +46,8 @@ option(BUILD_VELOX_BACKEND "Build Velox backend" ON)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_EXAMPLES "Build Examples" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
-option(BUILD_PROTOBUF "Build Protobuf from Source" OFF)
-option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
+option(ENABLE_JEMALLOC_STATS "Prints Jemalloc stats for debugging" OFF)
 option(BUILD_GLOG "Build Glog from Source" OFF)
-option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
 option(ENABLE_QAT "Enable QAT for de/compression" OFF)
 option(ENABLE_IAA "Enable IAA for de/compression" OFF)
@@ -100,7 +98,9 @@ set(KNOWN_WARNINGS
        -Wno-error=unused-function \
        -Wno-error=unused-variable \
        -Wno-strict-aliasing \
-       -Wno-ignored-qualifiers")
+       -Wno-ignored-qualifiers \
+       -Wno-deprecated-declarations \
+       -Wno-attributes")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set(KNOWN_WARNINGS "-Wno-error=unused-but-set-variable \
@@ -143,7 +143,24 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_compile_definitions(_GNU_SOURCE)
 endif()
 
+if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
+endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KNOWN_WARNINGS}")
+
+# Keep same compile option with Velox.
+execute_process(
+  COMMAND
+    bash -c
+    "( source ${VELOX_HOME}/scripts/setup-helper-functions.sh && echo -n $(get_cxx_flags $ENV{CPU_TARGET}))"
+  OUTPUT_VARIABLE SCRIPT_CXX_FLAGS
+  RESULT_VARIABLE COMMAND_STATUS)
+if(COMMAND_STATUS EQUAL "1")
+  message(FATAL_ERROR "Unable to determine compiler flags!")
+endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
 
 #
 # Dependencies
@@ -219,14 +236,7 @@ if(ENABLE_IAA)
   add_definitions(-DGLUTEN_ENABLE_IAA)
 endif()
 
-if(ENABLE_ORC)
-  add_definitions(-DGLUTEN_ENABLE_ORC)
-endif()
-
-#
 # Subdirectories
-#
-
 add_subdirectory(core)
 
 if(BUILD_VELOX_BACKEND)

@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution.hive
 
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeConfig, RuntimeSettings}
 import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 
 import org.apache.spark.SparkConf
@@ -54,11 +56,13 @@ class GlutenClickHouseTableAfterRestart
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .setCHConfig("logger.level", "error")
+      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.ui.enabled", "true")
-      .setCHSettings("min_insert_block_size_rows", 100000)
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
+      .set(CHConf.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
+      .set(RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key, "100000")
       .setCHSettings("mergetree.merge_after_insert", false)
       .setCHSettings("input_format_parquet_max_block_size", 8192)
       .setMaster("local[2]")
@@ -107,40 +111,14 @@ class GlutenClickHouseTableAfterRestart
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    l_returnflag,
-         |    l_linestatus,
-         |    sum(l_quantity) AS sum_qty,
-         |    sum(l_extendedprice) AS sum_base_price,
-         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
-         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
-         |    avg(l_quantity) AS avg_qty,
-         |    avg(l_extendedprice) AS avg_price,
-         |    avg(l_discount) AS avg_disc,
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree
-         |WHERE
-         |    l_shipdate <= date'1998-09-02' - interval 1 day
-         |GROUP BY
-         |    l_returnflag,
-         |    l_linestatus
-         |ORDER BY
-         |    l_returnflag,
-         |    l_linestatus;
-         |
-         |""".stripMargin
-
     // before restart, check if cache works
     {
-      runTPCHQueryBySQL(1, sqlStr)(_ => {})
+      runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
       val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()
       val oldMissingCount2 = ClickhouseSnapshot.addFileToAddMTPCache.stats().missCount()
 
       // for this run, missing count should not increase
-      runTPCHQueryBySQL(1, sqlStr)(_ => {})
+      runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
       val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
       assertResult(oldMissingCount1)(stats1.missCount())
       val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
@@ -152,7 +130,7 @@ class GlutenClickHouseTableAfterRestart
 
     restartSpark()
 
-    runTPCHQueryBySQL(1, sqlStr)(_ => {})
+    runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
 
     // after restart, additionally check stats of delta scan cache
     val stats1 = ClickhouseSnapshot.deltaScanCache.stats()

@@ -12,8 +12,7 @@ BUILD_TYPE=Release
 BUILD_TESTS=OFF
 BUILD_EXAMPLES=OFF
 BUILD_BENCHMARKS=OFF
-BUILD_JEMALLOC=OFF
-BUILD_PROTOBUF=OFF
+ENABLE_JEMALLOC_STATS=OFF
 BUILD_VELOX_TESTS=OFF
 BUILD_VELOX_BENCHMARKS=OFF
 ENABLE_QAT=OFF
@@ -23,7 +22,6 @@ ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
-ENABLE_EP_CACHE=OFF
 ENABLE_VCPKG=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
@@ -65,8 +63,8 @@ do
         BUILD_BENCHMARKS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --build_jemalloc=*)
-        BUILD_JEMALLOC=("${arg#*=}")
+        --enable_jemalloc_stats=*)
+        ENABLE_JEMALLOC_STATS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_qat=*)
@@ -79,10 +77,6 @@ do
         ;;
         --enable_hbm=*)
         ENABLE_HBM=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --build_protobuf=*)
-        BUILD_PROTOBUF=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_gcs=*)
@@ -99,10 +93,6 @@ do
         ;;
         --enable_abfs=*)
         ENABLE_ABFS=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
-        --enable_ep_cache=*)
-        ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_vcpkg=*)
@@ -197,8 +187,9 @@ function build_velox {
   cd $GLUTEN_DIR/ep/build-velox/src
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
   ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-                   --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS \
-                   --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS
+                   --enable_abfs=$ENABLE_ABFS --build_test_utils=$BUILD_TESTS \
+                   --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS \
+                   --velox_home=$VELOX_HOME
 }
 
 function build_gluten_cpp {
@@ -209,8 +200,8 @@ function build_gluten_cpp {
   cd build
   cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
         -DVELOX_HOME=${VELOX_HOME} \
-        -DBUILD_TESTS=$BUILD_TESTS -DBUILD_EXAMPLES=$BUILD_EXAMPLES -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
-        -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DBUILD_PROTOBUF=$BUILD_PROTOBUF -DENABLE_GCS=$ENABLE_GCS \
+        -DBUILD_TESTS=$BUILD_TESTS -DBUILD_EXAMPLES=$BUILD_EXAMPLES -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DENABLE_JEMALLOC_STATS=$ENABLE_JEMALLOC_STATS \
+        -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_GCS=$ENABLE_GCS \
         -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS -DENABLE_ABFS=$ENABLE_ABFS ..
   make -j $NUM_THREADS
 }

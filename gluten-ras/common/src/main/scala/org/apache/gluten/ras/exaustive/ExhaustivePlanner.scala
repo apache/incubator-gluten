@@ -27,7 +27,6 @@ import org.apache.gluten.ras.rule.{EnforcerRuleSet, RuleApplier, Shape}
 
 private class ExhaustivePlanner[T <: AnyRef] private (
     ras: Ras[T],
-    altConstraintSets: Seq[PropertySet[T]],
     constraintSet: PropertySet[T],
     plan: T)
   extends RasPlanner[T] {
@@ -40,7 +39,6 @@ private class ExhaustivePlanner[T <: AnyRef] private (
   }
 
   private lazy val best: (Best[T], KnownCostPath[T]) = {
-    altConstraintSets.foreach(propSet => memo.memorize(plan, propSet))
     val groupId = rootGroupId
     explore()
     val memoState = memo.newState()
@@ -72,12 +70,8 @@ private class ExhaustivePlanner[T <: AnyRef] private (
 }
 
 object ExhaustivePlanner {
-  def apply[T <: AnyRef](
-      ras: Ras[T],
-      altConstraintSets: Seq[PropertySet[T]],
-      constraintSet: PropertySet[T],
-      plan: T): RasPlanner[T] = {
-    new ExhaustivePlanner(ras, altConstraintSets, constraintSet, plan)
+  def apply[T <: AnyRef](ras: Ras[T], constraintSet: PropertySet[T], plan: T): RasPlanner[T] = {
+    new ExhaustivePlanner(ras, constraintSet, plan)
   }
 
   private class ExhaustiveExplorer[T <: AnyRef](

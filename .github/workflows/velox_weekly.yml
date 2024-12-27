@@ -35,10 +35,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "centos:7", "centos:8", "quay.io/centos/centos:stream9" ]
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -55,12 +55,14 @@ jobs:
             -e 's/^#baseurl/baseurl/' \
             -e 's/mirror\.centos\.org/vault.centos.org/' \
             /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+            yum install -y devtoolset-11
+            source /opt/rh/devtoolset-11/enable
           elif [ "${{ matrix.os }}" = "quay.io/centos/centos:stream9" ]; then
             dnf install -y --setopt=install_weak_deps=False gcc-toolset-12
             source /opt/rh/gcc-toolset-12/enable || exit 1
           else
-            dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
-            source /opt/rh/gcc-toolset-9/enable || exit 1
+            dnf install -y --setopt=install_weak_deps=False gcc-toolset-11
+            source /opt/rh/gcc-toolset-11/enable || exit 1
           fi
           yum install -y java-1.8.0-openjdk-devel patch wget git perl
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
@@ -70,7 +72,7 @@ jobs:
           mv apache-maven-3.8.8 /usr/lib/maven && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          cd $GITHUB_WORKSPACE/ && \
+          git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
           ./dev/package.sh
 
   build-on-ubuntu:
@@ -78,6 +80,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -87,6 +90,13 @@ jobs:
           # To avoid the prompt for region selection during installing tzdata.
           export DEBIAN_FRONTEND=noninteractive
           apt-get update && apt-get install -y sudo maven wget git
+          if [ "${{ matrix.os }}" = "ubuntu:20.04" ]; then
+            sudo apt install -y software-properties-common
+            sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+            sudo apt update && sudo apt install -y gcc-11 g++-11
+            export CC=/usr/bin/gcc-11
+            export CXX=/usr/bin/g++-11
+          fi
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh

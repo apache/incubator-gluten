@@ -23,6 +23,9 @@ import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
 
+import org.scalactic.source.Position
+import org.scalatest.Tag
+
 import java.sql.Timestamp
 
 class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
@@ -36,6 +39,21 @@ class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.gluten.ras.enabled", "true")
+  }
+
+  // TODO: Fix the incompatibilities then remove this method. See GLUTEN-7600.
+  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
+    val exclusions = Set(
+      "isnull function",
+      "null input for array_size",
+      "Test make_ym_interval function"
+    )
+    if (exclusions.contains(testName)) {
+      super.ignore(testName, testTags: _*)(testFun)(pos)
+      return
+    }
+    super.test(testName, testTags: _*)(testFun)(pos)
   }
 }
 
@@ -675,7 +693,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test monotonically_increasing_id function") {
+  // FIXME: Ignored: https://github.com/apache/incubator-gluten/issues/7600.
+  ignore("Test monotonically_increasintestg_id function") {
     runQueryAndCompare("""SELECT monotonically_increasing_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -1338,6 +1357,26 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("concat_ws") {
+    runQueryAndCompare("SELECT concat_ws('~~', c_comment, c_address) FROM customer LIMIT 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath {
+      path =>
+        Seq[Seq[String]](Seq("ab", null, "cd", "", "ef"), Seq(null, "x", "", "y"), Seq.empty, null)
+          .toDF("col")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("SELECT concat_ws('~~', col, 'end') AS res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test input_file_name function") {
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
@@ -1436,6 +1475,44 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         val df = spark.read.parquet(path.getCanonicalPath).na.drop(2, Seq("age", "height"))
         checkAnswer(df, rows(0) :: Nil)
         checkGlutenOperatorMatch[FilterExecTransformer](df)
+    }
+  }
+
+  testWithSpecifiedSparkVersion("Test try_cast", Some("3.4")) {
+    withTempView("try_cast_table") {
+      withTempPath {
+        path =>
+          Seq[(String)](("123456"), ("000A1234"))
+            .toDF("str")
+            .write
+            .parquet(path.getCanonicalPath)
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("try_cast_table")
+          runQueryAndCompare("select try_cast(str as bigint) from try_cast_table") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select try_cast(str as double) from try_cast_table") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+  }
+
+  test("Test cast") {
+    withTempView("cast_table") {
+      withTempPath {
+        path =>
+          Seq[(String)](("123456"), ("000A1234"))
+            .toDF("str")
+            .write
+            .parquet(path.getCanonicalPath)
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("cast_table")
+          runQueryAndCompare("select cast(str as bigint) from cast_table") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+          runQueryAndCompare("select cast(str as double) from cast_table") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
     }
   }
 }

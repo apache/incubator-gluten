@@ -38,11 +38,11 @@ export CXXFLAGS=$CFLAGS  # Used by boost.
 export CPPFLAGS=$CFLAGS  # Used by LZO.
 CMAKE_BUILD_TYPE="${BUILD_TYPE:-Release}"
 BUILD_DUCKDB="${BUILD_DUCKDB:-true}"
-export CC=/opt/rh/gcc-toolset-9/root/bin/gcc
-export CXX=/opt/rh/gcc-toolset-9/root/bin/g++
+export CC=/opt/rh/gcc-toolset-11/root/bin/gcc
+export CXX=/opt/rh/gcc-toolset-11/root/bin/g++
 DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)/deps-download}
 
-FB_OS_VERSION="v2024.05.20.00"
+FB_OS_VERSION="v2024.07.01.00"
 FMT_VERSION="10.1.1"
 BOOST_VERSION="boost-1.84.0"
 
@@ -56,7 +56,7 @@ function install_build_prerequisites {
   dnf_install epel-release dnf-plugins-core # For ccache, ninja
   dnf config-manager --set-enabled powertools
   dnf update -y
-  dnf_install ninja-build curl ccache gcc-toolset-9 git wget which
+  dnf_install ninja-build curl ccache gcc-toolset-11 git wget which
   dnf_install yasm
   dnf_install autoconf automake python39 python39-devel python39-pip libtool
   pip3.9 install cmake==3.28.3
@@ -198,8 +198,8 @@ function install_velox_deps {
 
 (
   if [[ $# -ne 0 ]]; then
-    # Activate gcc9; enable errors on unset variables afterwards.
-    source /opt/rh/gcc-toolset-9/enable || exit 1
+    # Activate gcc11; enable errors on unset variables afterwards.
+    source /opt/rh/gcc-toolset-11/enable || exit 1
     set -u
     for cmd in "$@"; do
       run_and_time "${cmd}"
@@ -212,8 +212,8 @@ function install_velox_deps {
     else
       echo "Skipping installation of build dependencies since INSTALL_PREREQUISITES is not set"
     fi
-    # Activate gcc9; enable errors on unset variables afterwards.
-    source /opt/rh/gcc-toolset-9/enable || exit 1
+    # Activate gcc11; enable errors on unset variables afterwards.
+    source /opt/rh/gcc-toolset-11/enable || exit 1
     set -u
     install_velox_deps
     echo "All dependencies for Velox installed!"

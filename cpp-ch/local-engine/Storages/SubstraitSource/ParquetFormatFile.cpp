@@ -22,6 +22,7 @@
 #include <numeric>
 #include <utility>
 
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
@@ -30,13 +31,18 @@
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
-#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/metadata.h>
 #include <Common/Exception.h>
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsMaxThreads max_download_threads;
+extern const SettingsMaxThreads max_parsing_threads;
+}
+
 namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
@@ -86,10 +92,23 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
     std::ranges::set_difference(total_row_group_indices, required_row_group_indices, std::back_inserter(skip_row_group_indices));
 
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
-    if (use_pageindex_reader && pageindex_reader_support(header))
+
+    const DB::Settings & settings = context->getSettingsRef();
+
+    if (use_pageindex_reader && supportPageindexReader(header))
+    {
         res->input = std::make_shared<VectorizedParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
+    }
     else
-        res->input = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, 1, 8192);
+    {
+        res->input = std::make_shared<DB::ParquetBlockInputFormat>(
+            *(res->read_buffer),
+            header,
+            format_settings,
+            settings[DB::Setting::max_parsing_threads],
+            settings[DB::Setting::max_download_threads],
+            8192);
+    }
     return res;
 }
 
@@ -113,7 +132,8 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
         return total_rows;
     }
 }
-bool ParquetFormatFile::pageindex_reader_support(const DB::Block & header)
+
+bool ParquetFormatFile::supportPageindexReader(const DB::Block & header)
 {
     const auto result = std::ranges::find_if(
         header,

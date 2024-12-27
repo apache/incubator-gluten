@@ -29,7 +29,7 @@ struct MergeTreePart;
 struct MergeTreeTableInstance;
 
 /***
- * Manage the cache of the MergeTree, mainly including meta.bin, data.bin, metadata.gluten
+ * Manage the cache of the MergeTree, mainly including part_data.gluten, part_meta.gluten, metadata.gluten
  */
 class CacheManager
 {
@@ -40,7 +40,7 @@ public:
 
     static CacheManager & instance();
     static void initialize(const DB::ContextMutablePtr & context);
-    JobId cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String> & columns);
+    JobId cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String> & columns, bool only_meta_cache);
     static jobject getCacheStatus(JNIEnv * env, const String & jobId);
 
     Task cacheFile(const substrait::ReadRel::LocalFiles::FileOrFiles & file, ReadBufferBuilderPtr read_buffer_builder);
@@ -48,7 +48,8 @@ public:
     static void removeFiles(String file, String cache_name);
 
 private:
-    Task cachePart(const MergeTreeTableInstance & table, const MergeTreePart & part, const std::unordered_set<String> & columns);
+    Task cachePart(
+        const MergeTreeTableInstance & table, const MergeTreePart & part, const std::unordered_set<String> & columns, bool only_meta_cache);
     CacheManager() = default;
     DB::ContextMutablePtr context;
 };

@@ -42,8 +42,8 @@ static DB::ITransformingStep::Traits getTraits()
         }};
 }
 
-ReplicateRowsStep::ReplicateRowsStep(const DB::DataStream & input_stream)
-    : ITransformingStep(input_stream, transformHeader(input_stream.header), getTraits())
+ReplicateRowsStep::ReplicateRowsStep(const DB::Block& input_header)
+    : ITransformingStep(input_header, transformHeader(input_header), getTraits())
 {
 }
 
@@ -62,9 +62,9 @@ void ReplicateRowsStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, c
     pipeline.addSimpleTransform([&](const DB::Block & header) { return std::make_shared<ReplicateRowsTransform>(header); });
 }
 
-void ReplicateRowsStep::updateOutputStream()
+void ReplicateRowsStep::updateOutputHeader()
 {
-    output_stream = createOutputStream(input_streams.front(), transformHeader(input_streams.front().header), getDataStreamTraits());
+    output_header = transformHeader(input_headers.front());
 }
 
 ReplicateRowsTransform::ReplicateRowsTransform(const DB::Block & input_header_)

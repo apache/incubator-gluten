@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
+import org.apache.gluten.backendsapi.ValidatorApi
 import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.SubstraitContext
@@ -28,14 +28,14 @@ import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
-import org.apache.spark.sql.delta.DeltaLogFileIndex
-import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
 class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logging {
+  import CHValidatorApi._
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult = {
     if (CHNativeExpressionEvaluator.doValidate(plan.toProtobuf.toByteArray)) {
@@ -67,39 +67,13 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
     true
   }
 
-  /** Validate against a whole Spark plan, before being interpreted by Gluten. */
-  override def doSparkPlanValidate(plan: SparkPlan): Boolean = {
-    // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
-    // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
-    // For example:
-    //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
-    //   import spark.implicits._
-    //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
-    //   df.summary().show(100, false)
-
-    def includedDeltaOperator(scanExec: FileSourceScanExec): Boolean = {
-      scanExec.relation.location.isInstanceOf[DeltaLogFileIndex]
-    }
-
-    val includedUnsupportedPlans = collect(plan) {
-      // case s: SerializeFromObjectExec => true
-      // case d: DeserializeToObjectExec => true
-      // case o: ObjectHashAggregateExec => true
-      case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
-      case f: FileSourceScanExec if includedDeltaOperator(f) => true
-      case v2CommandExec: V2CommandExec => true
-      case commandResultExec: CommandResultExec => true
-    }
-
-    !includedUnsupportedPlans.contains(true)
-  }
-
   /** Validate whether the compression method support splittable at clickhouse backend. */
   override def doCompressionSplittableValidate(compressionMethod: String): Boolean = {
-    false
+    compressionMethod == "BZip2Codec"
   }
 
   override def doColumnarShuffleExchangeExecValidate(
+      outputAttributes: Seq[Attribute],
       outputPartitioning: Partitioning,
       child: SparkPlan): Option[String] = {
     val outputAttributes = child.output
@@ -114,10 +88,7 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
               .doTransform(substraitContext.registeredFunction)
             node.isInstanceOf[SelectionNode]
         }
-        if (
-          allSelectionNodes ||
-          BackendsApiManager.getSettings.supportShuffleWithProject(outputPartitioning, child)
-        ) {
+        if (allSelectionNodes || supportShuffleWithProject(outputPartitioning, child)) {
           None
         } else {
           Some("expressions are not supported in HashPartitioning")
@@ -132,6 +103,34 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
           Some("do not support range partitioning columnar sort")
         }
       case _ => None
+    }
+  }
+}
+
+object CHValidatorApi {
+
+  /**
+   * A shuffle key may be an expression. We would add a projection for this expression shuffle key
+   * and make it into a new column which the shuffle will refer to. But we need to remove it from
+   * the result columns from the shuffle.
+   *
+   * Since https://github.com/apache/incubator-gluten/pull/1071.
+   */
+  def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = {
+    child match {
+      case hash: HashAggregateExec =>
+        if (hash.aggregateExpressions.isEmpty) {
+          true
+        } else {
+          outputPartitioning match {
+            case hashPartitioning: HashPartitioning =>
+              hashPartitioning.expressions.exists(x => !x.isInstanceOf[AttributeReference])
+            case _ =>
+              false
+          }
+        }
+      case _ =>
+        true
     }
   }
 }

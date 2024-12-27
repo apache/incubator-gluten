@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include <DataTypes/DataTypeNullable.h>
+#include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
@@ -30,11 +32,11 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
+using namespace DB;
 class FunctionParserLocate : public FunctionParser
 {
 public:
-    explicit FunctionParserLocate(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserLocate(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserLocate() override = default;
 
     static constexpr auto name = "locate";

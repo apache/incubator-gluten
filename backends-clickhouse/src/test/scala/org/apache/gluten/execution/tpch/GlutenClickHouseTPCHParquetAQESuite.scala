@@ -20,6 +20,7 @@ import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.plans.LeftSemi
 import org.apache.spark.sql.execution.{ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 
@@ -33,8 +34,7 @@ class GlutenClickHouseTPCHParquetAQESuite
   override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
@@ -214,6 +214,23 @@ class GlutenClickHouseTPCHParquetAQESuite
     runTPCHQuery(21) { df => }
   }
 
+  test(
+    "TPCH Q21 with GLUTEN-7971: Support using left side as the build table for the left anti/semi join") {
+    withSQLConf(
+      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
+      ("spark.gluten.sql.columnar.backend.ch.convert.left.anti_semi.to.right", "true")) {
+      runTPCHQuery(21, compareResult = false) {
+        df =>
+          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
+          val shuffledHashJoinExecs = collect(df.queryExecution.executedPlan) {
+            case h: CHShuffledHashJoinExecTransformer if h.joinType == LeftSemi => h
+          }
+          assertResult(1)(shuffledHashJoinExecs.size)
+          assertResult(BuildLeft)(shuffledHashJoinExecs(0).buildSide)
+      }
+    }
+  }
+
   test("TPCH Q22") {
     runTPCHQuery(22) {
       df =>
@@ -369,6 +386,25 @@ class GlutenClickHouseTPCHParquetAQESuite
            |limit 100
            |
            |""".stripMargin)(df => {})
+    }
+  }
+
+  test("GLUTEN-7673: fix substrait infinite loop") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      val result = sql(
+        s"""
+           |select l_orderkey
+           |from lineitem
+           |inner join orders
+           |on l_orderkey = o_orderkey
+           |  and ((l_shipdate = '2024-01-01' and l_partkey=1
+           |  and l_suppkey>2 and o_orderpriority=-987)
+           |  or l_shipmode>o_comment)
+           |order by l_orderkey limit 1
+           |""".stripMargin
+      ).collect()
+      // check no exception
+      assert(result.length == 1)
     }
   }
 }

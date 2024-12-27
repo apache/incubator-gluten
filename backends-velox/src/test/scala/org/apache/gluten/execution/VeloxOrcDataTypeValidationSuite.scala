@@ -255,7 +255,10 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
                          |""".stripMargin) {
       df =>
         {
-          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[ColumnarUnionExec]))
+          assert(
+            getExecutedPlan(df).exists(
+              plan =>
+                plan.isInstanceOf[ColumnarUnionExec] || plan.isInstanceOf[UnionExecTransformer]))
         }
     }
 
@@ -265,7 +268,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
                          | select date, int from type1 limit 100
                          |) where int != 0 limit 10;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[LimitTransformer]
+      checkGlutenOperatorMatch[LimitExecTransformer]
     }
 
     // Validation: Window.

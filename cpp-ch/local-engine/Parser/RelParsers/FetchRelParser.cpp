@@ -25,13 +25,13 @@ namespace local_engine
 class FetchRelParser : public RelParser
 {
 public:
-    explicit FetchRelParser(SerializedPlanParser * plan_parser_) : RelParser(plan_parser_) { }
+    explicit FetchRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_) { }
     ~FetchRelParser() override = default;
 
     DB::QueryPlanPtr parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
     {
         const auto & limit = rel.fetch();
-        auto limit_step = std::make_unique<DB::LimitStep>(query_plan->getCurrentDataStream(), limit.count(), limit.offset());
+        auto limit_step = std::make_unique<DB::LimitStep>(query_plan->getCurrentHeader(), limit.count(), limit.offset());
         limit_step->setStepDescription("LIMIT");
         steps.push_back(limit_step.get());
         query_plan->addStep(std::move(limit_step));
@@ -42,7 +42,7 @@ public:
 
 void registerFetchRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser_) { return std::make_unique<FetchRelParser>(plan_parser_); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_unique<FetchRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kFetch, builder);
 }
 

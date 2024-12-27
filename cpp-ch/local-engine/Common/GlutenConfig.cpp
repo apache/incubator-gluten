@@ -22,6 +22,7 @@
 #include <config.pb.h>
 #include <Poco/Util/AbstractConfiguration.h>
 #include <Common/CHUtil.h>
+#include <Common/DebugUtils.h>
 #include <Common/logger_useful.h>
 
 namespace local_engine
@@ -29,28 +30,26 @@ namespace local_engine
 
 void SparkConfigs::updateConfig(const DB::ContextMutablePtr & context, std::string_view plan)
 {
-    std::map<std::string, std::string> spark_conf_map = load(plan);
-    // configs cannot be updated per query
-    // settings can be updated per query
-    auto settings = context->getSettingsCopy(); // make a copy
+    update(
+        plan,
+        [&](const ConfigMap & spark_conf_map)
+        {
+            // configs cannot be updated per query
+            // settings can be updated per query
+            auto settings = context->getSettingsCopy(); // make a copy
 
-    // TODO: Remove BackendInitializerUtil::initSettings
-    BackendInitializerUtil::initSettings(spark_conf_map, settings);
-    context->setSettings(settings);
+            // TODO: Remove BackendInitializerUtil::initSettings
+            BackendInitializerUtil::initSettings(spark_conf_map, settings);
+            context->setSettings(settings);
+        });
 }
 
-std::map<std::string, std::string> SparkConfigs::load(std::string_view plan, bool processStart)
+void SparkConfigs::update(std::string_view plan, const std::function<void(const ConfigMap &)> & callback, bool processStart)
 {
-    std::map<std::string, std::string> configs{};
     auto configMaps = local_engine::BinaryToMessage<gluten::ConfigMap>(plan);
-
     if (!processStart)
-        logDebugMessage(configMaps, "Update Config Map Plan");
-
-    for (const auto & pair : configMaps.configs())
-        configs.emplace(pair.first, pair.second);
-
-    return configs;
+        debug::dumpMessage(configMaps, "Update Config Map Plan");
+    callback(configMaps.configs());
 }
 
 MemoryConfig MemoryConfig::loadFromContext(const DB::ContextPtr & context)
@@ -74,8 +73,10 @@ GraceMergingAggregateConfig GraceMergingAggregateConfig::loadFromContext(const D
         = context->getConfigRef().getUInt64(MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET, 1_MiB);
     config.max_allowed_memory_usage_ratio_for_aggregate_merging
         = context->getConfigRef().getDouble(MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING, 0.9);
+    config.enable_spill_test = context->getConfigRef().getBool(ENABLE_SPILL_TEST, false);
     return config;
 }
+
 StreamingAggregateConfig StreamingAggregateConfig::loadFromContext(const DB::ContextPtr & context)
 {
     StreamingAggregateConfig config;
@@ -88,6 +89,7 @@ StreamingAggregateConfig StreamingAggregateConfig::loadFromContext(const DB::Con
     config.enable_streaming_aggregating = context->getConfigRef().getBool(ENABLE_STREAMING_AGGREGATING, true);
     return config;
 }
+
 JoinConfig JoinConfig::loadFromContext(const DB::ContextPtr & context)
 {
     JoinConfig config;
@@ -96,22 +98,13 @@ JoinConfig JoinConfig::loadFromContext(const DB::ContextPtr & context)
         = context->getConfigRef().getUInt64(MULTI_JOIN_ON_CLAUSES_BUILD_SIDE_ROWS_LIMIT, 10000000);
     return config;
 }
+
 ExecutorConfig ExecutorConfig::loadFromContext(const DB::ContextPtr & context)
 {
     ExecutorConfig config;
     config.dump_pipeline = context->getConfigRef().getBool(DUMP_PIPELINE, false);
     config.use_local_format = context->getConfigRef().getBool(USE_LOCAL_FORMAT, false);
     return config;
-}
-HdfsConfig HdfsConfig::loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings)
-{
-    HdfsConfig hdfs;
-    if (read_settings.enable_filesystem_cache)
-        hdfs.hdfs_async = false;
-    else
-        hdfs.hdfs_async = config.getBool(HDFS_ASYNC, true);
-
-    return hdfs;
 }
 
 S3Config S3Config::loadFromContext(const DB::ContextPtr & context)
@@ -141,6 +134,21 @@ GlutenJobSchedulerConfig GlutenJobSchedulerConfig::loadFromContext(const DB::Con
 {
     GlutenJobSchedulerConfig config;
     config.job_scheduler_max_threads = context->getConfigRef().getUInt64(JOB_SCHEDULER_MAX_THREADS, 10);
+    return config;
+}
+MergeTreeCacheConfig MergeTreeCacheConfig::loadFromContext(const DB::ContextPtr & context)
+{
+    MergeTreeCacheConfig config;
+    config.enable_data_prefetch = context->getConfigRef().getBool(ENABLE_DATA_PREFETCH, config.enable_data_prefetch);
+    return config;
+}
+
+WindowConfig WindowConfig::loadFromContext(const DB::ContextPtr & context)
+{
+    WindowConfig config;
+    config.aggregate_topk_sample_rows = context->getConfigRef().getUInt64(WINDOW_AGGREGATE_TOPK_SAMPLE_ROWS, 5000);
+    config.aggregate_topk_high_cardinality_threshold
+        = context->getConfigRef().getDouble(WINDOW_AGGREGATE_TOPK_HIGH_CARDINALITY_THRESHOLD, 0.6);
     return config;
 }
 }

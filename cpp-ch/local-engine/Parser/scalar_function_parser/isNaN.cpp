@@ -16,17 +16,16 @@
  */
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeNumberBase.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
-
-#include <Common/Exception.h>
 
 namespace local_engine
 {
 class SparkFunctionIsNaNParser : public FunctionParser
 {
 public:
-    SparkFunctionIsNaNParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionIsNaNParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionIsNaNParser() override = default;
 
     static constexpr auto name = "isnan";
@@ -52,7 +51,7 @@ public:
         else
             arg_node = parseExpression(actions_dag, args[0].value());
 
-        DB::ActionsDAG::NodeRawConstPtrs ifnull_args = {arg_node, addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 0)};
+        DB::ActionsDAG::NodeRawConstPtrs ifnull_args = {arg_node, addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeInt32>(), 0)};
         parsed_args.emplace_back(toFunctionNode(actions_dag, "IfNull", ifnull_args));
 
         const auto * func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);

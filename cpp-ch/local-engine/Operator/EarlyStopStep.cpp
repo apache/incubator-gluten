@@ -42,9 +42,9 @@ static DB::ITransformingStep::Traits getTraits()
 }
 
 EarlyStopStep::EarlyStopStep(
-    const DB::DataStream & input_stream_)
+    const DB::Block & input_header_)
     : DB::ITransformingStep(
-        input_stream_, transformHeader(input_stream_.header), getTraits())
+        input_header_, transformHeader(input_header_), getTraits())
 {
 }
 
@@ -68,9 +68,9 @@ void EarlyStopStep::describeActions(DB::IQueryPlanStep::FormatSettings & setting
         DB::IQueryPlanStep::describePipeline(processors, settings);
 }
 
-void EarlyStopStep::updateOutputStream()
+void EarlyStopStep::updateOutputHeader()
 {
-    output_stream = createOutputStream(input_streams.front(), transformHeader(input_streams.front().header), getDataStreamTraits());
+    output_header = transformHeader(input_headers.front());
 }
 
 EarlyStopTransform::EarlyStopTransform(const DB::Block &header_)

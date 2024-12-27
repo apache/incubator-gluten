@@ -43,7 +43,7 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-
+using namespace DB;
 void skipErrorChars(DB::ReadBuffer & buf, bool has_quote, char quote, String & escape, const DB::FormatSettings & settings)
 {
     if (has_quote)
@@ -65,7 +65,7 @@ bool ExcelTextFormatFile::useThis(const DB::ContextPtr & context)
 FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = read_buffer_builder->build(file_info, true);
+    res->read_buffer = read_buffer_builder->build(file_info);
 
     DB::FormatSettings format_settings = createFormatSettings();
     size_t max_block_size = file_info.text().max_block_size();

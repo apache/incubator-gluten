@@ -80,21 +80,21 @@ DB::MetadataStorageType MetadataStorageFromRocksDB::getType() const
     return DB::MetadataStorageType::None;
 }
 
-bool MetadataStorageFromRocksDB::exists(const std::string & path) const
+bool MetadataStorageFromRocksDB::existsFileOrDirectory(const std::string & path) const
 {
     return exist(getRocksDB(), path);
 }
 
-bool MetadataStorageFromRocksDB::isFile(const std::string & path) const
+bool MetadataStorageFromRocksDB::existsFile(const std::string & path) const
 {
-    auto data = getData(getRocksDB(), path);
-    return data != RocksDBCreateDirectoryOperation::DIR_DATA;
+    std::string data;
+    return tryGetData(getRocksDB(), path, &data) && data != RocksDBCreateDirectoryOperation::DIR_DATA;
 }
 
-bool MetadataStorageFromRocksDB::isDirectory(const std::string & path) const
+bool MetadataStorageFromRocksDB::existsDirectory(const std::string & path) const
 {
-    auto data = getData(getRocksDB(), path);
-    return data == RocksDBCreateDirectoryOperation::DIR_DATA;
+    std::string data;
+    return tryGetData(getRocksDB(), path, &data) && data == RocksDBCreateDirectoryOperation::DIR_DATA;
 }
 
 uint64_t MetadataStorageFromRocksDB::getFileSize(const std::string & path) const

@@ -17,8 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.datasource.ArrowCSVFileFormat
-import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
 import org.apache.gluten.expression.VeloxDummyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -29,7 +27,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, DecimalType, IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types._
 
 import java.util.concurrent.TimeUnit
 
@@ -38,7 +36,7 @@ import scala.collection.JavaConverters
 class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
 
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   import testImplicits._
@@ -64,35 +62,6 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro,parquet,csv")
       .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
-  }
-
-  test("field names contain non-ASCII characters") {
-    withTempPath {
-      path =>
-        // scalastyle:off nonascii
-        Seq((1, 2, 3, 4)).toDF("товары", "овары", "国ⅵ", "中文").write.parquet(path.getCanonicalPath)
-        // scalastyle:on
-        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
-        runQueryAndCompare("select * from view") {
-          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
-        }
-    }
-
-    withTempPath {
-      path =>
-        // scalastyle:off nonascii
-        spark.range(10).toDF("中文").write.parquet(path.getCanonicalPath)
-        spark.read.parquet(path.getCanonicalPath).filter("`中文`>1").createOrReplaceTempView("view")
-        // scalastyle:on
-        runQueryAndCompare("select * from view") {
-          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
-        }
-    }
-  }
-
-  test("simple_select") {
-    val df = runQueryAndCompare("select * from lineitem limit 1") { _ => }
-    checkLengthAndPlan(df, 1)
   }
 
   test("select_part_column") {
@@ -239,6 +208,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674) or l_partkey in (1552) and l_orderkey > 1") { _ => }
     checkLengthAndPlan(df, 73)
+
+    runQueryAndCompare(
+      "select count(1) from lineitem " +
+        "where (l_shipmode in ('TRUCK', 'MAIL') or l_shipmode in ('AIR', 'FOB')) " +
+        "and l_shipmode in ('RAIL','SHIP')") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
   }
 
   test("in_not") {
@@ -536,6 +512,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             checkGlutenOperatorMatch[WindowExecTransformer]
           }
         }
+
+        // Foldable input of nth_value is not supported.
+        runQueryAndCompare(
+          "select l_suppkey, l_orderkey, nth_value(1, 2) over" +
+            " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+          checkSparkOperatorMatch[WindowExec]
+        }
     }
   }
 
@@ -554,8 +537,34 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
                          |""".stripMargin) {
       df =>
         {
-          getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)
+          assert(
+            getExecutedPlan(df).exists(
+              plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined))
         }
+    }
+  }
+
+  test("union_all two tables with known partitioning") {
+    withSQLConf(GlutenConfig.NATIVE_UNION_ENABLED.key -> "true") {
+      compareDfResultsAgainstVanillaSpark(
+        () => {
+          val df1 = spark.sql("select l_orderkey as orderkey from lineitem")
+          val df2 = spark.sql("select o_orderkey as orderkey from orders")
+          df1.repartition(5).union(df2.repartition(5))
+        },
+        compareResult = true,
+        checkGlutenOperatorMatch[UnionExecTransformer]
+      )
+
+      compareDfResultsAgainstVanillaSpark(
+        () => {
+          val df1 = spark.sql("select l_orderkey as orderkey from lineitem")
+          val df2 = spark.sql("select o_orderkey as orderkey from orders")
+          df1.repartition(5).union(df2.repartition(6))
+        },
+        compareResult = true,
+        checkGlutenOperatorMatch[ColumnarUnionExec]
+      )
     }
   }
 
@@ -597,7 +606,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
                          | select * from lineitem limit 10
                          |) where l_suppkey != 0 limit 100;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[LimitTransformer]
+      checkGlutenOperatorMatch[LimitExecTransformer]
     }
   }
 
@@ -698,227 +707,6 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
                 plan.isInstanceOf[BatchScanExecTransformer]
               }) == 1)
         }
-    }
-  }
-
-  test("csv scan") {
-    val df = runAndCompare("select * from student") {
-      val filePath = rootPath + "/datasource/csv/student.csv"
-      val df = spark.read
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-    }
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
-    val scan = plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).toList.head
-    assert(
-      scan
-        .asInstanceOf[ArrowFileSourceScanExec]
-        .relation
-        .fileFormat
-        .isInstanceOf[ArrowCSVFileFormat])
-  }
-
-  test("csv scan with option string as null") {
-    val df = runAndCompare("select * from student") {
-      val filePath = rootPath + "/datasource/csv/student_option_str.csv"
-      // test strings as null
-      val df = spark.read
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-    }
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(_.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
-  }
-
-  test("csv scan with option delimiter") {
-    val df = runAndCompare("select * from student") {
-      val filePath = rootPath + "/datasource/csv/student_option.csv"
-      val df = spark.read
-        .format("csv")
-        .option("header", "true")
-        .option("delimiter", ";")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-    }
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
-  }
-
-  test("csv scan with schema") {
-    val df = runAndCompare("select * from student") {
-      val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
-      val schema = new StructType()
-        .add("id", StringType)
-        .add("name", StringType)
-        .add("language", StringType)
-      val df = spark.read
-        .schema(schema)
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-    }
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-    val scan = plan.find(_.isInstanceOf[ArrowFileSourceScanExec])
-    assert(scan.isDefined)
-    assert(
-      !scan.get
-        .asInstanceOf[ArrowFileSourceScanExec]
-        .original
-        .relation
-        .fileFormat
-        .asInstanceOf[ArrowCSVFileFormat]
-        .fallback)
-  }
-
-  test("csv scan with missing columns") {
-    val df = runAndCompare("select languagemissing, language, id_new_col from student") {
-      val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
-      val schema = new StructType()
-        .add("id_new_col", IntegerType)
-        .add("name", StringType)
-        .add("language", StringType)
-        .add("languagemissing", StringType)
-      val df = spark.read
-        .schema(schema)
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-    }
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(s => s.isInstanceOf[VeloxColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
-  }
-
-  test("csv scan with different name") {
-    val df = runAndCompare("select * from student") {
-      val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
-      val schema = new StructType()
-        .add("id_new_col", StringType)
-        .add("name", StringType)
-        .add("language", StringType)
-      val df = spark.read
-        .schema(schema)
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-    }
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
-
-    val df2 = runAndCompare("select * from student_schema") {
-      val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
-      val schema = new StructType()
-        .add("name", StringType)
-        .add("language", StringType)
-      val df = spark.read
-        .schema(schema)
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student_schema")
-    }
-    val plan2 = df2.queryExecution.executedPlan
-    assert(plan2.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan2.find(_.isInstanceOf[ArrowFileSourceScanExec]).isDefined)
-  }
-
-  test("csv scan with filter") {
-    val df = runAndCompare("select * from student where Name = 'Peter'") {
-      val filePath = rootPath + "/datasource/csv/student.csv"
-      val df = spark.read
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-    }
-    assert(df.queryExecution.executedPlan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
-    assert(
-      df.queryExecution.executedPlan
-        .find(s => s.isInstanceOf[ArrowFileSourceScanExec])
-        .isDefined)
-  }
-
-  test("insert into select from csv") {
-    withTable("insert_csv_t") {
-      val filePath = rootPath + "/datasource/csv/student.csv"
-      val df = spark.read
-        .format("csv")
-        .option("header", "true")
-        .load(filePath)
-      df.createOrReplaceTempView("student")
-      spark.sql("create table insert_csv_t(Name string, Language string) using parquet;")
-      runQueryAndCompare("""
-                           |insert into insert_csv_t select * from student;
-                           |""".stripMargin) {
-        checkGlutenOperatorMatch[ArrowFileSourceScanExec]
-      }
-    }
-  }
-
-  test("csv scan datasource v2") {
-    withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
-      val df = runAndCompare("select * from student") {
-        val filePath = rootPath + "/datasource/csv/student.csv"
-        val df = spark.read
-          .format("csv")
-          .option("header", "true")
-          .load(filePath)
-        df.createOrReplaceTempView("student")
-      }
-      val plan = df.queryExecution.executedPlan
-      assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-      assert(plan.find(s => s.isInstanceOf[ArrowBatchScanExec]).isDefined)
-    }
-  }
-
-  test("csv scan datasource v2 with filter") {
-    withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
-      val df = runAndCompare("select * from student where Name = 'Peter'") {
-        val filePath = rootPath + "/datasource/csv/student.csv"
-        val df = spark.read
-          .format("csv")
-          .option("header", "true")
-          .load(filePath)
-        df.createOrReplaceTempView("student")
-      }
-
-      val plan = df.queryExecution.executedPlan
-      assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
-      assert(plan.find(s => s.isInstanceOf[ArrowBatchScanExec]).isDefined)
-    }
-  }
-
-  test("csv scan with schema datasource v2") {
-    withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
-      val df = runAndCompare("select * from student") {
-        val filePath = rootPath + "/datasource/csv/student_option_schema.csv"
-        val schema = new StructType()
-          .add("id", StringType)
-          .add("name", StringType)
-          .add("language", StringType)
-        val df = spark.read
-          .schema(schema)
-          .format("csv")
-          .option("header", "true")
-          .load(filePath)
-        df.createOrReplaceTempView("student")
-      }
-      val plan = df.queryExecution.executedPlan
-      assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-      assert(plan.find(_.isInstanceOf[ArrowBatchScanExec]).isDefined)
     }
   }
 
@@ -1097,7 +885,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
       withSQLConf(
         GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE.key -> "true",
-        GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+        GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
         SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1"
       ) {
         val query =
@@ -2003,6 +1791,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     assert(plan2.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 
+  test("cast timestamp to date") {
+    val query = "select cast(ts as date) from values (timestamp'2024-01-01 00:00:00') as tab(ts)"
+    runQueryAndCompare(query) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("timestamp broadcast join") {
     spark.range(0, 5).createOrReplaceTempView("right")
     spark.sql("SELECT id, timestamp_micros(id) as ts from right").createOrReplaceTempView("left")
@@ -2083,7 +1878,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           )
           checkNullTypeRepartition(
             spark.table("lineitem").selectExpr("null as x", "null as y").repartition(),
-            1
+            0
           )
         }
     }
@@ -2144,6 +1939,47 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             .filter("c1.A > 1")
             .select("c1.A")
           checkAnswer(df, Seq(Row(2), Row(2)))
+      }
+    }
+  }
+
+  // Since https://github.com/apache/incubator-gluten/pull/7330.
+  test("field names contain non-ASCII characters") {
+    withTempPath {
+      path =>
+        // scalastyle:off nonascii
+        Seq((1, 2, 3, 4)).toDF("товары", "овары", "国ⅵ", "中文").write.parquet(path.getCanonicalPath)
+        // scalastyle:on
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select * from view") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
+
+    withTempPath {
+      path =>
+        // scalastyle:off nonascii
+        spark.range(10).toDF("中文").write.parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).filter("`中文`>1").createOrReplaceTempView("view")
+        // scalastyle:on
+        runQueryAndCompare("select * from view") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
+  }
+
+  test("test 'spark.gluten.enabled'") {
+    withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "true") {
+      runQueryAndCompare("select * from lineitem limit 1") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+      }
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
+        runQueryAndCompare("select * from lineitem limit 1") {
+          checkSparkOperatorMatch[FileSourceScanExec]
+        }
+      }
+      runQueryAndCompare("select * from lineitem limit 1") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
     }
   }

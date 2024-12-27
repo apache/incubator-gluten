@@ -20,7 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.execution.CHBroadcastBuildSideCache
-import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.jni.JniLibLoader
@@ -32,6 +32,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.listener.CHGlutenSQLAppStatusListener
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
+import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.v1._
 import org.apache.spark.sql.utils.ExpressionUtil
 import org.apache.spark.util.SparkDirectoryUtil
@@ -70,7 +71,7 @@ class CHListenerApi extends ListenerApi with Logging {
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Force batch type initializations.
-    CHBatch.getClass
+    CHBatch.ensureRegistered()
     SparkDirectoryUtil.init(conf)
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isBlank(libPath)) {
@@ -109,11 +110,13 @@ class CHListenerApi extends ListenerApi with Logging {
     CHNativeExpressionEvaluator.initNative(conf.getAll.toMap)
 
     // inject backend-specific implementations to override spark classes
-    // FIXME: The following set instances twice in local mode?
-    GlutenParquetWriterInjects.setInstance(new CHParquetWriterInjects())
-    GlutenOrcWriterInjects.setInstance(new CHOrcWriterInjects())
-    GlutenMergeTreeWriterInjects.setInstance(new CHMergeTreeWriterInjects())
-    GlutenRowSplitter.setInstance(new CHRowSplitter())
+    GlutenFormatFactory.register(
+      new CHParquetWriterInjects,
+      new CHOrcWriterInjects,
+      new CHMergeTreeWriterInjects)
+    GlutenFormatFactory.injectPostRuleFactory(
+      session => GlutenWriterColumnarRules.NativeWritePostRule(session))
+    GlutenFormatFactory.register(new CHRowSplitter())
   }
 
   private def shutdown(): Unit = {

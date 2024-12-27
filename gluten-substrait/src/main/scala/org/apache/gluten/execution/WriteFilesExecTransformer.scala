@@ -29,13 +29,15 @@ import org.apache.gluten.utils.SubstraitUtil
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, Literal}
+import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.MetadataBuilder
+import org.apache.spark.sql.types.{ArrayType, MapType, MetadataBuilder}
 
 import io.substrait.proto.NamedStruct
 import org.apache.parquet.hadoop.ParquetOutputFormat
@@ -65,7 +67,7 @@ case class WriteFilesExecTransformer(
 
   override def output: Seq[Attribute] = Seq.empty
 
-  private val caseInsensitiveOptions = CaseInsensitiveMap(options)
+  val caseInsensitiveOptions: CaseInsensitiveMap[String] = CaseInsensitiveMap(options)
 
   def getRelNode(
       context: SubstraitContext,
@@ -97,8 +99,7 @@ case class WriteFilesExecTransformer(
       ConverterUtils.collectAttributeNames(inputAttributes.toSeq)
     val extensionNode = if (!validation) {
       ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance
-          .genWriteParameters(fileFormat, caseInsensitiveOptions),
+        BackendsApiManager.getTransformerApiInstance.genWriteParameters(this),
         SubstraitUtil.createEnhancement(originalInputAttributes)
       )
     } else {
@@ -125,8 +126,27 @@ case class WriteFilesExecTransformer(
     child.output.map(attr => WriteFilesExecTransformer.removeMetadata(attr, metadataExclusionList))
   }
 
-  override protected def doValidateInternal(): ValidationResult = {
+  override def doValidateInternal(): ValidationResult = {
     val finalChildOutput = getFinalChildOutput
+
+    def isConstantComplexType(e: Expression): Boolean = {
+      e match {
+        case Literal(_, _: ArrayType | _: MapType) => true
+        case _ => e.children.exists(isConstantComplexType)
+      }
+    }
+
+    def hasConstantComplexType = child.logicalLink.collectFirst {
+      case p: Project if p.projectList.exists(isConstantComplexType) => true
+    }.isDefined
+
+    // TODO: Currently Velox doesn't support Parquet write of constant with complex data type.
+    if (fileFormat.isInstanceOf[ParquetFileFormat] && hasConstantComplexType) {
+      return ValidationResult.failed(
+        "Unsupported native parquet write: " +
+          "complex data type with constant")
+    }
+
     val validationResult =
       BackendsApiManager.getSettings.supportWriteFilesExec(
         fileFormat,
@@ -150,7 +170,7 @@ case class WriteFilesExecTransformer(
     val currRel =
       getRelNode(context, getFinalChildOutput, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Write Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WriteFilesExecTransformer =

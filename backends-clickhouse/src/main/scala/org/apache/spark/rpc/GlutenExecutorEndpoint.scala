@@ -70,9 +70,9 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case GlutenMergeTreeCacheLoad(mergeTreeTable, columns) =>
+    case GlutenMergeTreeCacheLoad(mergeTreeTable, columns, onlyMetaCache) =>
       try {
-        val jobId = CHNativeCacheManager.cacheParts(mergeTreeTable, columns)
+        val jobId = CHNativeCacheManager.cacheParts(mergeTreeTable, columns, onlyMetaCache)
         context.reply(CacheJobInfo(status = true, jobId))
       } catch {
         case e: Exception =>

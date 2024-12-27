@@ -21,11 +21,14 @@ on:
       - main
     paths:
       - '.github/workflows/docker_image.yml'
+      - 'dev/docker/Dockerfile.centos7-static-build'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build'
   schedule:
     - cron: '0 20 * * 0'
 
 jobs:
   build-vcpkg-centos-7:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -45,11 +48,12 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: dev/vcpkg/docker/Dockerfile.gha
+          file: dev/docker/Dockerfile.centos7-static-build
           push: true
           tags: apache/gluten:vcpkg-centos-7
 
   build-centos-8:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -69,6 +73,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: .github/workflows/docker/Dockerfile.gha
+          file: dev/docker/Dockerfile.centos8-dynamic-build
           push: true
           tags: apache/gluten:centos-8

@@ -16,12 +16,15 @@
  */
 package org.apache.gluten.execution.metrics
 
+import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.execution._
-import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.execution.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.InputIteratorTransformer
+import org.apache.spark.sql.execution.{ColumnarInputAdapter, InputIteratorTransformer}
+import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.task.TaskResources
 
 import scala.collection.JavaConverters._
@@ -31,8 +34,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
   override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   protected val metricsJsonFilePath: String = rootPath + "metrics-json"
@@ -48,8 +50,9 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .setCHConfig("logger.level", "error")
+      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .setCHSettings("input_format_parquet_max_block_size", parquetMaxBlockSize)
+      .setCHConfig("enable_pre_projection_for_join_conditions", "false")
       .setCHConfig("enable_streaming_aggregating", true)
   }
   // scalastyle:on line.size.limit
@@ -357,6 +360,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
       assert(nativeMetricsData.metricsDataList.get(3).getName.equals("kProject"))
       assert(nativeMetricsData.metricsDataList.get(4).getName.equals("kAggregate"))
+
       assert(
         nativeMetricsData.metricsDataList
           .get(4)
@@ -365,20 +369,28 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           .getProcessors
           .get(0)
           .getInputRows == 591673)
-      assert(
-        nativeMetricsData.metricsDataList
-          .get(4)
-          .getSteps
-          .get(0)
-          .getProcessors
-          .get(0)
-          .getOutputRows == 4)
 
       assert(
         nativeMetricsData.metricsDataList
           .get(4)
           .getSteps
+          .get(1)
+          .getName
+          .equals("StreamingAggregating"))
+      assert(
+        nativeMetricsData.metricsDataList
+          .get(4)
+          .getSteps
+          .get(1)
+          .getProcessors
           .get(0)
+          .getName
+          .equals("StreamingAggregatingTransform"))
+      assert(
+        nativeMetricsData.metricsDataList
+          .get(4)
+          .getSteps
+          .get(1)
           .getProcessors
           .get(0)
           .getOutputRows == 4)
@@ -412,6 +424,41 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       assert(
         nativeMetricsDataFinal.metricsDataList.get(1).getSteps.get(1).getName.equals("Expression"))
       assert(nativeMetricsDataFinal.metricsDataList.get(2).getName.equals("kProject"))
+    }
+  }
+
+  test("Metrics for input iterator of broadcast exchange") {
+    createTPCHNotNullTables()
+    val partTableRecords = spark.sql("select * from part").count()
+
+    // Repartition to make sure we have multiple tasks executing the join.
+    spark
+      .sql("select * from lineitem")
+      .repartition(2)
+      .createOrReplaceTempView("lineitem")
+
+    Seq("true", "false").foreach {
+      adaptiveEnabled =>
+        withSQLConf("spark.sql.adaptive.enabled" -> adaptiveEnabled) {
+          val sqlStr =
+            """
+              |select /*+ BROADCAST(part) */ * from part join lineitem
+              |on l_partkey = p_partkey
+              |""".stripMargin
+
+          runQueryAndCompare(sqlStr) {
+            df =>
+              val inputIterator = find(df.queryExecution.executedPlan) {
+                case InputIteratorTransformer(ColumnarInputAdapter(child)) =>
+                  child.isInstanceOf[BroadcastQueryStageExec] || child
+                    .isInstanceOf[BroadcastExchangeLike]
+                case _ => false
+              }
+              assert(inputIterator.isDefined)
+              val metrics = inputIterator.get.metrics
+              assert(metrics("numOutputRows").value == partTableRecords)
+          }
+        }
     }
   }
 }

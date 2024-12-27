@@ -35,11 +35,13 @@ namespace DB::ErrorCodes
 
 namespace local_engine
 {
+using namespace DB;
+
 class FunctionParserArrayFilter : public FunctionParser
 {
 public:
     static constexpr auto name = "filter";
-    explicit FunctionParserArrayFilter(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserArrayFilter(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserArrayFilter() override = default;
 
     String getName() const override { return name; }
@@ -55,7 +57,7 @@ public:
         auto ch_func_name = getCHFunctionName(substrait_func);
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         assert(parsed_args.size() == 2);
-        if (collectLambdaArguments(*plan_parser, substrait_func.arguments()[1].value().scalar_function()).size() == 1)
+        if (collectLambdaArguments(parser_context, substrait_func.arguments()[1].value().scalar_function()).size() == 1)
             return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], parsed_args[0]});
 
         /// filter with index argument.
@@ -75,7 +77,7 @@ class FunctionParserArrayTransform : public FunctionParser
 {
 public:
     static constexpr auto name = "transform";
-    explicit FunctionParserArrayTransform(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserArrayTransform(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserArrayTransform() override = default;
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & scalar_function) const override
@@ -87,7 +89,7 @@ public:
     parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
-        auto lambda_args = collectLambdaArguments(*plan_parser, substrait_func.arguments()[1].value().scalar_function());
+        auto lambda_args = collectLambdaArguments(parser_context, substrait_func.arguments()[1].value().scalar_function());
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         assert(parsed_args.size() == 2);
         if (lambda_args.size() == 1)
@@ -121,7 +123,7 @@ class FunctionParserArrayAggregate : public FunctionParser
 {
 public:
     static constexpr auto name = "aggregate";
-    explicit FunctionParserArrayAggregate(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserArrayAggregate(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserArrayAggregate() override = default;
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & scalar_function) const override
@@ -168,7 +170,7 @@ class FunctionParserArraySort : public FunctionParser
 {
 public:
     static constexpr auto name = "array_sort";
-    explicit FunctionParserArraySort(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserArraySort(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserArraySort() override = default;
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & scalar_function) const override
@@ -197,7 +199,7 @@ private:
     bool isDefaultCompare(const substrait::Expression_ScalarFunction & scalar_function) const
     {
         String left_variable_name, right_variable_name;
-        auto names_types = collectLambdaArguments(*plan_parser, scalar_function);
+        auto names_types = collectLambdaArguments(parser_context, scalar_function);
         {
             auto it = names_types.begin();
             left_variable_name = it->name;
@@ -207,7 +209,7 @@ private:
 
         auto is_function = [&](const substrait::Expression & expr, const String & function_name) {
             return expr.has_scalar_function()
-                && *(plan_parser->getFunctionSignatureName(expr.scalar_function().function_reference())) == function_name;
+                && expression_parser->getFunctionNameInSignature(expr.scalar_function().function_reference()) == function_name;
         };
 
         auto is_variable = [&](const substrait::Expression & expr, const String & var) {
@@ -218,14 +220,14 @@ private:
             const auto var_expr = expr.scalar_function().arguments()[0].value();
             if (!var_expr.has_literal())
                 return false;
-            auto [_, name] = plan_parser->parseLiteral(var_expr.literal());
+            auto [_, name] = LiteralParser::parse(var_expr.literal());
             return var == name.safeGet<String>();
         };
 
         auto is_int_value = [&](const substrait::Expression & expr, Int32 val) {
             if (!expr.has_literal())
                 return false;
-            auto [_, x] = plan_parser->parseLiteral(expr.literal());
+            auto [_, x] = LiteralParser::parse(expr.literal());
             return val == x.safeGet<Int32>();
         };
 
@@ -313,7 +315,7 @@ class FunctionParserZipWith: public FunctionParser
 {
 public:
     static constexpr auto name = "zip_with";
-    explicit FunctionParserZipWith(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserZipWith(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserZipWith() override = default;
     String getName() const override { return name; }
 
@@ -325,7 +327,7 @@ public:
         if (parsed_args.size() != 3)
             throw DB::Exception(DB::ErrorCodes::SIZES_OF_COLUMNS_DOESNT_MATCH, "zip_with function must have three arguments");
 
-        auto lambda_args = collectLambdaArguments(*plan_parser, substrait_func.arguments()[2].value().scalar_function());
+        auto lambda_args = collectLambdaArguments(parser_context, substrait_func.arguments()[2].value().scalar_function());
         if (lambda_args.size() != 2)
             throw DB::Exception(DB::ErrorCodes::SIZES_OF_COLUMNS_DOESNT_MATCH, "The lambda function in zip_with must have two arguments");
 

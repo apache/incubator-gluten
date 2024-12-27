@@ -19,6 +19,7 @@
 
 #include <Interpreters/Context_fwd.h>
 #include <base/unit.h>
+#include <google/protobuf/map.h>
 
 namespace Poco::Util
 {
@@ -33,8 +34,9 @@ namespace local_engine
 
 struct SparkConfigs
 {
+    using ConfigMap = google::protobuf::Map<std::string, std::string>;
     static void updateConfig(const DB::ContextMutablePtr &, std::string_view);
-    static std::map<std::string, std::string> load(std::string_view plan, bool processStart = false);
+    static void update(std::string_view plan, const std::function<void(const ConfigMap &)> & callback, bool processStart = false);
 };
 
 struct MemoryConfig
@@ -54,15 +56,20 @@ struct GraceMergingAggregateConfig
 {
     inline static const String MAX_GRACE_AGGREGATE_MERGING_BUCKETS = "max_grace_aggregate_merging_buckets";
     inline static const String THROW_ON_OVERFLOW_GRACE_AGGREGATE_MERGING_BUCKETS = "throw_on_overflow_grace_aggregate_merging_buckets";
-    inline static const String AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS = "aggregated_keys_before_extend_grace_aggregate_merging_buckets";
-    inline static const String MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET = "max_pending_flush_blocks_per_grace_aggregate_merging_bucket";
-    inline static const String MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING = "max_allowed_memory_usage_ratio_for_aggregate_merging";
+    inline static const String AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS
+        = "aggregated_keys_before_extend_grace_aggregate_merging_buckets";
+    inline static const String MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET
+        = "max_pending_flush_blocks_per_grace_aggregate_merging_bucket";
+    inline static const String MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING
+        = "max_allowed_memory_usage_ratio_for_aggregate_merging";
+    inline static const String ENABLE_SPILL_TEST = "enable_grace_aggregate_spill_test";
 
     size_t max_grace_aggregate_merging_buckets = 32;
     bool throw_on_overflow_grace_aggregate_merging_buckets = false;
     size_t aggregated_keys_before_extend_grace_aggregate_merging_buckets = 8192;
     size_t max_pending_flush_blocks_per_grace_aggregate_merging_bucket = 1_MiB;
     double max_allowed_memory_usage_ratio_for_aggregate_merging = 0.9;
+    bool enable_spill_test = false;
 
     static GraceMergingAggregateConfig loadFromContext(const DB::ContextPtr & context);
 };
@@ -71,7 +78,8 @@ struct StreamingAggregateConfig
 {
     inline static const String AGGREGATED_KEYS_BEFORE_STREAMING_AGGREGATING_EVICT = "aggregated_keys_before_streaming_aggregating_evict";
     inline static const String MAX_MEMORY_USAGE_RATIO_FOR_STREAMING_AGGREGATING = "max_memory_usage_ratio_for_streaming_aggregating";
-    inline static const String HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING = "high_cardinality_threshold_for_streaming_aggregating";
+    inline static const String HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING
+        = "high_cardinality_threshold_for_streaming_aggregating";
     inline static const String ENABLE_STREAMING_AGGREGATING = "enable_streaming_aggregating";
 
     size_t aggregated_keys_before_streaming_aggregating_evict = 1024;
@@ -108,15 +116,6 @@ struct ExecutorConfig
     static ExecutorConfig loadFromContext(const DB::ContextPtr & context);
 };
 
-struct HdfsConfig
-{
-    inline static const String HDFS_ASYNC = "hdfs.enable_async_io";
-
-    bool hdfs_async;
-
-    static HdfsConfig loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings);
-};
-
 struct S3Config
 {
     inline static const String S3_LOCAL_CACHE_ENABLE = "s3.local_cache.enabled";
@@ -150,5 +149,30 @@ struct GlutenJobSchedulerConfig
     size_t job_scheduler_max_threads = 10;
 
     static GlutenJobSchedulerConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+struct MergeTreeCacheConfig
+{
+    inline static const String ENABLE_DATA_PREFETCH = "enable_data_prefetch";
+
+    bool enable_data_prefetch = true;
+
+    static MergeTreeCacheConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+struct WindowConfig
+{
+public:
+    inline static const String WINDOW_AGGREGATE_TOPK_SAMPLE_ROWS = "window.aggregate_topk_sample_rows";
+    inline static const String WINDOW_AGGREGATE_TOPK_HIGH_CARDINALITY_THRESHOLD = "window.aggregate_topk_high_cardinality_threshold";
+    size_t aggregate_topk_sample_rows = 5000;
+    double aggregate_topk_high_cardinality_threshold = 0.6;
+    static WindowConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+namespace PathConfig
+{
+inline constexpr const char * USE_CURRENT_DIRECTORY_AS_TMP = "use_current_directory_as_tmp";
+inline constexpr const char * DEFAULT_TEMP_FILE_PATH = "/tmp/libch";
 };
 }

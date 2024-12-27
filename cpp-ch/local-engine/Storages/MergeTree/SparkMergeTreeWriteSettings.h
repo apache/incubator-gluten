@@ -20,10 +20,10 @@
 
 namespace local_engine
 {
-#define MERGE_TREE_WRITE_RELATED_SETTINGS(M, ALIAS, UNIQ) \
-    M(String, part_name_prefix, , "The part name prefix for writing data", UNIQ) \
-    M(String, partition_dir, , "The parition directory for writing data", UNIQ) \
-    M(String, bucket_dir, , "The bucket directory for writing data", UNIQ)
+#define MERGE_TREE_WRITE_RELATED_SETTINGS(M, ALIAS) \
+    M(String, part_name_prefix, , "The part name prefix for writing data") \
+    M(String, partition_dir, , "The partition directory for writing data") \
+    M(String, bucket_dir, , "The bucket directory for writing data")
 
 DECLARE_GLUTEN_SETTINGS(SparkMergeTreeWritePartitionSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
 
@@ -32,9 +32,19 @@ struct SparkMergeTreeWriteSettings
     SparkMergeTreeWritePartitionSettings partition_settings;
     bool merge_after_insert{true};
     bool insert_without_local_storage{false};
-    size_t merge_min_size = 1024 * 1024 * 1024;
+    bool is_optimize_task{false};
+    size_t merge_min_size = 1024 * 1024 * 1024; // 1GB
     size_t merge_limit_parts = 10;
 
-    void load(const DB::ContextPtr & context);
+    explicit SparkMergeTreeWriteSettings(const DB::ContextPtr & context);
+};
+
+struct MergeTreeConf
+{
+    inline static const String CH_CONF{"merge_tree"};
+    inline static const String GLUTEN_CONF{"mergetree"};
+
+    inline static const String OPTIMIZE_TASK{GLUTEN_CONF + ".optimize_task"};
+    // inline static const String MAX_NUM_PART_PER_MERGE_TASK{GLUTEN_CONF + ".max_num_part_per_merge_task"};
 };
 }

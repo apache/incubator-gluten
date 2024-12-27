@@ -67,8 +67,7 @@ abstract class BatchScanExecShim(
     val metadataColumnsNames = metadataColumns.map(_.name)
     output
       .filterNot(metadataColumns.toSet)
-      .exists(v => metadataColumnsNames.contains(v.name)) ||
-    output.exists(a => a.name == "$path" || a.name == "$bucket")
+      .exists(v => metadataColumnsNames.contains(v.name))
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

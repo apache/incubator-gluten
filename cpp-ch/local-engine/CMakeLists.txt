@@ -63,6 +63,7 @@ add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
 add_headers_and_sources(disks Disks)
 add_headers_and_sources(disks Disks/ObjectStorages)
+add_headers_and_sources(io IO)
 
 include_directories(
   ${JNI_INCLUDE_DIRS}
@@ -81,7 +82,8 @@ include_directories(
   ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
   ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/llvm/include
   ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/utils/bazel/llvm-project-overlay/llvm/include
-)
+  ${ClickHouse_SOURCE_DIR}/contrib/libdivide
+  ${ClickHouse_SOURCE_DIR}/contrib/libdivide-cmake)
 
 add_subdirectory(Storages/Parquet)
 add_subdirectory(Storages/SubstraitSource)
@@ -100,7 +102,8 @@ add_library(
   ${operator_sources}
   ${aggregate_functions_sources}
   ${jni_sources}
-  ${disks_sources})
+  ${disks_sources}
+  ${io_sources})
 
 target_link_libraries(
   gluten_clickhouse_backend_libs
@@ -169,6 +172,26 @@ if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
   set(LOCALENGINE_SHARED_LIB_NAME "libchd.so")
 else()
   set(LOCALENGINE_SHARED_LIB_NAME "libch.so")
+endif()
+
+option(ENABLE_SEPARATE_SYMBOLS "support separate debug symbols from so" OFF)
+if(ENABLE_SEPARATE_SYMBOLS)
+  set(SYMBOL_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/debug_symbols)
+  file(MAKE_DIRECTORY ${SYMBOL_OUTPUT_DIRECTORY})
+  function(separate_symbols target)
+    add_custom_command(
+      TARGET ${target}
+      POST_BUILD
+      COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:${target}>
+              ${SYMBOL_OUTPUT_DIRECTORY}/$<TARGET_FILE_NAME:${target}>.debug
+      COMMAND ${CMAKE_OBJCOPY} --strip-debug $<TARGET_FILE:${target}>
+      COMMAND
+        ${CMAKE_OBJCOPY}
+        --add-gnu-debuglink=${SYMBOL_OUTPUT_DIRECTORY}/$<TARGET_FILE_NAME:${target}>.debug
+        $<TARGET_FILE:${target}>
+      COMMENT "Separating debug symbols for target: ${target}")
+  endfunction()
+  separate_symbols(${LOCALENGINE_SHARED_LIB})
 endif()
 
 add_custom_command(

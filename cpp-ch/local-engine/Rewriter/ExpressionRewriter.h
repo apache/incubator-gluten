@@ -33,7 +33,7 @@ enum SelfDefinedFunctionReference
 class GetJsonObjectFunctionWriter : public RelRewriter
 {
 public:
-    GetJsonObjectFunctionWriter(SerializedPlanParser * parser_) : RelRewriter(parser_) {}
+    GetJsonObjectFunctionWriter(ParserContextPtr parser_context_) : RelRewriter(parser_context_) { }
     ~GetJsonObjectFunctionWriter() override = default;
 
     void rewrite(substrait::Rel & rel) override
@@ -45,6 +45,7 @@ public:
         prepare(rel);
         rewriteImpl(rel);
     }
+
 private:
     std::unordered_map<String, std::set<String>> json_required_fields;
 
@@ -86,7 +87,7 @@ private:
     }
     void prepareOnExpression(const substrait::Expression & expr)
     {
-        switch(expr.rex_type_case())
+        switch (expr.rex_type_case())
         {
             case substrait::Expression::RexTypeCase::kCast: {
                 prepareOnExpression(expr.cast().input());
@@ -103,12 +104,16 @@ private:
                 prepareOnExpression(if_then.else_());
                 break;
             }
+            case substrait::Expression::RexTypeCase::kSingularOrList: {
+                prepareOnExpression(expr.singular_or_list().value());
+                break;
+            }
             case substrait::Expression::RexTypeCase::kScalarFunction: {
-                auto & function_mapping = getFunctionMapping();
                 const auto & scalar_function_pb = expr.scalar_function();
-                auto function_signature = function_mapping.at(std::to_string(scalar_function_pb.function_reference()));
-                auto pos = function_signature.find(':');
-                auto function_signature_name = function_signature.substr(0, pos);
+                auto function_signature_name_opt = parser_context->getFunctionNameInSignature(scalar_function_pb);
+                if (!function_signature_name_opt)
+                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow scalar function: {}", scalar_function_pb.DebugString());
+                auto function_signature_name = *function_signature_name_opt;
                 for (const auto & arg : scalar_function_pb.arguments())
                 {
                     if (arg.has_value())
@@ -118,15 +123,6 @@ private:
                 }
                 if (function_signature_name == "get_json_object")
                 {
-                    /// Add a new function reference into function_mapping.
-                    std::string function_name = std::string(FlattenJSONStringOnRequiredFunction::name) + ":";
-                    std::string function_reference = std::to_string(SelfDefinedFunctionReference::GET_JSON_OBJECT);
-                    if (function_mapping.count(function_reference) && function_mapping.at(function_reference) != function_name)
-                    {
-                        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Function {} is already registered by {}", function_name, function_mapping[function_reference]);
-                    }
-                    function_mapping[function_reference] = function_name;
-
                     auto json_key = scalar_function_pb.arguments(0).DebugString();
                     if (!json_required_fields.count(json_key))
                     {
@@ -168,21 +164,19 @@ private:
                 rewriteExpression(*if_then->mutable_else_());
                 break;
             }
+            case substrait::Expression::RexTypeCase::kSingularOrList: {
+                rewriteExpression(*expr.mutable_singular_or_list()->mutable_value());
+                break;
+            }
             case substrait::Expression::RexTypeCase::kScalarFunction: {
-                const auto & function_mapping = getFunctionMapping();
                 auto & scalar_function_pb = *expr.mutable_scalar_function();
                 if (scalar_function_pb.arguments().empty())
                     break;
                 auto json_key = scalar_function_pb.arguments(0).DebugString();
-                std::string function_reference = std::to_string(scalar_function_pb.function_reference());
-                auto function_it = function_mapping.find(function_reference);
-                if (function_it == function_mapping.end())
-                {
-                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Cannot find function reference {}", function_reference);
-                }
-                auto function_signature = function_it->second;
-                auto pos = function_signature.find(':');
-                auto function_signature_name = function_signature.substr(0, pos);
+                auto function_signature_name_opt = parser_context->getFunctionNameInSignature(scalar_function_pb);
+                if (!function_signature_name_opt)
+                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow scalar function: {}", scalar_function_pb.DebugString());
+                auto function_signature_name = *function_signature_name_opt;
                 for (auto & arg : *scalar_function_pb.mutable_arguments())
                 {
                     if (arg.has_value())
@@ -253,19 +247,19 @@ private:
         res.mutable_struct_()->CopyFrom(st);
         return res;
     }
-
 };
 
 class ExpressionsRewriter
 {
 public:
-    explicit ExpressionsRewriter(SerializedPlanParser * parser_) : parser(parser_) {}
+    explicit ExpressionsRewriter(ParserContextPtr parser_context_) : parser_context(parser_context_) { }
     void rewrite(substrait::Rel & rel)
     {
-        GetJsonObjectFunctionWriter get_json_object_rewriter(parser);
+        GetJsonObjectFunctionWriter get_json_object_rewriter(parser_context);
         get_json_object_rewriter.rewrite(rel);
     }
+
 private:
-    SerializedPlanParser * parser;
+    ParserContextPtr parser_context;
 };
 }

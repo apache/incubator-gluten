@@ -18,7 +18,8 @@ package org.apache.spark.sql.delta.catalog
 
 import org.apache.gluten.expression.ConverterUtils
 
-import org.apache.spark.sql.catalyst.catalog.CatalogTable
+import org.apache.spark.sql.catalyst.analysis.Resolver
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogUtils}
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.execution.datasources.mergetree.{StorageMeta, TablePropertiesReader}
 
@@ -60,4 +61,15 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
   def minmaxIndexKey(): String = StorageMeta.columnsToStr(minmaxIndexKeyOption)
   def bfIndexKey(): String = StorageMeta.columnsToStr(bfIndexKeyOption)
   def setIndexKey(): String = StorageMeta.columnsToStr(setIndexKeyOption)
+
+  def normalizedBucketSpec(tableCols: Seq[String], resolver: Resolver): Option[BucketSpec] = {
+    if (deltaCatalog.isDefined) {
+      bucketOption
+    } else {
+      // if deltaCatalog is not defined, it means saving to the path instead of saving to table
+      bucketOption.map {
+        bucketSpec => CatalogUtils.normalizeBucketSpec(tableName, tableCols, bucketSpec, resolver)
+      }
+    }
+  }
 }

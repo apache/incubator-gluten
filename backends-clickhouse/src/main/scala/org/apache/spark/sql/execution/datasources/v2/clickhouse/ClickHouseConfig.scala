@@ -35,11 +35,6 @@ object ClickHouseConfig {
   private val DEFAULT_ENGINE = "mergetree"
   private val OPT_NAME_PREFIX = "clickhouse."
 
-  @deprecated
-  // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
-  val USE_DATASOURCE_V2: String = CHConf.prefixOf("use.v2")
-  val DEFAULT_USE_DATASOURCE_V2 = "false"
-
   val CLICKHOUSE_WORKER_ID: String = CHConf.prefixOf("worker.id")
 
   /** Create a mergetree configurations and returns the normalized key -> value map. */

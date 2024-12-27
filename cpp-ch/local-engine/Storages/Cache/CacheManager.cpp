@@ -54,7 +54,7 @@ extern const Metric LocalThreadScheduled;
 
 namespace local_engine
 {
-
+using namespace DB;
 jclass CacheManager::cache_result_class = nullptr;
 jmethodID CacheManager::cache_result_constructor = nullptr;
 
@@ -81,17 +81,36 @@ struct CacheJobContext
     MergeTreeTableInstance table;
 };
 
-Task CacheManager::cachePart(const MergeTreeTableInstance & table, const MergeTreePart & part, const std::unordered_set<String> & columns)
+Task CacheManager::cachePart(
+    const MergeTreeTableInstance & table, const MergeTreePart & part, const std::unordered_set<String> & columns, bool only_meta_cache)
 {
     CacheJobContext job_context{table};
     job_context.table.parts.clear();
     job_context.table.parts.push_back(part);
     job_context.table.snapshot_id = "";
-    Task task = [job_detail = job_context, context = this->context, read_columns = columns]()
+    MergeTreeCacheConfig config = MergeTreeCacheConfig::loadFromContext(context);
+    Task task = [job_detail = job_context, context = this->context, read_columns = columns, only_meta_cache,
+        prefetch_data = config.enable_data_prefetch]()
     {
         try
         {
             auto storage = job_detail.table.restoreStorage(context);
+            std::vector<DataPartPtr> selected_parts
+                = StorageMergeTreeFactory::getDataPartsByNames(storage->getStorageID(), "", {job_detail.table.parts.front().name});
+
+            if (only_meta_cache)
+            {
+                LOG_INFO(
+                    getLogger("CacheManager"),
+                    "Load meta cache of table {}.{} part {} success.",
+                    job_detail.table.database,
+                    job_detail.table.table,
+                    job_detail.table.parts.front().name);
+                return;
+            }
+            // prefetch part data
+            if (prefetch_data)
+                storage->prefetchPartDataFile({job_detail.table.parts.front().name});
 
             auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
             NamesAndTypesList names_and_types_list;
@@ -102,8 +121,6 @@ Task CacheManager::cachePart(const MergeTreeTableInstance & table, const MergeTr
                     names_and_types_list.push_back(NameAndTypePair(column.name, column.type));
             }
             auto query_info = buildQueryInfo(names_and_types_list);
-            std::vector<DataPartPtr> selected_parts
-                = StorageMergeTreeFactory::getDataPartsByNames(storage->getStorageID(), "", {job_detail.table.parts.front().name});
             auto read_step = storage->reader.readFromParts(
                 selected_parts,
                 storage->getMutationsSnapshot({}),
@@ -135,13 +152,13 @@ Task CacheManager::cachePart(const MergeTreeTableInstance & table, const MergeTr
     return std::move(task);
 }
 
-JobId CacheManager::cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String>& columns)
+JobId CacheManager::cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String>& columns, bool only_meta_cache)
 {
     JobId id = toString(UUIDHelpers::generateV4());
     Job job(id);
     for (const auto & part : table.parts)
     {
-        job.addTask(cachePart(table, part, columns));
+        job.addTask(cachePart(table, part, columns, only_meta_cache));
     }
     auto& scheduler = JobScheduler::instance();
     scheduler.scheduleJob(std::move(job));
@@ -208,13 +225,14 @@ JobId CacheManager::cacheFiles(substrait::ReadRel::LocalFiles file_infos)
 {
     JobId id = toString(UUIDHelpers::generateV4());
     Job job(id);
+    DB::ReadSettings read_settings = context->getReadSettings();
 
     if (file_infos.items_size())
     {
         const Poco::URI file_uri(file_infos.items().Get(0).uri_file());
         const auto read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
 
-        if (read_buffer_builder->file_cache)
+        if (context->getConfigRef().getBool("gluten_cache.local.enabled", false))
             for (const auto & file : file_infos.items())
                 job.addTask(cacheFile(file, read_buffer_builder));
         else

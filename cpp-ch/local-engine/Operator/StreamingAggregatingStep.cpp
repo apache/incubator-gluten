@@ -19,10 +19,10 @@
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Common/CHUtil.h>
-#include <Common/formatReadable.h>
 #include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
 #include <Common/Stopwatch.h>
+#include <Common/formatReadable.h>
 
 namespace DB
 {
@@ -34,7 +34,8 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-StreamingAggregatingTransform::StreamingAggregatingTransform(DB::ContextPtr context_, const DB::Block &header_, DB::AggregatingTransformParamsPtr params_)
+StreamingAggregatingTransform::StreamingAggregatingTransform(
+    DB::ContextPtr context_, const DB::Block & header_, DB::AggregatingTransformParamsPtr params_)
     : DB::IProcessor({header_}, {params_->getHeader()})
     , context(context_)
     , header(header_)
@@ -149,7 +150,7 @@ bool StreamingAggregatingTransform::needEvict()
 
     /// If the grouping keys is high cardinality, we should evict data variants early, and avoid to use a big
     /// hash table.
-    if (static_cast<double>(total_output_rows)/total_input_rows > high_cardinality_threshold)
+    if (static_cast<double>(total_output_rows) / total_input_rows > high_cardinality_threshold)
         return true;
 
     auto current_mem_used = currentThreadGroupMemoryUsage();
@@ -263,16 +264,14 @@ void StreamingAggregatingTransform::work()
 
 static DB::ITransformingStep::Traits getTraits()
 {
-    return DB::ITransformingStep::Traits
-    {
+    return DB::ITransformingStep::Traits{
         {
             .preserves_number_of_streams = false,
             .preserves_sorting = false,
         },
         {
             .preserves_number_of_rows = false,
-        }
-    };
+        }};
 }
 
 static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Aggregator::Params params_)
@@ -280,8 +279,8 @@ static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Ag
     return params_.getHeader(input_header_, false);
 }
 StreamingAggregatingStep::StreamingAggregatingStep(
-    DB::ContextPtr context_, const DB::DataStream & input_stream_, DB::Aggregator::Params params_)
-    : DB::ITransformingStep(input_stream_, buildOutputHeader(input_stream_.header, params_), getTraits())
+    const DB::ContextPtr & context_, const DB::Block & input_header, DB::Aggregator::Params params_)
+    : DB::ITransformingStep(input_header, buildOutputHeader(input_header, params_), getTraits())
     , context(context_)
     , params(std::move(params_))
 {
@@ -291,7 +290,8 @@ void StreamingAggregatingStep::transformPipeline(DB::QueryPipelineBuilder & pipe
 {
     if (params.max_bytes_before_external_group_by)
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in StreamingAggregatingStep");
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in StreamingAggregatingStep");
     }
     pipeline.dropTotalsAndExtremes();
     auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getHeader(), params, false);
@@ -312,7 +312,7 @@ void StreamingAggregatingStep::transformPipeline(DB::QueryPipelineBuilder & pipe
 
 void StreamingAggregatingStep::describeActions(DB::IQueryPlanStep::FormatSettings & settings) const
 {
-    return params.explain(settings.out, settings.offset);
+    params.explain(settings.out, settings.offset);
 }
 
 void StreamingAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) const
@@ -320,9 +320,9 @@ void StreamingAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) c
     params.explain(map);
 }
 
-void StreamingAggregatingStep::updateOutputStream()
+void StreamingAggregatingStep::updateOutputHeader()
 {
-    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params), getDataStreamTraits());
+    output_header = buildOutputHeader(input_headers.front(), params);
 }
 
 }

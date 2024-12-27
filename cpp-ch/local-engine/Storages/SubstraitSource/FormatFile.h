@@ -65,9 +65,11 @@ public:
     virtual std::optional<size_t> getTotalRows() { return {}; }
 
     /// Get partition keys from file path
-    inline const std::vector<String> & getFilePartitionKeys() const { return partition_keys; }
+    const std::vector<String> & getFilePartitionKeys() const { return partition_keys; }
 
-    inline const std::map<String, String> & getFilePartitionValues() const { return partition_values; }
+    const std::map<String, String> & getFilePartitionValues() const { return partition_values; }
+
+    const std::map<String, String> & getFileNormalizedPartitionValues() const { return normalized_partition_values; }
 
     virtual String getURIPath() const { return file_info.uri_file(); }
 
@@ -81,7 +83,8 @@ protected:
     ReadBufferBuilderPtr read_buffer_builder;
     std::vector<String> partition_keys;
     std::map<String, String> partition_values;
-    // std::optional<SourceFilter> filter;
+    /// partition keys are normalized to lower cases for partition column case-insensitive matching
+    std::map<String, String> normalized_partition_values;
     std::shared_ptr<const DB::KeyCondition> key_condition;
 };
 using FormatFilePtr = std::shared_ptr<FormatFile>;

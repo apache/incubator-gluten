@@ -15,14 +15,17 @@
  * limitations under the License.
  */
 
-#include <Parser/FunctionParser.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeString.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/FunctionParser.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
     extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+    extern const int LOGICAL_ERROR;
 }
 }
 
@@ -31,14 +34,14 @@ namespace local_engine
 class FunctionParserLength : public FunctionParser
 {
 public:
-    explicit FunctionParserLength(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserLength(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserLength() override = default;
 
     static constexpr auto name = "char_length";
 
     String getName() const override { return name; }
 
-    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
+    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         /**
             parse length(a) as
@@ -49,24 +52,27 @@ public:
          */
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 1)
-            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly one arguments", getName());
+            throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly one arguments", getName());
 
         const auto * arg = parsed_args[0];
         const auto * new_arg = arg;
         if (isInt(removeNullable(arg->result_type)))
         {
-            const auto * string_type_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "Nullable(String)");
+            const auto * string_type_node = addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeString>(), "Nullable(String)");
             new_arg = toFunctionNode(actions_dag, "CAST", {arg, string_type_node});
         }
 
-        auto function_signature = plan_parser->getFunctionMapping().at(std::to_string(substrait_func.function_reference()));
-        const ActionsDAG::Node * result_node;
+        auto optional_function_sigature = parser_context->getFunctionSignature(substrait_func);
+        if (!optional_function_sigature)
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found function {}", substrait_func.function_reference());
+        auto function_signature = *optional_function_sigature;
+        const DB::ActionsDAG::Node * result_node;
         if (function_signature.find("vbin") != std::string::npos)
             result_node = toFunctionNode(actions_dag, "length", {new_arg});
         else
             result_node = toFunctionNode(actions_dag, "char_length", {new_arg});
 
-        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);;
+        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
 

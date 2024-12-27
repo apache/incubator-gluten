@@ -35,7 +35,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   protected val tablesPath: String = basePath + "/tpch-data"
   protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
   private var parquetPath: String = _
@@ -817,5 +817,59 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |as data(a)
     """.stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-7432 get_json_object returns array") {
+    val sql = """
+                |select
+                |get_json_object(a, '$.a[*].x')
+                |from values('{"a":[{"x":1}, {"x":5}]}'), ('{"a":[{"x":1}]}')
+                |as data(a)
+    """.stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-7455 negative modulo") {
+    withTable("test_7455") {
+      spark.sql("create table test_7455(x bigint) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7455 values
+          |(327696126396414574)
+          |,(618162455457852376)
+          |,(-1)
+          |,(-2)
+          |""".stripMargin
+      spark.sql(insert_sql)
+      val sql =
+        """
+          |select x,
+          |x % 4294967296,
+          |x % -4294967296,
+          |x % 4294967295,
+          |x % -4294967295,
+          |x % 100,
+          |x % -100
+          |from test_7455
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
+  test("GLUTEN-7796 cast bool to string") {
+    val sql = "select cast(id % 2 = 1 as string) from range(10)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("Test transform_keys/transform_values") {
+    val sql = """
+                |select
+                |  transform_keys(map_from_arrays(array(id+1, id+2, id+3),
+                |    array(1, id+2, 3)), (k, v) -> k + 1),
+                |  transform_values(map_from_arrays(array(id+1, id+2, id+3),
+                |    array(1, id+2, 3)), (k, v) -> v + 1)
+                |from range(10)
+                |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }

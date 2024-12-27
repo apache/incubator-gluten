@@ -24,8 +24,11 @@
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <Parser/CHColumnToSparkRow.h>
+#include <Parser/LocalExecutor.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -41,11 +44,10 @@
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/PODArray_fwd.h>
+#include <Common/QueryContext.h>
 #include <Common/Stopwatch.h>
 #include <Common/logger_useful.h>
-#include <Parser/LocalExecutor.h>
 #include "testConfig.h"
-#include <Common/QueryContext.h>
 
 #if defined(__SSE2__)
 #include <emmintrin.h>
@@ -147,7 +149,8 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(global_context);
+        auto parser_context = ParserContext::build(global_context, *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
         auto local_executor = parser.createExecutor(*plan);
         state.ResumeTiming();
 
@@ -202,7 +205,8 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
+        auto parser_context = ParserContext::build(QueryContext::globalContext(), *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
         auto local_executor = parser.createExecutor(*plan);
         state.ResumeTiming();
 
@@ -217,7 +221,6 @@ DB::ContextMutablePtr global_context;
 [[maybe_unused]] static void BM_MERGE_TREE_TPCH_Q6_FROM_TEXT(benchmark::State & state)
 {
     QueryContext::globalContext() = global_context;
-    local_engine::SerializedPlanParser parser(QueryContext::globalContext());
     for (auto _ : state)
     {
         state.PauseTiming();
@@ -228,7 +231,10 @@ DB::ContextMutablePtr global_context;
         std::ifstream t(path);
         std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
         std::cout << "the plan from: " << path << std::endl;
-        auto local_executor = parser.createExecutor(str);
+        auto plan = BinaryToMessage<substrait::Plan>(str);
+        auto parser_context = ParserContext::build(global_context, plan);
+        local_engine::SerializedPlanParser parser(parser_context);
+        auto local_executor = parser.createExecutor(plan);
         state.ResumeTiming();
         while (local_executor->hasNext()) [[maybe_unused]]
             auto * x = local_executor->nextColumnar();
@@ -266,7 +272,8 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
+        auto parser_context = ParserContext::build(QueryContext::globalContext(), *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
 
         auto local_executor = parser.createExecutor(*plan);
         state.ResumeTiming();
@@ -302,7 +309,8 @@ DB::ContextMutablePtr global_context;
                       std::move(schema))
                   .build();
 
-        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
+        auto parser_context = ParserContext::build(QueryContext::globalContext(), *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
         auto local_executor = parser.createExecutor(*plan);
         local_engine::SparkRowToCHColumn converter;
         while (local_executor->hasNext())
@@ -347,7 +355,8 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
+        auto parser_context = ParserContext::build(QueryContext::globalContext(), *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
         auto local_executor = parser.createExecutor(*plan);
         local_engine::SparkRowToCHColumn converter;
         while (local_executor->hasNext())
@@ -803,11 +812,11 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
 {
     auto join = std::make_shared<TableJoin>(
         global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
-    auto left_columns = left->getCurrentDataStream().header.getColumnsWithTypeAndName();
-    auto right_columns = right->getCurrentDataStream().header.getColumnsWithTypeAndName();
+    auto left_columns = left->getCurrentHeader().getColumnsWithTypeAndName();
+    auto right_columns = right->getCurrentHeader().getColumnsWithTypeAndName();
     join->setKind(JoinKind::Left);
     join->setStrictness(JoinStrictness::All);
-    join->setColumnsFromJoinedTable(right->getCurrentDataStream().header.getNamesAndTypesList());
+    join->setColumnsFromJoinedTable(right->getCurrentHeader().getNamesAndTypesList());
     join->addDisjunct();
     ASTPtr lkey = std::make_shared<ASTIdentifier>(left_key);
     ASTPtr rkey = std::make_shared<ASTIdentifier>(right_key);
@@ -815,7 +824,7 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
     for (const auto & column : join->columnsFromJoinedTable())
         join->addJoinedColumn(column);
 
-    auto left_keys = left->getCurrentDataStream().header.getNamesAndTypesList();
+    auto left_keys = left->getCurrentHeader().getNamesAndTypesList();
     join->addJoinedColumnsAndCorrectTypes(left_keys, true);
     std::optional<ActionsDAG> left_convert_actions;
     std::optional<ActionsDAG> right_convert_actions;
@@ -823,21 +832,21 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
 
     if (right_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), std::move(*right_convert_actions));
+        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentHeader(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         right->addStep(std::move(converting_step));
     }
 
     if (left_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), std::move(*right_convert_actions));
+        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentHeader(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         left->addStep(std::move(converting_step));
     }
-    auto hash_join = std::make_shared<HashJoin>(join, right->getCurrentDataStream().header);
+    auto hash_join = std::make_shared<HashJoin>(join, right->getCurrentHeader());
 
     QueryPlanStepPtr join_step
-        = std::make_unique<JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, block_size, 1, false);
+        = std::make_unique<JoinStep>(left->getCurrentHeader(), right->getCurrentHeader(), hash_join, block_size, 8192, 1,  NameSet{}, false, false);
 
     std::vector<QueryPlanPtr> plans;
     plans.emplace_back(std::move(left));
@@ -885,8 +894,8 @@ BENCHMARK(BM_ParquetRead)->Unit(benchmark::kMillisecond)->Iterations(10);
 int main(int argc, char ** argv)
 {
     std::string empty;
-    BackendInitializerUtil::init(empty);
-    SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
+    // BackendInitializerUtil::init(empty);
+    //SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
 
     ::benchmark::Initialize(&argc, argv);
     if (::benchmark::ReportUnrecognizedArguments(argc, argv))

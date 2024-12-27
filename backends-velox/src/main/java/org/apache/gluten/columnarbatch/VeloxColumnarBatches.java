@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.columnarbatch;
 
+import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 
@@ -29,26 +30,40 @@ import java.util.Objects;
 public final class VeloxColumnarBatches {
   public static final String COMPREHENSIVE_TYPE_VELOX = "velox";
 
-  public static void checkVeloxBatch(ColumnarBatch batch) {
+  private static boolean isVeloxBatch(ColumnarBatch batch) {
     final String comprehensiveType = ColumnarBatches.getComprehensiveLightBatchType(batch);
+    return Objects.equals(comprehensiveType, COMPREHENSIVE_TYPE_VELOX);
+  }
+
+  public static void checkVeloxBatch(ColumnarBatch batch) {
+    if (ColumnarBatches.isZeroColumnBatch(batch)) {
+      return;
+    }
     Preconditions.checkArgument(
-        Objects.equals(comprehensiveType, COMPREHENSIVE_TYPE_VELOX),
+        isVeloxBatch(batch),
         String.format(
             "Expected comprehensive batch type %s, but got %s",
-            COMPREHENSIVE_TYPE_VELOX, comprehensiveType));
+            COMPREHENSIVE_TYPE_VELOX, ColumnarBatches.getComprehensiveLightBatchType(batch)));
   }
 
   public static void checkNonVeloxBatch(ColumnarBatch batch) {
-    final String comprehensiveType = ColumnarBatches.getComprehensiveLightBatchType(batch);
+    if (ColumnarBatches.isZeroColumnBatch(batch)) {
+      return;
+    }
     Preconditions.checkArgument(
-        !Objects.equals(comprehensiveType, COMPREHENSIVE_TYPE_VELOX),
+        !isVeloxBatch(batch),
         String.format("Comprehensive batch type is already %s", COMPREHENSIVE_TYPE_VELOX));
   }
 
   public static ColumnarBatch toVeloxBatch(ColumnarBatch input) {
-    checkNonVeloxBatch(input);
-    final Runtime runtime = Runtimes.contextInstance("VeloxColumnarBatches#toVeloxBatch");
-    final long handle = ColumnarBatches.getNativeHandle(input);
+    if (ColumnarBatches.isZeroColumnBatch(input)) {
+      return input;
+    }
+    Preconditions.checkArgument(!isVeloxBatch(input));
+    final Runtime runtime =
+        Runtimes.contextInstance(
+            BackendsApiManager.getBackendName(), "VeloxColumnarBatches#toVeloxBatch");
+    final long handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), input);
     final long outHandle = VeloxColumnarBatchJniWrapper.create(runtime).from(handle);
     final ColumnarBatch output = ColumnarBatches.create(outHandle);
 
@@ -76,9 +91,13 @@ public final class VeloxColumnarBatches {
    * Otherwise {@link UnsupportedOperationException} will be thrown.
    */
   public static ColumnarBatch compose(ColumnarBatch... batches) {
-    final Runtime runtime = Runtimes.contextInstance("VeloxColumnarBatches#compose");
+    final Runtime runtime =
+        Runtimes.contextInstance(
+            BackendsApiManager.getBackendName(), "VeloxColumnarBatches#compose");
     final long[] handles =
-        Arrays.stream(batches).mapToLong(ColumnarBatches::getNativeHandle).toArray();
+        Arrays.stream(batches)
+            .mapToLong(b -> ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), b))
+            .toArray();
     final long handle = VeloxColumnarBatchJniWrapper.create(runtime).compose(handles);
     return ColumnarBatches.create(handle);
   }

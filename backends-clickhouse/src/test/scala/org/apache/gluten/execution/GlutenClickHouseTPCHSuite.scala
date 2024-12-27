@@ -47,7 +47,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         }
         assert(scanExec.size == 1)
 
-        assert(scanExec(0).nodeName.startsWith("Scan mergetree"))
+        assert(scanExec(0).nodeName.startsWith("ScanTransformer mergetree"))
 
         val sortExec = df.queryExecution.executedPlan.collect {
           case sortExec: SortExecTransformer => sortExec
@@ -562,6 +562,33 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
             |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
     spark.sql("drop table t1")
+  }
+
+  test("GLUTEN-7780 fix split diff") {
+    val sql = "select split(concat('a|b|c', cast(id as string)), '\\|')" +
+      ", split(concat('a|b|c', cast(id as string)), '\\\\|')" +
+      ", split(concat('a|b|c', cast(id as string)), '|') from range(10)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+  test("GLUTEN-8142 duplicated columns in group by") {
+    sql("create table test_8142 (day string, rtime int, uid string, owner string) using parquet")
+    sql("insert into test_8142 values ('2024-09-01', 123, 'user1', 'owner1')")
+    sql("insert into test_8142 values ('2024-09-01', 123, 'user1', 'owner1')")
+    sql("insert into test_8142 values ('2024-09-02', 567, 'user2', 'owner2')")
+    compareResultsAgainstVanillaSpark(
+      """
+        |select days, rtime, uid, owner, day1
+        |from (
+        | select day1 as days, rtime, uid, owner, day1
+        | from (
+        |   select distinct coalesce(day, "today") as day1, rtime, uid, owner
+        |   from test_8142 where day = '2024-09-01'
+        | )) group by days, rtime, uid, owner, day1
+        |""".stripMargin,
+      true,
+      { _ => }
+    )
+    sql("drop table test_8142")
   }
 }
 // scalastyle:off line.size.limit

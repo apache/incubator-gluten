@@ -32,6 +32,7 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
+#include <Core/ServerSettings.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDateTime64.h>
@@ -49,7 +50,6 @@
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParsers/RelParser.h>
-#include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -76,16 +76,33 @@
 
 namespace DB
 {
+namespace ServerSetting
+{
+extern const ServerSettingsString primary_index_cache_policy;
+extern const ServerSettingsUInt64 primary_index_cache_size;
+extern const ServerSettingsDouble primary_index_cache_size_ratio;
+}
 namespace Setting
 {
 extern const SettingsUInt64 prefer_external_sort_block_bytes;
 extern const SettingsUInt64 max_bytes_before_external_sort;
+extern const SettingsBool query_plan_merge_filters;
+extern const SettingsBool compile_expressions;
+extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
 }
 namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
 extern const int UNKNOWN_TYPE;
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
+}
+
+namespace ServerSetting
+{
+extern const ServerSettingsUInt64 max_thread_pool_size;
+extern const ServerSettingsUInt64 thread_pool_queue_size;
+extern const ServerSettingsUInt64 max_io_thread_pool_size;
+extern const ServerSettingsUInt64 io_thread_pool_queue_size;
 }
 }
 
@@ -299,8 +316,8 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
     for (const auto & block : blocks)
         num_rows += block.rows();
 
-    Block out = blocks[0].cloneEmpty();
-    MutableColumns columns = out.mutateColumns();
+    DB::Block out = blocks[0].cloneEmpty();
+    DB::MutableColumns columns = out.mutateColumns();
 
     for (size_t i = 0; i < columns.size(); ++i)
     {
@@ -321,7 +338,7 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
 size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
 {
     /// According to definition of DEFUALT_BLOCK_SIZE
-    size_t padding_n = 2 * PADDING_FOR_SIMD - 1;
+    size_t padding_n = 2 * DB::PADDING_FOR_SIMD - 1;
     size_t rounded_n = roundUpToPowerOfTwoOrZero(n);
     size_t padded_n = n;
     if (rounded_n > n + n / 2)
@@ -354,32 +371,65 @@ void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
     // QueryPlan::checkInitialized is a private method, so we assume plan is initialized, otherwise there is a core dump here.
     // It's okay, because it's impossible for us not to initialize where we call this method.
     const auto & step = *plan.getRootNode()->step;
-    if (!step.hasOutputStream())
+
+    if (!step.hasOutputHeader())
         return;
-    if (!step.getOutputStream().header)
-        return;
-    for (const auto & elem : step.getOutputStream().header)
+    for (const auto & elem : step.getOutputHeader())
     {
         const DB::DataTypePtr & ch_type = elem.type;
         const auto ch_type_without_nullable = DB::removeNullable(ch_type);
         const DB::WhichDataType which(ch_type_without_nullable);
         if (which.isDateTime64())
         {
-            const auto * ch_type_datetime64 = checkAndGetDataType<DataTypeDateTime64>(ch_type_without_nullable.get());
+            const auto * ch_type_datetime64 = checkAndGetDataType<DB::DataTypeDateTime64>(ch_type_without_nullable.get());
             if (ch_type_datetime64->getScale() != 6)
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
         }
         else if (which.isDecimal())
         {
             if (which.isDecimal256())
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
 
             const auto scale = getDecimalScale(*ch_type_without_nullable);
             const auto precision = getDecimalPrecision(*ch_type_without_nullable);
             if (scale == 0 && precision == 0)
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
+                throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
         }
     }
+}
+
+DB::IQueryPlanStep * PlanUtil::adjustQueryPlanHeader(DB::QueryPlan & plan, const DB::Block & to_header, const String & step_desc)
+{
+    auto convert_actions_dag = DB::ActionsDAG::makeConvertingActions(
+        plan.getCurrentHeader().getColumnsWithTypeAndName(),
+        to_header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Name);
+    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(convert_actions_dag));
+    expression_step->setStepDescription(step_desc);
+    auto * step_ptr = expression_step.get();
+    plan.addStep(std::move(expression_step));
+    return step_ptr;
+}
+
+DB::IQueryPlanStep * PlanUtil::addRemoveNullableStep(DB::ContextPtr context, DB::QueryPlan & plan, const std::set<String> & columns)
+{
+    if (columns.empty())
+        return nullptr;
+    DB::ActionsDAG remove_nullable_actions_dag{plan.getCurrentHeader().getColumnsWithTypeAndName()};
+    for (const auto & col_name : columns)
+    {
+        if (const auto * required_node = remove_nullable_actions_dag.tryFindInOutputs(col_name))
+        {
+            auto function_builder = DB::FunctionFactory::instance().get("assumeNotNull", context);
+            DB::ActionsDAG::NodeRawConstPtrs args = {required_node};
+            const auto & node = remove_nullable_actions_dag.addFunction(function_builder, args, col_name);
+            remove_nullable_actions_dag.addOrReplaceInOutputs(node);
+        }
+    }
+    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(remove_nullable_actions_dag));
+    expression_step->setStepDescription("Remove nullable properties");
+    auto * step_ptr = expression_step.get();
+    plan.addStep(std::move(expression_step));
+    return step_ptr;
 }
 
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
@@ -447,29 +497,15 @@ std::optional<DB::ColumnWithTypeAndName> NestedColumnExtractHelper::extractColum
 
 const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB::Block & in_block, const std::string & name) const
 {
-    if (case_insentive)
-    {
-        std::string final_name = name;
-        boost::to_lower(final_name);
-        const auto & cols = in_block.getColumnsWithTypeAndName();
-        auto found = std::find_if(cols.begin(), cols.end(), [&](const auto & column) { return boost::iequals(column.name, name); });
-        if (found == cols.end())
-            return nullptr;
-        return &*found;
-    }
-
-    const auto * col = in_block.findByName(name);
-    if (col)
-        return col;
-    return nullptr;
+    return in_block.findByName(name, case_insentive);
 }
 
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     DB::ActionsDAG & actions_dag,
     const DB::ActionsDAG::Node * node,
-    const DataTypePtr & cast_to_type,
+    const DB::DataTypePtr & cast_to_type,
     const std::string & result_name,
-    CastType cast_type)
+    DB::CastType cast_type)
 {
     DB::ColumnWithTypeAndName type_name_col;
     type_name_col.name = cast_to_type->getName();
@@ -478,7 +514,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     const auto * right_arg = &actions_dag.addColumn(std::move(type_name_col));
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
-    ColumnWithTypeAndName left_column{nullptr, node->result_type, {}};
+    DB::ColumnWithTypeAndName left_column{nullptr, node->result_type, {}};
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
     auto func_base_cast = createInternalCast(std::move(left_column), cast_to_type, cast_type, diagnostic);
 
@@ -490,7 +526,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeTypeIfNeeded(
     const DB::ActionsDAG::Node * node,
     const DB::DataTypePtr & dst_type,
     const std::string & result_name,
-    CastType cast_type)
+    DB::CastType cast_type)
 {
     if (node->result_type->equals(*dst_type))
         return node;
@@ -550,7 +586,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     return changed_paths;
 }
 
-DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const std::map<std::string, std::string> & spark_conf_map)
+DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const SparkConfigs::ConfigMap & spark_conf_map)
 {
     DB::Context::ConfigurationPtr config;
 
@@ -585,7 +621,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const std::map<
     if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
         config->setString(MemoryConfig::CH_TASK_MEMORY, spark_conf_map.at(GLUTEN_TASK_OFFHEAP));
 
-    const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
+    const bool use_current_directory_as_tmp = config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false);
     char buffer[PATH_MAX];
     if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
         wrapDiskPathConfig(String(buffer), "", *config);
@@ -603,7 +639,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const std::map<
     return config;
 }
 
-String BackendInitializerUtil::tryGetConfigFile(const std::map<std::string, std::string> & spark_conf_map)
+String BackendInitializerUtil::tryGetConfigFile(const SparkConfigs::ConfigMap & spark_conf_map)
 {
     if (spark_conf_map.contains(CH_RUNTIME_CONFIG_FILE))
         return spark_conf_map.at(CH_RUNTIME_CONFIG_FILE);
@@ -668,7 +704,7 @@ DB::Field BackendInitializerUtil::toField(const String & key, const String & val
         return DB::Field(value);
 }
 
-void BackendInitializerUtil::initSettings(const std::map<std::string, std::string> & spark_conf_map, DB::Settings & settings)
+void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_conf_map, DB::Settings & settings)
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
@@ -676,6 +712,20 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
     settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
     settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
     settings.set("remote_filesystem_read_prefetch", false);
+    settings.set("max_parsing_threads", 1);
+    settings.set("max_download_threads", 1);
+    settings.set("input_format_parquet_enable_row_group_prefetch", false);
+    settings.set("output_format_parquet_use_custom_encoder", false);
+
+    /// Set false after https://github.com/ClickHouse/ClickHouse/pull/71539
+    /// if true, we can't get correct metrics for the query
+    settings[Setting::query_plan_merge_filters] = false;
+
+    /// We now set BuildQueryPipelineSettings according to config.
+    // TODO: FIXME. Set false after https://github.com/ClickHouse/ClickHouse/pull/70598.
+    settings[Setting::compile_expressions] = false;
+    settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
+    ///
 
     for (const auto & [key, value] : spark_conf_map)
     {
@@ -720,7 +770,13 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
             settings.set(key, toField(key, value));
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
+        else if (key == TIMER_PARSER_POLICY)
+        {
+            settings.set(key, value);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
+        }
     }
+
     /// Finally apply some fixed kvs to settings.
     settings.set("join_use_nulls", true);
     settings.set("input_format_orc_allow_missing_columns", true);
@@ -748,6 +804,7 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
     settings.set("precise_float_parsing", true);
     settings.set("enable_named_columns_in_function_tuple", false);
     settings.set("date_time_64_output_format_cut_trailing_zeros_align_to_groups_of_thousands", true);
+    settings.set("input_format_orc_dictionary_as_low_cardinality", false); //after https://github.com/ClickHouse/ClickHouse/pull/69481
 
     if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
@@ -770,21 +827,23 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
     /// Make sure global_context and shared_context are constructed only once.
     if (auto global_context = QueryContext::globalMutableContext(); !global_context)
     {
+        ServerSettings server_settings;
+        server_settings.loadSettingsFromConfig(*config);
+
+        auto log = getLogger("CHUtil");
         global_context = QueryContext::createGlobal();
         global_context->makeGlobalContext();
         global_context->setConfig(config);
 
-        auto getDefaultPath = [config] -> auto
+        auto tmp_path = config->getString("tmp_path", PathConfig::DEFAULT_TEMP_FILE_PATH);
+        if(config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
         {
-            const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
             char buffer[PATH_MAX];
-            if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
-                return std::string(buffer) + "/tmp/libch";
-            else
-                return std::string("/tmp/libch");
+            if (getcwd(buffer, sizeof(buffer)) != nullptr)
+                tmp_path =  std::string(buffer) + tmp_path;
         };
 
-        global_context->setTemporaryStoragePath(config->getString("tmp_path", getDefaultPath()), 0);
+        global_context->setTemporaryStoragePath(tmp_path, 0);
         global_context->setPath(config->getString("path", "/"));
 
         String uncompressed_cache_policy = config->getString("uncompressed_cache_policy", DEFAULT_UNCOMPRESSED_CACHE_POLICY);
@@ -796,9 +855,15 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t mark_cache_size = config->getUInt64("mark_cache_size", DEFAULT_MARK_CACHE_MAX_SIZE);
         double mark_cache_size_ratio = config->getDouble("mark_cache_size_ratio", DEFAULT_MARK_CACHE_SIZE_RATIO);
         if (!mark_cache_size)
-            LOG_ERROR(&Poco::Logger::get("CHUtil"), "Too low mark cache size will lead to severe performance degradation.");
-
+            LOG_ERROR(log, "Mark cache is disabled, it will lead to severe performance degradation.");
+        LOG_INFO(log, "mark cache size to {}.", formatReadableSizeWithBinarySuffix(mark_cache_size));
         global_context->setMarkCache(mark_cache_policy, mark_cache_size, mark_cache_size_ratio);
+
+        String primary_index_cache_policy = server_settings[ServerSetting::primary_index_cache_policy];
+        size_t primary_index_cache_size = server_settings[ServerSetting::primary_index_cache_size];
+        double primary_index_cache_size_ratio = server_settings[ServerSetting::primary_index_cache_size_ratio];
+        LOG_INFO(log, "Primary index cache size to {}.", formatReadableSizeWithBinarySuffix(primary_index_cache_size));
+        global_context->setPrimaryIndexCache(primary_index_cache_policy, primary_index_cache_size, primary_index_cache_size_ratio);
 
         String index_uncompressed_cache_policy
             = config->getString("index_uncompressed_cache_policy", DEFAULT_INDEX_UNCOMPRESSED_CACHE_POLICY);
@@ -840,6 +905,7 @@ void BackendInitializerUtil::applyGlobalConfigAndSettings(const DB::Context::Con
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
+extern void registerAggregateFunctionRowNumGroup(AggregateFunctionFactory &);
 extern void registerFunctions(FunctionFactory &);
 
 void registerAllFunctions()
@@ -850,6 +916,7 @@ void registerAllFunctions()
     auto & agg_factory = AggregateFunctionFactory::instance();
     registerAggregateFunctionsBloomFilter(agg_factory);
     registerAggregateFunctionSparkAvg(agg_factory);
+    registerAggregateFunctionRowNumGroup(agg_factory);
     {
         /// register aggregate function combinators from local_engine
         auto & factory = AggregateFunctionCombinatorFactory::instance();
@@ -894,7 +961,7 @@ void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::Configurat
 #endif
 }
 
-void BackendInitializerUtil::initBackend(const std::map<std::string, std::string> & spark_conf_map)
+void BackendInitializerUtil::initBackend(const SparkConfigs::ConfigMap & spark_conf_map)
 {
     DB::Context::ConfigurationPtr config = initConfig(spark_conf_map);
 
@@ -935,7 +1002,12 @@ void BackendInitializerUtil::initBackend(const std::map<std::string, std::string
             initCompiledExpressionCache(config);
             LOG_INFO(logger, "Init compiled expressions cache factory.");
 
-            GlobalThreadPool::initialize();
+            ServerSettings server_settings;
+            server_settings.loadSettingsFromConfig(*config);
+            GlobalThreadPool::initialize(
+                server_settings[ServerSetting::max_thread_pool_size], 0, server_settings[ServerSetting::thread_pool_queue_size]);
+            getIOThreadPool().initialize(
+                server_settings[ServerSetting::max_io_thread_pool_size], 0, server_settings[ServerSetting::io_thread_pool_queue_size]);
 
             const size_t active_parts_loading_threads = config->getUInt("max_active_parts_loading_thread_pool_size", 64);
             DB::getActivePartsLoadingThreadPool().initialize(
@@ -1010,14 +1082,14 @@ UInt64 MemoryUtil::getMemoryRSS()
 
 void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAG project{plan.getCurrentDataStream().header.getNamesAndTypesList()};
+    ActionsDAG project{plan.getCurrentHeader().getNamesAndTypesList()};
     NamesWithAliases project_cols;
     for (const auto & col : cols)
     {
         project_cols.emplace_back(NameWithAlias(col, col));
     }
     project.project(project_cols);
-    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), std::move(project));
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentHeader(), std::move(project));
     project_step->setStepDescription("Reorder Join Output");
     plan.addStep(std::move(project_step));
 }
@@ -1034,8 +1106,12 @@ JoinUtil::getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool i
                 return {DB::JoinKind::Left, DB::JoinStrictness::Any};
             return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
         }
+        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_SEMI:
+            return {DB::JoinKind::Right, DB::JoinStrictness::Semi};
         case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_ANTI:
             return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_ANTI:
+            return {DB::JoinKind::Right, DB::JoinStrictness::Anti};
         case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
             return {DB::JoinKind::Left, DB::JoinStrictness::All};
         case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:

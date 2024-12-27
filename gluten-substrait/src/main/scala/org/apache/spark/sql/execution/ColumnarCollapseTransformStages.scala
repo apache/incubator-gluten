@@ -17,10 +17,9 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution._
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.rel.RelBuilder
@@ -32,6 +31,8 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.truncatedString
+import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -49,14 +50,18 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
-    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(
+      child,
+      sparkContext,
+      forBroadcast())
 
   override def simpleString(maxFields: Int): String = {
     s"$nodeName${truncatedString(output, "[", ", ", "]", maxFields)}"
   }
 
   override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance
+      .genInputIteratorTransformerMetricsUpdater(metrics, forBroadcast())
 
   override def output: Seq[Attribute] = child.output
   override def outputPartitioning: Partitioning = child.outputPartitioning
@@ -69,11 +74,19 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val operatorId = context.nextOperatorId(nodeName)
     val readRel = RelBuilder.makeReadRelForInputIterator(child.output.asJava, context, operatorId)
-    TransformContext(output, output, readRel)
+    TransformContext(output, readRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
     copy(child = newChild)
+  }
+
+  private def forBroadcast(): Boolean = {
+    child match {
+      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastQueryStageExec] => true
+      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastExchangeLike] => true
+      case _ => false
+    }
   }
 }
 
@@ -114,7 +127,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
  * generate/compile code.
  */
 case class ColumnarCollapseTransformStages(
-    glutenConfig: GlutenConfig,
+    glutenConf: GlutenConfig,
     transformStageCounter: AtomicInteger = ColumnarCollapseTransformStages.transformStageCounter)
   extends Rule[SparkPlan] {
 
@@ -160,13 +173,22 @@ case class ColumnarCollapseTransformStages(
   }
 }
 
+// TODO: Make this inherit from GlutenPlan.
 case class ColumnarInputAdapter(child: SparkPlan)
   extends InputAdapterGenerateTreeStringShim
-  with Convention.KnownBatchType {
+  with Convention.KnownBatchType
+  with Convention.KnownRowTypeForSpark33OrLater
+  with GlutenPlan.SupportsRowBasedCompatible
+  with ConventionReq.KnownChildConvention {
   override def output: Seq[Attribute] = child.output
-  override def supportsColumnar: Boolean = true
+  final override val supportsColumnar: Boolean = true
+  final override val supportsRowBased: Boolean = false
+  override def rowType0(): Convention.RowType = Convention.RowType.None
   override def batchType(): Convention.BatchType =
-    Backend.get().defaultBatchType
+    BackendsApiManager.getSettings.primaryBatchType
+  override def requiredChildConvention(): Seq[ConventionReq] = Seq(
+    ConventionReq.ofBatch(
+      ConventionReq.BatchType.Is(BackendsApiManager.getSettings.primaryBatchType)))
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = child.executeColumnar()
   override def outputPartitioning: Partitioning = child.outputPartitioning

@@ -23,12 +23,6 @@ include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 include(FindPackageHandleStandardArgs)
 
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
-if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
-endif()
-
 set(SYSTEM_LIB_PATH
     "/usr/lib"
     CACHE PATH "System Lib dir")
@@ -61,18 +55,6 @@ if(NOT DEFINED VELOX_HOME)
   set(VELOX_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
   message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
-
-# Keep same compile option with Velox.
-execute_process(
-  COMMAND
-    bash -c
-    "( source ${VELOX_HOME}/scripts/setup-helper-functions.sh && echo -n $(get_cxx_flags $ENV{CPU_TARGET}))"
-  OUTPUT_VARIABLE SCRIPT_CXX_FLAGS
-  RESULT_VARIABLE COMMAND_STATUS)
-if(COMMAND_STATUS EQUAL "1")
-  message(FATAL_ERROR "Unable to determine compiler flags!")
-endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
 
 message("Velox module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
@@ -109,28 +91,6 @@ macro(add_duckdb)
   endif()
 endmacro()
 
-macro(find_libhdfs3)
-  find_package(libhdfs3 CONFIG)
-  if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
-    set(LIBHDFS3_LIBRARY HDFS::hdfs3)
-  else()
-    find_path(libhdfs3_INCLUDE_DIR hdfs/hdfs.h)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-    find_library(libhdfs3_LIBRARY NAMES hdfs3)
-    find_package_handle_standard_args(libhdfs3 DEFAULT_MSG libhdfs3_INCLUDE_DIR
-                                      libhdfs3_LIBRARY)
-    add_library(HDFS::hdfs3 SHARED IMPORTED)
-    set_target_properties(
-      HDFS::hdfs3
-      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${libhdfs3_INCLUDE_DIR}"
-                 IMPORTED_LOCATION "${libhdfs3_LIBRARY}")
-  endif()
-
-  if(NOT libhdfs3_FOUND)
-    message(FATAL_ERROR "LIBHDFS3 Library Not Found")
-  endif()
-endmacro()
-
 macro(find_re2)
   find_package(re2 CONFIG)
   if(re2_FOUND AND TARGET re2::re2)
@@ -152,66 +112,70 @@ macro(find_re2)
 endmacro()
 
 macro(find_awssdk)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 macro(find_gcssdk)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-  find_package(google_cloud_cpp_storage REQUIRED)
+  find_package(google_cloud_cpp_storage CONFIG 2.22.0 REQUIRED)
 endmacro()
 
 macro(find_azure)
   find_package(CURL REQUIRED)
   find_package(LibXml2 REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
   find_package(azure-storage-files-datalake-cpp CONFIG REQUIRED)
+  find_package(azure-identity-cpp CONFIG REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
     compute/VeloxBackend.cc
     compute/VeloxRuntime.cc
-    compute/WholeStageResultIterator.cc
     compute/VeloxPlanConverter.cc
+    compute/WholeStageResultIterator.cc
     compute/iceberg/IcebergPlanConverter.cc
-    jni/VeloxJniWrapper.cc
     jni/JniFileSystem.cc
     jni/JniUdf.cc
+    jni/VeloxJniWrapper.cc
     memory/BufferOutputStream.cc
     memory/VeloxColumnarBatch.cc
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
-    operators/serializer/VeloxColumnarToRowConverter.cc
+    operators/functions/SparkExprToSubfieldFilterParser.cc
+    operators/reader/FileReaderIterator.cc
+    operators/reader/ParquetReaderIterator.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
+    operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
+    operators/writer/VeloxArrowWriter.cc
     operators/writer/VeloxParquetDataSource.cc
+    shuffle/VeloxHashShuffleWriter.cc
+    shuffle/VeloxRssSortShuffleWriter.cc
     shuffle/VeloxShuffleReader.cc
     shuffle/VeloxShuffleWriter.cc
-    shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxSortShuffleWriter.cc
-    shuffle/VeloxRssSortShuffleWriter.cc
+    substrait/SubstraitExtensionCollector.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
     substrait/SubstraitToVeloxPlanValidator.cc
     substrait/VariantToVectorConverter.cc
-    substrait/SubstraitExtensionCollector.cc
     substrait/VeloxSubstraitSignature.cc
     substrait/VeloxToSubstraitExpr.cc
     substrait/VeloxToSubstraitPlan.cc
     substrait/VeloxToSubstraitType.cc
     udf/UdfLoader.cc
-    utils/VeloxArrowUtils.cc
-    utils/ConfigExtractor.cc
     utils/Common.cc
+    utils/ConfigExtractor.cc
+    utils/VeloxArrowUtils.cc
     utils/VeloxBatchResizer.cc)
-
-if(ENABLE_HDFS)
-  list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
-endif()
 
 if(ENABLE_S3)
   find_package(ZLIB)
@@ -223,15 +187,15 @@ endif()
 
 add_library(velox SHARED ${VELOX_SRCS})
 
-if(ENABLE_GLUTEN_VCPKG)
-  # Hide symbols of static dependencies
+if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  # Hide some symbols to avoid conflict.
   target_link_options(
     velox PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 endif()
 
 target_include_directories(
   velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
-               ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOBUF_INCLUDE} ${VELOX_HOME})
+               ${VELOX_BUILD_PATH} ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME})
 
 if(BUILD_TESTS)
   target_include_directories(velox PUBLIC ${VELOX_BUILD_PATH})
@@ -245,15 +209,15 @@ set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 # applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 
-if(BUILD_JEMALLOC)
-  include(Findjemalloc_pic)
+if(ENABLE_JEMALLOC_STATS)
+  include(Findjemalloc)
   find_jemalloc()
   if(JEMALLOC_NOT_FOUND)
-    include(Buildjemalloc_pic)
+    include(Buildjemalloc)
     build_jemalloc()
   endif()
-  add_definitions(-DENABLE_JEMALLOC)
-  target_link_libraries(velox PUBLIC jemalloc::libjemalloc)
+  add_definitions(-DENABLE_JEMALLOC_STATS)
+  target_link_libraries(velox PUBLIC jemalloc::jemalloc)
 endif()
 
 target_link_libraries(velox PUBLIC gluten)
@@ -326,6 +290,19 @@ endif()
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
+set(icu_components i18n uc data)
+foreach(component ${icu_components})
+  find_library(ICU_${component}_LIB NAMES icu${component})
+  if(NOT ICU_${component}_LIB)
+    message(FATAL_ERROR "icu${component} library not found")
+  endif()
+  message(STATUS "Found ICU::${component}: ${ICU_${component}_LIB}")
+  add_library(ICU::${component} UNKNOWN IMPORTED)
+  set_target_properties(ICU::${component} PROPERTIES IMPORTED_LOCATION
+                                                     ${ICU_${component}_LIB})
+  target_link_libraries(velox PUBLIC ICU::${component})
+endforeach()
+
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
@@ -336,8 +313,6 @@ endif()
 
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
-  find_libhdfs3()
-  target_link_libraries(velox PUBLIC HDFS::hdfs3)
 endif()
 
 if(ENABLE_S3)
@@ -357,6 +332,7 @@ if(ENABLE_ABFS)
   find_azure()
   target_link_libraries(velox PUBLIC Azure::azure-storage-blobs)
   target_link_libraries(velox PUBLIC Azure::azure-storage-files-datalake)
+  target_link_libraries(velox PUBLIC Azure::azure-identity)
 endif()
 
 if(BUILD_EXAMPLES)

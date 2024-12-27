@@ -16,8 +16,7 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import org.apache.gluten.execution.datasource.GlutenOrcWriterInjects
-import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SPECULATION_ENABLED
@@ -44,6 +43,7 @@ import org.apache.hadoop.mapred.{JobConf, Reporter}
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
 import scala.collection.JavaConverters._
+
 /* -
  * This class is copied from Spark 3.2 and modified for Gluten. \n
  * Gluten should make sure this class is loaded before the original class.
@@ -102,25 +102,22 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
     val outputFormat = fileSinkConf.tableInfo.getOutputFileFormatClassName
     if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")) {
       val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
+      val tableOptions = tableDesc.getProperties.asScala.toMap
       val isParquetFormat = nativeFormat == "parquet"
       val compressionCodec = if (fileSinkConf.compressed) {
         // hive related configurations
         fileSinkConf.compressCodec
       } else if (isParquetFormat) {
-        val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
+        val parquetOptions =
+          new ParquetOptions(tableOptions, sparkSession.sessionState.conf)
         parquetOptions.compressionCodecClassName
       } else {
-        val orcOptions = new OrcOptions(options, sparkSession.sessionState.conf)
+        val orcOptions = new OrcOptions(tableOptions, sparkSession.sessionState.conf)
         orcOptions.compressionCodec
       }
 
-      val nativeConf = if (isParquetFormat) {
-        logInfo("Use Gluten parquet write for hive")
-        GlutenParquetWriterInjects.getInstance().nativeConf(options, compressionCodec)
-      } else {
-        logInfo("Use Gluten orc write for hive")
-        GlutenOrcWriterInjects.getInstance().nativeConf(options, compressionCodec)
-      }
+      val nativeConf =
+        GlutenFormatFactory(nativeFormat).nativeConf(tableOptions, compressionCodec)
 
       new OutputWriterFactory {
         private val jobConf = new SerializableJobConf(new JobConf(conf))
@@ -135,15 +132,8 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
             path: String,
             dataSchema: StructType,
             context: TaskAttemptContext): OutputWriter = {
-          if (isParquetFormat) {
-            GlutenParquetWriterInjects
-              .getInstance()
-              .createOutputWriter(path, dataSchema, context, nativeConf);
-          } else {
-            GlutenOrcWriterInjects
-              .getInstance()
-              .createOutputWriter(path, dataSchema, context, nativeConf);
-          }
+          GlutenFormatFactory(nativeFormat)
+            .createOutputWriter(path, dataSchema, context, nativeConf)
         }
       }
     } else {

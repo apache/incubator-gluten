@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.extension.columnar.OffloadJoin
+import org.apache.gluten.extension.columnar.offload.OffloadJoin
 
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans.logical.Join
@@ -26,6 +26,10 @@ import org.apache.spark.sql.execution.joins.{ShuffledHashJoinExec, SortMergeJoin
 
 /** If force ShuffledHashJoin, convert [[SortMergeJoinExec]] to [[ShuffledHashJoinExec]]. */
 object RewriteJoin extends RewriteSingleNode with JoinSelectionHelper {
+  override def isRewritable(plan: SparkPlan): Boolean = {
+    RewriteEligibility.isRewritable(plan)
+  }
+
   private def getSmjBuildSide(join: SortMergeJoinExec): Option[BuildSide] = {
     val leftBuildable = canBuildShuffledHashJoinLeft(join.joinType)
     val rightBuildable = canBuildShuffledHashJoinRight(join.joinType)

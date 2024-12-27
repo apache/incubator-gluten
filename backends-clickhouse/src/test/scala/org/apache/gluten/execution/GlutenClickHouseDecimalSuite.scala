@@ -40,7 +40,7 @@ class GlutenClickHouseDecimalSuite
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
   override protected val createNullableTables = true
   override protected def createTPCHNotNullTables(): Unit = {}
@@ -402,6 +402,18 @@ class GlutenClickHouseDecimalSuite
       sql,
       _ => {}
     )
+  }
+
+  test("GLUTEN-8074 Fix adjust output constant column") {
+    val sql =
+      s"""
+         |select bround(1002.5786, 3),
+         |       bround(-10.8, 0),
+         |       bround(13.888888888889, 5)
+         |from $decimalTable
+         |WHERE bround(cast(decimal_field as decimal(30, 2)), 1) > 0 LIMIT 2;
+         |""".stripMargin
+    runQueryAndCompare(sql)(_ => {})
   }
 
   test("fix decimal32 with negative value") {

@@ -167,7 +167,6 @@ case class FormatStringValidator() extends FunctionValidator {
 }
 
 object CHExpressionUtil {
-
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
     MAX_BY -> DefaultValidator(),
     MIN_BY -> DefaultValidator()
@@ -204,8 +203,6 @@ object CHExpressionUtil {
     TO_UTC_TIMESTAMP -> UtcTimestampValidator(),
     FROM_UTC_TIMESTAMP -> UtcTimestampValidator(),
     STACK -> DefaultValidator(),
-    TRANSFORM_KEYS -> DefaultValidator(),
-    TRANSFORM_VALUES -> DefaultValidator(),
     RAISE_ERROR -> DefaultValidator(),
     WIDTH_BUCKET -> DefaultValidator()
   )

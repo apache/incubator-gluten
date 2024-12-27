@@ -15,24 +15,25 @@
  * limitations under the License.
  */
 #include "SortRelParser.h"
-
-#include <Common/GlutenConfig.h>
 #include <Parser/RelParsers/RelParser.h>
+#include <Parser/RelParsers/SortParsingUtils.h>
 #include <Processors/QueryPlan/SortingStep.h>
-#include <Common/logger_useful.h>
+#include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
+extern const int LOGICAL_ERROR;
 }
 }
 
 namespace local_engine
 {
-SortRelParser::SortRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+using namespace DB;
+SortRelParser::SortRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 
@@ -41,60 +42,16 @@ SortRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, st
 {
     size_t limit = parseLimit(rel_stack_);
     const auto & sort_rel = rel.sort();
-    auto sort_descr = parseSortDescription(sort_rel.sorts(), query_plan->getCurrentDataStream().header);
+    auto sort_descr = parseSortFields(query_plan->getCurrentHeader(), sort_rel.sorts());
     SortingStep::Settings settings(*getContext());
     auto config = MemoryConfig::loadFromContext(getContext());
     double spill_mem_ratio = config.spill_mem_ratio;
-    settings.worth_external_sort = [spill_mem_ratio]() -> bool
-    {
-        return currentThreadGroupMemoryUsageRatio() > spill_mem_ratio;
-    };
-    auto sorting_step = std::make_unique<DB::SortingStep>(
-        query_plan->getCurrentDataStream(), sort_descr, limit, settings);
+    settings.worth_external_sort = [spill_mem_ratio]() -> bool { return currentThreadGroupMemoryUsageRatio() > spill_mem_ratio; };
+    auto sorting_step = std::make_unique<DB::SortingStep>(query_plan->getCurrentHeader(), sort_descr, limit, settings);
     sorting_step->setStepDescription("Sorting step");
     steps.emplace_back(sorting_step.get());
     query_plan->addStep(std::move(sorting_step));
     return query_plan;
-}
-
-DB::SortDescription
-SortRelParser::parseSortDescription(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields, const DB::Block & header)
-{
-    static std::map<int, std::pair<int, int>> direction_map = {{1, {1, -1}}, {2, {1, 1}}, {3, {-1, 1}}, {4, {-1, -1}}};
-
-    DB::SortDescription sort_descr;
-    for (int i = 0, sz = sort_fields.size(); i < sz; ++i)
-    {
-        const auto & sort_field = sort_fields[i];
-        /// There is no meaning to sort a const column.
-        if (sort_field.expr().has_literal())
-            continue;
-
-        if (!sort_field.expr().has_selection() || !sort_field.expr().selection().has_direct_reference()
-            || !sort_field.expr().selection().direct_reference().has_struct_field())
-        {
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupport sort field");
-        }
-        auto field_pos = sort_field.expr().selection().direct_reference().struct_field().field();
-
-        auto direction_iter = direction_map.find(sort_field.direction());
-        if (direction_iter == direction_map.end())
-        {
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsuppor sort direction: {}", sort_field.direction());
-        }
-        if (header.columns())
-        {
-            const auto & col_name = header.getByPosition(field_pos).name;
-            sort_descr.emplace_back(col_name, direction_iter->second.first, direction_iter->second.second);
-            sort_descr.back().column_name = col_name;
-        }
-        else
-        {
-            const auto & col_name = header.getByPosition(field_pos).name;
-            sort_descr.emplace_back(col_name, direction_iter->second.first, direction_iter->second.second);
-        }
-    }
-    return sort_descr;
 }
 
 size_t SortRelParser::parseLimit(std::list<const substrait::Rel *> & rel_stack_)
@@ -112,7 +69,7 @@ size_t SortRelParser::parseLimit(std::list<const substrait::Rel *> & rel_stack_)
 
 void registerSortRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<SortRelParser>(plan_parser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<SortRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kSort, builder);
 }
 }

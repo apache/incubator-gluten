@@ -18,9 +18,7 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.FallbackTags.EncodeFallbackTagImplicits
-import org.apache.gluten.utils.PhysicalPlanSelector
+import org.apache.gluten.extension.columnar.FallbackTags
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
@@ -38,8 +36,8 @@ import scala.util.control.Breaks.{break, breakable}
 // to columnar while BHJ fallbacks, BroadcastExec need to be tagged not transformable when applying
 // queryStagePrepRules.
 case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
-    val columnarConf: GlutenConfig = GlutenConfig.getConf
+  override def apply(plan: SparkPlan): SparkPlan = {
+    val glutenConf: GlutenConfig = GlutenConfig.getConf
     plan.foreach {
       case bhj: BroadcastHashJoinExec =>
         val buildSidePlan = bhj.buildSide match {
@@ -54,8 +52,8 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
           case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
             val isTransformable =
               if (
-                !columnarConf.enableColumnarBroadcastExchange ||
-                !columnarConf.enableColumnarBroadcastJoin
+                !glutenConf.enableColumnarBroadcastExchange ||
+                !glutenConf.enableColumnarBroadcastJoin
               ) {
                 ValidationResult.failed(
                   "columnar broadcast exchange is disabled or " +
@@ -118,19 +116,19 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
             if (FallbackTags.nonEmpty(bnlj)) {
               ValidationResult.failed("broadcast join is already tagged as not transformable")
             } else {
-              val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+              val bnljTransformer = BackendsApiManager.getSparkPlanExecApiInstance
                 .genBroadcastNestedLoopJoinExecTransformer(
                   bnlj.left,
                   bnlj.right,
                   bnlj.buildSide,
                   bnlj.joinType,
                   bnlj.condition)
-              val isTransformable = transformer.doValidate()
-              if (isTransformable.ok()) {
+              val isBnljTransformable = bnljTransformer.doValidate()
+              if (isBnljTransformable.ok()) {
                 val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
                 exchangeTransformer.doValidate()
               } else {
-                isTransformable
+                isBnljTransformable
               }
             }
           }

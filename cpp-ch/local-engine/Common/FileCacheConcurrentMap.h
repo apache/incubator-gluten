@@ -32,78 +32,78 @@ using ReadLock = std::shared_lock<Lock>;
 class FileCacheConcurrentMap
 {
 public:
-    void insert(const DB::FileCacheKey & key, const Int64 value)
+    void insert(const DB::FileCacheKey & key, const size_t last_modified_time, const size_t file_size)
     {
         WriteLock wLock(rw_locker);
-        map.emplace(key, value);
+        if (const auto it = map.find(key); it != map.end())
+            return;
+        map.emplace(key, std::tuple(last_modified_time, file_size));
     }
 
-    void
-    update_cache_time(const DB::FileCacheKey & key, const String & path, const Int64 accept_cache_time, const DB::FileCachePtr & file_cache)
+    void update_cache_time(
+        const DB::FileCacheKey & key, const Int64 new_modified_time, const size_t new_file_size, const DB::FileCachePtr & file_cache)
     {
         WriteLock wLock(rw_locker);
-        // double check
         auto it = map.find(key);
         if (it != map.end())
         {
-            if (it->second < accept_cache_time)
+            auto & [last_modified_time, file_size] = it->second;
+            if (last_modified_time < new_modified_time || file_size != new_file_size)
             {
                 // will delete cache file immediately
-                file_cache->removePathIfExists(path, DB::FileCache::getCommonUser().user_id);
+                file_cache->removeKeyIfExists(key, DB::FileCache::getCommonUser().user_id);
                 // update cache time
-                map[key] = accept_cache_time;
+                map[key] = std::tuple(new_modified_time, new_file_size);
             }
         }
         else
         {
             // will delete cache file immediately
-            file_cache->removePathIfExists(path, DB::FileCache::getCommonUser().user_id);
+            file_cache->removeKeyIfExists(key, DB::FileCache::getCommonUser().user_id);
             // set cache time
-            map.emplace(key, accept_cache_time);
+            map.emplace(key, std::tuple(new_modified_time, new_file_size));
         }
     }
 
-    std::optional<Int64> get(const DB::FileCacheKey & key)
+    std::optional<std::tuple<size_t, size_t>> get(const DB::FileCacheKey & key)
     {
         ReadLock rLock(rw_locker);
         auto it = map.find(key);
         if (it == map.end())
-        {
             return std::nullopt;
-        }
         return it->second;
     }
 
-    bool contain(const DB::FileCacheKey & key)
-    {
-        ReadLock rLock(rw_locker);
-        return map.contains(key);
-    }
+    // bool contain(const DB::FileCacheKey & key)
+    // {
+    //     ReadLock rLock(rw_locker);
+    //     return map.contains(key);
+    // }
 
-    void erase(const DB::FileCacheKey & key)
-    {
-        WriteLock wLock(rw_locker);
-        if (map.find(key) == map.end())
-        {
-            return;
-        }
-        map.erase(key);
-    }
-
-    void clear()
-    {
-        WriteLock wLock(rw_locker);
-        map.clear();
-    }
-
-    size_t size() const
-    {
-        ReadLock rLock(rw_locker);
-        return map.size();
-    }
+    // void erase(const DB::FileCacheKey & key)
+    // {
+    //     WriteLock wLock(rw_locker);
+    //     if (map.find(key) == map.end())
+    //     {
+    //         return;
+    //     }
+    //     map.erase(key);
+    // }
+    //
+    // void clear()
+    // {
+    //     WriteLock wLock(rw_locker);
+    //     map.clear();
+    // }
+    //
+    // size_t size() const
+    // {
+    //     ReadLock rLock(rw_locker);
+    //     return map.size();
+    // }
 
 private:
-    std::unordered_map<DB::FileCacheKey, Int64> map;
+    std::unordered_map<DB::FileCacheKey, std::tuple<size_t, size_t>> map;
     mutable Lock rw_locker;
 };
 }

@@ -17,6 +17,7 @@
 
 #include "MergeTreeRelParser.h"
 #include <Core/Settings.h>
+#include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/InputFileNameParser.h>
 #include <Parser/SubstraitParserUtils.h>
@@ -87,7 +88,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     if (InputFileNameParser::hasInputFileNameColumn(input))
     {
         std::vector<String> parts;
-        for(const auto & part : merge_tree_table.parts)
+        for (const auto & part : merge_tree_table.parts)
         {
             parts.push_back(merge_tree_table.absolute_path + "/" + part.name);
         }
@@ -117,7 +118,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     std::set<String> non_nullable_columns;
     if (rel.has_filter())
     {
-        NonNullableColumnsResolver non_nullable_columns_resolver(input, *getPlanParser(), rel.filter());
+        NonNullableColumnsResolver non_nullable_columns_resolver(input, parser_context, rel.filter());
         non_nullable_columns = non_nullable_columns_resolver.resolve();
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), input);
     }
@@ -152,9 +153,9 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     query_plan->addStep(std::move(read_step));
     if (!non_nullable_columns.empty())
     {
-        auto input_header = query_plan->getCurrentDataStream().header;
+        auto input_header = query_plan->getCurrentHeader();
         std::erase_if(non_nullable_columns, [input_header](auto item) -> bool { return !input_header.has(item); });
-        auto * remove_null_step = getPlanParser()->addRemoveNullableStep(*query_plan, non_nullable_columns);
+        auto * remove_null_step = PlanUtil::addRemoveNullableStep(parser_context->queryContext(), *query_plan, non_nullable_columns);
         if (remove_null_step)
             steps.emplace_back(remove_null_step);
     }
@@ -164,7 +165,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     return query_plan;
 }
 
-PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expression & rel, Block & input)
+PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expression & rel, const Block & input)
 {
     std::string filter_name;
     auto prewhere_info = std::make_shared<PrewhereInfo>();
@@ -178,7 +179,7 @@ PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expressio
     return prewhere_info;
 }
 
-DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block)
+DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, const Block & block)
 {
     Conditions res;
     std::set<Int64> pk_positions;
@@ -230,7 +231,10 @@ DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expre
 void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name)
 {
     if (rel.has_scalar_function())
-        getPlanParser()->parseFunctionWithDAG(rel, filter_name, filter_action, true);
+    {
+        const auto * node = expression_parser->parseFunction(rel.scalar_function(), filter_action, true);
+        filter_name = node->result_name;
+    }
     else
     {
         const auto * in_node = parseExpression(filter_action, rel);
@@ -240,7 +244,7 @@ void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substra
 }
 
 void MergeTreeRelParser::analyzeExpressions(
-    Conditions & res, const substrait::Expression & rel, std::set<Int64> & pk_positions, Block & block)
+    Conditions & res, const substrait::Expression & rel, std::set<Int64> & pk_positions, const Block & block)
 {
     if (rel.has_scalar_function() && getCHFunctionName(rel.scalar_function()) == "and")
     {
@@ -278,7 +282,7 @@ UInt64 MergeTreeRelParser::getColumnsSize(const NameSet & columns)
     return size;
 }
 
-void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block)
+void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameSet & columns, const Block & block)
 {
     switch (rel.rex_type_case())
     {
@@ -342,8 +346,7 @@ void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameS
 
 String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
-    auto func_signature = getPlanParser()->function_mapping.at(std::to_string(substrait_func.function_reference()));
-    return getPlanParser()->getFunctionName(func_signature, substrait_func);
+    return expression_parser->getFunctionName(substrait_func);
 }
 
 String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_rel)

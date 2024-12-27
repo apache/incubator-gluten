@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.gluten.execution.datasource.GlutenRowSplitter
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec}
@@ -410,7 +410,7 @@ class DynamicPartitionDataSingleWriter(
     record match {
       case fakeRow: FakeRow =>
         if (fakeRow.batch.numRows() > 0) {
-          val blockStripes = GlutenRowSplitter.getInstance
+          val blockStripes = GlutenFormatFactory.rowSplitter
             .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
 
           val iter = blockStripes.iterator()

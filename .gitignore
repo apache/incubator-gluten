@@ -52,7 +52,6 @@ thirdparty/*.tar*
 CMakeFiles/
 CMakeCache.txt
 CTestTestfile.cmake
-Makefile
 cmake_install.cmake
 build/
 *-build/
@@ -96,3 +95,8 @@ dist/
 
 /cpp-ch/local-engine/Parser/*_udf
 !/cpp-ch/local-engine/Parser/example_udf
+
+# For Hive
+metastore_db/
+
+.ipynb_checkpoints

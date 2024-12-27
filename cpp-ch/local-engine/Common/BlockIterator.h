@@ -23,7 +23,7 @@ namespace local_engine
 class BlockIterator
 {
 protected:
-    void checkNextValid();
+    void checkNextValid() const;
     // make current block available
     void produce();
     // consume current block

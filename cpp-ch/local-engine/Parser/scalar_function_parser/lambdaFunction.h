@@ -19,5 +19,5 @@
 #include <Core/NamesAndTypes.h>
 namespace local_engine
 {
-DB::NamesAndTypesList collectLambdaArguments(const SerializedPlanParser & plan_parser_, const substrait::Expression_ScalarFunction & substrait_func);
+DB::NamesAndTypesList collectLambdaArguments(ParserContextPtr parser_context_, const substrait::Expression_ScalarFunction & substrait_func);
 } 

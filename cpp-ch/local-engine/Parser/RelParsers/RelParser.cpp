@@ -19,8 +19,11 @@
 #include <string>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/ExpressionParser.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
@@ -36,6 +39,43 @@ extern const int LOGICAL_ERROR;
 
 namespace local_engine
 {
+using namespace DB;
+
+RelParser::RelParser(ParserContextPtr parser_context_) : parser_context(parser_context_)
+{
+    expression_parser = std::make_unique<ExpressionParser>(parser_context);
+}
+
+String RelParser::getUniqueName(const std::string & name) const
+{
+    return expression_parser->getUniqueName(name);
+}
+
+const DB::ActionsDAG::Node * RelParser::parseArgument(ActionsDAG & action_dag, const substrait::Expression & rel) const
+{
+    return expression_parser->parseExpression(action_dag, rel);
+}
+
+const DB::ActionsDAG::Node * RelParser::parseExpression(ActionsDAG & action_dag, const substrait::Expression & rel) const
+{
+    return expression_parser->parseExpression(action_dag, rel);
+}
+
+DB::ActionsDAG RelParser::expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header) const
+{
+    return expression_parser->expressionsToActionsDAG(expressions, header);
+}
+
+std::pair<DataTypePtr, Field> RelParser::parseLiteral(const substrait::Expression_Literal & literal) const
+{
+    return LiteralParser().parse(literal);
+}
+
+const ActionsDAG::Node *
+RelParser::buildFunctionNode(ActionsDAG & action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+{
+    return expression_parser->toFunctionNode(action_dag, function, args);
+}
 
 std::vector<const substrait::Rel *> RelParser::getInputs(const substrait::Rel & rel)
 {
@@ -65,27 +105,17 @@ AggregateFunctionPtr RelParser::getAggregateFunction(
     return factory.get(function_name, action, arg_types, parameters, properties);
 }
 
-std::optional<String> RelParser::parseSignatureFunctionName(UInt32 function_ref)
+std::optional<String> RelParser::parseSignatureFunctionName(UInt32 function_ref) const
 {
-    const auto & function_mapping = getFunctionMapping();
-    auto it = function_mapping.find(std::to_string(function_ref));
-    if (it == function_mapping.end())
-    {
-        return {};
-    }
-    auto function_signature = it->second;
-    auto function_name = function_signature.substr(0, function_signature.find(':'));
-    return function_name;
+    return parser_context->getFunctionNameInSignature(function_ref);
 }
 
-std::optional<String> RelParser::parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function)
+std::optional<String> RelParser::parseFunctionName(const substrait::Expression_ScalarFunction & function) const
 {
-    auto sigature_name = parseSignatureFunctionName(function_ref);
-    if (!sigature_name)
-    {
+    auto func_name = expression_parser->safeGetFunctionName(function);
+    if (func_name.empty())
         return {};
-    }
-    return plan_parser->getFunctionName(*sigature_name, function);
+    return func_name;
 }
 
 DB::QueryPlanPtr
@@ -94,42 +124,6 @@ RelParser::parse(std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::
     assert(input_plans_.size() == 1);
     return parse(std::move(input_plans_[0]), rel, rel_stack_);
 }
-
-std::map<std::string, std::string>
-RelParser::parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension & advanced_extension)
-{
-    std::map<std::string, std::string> configs;
-    if (advanced_extension.has_optimization())
-    {
-        google::protobuf::StringValue msg;
-        advanced_extension.optimization().UnpackTo(&msg);
-        Poco::StringTokenizer kvs(msg.value(), "\n");
-        for (auto & kv : kvs)
-        {
-            if (kv.empty())
-                continue;
-            auto pos = kv.find('=');
-            if (pos == std::string::npos)
-            {
-                throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid optimization config:{}.", kv);
-            }
-            auto key = kv.substr(0, pos);
-            auto value = kv.substr(pos + 1);
-            configs[key] = value;
-        }
-    }
-    return configs;
-}
-
-std::string
-RelParser::getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value)
-{
-    auto it = configs.find(key);
-    if (it == configs.end())
-        return default_value;
-    return it->second;
-}
-
 
 RelParserFactory & RelParserFactory::instance()
 {

@@ -22,14 +22,14 @@ namespace local_engine
 class FunctionParserLog2 : public FunctionParserLogBase
 {
 public:
-    explicit FunctionParserLog2(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
+    explicit FunctionParserLog2(ParserContextPtr parser_context_) : FunctionParserLogBase(parser_context_) {}
     ~FunctionParserLog2() override = default;
 
     static constexpr auto name = "log2";
 
     String getName() const override { return name; }
     String getCHFunctionName() const override { return name; }
-    const DB::ActionsDAG::Node * getParameterLowerBound(ActionsDAG & actions_dag, const DataTypePtr & data_type) const override
+    const DB::ActionsDAG::Node * getParameterLowerBound(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & data_type) const override
     {
         return addColumnToActionsDAG(actions_dag, data_type, 0.0);
     }

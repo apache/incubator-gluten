@@ -18,14 +18,12 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
 
-#include <Common/Exception.h>
-
 namespace local_engine
 {
 class SparkFunctionSpaceParser : public FunctionParser
 {
 public:
-    SparkFunctionSpaceParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionSpaceParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionSpaceParser() override = default;
 
     static constexpr auto name = "space";

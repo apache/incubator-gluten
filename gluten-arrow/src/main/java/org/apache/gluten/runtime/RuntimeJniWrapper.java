@@ -16,21 +16,11 @@
  */
 package org.apache.gluten.runtime;
 
-import org.apache.gluten.memory.listener.ReservationListener;
-
 public class RuntimeJniWrapper {
 
   private RuntimeJniWrapper() {}
 
-  public static native long createRuntime(
-      String backendType, ReservationListener listener, byte[] sessionConf);
-
-  // Memory management.
-  public static native byte[] collectMemoryUsage(long handle);
-
-  public static native long shrinkMemory(long handle, long size);
-
-  public static native void holdMemory(long handle);
+  public static native long createRuntime(String backendType, long nmm, byte[] sessionConf);
 
   public static native void releaseRuntime(long handle);
 }

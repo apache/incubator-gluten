@@ -24,7 +24,7 @@ namespace local_engine
 class ReadRelParser : public RelParser
 {
 public:
-    explicit ReadRelParser(SerializedPlanParser * plan_parser_) : RelParser(plan_parser_) { }
+    explicit ReadRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_) { }
     ~ReadRelParser() override = default;
 
     DB::QueryPlanPtr
@@ -54,6 +54,6 @@ private:
     bool is_input_iter_materialize;
     String split_info;
     DB::QueryPlanStepPtr parseReadRelWithJavaIter(const substrait::ReadRel & rel);
-    QueryPlanStepPtr parseReadRelWithLocalFile(const substrait::ReadRel & rel);
+    DB::QueryPlanStepPtr parseReadRelWithLocalFile(const substrait::ReadRel & rel);
 };
 }

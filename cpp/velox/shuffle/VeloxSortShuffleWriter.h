@@ -69,7 +69,10 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status insert(const facebook::velox::RowVectorPtr& vector, int64_t memLimit);
 
-  void insertRows(facebook::velox::row::CompactRow& row, uint32_t offset, uint32_t rows);
+  void insertRows(
+      facebook::velox::row::CompactRow& compact,
+      facebook::velox::vector_size_t offset,
+      facebook::velox::vector_size_t size);
 
   arrow::Status maybeSpill(uint32_t nextRows);
 
@@ -77,9 +80,11 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status evictPartition(uint32_t partitionId, size_t begin, size_t end);
 
-  arrow::Status evictPartition0(uint32_t partitionId, int32_t numRows, uint8_t* buffer, int64_t rawLength);
+  arrow::Status evictPartitionInternal(uint32_t partitionId, int32_t numRows, uint8_t* buffer, int64_t rawLength);
 
-  uint32_t maxRowsToInsert(uint32_t offset, uint32_t remainingRows);
+  facebook::velox::vector_size_t maxRowsToInsert(
+      facebook::velox::vector_size_t offset,
+      facebook::velox::vector_size_t remainingRows);
 
   void acquireNewBuffer(uint64_t memLimit, uint64_t minSizeRequired);
 
@@ -126,4 +131,5 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   int64_t sortTime_{0};
   bool stopped_{false};
 };
+
 } // namespace gluten
