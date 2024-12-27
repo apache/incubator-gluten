@@ -401,7 +401,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
     spark.sql("drop table lineitem_mergetree_hdfs purge")
   }
 
-  testSparkVersionLE33("test cache mergetree data no partition columns") {
+  test("test cache mergetree data no partition columns") {
 
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_hdfs;
