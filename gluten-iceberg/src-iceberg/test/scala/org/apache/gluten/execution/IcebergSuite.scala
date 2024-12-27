@@ -512,7 +512,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
       val result = resultDf.collect()
 
       assert(result.length == 1)
-      assert(result.head.getString(2) == "test_p2")
+      assert(result.head.getString(3) == "test_p2")
     }
   }
 }
