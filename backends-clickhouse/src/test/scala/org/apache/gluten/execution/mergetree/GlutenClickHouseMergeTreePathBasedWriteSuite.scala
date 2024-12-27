@@ -302,7 +302,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     }
   }
 
-  testSparkVersionLE33("test mergetree path based table update") {
+  test("test mergetree path based table update") {
     val dataPath = s"$basePath/lineitem_mergetree_update"
     clearDataPath(dataPath)
 
@@ -315,78 +315,87 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    spark.sql(s"""
-                 | update clickhouse.`$dataPath` set l_returnflag = 'Z' where l_orderkey = 12647
-                 |""".stripMargin)
+    /**
+     * TODO: new test for (spark.databricks.delta.stats.skipping -> true)
+     *
+     * Since one pipeline write will collect stats, so that pruning will be more accurate in point
+     * query. Let's add a new test when we implement lightweight update and delete.
+     */
+    withSQLConf(("spark.databricks.delta.stats.skipping", "false")) {
+      spark.sql(s"""
+                   | update clickhouse.`$dataPath` set l_returnflag = 'Z' where l_orderkey = 12647
+                   |""".stripMargin)
 
-    {
-      val df = spark.read
-        .format("clickhouse")
-        .load(dataPath)
-        .where("l_returnflag = 'Z'")
-      assertResult(1)(df.count())
-      val scanExec = collect(df.queryExecution.executedPlan) {
-        case f: FileSourceScanExecTransformer => f
+      {
+        val df = spark.read
+          .format("clickhouse")
+          .load(dataPath)
+          .where("l_returnflag = 'Z'")
+        assertResult(1)(df.count())
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assertResult(1)(scanExec.size)
+
+        val mergetreeScan = scanExec.head
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(
+          ClickHouseTableV2
+            .getTable(fileIndex.deltaLog)
+            .orderByKey === StorageMeta.DEFAULT_ORDER_BY_KEY)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKey.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+        assertResult(600572)(addFiles.map(_.rows).sum)
+        // 4 parts belong to the first batch
+        // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
+        assertResult(6)(addFiles.size)
+        val filePaths =
+          addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
+        assertResult(2)(filePaths.size)
+        assertResult(Array(2, 4))(filePaths.values.map(paths => paths.size).toArray.sorted)
       }
-      assertResult(1)(scanExec.size)
 
-      val mergetreeScan = scanExec.head
-      assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+      val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
+      clickhouseTable.updateExpr("l_orderkey = 10086", Map("l_returnflag" -> "'X'"))
 
-      val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-      assert(
-        ClickHouseTableV2
-          .getTable(fileIndex.deltaLog)
-          .orderByKey === StorageMeta.DEFAULT_ORDER_BY_KEY)
-      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKey.isEmpty)
-      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
-      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-      assertResult(600572)(addFiles.map(_.rows).sum)
-      // 4 parts belong to the first batch
-      // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
-      assertResult(6)(addFiles.size)
-      val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
-      assertResult(2)(filePaths.size)
-      assertResult(Array(2, 4))(filePaths.values.map(paths => paths.size).toArray.sorted)
-    }
+      {
+        val df = spark.read
+          .format("clickhouse")
+          .load(dataPath)
+          .where("l_returnflag = 'X'")
+        assertResult(1)(df.count())
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assertResult(1)(scanExec.size)
 
-    val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
-    clickhouseTable.updateExpr("l_orderkey = 10086", Map("l_returnflag" -> "'X'"))
+        val mergetreeScan = scanExec.head
+        assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
 
-    {
-      val df = spark.read
-        .format("clickhouse")
-        .load(dataPath)
-        .where("l_returnflag = 'X'")
-      assertResult(1)(df.count())
-      val scanExec = collect(df.queryExecution.executedPlan) {
-        case f: FileSourceScanExecTransformer => f
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+        assertResult(600572)(addFiles.map(_.rows).sum)
+
+        // 4 parts belong to the first batch
+        // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
+        assertResult(6)(addFiles.size)
+        val filePaths =
+          addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
+        assertResult(2)(filePaths.size)
       }
-      assertResult(1)(scanExec.size)
-
-      val mergetreeScan = scanExec.head
-      assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
-
-      val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-      assertResult(600572)(addFiles.map(_.rows).sum)
-
-      // 4 parts belong to the first batch
-      // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
-      assertResult(6)(addFiles.size)
-      val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
-      assertResult(2)(filePaths.size)
     }
-
     val df = spark.read
       .format("clickhouse")
       .load(dataPath)
     assertResult(600572)(df.count())
   }
 
-  testSparkVersionLE33("test mergetree path based table delete") {
+  test("test mergetree path based table delete") {
     val dataPath = s"$basePath/lineitem_mergetree_delete"
     clearDataPath(dataPath)
 
@@ -399,32 +408,40 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .mode(SaveMode.Append)
       .save(dataPath)
 
-    spark.sql(s"""
-                 | delete from clickhouse.`$dataPath` where l_orderkey = 12647
-                 |""".stripMargin)
-    val df = spark.read
-      .format("clickhouse")
-      .load(dataPath)
-    assertResult(600571)(df.count())
-    val scanExec = collect(df.queryExecution.executedPlan) {
-      case f: FileSourceScanExecTransformer => f
-    }
-    val mergetreeScan = scanExec.head
-    val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
-    val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-    // 4 parts belong to the first batch
-    // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
-    assertResult(6)(addFiles.size)
-    val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
-    assertResult(2)(filePaths.size)
-    assertResult(Array(2, 4))(filePaths.values.map(paths => paths.size).toArray.sorted)
+    /**
+     * TODO: new test for (spark.databricks.delta.stats.skipping -> true)
+     *
+     * Since one pipeline write will collect stats, so that pruning will be more accurate in point
+     * query. Let's add a new test when we implement lightweight update and delete.
+     */
+    withSQLConf(("spark.databricks.delta.stats.skipping", "false")) {
+      spark.sql(s"""
+                   | delete from clickhouse.`$dataPath` where l_orderkey = 12647
+                   |""".stripMargin)
+      val df = spark.read
+        .format("clickhouse")
+        .load(dataPath)
+      assertResult(600571)(df.count())
+      val scanExec = collect(df.queryExecution.executedPlan) {
+        case f: FileSourceScanExecTransformer => f
+      }
+      val mergetreeScan = scanExec.head
+      val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+      // 4 parts belong to the first batch
+      // 2 parts belong to the second batch (1 actual updated part, 1 passively updated).
+      assertResult(6)(addFiles.size)
+      val filePaths = addFiles.map(_.path).groupBy(name => name.substring(0, name.lastIndexOf("_")))
+      assertResult(2)(filePaths.size)
+      assertResult(Array(2, 4))(filePaths.values.map(paths => paths.size).toArray.sorted)
 
-    val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
-    clickhouseTable.delete("mod(l_orderkey, 3) = 2")
-    val df1 = spark.read
-      .format("clickhouse")
-      .load(dataPath)
-    assertResult(400089)(df1.count())
+      val clickhouseTable = ClickhouseTable.forPath(spark, dataPath)
+      clickhouseTable.delete("mod(l_orderkey, 3) = 2")
+      val df1 = spark.read
+        .format("clickhouse")
+        .load(dataPath)
+      assertResult(400089)(df1.count())
+    }
   }
 
   test("test mergetree path based table upsert") {
