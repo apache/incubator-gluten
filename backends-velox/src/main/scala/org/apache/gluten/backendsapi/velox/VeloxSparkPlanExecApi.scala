@@ -45,12 +45,14 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
+import org.apache.spark.sql.execution.unsafe.UnsafeColumnarBuildSideRelation
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UserDefinedAggregateFunction}
 import org.apache.spark.sql.hive.VeloxHiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.task.TaskResources
 
 import org.apache.commons.lang3.ClassUtils
 
@@ -621,6 +623,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan,
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
+    val useOffheapBroadcastBuildRelation =
+      GlutenConfig.getConf.enableBroadcastBuildRelationInOffheap
     val serialized: Array[ColumnarBatchSerializeResult] = child
       .executeColumnar()
       .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
@@ -633,7 +637,13 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
-    ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
+    if (useOffheapBroadcastBuildRelation) {
+      TaskResources.runUnsafe {
+        new UnsafeColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
+      }
+    } else {
+      ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
+    }
   }
 
   override def doCanonicalizeForBroadcastMode(mode: BroadcastMode): BroadcastMode = {
