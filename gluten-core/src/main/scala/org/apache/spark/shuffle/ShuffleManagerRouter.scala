@@ -16,12 +16,15 @@
  */
 package org.apache.spark.shuffle
 import org.apache.spark.{ShuffleDependency, TaskContext}
+import org.apache.spark.internal.Logging
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.storage.{BlockId, ShuffleBlockBatchId, ShuffleBlockId, ShuffleMergedBlockId}
 
 /** The internal shuffle manager instance used by GlutenShuffleManager. */
-private class ShuffleManagerRouter(lookup: ShuffleManagerLookup) extends ShuffleManager {
+private class ShuffleManagerRouter(lookup: ShuffleManagerLookup)
+  extends ShuffleManager
+  with Logging {
   import ShuffleManagerRouter._
   private val cache = new Cache()
   private val resolver = new BlockResolver(cache)
@@ -38,6 +41,7 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup) extends Shuffle
       mapId: Long,
       context: TaskContext,
       metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
+    ensureShuffleManagerRegistered(handle)
     cache.get(handle.shuffleId).getWriter(handle, mapId, context, metrics)
   }
 
@@ -49,6 +53,7 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup) extends Shuffle
       endPartition: Int,
       context: TaskContext,
       metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+    ensureShuffleManagerRegistered(handle)
     cache
       .get(handle.shuffleId)
       .getReader(handle, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics)
@@ -61,8 +66,29 @@ private class ShuffleManagerRouter(lookup: ShuffleManagerLookup) extends Shuffle
   override def shuffleBlockResolver: ShuffleBlockResolver = resolver
 
   override def stop(): Unit = {
-    assert(cache.size() == 0)
-    lookup.all().reverse.foreach(_.stop())
+    if (!(cache.size() == 0)) {
+      logWarning(
+        s"Shuffle router cache is not empty when being stopped. This might be because the " +
+          s"shuffle is not unregistered.")
+    }
+    lookup.all().foreach(_.stop())
+  }
+
+  private def ensureShuffleManagerRegistered(handle: ShuffleHandle): Unit = {
+    val baseShuffleHandle = handle match {
+      case b: BaseShuffleHandle[_, _, _] => b
+      case _ =>
+        throw new UnsupportedOperationException(
+          s"${handle.getClass} is not a BaseShuffleHandle so is not supported by " +
+            s"GlutenShuffleManager")
+    }
+    val shuffleId = baseShuffleHandle.shuffleId
+    if (cache.has(shuffleId)) {
+      return
+    }
+    val dependency = baseShuffleHandle.dependency
+    val manager = lookup.findShuffleManager(dependency)
+    cache.store(shuffleId, manager)
   }
 }
 
@@ -70,6 +96,10 @@ private object ShuffleManagerRouter {
   private class Cache {
     private val cache: java.util.Map[Int, ShuffleManager] =
       new java.util.concurrent.ConcurrentHashMap()
+
+    def has(shuffleId: Int): Boolean = {
+      cache.containsKey(shuffleId)
+    }
 
     def store(shuffleId: Int, manager: ShuffleManager): ShuffleManager = {
       cache.compute(
