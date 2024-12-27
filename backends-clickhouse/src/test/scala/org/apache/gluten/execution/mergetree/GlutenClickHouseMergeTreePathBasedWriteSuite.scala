@@ -336,7 +336,10 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
       assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
       assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-      assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKey.isEmpty)
+      assert(
+        ClickHouseTableV2
+          .getTable(fileIndex.deltaLog)
+          .orderByKey === StorageMeta.DEFAULT_ORDER_BY_KEY)
       assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKey.isEmpty)
       assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
