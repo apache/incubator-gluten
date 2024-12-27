@@ -318,7 +318,7 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
                 String function_name = "sparkCastFloatTo" + denull_output_type->getName();
                 result_node = toFunctionNode(actions_dag, function_name, args);
             }
-            else if ((isDecimal(denull_input_type) || isNumber(denull_input_type)) && substrait_type.has_decimal())
+            else if ((isDecimal(denull_input_type) || isNativeNumber(denull_input_type)) && substrait_type.has_decimal())
             {
                 int decimal_precision = substrait_type.decimal().precision();
                 if (decimal_precision != 0)
