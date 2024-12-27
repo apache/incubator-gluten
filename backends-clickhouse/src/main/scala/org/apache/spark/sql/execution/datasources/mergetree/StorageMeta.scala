@@ -16,12 +16,13 @@
  */
 package org.apache.spark.sql.execution.datasources.mergetree
 
-import org.apache.gluten.expression.ConverterUtils
-
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.delta.actions.Metadata
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StructType
 
 import java.net.URI
+import java.util.Locale
 
 /** Reserved table property for MergeTree table. */
 object StorageMeta {
@@ -65,22 +66,6 @@ object StorageMeta {
       table_uri.getPath.substring(1)
     } else table_uri.getPath
   }
-
-  // TODO: remove this method
-  def genOrderByAndPrimaryKeyStr(
-      orderByKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]]): (String, String) = {
-
-    val orderByKey = columnsToStr(orderByKeyOption, DEFAULT_ORDER_BY_KEY)
-    val primaryKey = if (orderByKey == DEFAULT_ORDER_BY_KEY) "" else columnsToStr(primaryKeyOption)
-    (orderByKey, primaryKey)
-  }
-
-  def columnsToStr(option: Option[Seq[String]], default: String = ""): String =
-    option
-      .filter(_.nonEmpty)
-      .map(keys => keys.map(ConverterUtils.normalizeColName).mkString(","))
-      .getOrElse(default)
 }
 
 /** all properties start with 'storage_' */
@@ -92,21 +77,37 @@ trait TablePropertiesReader {
 
   def configuration: Map[String, String]
 
-  val partitionColumns: Seq[String]
+  protected def rawPartitionColumns: Seq[String]
 
-  private def getCommaSeparatedColumns(keyName: String): Option[Seq[String]] = {
-    configuration.get(keyName).map {
-      v =>
-        val keys = v.split(",").map(n => ConverterUtils.normalizeColName(n.trim)).toSeq
-        keys.foreach {
-          s =>
-            if (s.contains(".")) {
-              throw new IllegalStateException(
-                s"$keyName $s can not contain '.' (not support nested column yet)")
-            }
-        }
-        keys
+  protected val tableSchema: StructType
+
+  private lazy val columnNameMapping =
+    tableSchema.fieldNames.map(n => n.toLowerCase(Locale.ROOT) -> n).toMap
+
+  private def normalizeColName(columnName: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) {
+      columnName
+    } else {
+      columnNameMapping.getOrElse(columnName.toLowerCase(Locale.ROOT), columnName)
     }
+  }
+
+  private def getCommaSeparatedColumns(keyName: String): Seq[String] = {
+    val keys = configuration
+      .get(keyName)
+      .map(_.split(",").map(k => normalizeColName(k.trim)).toSeq)
+      .getOrElse(Nil)
+    keys.filter(_.contains(".")).foreach {
+      s =>
+        throw new IllegalStateException(
+          s"Column $s can not contain '.' (not support nested column yet)")
+    }
+    keys
+  }
+
+  lazy val partitionColumns: Seq[String] = {
+    rawPartitionColumns.map(normalizeColName)
   }
 
   lazy val bucketOption: Option[BucketSpec] = {
@@ -114,61 +115,53 @@ trait TablePropertiesReader {
     if (tableProperties.contains("numBuckets")) {
       val numBuckets = tableProperties("numBuckets").trim.toInt
       val bucketColumnNames: Seq[String] =
-        getCommaSeparatedColumns("bucketColumnNames").getOrElse(Seq.empty[String])
+        getCommaSeparatedColumns("bucketColumnNames")
       val sortColumnNames: Seq[String] =
-        getCommaSeparatedColumns("orderByKey").getOrElse(Seq.empty[String])
+        getCommaSeparatedColumns("orderByKey")
       Some(BucketSpec(numBuckets, bucketColumnNames, sortColumnNames))
     } else {
       None
     }
   }
 
-  lazy val lowCardKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("lowCardKey")
-  }
-
-  lazy val minmaxIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("minmaxIndexKey")
-  }
-
-  lazy val bfIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("bloomfilterIndexKey")
-  }
-
-  lazy val setIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("setIndexKey")
-  }
-
-  lazy val orderByKeyOption: Option[Seq[String]] = {
-    val orderByKeys =
+  private lazy val orderByKeys: Seq[String] = {
+    val orderBys =
       if (bucketOption.exists(_.sortColumnNames.nonEmpty)) {
-        bucketOption.map(_.sortColumnNames.map(ConverterUtils.normalizeColName))
+        bucketOption.map(_.sortColumnNames).getOrElse(Nil)
       } else {
         getCommaSeparatedColumns("orderByKey")
       }
-    orderByKeys
-      .map(_.intersect(partitionColumns))
-      .filter(_.nonEmpty)
-      .foreach {
-        invalidKeys =>
-          throw new IllegalStateException(
-            s"partition cols $invalidKeys can not be in the order by keys.")
-      }
-    orderByKeys
+    val invalidKey = orderBys.intersect(partitionColumns).mkString(",")
+    if (invalidKey.nonEmpty) {
+      throw new IllegalStateException(
+        s"partition column(s) $invalidKey can not be in the order by keys.")
+    }
+    orderBys
   }
 
-  lazy val primaryKeyOption: Option[Seq[String]] = {
-    orderByKeyOption.map(_.mkString(",")).flatMap {
-      orderBy =>
-        val primaryKeys = getCommaSeparatedColumns("primaryKey")
-        primaryKeys
-          .map(_.mkString(","))
-          .filterNot(orderBy.startsWith)
-          .foreach(
-            primaryKey =>
-              throw new IllegalStateException(
-                s"Primary key $primaryKey must be a prefix of the sorting key $orderBy"))
-        primaryKeys
+  private lazy val primaryKeys: Seq[String] = {
+    val orderBys = orderByKeys.mkString(",")
+    val primaryKeys = getCommaSeparatedColumns("primaryKey")
+    primaryKeys.zip(orderByKeys).foreach {
+      case (primaryKey, orderBy) =>
+        if (orderBy != primaryKey) {
+          throw new IllegalStateException(
+            s"Primary key $primaryKey must be a prefix of the sorting key $orderBys")
+        }
     }
+    primaryKeys
   }
+
+  lazy val lowCardKey: String = getCommaSeparatedColumns("lowCardKey").mkString(",")
+
+  lazy val minmaxIndexKey: String = getCommaSeparatedColumns("minmaxIndexKey").mkString(",")
+
+  lazy val bfIndexKey: String = getCommaSeparatedColumns("bloomfilterIndexKey").mkString(",")
+
+  lazy val setIndexKey: String = getCommaSeparatedColumns("setIndexKey").mkString(",")
+
+  lazy val primaryKey: String = primaryKeys.mkString(",")
+
+  lazy val orderByKey: String =
+    if (orderByKeys.nonEmpty) orderByKeys.mkString(",") else StorageMeta.DEFAULT_ORDER_BY_KEY
 }

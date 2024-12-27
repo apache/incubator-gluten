@@ -22,6 +22,7 @@ import org.apache.gluten.substrait.plan.PlanBuilder
 
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.test.SharedSparkSession
+import org.apache.spark.sql.types.StructType
 
 class MixedAffinitySuite extends QueryTest with SharedSparkSession {
 
@@ -64,7 +65,7 @@ class MixedAffinitySuite extends QueryTest with SharedSparkSession {
         "",
         "",
         Array(file),
-        "",
+        StructType(Seq()),
         Map.empty)
     val locations = affinity.getNativeMergeTreePartitionLocations(partition)
     val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)

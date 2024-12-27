@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.delta.commands
 
-import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.spark.{TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.Logging
@@ -51,12 +50,12 @@ object OptimizeTableCommandOverwrites extends Logging {
       database: String,
       tableName: String,
       snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
+      orderByKey: String,
+      lowCardKey: String,
+      minmaxIndexKey: String,
+      bfIndexKey: String,
+      setIndexKey: String,
+      primaryKey: String,
       partitionColumns: Seq[String],
       partList: Seq[String],
       tableSchema: StructType,
@@ -99,15 +98,15 @@ object OptimizeTableCommandOverwrites extends Logging {
           description.database,
           description.tableName,
           description.snapshotId,
-          description.orderByKeyOption,
-          description.lowCardKeyOption,
-          description.minmaxIndexKeyOption,
-          description.bfIndexKeyOption,
-          description.setIndexKeyOption,
-          description.primaryKeyOption,
+          description.orderByKey,
+          description.lowCardKey,
+          description.minmaxIndexKey,
+          description.bfIndexKey,
+          description.setIndexKey,
+          description.primaryKey,
           description.partitionColumns,
           description.partList,
-          ConverterUtils.convertNamedStructJson(description.tableSchema),
+          description.tableSchema,
           description.clickhouseTableConfigs,
           description.tableSchema.toAttributes
         )
@@ -194,12 +193,12 @@ object OptimizeTableCommandOverwrites extends Logging {
       tableV2.dataBaseName,
       tableV2.tableName,
       ClickhouseSnapshot.genSnapshotId(tableV2.snapshot),
-      tableV2.orderByKeyOption,
-      tableV2.lowCardKeyOption,
-      tableV2.minmaxIndexKeyOption,
-      tableV2.bfIndexKeyOption,
-      tableV2.setIndexKeyOption,
-      tableV2.primaryKeyOption,
+      tableV2.orderByKey,
+      tableV2.lowCardKey,
+      tableV2.minmaxIndexKey,
+      tableV2.bfIndexKey,
+      tableV2.setIndexKey,
+      tableV2.primaryKey,
       tableV2.partitionColumns,
       bin.map(_.asInstanceOf[AddMergeTreeParts].name),
       tableV2.schema(),

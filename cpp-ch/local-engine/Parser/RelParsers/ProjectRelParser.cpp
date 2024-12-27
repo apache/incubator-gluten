@@ -86,13 +86,13 @@ ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel
     }
 }
 
-bool ProjectRelParser::isReplicateRows(substrait::GenerateRel rel)
+bool ProjectRelParser::isReplicateRows(substrait::GenerateRel rel) const
 {
     auto signature = expression_parser->getFunctionNameInSignature(rel.generator().scalar_function());
     return signature == "replicaterows";
 }
 
-DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_plan, substrait::GenerateRel generate_rel)
+DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_plan, const substrait::GenerateRel & generate_rel)
 {
     std::vector<substrait::Expression> expressions;
     for (int i = 0; i < generate_rel.generator().scalar_function().arguments_size(); ++i)

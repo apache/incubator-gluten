@@ -28,6 +28,7 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
+#include <Common/PlanUtil.h>
 #include <Common/QueryContext.h>
 #include <Common/formatReadable.h>
 #include <Common/logger_useful.h>
@@ -40,7 +41,7 @@ namespace Utils
 {
 
 /**
- * Return the number of half widths in a given string. Note that a full width character
+ * Return the number of half-widths in a given string. Note that a full width character
  * occupies two half widths.
  *
  * For a string consisting of 1 million characters, the execution of this method requires

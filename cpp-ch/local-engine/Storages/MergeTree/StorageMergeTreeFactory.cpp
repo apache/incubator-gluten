@@ -57,9 +57,8 @@ void StorageMergeTreeFactory::freeStorage(const StorageID & id, const String & s
     }
 }
 
-
 SparkStorageMergeTreePtr StorageMergeTreeFactory::getStorage(
-    const StorageID & id, const String & snapshot_id, MergeTreeTable merge_tree_table,
+    const StorageID & id, const String & snapshot_id, const MergeTreeTable & merge_tree_table,
     const std::function<SparkStorageMergeTreePtr()> & creator)
 {
     const auto table_name = getTableName(id, snapshot_id);

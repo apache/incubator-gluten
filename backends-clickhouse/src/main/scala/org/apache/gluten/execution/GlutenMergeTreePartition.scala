@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.substrait.plan.PlanBuilder
+import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.types.StructType
 
 case class MergeTreePartRange(
     name: String,
@@ -58,10 +59,9 @@ case class GlutenMergeTreePartition(
     setIndexKey: String,
     primaryKey: String,
     partList: Array[MergeTreePartSplit],
-    tableSchemaJson: String,
-    clickhouseTableConfigs: Map[String, String],
-    plan: Array[Byte] = PlanBuilder.EMPTY_PLAN)
-  extends BaseGlutenPartition {
+    tableSchema: StructType,
+    clickhouseTableConfigs: Map[String, String])
+  extends InputPartition {
   override def preferredLocations(): Array[String] = {
     Array.empty[String]
   }
