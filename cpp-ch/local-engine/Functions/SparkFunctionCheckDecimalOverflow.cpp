@@ -26,6 +26,7 @@
 #include <Functions/FunctionHelpers.h>
 #include <Functions/IFunction.h>
 #include <cmath>
+#include <typeinfo>
 
 namespace DB
 {
@@ -35,6 +36,7 @@ extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 extern const int ILLEGAL_COLUMN;
 extern const int TYPE_MISMATCH;
+extern const int NOT_IMPLEMENTED;
 }
 }
 
@@ -204,18 +206,20 @@ private:
     template <typename FromDataType, typename ToDataType, typename FromFieldType = FromDataType::FieldType>
     requires(IsDataTypeDecimal<ToDataType>)
     static bool convertToDecimalImpl(
-        const FromFieldType & decimal, UInt32 precision_to, UInt32 scale_from, UInt32 scale_to, typename ToDataType::FieldType & result)
+        const FromFieldType & value, UInt32 precision_to, UInt32 scale_from, UInt32 scale_to, typename ToDataType::FieldType & result)
     {
         if constexpr (std::is_same_v<FromFieldType, Decimal32>)
-            return convertDecimalsImpl<DataTypeDecimal<Decimal32>, ToDataType>(decimal, precision_to, scale_from, scale_to, result);
+            return convertDecimalsImpl<DataTypeDecimal<Decimal32>, ToDataType>(value, precision_to, scale_from, scale_to, result);
         else if constexpr (std::is_same_v<FromFieldType, Decimal64>)
-            return convertDecimalsImpl<DataTypeDecimal<Decimal64>, ToDataType>(decimal, precision_to, scale_from, scale_to, result);
+            return convertDecimalsImpl<DataTypeDecimal<Decimal64>, ToDataType>(value, precision_to, scale_from, scale_to, result);
         else if constexpr (std::is_same_v<FromFieldType, Decimal128>)
-            return convertDecimalsImpl<DataTypeDecimal<Decimal128>, ToDataType>(decimal, precision_to, scale_from, scale_to, result);
+            return convertDecimalsImpl<DataTypeDecimal<Decimal128>, ToDataType>(value, precision_to, scale_from, scale_to, result);
         else if constexpr (std::is_same_v<FromFieldType, Decimal256>)
-            return convertDecimalsImpl<DataTypeDecimal<Decimal256>, ToDataType>(decimal, precision_to, scale_from, scale_to, result);
+            return convertDecimalsImpl<DataTypeDecimal<Decimal256>, ToDataType>(value, precision_to, scale_from, scale_to, result);
         else if constexpr (IsDataTypeNumber<FromDataType>)
-            return convertNumberToDecimalImpl<DataTypeNumber<FromFieldType>, ToDataType>(decimal, precision_to, scale_to, result);
+            return convertNumberToDecimalImpl<DataTypeNumber<FromFieldType>, ToDataType>(value, precision_to, scale_to, result);
+        else
+            throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Convert from {} type to decimal type is not implemented.", typeid(value).name());
     }
 
     template <typename FromDataType, typename ToDataType>
