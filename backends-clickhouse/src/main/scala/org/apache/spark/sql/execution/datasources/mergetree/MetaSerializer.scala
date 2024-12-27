@@ -113,7 +113,8 @@ object MetaSerializer {
       .append(orderByKey)
       .append("\n")
 
-    if (orderByKey.isEmpty || orderByKey == StorageMeta.DEFAULT_ORDER_BY_KEY) {
+    assert(orderByKey.nonEmpty)
+    if (orderByKey == StorageMeta.DEFAULT_ORDER_BY_KEY) {
       extensionTableStr.append("").append("\n")
     } else {
       extensionTableStr.append(primaryKey).append("\n")
