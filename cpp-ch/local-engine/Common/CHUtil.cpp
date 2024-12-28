@@ -82,6 +82,7 @@ namespace Setting
 {
 extern const SettingsUInt64 prefer_external_sort_block_bytes;
 extern const SettingsUInt64 max_bytes_before_external_sort;
+extern const SettingsDouble max_bytes_ratio_before_external_sort;
 extern const SettingsBool query_plan_merge_filters;
 extern const SettingsBool compile_expressions;
 extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
@@ -643,6 +644,10 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings[Setting::compile_expressions] = false;
     settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
     ///
+
+    // After https://github.com/ClickHouse/ClickHouse/pull/73422
+    // Since we already set max_bytes_before_external_sort, set max_bytes_ratio_before_external_sort to 0
+    settings[Setting::max_bytes_ratio_before_external_sort] = 0.;
 
     for (const auto & [key, value] : spark_conf_map)
     {

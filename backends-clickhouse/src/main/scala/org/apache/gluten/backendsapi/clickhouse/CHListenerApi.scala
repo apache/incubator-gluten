@@ -91,15 +91,14 @@ class CHListenerApi extends ListenerApi with Logging {
       "local_engine.settings.log_processors_profiles" -> "true")
     conf.setCHSettings("spark_version", SPARK_VERSION)
     // add memory limit for external sort
-    val externalSortKey = CHConf.runtimeSettings("max_bytes_before_external_sort")
-    if (conf.getLong(externalSortKey, -1) < 0) {
+    if (conf.getLong(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT.key, -1) < 0) {
       if (conf.getBoolean("spark.memory.offHeap.enabled", defaultValue = false)) {
         val memSize = JavaUtils.byteStringAsBytes(conf.get("spark.memory.offHeap.size"))
         if (memSize > 0L) {
           val cores = conf.getInt("spark.executor.cores", 1).toLong
           val sortMemLimit = ((memSize / cores) * 0.8).toLong
           logDebug(s"max memory for sorting: $sortMemLimit")
-          conf.set(externalSortKey, sortMemLimit.toString)
+          conf.set(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT.key, sortMemLimit.toString)
         }
       }
     }

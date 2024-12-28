@@ -30,6 +30,12 @@ object RuntimeSettings {
       .doc("https://clickhouse.com/docs/en/operations/settings/settings#min_insert_block_size_rows")
       .longConf
       .createWithDefault(1048449)
+
+  val MAX_BYTES_BEFORE_EXTERNAL_SORT =
+    buildConf(runtimeSettings("max_bytes_before_external_sort"))
+      .doc("https://clickhouse.com/docs/en/operations/settings/query-complexity#settings-max_bytes_before_external_sort")
+      .longConf
+      .createWithDefault(0)
   // scalastyle:on line.size.limit
 
   /** Gluten Configuration */
