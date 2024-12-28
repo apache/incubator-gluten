@@ -26,6 +26,7 @@ import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.catalyst.InternalRow
@@ -56,6 +57,7 @@ import scala.collection.JavaConverters.asScalaIteratorConverter
  * @param mode
  *   the broadcast mode.
  */
+@Experimental
 case class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
     private var batches: UnsafeBytesBufferArray,
@@ -135,7 +137,6 @@ case class UnsafeColumnarBuildSideRelation(
       val length = bytesBufferLengths(i)
       val tmpBuffer = new Array[Byte](length)
       in.read(tmpBuffer)
-      log.warn(s"readExternal $i--- $length")
       batches.putBytesBuffer(i, tmpBuffer)
     }
   }
@@ -169,7 +170,9 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def deserialized: Iterator[ColumnarBatch] = {
     val runtime =
-      Runtimes.contextInstance(BackendsApiManager.getBackendName, "BuildSideRelation#transform")
+      Runtimes.contextInstance(
+        BackendsApiManager.getBackendName,
+        "UnsafeBuildSideRelation#deserialize")
     val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializerHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()

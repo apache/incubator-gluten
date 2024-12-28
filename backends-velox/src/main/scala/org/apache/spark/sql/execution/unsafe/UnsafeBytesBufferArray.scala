@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.unsafe
 
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
 import org.apache.spark.unsafe.Platform
@@ -33,6 +34,7 @@ import org.apache.spark.unsafe.array.LongArray
  *   all bytesBuffer's length plus together
  */
 // scalastyle:off no.finalize
+@Experimental
 case class UnsafeBytesBufferArray(
     arraySize: Int,
     bytesBufferLengths: Array[Int],
@@ -99,7 +101,6 @@ case class UnsafeBytesBufferArray(
       return new Array[Byte](0)
     }
     val bytes = new Array[Byte](bytesBufferLengths(index))
-    log.warn(s"get bytesBuffer at index $index bytesBuffer length ${bytes.length}")
     Platform.copyMemory(
       longArray.getBaseObject,
       longArray.getBaseOffset + bytesBufferOffset(index),

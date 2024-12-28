@@ -2264,8 +2264,8 @@ object GlutenConfig {
   val VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP =
     buildConf("spark.gluten.velox.offHeapBroadcastBuildRelation.enabled")
       .internal()
-      .doc("If enabled, broadcast build relation will use offheap memory. " +
+      .doc("Experimental: If enabled, broadcast build relation will use offheap memory. " +
         "Otherwise, broadcast build relation will use onheap memory.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 }
