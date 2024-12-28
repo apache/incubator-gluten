@@ -158,10 +158,10 @@ case class HadoopMapReduceAdapter(sparkCommitter: HadoopMapReduceCommitProtocol)
 }
 
 case class NativeFileWriteResult(filename: String, partition_id: String, record_count: Long) {
-  lazy val relativePath: String = if (partition_id == CHColumnarWrite.EMPTY_PARTITION_ID) {
-    filename
-  } else {
+  lazy val relativePath: String = if (CHColumnarWrite.validatedPartitionID(partition_id)) {
     s"$partition_id/$filename"
+  } else {
+    filename
   }
 }
 
@@ -212,7 +212,7 @@ case class NativeBasicWriteTaskStatsTracker(
   private var numWrittenRows: Long = 0
   override def apply(stat: NativeFileWriteResult): Unit = {
     val absolutePath = s"$writeDir/${stat.relativePath}"
-    if (stat.partition_id != CHColumnarWrite.EMPTY_PARTITION_ID) {
+    if (CHColumnarWrite.validatedPartitionID(stat.partition_id)) {
       basicWriteJobStatsTracker.newPartition(new GenericInternalRow(Array[Any](stat.partition_id)))
     }
     basicWriteJobStatsTracker.newFile(absolutePath)
@@ -233,7 +233,7 @@ case class FileCommitInfo(description: WriteJobDescription)
 
   def apply(stat: NativeFileWriteResult): Unit = {
     val tmpAbsolutePath = s"${description.path}/${stat.relativePath}"
-    if (stat.partition_id != CHColumnarWrite.EMPTY_PARTITION_ID) {
+    if (CHColumnarWrite.validatedPartitionID(stat.partition_id)) {
       partitions += stat.partition_id
       val customOutputPath =
         description.customPartitionLocations.get(
@@ -325,5 +325,7 @@ object CHColumnarWrite {
     case other => CHDeltaColumnarWrite(jobTrackerID, description, other)
   }
 
-  val EMPTY_PARTITION_ID = "__NO_PARTITION_ID__"
+  private val EMPTY_PARTITION_ID = "__NO_PARTITION_ID__"
+
+  def validatedPartitionID(partitionID: String): Boolean = partitionID != EMPTY_PARTITION_ID
 }
