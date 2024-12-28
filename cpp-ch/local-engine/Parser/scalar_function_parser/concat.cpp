@@ -57,7 +57,7 @@ public:
         if (args.size() == 1 && isArray(removeNullable(args[0]->result_type)))
             ch_function_name = "arrayConcat";
 
-        auto * result_node = toFunctionNode(actions_dag, "concat", args);
+        auto * result_node = toFunctionNode(actions_dag, ch_function_name, args);
         return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
