@@ -20,7 +20,7 @@ import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row, TestUtils}
-import org.apache.spark.sql.execution.FormattedMode
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, FormattedMode}
 
 import org.apache.commons.io.FileUtils
 
@@ -303,6 +303,18 @@ class VeloxTPCHV1GlutenShuffleManagerSuite extends VeloxTPCHSuite {
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.GlutenShuffleManager")
+  }
+
+  override protected def runQueryAndCompare(
+      sqlStr: String,
+      compareResult: Boolean,
+      noFallBack: Boolean,
+      cache: Boolean)(customCheck: DataFrame => Unit): DataFrame = {
+    super.runQueryAndCompare(sqlStr, compareResult, noFallBack, cache) {
+      df =>
+        assert(df.queryExecution.executedPlan.exists(_.isInstanceOf[ColumnarShuffleExchangeExec]))
+        customCheck(df)
+    }
   }
 }
 
