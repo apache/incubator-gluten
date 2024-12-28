@@ -356,7 +356,7 @@ private:
         auto scaled_right = scale_right > 1 ? applyScaled(right, scale_right) : right;
 
         ScaledNativeType c_res = 0;
-        auto success = Operation::template apply(scaled_left, scaled_right, c_res);
+        auto success = Operation::template apply<>(scaled_left, scaled_right, c_res);
         if (!success)
             return false;
 
@@ -459,7 +459,7 @@ public:
             right_generic,
             removeNullable(arguments[2].type).get(),
             [&](const auto & left, const auto & right, const auto & result) {
-                return (res = SparkDecimalBinaryOperation<Operation, mode>::template executeDecimal(arguments, left, right, result))
+                return (res = SparkDecimalBinaryOperation<Operation, mode>::template executeDecimal<>(arguments, left, right, result))
                     != nullptr;
             });
 
