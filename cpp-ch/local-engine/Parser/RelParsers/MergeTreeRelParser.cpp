@@ -23,10 +23,13 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenSettings.h>
+#include <Common/PlanUtil.h>
 
 namespace DB
 {
@@ -66,47 +69,62 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     DB::QueryPlanPtr query_plan, const substrait::ReadRel & rel, const substrait::ReadRel::ExtensionTable & extension_table)
 {
     MergeTreeTableInstance merge_tree_table(extension_table);
-    // ignore snapshot id for query
+    // ignore snapshot id for a query
     merge_tree_table.snapshot_id = "";
     auto storage = merge_tree_table.restoreStorage(QueryContext::globalMutableContext());
 
+    InputFileNameParser input_file_name_parser;
     DB::Block input;
+    DB::Block original_input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
     {
         input = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
+        if (InputFileNameParser::hasInputFileNameColumn(input))
+        {
+            std::vector<String> parts;
+            for (const auto & part : merge_tree_table.parts)
+            {
+                parts.push_back(merge_tree_table.absolute_path + "/" + part.name);
+            }
+            auto name = Poco::cat<String>(",", parts.begin(), parts.end());
+            input_file_name_parser.setFileName(name);
+        }
+        if (InputFileNameParser::hasInputFileBlockStartColumn(input))
+        {
+            // mergetree doesn't support block start
+            input_file_name_parser.setBlockStart(0);
+        }
+        if (InputFileNameParser::hasInputFileBlockLengthColumn(input))
+        {
+            // mergetree doesn't support block length
+            input_file_name_parser.setBlockLength(0);
+        }
+        input = InputFileNameParser::removeInputFileColumn(input);
+
+        SparkSQLConfig sql_config = SparkSQLConfig::loadFromContext(context);
+        // case_insensitive_matching
+        if (!sql_config.caseSensitive)
+        {
+            original_input = input;
+            auto all = storage->getInMemoryMetadataPtr()->getColumns().getNamesOfPhysical();
+            std::ranges::for_each(
+                input,
+                [&all](ColumnWithTypeAndName & column)
+                {
+                    const auto found
+                        = std::ranges::find_if(all, [&column](const auto & name) -> bool { return boost::iequals(column.name, name); });
+                    if (found != all.end())
+                        column.name = *found;
+                });
+        }
     }
     else
     {
         NamesAndTypesList one_column_name_type;
         one_column_name_type.push_back(storage->getInMemoryMetadataPtr()->getColumns().getAll().front());
         input = BlockUtil::buildHeader(one_column_name_type);
-        LOG_DEBUG(
-            &Poco::Logger::get("SerializedPlanParser"), "Try to read ({}) instead of empty header", one_column_name_type.front().dump());
+        LOG_DEBUG(getLogger("SerializedPlanParser"), "Try to read ({}) instead of empty header", one_column_name_type.front().dump());
     }
-
-    InputFileNameParser input_file_name_parser;
-    if (InputFileNameParser::hasInputFileNameColumn(input))
-    {
-        std::vector<String> parts;
-        for (const auto & part : merge_tree_table.parts)
-        {
-            parts.push_back(merge_tree_table.absolute_path + "/" + part.name);
-        }
-        auto name = Poco::cat<String>(",", parts.begin(), parts.end());
-        input_file_name_parser.setFileName(name);
-    }
-    if (InputFileNameParser::hasInputFileBlockStartColumn(input))
-    {
-        // mergetree doesn't support block start
-        input_file_name_parser.setBlockStart(0);
-    }
-    if (InputFileNameParser::hasInputFileBlockLengthColumn(input))
-    {
-        // mergetree doesn't support block length
-        input_file_name_parser.setBlockLength(0);
-    }
-
-    input = InputFileNameParser::removeInputFileColumn(input);
 
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
@@ -155,12 +173,19 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     {
         auto input_header = query_plan->getCurrentHeader();
         std::erase_if(non_nullable_columns, [input_header](auto item) -> bool { return !input_header.has(item); });
-        auto * remove_null_step = PlanUtil::addRemoveNullableStep(parser_context->queryContext(), *query_plan, non_nullable_columns);
-        if (remove_null_step)
+        if (auto * remove_null_step = PlanUtil::addRemoveNullableStep(*query_plan, parser_context->queryContext(), non_nullable_columns))
             steps.emplace_back(remove_null_step);
     }
-    auto step = input_file_name_parser.addInputFileProjectStep(*query_plan);
-    if (step.has_value())
+
+    if (original_input.columns() == input.columns() && !sameName(input, original_input))
+    {
+        steps.emplace_back(PlanUtil::renamePlanHeader(
+            *query_plan,
+            [&original_input](const Block & input, NamesWithAliases & aliases) { aliases = buildNamesWithAliases(input, original_input); },
+            "Rename MergeTree Output"));
+    }
+
+    if (auto step = input_file_name_parser.addInputFileProjectStep(*query_plan); step.has_value())
         steps.emplace_back(step.value());
     return query_plan;
 }
@@ -210,7 +235,7 @@ DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expre
     {
         DB::ActionsDAG::NodeRawConstPtrs args;
 
-        for (Condition cond : res)
+        for (const Condition & cond : res)
         {
             String ignore;
             parseToAction(filter_action, cond.node, ignore);
@@ -228,7 +253,7 @@ DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expre
     return filter_action;
 }
 
-void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name)
+void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name) const
 {
     if (rel.has_scalar_function())
     {

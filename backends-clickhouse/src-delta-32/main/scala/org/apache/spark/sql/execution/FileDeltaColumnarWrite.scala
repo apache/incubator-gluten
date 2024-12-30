@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.clickhouse.RuntimeSettings
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.vectorized.NativeExpressionEvaluator
-
+import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.sql.catalyst.InternalRow
@@ -37,11 +37,11 @@ case class DeltaFileCommitInfo(committer: FileDelayedCommitProtocol)
   val addedFiles: ArrayBuffer[(Map[String, String], String)] =
     new ArrayBuffer[(Map[String, String], String)]
   override def apply(stat: NativeFileWriteResult): Unit = {
-    if (stat.partition_id == CHColumnarWrite.EMPTY_PARTITION_ID) {
-      addedFiles.append((Map.empty[String, String], stat.filename))
-    } else {
+    if (CHColumnarWrite.validatedPartitionID(stat.partition_id)) {
       val partitionValues = committer.parsePartitions(stat.partition_id)
-      addedFiles.append((partitionValues, stat.relativePath))
+      addedFiles.append((partitionValues, new Path(stat.relativePath).toUri.toString))
+    } else {
+      addedFiles.append((Map.empty[String, String], stat.filename))
     }
   }
 

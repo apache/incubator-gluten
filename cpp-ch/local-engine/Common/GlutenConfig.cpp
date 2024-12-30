@@ -151,4 +151,13 @@ WindowConfig WindowConfig::loadFromContext(const DB::ContextPtr & context)
         = context->getConfigRef().getDouble(WINDOW_AGGREGATE_TOPK_HIGH_CARDINALITY_THRESHOLD, 0.6);
     return config;
 }
+
+SparkSQLConfig SparkSQLConfig::loadFromContext(const DB::ContextPtr & context)
+{
+    SparkSQLConfig sql_config;
+    sql_config.caseSensitive = context->getConfigRef().getBool("spark.sql.caseSensitive", false);
+
+    return sql_config;
+}
+
 }

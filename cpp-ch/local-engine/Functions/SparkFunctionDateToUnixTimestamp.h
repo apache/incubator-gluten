@@ -54,7 +54,7 @@ public:
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} argument size must be 1 or 2", name);
 
         DB::ColumnWithTypeAndName first_arg = arguments[0];
-       if (isDate(first_arg.type))
+        if (isDate(first_arg.type))
             return executeInternal<UInt16>(first_arg.column, input_rows);
         else
             return executeInternal<Int32>(first_arg.column, input_rows);
@@ -68,7 +68,7 @@ public:
         DB::PaddedPODArray<UInt32> & data = assert_cast<DB::ColumnVector<UInt32> *>(res.get())->getData();
         if (col->size() == 0)
             return res;
-        
+
         const DateLUTImpl * local_date_lut = &DateLUT::instance();
         for (size_t i = 0; i < input_rows; ++i)
         {

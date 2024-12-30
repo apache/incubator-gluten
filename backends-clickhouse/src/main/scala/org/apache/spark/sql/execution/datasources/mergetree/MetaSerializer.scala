@@ -18,12 +18,13 @@ package org.apache.spark.sql.execution.datasources.mergetree
 
 import org.apache.gluten.execution.MergeTreePartSplit
 import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 
-import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableNode
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
+import org.apache.spark.sql.types.StructType
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.substrait.proto.ReadRel
+import io.substrait.proto.{NamedStruct, Type}
 
 import java.util.{Map => jMap}
 
@@ -77,60 +78,20 @@ object PartSerializer {
 
 object MetaSerializer {
   // scalastyle:off argcount
-  def apply1(
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      relativePath: String,
-      absolutePath: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      partSerializer: PartSerializer,
-      tableSchemaJson: String,
-      clickhouseTableConfigs: jMap[String, String]): ReadRel.ExtensionTable = {
-
-    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
-      orderByKeyOption,
-      primaryKeyOption
-    )
-
-    val result = apply(
-      database,
-      tableName,
-      snapshotId,
-      relativePath,
-      absolutePath,
-      orderByKey0,
-      StorageMeta.columnsToStr(lowCardKeyOption),
-      StorageMeta.columnsToStr(minmaxIndexKeyOption),
-      StorageMeta.columnsToStr(bfIndexKeyOption),
-      StorageMeta.columnsToStr(setIndexKeyOption),
-      primaryKey0,
-      partSerializer,
-      tableSchemaJson,
-      clickhouseTableConfigs
-    )
-    ExtensionTableNode.toProtobuf(result)
-  }
-
   def apply(
       database: String,
       tableName: String,
       snapshotId: String,
       relativePath: String,
       absolutePath: String,
-      orderByKey0: String,
-      lowCardKey0: String,
-      minmaxIndexKey0: String,
-      bfIndexKey0: String,
-      setIndexKey0: String,
-      primaryKey0: String,
+      orderByKey: String,
+      lowCardKey: String,
+      minmaxIndexKey: String,
+      bfIndexKey: String,
+      setIndexKey: String,
+      primaryKey: String,
       partSerializer: PartSerializer,
-      tableSchemaJson: String,
+      tableSchema: StructType,
       clickhouseTableConfigs: jMap[String, String]): String = {
     // scalastyle:on argcount
 
@@ -138,12 +99,7 @@ object MetaSerializer {
     // {part_path1}\n{part_path2}\n...
     val extensionTableStr = new StringBuilder(StorageMeta.SERIALIZER_HEADER)
 
-    val orderByKey = ConverterUtils.normalizeColName(orderByKey0)
-    val lowCardKey = ConverterUtils.normalizeColName(lowCardKey0)
-    val minmaxIndexKey = ConverterUtils.normalizeColName(minmaxIndexKey0)
-    val bfIndexKey = ConverterUtils.normalizeColName(bfIndexKey0)
-    val setIndexKey = ConverterUtils.normalizeColName(setIndexKey0)
-    val primaryKey = ConverterUtils.normalizeColName(primaryKey0)
+    val tableSchemaJson = convertNamedStructJson(tableSchema)
 
     extensionTableStr
       .append(database)
@@ -157,7 +113,8 @@ object MetaSerializer {
       .append(orderByKey)
       .append("\n")
 
-    if (orderByKey.isEmpty || orderByKey == StorageMeta.DEFAULT_ORDER_BY_KEY) {
+    assert(orderByKey.nonEmpty)
+    if (orderByKey == StorageMeta.DEFAULT_ORDER_BY_KEY) {
       extensionTableStr.append("").append("\n")
     } else {
       extensionTableStr.append(primaryKey).append("\n")
@@ -191,5 +148,22 @@ object MetaSerializer {
           extensionTableStr.append("\n")
       }
     } else extensionTableStr.append("\n")
+  }
+
+  /** Convert StructType to Json */
+  private def convertNamedStructJson(tableSchema: StructType): String = {
+    val structBuilder = Type.Struct.newBuilder
+    tableSchema.fields
+      .map(f => ConverterUtils.getTypeNode(f.dataType, f.nullable))
+      .foreach(t => structBuilder.addTypes(t.toProtobuf))
+
+    val nStructBuilder = NamedStruct.newBuilder
+    nStructBuilder.setStruct(structBuilder.build)
+    tableSchema.fieldNames.foreach(nStructBuilder.addNames)
+
+    SubstraitPlanPrinterUtil
+      .substraitNamedStructToJson(nStructBuilder.build())
+      .replaceAll("\n", "")
+      .replaceAll(" ", "")
   }
 }

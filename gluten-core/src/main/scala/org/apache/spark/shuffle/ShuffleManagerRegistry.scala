@@ -16,17 +16,20 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{ShuffleDependency, SparkConf}
+import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.util.{SparkTestUtil, Utils}
 
 import scala.collection.mutable
 
 class ShuffleManagerRegistry private[ShuffleManagerRegistry] {
   import ShuffleManagerRegistry._
-  private val all: mutable.Buffer[(LookupKey, String)] = mutable.Buffer()
+  private val all: mutable.ListBuffer[(LookupKey, String)] = mutable.ListBuffer()
   private val routerBuilders: mutable.Buffer[RouterBuilder] = mutable.Buffer()
   private val classDeDup: mutable.Set[String] = mutable.Set()
 
+  // The shuffle manager class registered through this API later
+  // will take higher precedence during lookup.
   def register(lookupKey: LookupKey, shuffleManagerClass: String): Unit = {
     val clazz = Utils.classForName(shuffleManagerClass)
     require(
@@ -42,7 +45,7 @@ class ShuffleManagerRegistry private[ShuffleManagerRegistry] {
       s"Shuffle manager class already registered: $shuffleManagerClass")
     this.synchronized {
       classDeDup += shuffleManagerClass
-      all += lookupKey -> shuffleManagerClass
+      (lookupKey -> shuffleManagerClass) +=: all
       // Invalidate all shuffle managers cached in each alive router builder instances.
       // Then, once the router builder is accessed, a new router will be forced to create.
       routerBuilders.foreach(_.invalidateCache())
@@ -68,7 +71,18 @@ class ShuffleManagerRegistry private[ShuffleManagerRegistry] {
 }
 
 object ShuffleManagerRegistry {
-  private val instance = new ShuffleManagerRegistry()
+  private val instance = {
+    val r = new ShuffleManagerRegistry()
+    r.register(
+      new LookupKey {
+        override def accepts[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean = {
+          dependency.getClass == classOf[ShuffleDependency[_, _, _]]
+        }
+      },
+      classOf[SortShuffleManager].getName
+    )
+    r
+  }
 
   def get(): ShuffleManagerRegistry = instance
 

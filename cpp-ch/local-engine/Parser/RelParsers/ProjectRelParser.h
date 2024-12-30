@@ -38,9 +38,9 @@ private:
     DB::QueryPlanPtr parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
     DB::QueryPlanPtr parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
 
-    bool isReplicateRows(substrait::GenerateRel rel);
+    bool isReplicateRows(substrait::GenerateRel rel) const;
 
-    DB::QueryPlanPtr parseReplicateRows(DB::QueryPlanPtr query_plan, substrait::GenerateRel generate_rel);
+    DB::QueryPlanPtr parseReplicateRows(DB::QueryPlanPtr query_plan, const substrait::GenerateRel & generate_rel);
 
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override
     {

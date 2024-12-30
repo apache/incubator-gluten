@@ -39,7 +39,7 @@ import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuil
 import org.apache.spark.sql.execution.datasources.mergetree.{PartSerializer, StorageMeta}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
-import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.sql.types.{BooleanType, StructType}
 import org.apache.spark.util.SparkResourceUtil
 import org.apache.spark.util.collection.BitSet
 
@@ -91,7 +91,6 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val engine = "MergeTree"
     val relativeTablePath = fileIndex.deltaLog.dataPath.toUri.getPath.substring(1)
     val absoluteTablePath = fileIndex.deltaLog.dataPath.toUri.toString
-    val tableSchemaJson = ConverterUtils.convertNamedStructJson(table.schema())
 
     // bucket table
     if (table.bucketOption.isDefined && bucketedScan) {
@@ -106,7 +105,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         optionalBucketSet,
         optionalNumCoalescedBuckets,
         selectedPartitions,
-        tableSchemaJson,
+        table.schema(),
         partitions,
         table,
         table.clickhouseTableConfigs,
@@ -125,7 +124,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         absoluteTablePath,
         optionalBucketSet,
         selectedPartitions,
-        tableSchemaJson,
+        table.schema(),
         partitions,
         table,
         table.clickhouseTableConfigs,
@@ -147,7 +146,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       absoluteTablePath: String,
       optionalBucketSet: Option[BitSet],
       selectedPartitions: Array[PartitionDirectory],
-      tableSchemaJson: String,
+      tableSchema: StructType,
       partitions: ArrayBuffer[InputPartition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
@@ -204,7 +203,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         tableName,
         relativeTablePath,
         absoluteTablePath,
-        tableSchemaJson,
+        tableSchema,
         table,
         clickhouseTableConfigs,
         filterExprs,
@@ -248,7 +247,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         snapshotId,
         relativeTablePath,
         absoluteTablePath,
-        tableSchemaJson,
+        tableSchema,
         partitions,
         table,
         clickhouseTableConfigs,
@@ -291,7 +290,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         snapshotId,
         relativeTablePath,
         absoluteTablePath,
-        tableSchemaJson,
+        tableSchema,
         partitions,
         table,
         clickhouseTableConfigs,
@@ -311,7 +310,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       snapshotId: String,
       relativeTablePath: String,
       absoluteTablePath: String,
-      tableSchemaJson: String,
+      tableSchema: StructType,
       partitions: ArrayBuffer[InputPartition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
@@ -332,14 +331,14 @@ object MergeTreePartsPartitionsUtil extends Logging {
           snapshotId,
           relativeTablePath,
           absoluteTablePath,
-          table.orderByKey(),
-          table.lowCardKey(),
-          table.minmaxIndexKey(),
-          table.bfIndexKey(),
-          table.setIndexKey(),
-          table.primaryKey(),
+          table.orderByKey,
+          table.lowCardKey,
+          table.minmaxIndexKey,
+          table.bfIndexKey,
+          table.setIndexKey,
+          table.primaryKey,
           currentFiles.toArray,
-          tableSchemaJson,
+          tableSchema,
           clickhouseTableConfigs
         )
         partitions += newPartition
@@ -367,7 +366,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       snapshotId: String,
       relativeTablePath: String,
       absoluteTablePath: String,
-      tableSchemaJson: String,
+      tableSchema: StructType,
       partitions: ArrayBuffer[InputPartition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
@@ -392,14 +391,14 @@ object MergeTreePartsPartitionsUtil extends Logging {
           snapshotId,
           relativeTablePath,
           absoluteTablePath,
-          table.orderByKey(),
-          table.lowCardKey(),
-          table.minmaxIndexKey(),
-          table.bfIndexKey(),
-          table.setIndexKey(),
-          table.primaryKey(),
+          table.orderByKey,
+          table.lowCardKey,
+          table.minmaxIndexKey,
+          table.bfIndexKey,
+          table.setIndexKey,
+          table.primaryKey,
           currentFiles.toArray,
-          tableSchemaJson,
+          tableSchema,
           clickhouseTableConfigs
         )
         partitions += newPartition
@@ -448,7 +447,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       selectedPartitions: Array[PartitionDirectory],
-      tableSchemaJson: String,
+      tableSchema: StructType,
       partitions: ArrayBuffer[InputPartition],
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
@@ -492,7 +491,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         tableName,
         relativeTablePath,
         absoluteTablePath,
-        tableSchemaJson,
+        tableSchema,
         table,
         clickhouseTableConfigs,
         filterExprs,
@@ -540,14 +539,14 @@ object MergeTreePartsPartitionsUtil extends Logging {
             snapshotId,
             relativeTablePath,
             absoluteTablePath,
-            table.orderByKey(),
-            table.lowCardKey(),
-            table.minmaxIndexKey(),
-            table.bfIndexKey(),
-            table.setIndexKey(),
-            table.primaryKey(),
+            table.orderByKey,
+            table.lowCardKey,
+            table.minmaxIndexKey,
+            table.bfIndexKey,
+            table.setIndexKey,
+            table.primaryKey,
             currentFiles.toArray,
-            tableSchemaJson,
+            tableSchema,
             clickhouseTableConfigs
           )
           partitions += newPartition
@@ -571,7 +570,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       tableName: String,
       relativeTablePath: String,
       absoluteTablePath: String,
-      tableSchemaJson: String,
+      tableSchema: StructType,
       table: ClickHouseTableV2,
       clickhouseTableConfigs: Map[String, String],
       filterExprs: Seq[Expression],
@@ -590,14 +589,14 @@ object MergeTreePartsPartitionsUtil extends Logging {
           snapshotId,
           relativeTablePath,
           absoluteTablePath,
-          table.orderByKey(),
-          table.lowCardKey(),
-          table.minmaxIndexKey(),
-          table.bfIndexKey(),
-          table.setIndexKey(),
-          table.primaryKey(),
+          table.orderByKey,
+          table.lowCardKey,
+          table.minmaxIndexKey,
+          table.bfIndexKey,
+          table.setIndexKey,
+          table.primaryKey,
           PartSerializer.fromAddMergeTreeParts(selectPartsFiles),
-          tableSchemaJson,
+          tableSchema,
           clickhouseTableConfigs.asJava,
           new JArrayList[String]()
         )

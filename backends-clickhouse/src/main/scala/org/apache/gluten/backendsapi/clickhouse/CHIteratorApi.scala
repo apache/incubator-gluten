@@ -149,7 +149,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             p.setIndexKey,
             p.primaryKey,
             PartSerializer.fromMergeTreePartSplits(p.partList.toSeq),
-            p.tableSchemaJson,
+            p.tableSchema,
             p.clickhouseTableConfigs.asJava,
             CHAffinity.getNativeMergeTreePartitionLocations(p).toList.asJava
           )
