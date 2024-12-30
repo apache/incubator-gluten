@@ -690,6 +690,30 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  /** Generate an expression transformer to transform JsonToStructs to Substrait. */
+  override def genFromJsonTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: JsonToStructs): ExpressionTransformer = {
+    if (!SparkShimLoader.getSparkShims.fromJsonSupportPartialResults) {
+      throw new GlutenNotSupportException("'from_json' is not supported in Velox")
+    }
+    if (!expr.options.isEmpty) {
+      throw new GlutenNotSupportException("'from_json' with options is not supported in Velox")
+    }
+    val hasCorruptRecord = expr.schema match {
+      case s: StructType =>
+        !s.filter(_.name == SQLConf.get.getConf(SQLConf.COLUMN_NAME_OF_CORRUPT_RECORD)).isEmpty
+      case other =>
+        false
+    }
+    if (hasCorruptRecord) {
+      throw new GlutenNotSupportException(
+        "'from_json' with column corrupt record is not supported in Velox")
+    }
+    GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
   /** Generate an expression transformer to transform NamedStruct to Substrait. */
   override def genNamedStructTransformer(
       substraitExprName: String,
