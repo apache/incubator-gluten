@@ -16,8 +16,8 @@
  */
 package org.apache.spark.shuffle.gluten.celeborn;
 
-import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
+import org.apache.gluten.config.GlutenConfig$;
 import org.apache.gluten.exception.GlutenException;
 
 import com.google.common.base.Preconditions;
@@ -216,7 +216,7 @@ public class CelebornShuffleManager implements ShuffleManager {
     if (dependency instanceof ColumnarShuffleDependency) {
       if (fallbackPolicyRunner.applyAllFallbackPolicy(
           lifecycleManager, dependency.partitioner().numPartitions())) {
-        if (GlutenConfig.getConf().enableCelebornFallback()) {
+        if (GlutenConfig$.MODULE$.get().enableCelebornFallback()) {
           logger.warn("Fallback to ColumnarShuffleManager!");
           columnarShuffleIds.add(shuffleId);
           return columnarShuffleManager().registerShuffle(shuffleId, dependency);

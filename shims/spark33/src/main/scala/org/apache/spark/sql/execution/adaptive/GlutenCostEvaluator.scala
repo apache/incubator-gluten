@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.adaptive
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.execution.SparkPlan
@@ -26,7 +26,7 @@ import org.apache.spark.sql.internal.SQLConf
 case class GlutenCostEvaluator() extends CostEvaluator with SQLConfHelper {
   override def evaluateCost(plan: SparkPlan): Cost = {
     val forceOptimizeSkewedJoin = conf.getConf(SQLConf.ADAPTIVE_FORCE_OPTIMIZE_SKEWED_JOIN)
-    if (GlutenConfig.getConf.enableGluten) {
+    if (GlutenConfig.get.enableGluten) {
       new GlutenCost(SimpleCostEvaluator(forceOptimizeSkewedJoin), plan)
     } else {
       SimpleCostEvaluator(forceOptimizeSkewedJoin).evaluateCost(plan)

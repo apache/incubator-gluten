@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -56,8 +56,8 @@ class RewriteDateTimestampComparisonRule(spark: SparkSession)
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       plan.resolved &&
-      GlutenConfig.getConf.enableGluten &&
-      GlutenConfig.getConf.enableRewriteDateTimestampComparison
+      GlutenConfig.get.enableGluten &&
+      GlutenConfig.get.enableRewriteDateTimestampComparison
     ) {
       visitPlan(plan)
     } else {

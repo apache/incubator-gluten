@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ExpressionNames._
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -339,7 +339,7 @@ object ExpressionMappings {
   )
 
   def expressionsMap: Map[Class[_], String] = {
-    val blacklist = GlutenConfig.getConf.expressionBlacklist
+    val blacklist = GlutenConfig.get.expressionBlacklist
     val filtered = (defaultExpressionsMap ++ toMap(
       BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)).filterNot(
       kv => blacklist.contains(kv._2))

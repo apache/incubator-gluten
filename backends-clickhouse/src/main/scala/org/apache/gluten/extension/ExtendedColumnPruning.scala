@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -36,7 +36,7 @@ object ExtendedGeneratorNestedColumnAliasing {
   def unapply(plan: LogicalPlan): Option[LogicalPlan] = plan match {
     case pj @ Project(projectList, f @ Filter(condition, g: Generate))
         if canPruneGenerator(g.generator) &&
-          GlutenConfig.getConf.enableExtendedColumnPruning &&
+          GlutenConfig.get.enableExtendedColumnPruning &&
           (SQLConf.get.nestedPruningOnExpressions || SQLConf.get.nestedSchemaPruningEnabled) =>
       val attrToExtractValues =
         getAttributeToExtractValues(projectList ++ g.generator.children :+ condition, Seq.empty)

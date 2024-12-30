@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}

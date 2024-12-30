@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, BitwiseAnd, Expression, HiveHash, Literal, Pmod}
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
@@ -34,8 +34,8 @@ object WriteFilesWithBucketValue extends Rule[SparkPlan] {
 
   override def apply(plan: SparkPlan): SparkPlan = {
     if (
-      GlutenConfig.getConf.enableGluten
-      && GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+      GlutenConfig.get.enableGluten
+      && GlutenConfig.get.enableNativeWriter.getOrElse(false)
     ) {
       plan.transformDown {
         case writeFiles: WriteFilesExec if writeFiles.bucketSpec.isDefined =>
