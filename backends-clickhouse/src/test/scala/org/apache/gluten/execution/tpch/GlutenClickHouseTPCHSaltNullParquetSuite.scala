@@ -3351,18 +3351,6 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_7759")
   }
 
-  test("GLUTEN-8343: Cast number to decimal") {
-    val table_create_sql = "create table test_tbl_8343(id bigint, d bigint, f double) using parquet"
-    val insert_data_sql =
-      "insert into test_tbl_8343 values(1, 55, 55.12345), (2, 137438953483, 137438953483.12345), (3, -12, -12.123), (4, 0, 0.0001), (5, NULL, NULL)"
-    val query_sql =
-      "select cast(d as decimal(1, 0)), cast(d as decimal(9, 1)), cast((f-55.12345) as decimal(9,1)), cast(f as decimal(4,2)), cast(f as decimal(32, 3)), cast(f as decimal(2, 1)) from test_tbl_8343"
-    spark.sql(table_create_sql);
-    spark.sql(insert_data_sql);
-    compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
-    spark.sql("drop table test_tbl_8343")
-  }
-
   test("GLUTEN-8253: Fix cast failed when in-filter with tuple values") {
     spark.sql("drop table if exists test_filter")
     spark.sql("create table test_filter(c1 string, c2 string) using parquet")
@@ -3374,6 +3362,20 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
                  |""".stripMargin)
     val sql = "select * from test_filter where (c1, c2) in (('a1', 'b1'), ('a2', 'b2'))"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-8343: Cast number to decimal") {
+    val table_create_sql = "create table test_tbl_8343(id bigint, d bigint, f double) using parquet"
+    val insert_data_sql =
+      "insert into test_tbl_8343 values(1, 55, 55.12345), (2, 137438953483, 137438953483.12345), (3, -12, -12.123), (4, 0, 0.0001), (5, NULL, NULL), (6, %d, NULL), (7, %d, NULL)"
+        .format(Double.MaxValue.longValue(), Double.MinValue.longValue())
+    val query_sql =
+      "select cast(d as decimal(1, 0)), cast(d as decimal(9, 1)), cast((f-55.12345) as decimal(9,1)), cast(f as decimal(4,2)), " +
+        "cast(f as decimal(32, 3)), cast(f as decimal(2, 1)), cast(d as decimal(38,3)) from test_tbl_8343"
+    spark.sql(table_create_sql);
+    spark.sql(insert_data_sql);
+    compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+    spark.sql("drop table test_tbl_8343")
   }
 
 }
