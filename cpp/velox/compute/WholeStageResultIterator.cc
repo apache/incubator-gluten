@@ -140,6 +140,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             std::nullopt,
             customSplitInfo,
             nullptr,
+            true,
             deleteFiles,
             std::unordered_map<std::string, std::string>(),
             properties[idx]);
@@ -156,6 +157,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             nullptr,
             std::unordered_map<std::string, std::string>(),
             0,
+            true,
             metadataColumn,
             properties[idx]);
       }
