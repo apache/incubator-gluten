@@ -157,8 +157,7 @@ abstract class WholeStageTransformerSuite
       tpchQueries: String,
       queriesResults: String,
       compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    assert(noFallBack)
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit =
     withDataFrame(tpchSQL(queryNum, tpchQueries)) {
       df =>
         if (compareResult) {
@@ -168,7 +167,6 @@ abstract class WholeStageTransformerSuite
         }
         checkDataFrame(noFallBack, customCheck, df)
     }
-  }
 
   protected def runSql(sql: String, noFallBack: Boolean = true)(
       customCheck: DataFrame => Unit): Seq[Row] = withDataFrame(sql) {

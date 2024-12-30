@@ -310,6 +310,7 @@ class VeloxTPCHV1GlutenShuffleManagerSuite extends VeloxTPCHSuite {
       compareResult: Boolean,
       noFallBack: Boolean,
       cache: Boolean)(customCheck: DataFrame => Unit): DataFrame = {
+    assert(noFallBack)
     super.runQueryAndCompare(sqlStr, compareResult, noFallBack, cache) {
       df =>
         assert(df.queryExecution.executedPlan.collect {
