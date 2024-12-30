@@ -312,7 +312,9 @@ class VeloxTPCHV1GlutenShuffleManagerSuite extends VeloxTPCHSuite {
       cache: Boolean)(customCheck: DataFrame => Unit): DataFrame = {
     super.runQueryAndCompare(sqlStr, compareResult, noFallBack, cache) {
       df =>
-        assert(df.queryExecution.executedPlan.exists(_.isInstanceOf[ColumnarShuffleExchangeExec]))
+        assert(df.queryExecution.executedPlan.collect {
+          case p if p.isInstanceOf[ColumnarShuffleExchangeExec] => p
+        }.nonEmpty)
         customCheck(df)
     }
   }
