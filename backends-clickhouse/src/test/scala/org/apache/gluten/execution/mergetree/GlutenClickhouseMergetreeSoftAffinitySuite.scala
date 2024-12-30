@@ -23,6 +23,7 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePartsPartitionsUtil
+import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.Path
 
@@ -79,7 +80,7 @@ class GlutenClickhouseMergetreeSoftAffinitySuite
       "123",
       relativeTablePath,
       "/tmp",
-      "",
+      StructType(Seq()),
       partitions,
       new ClickHouseTableV2(spark, new Path("/")),
       mutable.Map[String, String]().toMap,

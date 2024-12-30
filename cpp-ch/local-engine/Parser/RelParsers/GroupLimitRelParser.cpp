@@ -47,8 +47,8 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/AggregateUtil.h>
 #include <Common/ArrayJoinHelper.h>
-#include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
+#include <Common/PlanUtil.h>
 #include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
 

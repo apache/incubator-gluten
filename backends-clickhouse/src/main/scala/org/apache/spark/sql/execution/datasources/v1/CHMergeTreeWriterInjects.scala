@@ -31,6 +31,7 @@ import org.apache.spark.sql.delta.MergeTreeFileFormat
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRowAdaptor, OutputWriter}
+import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableNode
 import org.apache.spark.sql.execution.datasources.mergetree.{MetaSerializer, PartSerializer, StorageConfigProvider, StorageMeta}
 import org.apache.spark.sql.types.StructType
 
@@ -149,15 +150,15 @@ object CHMergeTreeWriterInjects {
       database: String,
       tableName: String,
       snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
+      orderByKey: String,
+      lowCardKey: String,
+      minmaxIndexKey: String,
+      bfIndexKey: String,
+      setIndexKey: String,
+      primaryKey: String,
       partitionColumns: Seq[String],
       partList: Seq[String],
-      tableSchemaJson: String,
+      tableSchema: StructType,
       clickhouseTableConfigs: Map[String, String],
       output: Seq[Attribute]): PlanWithSplitInfo = {
     // scalastyle:on argcount
@@ -174,20 +175,20 @@ object CHMergeTreeWriterInjects {
 
     val substraitContext = new SubstraitContext
 
-    val extensionTable = MetaSerializer.apply1(
+    val result = MetaSerializer.apply(
       database,
       tableName,
       snapshotId,
       path,
       "",
-      orderByKeyOption,
-      lowCardKeyOption,
-      minmaxIndexKeyOption,
-      bfIndexKeyOption,
-      setIndexKeyOption,
-      primaryKeyOption,
+      orderByKey,
+      lowCardKey,
+      minmaxIndexKey,
+      bfIndexKey,
+      setIndexKey,
+      primaryKey,
       PartSerializer.fromPartNames(partList),
-      tableSchemaJson,
+      tableSchema,
       clickhouseTableConfigs.asJava
     )
 
@@ -207,6 +208,6 @@ object CHMergeTreeWriterInjects {
     val plan =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode), nameList).toProtobuf
 
-    PlanWithSplitInfo(plan.toByteArray, extensionTable.toByteArray)
+    PlanWithSplitInfo(plan.toByteArray, ExtensionTableNode.toProtobuf(result).toByteArray)
   }
 }

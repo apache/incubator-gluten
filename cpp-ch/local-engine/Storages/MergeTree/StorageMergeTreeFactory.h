@@ -65,9 +65,9 @@ public:
     static StorageMergeTreeFactory & instance();
     static void freeStorage(const DB::StorageID & id, const String & snapshot_id = "");
     static SparkStorageMergeTreePtr
-    getStorage(const DB::StorageID& id, const String & snapshot_id, MergeTreeTable merge_tree_table,
+    getStorage(const DB::StorageID& id, const String & snapshot_id, const MergeTreeTable & merge_tree_table,
         const std::function<SparkStorageMergeTreePtr()> & creator);
-    static DB::DataPartsVector getDataPartsByNames(const DB::StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name);
+    static DB::DataPartsVector getDataPartsByNames(const DB::StorageID & id, const String & snapshot_id, const std::unordered_set<String> & part_name);
     static void init_cache_map()
     {
         auto config = MergeTreeConfig::loadFromContext(QueryContext::globalContext());

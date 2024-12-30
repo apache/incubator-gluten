@@ -68,12 +68,8 @@ DB::ProcessorPtr make_sink(
 
 DB::ExpressionActionsPtr create_rename_action(const DB::Block & input, const DB::Block & output)
 {
-    DB::NamesWithAliases aliases;
-    for (auto output_name = output.begin(), input_iter = input.begin(); output_name != output.end(); ++output_name, ++input_iter)
-        aliases.emplace_back(DB::NameWithAlias(input_iter->name, output_name->name));
-
     ActionsDAG actions_dag{blockToNameAndTypeList(input)};
-    actions_dag.project(aliases);
+    actions_dag.project(buildNamesWithAliases(input, output));
     return std::make_shared<DB::ExpressionActions>(std::move(actions_dag));
 }
 
@@ -106,28 +102,14 @@ void adjust_output(const DB::QueryPipelineBuilderPtr & builder, const DB::Block 
             input.columns(),
             output.columns());
     }
-
-    auto mismatch_pair = std::mismatch(
-        input.begin(),
-        input.end(),
-        output.begin(),
-        [](const DB::ColumnWithTypeAndName & lhs, const DB::ColumnWithTypeAndName & rhs) { return lhs.name == rhs.name; });
-    bool name_is_different = mismatch_pair.first != input.end();
-
-    mismatch_pair = std::mismatch(
-        input.begin(),
-        input.end(),
-        output.begin(),
-        [](const DB::ColumnWithTypeAndName & lhs, const DB::ColumnWithTypeAndName & rhs) { return lhs.type->equals(*rhs.type); });
-    bool type_is_different = mismatch_pair.first != input.end();
-
     DB::ExpressionActionsPtr convert_action;
-
-    if (type_is_different)
-        convert_action = create_project_action(input, output);
-
-    if (name_is_different && !convert_action)
-        convert_action = create_rename_action(input, output);
+    if (sameType(input, output))
+    {
+        if (!sameName(input, output))
+            convert_action = create_rename_action(input, output); // name_is_different
+    }
+    else
+        convert_action = create_project_action(input, output); // type_is_different
 
     if (!convert_action)
         return;

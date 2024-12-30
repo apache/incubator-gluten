@@ -80,7 +80,7 @@ public:
     std::unordered_map<std::string, UInt64> column_sizes;
 
 private:
-    void parseToAction(DB::ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name);
+    void parseToAction(DB::ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name) const;
     DB::PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, const DB::Block & input);
     DB::ActionsDAG optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, const DB::Block & block);
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;

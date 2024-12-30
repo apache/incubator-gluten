@@ -21,7 +21,7 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
-import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTimeTravelSpec, Snapshot}
+import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog, DeltaTimeTravelSpec, Snapshot}
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2.deltaLog2Table
 import org.apache.spark.sql.delta.sources.DeltaDataSource
@@ -31,11 +31,10 @@ import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.collection.BitSet
-
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.types.StructType
 
 import java.{util => ju}
-
 import scala.collection.JavaConverters._
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
@@ -67,12 +66,7 @@ class ClickHouseTableV2(
     }
   }
 
-  private lazy val timeTravelSpec: Option[DeltaTimeTravelSpec] = {
-    if (timeTravelOpt.isDefined && timeTravelByPath.isDefined) {
-      throw DeltaErrors.multipleTimeTravelSyntaxUsed
-    }
-    timeTravelOpt.orElse(timeTravelByPath)
-  }
+  override protected lazy val tableSchema: StructType = schema()
 
   override def name(): String =
     catalogTable
@@ -122,7 +116,7 @@ class TempClickHouseTableV2(
   extends ClickHouseTableV2(spark, null, catalogTable) {
   import collection.JavaConverters._
   override def properties(): ju.Map[String, String] = catalogTable.get.properties.asJava
-  override lazy val partitionColumns: Seq[String] = catalogTable.get.partitionColumnNames
+  override protected def rawPartitionColumns: Seq[String] = catalogTable.get.partitionColumnNames
   override def cacheThis(): Unit = {}
 }
 

@@ -19,6 +19,7 @@
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Rewriter/ExpressionRewriter.h>
 #include <Common/CHUtil.h>
+#include <Common/PlanUtil.h>
 
 namespace local_engine
 {
@@ -69,8 +70,7 @@ FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     }
 
     // remove nullable
-    auto remove_null_step = PlanUtil::addRemoveNullableStep(parser_context->queryContext(), *query_plan, non_nullable_columns);
-    if (remove_null_step)
+    if (auto remove_null_step = PlanUtil::addRemoveNullableStep(*query_plan, parser_context->queryContext(), non_nullable_columns))
     {
         steps.emplace_back(remove_null_step);
     }

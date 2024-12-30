@@ -183,7 +183,7 @@ case class GlutenCHCacheDataCommand(
             snapshot.metadata.configuration.getOrElse("setIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("primaryKey", ""),
             PartSerializer.fromPartNames(parts.map(_.name).toSeq),
-            ConverterUtils.convertNamedStructJson(snapshot.metadata.schema),
+            snapshot.metadata.schema,
             snapshot.metadata.configuration.asJava,
             new JList[String]()
           )

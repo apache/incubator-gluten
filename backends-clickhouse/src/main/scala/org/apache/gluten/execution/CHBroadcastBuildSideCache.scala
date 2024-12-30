@@ -38,9 +38,6 @@ case class BroadcastHashTable(pointer: Long, relation: ClickHouseBuildSideRelati
  */
 object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, BroadcastHashTable] {
 
-  private def threadLog(msg: => String): Unit =
-    logDebug(s"Thread: ${Thread.currentThread().getId} -- $msg")
-
   private lazy val expiredTime = SparkEnv.get.conf.getLong(
     CHBackendSettings.GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME,
     CHBackendSettings.GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT
@@ -66,7 +63,7 @@ object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, Br
             broadcast.value
               .asInstanceOf[ClickHouseBuildSideRelation]
               .buildHashTable(broadCastContext)
-          threadLog(s"create bhj $broadcast_id = 0x${pointer.toHexString}")
+          logDebug(s"Create bhj $broadcast_id = 0x${pointer.toHexString}")
           BroadcastHashTable(pointer, relation)
         }
       )
@@ -89,7 +86,7 @@ object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, Br
   def cleanAll(): Unit = buildSideRelationCache.invalidateAll()
 
   override def onRemoval(key: String, value: BroadcastHashTable, cause: RemovalCause): Unit = {
-    threadLog(s"remove bhj $key = 0x${value.pointer.toHexString}")
+    logDebug(s"Remove bhj $key = 0x${value.pointer.toHexString}")
     if (value.relation != null) {
       value.relation.reset()
     }

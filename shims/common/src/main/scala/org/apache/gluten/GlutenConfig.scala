@@ -129,18 +129,25 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def scanFileSchemeValidationEnabled: Boolean =
     conf.getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
 
-  // whether to use ColumnarShuffleManager
+  // Whether to use GlutenShuffleManager (experimental).
+  def isUseGlutenShuffleManager: Boolean =
+    conf
+      .getConfString("spark.shuffle.manager", "sort")
+      .equals("org.apache.spark.shuffle.sort.GlutenShuffleManager")
+
+  // Whether to use ColumnarShuffleManager.
   def isUseColumnarShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
       .equals("org.apache.spark.shuffle.sort.ColumnarShuffleManager")
 
-  // whether to use CelebornShuffleManager
+  // Whether to use CelebornShuffleManager.
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
       .contains("celeborn")
 
+  // Whether to use UniffleShuffleManager.
   def isUseUniffleShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")

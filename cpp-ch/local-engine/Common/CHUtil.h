@@ -115,14 +115,6 @@ private:
     const DB::ColumnWithTypeAndName * findColumn(const DB::Block & block, const std::string & name) const;
 };
 
-namespace PlanUtil
-{
-std::string explainPlan(DB::QueryPlan & plan);
-void checkOuputType(const DB::QueryPlan & plan);
-DB::IQueryPlanStep * adjustQueryPlanHeader(DB::QueryPlan & plan, const DB::Block & to_header, const String & step_desc = "");
-DB::IQueryPlanStep * addRemoveNullableStep(DB::ContextPtr context, DB::QueryPlan & plan, const std::set<String> & columns);
-};
-
 class ActionsDAGUtil
 {
 public:
