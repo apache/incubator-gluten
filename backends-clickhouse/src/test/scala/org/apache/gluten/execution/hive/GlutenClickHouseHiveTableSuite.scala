@@ -1365,7 +1365,7 @@ class GlutenClickHouseHiveTableSuite
 
   test("GLUTEN-7502: Orc write time zone") {
     val create_table_sql = "create table test_tbl_7502(id bigint, t timestamp) using orc"
-    val insert_sql = "insert into test_tbl_7502 values(1, '2024-10-09 20:00:00')"
+    val insert_sql = "insert into test_tbl_7502 values(1, cast('2024-10-09 20:00:00' as timestamp))"
     val select_sql = "select * from test_tbl_7502"
     spark.sql(create_table_sql)
     spark.sql(insert_sql);
