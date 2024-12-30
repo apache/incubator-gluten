@@ -231,35 +231,17 @@ private:
         typename ToDataType::FieldType & result)
     {
         using FromFieldType = typename FromDataType::FieldType;
-
-        double int_part = 0, double_max_value = std::numeric_limits<double>::max(), double_min_value = std::numeric_limits<double>::min();
-        bool value_exceed_double_max_min = false;
-        long double bigint_part = 0;
-
+        long double int_part = 0;
         if constexpr (std::is_same_v<FromFieldType, Float32> || std::is_same_v<FromFieldType, Float64>)
             int_part = value < 0 ? std::ceil(value) : std::floor(value);
         else if constexpr (std::is_same_v<FromFieldType, BFloat16>)
             int_part = value < 0 ? std::ceil(static_cast<Float32>(value)) : std::floor(static_cast<Float32>(value));
         else
-        {
-            if (value > double_max_value || value < double_min_value)
-            {
-                bigint_part = static_cast<long double>(value);
-                value_exceed_double_max_min = true;
-            }
-            else
-                int_part = static_cast<double>(value);
-        }
+            int_part = static_cast<long double>(value);
 
-        int int_part_digits = 0;
-        if (!value_exceed_double_max_min)
-            int_part_digits = int_part == 0 ? 1 :
+        int int_part_digits = int_part == 0 ? 1 :
                               int_part > 0 ? static_cast<int>(std::log10(int_part)) + 1
                                            : static_cast<int>(std::log10(std::fabs(int_part))) + 1;
-        else
-            int_part_digits = bigint_part == 0 ? 1 :
-                              bigint_part > 0 ? static_cast<int>(std::log10(bigint_part)) + 1
-                                              : static_cast<int>(std::log10(std::abs(bigint_part))) + 1;
         /// If the integer part's digits of the number is greater than (precision_to - scale_to), e.g. cast(55 as decimal(2, 1)),
         /// then we should return NULL or throw exceptions.
         if (int_part_digits > precision_to - scale_to)
