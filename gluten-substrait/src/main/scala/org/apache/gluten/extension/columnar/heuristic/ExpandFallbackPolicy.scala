@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.heuristic
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.{FallbackTag, FallbackTags}
 import org.apache.gluten.extension.columnar.FallbackTags.add
@@ -74,7 +74,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
   import ExpandFallbackPolicy._
 
   private def countTransitionCost(plan: SparkPlan): Int = {
-    val ignoreRowToColumnar = GlutenConfig.getConf.fallbackIgnoreRowToColumnar
+    val ignoreRowToColumnar = GlutenConfig.get.fallbackIgnoreRowToColumnar
     var transitionCost = 0
     def countFallbackInternal(plan: SparkPlan): Unit = {
       plan match {
@@ -183,7 +183,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
 
   private def fallback(plan: SparkPlan): FallbackInfo = {
     val fallbackThreshold = if (isAdaptiveContext) {
-      GlutenConfig.getConf.wholeStageFallbackThreshold
+      GlutenConfig.get.wholeStageFallbackThreshold
     } else if (plan.find(_.isInstanceOf[AdaptiveSparkPlanExec]).isDefined) {
       // if we are here, that means we are now at `QueryExecution.preparations` and
       // AQE is actually not applied. We do nothing for this case, and later in
@@ -191,7 +191,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       return FallbackInfo.DO_NOT_FALLBACK()
     } else {
       // AQE is not applied, so we use the whole query threshold to check if should fallback
-      GlutenConfig.getConf.queryFallbackThreshold
+      GlutenConfig.get.queryFallbackThreshold
     }
     if (fallbackThreshold < 0) {
       return FallbackInfo.DO_NOT_FALLBACK()
@@ -255,7 +255,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       val vanillaSparkPlan = fallbackToRowBasedPlan(plan, outputsColumnar)
       val vanillaSparkTransitionCost = countTransitionCostForVanillaSparkPlan(vanillaSparkPlan)
       if (
-        GlutenConfig.getConf.fallbackPreferColumnar &&
+        GlutenConfig.get.fallbackPreferColumnar &&
         fallbackInfo.netTransitionCost <= vanillaSparkTransitionCost
       ) {
         plan

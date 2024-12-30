@@ -16,7 +16,7 @@
  */
 package org.apache.spark.softaffinity
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.softaffinity.{AffinityManager, SoftAffinityManager}
 
@@ -66,7 +66,7 @@ abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with 
     val locations = manager.askExecutors(filePath)
     if (locations.nonEmpty) {
       logOnLevel(
-        GlutenConfig.getConf.softAffinityLogLevel,
+        GlutenConfig.get.softAffinityLogLevel,
         s"SAMetrics=File $filePath - the expected executors are ${locations.mkString("_")} ")
       locations.map { case (executor, host) => toTaskLocation(host, executor) }
     } else {

@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.execution.ColumnarNativeIterator;
 import org.apache.gluten.memory.CHThreadGroup;
 import org.apache.gluten.utils.ConfigUtil;

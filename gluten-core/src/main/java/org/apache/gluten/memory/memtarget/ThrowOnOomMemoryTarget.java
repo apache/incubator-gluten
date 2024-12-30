@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.memtarget;
 
-import org.apache.gluten.GlutenConfig$;
+import org.apache.gluten.config.GlutenConfig$;
 
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.sql.internal.SQLConf;

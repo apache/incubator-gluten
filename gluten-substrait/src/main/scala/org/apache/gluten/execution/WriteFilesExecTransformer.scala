@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
@@ -118,7 +118,7 @@ case class WriteFilesExecTransformer(
   }
 
   private def getFinalChildOutput: Seq[Attribute] = {
-    val metadataExclusionList = conf
+    val metadataExclusionList = GlutenConfig.get
       .getConf(GlutenConfig.NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST)
       .split(",")
       .map(_.trim)
