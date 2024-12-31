@@ -36,6 +36,12 @@ object RuntimeSettings {
       .doc("https://clickhouse.com/docs/en/operations/settings/query-complexity#settings-max_bytes_before_external_sort")
       .longConf
       .createWithDefault(0)
+
+  val QUERY_PLAN_ENABLE_OPTIMIZATIONS =
+    buildConf(runtimeSettings("query_plan_enable_optimizations"))
+      .doc("https://clickhouse.com/docs/en/operations/settings/settings#query_plan_enable_optimizations")
+      .booleanConf
+      .createWithDefault(false) // different from the default value in Clickhouse
   // scalastyle:on line.size.limit
 
   /** Gluten Configuration */
