@@ -881,13 +881,25 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   test("Test transform_keys/transform_values") {
     val sql = """
+                |select id, sort_array(map_entries(m1)), sort_array(map_entries(m2)) from(
+                |select id, first(m1) as m1, first(m2) as m2 from(
                 |select
+                |  id,
                 |  transform_keys(map_from_arrays(array(id+1, id+2, id+3),
-                |    array(1, id+2, 3)), (k, v) -> k + 1),
+                |    array(1, id+2, 3)), (k, v) -> k + 1) as m1,
                 |  transform_values(map_from_arrays(array(id+1, id+2, id+3),
-                |    array(1, id+2, 3)), (k, v) -> v + 1)
+                |    array(1, id+2, 3)), (k, v) -> v + 1) as m2
                 |from range(10)
+                |) group by id
+                |) order by id
                 |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    def checkProjects(df: DataFrame): Unit = {
+      val projects = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case e: ProjectExecTransformer => e
+      }
+      assert(projects.size >= 1)
+    }
+    compareResultsAgainstVanillaSpark(sql, true, checkProjects, false)
   }
 }
