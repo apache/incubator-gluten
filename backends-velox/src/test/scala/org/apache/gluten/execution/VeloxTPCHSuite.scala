@@ -20,7 +20,7 @@ import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row, TestUtils}
-import org.apache.spark.sql.execution.FormattedMode
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, FormattedMode}
 
 import org.apache.commons.io.FileUtils
 
@@ -117,133 +117,133 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
   }
 
   test("TPC-H q1") {
-    runTPCHQuery(1, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(1, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 1)
     }
   }
 
   test("TPC-H q2") {
-    runTPCHQuery(2, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(2, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       _ => // due to tpc-h q2 will generate multiple plans, skip checking golden file for now
     }
   }
 
   test("TPC-H q3") {
-    runTPCHQuery(3, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(3, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 3)
     }
   }
 
   test("TPC-H q4") {
-    runTPCHQuery(4, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(4, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 4)
     }
   }
 
   test("TPC-H q5") {
-    runTPCHQuery(5, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(5, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 5)
     }
   }
 
   test("TPC-H q6") {
-    runTPCHQuery(6, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(6, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 6)
     }
   }
 
   test("TPC-H q7") {
-    runTPCHQuery(7, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(7, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 7)
     }
   }
 
   test("TPC-H q8") {
-    runTPCHQuery(8, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(8, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 8)
     }
   }
 
   test("TPC-H q9") {
-    runTPCHQuery(9, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(9, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 9)
     }
   }
 
   test("TPC-H q10") {
-    runTPCHQuery(10, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(10, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 10)
     }
   }
 
   test("TPC-H q11") {
-    runTPCHQuery(11, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(11, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 11)
     }
   }
 
   test("TPC-H q12") {
-    runTPCHQuery(12, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(12, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 12)
     }
   }
 
   test("TPC-H q13") {
-    runTPCHQuery(13, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(13, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 13)
     }
   }
 
   test("TPC-H q14") {
-    runTPCHQuery(14, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(14, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 14)
     }
   }
 
   test("TPC-H q15") {
-    runTPCHQuery(15, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(15, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 15)
     }
   }
 
   test("TPC-H q16") {
-    runTPCHQuery(16, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(16, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 16)
     }
   }
 
   test("TPC-H q17") {
-    runTPCHQuery(17, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(17, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 17)
     }
   }
 
   test("TPC-H q18") {
-    runTPCHQuery(18, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(18, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 18)
     }
   }
 
   test("TPC-H q19") {
-    runTPCHQuery(19, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(19, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 19)
     }
   }
 
   test("TPC-H q20") {
-    runTPCHQuery(20, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(20, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 20)
     }
   }
 
   test("TPC-H q21") {
-    runTPCHQuery(21, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(21, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 21)
     }
   }
 
   test("TPC-H q22") {
-    runTPCHQuery(22, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(22, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 22)
     }
   }
@@ -303,6 +303,21 @@ class VeloxTPCHV1GlutenShuffleManagerSuite extends VeloxTPCHSuite {
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.GlutenShuffleManager")
+  }
+
+  override protected def runQueryAndCompare(
+      sqlStr: String,
+      compareResult: Boolean,
+      noFallBack: Boolean,
+      cache: Boolean)(customCheck: DataFrame => Unit): DataFrame = {
+    assert(noFallBack)
+    super.runQueryAndCompare(sqlStr, compareResult, noFallBack, cache) {
+      df =>
+        assert(df.queryExecution.executedPlan.collect {
+          case p if p.isInstanceOf[ColumnarShuffleExchangeExec] => p
+        }.nonEmpty)
+        customCheck(df)
+    }
   }
 }
 
