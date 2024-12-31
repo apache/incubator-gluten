@@ -20,6 +20,7 @@
 
 namespace DB
 {
+struct QueryPlanOptimizationSettings;
 struct Settings;
 }
 namespace local_engine
@@ -70,4 +71,5 @@ bool tryGetString(const DB::Settings & settings, std::string_view name, std::str
 bool settingsEqual(const DB::Settings & settings, std::string_view name, const std::string & value);
 void updateSettings(const DB::ContextMutablePtr &, std::string_view);
 
+void setGlutenOptimizationSettings(DB::QueryPlanOptimizationSettings & optimization_settings);
 } // namespace local_engine
