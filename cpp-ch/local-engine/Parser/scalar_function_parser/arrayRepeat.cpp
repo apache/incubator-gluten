@@ -71,7 +71,7 @@ public:
         NamesAndTypesList lambda_arguments_names_and_types;
         lambda_arguments_names_and_types.emplace_back(x_in_lambda->result_name, x_in_lambda->result_type);
         DB::Names required_column_names = lambda_actions_dag.getRequiredColumnsNames();
-        auto expression_actions_settings = DB::ExpressionActionsSettings::fromContext(getContext(), DB::CompileExpressions::yes);
+        auto expression_actions_settings = DB::ExpressionActionsSettings{getContext(), DB::CompileExpressions::yes};
         auto function_capture = std::make_shared<FunctionCaptureOverloadResolver>(
             std::move(lambda_actions_dag),
             expression_actions_settings,

@@ -80,7 +80,7 @@ TEST(TestFunction, In)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
     PreparedSets::Hash empty;
-    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set), std::nullopt);
     //TODO: WHY? after https://github.com/ClickHouse/ClickHouse/pull/63723 we need pass 4 instead of 1
     auto arg = ColumnSet::create(4, future_set);
 
@@ -124,7 +124,7 @@ TEST(TestFunction, NotIn1)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
     PreparedSets::Hash empty;
-    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set), std::nullopt);
 
     //TODO: WHY? after https://github.com/ClickHouse/ClickHouse/pull/63723 we need pass 4 instead of 1
     auto arg = ColumnSet::create(4, future_set);
@@ -168,7 +168,7 @@ TEST(TestFunction, NotIn2)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
     PreparedSets::Hash empty;
-    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set), std::nullopt);
 
     //TODO: WHY? after https://github.com/ClickHouse/ClickHouse/pull/63723 we need pass 4 instead of 1
     auto arg = ColumnSet::create(4, future_set);

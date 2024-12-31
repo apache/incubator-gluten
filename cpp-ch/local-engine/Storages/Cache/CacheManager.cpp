@@ -132,7 +132,9 @@ Task CacheManager::cachePart(
                 1);
             QueryPlan plan;
             plan.addStep(std::move(read_step));
-            auto pipeline_builder = plan.buildQueryPipeline({}, {});
+            DB::QueryPlanOptimizationSettings optimization_settings{context};
+            DB::BuildQueryPipelineSettings build_settings{context};
+            auto pipeline_builder = plan.buildQueryPipeline(optimization_settings, build_settings);
             auto pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder.get()));
             PullingPipelineExecutor executor(pipeline);
             while (true)

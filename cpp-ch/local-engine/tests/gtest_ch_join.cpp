@@ -126,8 +126,8 @@ TEST(TestJoin, simple)
     }
     auto hash_join = std::make_shared<HashJoin>(join, right_plan.getCurrentHeader());
 
-    QueryPlanStepPtr join_step
-        = std::make_unique<JoinStep>(left_plan.getCurrentHeader(), right_plan.getCurrentHeader(), hash_join, 8192, 8192, 1,  NameSet{}, false, false);
+    QueryPlanStepPtr join_step = std::make_unique<JoinStep>(
+        left_plan.getCurrentHeader(), right_plan.getCurrentHeader(), hash_join, 8192, 8192, 1, NameSet{}, false, false);
 
     std::cerr << "join step:" << join_step->getOutputHeader().dumpStructure() << std::endl;
 
@@ -143,7 +143,8 @@ TEST(TestJoin, simple)
         {NameWithAlias("colA", "colA"), NameWithAlias("colB", "colB"), NameWithAlias("colD", "colD"), NameWithAlias("colC", "colC")});
     QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(query_plan.getCurrentHeader(), std::move(project));
     query_plan.addStep(std::move(project_step));
-    auto pipeline = query_plan.buildQueryPipeline(QueryPlanOptimizationSettings(), BuildQueryPipelineSettings());
+    auto pipeline
+        = query_plan.buildQueryPipeline(QueryPlanOptimizationSettings{global_context}, BuildQueryPipelineSettings{global_context});
     auto executable_pipe = QueryPipelineBuilder::getPipeline(std::move(*pipeline));
     PullingPipelineExecutor executor(executable_pipe);
     auto res = pipeline->getHeader().cloneEmpty();

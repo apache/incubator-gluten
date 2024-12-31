@@ -130,7 +130,7 @@ public:
                 captured_column_names.push_back(required_column_name);
             }
         }
-        auto expression_actions_settings = DB::ExpressionActionsSettings::fromContext(getContext(), DB::CompileExpressions::yes);
+        auto expression_actions_settings = DB::ExpressionActionsSettings{getContext(), DB::CompileExpressions::yes};
         auto function_capture = std::make_shared<DB::FunctionCaptureOverloadResolver>(
             std::move(lambda_actions_dag),
             expression_actions_settings,

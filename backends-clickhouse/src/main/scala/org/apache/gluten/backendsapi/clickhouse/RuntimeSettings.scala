@@ -39,6 +39,17 @@ object RuntimeSettings {
   // scalastyle:on line.size.limit
 
   /** Gluten Configuration */
+  // scalastyle:off line.size.limit
+  val COLLECT_METRICS =
+    buildConf(runtimeSettings("collect_metrics"))
+      .doc(s"""If true, we need disable query_plan_enable_optimizations, otherwise clickhouse optimize the query plan
+              |and cause collecting metrics failed.
+              |see https://clickhouse.com/docs/en/operations/settings/settings#query_plan_enable_optimizations
+              |""".stripMargin)
+      .booleanConf
+      .createWithDefault(true)
+  // scalastyle:on line.size.limit
+
   val NATIVE_WRITE_RESERVE_PARTITION_COLUMNS =
     buildConf(runtimeSettings("gluten.write.reserve_partition_columns"))
       .doc("Whether reserve partition columns for Native write or not, default is false")
