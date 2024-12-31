@@ -36,15 +36,17 @@ object RuntimeSettings {
       .doc("https://clickhouse.com/docs/en/operations/settings/query-complexity#settings-max_bytes_before_external_sort")
       .longConf
       .createWithDefault(0)
-
-  val QUERY_PLAN_ENABLE_OPTIMIZATIONS =
-    buildConf(runtimeSettings("query_plan_enable_optimizations"))
-      .doc("https://clickhouse.com/docs/en/operations/settings/settings#query_plan_enable_optimizations")
-      .booleanConf
-      .createWithDefault(false) // different from the default value in Clickhouse
   // scalastyle:on line.size.limit
 
   /** Gluten Configuration */
+  val COLLECT_METRICS =
+    buildConf(runtimeSettings("collect_metrics"))
+      .doc(s""" set query_plan_enable_optimizations to true, cause collecting metrics failed.
+           |see https://clickhouse.com/docs/en/operations/settings/settings#query_plan_enable_optimizations
+           |""".stripMargin)
+      .booleanConf
+      .createWithDefault(true)
+
   val NATIVE_WRITE_RESERVE_PARTITION_COLUMNS =
     buildConf(runtimeSettings("gluten.write.reserve_partition_columns"))
       .doc("Whether reserve partition columns for Native write or not, default is false")

@@ -64,7 +64,6 @@ namespace DB
 {
 namespace Setting
 {
-extern const SettingsBool query_plan_enable_optimizations;
 extern const SettingsUInt64 priority;
 }
 namespace ErrorCodes
@@ -276,7 +275,8 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
     std::vector<DB::IQueryPlanStep *> steps = rel_parser->getSteps();
 
-    if (!parser_context->queryContext()->getSettingsRef()[Setting::query_plan_enable_optimizations])
+    if (const auto & settings = parser_context->queryContext()->getSettingsRef();
+        settingsEqual(settings, RuntimeSettings::COLLECT_METRICS, "true", {RuntimeSettings::COLLECT_METRICS_DEFAULT}))
     {
         if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
         {
@@ -304,8 +304,10 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         settings,
         0);
     QueryPlanOptimizationSettings optimization_settings{context};
-    if (!settings[Setting::query_plan_enable_optimizations])
-        setGlutenOptimizationSettings(optimization_settings);
+
+    // TODO: set optimize_plan to true when metrics could be collected while ch query plan optimization is enabled.
+    if (settingsEqual(settings, RuntimeSettings::COLLECT_METRICS, "true", {RuntimeSettings::COLLECT_METRICS_DEFAULT}))
+        optimization_settings.optimize_plan = false;
 
     BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings{context};
     build_settings.process_list_element = query_status;

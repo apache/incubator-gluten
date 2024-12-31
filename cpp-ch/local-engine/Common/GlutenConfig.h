@@ -172,8 +172,8 @@ public:
 
 namespace PathConfig
 {
-inline constexpr const char * USE_CURRENT_DIRECTORY_AS_TMP = "use_current_directory_as_tmp";
-inline constexpr const char * DEFAULT_TEMP_FILE_PATH = "/tmp/libch";
+inline constexpr auto USE_CURRENT_DIRECTORY_AS_TMP = "use_current_directory_as_tmp";
+inline constexpr auto DEFAULT_TEMP_FILE_PATH = "/tmp/libch";
 };
 
 /// Configurations for spark.sql.
