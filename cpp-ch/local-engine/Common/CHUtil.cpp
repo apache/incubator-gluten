@@ -80,6 +80,7 @@ extern const ServerSettingsDouble primary_index_cache_size_ratio;
 }
 namespace Setting
 {
+extern const SettingsBool query_plan_enable_optimizations;
 extern const SettingsUInt64 prefer_external_sort_block_bytes;
 extern const SettingsUInt64 max_bytes_before_external_sort;
 extern const SettingsDouble max_bytes_ratio_before_external_sort;
@@ -634,6 +635,9 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("max_download_threads", 1);
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
     settings.set("output_format_parquet_use_custom_encoder", false);
+
+    // TODO: set default to true when metrics could be collected while ch query plan optimization is enabled.
+    settings[Setting::query_plan_enable_optimizations] = false;
 
     /// Set false after https://github.com/ClickHouse/ClickHouse/pull/71539
     /// if true, we can't get correct metrics for the query
