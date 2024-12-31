@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.compatibility
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{GlutenClickHouseTPCHAbstractSuite, ProjectExecTransformer}
 import org.apache.gluten.utils.UTSystemParameters
 

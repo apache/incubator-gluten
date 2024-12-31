@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.ValidationResult
@@ -62,7 +62,7 @@ case class WholeStageTransformContext(root: PlanNode, substraitContext: Substrai
  * Since https://github.com/apache/incubator-gluten/pull/2185.
  */
 trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
-  protected def glutenConf: GlutenConfig = GlutenConfig.get
+  protected def glutenConf: GlutenConfig = GlutenConfig.getConf
 
   protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
 
@@ -214,7 +214,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
     sparkContext.hadoopConfiguration)
 
-  val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.get.numaBindingInfo
+  val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   @transient
   private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
@@ -271,12 +271,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
   override def verboseStringWithOperatorId(): String = {
-    val nativePlan =
-      if (GlutenConfig.get.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
-        s"Native Plan:\n${nativePlanString()}"
-      } else {
-        ""
-      }
+    val nativePlan = if (conf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
+      s"Native Plan:\n${nativePlanString()}"
+    } else {
+      ""
+    }
     super.verboseStringWithOperatorId() ++ nativePlan
   }
 
@@ -316,7 +315,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   def doWholeStageTransform(): WholeStageTransformContext = {
     val context = generateWholeStageTransformContext()
-    if (GlutenConfig.get.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
+    if (conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
       wholeStageTransformerContext = Some(context)
     }
     context
@@ -361,7 +360,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     }(
       t =>
         logOnLevel(
-          GlutenConfig.get.substraitPlanLogLevel,
+          GlutenConfig.getConf.substraitPlanLogLevel,
           s"$nodeName generating the substrait plan took: $t ms."))
     val inputRDDs = new ColumnarInputRDDsWrapper(columnarInputRDDs)
     // Check if BatchScan exists.
@@ -377,7 +376,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions.toIndexedSeq)
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
-      if (GlutenConfig.get.enableHdfsViewfs) {
+      if (GlutenConfig.getConf.enableHdfsViewfs) {
         val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
         allScanSplitInfos.foreach {
           splitInfos =>

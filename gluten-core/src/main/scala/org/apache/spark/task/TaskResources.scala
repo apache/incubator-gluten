@@ -16,7 +16,7 @@
  */
 package org.apache.spark.task
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.task.TaskListener
 
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException, UnknownReason}

@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
-import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.Dataset
@@ -68,7 +68,7 @@ class ClickhouseOptimisticTransaction(
       writeOptions: Option[DeltaOptions],
       isOptimize: Boolean,
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
-    val nativeWrite = GlutenConfig.get.enableNativeWriter.getOrElse(false)
+    val nativeWrite = GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
     if (writingMergeTree) {
       // TODO: update FallbackByBackendSettings for mergetree always return true
       val onePipeline = nativeWrite && CHConf.get.enableOnePipelineMergeTreeWrite

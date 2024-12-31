@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.substrait.rel;
 
-import org.apache.gluten.config.GlutenConfig$;
+import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.expression.ConverterUtils;
 
 import io.substrait.proto.NamedStruct;
@@ -198,7 +198,7 @@ public class LocalFilesNode implements SplitInfo {
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
               ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
                   .setEnableRowGroupMaxminIndex(
-                      GlutenConfig$.MODULE$.get().enableParquetRowGroupMaxMinIndex())
+                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
                   .build();
           fileBuilder.setParquet(parquetReadOptions);
           break;
@@ -225,15 +225,15 @@ public class LocalFilesNode implements SplitInfo {
                   .setHeader(Long.parseLong(header))
                   .setEscape(escape)
                   .setNullValue(nullValue)
-                  .setMaxBlockSize(GlutenConfig$.MODULE$.get().textInputMaxBlockSize())
-                  .setEmptyAsDefault(GlutenConfig$.MODULE$.get().textIputEmptyAsDefault())
+                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
+                  .setEmptyAsDefault(GlutenConfig.getConf().textIputEmptyAsDefault())
                   .build();
           fileBuilder.setText(textReadOptions);
           break;
         case JsonReadFormat:
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
               ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
-                  .setMaxBlockSize(GlutenConfig$.MODULE$.get().textInputMaxBlockSize())
+                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
                   .build();
           fileBuilder.setJson(jsonReadOptions);
           break;

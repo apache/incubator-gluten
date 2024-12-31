@@ -16,8 +16,7 @@
  */
 package org.apache.spark.sql.gluten
 
-import org.apache.gluten.GlutenBuildInfo
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.{GlutenBuildInfo, GlutenConfig}
 import org.apache.gluten.events.GlutenPlanFallbackEvent
 import org.apache.gluten.execution.FileSourceScanExecTransformer
 import org.apache.gluten.utils.BackendTestUtils

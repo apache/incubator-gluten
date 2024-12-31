@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{ColumnarUnionExec, UnionExecTransformer}
 
 import org.apache.spark.sql.catalyst.plans.physical.UnknownPartitioning
@@ -32,7 +32,7 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 case class UnionTransformerRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.get.enableNativeUnion) {
+    if (!GlutenConfig.getConf.enableNativeUnion) {
       return plan
     }
     plan.transformUp {

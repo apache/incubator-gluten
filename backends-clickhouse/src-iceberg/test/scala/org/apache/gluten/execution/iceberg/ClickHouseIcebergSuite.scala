@@ -17,7 +17,7 @@
 package org.apache.gluten.execution.iceberg
 
 import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, IcebergScanTransformer}
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 
@@ -62,7 +62,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(
           s"""
@@ -84,7 +84,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
 
       // Partition key of integer type.
       withSQLConf(
-        GlutenConfig.GLUTEN_ENABLED.key -> "false"
+        GlutenConfig.GLUTEN_ENABLED_KEY -> "false"
       ) {
         // Gluten does not support write iceberg table.
         spark.sql(
@@ -145,7 +145,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(
           s"""
@@ -167,7 +167,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
 
       // Partition key of integer type.
       withSQLConf(
-        GlutenConfig.GLUTEN_ENABLED.key -> "false"
+        GlutenConfig.GLUTEN_ENABLED_KEY -> "false"
       ) {
         // Gluten does not support write iceberg table.
         spark.sql(
@@ -228,7 +228,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(
           s"""
@@ -250,7 +250,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
 
       // Partition key of integer type.
       withSQLConf(
-        GlutenConfig.GLUTEN_ENABLED.key -> "false"
+        GlutenConfig.GLUTEN_ENABLED_KEY -> "false"
       ) {
         // Gluten does not support write iceberg table.
         spark.sql(
@@ -350,7 +350,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
 
   test("iceberg read mor table - delete and update") {
     withTable("iceberg_mor_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         spark.sql(
           """
             |create table iceberg_mor_tb (
@@ -403,7 +403,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
   // TODO: support merge-on-read mode
   ignore("iceberg read mor table - delete and update with merge-on-read mode") {
     withTable("iceberg_mor_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         spark.sql(
           """
             |create table iceberg_mor_tb (
@@ -458,7 +458,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
 
   test("iceberg read mor table - merge into") {
     withTable("iceberg_mor_tb", "merge_into_source_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         spark.sql(
           """
             |create table iceberg_mor_tb (
@@ -531,7 +531,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
   // TODO: support merge-on-read mode
   ignore("iceberg read mor table - merge into with merge-on-read mode") {
     withTable("iceberg_mor_tb", "merge_into_source_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         spark.sql(
           """
             |create table iceberg_mor_tb (
