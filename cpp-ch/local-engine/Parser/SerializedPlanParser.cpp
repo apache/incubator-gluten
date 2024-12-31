@@ -303,7 +303,10 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         IAST::QueryKind::Select,
         settings,
         0);
-    const QueryPlanOptimizationSettings optimization_settings{context};
+    QueryPlanOptimizationSettings optimization_settings{context};
+    if (!settings[Setting::query_plan_enable_optimizations])
+        setGlutenOptimizationSettings(optimization_settings);
+
     BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings{context};
     build_settings.process_list_element = query_status;
     build_settings.progress_callback = nullptr;
