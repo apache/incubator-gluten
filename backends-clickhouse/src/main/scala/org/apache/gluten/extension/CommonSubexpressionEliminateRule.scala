@@ -87,6 +87,21 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
     }
   }
 
+  private def replaceAggCommonExprWithAttribute(
+      expr: Expression,
+      commonExprMap: mutable.HashMap[ExpressionEquals, AliasAndAttribute]): Expression = {
+    val exprEquals = commonExprMap.get(ExpressionEquals(expr))
+    if (expr.isInstanceOf[AggregateExpression]) {
+      if (exprEquals.isDefined) {
+        exprEquals.get.attribute
+      } else {
+        expr
+      }
+    } else {
+      expr.mapChildren(replaceAggCommonExprWithAttribute(_, commonExprMap))
+    }
+  }
+
   private def isValidCommonExpr(expr: Expression): Boolean = {
     if (
       (expr.isInstanceOf[Unevaluable] && !expr.isInstanceOf[AttributeReference])
@@ -162,7 +177,14 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
     // Replace the common expressions with the first expression that produces it.
     try {
       var newExprs = inputCtx.exprs
-        .map(replaceCommonExprWithAttribute(_, commonExprMap))
+        .map(
+          expr => {
+            if (expr.find(_.isInstanceOf[AggregateExpression]).isDefined) {
+              replaceAggCommonExprWithAttribute(expr, commonExprMap)
+            } else {
+              replaceCommonExprWithAttribute(expr, commonExprMap)
+            }
+          })
       logTrace(s"newExprs after rewrite: $newExprs")
       RewriteContext(newExprs, preProject)
     } catch {
