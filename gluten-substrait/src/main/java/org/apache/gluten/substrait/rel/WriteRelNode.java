@@ -21,10 +21,7 @@ import org.apache.gluten.substrait.type.ColumnTypeNode;
 import org.apache.gluten.substrait.type.TypeNode;
 import org.apache.gluten.utils.SubstraitUtil;
 
-import io.substrait.proto.NamedObjectWrite;
-import io.substrait.proto.NamedStruct;
-import io.substrait.proto.Rel;
-import io.substrait.proto.WriteRel;
+import io.substrait.proto.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -39,17 +36,21 @@ public class WriteRelNode implements RelNode, Serializable {
 
   private final AdvancedExtensionNode extensionNode;
 
+  private final WriteRel.BucketSpec bucketSpec;
+
   WriteRelNode(
       RelNode input,
       List<TypeNode> types,
       List<String> names,
       List<ColumnTypeNode> partitionColumnTypeNodes,
-      AdvancedExtensionNode extensionNode) {
+      AdvancedExtensionNode extensionNode,
+      WriteRel.BucketSpec bucketSpec) {
     this.input = input;
     this.types.addAll(types);
     this.names.addAll(names);
     this.columnTypeNodes.addAll(partitionColumnTypeNodes);
     this.extensionNode = extensionNode;
+    this.bucketSpec = bucketSpec;
   }
 
   @Override
@@ -66,6 +67,10 @@ public class WriteRelNode implements RelNode, Serializable {
 
     if (extensionNode != null) {
       nameObjectWriter.setAdvancedExtension(extensionNode.toProtobuf());
+    }
+
+    if (bucketSpec != null) {
+      writeBuilder.setBucketSpec(bucketSpec);
     }
 
     writeBuilder.setNamedTable(nameObjectWriter);

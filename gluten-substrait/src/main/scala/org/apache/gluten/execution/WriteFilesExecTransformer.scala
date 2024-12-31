@@ -39,7 +39,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ArrayType, MapType, MetadataBuilder}
 
-import io.substrait.proto.NamedStruct
+import io.substrait.proto.{NamedStruct, WriteRel}
 import org.apache.parquet.hadoop.ParquetOutputFormat
 
 import java.util.Locale
@@ -107,12 +107,23 @@ case class WriteFilesExecTransformer(
       ExtensionBuilder.makeAdvancedExtension(
         SubstraitUtil.createEnhancement(originalInputAttributes))
     }
+
+    val bucketSpecOption = bucketSpec.map {
+      bucketSpec =>
+        val builder = WriteRel.BucketSpec.newBuilder()
+        builder.setNumBuckets(bucketSpec.numBuckets)
+        bucketSpec.bucketColumnNames.foreach(builder.addBucketColumnNames)
+        bucketSpec.sortColumnNames.foreach(builder.addSortColumnNames)
+        builder.build()
+    }
+
     RelBuilder.makeWriteRel(
       input,
       typeNodes,
       nameList,
       columnTypeNodes,
       extensionNode,
+      bucketSpecOption.orNull,
       context,
       operatorId)
   }
@@ -147,11 +158,13 @@ case class WriteFilesExecTransformer(
           "complex data type with constant")
     }
 
+    val childOutput = this.child.output.map(_.exprId)
     val validationResult =
       BackendsApiManager.getSettings.supportWriteFilesExec(
         fileFormat,
         finalChildOutput.toStructType.fields,
         bucketSpec,
+        partitionColumns.exists(c => childOutput.contains(c.exprId)),
         caseInsensitiveOptions)
     if (!validationResult.ok()) {
       return ValidationResult.failed("Unsupported native write: " + validationResult.reason())

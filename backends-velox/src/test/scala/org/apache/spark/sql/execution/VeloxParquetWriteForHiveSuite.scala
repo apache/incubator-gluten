@@ -20,6 +20,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
+import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
@@ -33,8 +34,14 @@ import org.apache.hadoop.fs.Path
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 
-class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
+import java.io.File
+
+class VeloxParquetWriteForHiveSuite
+  extends GlutenQueryTest
+  with SQLTestUtils
+  with BucketWriteUtils {
   private var _spark: SparkSession = _
+  import testImplicits._
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -220,6 +227,107 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
             }
           }
         }
+    }
+  }
+
+  test("Native writer support compatible hive bucket write with dynamic partition") {
+    if (isSparkVersionGE("3.4")) {
+      Seq("true", "false").foreach {
+        enableConvertMetastore =>
+          withSQLConf("spark.sql.hive.convertMetastoreParquet" -> enableConvertMetastore) {
+            val source = "hive_source_table"
+            val target = "hive_bucketed_table"
+            withTable(source, target) {
+              sql(s"""
+                     |CREATE TABLE IF NOT EXISTS $target (i int, j string)
+                     |PARTITIONED BY(k string)
+                     |CLUSTERED BY (i, j) SORTED BY (i) INTO 8 BUCKETS
+                     |STORED AS PARQUET
+               """.stripMargin)
+
+              val df =
+                (0 until 50).map(i => (i % 13, i.toString, i % 5)).toDF("i", "j", "k")
+              df.write.mode(SaveMode.Overwrite).saveAsTable(source)
+
+              withSQLConf("hive.exec.dynamic.partition.mode" -> "nonstrict") {
+                checkNativeWrite(s"INSERT INTO $target SELECT * FROM $source", checkNative = true)
+              }
+
+              for (k <- 0 until 5) {
+                testBucketing(
+                  new File(tableDir(target), s"k=$k"),
+                  "parquet",
+                  8,
+                  Seq("i", "j"),
+                  Seq("i"),
+                  df,
+                  bucketIdExpression,
+                  getBucketIdFromFileName)
+              }
+            }
+          }
+      }
+    }
+  }
+
+  test("bucket writer with non-dynamic partition should fallback") {
+    if (isSparkVersionGE("3.4")) {
+      Seq("true", "false").foreach {
+        enableConvertMetastore =>
+          withSQLConf("spark.sql.hive.convertMetastoreParquet" -> enableConvertMetastore) {
+            val source = "hive_source_table"
+            val target = "hive_bucketed_table"
+            withTable(source, target) {
+              sql(s"""
+                     |CREATE TABLE IF NOT EXISTS $target (i int, j string)
+                     |PARTITIONED BY(k string)
+                     |CLUSTERED BY (i, j) SORTED BY (i) INTO 8 BUCKETS
+                     |STORED AS PARQUET
+               """.stripMargin)
+
+              val df =
+                (0 until 50).map(i => (i % 13, i.toString, i % 5)).toDF("i", "j", "k")
+              df.write.mode(SaveMode.Overwrite).saveAsTable(source)
+
+              // hive relation convert always use dynamic, so it will offload to native.
+              checkNativeWrite(
+                s"INSERT INTO $target PARTITION(k='0') SELECT i, j FROM $source",
+                checkNative = enableConvertMetastore.toBoolean)
+              val files = tableDir(target)
+                .listFiles()
+                .filterNot(f => f.getName.startsWith(".") || f.getName.startsWith("_"))
+              assert(files.length == 1 && files.head.getName.contains("k=0"))
+              checkAnswer(spark.table(target).select("i", "j"), df.select("i", "j"))
+            }
+          }
+      }
+    }
+  }
+
+  test("bucket writer with non-partition table should fallback") {
+    if (isSparkVersionGE("3.4")) {
+      Seq("true", "false").foreach {
+        enableConvertMetastore =>
+          withSQLConf("spark.sql.hive.convertMetastoreParquet" -> enableConvertMetastore) {
+            val source = "hive_source_table"
+            val target = "hive_bucketed_table"
+            withTable(source, target) {
+              sql(s"""
+                     |CREATE TABLE IF NOT EXISTS $target (i int, j string)
+                     |CLUSTERED BY (i, j) SORTED BY (i) INTO 8 BUCKETS
+                     |STORED AS PARQUET
+               """.stripMargin)
+
+              val df =
+                (0 until 50).map(i => (i % 13, i.toString)).toDF("i", "j")
+              df.write.mode(SaveMode.Overwrite).saveAsTable(source)
+
+              checkNativeWrite(s"INSERT INTO $target SELECT i, j FROM $source", checkNative = false)
+
+              checkAnswer(spark.table(target), df)
+            }
+          }
+      }
     }
   }
 }

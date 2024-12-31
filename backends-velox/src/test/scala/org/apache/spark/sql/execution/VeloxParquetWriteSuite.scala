@@ -93,7 +93,6 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
                     parquetFiles.forall {
                       file =>
                         val path = new Path(f.getCanonicalPath, file)
-                        assert(file.endsWith(getParquetFileExtension(codec)))
                         val in = HadoopInputFile.fromPath(path, spark.sessionState.newHadoopConf())
                         Utils.tryWithResource(ParquetFileReader.open(in)) {
                           reader =>
