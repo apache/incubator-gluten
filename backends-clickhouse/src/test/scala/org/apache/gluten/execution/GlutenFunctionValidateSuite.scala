@@ -659,6 +659,24 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           "order by hash(id%10), hash(hash(id%10))") {
         df => checkOperatorCount[ProjectExecTransformer](3)(df)
       }
+
+      runQueryAndCompare(s"""
+                            |SELECT 'test' AS test
+                            |  , Sum(CASE
+                            |    WHEN name = '2' THEN 0
+                            |      ELSE id
+                            |    END) AS c1
+                            |  , Sum(CASE
+                            |    WHEN name = '2' THEN id
+                            |      ELSE 0
+                            |    END) AS c2
+                            | , CASE WHEN name = '2' THEN Sum(id) ELSE 0
+                            |   END AS c3
+                            |FROM (select id, cast(id as string) name from range(10))
+                            |GROUP BY name
+                            |""".stripMargin) {
+        df => checkOperatorCount[ProjectExecTransformer](3)(df)
+      }
     }
   }
 
