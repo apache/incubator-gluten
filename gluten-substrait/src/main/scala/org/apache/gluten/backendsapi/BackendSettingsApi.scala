@@ -52,6 +52,7 @@ trait BackendSettingsApi {
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
+      isPartitionedTable: Boolean,
       options: Map[String, String]): ValidationResult = ValidationResult.succeeded
 
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
