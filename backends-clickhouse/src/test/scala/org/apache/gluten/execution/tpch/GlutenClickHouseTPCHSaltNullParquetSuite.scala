@@ -1420,10 +1420,10 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
 
-    withSQLConf((RuntimeSettings.QUERY_PLAN_ENABLE_OPTIMIZATIONS.key, "true")) {
+    withSQLConf((RuntimeSettings.COLLECT_METRICS.key, "false")) {
       compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
     }
-    withSQLConf((RuntimeSettings.QUERY_PLAN_ENABLE_OPTIMIZATIONS.key, "false")) {
+    withSQLConf((RuntimeSettings.COLLECT_METRICS.key, "true")) {
       compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
     }
   }
