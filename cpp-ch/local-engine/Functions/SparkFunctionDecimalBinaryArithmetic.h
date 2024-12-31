@@ -49,7 +49,6 @@ extern const int LOGICAL_ERROR;
 
 namespace local_engine
 {
-using namespace DB;
 
 template <typename Op1, typename Op2>
 struct IsSameOperation
@@ -67,6 +66,8 @@ struct SparkIsOperation
     static constexpr bool division = IsSameOperation<Op, DecimalDivideImpl>::value;
     static constexpr bool modulo = IsSameOperation<Op, DecimalModuloImpl>::value;
 };
+
+using namespace DB;
 
 namespace
 {
@@ -244,16 +245,16 @@ private:
 
         if (col_left_vec && col_right_vec)
         {
-            process<OpCase::Vector>(
-                col_left_vec->getData().data(),
-                col_right_vec->getData().data(),
-                res_vec_data,
-                res_nullmap_data,
-                rows,
-                scale_left,
-                scale_right,
-                unscale_result,
-                max_value);
+                process<OpCase::Vector>(
+                    col_left_vec->getData().data(),
+                    col_right_vec->getData().data(),
+                    res_vec_data,
+                    res_nullmap_data,
+                    rows,
+                    scale_left,
+                    scale_right,
+                    unscale_result,
+                    max_value);
         }
         else if (col_left_const && col_right_vec)
         {
@@ -294,70 +295,72 @@ private:
         return ColumnNullable::create(std::move(res_vec), std::move(res_null_map));
     }
 
-    template <
-        OpCase op_case,
-        typename LeftFieldType,
-        typename RightFieldType,
-        typename ResultFieldType,
-        typename ScaledNativeType>
-    static void NO_INLINE process(
-        const LeftFieldType * __restrict left_data, // maybe scalar or vector
-        const RightFieldType * __restrict right_data, // maybe scalar or vector
-        PaddedPODArray<ResultFieldType> & __restrict res_vec_data, // should be vector
-        NullMap & res_nullmap_data,
-        size_t rows,
-        const ScaledNativeType & scale_left,
-        const ScaledNativeType & scale_right,
-        const ScaledNativeType & unscale_result,
-        const ScaledNativeType & max_value)
-    {
-        using ResultNativeType = NativeType<ResultFieldType>;
-
-        if constexpr (op_case == OpCase::Vector)
+        template <
+            OpCase op_case,
+            typename LeftFieldType,
+            typename RightFieldType,
+            typename ResultFieldType,
+            typename ScaledNativeType>
+        static void NO_INLINE process(
+            const LeftFieldType * __restrict left_data, // maybe scalar or vector
+            const RightFieldType * __restrict right_data, // maybe scalar or vector
+            PaddedPODArray<ResultFieldType> & __restrict res_vec_data, // should be vector
+            NullMap & res_nullmap_data,
+            size_t rows,
+            const ScaledNativeType & scale_left,
+            const ScaledNativeType & scale_right,
+            const ScaledNativeType & unscale_result,
+            const ScaledNativeType & max_value)
         {
-            for (size_t i = 0; i < rows; ++i)
-                res_nullmap_data[i] = !calculate(
-                    static_cast<ScaledNativeType>(unwrap<op_case == OpCase::LeftConstant>(left_data, i)),
-                    static_cast<ScaledNativeType>(unwrap<op_case == OpCase::RightConstant>(right_data, i)),
-                    scale_left,
-                    scale_right,
-                    unscale_result,
-                    max_value,
-                    res_vec_data[i].value);
-        }
-        else if constexpr (op_case == OpCase::LeftConstant)
-        {
-            ScaledNativeType scaled_left
-                = applyScaled(static_cast<ScaledNativeType>(unwrap<op_case == OpCase::LeftConstant>(left_data, 0)), scale_left);
+            using ResultNativeType = NativeType<ResultFieldType>;
 
-            for (size_t i = 0; i < rows; ++i)
-                res_nullmap_data[i] = !calculate(
-                    scaled_left,
-                    static_cast<ScaledNativeType>(unwrap<op_case == OpCase::RightConstant>(right_data, i)),
-                    static_cast<ScaledNativeType>(1),
-                    scale_right,
-                    unscale_result,
-                    max_value,
-                    res_vec_data[i].value);
-        }
-        else if constexpr (op_case == OpCase::RightConstant)
-        {
-            ScaledNativeType scaled_right
-                = applyScaled(static_cast<ScaledNativeType>(unwrap<op_case == OpCase::RightConstant>(right_data, 0)), scale_right);
+            if constexpr (op_case == OpCase::Vector)
+            {
+                for (size_t i = 0; i < rows; ++i)
+                    res_nullmap_data[i] = !calculate(
+                        static_cast<ScaledNativeType>(unwrap<op_case == OpCase::LeftConstant>(left_data, i)),
+                        static_cast<ScaledNativeType>(unwrap<op_case == OpCase::RightConstant>(right_data, i)),
+                        scale_left,
+                        scale_right,
+                        unscale_result,
+                        max_value,
+                        res_vec_data[i].value);
+            }
+            else if constexpr (op_case == OpCase::LeftConstant)
+            {
+                ScaledNativeType scaled_left
+                    = applyScaled(static_cast<ScaledNativeType>(unwrap<op_case == OpCase::LeftConstant>(left_data, 0)), scale_left);
 
-            for (size_t i = 0; i < rows; ++i)
-                res_nullmap_data[i] = !calculate(
-                    static_cast<ScaledNativeType>(unwrap<op_case == OpCase::LeftConstant>(left_data, i)),
-                    scaled_right,
-                    scale_left,
-                    static_cast<ScaledNativeType>(1),
-                    unscale_result,
-                    max_value,
-                    res_vec_data[i].value);
-        }
+                for (size_t i = 0; i < rows; ++i)
+                    res_nullmap_data[i] = !calculate(
+                        scaled_left,
+                        static_cast<ScaledNativeType>(unwrap<op_case == OpCase::RightConstant>(right_data, i)),
+                        static_cast<ScaledNativeType>(1),
+                        scale_right,
+                        unscale_result,
+                        max_value,
+                        res_vec_data[i].value);
+            }
+            else if constexpr (op_case == OpCase::RightConstant)
+            {
+                ScaledNativeType scaled_right
+                    = applyScaled(static_cast<ScaledNativeType>(unwrap<op_case == OpCase::RightConstant>(right_data, 0)), scale_right);
+
+                for (size_t i = 0; i < rows; ++i)
+                    res_nullmap_data[i] = !calculate(
+                        static_cast<ScaledNativeType>(unwrap<op_case == OpCase::LeftConstant>(left_data, i)),
+                        scaled_right,
+                        scale_left,
+                        static_cast<ScaledNativeType>(1),
+                        unscale_result,
+                        max_value,
+                        res_vec_data[i].value);
+            }
     }
 
-    template <typename ScaledNativeType, typename ResultNativeType>
+    template <
+        typename ScaledNativeType,
+        typename ResultNativeType>
     static ALWAYS_INLINE bool calculate(
         const ScaledNativeType & left,
         const ScaledNativeType & right,
@@ -371,7 +374,7 @@ private:
         auto scaled_right = scale_right > 1 ? applyScaled(right, scale_right) : right;
 
         ScaledNativeType c_res = 0;
-        auto success = Operation::template apply(scaled_left, scaled_right, c_res);
+        auto success = Operation::template apply<>(scaled_left, scaled_right, c_res);
         if (!success)
             return false;
 
@@ -474,7 +477,7 @@ public:
             right_generic,
             removeNullable(arguments[2].type).get(),
             [&](const auto & left, const auto & right, const auto & result) {
-                return (res = SparkDecimalBinaryOperation<Operation, mode>::template executeDecimal(arguments, left, right, result))
+                return (res = SparkDecimalBinaryOperation<Operation, mode>::template executeDecimal<>(arguments, left, right, result))
                     != nullptr;
             });
 
@@ -572,7 +575,7 @@ public:
                 if (SparkDecimalBinaryOperation<Operation, mode>::shouldPromoteTo256(left_type, right_type, result_type)
                     || (is_division && max_scale - left_type.getScale() + max_scale > ResultDataType::maxPrecision()) || calculate_with_256)
                     nullable_result = compileHelper<Int256>(builder, arguments, left_type, right_type, result_type);
-                // nullable_result = compileHelper<Int128>(builder, arguments, left_type, right_type, result_type);
+                    // nullable_result = compileHelper<Int128>(builder, arguments, left_type, right_type, result_type);
                 else if (is_division)
                     nullable_result = compileHelper<Int128>(builder, arguments, left_type, right_type, result_type);
                 else
@@ -714,5 +717,6 @@ private:
 
     ContextPtr context;
 };
+
 }
 }
