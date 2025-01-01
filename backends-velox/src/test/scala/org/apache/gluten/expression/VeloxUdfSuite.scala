@@ -17,7 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.execution.ProjectExecTransformer
-import org.apache.gluten.tags.{SkipTestTags, UDFTest}
+import org.apache.gluten.tags.SkipTestTags
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
@@ -232,7 +232,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
   }
 }
 
-@UDFTest
+// @UDFTest
 class VeloxUdfSuiteLocal extends VeloxUdfSuite {
 
   override val master: String = "local[2]"
