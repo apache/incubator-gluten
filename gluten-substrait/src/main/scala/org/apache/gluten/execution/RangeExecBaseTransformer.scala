@@ -53,10 +53,6 @@ abstract class RangeExecBaseTransformer(
     ValidationResult.succeeded
   }
 
-  // override def batchType(): Convention.BatchType = {
-  //   BackendsApiManager.getSettings.primaryBatchType
-  // }
-
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override protected def doExecute()
