@@ -16,13 +16,15 @@
  */
 package org.apache.spark.sql.internal
 
-import org.apache.gluten.config._
+import org.apache.spark.internal.config.ConfigReader
+
+import scala.collection.JavaConverters._
 
 object GlutenConfigUtil {
-  private def getConfString(configProvider: ConfigProvider, key: String, value: String): String = {
-    Option(ConfigEntry.findEntry(key))
+  private def getConfString(reader: ConfigReader, key: String, value: String): String = {
+    Option(SQLConf.getConfigEntry(key))
       .map {
-        _.readFrom(configProvider) match {
+        _.readFrom(reader) match {
           case o: Option[_] => o.map(_.toString).getOrElse(value)
           case null => value
           case v => v.toString
@@ -32,11 +34,11 @@ object GlutenConfigUtil {
   }
 
   def parseConfig(conf: Map[String, String]): Map[String, String] = {
-    val provider = new ConfigProvider(conf.filter(_._1.startsWith("spark.gluten.")))
+    val reader = new ConfigReader(conf.filter(_._1.startsWith("spark.gluten.")).asJava)
     conf.map {
       case (k, v) =>
         if (k.startsWith("spark.gluten.")) {
-          (k, getConfString(provider, k, v))
+          (k, getConfString(reader, k, v))
         } else {
           (k, v)
         }

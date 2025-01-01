@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.listener;
 
-import org.apache.gluten.config.GlutenConfig$;
+import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.*;
@@ -44,8 +44,8 @@ public final class ReservationListeners {
   private static ReservationListener create0(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
     // Memory target.
-    final double overAcquiredRatio = GlutenConfig$.MODULE$.get().memoryOverAcquiredRatio();
-    final long reservationBlockSize = GlutenConfig$.MODULE$.get().memoryReservationBlockSize();
+    final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
+    final long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
     final TreeMemoryTarget consumer =
         MemoryTargets.newConsumer(

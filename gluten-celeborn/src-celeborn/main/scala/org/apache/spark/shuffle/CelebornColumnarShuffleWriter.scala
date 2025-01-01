@@ -18,8 +18,7 @@ package org.apache.spark.shuffle
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
-import org.apache.gluten.config.GlutenConfig
-
+import org.apache.gluten.GlutenConfig
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
@@ -53,8 +52,8 @@ abstract class CelebornColumnarShuffleWriter[K, V](
   protected val mapId: Int = context.partitionId()
 
   protected lazy val nativeBufferSize: Int = {
-    val bufferSize = GlutenConfig.get.shuffleWriterBufferSize
-    val maxBatchSize = GlutenConfig.get.maxBatchSize
+    val bufferSize = GlutenConfig.getConf.shuffleWriterBufferSize
+    val maxBatchSize = GlutenConfig.getConf.maxBatchSize
     if (bufferSize > maxBatchSize) {
       logInfo(
         s"${GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE.key} ($bufferSize) exceeds max " +
@@ -96,13 +95,13 @@ abstract class CelebornColumnarShuffleWriter[K, V](
     GlutenShuffleUtils.getCompressionLevel(
       conf,
       customizedCompressionCodec,
-      GlutenConfig.get.columnarShuffleCodecBackend.orNull)
+      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
 
   protected val compressionBufferSize: Int =
     GlutenShuffleUtils.getSortEvictBufferSize(conf, customizedCompressionCodec)
 
   protected val bufferCompressThreshold: Int =
-    GlutenConfig.get.columnarShuffleCompressionThreshold
+    GlutenConfig.getConf.columnarShuffleCompressionThreshold
 
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure

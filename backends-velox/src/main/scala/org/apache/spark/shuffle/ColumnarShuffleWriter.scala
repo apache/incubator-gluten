@@ -16,9 +16,9 @@
  */
 package org.apache.spark.shuffle
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
@@ -63,8 +63,8 @@ class ColumnarShuffleWriter[K, V](
     .mkString(",")
 
   private lazy val nativeBufferSize = {
-    val bufferSize = GlutenConfig.get.shuffleWriterBufferSize
-    val maxBatchSize = GlutenConfig.get.maxBatchSize
+    val bufferSize = GlutenConfig.getConf.shuffleWriterBufferSize
+    val maxBatchSize = GlutenConfig.getConf.maxBatchSize
     if (bufferSize > maxBatchSize) {
       logInfo(
         s"${GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE.key} ($bufferSize) exceeds max " +
@@ -75,9 +75,9 @@ class ColumnarShuffleWriter[K, V](
     }
   }
 
-  private val nativeMergeBufferSize = GlutenConfig.get.maxBatchSize
+  private val nativeMergeBufferSize = GlutenConfig.getConf.maxBatchSize
 
-  private val nativeMergeThreshold = GlutenConfig.get.columnarShuffleMergeThreshold
+  private val nativeMergeThreshold = GlutenConfig.getConf.columnarShuffleMergeThreshold
 
   private val compressionCodec =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
@@ -87,7 +87,7 @@ class ColumnarShuffleWriter[K, V](
     }
 
   private val compressionCodecBackend =
-    GlutenConfig.get.columnarShuffleCodecBackend.orNull
+    GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
 
   private val compressionLevel =
     GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
@@ -96,9 +96,9 @@ class ColumnarShuffleWriter[K, V](
     GlutenShuffleUtils.getSortEvictBufferSize(conf, compressionCodec)
 
   private val bufferCompressThreshold =
-    GlutenConfig.get.columnarShuffleCompressionThreshold
+    GlutenConfig.getConf.columnarShuffleCompressionThreshold
 
-  private val reallocThreshold = GlutenConfig.get.columnarShuffleReallocThreshold
+  private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
 
   private val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleWriter")
 
@@ -149,7 +149,7 @@ class ColumnarShuffleWriter[K, V](
             compressionLevel,
             sortEvictBufferSize,
             bufferCompressThreshold,
-            GlutenConfig.get.columnarShuffleCompressionMode,
+            GlutenConfig.getConf.columnarShuffleCompressionMode,
             conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
             conf.get(SHUFFLE_SORT_USE_RADIXSORT),
             dataTmp.getAbsolutePath,
