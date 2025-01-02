@@ -287,7 +287,8 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
     }
 
     // Validation: ShuffledHashJoin.
-    withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "true",
+    withSQLConf(
+      "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "true",
       "spark.sql.autoBroadcastJoinThreshold" -> "-1") {
       runQueryAndCompare(
         "select type1.date from type1," +
