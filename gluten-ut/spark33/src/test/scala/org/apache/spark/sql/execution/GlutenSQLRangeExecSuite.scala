@@ -25,7 +25,6 @@ import org.apache.spark.sql.functions.sum
 class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
   testGluten("ColumnarRangeExec produces correct results") {
-    // Convert Dataset[Long] to DataFrame by assigning a column name
     val df = spark.range(0, 10, 1).toDF("id")
     val expectedData = (0L until 10L).map(Row(_)).toSeq
 

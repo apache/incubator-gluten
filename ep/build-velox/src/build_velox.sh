@@ -192,7 +192,6 @@ function check_commit {
     fi
   else
     # Branch-new build requires all untracked files to be deleted. We only need the source code.
-    git config --global --add safe.directory /home/user/gluten/ep/build-velox/build/velox_ep
     sudo git clean -dffx :/
   fi
 
