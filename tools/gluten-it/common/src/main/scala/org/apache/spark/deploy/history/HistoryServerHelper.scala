@@ -27,7 +27,7 @@ import org.apache.spark.util.ShutdownHookManager
 import java.net.ServerSocket
 
 object HistoryServerHelper {
-  def startHistoryServer(conf: SparkConf): Unit = {
+  def startHistoryServer(conf: SparkConf): Int = {
     initSecurity()
     val securityManager = createSecurityManager(conf)
     val providerName = conf
@@ -42,6 +42,7 @@ object HistoryServerHelper {
     server.bind()
     provider.start()
     ShutdownHookManager.addShutdownHook(() => server.stop())
+    server.boundPort
   }
 
   private def findFreePort(): Int = {

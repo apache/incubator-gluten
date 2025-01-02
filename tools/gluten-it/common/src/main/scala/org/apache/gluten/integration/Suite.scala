@@ -28,23 +28,25 @@ import java.io.File
 import java.util.Scanner
 
 abstract class Suite(
-    private val masterUrl: String,
-    private val actions: Array[Action],
-    private val testConf: SparkConf,
-    private val baselineConf: SparkConf,
-    private val extraSparkConf: Map[String, String],
-    private val logLevel: Level,
-    private val errorOnMemLeak: Boolean,
-    private val enableUi: Boolean,
-    private val enableHsUi: Boolean,
-    private val hsUiPort: Int,
-    private val disableAqe: Boolean,
-    private val disableBhj: Boolean,
-    private val disableWscg: Boolean,
-    private val shufflePartitions: Int,
-    private val scanPartitions: Int) {
+                      private val masterUrl: String,
+                      private val actions: Array[Action],
+                      private val testConf: SparkConf,
+                      private val baselineConf: SparkConf,
+                      private val extraSparkConf: Map[String, String],
+                      private val logLevel: Level,
+                      private val errorOnMemLeak: Boolean,
+                      private val enableUi: Boolean,
+                      private val enableHsUi: Boolean,
+                      private val hsUiPort: Int,
+                      private val disableAqe: Boolean,
+                      private val disableBhj: Boolean,
+                      private val disableWscg: Boolean,
+                      private val shufflePartitions: Int,
+                      private val scanPartitions: Int) {
 
   resetLogLevel()
+
+  private var hsUiBoundPort: Int = -1
 
   private[integration] val sessionSwitcher: SparkSessionSwitcher =
     new SparkSessionSwitcher(masterUrl, logLevel.toString)
@@ -124,7 +126,7 @@ abstract class Suite(
   sessionSwitcher.registerSession("test", testConf)
   sessionSwitcher.registerSession("baseline", baselineConf)
 
-  def startHistoryServer(): Unit = {
+  private def startHistoryServer(): Int = {
     val hsConf = new SparkConf(false)
     hsConf.setWarningOnOverriding("spark.history.ui.port", s"$hsUiPort")
     hsConf.setWarningOnOverriding("spark.history.fs.logDirectory", historyWritePath())
@@ -133,7 +135,7 @@ abstract class Suite(
 
   // boot up history server
   if (enableHsUi) {
-    startHistoryServer()
+    hsUiBoundPort = startHistoryServer()
   }
 
   def run(): Boolean = {
@@ -148,7 +150,7 @@ abstract class Suite(
     sessionSwitcher.close()
     // wait for input, if history server was started
     if (enableHsUi) {
-      printf("History server was running at port %d. Press enter to exit... \n", hsUiPort)
+      printf("History server was running at port %d. Press enter to exit... \n", hsUiBoundPort)
       print("> ")
       new Scanner(System.in).nextLine
     }
