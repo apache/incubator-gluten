@@ -59,6 +59,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", warehouse)
+      .set("spark.sql.optimizer.excludedRules", org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark.sql.catalyst.optimizer.NullPropagation) // exclude ConstantFolding
       .setMaster("local[1]")
   }
 
@@ -426,6 +427,22 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         true,
         { _ => }
       )
+    }
+  }
+
+  test("GLUTEN-7602: cast array to string") {
+    withTable("test_7602") {
+      sql("create table if not exists test_7602 (v ARRAY<STRING>) using parquet")
+      sql("insert into test_7602 values(array('\'1', '2a', 'foo'));")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select cast(v as string) from test_7602
+        """.stripMargin,
+        true,
+        { _ => }
+      )
+      val q = "select cast(a as string) from (select array('123',NULL) as a)"
+      compareResultsAgainstVanillaSpark(q, true, { _ => }, false)
     }
   }
 
