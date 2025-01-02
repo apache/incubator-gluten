@@ -33,8 +33,8 @@ case class HLLRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
       case a: Aggregate =>
         a.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
           case aggExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
-              if GlutenConfig.getConf.enableNativeHyperLogLogAggregateFunction &&
-                GlutenConfig.getConf.enableColumnarHashAgg &&
+              if GlutenConfig.get.enableNativeHyperLogLogAggregateFunction &&
+                GlutenConfig.get.enableColumnarHashAgg &&
                 isSupportedDataType(hll.child.dataType) =>
             val hllAdapter = HLLAdapter(
               hll.child,

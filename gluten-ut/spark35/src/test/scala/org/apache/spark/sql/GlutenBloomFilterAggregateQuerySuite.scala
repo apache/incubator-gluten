@@ -37,7 +37,7 @@ class GlutenBloomFilterAggregateQuerySuite
       GlutenConfig.COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key -> "4194304"
     ) {
       val numEstimatedItems = 5000000L
-      val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
+      val numBits = GlutenConfig.get.veloxBloomFilterMaxNumBits
       val sqlString = s"""
                          |SELECT every(might_contain(
                          |            (SELECT bloom_filter_agg(col,
@@ -72,7 +72,7 @@ class GlutenBloomFilterAggregateQuerySuite
   testGluten("Test bloom_filter_agg filter fallback") {
     val table = "bloom_filter_test"
     val numEstimatedItems = 5000000L
-    val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
+    val numBits = GlutenConfig.get.veloxBloomFilterMaxNumBits
     val sqlString = s"""
                        |SELECT col positive_membership_test
                        |FROM $table
@@ -118,7 +118,7 @@ class GlutenBloomFilterAggregateQuerySuite
   testGluten("Test bloom_filter_agg agg fallback") {
     val table = "bloom_filter_test"
     val numEstimatedItems = 5000000L
-    val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
+    val numBits = GlutenConfig.get.veloxBloomFilterMaxNumBits
     val sqlString = s"""
                        |SELECT col positive_membership_test
                        |FROM $table

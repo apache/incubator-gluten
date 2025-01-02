@@ -59,14 +59,14 @@ private class CHCelebornColumnarBatchSerializerInstance(
   with Logging {
 
   private lazy val conf = SparkEnv.get.conf
-  private lazy val gluten_conf = GlutenConfig.getConf
+  private lazy val gluten_conf = GlutenConfig.get
   private lazy val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
   private lazy val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private lazy val compressionLevel =
     GlutenShuffleUtils.getCompressionLevel(
       conf,
       compressionCodec,
-      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
+      GlutenConfig.get.columnarShuffleCodecBackend.orNull)
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {

@@ -80,10 +80,10 @@ class CHCelebornColumnarShuffleWriter[K, V](
       nativeBufferSize,
       capitalizedCompressionCodec,
       compressionLevel,
-      GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
+      GlutenConfig.get.chColumnarShuffleSpillThreshold,
       CHBackendSettings.shuffleHashAlgorithm,
       celebornPartitionPusher,
-      GlutenConfig.getConf.chColumnarForceMemorySortShuffle
+      GlutenConfig.get.chColumnarForceMemorySortShuffle
         || ShuffleMode.SORT.name.equalsIgnoreCase(shuffleWriterType)
     )
 

@@ -88,7 +88,7 @@ case class WindowExecTransformer(
     val windowParametersStr = new StringBuffer("WindowParameters:")
     // isStreaming: 1 for streaming, 0 for sort
     val isStreaming: Int =
-      if (GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")) 1 else 0
+      if (GlutenConfig.get.veloxColumnarWindowType.equals("streaming")) 1 else 0
 
     windowParametersStr
       .append("isStreaming=")

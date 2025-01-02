@@ -32,7 +32,7 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 case class UnionTransformerRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.getConf.enableNativeUnion) {
+    if (!GlutenConfig.get.enableNativeUnion) {
       return plan
     }
     plan.transformUp {

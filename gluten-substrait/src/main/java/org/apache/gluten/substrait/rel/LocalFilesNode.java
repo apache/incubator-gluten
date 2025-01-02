@@ -198,7 +198,7 @@ public class LocalFilesNode implements SplitInfo {
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
               ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
                   .setEnableRowGroupMaxminIndex(
-                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                      GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
                   .build();
           fileBuilder.setParquet(parquetReadOptions);
           break;
@@ -225,15 +225,15 @@ public class LocalFilesNode implements SplitInfo {
                   .setHeader(Long.parseLong(header))
                   .setEscape(escape)
                   .setNullValue(nullValue)
-                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
-                  .setEmptyAsDefault(GlutenConfig.getConf().textIputEmptyAsDefault())
+                  .setMaxBlockSize(GlutenConfig.get().textInputMaxBlockSize())
+                  .setEmptyAsDefault(GlutenConfig.get().textIputEmptyAsDefault())
                   .build();
           fileBuilder.setText(textReadOptions);
           break;
         case JsonReadFormat:
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
               ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
-                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
+                  .setMaxBlockSize(GlutenConfig.get().textInputMaxBlockSize())
                   .build();
           fileBuilder.setJson(jsonReadOptions);
           break;

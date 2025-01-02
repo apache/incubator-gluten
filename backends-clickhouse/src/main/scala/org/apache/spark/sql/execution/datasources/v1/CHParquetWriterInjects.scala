@@ -34,11 +34,11 @@ class CHParquetWriterInjects extends CHFormatWriterInjects {
     sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, compressionCodec)
     val blockSize = options.getOrElse(
       GlutenConfig.PARQUET_BLOCK_SIZE,
-      GlutenConfig.getConf.columnarParquetWriteBlockSize.toString)
+      GlutenConfig.get.columnarParquetWriteBlockSize.toString)
     sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
     val blockRows = options.getOrElse(
       GlutenConfig.PARQUET_BLOCK_ROWS,
-      GlutenConfig.getConf.columnarParquetWriteBlockRows.toString)
+      GlutenConfig.get.columnarParquetWriteBlockRows.toString)
     sparkOptions.put(GlutenConfig.PARQUET_BLOCK_ROWS, blockRows)
     sparkOptions
   }
