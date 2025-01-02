@@ -40,11 +40,11 @@ Input [7]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag
 Arguments: (isnotnull(l_shipdate#X) AND (l_shipdate#X <= 1998-09-02))
 
 (3) ProjectExecTransformer
-Output [8]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X, ((l_extendedprice#X * (1 - l_discount#X)) * (1 + l_tax#X)) AS _pre_X#X]
+Output [7]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_returnflag#X, l_linestatus#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X, ((l_extendedprice#X * (1 - l_discount#X)) * (1 + l_tax#X)) AS _pre_X#X]
 Input [7]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, l_shipdate#X]
 
 (4) FlushableHashAggregateExecTransformer
-Input [8]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_tax#X, l_returnflag#X, l_linestatus#X, _pre_X#X, _pre_X#X]
+Input [7]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_returnflag#X, l_linestatus#X, _pre_X#X, _pre_X#X]
 Keys [2]: [l_returnflag#X, l_linestatus#X]
 Functions [8]: [partial_sum(l_quantity#X), partial_sum(l_extendedprice#X), partial_sum(_pre_X#X), partial_sum(_pre_X#X), partial_avg(l_quantity#X), partial_avg(l_extendedprice#X), partial_avg(l_discount#X), partial_count(1)]
 Aggregate Attributes [15]: [sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, count#X, sum#X, count#X, sum#X, count#X, count#X]

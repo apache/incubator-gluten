@@ -116,11 +116,11 @@ Right keys [1]: [p_partkey#X]
 Join condition: None
 
 (20) ProjectExecTransformer
-Output [5]: [l_extendedprice#X, l_discount#X, p_type#X, CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END AS _pre_X#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_X#X]
+Output [2]: [CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END AS _pre_X#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_X#X]
 Input [5]: [l_partkey#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_type#X]
 
 (21) RegularHashAggregateExecTransformer
-Input [5]: [l_extendedprice#X, l_discount#X, p_type#X, _pre_X#X, _pre_X#X]
+Input [2]: [_pre_X#X, _pre_X#X]
 Keys: []
 Functions [2]: [sum(_pre_X#X), sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) ELSE 0.0000 END)#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]

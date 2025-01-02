@@ -85,7 +85,13 @@ object CHRuleApi {
     val validatorBuilder: GlutenConfig => Validator = conf =>
       Validators.newValidator(conf, offloads)
     val rewrites =
-      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
+      Seq(
+        RewriteIn,
+        RewriteMultiChildrenCount,
+        RewriteJoin,
+        PullOutPreProject,
+        PullOutPostProject,
+        ProjectColumnPruning)
     injector.injectTransform(
       c =>
         intercept(
