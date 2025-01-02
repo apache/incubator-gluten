@@ -320,7 +320,7 @@ object OffloadOthers {
           }
         case plan: RangeExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance.genRangeExecTransformer(
+          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarRangeExec(
             plan.start,
             plan.end,
             plan.step,

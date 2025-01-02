@@ -698,7 +698,7 @@ trait SparkPlanExecApi {
       original: StringSplit): ExpressionTransformer =
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
 
-  def genRangeExecTransformer(
+  def genColumnarRangeExec(
       start: Long,
       end: Long,
       step: Long,

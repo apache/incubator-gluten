@@ -68,7 +68,7 @@ abstract class RangeExecBaseTransformer(
 object RangeExecBaseTransformer {
   def from(rangeExec: RangeExec): RangeExecBaseTransformer = {
     BackendsApiManager.getSparkPlanExecApiInstance
-      .genRangeExecTransformer(
+      .genColumnarRangeExec(
         rangeExec.start,
         rangeExec.end,
         rangeExec.step,

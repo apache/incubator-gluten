@@ -19,18 +19,15 @@ package org.apache.gluten.execution
 import org.apache.gluten.columnarbatch.ArrowBatches.ArrowJavaBatch
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.iterator.Iterators
-// import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.SparkPlan
-// import org.apache.spark.sql.internal.SQLConf
-// import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 /**
- * RangeExecTransformer is a concrete implementation of RangeExecBaseTransformer that executes the
+ * ColumnarRangeExec is a concrete implementation of RangeExecBaseTransformer that executes the
  * Range operation and supports columnar processing. It generates columnar batches for the specified
  * range.
  *
@@ -49,7 +46,7 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
  * @param child
  *   Child SparkPlan nodes for this operator, if any.
  */
-case class RangeExecTransformer(
+case class ColumnarRangeExec(
     start: Long,
     end: Long,
     step: Long,
@@ -78,10 +75,6 @@ case class RangeExecTransformer(
         .parallelize(0 until numSlices, numSlices)
         .mapPartitionsWithIndex {
           (partitionIndex, _) =>
-            // val allocator = ArrowBufferAllocators.contextInstance()
-            // val sessionLocalTimeZone = SQLConf.get.sessionLocalTimeZone
-            // valarrowSchema=SparkArrowUtil.toArrowSchema(schema,SQLConf.get.sessionLocalTimeZone)
-
             val batchSize = 1000
             val safePartitionStart =
               start + step * (partitionIndex * numElements.toLong / numSlices)

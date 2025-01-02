@@ -825,7 +825,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     VeloxHiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
   }
 
-  override def genRangeExecTransformer(
+  override def genColumnarRangeExec(
       start: Long,
       end: Long,
       step: Long,
@@ -833,6 +833,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): RangeExecBaseTransformer =
-    RangeExecTransformer(start, end, step, numSlices, numElements, outputAttributes, child)
+    ColumnarRangeExec(start, end, step, numSlices, numElements, outputAttributes, child)
 
 }

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.RangeExecTransformer
+import org.apache.gluten.execution.ColumnarRangeExec
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.Row
@@ -24,7 +24,7 @@ import org.apache.spark.sql.functions.sum
 
 class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
-  testGluten("RangeExecTransformer produces correct results") {
+  testGluten("ColumnarRangeExec produces correct results") {
     // Convert Dataset[Long] to DataFrame by assigning a column name
     val df = spark.range(0, 10, 1).toDF("id")
     val expectedData = (0L until 10L).map(Row(_)).toSeq
@@ -33,13 +33,13 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     assert(
       getExecutedPlan(df).exists {
-        case _: RangeExecTransformer => true
+        case _: ColumnarRangeExec => true
         case _ => false
       }
     )
   }
 
-  testGluten("RangeExecTransformer with step") {
+  testGluten("ColumnarRangeExec with step") {
     val df = spark.range(5, 15, 2).toDF("id")
     val expectedData = Seq(5L, 7L, 9L, 11L, 13L).map(Row(_))
 
@@ -47,13 +47,13 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     assert(
       getExecutedPlan(df).exists {
-        case _: RangeExecTransformer => true
+        case _: ColumnarRangeExec => true
         case _ => false
       }
     )
   }
 
-  testGluten("RangeExecTransformer with filter") {
+  testGluten("ColumnarRangeExec with filter") {
     val df = spark.range(0, 20, 1).toDF("id").filter("id % 3 == 0")
     val expectedData = Seq(0L, 3L, 6L, 9L, 12L, 15L, 18L).map(Row(_))
 
@@ -61,15 +61,14 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     assert(
       getExecutedPlan(df).exists {
-        case _: RangeExecTransformer => true
+        case _: ColumnarRangeExec => true
         case _ => false
       }
     )
   }
 
-  testGluten("RangeExecTransformer with aggregation") {
+  testGluten("ColumnarRangeExec with aggregation") {
     val df = spark.range(1, 6, 1).toDF("id")
-    // sum() is defined in org.apache.spark.sql.functions._
     val sumDf = df.agg(sum("id"))
     val expectedData = Seq(Row(15L))
 
@@ -77,13 +76,13 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     assert(
       getExecutedPlan(sumDf).exists {
-        case _: RangeExecTransformer => true
+        case _: ColumnarRangeExec => true
         case _ => false
       }
     )
   }
 
-  testGluten("RangeExecTransformer with join") {
+  testGluten("ColumnarRangeExec with join") {
     val df1 = spark.range(0, 5, 1).toDF("id1")
     val df2 = spark.range(3, 8, 1).toDF("id2")
     val joinDf = df1.join(df2, df1("id1") === df2("id2"))
@@ -93,7 +92,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     assert(
       getExecutedPlan(joinDf).exists {
-        case _: RangeExecTransformer => true
+        case _: ColumnarRangeExec => true
         case _ => false
       }
     )
