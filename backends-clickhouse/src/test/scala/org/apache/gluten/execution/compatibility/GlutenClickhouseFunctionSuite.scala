@@ -59,11 +59,6 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", warehouse)
-      .set(
-        "spark.sql.optimizer.excludedRules",
-        org.apache.spark.sql.catalyst.optimizer.ConstantFolding,
-        org.apache.spark.sql.catalyst.optimizer.NullPropagation
-      ) // exclude ConstantFolding
       .setMaster("local[1]")
   }
 
