@@ -52,8 +52,8 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
 #ifdef ENABLE_S3
   using namespace facebook::velox::filesystems;
-  std::string_view kSparkHadoopPrefix = "spark.hadoop.fs.s3a.";
-  std::string_view kSparkHadoopBucketPrefix = "spark.hadoop.fs.s3a.bucket.";
+  std::string_view kSparkHadoopS3Prefix = "spark.hadoop.fs.s3a.";
+  std::string_view kSparkHadoopS3BucketPrefix = "spark.hadoop.fs.s3a.bucket.";
 
   // Log granularity of AWS C++ SDK
   const std::string kVeloxAwsSdkLogLevel = "spark.gluten.velox.awsSdkLogLevel";
@@ -87,7 +87,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   auto sparkBaseConfigValue = [&](S3Config::Keys key) {
     std::stringstream ss;
     auto keyValue = sparkSuffixes.find(key)->second;
-    ss << kSparkHadoopPrefix << keyValue.first;
+    ss << kSparkHadoopS3Prefix << keyValue.first;
     auto sparkKey = ss.str();
     if (conf->valueExists(sparkKey)) {
       return static_cast<std::optional<std::string>>(conf->get<std::string>(sparkKey));
@@ -131,9 +131,9 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
   // Convert all Spark bucket configs to Velox bucket configs.
   for (const auto& [key, value] : conf->rawConfigs()) {
-    if (key.find(kSparkHadoopBucketPrefix) == 0) {
+    if (key.find(kSparkHadoopS3BucketPrefix) == 0) {
       std::string_view skey = key;
-      auto remaining = skey.substr(kSparkHadoopBucketPrefix.size());
+      auto remaining = skey.substr(kSparkHadoopS3BucketPrefix.size());
       int dot = remaining.find(".");
       auto bucketName = remaining.substr(0, dot);
       auto suffix = remaining.substr(dot + 1);
@@ -185,6 +185,20 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
                         "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
         throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
       }
+    }
+  }
+#endif
+
+#ifdef ENABLE_ABFS
+  std::string_view kSparkHadoopPrefix = "spark.hadoop.";
+  std::string_view kSparkHadoopAbfsPrefix = "spark.hadoop.fs.azure.";
+  std::string_view kAbfsPrefix = "fs.azure.";
+  for (const auto& [key, value] : conf->rawConfigs()) {
+    if (key.find(kAbfsPrefix) == 0) {
+      hiveConfMap[key] = value;
+    } else if (key.find(kSparkHadoopAbfsPrefix) == 0) {
+      // Remove the SparkHadoopAbfsPrefix
+      hiveConfMap[key.substr(kSparkHadoopPrefix.size())] = value;
     }
   }
 #endif
