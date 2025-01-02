@@ -17,33 +17,35 @@
 package org.apache.gluten.integration
 
 import org.apache.gluten.integration.action.Action
-import org.apache.logging.log4j.core.config.Configurator
-import org.apache.logging.log4j.{Level, LogManager}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
 
+import org.apache.logging.log4j.{Level, LogManager}
+import org.apache.logging.log4j.core.config.Configurator
+
 import java.io.File
 import java.util.Scanner
 
 abstract class Suite(
-                      private val masterUrl: String,
-                      private val actions: Array[Action],
-                      private val testConf: SparkConf,
-                      private val baselineConf: SparkConf,
-                      private val extraSparkConf: Map[String, String],
-                      private val logLevel: Level,
-                      private val errorOnMemLeak: Boolean,
-                      private val enableUi: Boolean,
-                      private val enableHsUi: Boolean,
-                      private val hsUiPort: Int,
-                      private val disableAqe: Boolean,
-                      private val disableBhj: Boolean,
-                      private val disableWscg: Boolean,
-                      private val shufflePartitions: Int,
-                      private val scanPartitions: Int) {
+    private val masterUrl: String,
+    private val actions: Array[Action],
+    private val testConf: SparkConf,
+    private val baselineConf: SparkConf,
+    private val extraSparkConf: Map[String, String],
+    private val logLevel: Level,
+    private val errorOnMemLeak: Boolean,
+    private val enableUi: Boolean,
+    private val enableHsUi: Boolean,
+    private val hsUiPort: Int,
+    private val disableAqe: Boolean,
+    private val disableBhj: Boolean,
+    private val disableWscg: Boolean,
+    private val shufflePartitions: Int,
+    private val scanPartitions: Int) {
 
   resetLogLevel()
 
@@ -116,11 +118,11 @@ abstract class Suite(
       .setWarningOnOverriding("spark.sql.files.openCostInBytes", "0")
     sessionSwitcher
       .defaultConf()
-      .setWarningOnOverriding("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1) max 1}")
+      .setWarningOnOverriding("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1).max(1)}")
   }
 
-  extraSparkConf.toStream.foreach { kv =>
-    sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
+  extraSparkConf.toStream.foreach {
+    kv => sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
   }
 
   // register sessions
@@ -140,9 +142,10 @@ abstract class Suite(
   }
 
   def run(): Boolean = {
-    val succeed = actions.forall { action =>
-      resetLogLevel() // to prevent log level from being set by unknown external codes
-      action.execute(this)
+    val succeed = actions.forall {
+      action =>
+        resetLogLevel() // to prevent log level from being set by unknown external codes
+        action.execute(this)
     }
     succeed
   }
