@@ -17,7 +17,8 @@
 package org.apache.gluten.integration
 
 import org.apache.gluten.integration.action.Action
-import org.apache.log4j.{Level, LogManager}
+import org.apache.logging.log4j.core.config.Configurator
+import org.apache.logging.log4j.{Level, LogManager}
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
@@ -159,7 +160,7 @@ abstract class Suite(
   def tableCreator(): TableCreator
 
   private def resetLogLevel(): Unit = {
-    LogManager.getRootLogger.setLevel(logLevel)
+    Configurator.setAllLevels(LogManager.getRootLogger.getName, logLevel)
   }
 
   private[integration] def getBaselineConf(): SparkConf = {
