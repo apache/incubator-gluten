@@ -247,15 +247,6 @@ if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     fi
     ${VELOX_HOME}/scripts/setup-adapters.sh aws
   fi
-  if [ $ENABLE_HDFS == "ON" ]; then
-    if [ $OS == 'Darwin' ]; then
-      echo "HDFS is not supported on MacOS."
-      exit 1
-    fi
-    pushd $VELOX_HOME
-    install_libhdfs3
-    popd
-  fi
   if [ $ENABLE_GCS == "ON" ]; then
     ${VELOX_HOME}/scripts/setup-adapters.sh gcs
   fi
