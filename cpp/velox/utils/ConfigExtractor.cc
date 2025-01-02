@@ -192,12 +192,9 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 #ifdef ENABLE_ABFS
   std::string_view kSparkHadoopPrefix = "spark.hadoop.";
   std::string_view kSparkHadoopAbfsPrefix = "spark.hadoop.fs.azure.";
-  std::string_view kAbfsPrefix = "fs.azure.";
   for (const auto& [key, value] : conf->rawConfigs()) {
-    if (key.find(kAbfsPrefix) == 0) {
-      hiveConfMap[key] = value;
-    } else if (key.find(kSparkHadoopAbfsPrefix) == 0) {
-      // Remove the SparkHadoopAbfsPrefix
+    if (key.find(kSparkHadoopAbfsPrefix) == 0) {
+      // Remove the SparkHadoopPrefix
       hiveConfMap[key.substr(kSparkHadoopPrefix.size())] = value;
     }
   }
