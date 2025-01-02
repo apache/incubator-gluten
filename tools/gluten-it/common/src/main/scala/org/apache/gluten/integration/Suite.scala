@@ -24,8 +24,8 @@ import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
 
-import org.apache.logging.log4j.{Level, LogManager}
-import org.apache.logging.log4j.core.config.Configurator
+import org.apache.log4j.Level
+import org.apache.log4j.LogManager
 
 import java.io.File
 import java.util.Scanner
@@ -163,7 +163,7 @@ abstract class Suite(
   def tableCreator(): TableCreator
 
   private def resetLogLevel(): Unit = {
-    Configurator.setAllLevels(LogManager.getRootLogger.getName, logLevel)
+    LogManager.getRootLogger.setLevel(logLevel)
   }
 
   private[integration] def getBaselineConf(): SparkConf = {

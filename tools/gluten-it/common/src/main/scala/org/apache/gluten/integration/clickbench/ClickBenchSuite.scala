@@ -18,7 +18,7 @@ package org.apache.gluten.integration.clickbench
 
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.{DataGen, Suite, TableCreator}
-import org.apache.logging.log4j.Level
+import org.apache.log4j.Level
 import org.apache.spark.SparkConf
 
 import java.io.File

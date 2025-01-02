@@ -27,7 +27,6 @@
     <guava.version>32.0.1-jre</guava.version>
     <tpch.version>1.1</tpch.version>
     <tpcds.version>1.4</tpcds.version>
-    <log4j.version>2.19.0</log4j.version>
   </properties>
 
   <dependencyManagement>
@@ -42,26 +41,31 @@
             <artifactId>gluten-substrait</artifactId>
           </exclusion>
         </exclusions>
+        <scope>runtime</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-core_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-repl_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-hive_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
+        <scope>provided</scope>
         <exclusions>
           <exclusion>
             <groupId>jline</groupId>
@@ -73,12 +77,14 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-core_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
+        <scope>provided</scope>
         <type>test-jar</type>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
+        <scope>provided</scope>
         <type>test-jar</type>
       </dependency>
       <dependency>
@@ -91,37 +97,14 @@
             <artifactId>protobuf-java</artifactId>
           </exclusion>
         </exclusions>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-sql_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <type>test-jar</type>
-      </dependency>
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-log4j12</artifactId>
-        <version>1.7.36</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-api</artifactId>
-        <version>${log4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-core</artifactId>
-        <version>${log4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-1.2-api</artifactId>
-        <version>${log4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j-impl</artifactId>
-        <version>${log4j.version}</version>
+        <scope>provided</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -162,7 +145,6 @@
       <properties>
         <spark.version>3.2.2</spark.version>
         <scala.library.version>2.12.15</scala.library.version>
-        <log4j.version>2.17.2</log4j.version>
       </properties>
     </profile>
     <profile>
@@ -170,7 +152,6 @@
       <properties>
         <spark.version>3.3.1</spark.version>
         <scala.library.version>2.12.15</scala.library.version>
-        <log4j.version>2.17.2</log4j.version>
       </properties>
     </profile>
     <profile>
@@ -178,7 +159,6 @@
       <properties>
         <spark.version>3.4.3</spark.version>
         <scala.library.version>2.12.17</scala.library.version>
-        <log4j.version>2.19.0</log4j.version>
       </properties>
     </profile>
     <profile>
@@ -186,7 +166,6 @@
       <properties>
         <spark.version>3.5.2</spark.version>
         <scala.library.version>2.12.18</scala.library.version>
-        <log4j.version>2.20.0</log4j.version>
       </properties>
     </profile>
     <profile>
