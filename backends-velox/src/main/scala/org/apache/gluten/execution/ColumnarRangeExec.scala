@@ -76,10 +76,16 @@ case class ColumnarRangeExec(
         .mapPartitionsWithIndex {
           (partitionIndex, _) =>
             val batchSize = 1000
-            val safePartitionStart =
-              start + step * (partitionIndex * numElements.toLong / numSlices)
-            val safePartitionEnd =
-              start + step * ((partitionIndex + 1) * numElements.toLong / numSlices)
+            val safePartitionStart = (partitionIndex) * numElements / numSlices * step + start
+            val safePartitionEnd = (partitionIndex + 1) * numElements / numSlices * step + start
+
+            def getSafeMargin(value: BigInt): Long =
+              if (value.isValidLong) value.toLong
+              else if (value > 0) Long.MaxValue
+              else Long.MinValue
+
+            val partitionStart = getSafeMargin(safePartitionStart)
+            val partitionEnd = getSafeMargin(safePartitionEnd)
 
             /**
              * Generates the columnar batches for the specified range. Each batch contains a subset
@@ -106,7 +112,7 @@ case class ColumnarRangeExec(
 
                 for (i <- 0 until numRows) {
                   val value = current + i * step
-                  vectors(0).putLong(i, value)
+                  vectors(0).putLong(i, getSafeMargin(value))
                 }
                 vectors.foreach(_.setValueCount(numRows))
                 current += numRows * step
