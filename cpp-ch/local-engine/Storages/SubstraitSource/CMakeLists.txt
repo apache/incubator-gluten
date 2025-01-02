@@ -27,11 +27,15 @@ add_library(substrait_source ${substrait_source_sources})
 target_compile_options(
   substrait_source PRIVATE -Wno-suggest-destructor-override
                            -Wno-inconsistent-missing-destructor-override)
-
+if (APPLE)
 target_link_libraries(
   substrait_source PUBLIC boost::headers_only ch_contrib::protobuf
-                          clickhouse_common_io ch_contrib::hdfs substrait)
-
+                          clickhouse_common_iosubstrait)
+else()
+target_link_libraries(
+  substrait_source PUBLIC boost::headers_only ch_contrib::protobuf
+                          clickhouse_common_io ch_contrib::hdfs  substrait)
+endif()
 target_include_directories(
   substrait_source SYSTEM BEFORE
   PUBLIC ${ARROW_INCLUDE_DIR} ${CMAKE_BINARY_DIR}/contrib/arrow-cmake/cpp/src
