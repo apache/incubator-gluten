@@ -41,31 +41,36 @@
             <artifactId>gluten-substrait</artifactId>
           </exclusion>
         </exclusions>
-        <scope>runtime</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-core_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
-        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro-mapred</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-repl_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
-        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
-        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-hive_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
-        <scope>provided</scope>
         <exclusions>
           <exclusion>
             <groupId>jline</groupId>
@@ -77,14 +82,12 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-core_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
-        <scope>provided</scope>
         <type>test-jar</type>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
-        <scope>provided</scope>
         <type>test-jar</type>
       </dependency>
       <dependency>
@@ -97,14 +100,17 @@
             <artifactId>protobuf-java</artifactId>
           </exclusion>
         </exclusions>
-        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-sql_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <type>test-jar</type>
-        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>1.7.30</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
