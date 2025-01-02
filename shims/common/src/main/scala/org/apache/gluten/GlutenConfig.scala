@@ -490,6 +490,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
 
   def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
+
+  def enableBroadcastBuildRelationInOffheap: Boolean =
+    conf.getConf(VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP)
 }
 
 object GlutenConfig {
@@ -2255,6 +2258,14 @@ object GlutenConfig {
     buildStaticConf("spark.gluten.storage.hdfsViewfs.enabled")
       .internal()
       .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala side")
+      .booleanConf
+      .createWithDefault(false)
+
+  val VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP =
+    buildConf("spark.gluten.velox.offHeapBroadcastBuildRelation.enabled")
+      .internal()
+      .doc("Experimental: If enabled, broadcast build relation will use offheap memory. " +
+        "Otherwise, broadcast build relation will use onheap memory.")
       .booleanConf
       .createWithDefault(false)
 }
