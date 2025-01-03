@@ -219,7 +219,7 @@ adjustReadRangeIfNeeded(std::unique_ptr<SeekableReadBuffer> read_buffer, const s
 class LocalFileReadBufferBuilder : public ReadBufferBuilder
 {
 public:
-    explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
+    explicit LocalFileReadBufferBuilder(const DB::ContextPtr & context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
     bool isRemote() const override { return false; }
@@ -692,7 +692,7 @@ ReadBufferBuilder::ReadBufferBuilder(const DB::ContextPtr & context_) : context(
 }
 
 std::unique_ptr<DB::ReadBuffer>
-ReadBufferBuilder::wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+ReadBufferBuilder::wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) const
 {
     /// Bzip2 compressed file is splittable and we need to adjust read range for each split
     auto * seekable = dynamic_cast<SeekableReadBuffer *>(in.release());

@@ -59,7 +59,7 @@ class GlutenWholeStageColumnarRDD(
     updateInputMetrics: InputMetricsWrapper => Unit,
     updateNativeMetrics: IMetrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
-  private val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  private val numaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
 

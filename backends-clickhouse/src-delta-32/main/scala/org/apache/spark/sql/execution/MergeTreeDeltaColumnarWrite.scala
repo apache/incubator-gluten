@@ -52,10 +52,10 @@ case class MergeTreeWriteResult(
       path: Path,
       modificationTime: Long,
       hostName: Seq[String]): FileAction = {
-    val (partitionValues, part_path) = if (partition_id == CHColumnarWrite.EMPTY_PARTITION_ID) {
-      (Map.empty[String, String], part_name)
-    } else {
+    val (partitionValues, part_path) = if (CHColumnarWrite.validatedPartitionID(partition_id)) {
       (MergeTreePartitionUtils.parsePartitions(partition_id), s"$partition_id/$part_name")
+    } else {
+      (Map.empty[String, String], part_name)
     }
     val tags = Map[String, String](
       "database" -> database,
@@ -88,7 +88,7 @@ case class MergeTreeWriteResult(
       DeltaStatistics.NULL_COUNT -> ""
     )
     AddFile(
-      part_path,
+      new Path(part_path).toUri.toString,
       partitionValues,
       size_in_bytes,
       modificationTime,
@@ -153,7 +153,7 @@ case class MergeTreeBasicWriteTaskStatsTracker() extends (MergeTreeWriteResult =
   private var numFiles: Int = 0
 
   def apply(stat: MergeTreeWriteResult): Unit = {
-    if (stat.partition_id != CHColumnarWrite.EMPTY_PARTITION_ID) {
+    if (CHColumnarWrite.validatedPartitionID(stat.partition_id)) {
       partitions.append(new GenericInternalRow(Array[Any](stat.partition_id)))
     }
     numFiles += 1

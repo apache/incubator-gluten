@@ -49,7 +49,7 @@ protected:
     using ReadBufferCreator = std::function<std::unique_ptr<DB::ReadBufferFromFileBase>(bool restricted_seek, const DB::StoredObject & object)>;
 
     std::unique_ptr<DB::ReadBuffer>
-    wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info);
+    wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) const;
 
     ReadBufferCreator wrapWithCache(
         ReadBufferCreator read_buffer_creator,

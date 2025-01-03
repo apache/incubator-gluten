@@ -95,7 +95,7 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
         }
       case rangePartitoning: RangePartitioning =>
         if (
-          GlutenConfig.getConf.enableColumnarSort &&
+          GlutenConfig.get.enableColumnarSort &&
           RangePartitionerBoundsGenerator.supportedOrderings(rangePartitoning, child)
         ) {
           None

@@ -68,7 +68,10 @@
       <scope>provided</scope>
       <type>test-jar</type>
     </dependency>
-
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+    </dependency>
     <dependency>
       <groupId>io.trino.tpcds</groupId>
       <artifactId>tpcds</artifactId>

@@ -18,6 +18,7 @@
 
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
+#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Common/GlutenConfig.h>
 
 using namespace DB;
@@ -33,10 +34,13 @@ bool tryGetString(const DB::Settings & settings, std::string_view name, std::str
     }
     return false;
 }
-bool settingsEqual(const DB::Settings & settings, std::string_view name, const std::string & value)
+bool settingsEqual(
+    const DB::Settings & settings, std::string_view name, const std::string & value, const std::optional<std::string> & default_value)
 {
     if (DB::Field field; settings.tryGet(name, field))
         return field.safeGet<String>() == value;
+    if (default_value.has_value())
+        return *default_value == value;
     return false;
 }
 void updateSettings(const DB::ContextMutablePtr & context, std::string_view plan)

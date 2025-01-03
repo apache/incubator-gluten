@@ -239,7 +239,7 @@ object CHExecUtil extends Logging {
 
   private def buildPartitioningOptions(nativePartitioning: NativePartitioning): IteratorOptions = {
     val options = new IteratorOptions
-    options.setBufferSize(GlutenConfig.getConf.maxBatchSize)
+    options.setBufferSize(GlutenConfig.get.maxBatchSize)
     options.setName(nativePartitioning.getShortName)
     options.setPartitionNum(nativePartitioning.getNumPartitions)
     options.setExpr(new String(nativePartitioning.getExprList))
@@ -345,8 +345,8 @@ object CHExecUtil extends Logging {
 
     val rddWithPartitionKey: RDD[Product2[Int, ColumnarBatch]] =
       if (
-        GlutenConfig.getConf.isUseColumnarShuffleManager
-        || GlutenConfig.getConf.isUseCelebornShuffleManager
+        GlutenConfig.get.isUseColumnarShuffleManager
+        || GlutenConfig.get.isUseCelebornShuffleManager
       ) {
         newPartitioning match {
           case _ =>

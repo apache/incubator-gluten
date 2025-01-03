@@ -68,7 +68,7 @@ class ClickhouseOptimisticTransaction(
       writeOptions: Option[DeltaOptions],
       isOptimize: Boolean,
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
-    val nativeWrite = GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+    val nativeWrite = GlutenConfig.get.enableNativeWriter.getOrElse(false)
     if (writingMergeTree) {
       // TODO: update FallbackByBackendSettings for mergetree always return true
       val onePipeline = nativeWrite && CHConf.get.enableOnePipelineMergeTreeWrite
@@ -340,20 +340,19 @@ class ClickhouseOptimisticTransaction(
 
     var resultFiles =
       (if (optionalStatsTracker.isDefined) {
-         committer.addedStatuses.map {
-           a =>
-             a.copy(stats =
-               optionalStatsTracker.map(_.recordedStats(a.toPath.getName)).getOrElse(a.stats))
-         }
-       } else {
-         committer.addedStatuses
-       })
+        committer.addedStatuses.map { a =>
+          a.copy(stats = optionalStatsTracker.map(
+            _.recordedStats(a.toPath.getName)).getOrElse(a.stats))
+        }
+      }
+      else {
+        committer.addedStatuses
+      })
         .filter {
-          // In some cases, we can write out an empty `inputData`. Some examples of this (though,
-          // they may be fixed in the future) are the MERGE command when you delete with empty
-          // source, or empty target, or on disjoint tables. This is hard to catch before
-          // the write without collecting the DF ahead of time. Instead,
-          // we can return only the AddFiles that
+          // In some cases, we can write out an empty `inputData`. Some examples of this (though, they
+          // may be fixed in the future) are the MERGE command when you delete with empty source, or
+          // empty target, or on disjoint tables. This is hard to catch before the write without
+          // collecting the DF ahead of time. Instead, we can return only the AddFiles that
           // a) actually add rows, or
           // b) don't have any stats so we don't know the number of rows at all
           case a: AddFile => a.numLogicalRecords.forall(_ > 0)

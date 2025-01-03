@@ -37,7 +37,7 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
-    private val conf = GlutenConfig.getConf
+    private val conf = GlutenConfig.get
     private val settings = BackendsApiManager.getSettings
 
     /** Fails validation if a plan node was already tagged with TRANSFORM_UNSUPPORTED. */

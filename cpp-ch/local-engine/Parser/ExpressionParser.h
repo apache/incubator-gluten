@@ -40,26 +40,27 @@ public:
 class ExpressionParser
 {
 public:
+    using NodeRawConstPtr = const DB::ActionsDAG::Node *;
     ExpressionParser(const std::shared_ptr<const ParserContext> & context_) : context(context_) { }
     ~ExpressionParser() = default;
 
     /// Append a counter-suffix to name
     String getUniqueName(const String & name) const;
 
-    const DB::ActionsDAG::Node * addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr type, const DB::Field & field) const;
+    NodeRawConstPtr addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr type, const DB::Field & field) const;
 
     /// Parse expr and add an expression node in actions_dag
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & expr) const;
+    NodeRawConstPtr parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & expr) const;
     /// Build an actions dag that contains expressions. header is used as input columns for the actions dag.
     DB::ActionsDAG expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header) const;
 
     // Parse func's arguments into actions dag, and return the node ptrs.
     DB::ActionsDAG::NodeRawConstPtrs
     parseFunctionArguments(DB::ActionsDAG & actions_dag, const substrait::Expression_ScalarFunction & func) const;
-    const DB::ActionsDAG::Node *
+    NodeRawConstPtr
     parseFunction(const substrait::Expression_ScalarFunction & func, DB::ActionsDAG & actions_dag, bool add_to_output = false) const;
     // Add a new function node into the actions dag
-    const DB::ActionsDAG::Node * toFunctionNode(
+    NodeRawConstPtr toFunctionNode(
         DB::ActionsDAG & actions_dag,
         const String & ch_function_name,
         const DB::ActionsDAG::NodeRawConstPtrs & args,
@@ -77,11 +78,16 @@ private:
     static std::atomic<UInt64> unique_name_counter;
     std::shared_ptr<const ParserContext> context;
 
+    bool reuseCSE() const;
+
     DB::ActionsDAG::NodeRawConstPtrs
     parseArrayJoin(const substrait::Expression_ScalarFunction & func, DB::ActionsDAG & actions_dag, bool position) const;
     DB::ActionsDAG::NodeRawConstPtrs parseArrayJoinArguments(
         const substrait::Expression_ScalarFunction & func, DB::ActionsDAG & actions_dag, bool position, bool & is_map) const;
 
     DB::ActionsDAG::NodeRawConstPtrs parseJsonTuple(const substrait::Expression_ScalarFunction & func, DB::ActionsDAG & actions_dag) const;
+
+    static bool areEqualNodes(NodeRawConstPtr a, NodeRawConstPtr b);
+    NodeRawConstPtr findFirstStructureEqualNode(NodeRawConstPtr target, const DB::ActionsDAG & actions_dag) const;
 };
 }

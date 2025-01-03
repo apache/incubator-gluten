@@ -137,7 +137,7 @@ public:
 
 private:
     size_t num_streams;
-    void updateOutputHeader() override {};
+    void updateOutputHeader() override { };
 };
 
 DB::QueryPlanPtr BranchStepHelper::createSubPlan(const DB::Block & header, size_t num_streams)
@@ -156,7 +156,7 @@ DB::QueryPlanPtr BranchStepHelper::createSubPlan(const DB::Block & header, size_
 }
 
 StaticBranchStep::StaticBranchStep(
-    DB::ContextPtr context_, const DB::Block & header_, size_t branches_, size_t sample_rows_, BranchSelector selector_)
+    const DB::ContextPtr & context_, const DB::Block & header_, size_t branches_, size_t sample_rows_, BranchSelector selector_)
     : DB::ITransformingStep(header_, header_, getTraits())
     , context(context_)
     , header(header_)
@@ -168,7 +168,7 @@ StaticBranchStep::StaticBranchStep(
 
 void StaticBranchStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings)
 {
-    auto build_transform = [&](DB::OutputPortRawPtrs child_outputs) -> DB::Processors
+    auto build_transform = [&](const DB::OutputPortRawPtrs & child_outputs) -> DB::Processors
     {
         DB::Processors new_processors;
         for (auto & output : child_outputs)
@@ -195,8 +195,9 @@ void StaticBranchStep::updateOutputHeader()
 {
 }
 
-UniteBranchesStep::UniteBranchesStep(const DB::Block & header_, std::vector<DB::QueryPlanPtr> && branch_plans_, size_t num_streams_)
-    : DB::ITransformingStep(header_, branch_plans_[0]->getCurrentHeader(), getTraits()), header(header_)
+UniteBranchesStep::UniteBranchesStep(
+    const DB::ContextPtr & context_, const DB::Block & header_, std::vector<DB::QueryPlanPtr> && branch_plans_, size_t num_streams_)
+    : DB::ITransformingStep(header_, branch_plans_[0]->getCurrentHeader(), getTraits()), context(context_), header(header_)
 {
     branch_plans.swap(branch_plans_);
     size_t branches = branch_plans.size();
@@ -217,11 +218,11 @@ void UniteBranchesStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, c
                 child_outputs.size(),
                 branch_plans.size());
         }
-        for (auto output : child_outputs)
+        for (auto * output : child_outputs)
         {
             auto & branch_plan = branch_plans[branch_index];
-            DB::QueryPlanOptimizationSettings optimization_settings;
-            DB::BuildQueryPipelineSettings build_settings;
+            DB::QueryPlanOptimizationSettings optimization_settings{context};
+            DB::BuildQueryPipelineSettings build_settings{context};
             DB::QueryPlanResourceHolder resource_holder;
 
             auto pipeline_builder = branch_plan->buildQueryPipeline(optimization_settings, build_settings);

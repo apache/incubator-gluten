@@ -286,7 +286,9 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
     }
 
     // Validation: ShuffledHashJoin.
-    withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "true",
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1") {
       runQueryAndCompare(
         "select type1.date from type1," +
           " type2 where type1.date = type2.date") {

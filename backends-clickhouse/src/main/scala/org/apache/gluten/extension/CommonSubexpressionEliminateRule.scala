@@ -39,8 +39,8 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
   override def apply(plan: LogicalPlan): LogicalPlan = {
     val newPlan =
       if (
-        plan.resolved && GlutenConfig.getConf.enableGluten
-        && GlutenConfig.getConf.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
+        plan.resolved && GlutenConfig.get.enableGluten
+        && GlutenConfig.get.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
       ) {
         lastPlan = plan
         visitPlan(plan)
@@ -84,6 +84,21 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
       exprEquals.get.attribute
     } else {
       expr.mapChildren(replaceCommonExprWithAttribute(_, commonExprMap))
+    }
+  }
+
+  private def replaceAggCommonExprWithAttribute(
+      expr: Expression,
+      commonExprMap: mutable.HashMap[ExpressionEquals, AliasAndAttribute]): Expression = {
+    val exprEquals = commonExprMap.get(ExpressionEquals(expr))
+    if (expr.isInstanceOf[AggregateExpression]) {
+      if (exprEquals.isDefined) {
+        exprEquals.get.attribute
+      } else {
+        expr
+      }
+    } else {
+      expr.mapChildren(replaceAggCommonExprWithAttribute(_, commonExprMap))
     }
   }
 
@@ -162,7 +177,14 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
     // Replace the common expressions with the first expression that produces it.
     try {
       var newExprs = inputCtx.exprs
-        .map(replaceCommonExprWithAttribute(_, commonExprMap))
+        .map(
+          expr => {
+            if (expr.find(_.isInstanceOf[AggregateExpression]).isDefined) {
+              replaceAggCommonExprWithAttribute(expr, commonExprMap)
+            } else {
+              replaceCommonExprWithAttribute(expr, commonExprMap)
+            }
+          })
       logTrace(s"newExprs after rewrite: $newExprs")
       RewriteContext(newExprs, preProject)
     } catch {

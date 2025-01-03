@@ -19,7 +19,6 @@
     "spark.hadoop.input.read.timeout": "180000",
     "spark.hadoop.fs.s3a.secret.key": "",
     "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_log_severity": "INFO",
-    "spark.gluten.sql.columnar.backend.ch.runtime_settings.query_plan_enable_optimizations": "false",
     "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.disk": "hdfs",
     "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes": "main",
     "spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_before_external_sort": "5368709120",

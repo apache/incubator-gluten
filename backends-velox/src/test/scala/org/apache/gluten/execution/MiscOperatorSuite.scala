@@ -1275,12 +1275,14 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
             |""".stripMargin)
 
-      runQueryAndCompare(
-        """
-          |select * from t1 cross join t2 on t1.c1 = t2.c1;
-          |""".stripMargin
-      ) {
-        checkGlutenOperatorMatch[ShuffledHashJoinExecTransformer]
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "true") {
+        runQueryAndCompare(
+          """
+            |select * from t1 cross join t2 on t1.c1 = t2.c1;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[ShuffledHashJoinExecTransformer]
+        }
       }
 
       withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {

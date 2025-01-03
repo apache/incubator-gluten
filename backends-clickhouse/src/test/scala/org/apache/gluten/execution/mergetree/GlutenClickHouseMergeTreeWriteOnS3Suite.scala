@@ -496,7 +496,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     spark.sql("drop table lineitem_mergetree_bucket_s3")
   }
 
-  testSparkVersionLE33("test mergetree write with the path based") {
+  testSparkVersionLE33("test mergetree write with the path based bucket table") {
     val dataPath = s"s3a://$BUCKET_NAME/lineitem_mergetree_bucket_s3"
 
     val sourceDF = spark.sql(s"""

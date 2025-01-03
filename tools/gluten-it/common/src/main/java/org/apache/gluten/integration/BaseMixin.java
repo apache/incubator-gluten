@@ -21,8 +21,8 @@ import org.apache.gluten.integration.clickbench.ClickBenchSuite;
 import org.apache.gluten.integration.command.SparkRunModes;
 import org.apache.gluten.integration.ds.TpcdsSuite;
 import org.apache.gluten.integration.h.TpchSuite;
-import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
+import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
 import scala.Predef;
@@ -104,8 +104,6 @@ public class BaseMixin {
   }
 
   public Integer runActions(Action[] actions) {
-    final SparkConf baselineConf = pickSparkConf(baselinePreset);
-    final SparkConf testConf = pickSparkConf(preset);
     final Level level;
     switch (logLevel) {
       case 0:
@@ -120,8 +118,11 @@ public class BaseMixin {
       default:
         throw new IllegalArgumentException("Log level not found: " + logLevel);
     }
-
+    System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, level.toString());
     LogManager.getRootLogger().setLevel(level);
+
+    final SparkConf baselineConf = pickSparkConf(baselinePreset);
+    final SparkConf testConf = pickSparkConf(preset);
 
     scala.collection.immutable.Map<String, String> extraSparkConfScala =
         JavaConverters.mapAsScalaMapConverter(

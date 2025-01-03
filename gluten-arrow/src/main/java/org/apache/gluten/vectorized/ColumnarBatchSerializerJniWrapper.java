@@ -42,5 +42,8 @@ public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
 
   public native long deserialize(long serializerHandle, byte[] data);
 
+  // Return the native ColumnarBatch handle using memory address and length
+  public native long deserializeDirect(long serializerHandle, long offset, int len);
+
   public native void close(long serializerHandle);
 }

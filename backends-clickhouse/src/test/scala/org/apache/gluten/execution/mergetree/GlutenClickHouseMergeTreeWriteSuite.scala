@@ -1826,7 +1826,7 @@ class GlutenClickHouseMergeTreeWriteSuite
     runTPCHQueryBySQL(6, q6("lineitem_mergetree_case_sensitive")) { _ => }
   }
 
-  testSparkVersionLE33("test mergetree with partition with whitespace") {
+  test("test mergetree with partition with whitespace") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_partition_with_whitespace;
                  |""".stripMargin)

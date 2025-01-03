@@ -78,7 +78,7 @@ SparkStorageMergeTreePtr StorageMergeTreeFactory::getStorage(
 }
 
 DataPartsVector
-StorageMergeTreeFactory::getDataPartsByNames(const StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name)
+StorageMergeTreeFactory::getDataPartsByNames(const StorageID & id, const String & snapshot_id, const std::unordered_set<String> & part_name)
 {
     DataPartsVector res;
     auto table_name = getTableName(id, snapshot_id);
