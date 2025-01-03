@@ -116,6 +116,11 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
     }
   }
 
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
+  }
+
   test("TPC-H q1") {
     runTPCHQuery(1, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 1)
