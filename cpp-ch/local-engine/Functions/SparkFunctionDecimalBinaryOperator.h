@@ -23,8 +23,16 @@
 
 using BitInt128 = signed _BitInt(128);
 using BitUInt128 = unsigned _BitInt(128);
+#if defined(__x86_64__)
 using BitInt256 = signed _BitInt(256);
 using BitUInt256 = unsigned _BitInt(256);
+#else
+// up to version 18, clang supports large _Bitint sizes on x86 and x86-64; 
+// but on arm and aarch64, they are currently only supported up to 128 bits.
+// https://stackoverflow.com/questions/78614816/why-am-i-getting-a-256-bit-arithmetic-error-unsigined-bitint-of-bit-sizes-gre
+ using BitInt256 = Int256;
+ using BitUInt256 = UInt256;
+#endif
 
 namespace local_engine
 {
