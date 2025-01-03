@@ -33,7 +33,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.iceberg</groupId>
-            <artifactId>iceberg-spark-${sparkbundle.version}_${scala.binary.version}</artifactId>
+            <artifactId>iceberg-spark-runtime-${sparkbundle.version}_${scala.binary.version}</artifactId>
             <version>${iceberg.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -65,12 +65,6 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-hive_${scala.binary.version}</artifactId>
             <version>${spark.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.iceberg</groupId>
-            <artifactId>iceberg-spark-runtime-${sparkbundle.version}_${scala.binary.version}</artifactId>
-            <version>${iceberg.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
