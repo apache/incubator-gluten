@@ -43,6 +43,7 @@
 #include <DataTypes/NestedUtils.h>
 #include <Disks/registerDisks.h>
 #include <Disks/registerGlutenDisks.h>
+#include <Formats/registerFormats.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Functions/registerFunctions.h>
@@ -854,6 +855,8 @@ void registerGlutenDisks()
 
 void BackendInitializerUtil::registerAllFactories()
 {
+    registerFormats();
+
     registerGlutenDisks();
 
     registerReadBufferBuilders();
