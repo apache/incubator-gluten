@@ -23,7 +23,7 @@ import org.apache.spark.sql.streaming.Trigger
 
 import scala.concurrent.duration.DurationInt
 
-trait GlutenKafkaScanSuite extends WholeStageTransformerSuite {
+abstract class GlutenKafkaScanSuite extends WholeStageTransformerSuite {
   protected val kafkaBootstrapServers: String
 
   test("test MicroBatchScanExecTransformer not fallback") {
