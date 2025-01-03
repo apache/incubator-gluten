@@ -317,32 +317,23 @@ abstract class GlutenQueryTest extends PlanTest {
     assert(executedPlan.exists(plan => plan.find(_.isInstanceOf[TransformSupport]).isDefined))
   }
 
-  /**
-   * Get all the children plan of plans.
-   * @param plans:
-   *   the input plans.
-   * @return
-   */
-  def getChildrenPlan(plans: Seq[SparkPlan]): Seq[SparkPlan] = {
-    if (plans.isEmpty) {
-      return Seq()
+  private def getExecutedPlan(plan: SparkPlan): Seq[SparkPlan] = {
+    val subTree = plan match {
+      case exec: AdaptiveSparkPlanExec =>
+        getExecutedPlan(exec.executedPlan)
+      case cmd: CommandResultExec =>
+        getExecutedPlan(cmd.commandPhysicalPlan)
+      case s: ShuffleQueryStageExec =>
+        getExecutedPlan(s.plan)
+      case plan =>
+        plan.children.flatMap(getExecutedPlan)
     }
 
-    val inputPlans: Seq[SparkPlan] = plans.map {
-      case stage: ShuffleQueryStageExec => stage.plan
-      case plan => plan
+    if (plan.nodeName.startsWith("WholeStageCodegen")) {
+      subTree
+    } else {
+      subTree :+ plan
     }
-
-    var newChildren: Seq[SparkPlan] = Seq()
-    inputPlans.foreach {
-      plan =>
-        newChildren = newChildren ++ getChildrenPlan(plan.children)
-        // To avoid duplication of WholeStageCodegenXXX and its children.
-        if (!plan.nodeName.startsWith("WholeStageCodegen")) {
-          newChildren = newChildren :+ plan
-        }
-    }
-    newChildren
   }
 
   /**
@@ -353,14 +344,7 @@ abstract class GlutenQueryTest extends PlanTest {
    *   A sequence of executed plans.
    */
   def getExecutedPlan(df: DataFrame): Seq[SparkPlan] = {
-    df.queryExecution.executedPlan match {
-      case exec: AdaptiveSparkPlanExec =>
-        getChildrenPlan(Seq(exec.executedPlan))
-      case cmd: CommandResultExec =>
-        getChildrenPlan(Seq(cmd.commandPhysicalPlan))
-      case plan =>
-        getChildrenPlan(Seq(plan))
-    }
+    getExecutedPlan(df.queryExecution.executedPlan)
   }
 
   /**
