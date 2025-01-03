@@ -157,8 +157,8 @@ void restoreMetaData<LOCAL>(
             return;
 
         // Increase the speed of metadata recovery
-        auto max_concurrency = std::max(10UL, QueryContext::globalContext()->getSettingsRef()[Setting::max_threads].value);
-        auto max_threads = std::min(max_concurrency, not_exists_part.size());
+        auto max_concurrency = std::max(static_cast<UInt64>(10UL), QueryContext::globalContext()->getSettingsRef()[Setting::max_threads].value);
+        auto max_threads = std::min(max_concurrency, static_cast<UInt64>(not_exists_part.size()));
         FreeThreadPool thread_pool(
             CurrentMetrics::LocalThread,
             CurrentMetrics::LocalThreadActive,
