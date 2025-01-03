@@ -182,7 +182,7 @@ private object FallbackStrategiesSuite {
       List(c => ExpandFallbackPolicy(c.ac.isAdaptiveContext(), c.ac.originalPlan())),
       List(
         c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()),
-        _ => ColumnarCollapseTransformStages(GlutenConfig.getConf)
+        _ => ColumnarCollapseTransformStages(GlutenConfig.get)
       ),
       List(_ => RemoveFallbackTagRule())
     )

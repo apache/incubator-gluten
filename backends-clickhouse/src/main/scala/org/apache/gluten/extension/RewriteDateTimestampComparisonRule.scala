@@ -56,8 +56,8 @@ class RewriteDateTimestampComparisonRule(spark: SparkSession)
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       plan.resolved &&
-      GlutenConfig.getConf.enableGluten &&
-      GlutenConfig.getConf.enableRewriteDateTimestampComparison
+      GlutenConfig.get.enableGluten &&
+      GlutenConfig.get.enableRewriteDateTimestampComparison
     ) {
       visitPlan(plan)
     } else {

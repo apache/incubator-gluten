@@ -116,6 +116,11 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
     }
   }
 
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
+  }
+
   test("TPC-H q1") {
     runTPCHQuery(1, tpchQueries, queriesResults, compareResult = false, noFallBack = true) {
       checkGoldenFile(_, 1)
@@ -328,6 +333,18 @@ class VeloxTPCHV1BhjSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+  }
+}
+
+/** BroadcastBuildSideRelation use off-heap. */
+class VeloxTPCHV1BhjOffheapSuite extends VeloxTPCHSuite {
+  override def subType(): String = "v1-bhj-off-heap"
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+      .set(GlutenConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key, "true")
   }
 }
 

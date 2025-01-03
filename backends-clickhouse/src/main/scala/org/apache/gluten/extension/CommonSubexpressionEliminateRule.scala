@@ -39,8 +39,8 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
   override def apply(plan: LogicalPlan): LogicalPlan = {
     val newPlan =
       if (
-        plan.resolved && GlutenConfig.getConf.enableGluten
-        && GlutenConfig.getConf.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
+        plan.resolved && GlutenConfig.get.enableGluten
+        && GlutenConfig.get.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
       ) {
         lastPlan = plan
         visitPlan(plan)

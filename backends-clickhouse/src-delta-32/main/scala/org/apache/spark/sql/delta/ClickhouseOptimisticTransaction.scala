@@ -68,7 +68,7 @@ class ClickhouseOptimisticTransaction(
       writeOptions: Option[DeltaOptions],
       isOptimize: Boolean,
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
-    val nativeWrite = GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+    val nativeWrite = GlutenConfig.get.enableNativeWriter.getOrElse(false)
     if (writingMergeTree) {
       // TODO: update FallbackByBackendSettings for mergetree always return true
       val onePipeline = nativeWrite && CHConf.get.enableOnePipelineMergeTreeWrite

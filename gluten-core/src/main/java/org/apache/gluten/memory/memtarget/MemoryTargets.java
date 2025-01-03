@@ -50,7 +50,7 @@ public final class MemoryTargets {
 
   @Experimental
   public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
-    if (GlutenConfig.getConf().dynamicOffHeapSizingEnabled()) {
+    if (GlutenConfig.get().dynamicOffHeapSizingEnabled()) {
       return new DynamicOffHeapSizingMemoryTarget(memoryTarget);
     }
 
@@ -63,7 +63,7 @@ public final class MemoryTargets {
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.factory(tmm);
-    if (GlutenConfig.getConf().memoryIsolation()) {
+    if (GlutenConfig.get().memoryIsolation()) {
       return TreeMemoryTargets.newChild(factory.isolatedRoot(), name, spiller, virtualChildren);
     }
     final TreeMemoryTarget root = factory.legacyRoot();

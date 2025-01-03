@@ -77,7 +77,7 @@ public final class TreeMemoryConsumers {
      * <p>See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
      */
     public TreeMemoryTarget isolatedRoot() {
-      return ofCapacity(GlutenConfig.getConf().conservativeTaskOffHeapMemorySize());
+      return ofCapacity(GlutenConfig.get().conservativeTaskOffHeapMemorySize());
     }
   }
 }

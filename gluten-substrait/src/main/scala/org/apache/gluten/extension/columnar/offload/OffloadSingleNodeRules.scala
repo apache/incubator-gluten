@@ -43,7 +43,7 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
     case p if FallbackTags.nonEmpty(p) =>
       p
     case s: ShuffleExchangeExec
-        if (s.child.supportsColumnar || GlutenConfig.getConf.enablePreferColumnar) &&
+        if (s.child.supportsColumnar || GlutenConfig.get.enablePreferColumnar) &&
           BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
       logDebug(s"Columnar Processing for ${s.getClass} is currently supported.")
       BackendsApiManager.getSparkPlanExecApiInstance.genColumnarShuffleExchange(s)
@@ -140,7 +140,7 @@ object OffloadJoin {
     }
 
     // Both left and right are buildable. Find out the better one.
-    if (!GlutenConfig.getConf.shuffledHashJoinOptimizeBuildSide) {
+    if (!GlutenConfig.get.shuffledHashJoinOptimizeBuildSide) {
       // User disabled build side re-optimization. Return original build side from vanilla Spark.
       return shj.buildSide
     }
@@ -314,7 +314,7 @@ object OffloadOthers {
           // Velox backend uses ColumnarArrowEvalPythonExec.
           if (
             !BackendsApiManager.getSettings.supportColumnarArrowUdf() ||
-            !GlutenConfig.getConf.enableColumnarArrowUDF
+            !GlutenConfig.get.enableColumnarArrowUDF
           ) {
             EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
           } else {

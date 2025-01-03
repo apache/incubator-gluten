@@ -37,7 +37,7 @@ public class TestStats {
   public static int offloadGlutenTestNumber = 0;
 
   private static boolean enabled() {
-    return GlutenConfig.getConf().collectUtStats();
+    return GlutenConfig.get().collectUtStats();
   }
 
   public static void reset() {

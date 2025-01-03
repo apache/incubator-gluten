@@ -51,7 +51,7 @@ object GlutenShuffleUtils {
             s"${validValues.mkString(", ")}, but was $codec")
       }
     }
-    val glutenConfig = GlutenConfig.getConf
+    val glutenConfig = GlutenConfig.get
     glutenConfig.columnarShuffleCodec match {
       case Some(codec) =>
         val glutenCodecKey = GlutenConfig.COLUMNAR_SHUFFLE_CODEC.key

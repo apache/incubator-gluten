@@ -127,7 +127,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       compressionLevel,
       compressionBufferSize,
       bufferCompressThreshold,
-      GlutenConfig.getConf.columnarShuffleCompressionMode,
+      GlutenConfig.get.columnarShuffleCompressionMode,
       conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
       conf.get(SHUFFLE_SORT_USE_RADIXSORT),
       clientPushBufferMaxSize,
@@ -138,7 +138,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
       "celeborn",
       shuffleWriterType,
-      GlutenConfig.getConf.columnarShuffleReallocThreshold
+      GlutenConfig.get.columnarShuffleReallocThreshold
     )
     runtime
       .memoryManager()

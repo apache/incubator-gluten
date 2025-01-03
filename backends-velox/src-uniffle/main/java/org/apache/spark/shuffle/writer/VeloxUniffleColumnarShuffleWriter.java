@@ -64,8 +64,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
 
   private boolean stopping = false;
   private final int compressThreshold =
-      GlutenConfig.getConf().columnarShuffleCompressionThreshold();
-  private final double reallocThreshold = GlutenConfig.getConf().columnarShuffleReallocThreshold();
+      GlutenConfig.get().columnarShuffleCompressionThreshold();
+  private final double reallocThreshold = GlutenConfig.get().columnarShuffleReallocThreshold();
   private String compressionCodec;
   private int compressionLevel;
   private int compressionBufferSize;
@@ -74,7 +74,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private final Runtime runtime =
       Runtimes.contextInstance(BackendsApiManager.getBackendName(), "UniffleShuffleWriter");
   private final ShuffleWriterJniWrapper jniWrapper = ShuffleWriterJniWrapper.create(runtime);
-  private final int nativeBufferSize = GlutenConfig.getConf().maxBatchSize();
+  private final int nativeBufferSize = GlutenConfig.get().maxBatchSize();
   private final int bufferSize;
   private final Boolean isSort;
 
@@ -127,7 +127,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
           GlutenShuffleUtils.getCompressionLevel(
               sparkConf,
               compressionCodec,
-              GlutenConfig.getConf().columnarShuffleCodecBackend().getOrElse(() -> null));
+              GlutenConfig.get().columnarShuffleCodecBackend().getOrElse(() -> null));
       compressionBufferSize =
           GlutenShuffleUtils.getSortEvictBufferSize(sparkConf, compressionCodec);
     }
@@ -158,7 +158,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   compressionLevel,
                   compressionBufferSize,
                   compressThreshold,
-                  GlutenConfig.getConf().columnarShuffleCompressionMode(),
+                  GlutenConfig.get().columnarShuffleCompressionMode(),
                   (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_INIT_BUFFER_SIZE()),
                   (boolean) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_USE_RADIXSORT()),
                   bufferSize,

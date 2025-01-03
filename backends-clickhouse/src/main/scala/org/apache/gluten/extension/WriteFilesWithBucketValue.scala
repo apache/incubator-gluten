@@ -34,8 +34,8 @@ object WriteFilesWithBucketValue extends Rule[SparkPlan] {
 
   override def apply(plan: SparkPlan): SparkPlan = {
     if (
-      GlutenConfig.getConf.enableGluten
-      && GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+      GlutenConfig.get.enableGluten
+      && GlutenConfig.get.enableNativeWriter.getOrElse(false)
     ) {
       plan.transformDown {
         case writeFiles: WriteFilesExec if writeFiles.bucketSpec.isDefined =>

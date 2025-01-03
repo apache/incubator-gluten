@@ -68,7 +68,7 @@ trait BackendSettingsApi {
     false
   }
   def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarShuffle
+    GlutenConfig.get.enableColumnarShuffle
   }
   def enableJoinKeysRewrite(): Boolean = true
   def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {

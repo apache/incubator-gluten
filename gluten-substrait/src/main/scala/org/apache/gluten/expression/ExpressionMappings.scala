@@ -339,7 +339,7 @@ object ExpressionMappings {
   )
 
   def expressionsMap: Map[Class[_], String] = {
-    val blacklist = GlutenConfig.getConf.expressionBlacklist
+    val blacklist = GlutenConfig.get.expressionBlacklist
     val filtered = (defaultExpressionsMap ++ toMap(
       BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)).filterNot(
       kv => blacklist.contains(kv._2))

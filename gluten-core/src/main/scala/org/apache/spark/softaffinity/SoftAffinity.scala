@@ -66,7 +66,7 @@ abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with 
     val locations = manager.askExecutors(filePath)
     if (locations.nonEmpty) {
       logOnLevel(
-        GlutenConfig.getConf.softAffinityLogLevel,
+        GlutenConfig.get.softAffinityLogLevel,
         s"SAMetrics=File $filePath - the expected executors are ${locations.mkString("_")} ")
       locations.map { case (executor, host) => toTaskLocation(host, executor) }
     } else {

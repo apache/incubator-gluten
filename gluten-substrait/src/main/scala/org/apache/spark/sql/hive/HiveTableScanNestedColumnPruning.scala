@@ -32,7 +32,7 @@ object HiveTableScanNestedColumnPruning extends Logging {
   import org.apache.spark.sql.catalyst.expressions.SchemaPruning._
 
   def supportNestedColumnPruning(project: ProjectExecTransformer): Boolean = {
-    if (GlutenConfig.getConf.enableColumnarHiveTableScanNestedColumnPruning) {
+    if (GlutenConfig.get.enableColumnarHiveTableScanNestedColumnPruning) {
       project.child match {
         case HiveTableScanExecTransformer(_, relation, _, _) =>
           relation.tableMeta.storage.inputFormat match {

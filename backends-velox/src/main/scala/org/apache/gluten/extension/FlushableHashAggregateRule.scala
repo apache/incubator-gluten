@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
 case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
   import FlushableHashAggregateRule._
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
+    if (!GlutenConfig.get.enableVeloxFlushablePartialAggregation) {
       return plan
     }
     plan.transformUpWithPruning(_.containsPattern(EXCHANGE)) {

@@ -61,9 +61,9 @@ private class CHColumnarBatchSerializerInstance(
     GlutenShuffleUtils.getCompressionLevel(
       conf,
       compressionCodec,
-      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
+      GlutenConfig.get.columnarShuffleCodecBackend.orNull)
 
-  private val useColumnarShuffle: Boolean = GlutenConfig.getConf.isUseColumnarShuffleManager
+  private val useColumnarShuffle: Boolean = GlutenConfig.get.isUseColumnarShuffleManager
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     // Don't use GlutenConfig in this method. It will execute in non task Thread.
