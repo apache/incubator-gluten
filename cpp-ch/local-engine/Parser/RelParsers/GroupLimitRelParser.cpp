@@ -245,7 +245,7 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
     std::vector<DB::QueryPlanPtr> branch_plans;
     branch_plans.emplace_back(std::move(aggregation_plan));
     branch_plans.emplace_back(std::move(window_plan));
-    auto unite_branches_step = std::make_unique<UniteBranchesStep>(branch_in_header, std::move(branch_plans), 1);
+    auto unite_branches_step = std::make_unique<UniteBranchesStep>(getContext(), branch_in_header, std::move(branch_plans), 1);
     unite_branches_step->setStepDescription("Unite TopK branches");
     steps.push_back(unite_branches_step.get());
 
