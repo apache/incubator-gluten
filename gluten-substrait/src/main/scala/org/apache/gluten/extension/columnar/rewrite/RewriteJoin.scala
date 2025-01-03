@@ -56,7 +56,7 @@ object RewriteJoin extends RewriteSingleNode with JoinSelectionHelper {
   }
 
   override def rewrite(plan: SparkPlan): SparkPlan = plan match {
-    case smj: SortMergeJoinExec if GlutenConfig.getConf.forceShuffledHashJoin =>
+    case smj: SortMergeJoinExec if GlutenConfig.get.forceShuffledHashJoin =>
       getSmjBuildSide(smj) match {
         case Some(buildSide) =>
           ShuffledHashJoinExec(

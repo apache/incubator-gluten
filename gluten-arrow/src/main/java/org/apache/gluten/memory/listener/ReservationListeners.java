@@ -44,8 +44,8 @@ public final class ReservationListeners {
   private static ReservationListener create0(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
     // Memory target.
-    final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
-    final long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
+    final double overAcquiredRatio = GlutenConfig.get().memoryOverAcquiredRatio();
+    final long reservationBlockSize = GlutenConfig.get().memoryReservationBlockSize();
     final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
     final TreeMemoryTarget consumer =
         MemoryTargets.newConsumer(

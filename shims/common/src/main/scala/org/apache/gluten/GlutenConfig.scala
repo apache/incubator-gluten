@@ -680,7 +680,7 @@ object GlutenConfig {
 
   var ins: GlutenConfig = _
 
-  def getConf: GlutenConfig = {
+  def get: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
   }
 

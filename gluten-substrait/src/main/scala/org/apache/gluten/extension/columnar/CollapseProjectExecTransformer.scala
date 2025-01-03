@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.SparkPlan
 object CollapseProjectExecTransformer extends Rule[SparkPlan] {
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.getConf.enableColumnarProjectCollapse) {
+    if (!GlutenConfig.get.enableColumnarProjectCollapse) {
       return plan
     }
     plan.transformUp {

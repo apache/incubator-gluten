@@ -347,8 +347,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       plan match {
         case shuffle: ColumnarShuffleExchangeExec
             if !shuffle.useSortBasedShuffle &&
-              GlutenConfig.getConf.veloxResizeBatchesShuffleInput =>
-          val range = GlutenConfig.getConf.veloxResizeBatchesShuffleInputRange
+              GlutenConfig.get.veloxResizeBatchesShuffleInput =>
+          val range = GlutenConfig.get.veloxResizeBatchesShuffleInputRange
           val appendBatches =
             VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
           shuffle.withNewChildren(Seq(appendBatches))
@@ -543,12 +543,12 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
   override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
-    val conf = GlutenConfig.getConf
+    val conf = GlutenConfig.get
     lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
       conf.celebornShuffleWriterType == GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
     partitioning != SinglePartition &&
-    (partitioning.numPartitions >= GlutenConfig.getConf.columnarShuffleSortPartitionsThreshold ||
-      output.size >= GlutenConfig.getConf.columnarShuffleSortColumnsThreshold) ||
+    (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
+      output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold) ||
     isCelebornSortBasedShuffle
   }
 
@@ -601,7 +601,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val decompressTime = metrics("decompressTime")
-    if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
+    if (GlutenConfig.get.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =
         clazz.getConstructor(classOf[StructType], classOf[SQLMetric], classOf[SQLMetric])
@@ -624,7 +624,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
     val useOffheapBroadcastBuildRelation =
-      GlutenConfig.getConf.enableBroadcastBuildRelationInOffheap
+      GlutenConfig.get.enableBroadcastBuildRelationInOffheap
     val serialized: Array[ColumnarBatchSerializeResult] = child
       .executeColumnar()
       .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
@@ -738,7 +738,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     // ISOControl characters, refer java.lang.Character.isISOControl(int)
     val isoControlStr = (('\u0000' to '\u001F') ++ ('\u007F' to '\u009F')).toList.mkString
     // scalastyle:on nonascii
-    if (GlutenConfig.getConf.castFromVarcharAddTrimNode && c.child.dataType == StringType) {
+    if (GlutenConfig.get.castFromVarcharAddTrimNode && c.child.dataType == StringType) {
       val trimStr = c.dataType match {
         case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
           None
@@ -780,7 +780,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   override def rewriteSpillPath(path: String): String = {
-    val fs = GlutenConfig.getConf.veloxSpillFileSystem
+    val fs = GlutenConfig.get.veloxSpillFileSystem
     fs match {
       case "local" =>
         path

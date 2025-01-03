@@ -57,7 +57,7 @@ object ColumnarRuleExecutor {
 
     override def apply(plan: SparkPlan): SparkPlan = {
       val (out, millisTime) = GlutenTimeMetric.recordMillisTime(delegate.apply(plan))
-      logOnLevel(GlutenConfig.getConf.transformPlanLogLevel, message(plan, out, millisTime))
+      logOnLevel(GlutenConfig.get.transformPlanLogLevel, message(plan, out, millisTime))
       out
     }
   }

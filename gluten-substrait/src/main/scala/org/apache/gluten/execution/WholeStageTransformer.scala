@@ -62,7 +62,7 @@ case class WholeStageTransformContext(root: PlanNode, substraitContext: Substrai
  * Since https://github.com/apache/incubator-gluten/pull/2185.
  */
 trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
-  protected def glutenConf: GlutenConfig = GlutenConfig.getConf
+  protected def glutenConf: GlutenConfig = GlutenConfig.get
 
   protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
 
@@ -214,7 +214,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
     sparkContext.hadoopConfiguration)
 
-  val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   @transient
   private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
@@ -360,7 +360,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     }(
       t =>
         logOnLevel(
-          GlutenConfig.getConf.substraitPlanLogLevel,
+          GlutenConfig.get.substraitPlanLogLevel,
           s"$nodeName generating the substrait plan took: $t ms."))
     val inputRDDs = new ColumnarInputRDDsWrapper(columnarInputRDDs)
     // Check if BatchScan exists.
@@ -376,7 +376,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions.toIndexedSeq)
       val allScanSplitInfos =
         getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
-      if (GlutenConfig.getConf.enableHdfsViewfs) {
+      if (GlutenConfig.get.enableHdfsViewfs) {
         val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
         allScanSplitInfos.foreach {
           splitInfos =>

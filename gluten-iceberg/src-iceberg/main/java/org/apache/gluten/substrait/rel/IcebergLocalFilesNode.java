@@ -64,7 +64,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
             ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
                 .setEnableRowGroupMaxminIndex(
-                    GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                    GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
                 .build();
         icebergBuilder.setParquet(parquetReadOptions);
         break;
@@ -104,7 +104,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
               ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
                   .setEnableRowGroupMaxminIndex(
-                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                      GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
                   .build();
           deleteFileBuilder.setParquet(parquetReadOptions);
           break;

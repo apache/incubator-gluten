@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 case class BloomFilterMightContainJointRewriteRule(spark: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.getConf.enableNativeBloomFilter) {
+    if (!GlutenConfig.get.enableNativeBloomFilter) {
       return plan
     }
     val out = plan.transformWithSubqueries {

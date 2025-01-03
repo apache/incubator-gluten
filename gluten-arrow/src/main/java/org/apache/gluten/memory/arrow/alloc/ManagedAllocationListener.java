@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ManagedAllocationListener implements AllocationListener, AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(ManagedAllocationListener.class);
 
-  public static long BLOCK_SIZE = GlutenConfig.getConf().memoryReservationBlockSize();
+  public static long BLOCK_SIZE = GlutenConfig.get().memoryReservationBlockSize();
 
   private final MemoryTarget target;
   private final SimpleMemoryUsageRecorder sharedUsage;

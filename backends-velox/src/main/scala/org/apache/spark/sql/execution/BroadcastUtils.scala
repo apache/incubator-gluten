@@ -93,7 +93,7 @@ object BroadcastUtils {
       schema: StructType,
       from: Broadcast[F],
       fn: Iterator[InternalRow] => Iterator[ColumnarBatch]): Broadcast[T] = {
-    val useOffheapBuildRelation = GlutenConfig.getConf.enableBroadcastBuildRelationInOffheap
+    val useOffheapBuildRelation = GlutenConfig.get.enableBroadcastBuildRelationInOffheap
     mode match {
       case HashedRelationBroadcastMode(_, _) =>
         // HashedRelation to ColumnarBuildSideRelation.

@@ -282,11 +282,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   }
 
   override def supportSortExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarSort
+    GlutenConfig.get.enableColumnarSort
   }
 
   override def supportSortMergeJoinExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarSortMergeJoin
+    GlutenConfig.get.enableColumnarSortMergeJoin
   }
 
   override def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
@@ -391,7 +391,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   }
 
   override def enableNativeWriteFiles(): Boolean = {
-    GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
+    GlutenConfig.get.enableNativeWriter.getOrElse(false)
   }
 
   override def supportCartesianProductExec(): Boolean = true
