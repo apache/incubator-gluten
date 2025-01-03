@@ -30,6 +30,7 @@ import org.apache.gluten.vectorized.{ArrowColumnarRow, ArrowWritableColumnVector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, CaseWhen, Coalesce, Expression, If, LambdaFunction, NamedExpression, NaNvl, ScalaUDF}
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.hive.HiveUdfUtil
@@ -74,6 +75,14 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   )
 
   override def output: Seq[Attribute] = child.output ++ replacedAliasUdf.map(_.toAttribute)
+
+  override def doCanonicalize(): ColumnarPartialProjectExec = {
+    val canonicalized = original.canonicalized.asInstanceOf[ProjectExec]
+    this.copy(
+      original = canonicalized,
+      child = child.canonicalized
+    )(replacedAliasUdf.map(QueryPlan.normalizeExpressions(_, child.output)))
+  }
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
