@@ -429,4 +429,20 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7602: cast array to string") {
+    withTable("test_7602") {
+      sql("create table if not exists test_7602 (v ARRAY<STRING>) using parquet")
+      sql("insert into test_7602 values(array('1', '2a', 'foo'));")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select cast(v as string) from test_7602
+        """.stripMargin,
+        true,
+        { _ => }
+      )
+      val q = "select cast(a as string) from (select array('123',NULL) as a)"
+      compareResultsAgainstVanillaSpark(q, true, { _ => }, false)
+    }
+  }
+
 }

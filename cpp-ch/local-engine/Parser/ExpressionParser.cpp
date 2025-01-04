@@ -351,6 +351,11 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                     addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
                 result_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
             }
+            else if (isArray(denull_input_type) && isString(denull_output_type))
+            {
+                // ISSUE-7602: spark cast(array to string) has different result with CH cast(array to string)
+                result_node = toFunctionNode(actions_dag, "sparkCastArrayToString", args);
+            }
             else if (isString(denull_input_type) && substrait_type.has_bool_())
             {
                 /// cast(string to boolean)
