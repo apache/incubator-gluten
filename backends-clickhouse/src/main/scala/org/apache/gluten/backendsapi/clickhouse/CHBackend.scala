@@ -227,6 +227,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
+      isPartitionedTable: Boolean,
       options: Map[String, String]): ValidationResult = {
 
     def validateCompressionCodec(): Option[String] = {

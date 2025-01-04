@@ -608,6 +608,9 @@ message WriteRel {
   // Output mode determines what is the output of executing this rel
   OutputMode output = 6;
 
+  // The bucket spec for the writer.
+  BucketSpec bucket_spec = 7;
+
   enum WriteOp {
     WRITE_OP_UNSPECIFIED = 0;
     // The insert of new tuples in a table
@@ -630,6 +633,13 @@ message WriteRel {
     // For scenarios in which the BEFORE image is required, the user must implement a spool (via references to
     // subplans in the body of the Rel input) and return those with anounter PlanRel.relations.
     OUTPUT_MODE_MODIFIED_TUPLES = 2;
+  }
+
+  // A container for bucketing information.
+  message BucketSpec {
+    int32 num_buckets = 1;
+    repeated string bucket_column_names = 2;
+    repeated string sort_column_names = 3;
   }
 }
 

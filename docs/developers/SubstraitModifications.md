@@ -28,6 +28,7 @@ changed `Unbounded` in `WindowFunction` into `Unbounded_Preceding` and `Unbounde
 * Added `WriteRel` ([#3690](https://github.com/apache/incubator-gluten/pull/3690)).
 * Added `TopNRel` ([#5409](https://github.com/apache/incubator-gluten/pull/5409)).
 * Added `ref` field in window bound `Preceding` and `Following` ([#5626](https://github.com/apache/incubator-gluten/pull/5626)).
+* Added `BucketSpec` field in `WriteRel`([#8386](https://github.com/apache/incubator-gluten/pull/8386))
 
 ## Modifications to type.proto
 
