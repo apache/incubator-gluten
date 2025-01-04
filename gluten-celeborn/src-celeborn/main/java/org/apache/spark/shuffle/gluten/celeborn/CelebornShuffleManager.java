@@ -190,6 +190,8 @@ public class CelebornShuffleManager implements ShuffleManager {
 
   private <K, V, C> ShuffleHandle registerCelebornShuffleHandle(
       int shuffleId, ShuffleDependency<K, V, C> dependency) {
+    // for Celeborn 0.4.0
+    CelebornUtils.registerAppShuffleDeterminate(lifecycleManager, shuffleId, dependency);
     return CelebornUtils.getCelebornShuffleHandle(
         appUniqueId,
         lifecycleManager.getHost(),
@@ -206,9 +208,6 @@ public class CelebornShuffleManager implements ShuffleManager {
       int shuffleId, ShuffleDependency<K, V, C> dependency) {
     appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager();
-
-    // for Celeborn 0.4.0
-    CelebornUtils.registerAppShuffleDeterminate(lifecycleManager, shuffleId, dependency);
 
     // Note: generate app unique id at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
@@ -306,6 +305,23 @@ public class CelebornShuffleManager implements ShuffleManager {
                 h.userIdentifier(),
                 false,
                 extension);
+
+        // for Celeborn 0.5.2
+        try {
+          Field field = CelebornShuffleHandle.class.getDeclaredField("throwsFetchFailure");
+          field.setAccessible(true);
+          boolean throwsFetchFailure = (boolean) field.get(handle);
+          if (throwsFetchFailure) {
+            Method addFailureListenerMethod =
+                    SparkUtils.class.getMethod(
+                            "addFailureListenerIfBarrierTask",
+                            ShuffleClient.class,
+                            TaskContext.class,
+                            CelebornShuffleHandle.class);
+            addFailureListenerMethod.invoke(null, shuffleClient, context, h);
+          }
+        } catch (NoSuchFieldException | NoSuchMethodException ignored) {
+        }
 
         int shuffleId;
 
