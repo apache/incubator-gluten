@@ -2161,7 +2161,7 @@ object GlutenConfig {
       .createWithDefault("200s")
 
   val VELOX_ORC_SCAN_ENABLED =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
+    buildConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
       .internal()
       .doc("Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
       .booleanConf
