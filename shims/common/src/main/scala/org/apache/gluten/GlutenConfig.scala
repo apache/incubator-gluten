@@ -453,6 +453,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
   def enableNativeWriter: Option[Boolean] = conf.getConf(NATIVE_WRITER_ENABLED)
 
+  def enableNoopWriter: Boolean = conf.getConf(NOOP_WRITER_ENABLED)
+
   def enableNativeArrowReader: Boolean = conf.getConf(NATIVE_ARROW_READER_ENABLED)
 
   def directorySizeGuess: Long =
@@ -1775,6 +1777,13 @@ object GlutenConfig {
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
+
+  val NOOP_WRITER_ENABLED =
+    buildConf("spark.gluten.sql.noop.writer.enabled")
+      .internal()
+      .doc("Wether to enable noop writer. When true, Gluten will add FakeRowAdaptor to avoid c2r.")
+      .booleanConf
+      .createWithDefault(true)
 
   val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.hive.writer.enabled")

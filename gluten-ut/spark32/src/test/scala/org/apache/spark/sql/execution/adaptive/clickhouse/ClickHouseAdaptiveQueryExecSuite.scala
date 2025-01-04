@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.adaptive.clickhouse
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 
 import org.apache.spark.SparkConf
@@ -42,7 +43,8 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
 
   override def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "false")
+      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
+      .set(GlutenConfig.NOOP_WRITER_ENABLED.key, "false")
       .set(SQLConf.SHUFFLE_PARTITIONS.key, "5")
   }
 

@@ -36,6 +36,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
+import org.apache.spark.sql.execution.datasources.noop.GlutenNoopWriterRule
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.sql.execution.exchange.Exchange
 import org.apache.spark.sql.execution.joins.BaseJoinExec
@@ -103,6 +104,7 @@ object VeloxRuleApi {
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
     injector.injectPost(c => ColumnarCollapseTransformStages(c.glutenConf))
+    injector.injectPost(c => GlutenNoopWriterRule(c.session))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
@@ -175,6 +177,7 @@ object VeloxRuleApi {
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPostTransform(c => each(c.session)))
     injector.injectPostTransform(c => ColumnarCollapseTransformStages(c.glutenConf))
+    injector.injectPostTransform(c => GlutenNoopWriterRule(c.session))
     injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
     injector.injectPostTransform(c => GlutenFallbackReporter(c.glutenConf, c.session))
     injector.injectPostTransform(_ => RemoveFallbackTagRule())

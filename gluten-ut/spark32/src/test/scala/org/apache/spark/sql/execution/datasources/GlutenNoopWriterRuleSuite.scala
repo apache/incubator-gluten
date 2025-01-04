@@ -16,13 +16,11 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.gluten.GlutenConfig
-
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, SaveMode}
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.util.QueryExecutionListener
 
-class GlutenWriterColumnarRulesSuite extends GlutenSQLTestsBaseTrait {
+class GlutenNoopWriterRuleSuite extends GlutenSQLTestsBaseTrait {
 
   class WriterColumnarListener extends QueryExecutionListener {
     var fakeRowAdaptor: Option[FakeRowAdaptor] = None
@@ -37,17 +35,15 @@ class GlutenWriterColumnarRulesSuite extends GlutenSQLTestsBaseTrait {
   testGluten("writing to noop") {
     withTempDir {
       dir =>
-        withSQLConf(GlutenConfig.NATIVE_WRITER_ENABLED.key -> "true") {
-          spark.range(0, 100).write.mode(SaveMode.Overwrite).parquet(dir.getPath)
-          val listener = new WriterColumnarListener
-          spark.listenerManager.register(listener)
-          try {
-            spark.read.parquet(dir.getPath).write.format("noop").mode(SaveMode.Overwrite).save()
-            spark.sparkContext.listenerBus.waitUntilEmpty()
-            assert(listener.fakeRowAdaptor.isDefined, "FakeRowAdaptor is not found.")
-          } finally {
-            spark.listenerManager.unregister(listener)
-          }
+        spark.range(0, 100).write.mode(SaveMode.Overwrite).parquet(dir.getPath)
+        val listener = new WriterColumnarListener
+        spark.listenerManager.register(listener)
+        try {
+          spark.read.parquet(dir.getPath).write.format("noop").mode(SaveMode.Overwrite).save()
+          spark.sparkContext.listenerBus.waitUntilEmpty()
+          assert(listener.fakeRowAdaptor.isDefined, "FakeRowAdaptor is not found.")
+        } finally {
+          spark.listenerManager.unregister(listener)
         }
     }
   }
