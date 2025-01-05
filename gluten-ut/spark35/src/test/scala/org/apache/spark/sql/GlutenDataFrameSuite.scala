@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{ProjectExecTransformer, WholeStageTransformer}
 
 import org.apache.spark.SparkException

@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.columnar.FallbackTags
 
 import org.apache.spark.sql.SparkSession

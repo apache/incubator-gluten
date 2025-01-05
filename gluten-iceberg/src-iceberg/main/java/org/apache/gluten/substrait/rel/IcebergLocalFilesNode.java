@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.substrait.rel;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 
 import io.substrait.proto.ReadRel;
 import org.apache.iceberg.DeleteFile;

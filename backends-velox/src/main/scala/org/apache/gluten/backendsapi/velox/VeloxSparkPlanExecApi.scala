@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.SparkPlanExecApi
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._

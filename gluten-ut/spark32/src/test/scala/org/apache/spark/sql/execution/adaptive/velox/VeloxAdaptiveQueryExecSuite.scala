@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.adaptive.velox
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 
 import org.apache.spark.SparkConf

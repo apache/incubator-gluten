@@ -16,8 +16,8 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarNativeIterator
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._

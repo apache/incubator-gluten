@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.noop
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule

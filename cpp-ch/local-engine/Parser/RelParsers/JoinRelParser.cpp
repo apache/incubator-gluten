@@ -599,8 +599,8 @@ bool JoinRelParser::applyJoinFilter(
             return false;
         auto mixed_join_expressions_actions = expressionsToActionsDAG({expr}, mixed_header);
         mixed_join_expressions_actions.removeUnusedActions();
-        table_join.getMixedJoinExpression() = std::make_shared<DB::ExpressionActions>(
-            std::move(mixed_join_expressions_actions), ExpressionActionsSettings::fromContext(context));
+        table_join.getMixedJoinExpression()
+            = std::make_shared<DB::ExpressionActions>(std::move(mixed_join_expressions_actions), ExpressionActionsSettings(context));
     }
     else
     {

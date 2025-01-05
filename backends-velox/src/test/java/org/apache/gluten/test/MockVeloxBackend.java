@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.test;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 
 import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.SparkConf;
