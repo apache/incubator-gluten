@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.expressions
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 import org.apache.gluten.expression.ExpressionMappings
 import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}

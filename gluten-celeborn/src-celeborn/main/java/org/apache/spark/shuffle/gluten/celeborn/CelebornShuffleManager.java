@@ -16,7 +16,7 @@
  */
 package org.apache.spark.shuffle.gluten.celeborn;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.exception.GlutenException;
 

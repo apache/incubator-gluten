@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.softaffinity
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.hash.ConsistentHash
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.softaffinity.strategy.{ConsistentHashSoftAffinityStrategy, ExecutorNode}

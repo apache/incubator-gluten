@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.sql
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.WholeStageTransformerSuite
 import org.apache.gluten.utils.BackendTestUtils
 import org.apache.gluten.utils.SystemParameters

@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.benchmarks.RandomParquetDataGenerator
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.VeloxFileSystemValidationJniWrapper
 
 import org.apache.spark.SparkConf

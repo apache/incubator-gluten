@@ -16,7 +16,6 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.vectorized.BlockOutputStream
 import org.apache.gluten.vectorized.CHStreamReader
@@ -28,6 +27,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.celeborn.client.read.CelebornInputStream
+import org.apache.gluten.config.GlutenConfig
 
 import java.io._
 import java.nio.ByteBuffer

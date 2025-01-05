@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.ValidationResult
