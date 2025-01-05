@@ -16,7 +16,6 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution.ColumnarNativeIterator
 import org.apache.gluten.memory.CHThreadGroup
@@ -30,6 +29,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
+import org.apache.gluten.config.GlutenConfig
 
 import java.io.IOException
 import java.util.Locale

@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.vectorized
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes

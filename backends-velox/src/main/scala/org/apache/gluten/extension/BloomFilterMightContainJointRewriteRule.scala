@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.VeloxBloomFilterMightContain
 import org.apache.gluten.expression.aggregate.VeloxBloomFilterAggregate
 import org.apache.gluten.sql.shims.SparkShimLoader

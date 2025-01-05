@@ -16,7 +16,7 @@
  */
 package org.apache.spark.shuffle.writer;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.memory.memtarget.MemoryTarget;

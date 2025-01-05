@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.GlutenNumaBindingInfo
 import org.apache.gluten.backendsapi.{BackendsApiManager, IteratorApi}
+import org.apache.gluten.config.GlutenNumaBindingInfo
 import org.apache.gluten.execution._
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.metrics.{IMetrics, IteratorMetricsJniWrapper}

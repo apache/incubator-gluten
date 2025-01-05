@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 
 import org.apache.spark.sql.SparkSession

@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.validator
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags

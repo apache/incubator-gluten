@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.arrow.alloc;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 

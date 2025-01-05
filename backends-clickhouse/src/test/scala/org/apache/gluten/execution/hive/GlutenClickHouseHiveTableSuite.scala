@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.hive
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
 import org.apache.gluten.test.AllDataTypesWithComplexType
 import org.apache.gluten.utils.UTSystemParameters
