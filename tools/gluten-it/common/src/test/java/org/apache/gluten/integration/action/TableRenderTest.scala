@@ -26,12 +26,7 @@ object TableRenderTest {
   def case0(): Unit = {
     val render: TableRender[Seq[String]] = TableRender.create(
       Branch("ABC", List(Branch("AB", List(Leaf("A"), Leaf("B"))), Leaf("C"))),
-      Branch("DE", List(Leaf("D"), Leaf("E"))))(new RowParser[Seq[String]] {
-      override def parse(rowFactory: FieldAppender.RowAppender, row: Seq[String]): Unit = {
-        val inc = rowFactory.incremental()
-        row.foreach(ceil => inc.next().write(ceil))
-      }
-    })
+      Branch("DE", List(Leaf("D"), Leaf("E"))))
     render.print(Console.out)
     Console.out.println()
   }
@@ -39,12 +34,7 @@ object TableRenderTest {
   def case1(): Unit = {
     val render: TableRender[Seq[String]] = TableRender.create(
       Branch("ABC", List(Branch("AB", List(Leaf("A"), Leaf("B"))), Leaf("C"))),
-      Branch("DE", List(Leaf("D"), Leaf("E"))))(new RowParser[Seq[String]] {
-      override def parse(rowFactory: FieldAppender.RowAppender, row: Seq[String]): Unit = {
-        val inc = rowFactory.incremental()
-        row.foreach(ceil => inc.next().write(ceil))
-      }
-    })
+      Branch("DE", List(Leaf("D"), Leaf("E"))))
 
     render.appendRow(List("aaaa", "b", "cccccc", "d", "eeeee"))
     render.print(Console.out)
@@ -54,12 +44,7 @@ object TableRenderTest {
   def case2(): Unit = {
     val render: TableRender[Seq[String]] = TableRender.create(
       Branch("ABC", List(Branch("AAAAAAAAABBBBBB", List(Leaf("A"), Leaf("B"))), Leaf("C"))),
-      Branch("DE", List(Leaf("D"), Leaf("E"))))(new RowParser[Seq[String]] {
-      override def parse(rowFactory: FieldAppender.RowAppender, row: Seq[String]): Unit = {
-        val inc = rowFactory.incremental()
-        row.foreach(ceil => inc.next().write(ceil))
-      }
-    })
+      Branch("DE", List(Leaf("D"), Leaf("E"))))
 
     render.appendRow(List("aaaa", "b", "cccccc", "d", "eeeee"))
     render.print(Console.out)
@@ -69,12 +54,7 @@ object TableRenderTest {
   def case3(): Unit = {
     val render: TableRender[Seq[String]] = TableRender.create(
       Branch("ABC", List(Branch("AB", List(Leaf("A"), Leaf("B"))), Leaf("CCCCCCCCCCCCC"))),
-      Branch("DE", List(Leaf("D"), Leaf("E"))))(new RowParser[Seq[String]] {
-      override def parse(rowFactory: FieldAppender.RowAppender, row: Seq[String]): Unit = {
-        val inc = rowFactory.incremental()
-        row.foreach(ceil => inc.next().write(ceil))
-      }
-    })
+      Branch("DE", List(Leaf("D"), Leaf("E"))))
 
     render.appendRow(List("aaaa", "b", "cccccc", "d", "eeeee"))
     render.appendRow(List("aaaaaaaaaaaaa", "b", "cccccc", "ddddddddddd", "eeeee"))
@@ -87,12 +67,7 @@ object TableRenderTest {
       Branch(
         "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBC",
         List(Branch("AB", List(Leaf("A"), Leaf("B"))), Leaf("C"))),
-      Branch("DE", List(Leaf("D"), Leaf("E"))))(new RowParser[Seq[String]] {
-      override def parse(rowFactory: FieldAppender.RowAppender, row: Seq[String]): Unit = {
-        val inc = rowFactory.incremental()
-        row.foreach(ceil => inc.next().write(ceil))
-      }
-    })
+      Branch("DE", List(Leaf("D"), Leaf("E"))))
 
     render.appendRow(List("aaaa", "b", "cccccc", "d", "eeeee"))
     render.print(Console.out)
@@ -104,12 +79,7 @@ object TableRenderTest {
     val render: TableRender[Seq[String]] = TableRender.create(
       Leaf("Query ID"),
       Branch("Succeeded", leafs),
-      Branch("Row Count", leafs))(new RowParser[Seq[String]] {
-      override def parse(rowFactory: FieldAppender.RowAppender, row: Seq[String]): Unit = {
-        val inc = rowFactory.incremental()
-        row.foreach(ceil => inc.next().write(ceil))
-      }
-    })
+      Branch("Row Count", leafs))
 
     render.appendRow(
       List("q1", "true", "true", "true && true && true && true", "true", "1", "1", "1", "1"))

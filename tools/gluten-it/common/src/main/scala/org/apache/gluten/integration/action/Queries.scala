@@ -19,9 +19,11 @@ package org.apache.gluten.integration.action
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
+import org.apache.gluten.integration.metrics.MetricMapper
+import org.apache.gluten.integration.metrics.PlanMetric.SelfTimeReporter
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
-import org.apache.spark.sql.{SparkSession}
+import org.apache.spark.sql.SparkSession
 
 case class Queries(
     scale: Double,
@@ -30,7 +32,8 @@ case class Queries(
     explain: Boolean,
     iterations: Int,
     randomKillTasks: Boolean,
-    noSessionReuse: Boolean)
+    noSessionReuse: Boolean,
+    collectSqlMetrics: Boolean)
     extends Action {
   import Queries._
 
@@ -52,6 +55,7 @@ case class Queries(
             queryId,
             suite.desc(),
             explain,
+            suite.getTestMetricMapper(),
             randomKillTasks)
         } finally {
           if (noSessionReuse) {
@@ -64,6 +68,7 @@ case class Queries(
 
     val passedCount = results.count(l => l.queryResult.succeeded())
     val count = results.count(_ => true)
+    val succeeded = results.filter(_.queryResult.succeeded())
 
     // RAM stats
     println("Performing GC to collect RAM statistics... ")
@@ -74,13 +79,19 @@ case class Queries(
       RamStat.getJvmHeapUsed(),
       RamStat.getJvmHeapTotal(),
       RamStat.getProcessRamUsed())
-
     println("")
+
+    if (collectSqlMetrics) {
+      println("")
+      val r = new SelfTimeReporter(10)
+      val selfTimeReport = r.toString(succeeded.flatMap(_.queryResult.asSuccess().runResult.sqlMetrics))
+      println(selfTimeReport)
+    }
+
     println("Test report: ")
     println("")
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
-    val succeeded = results.filter(_.queryResult.succeeded())
     val all = succeeded.map(_.queryResult).asSuccesses().agg("all").map(s => TestResultLine(s))
     Queries.printResults(succeeded ++ all)
     println("")
@@ -141,17 +152,18 @@ object Queries {
   }
 
   private def runQuery(
-      runner: QueryRunner,
-      creator: TableCreator,
-      session: SparkSession,
-      id: String,
-      desc: String,
-      explain: Boolean,
-      randomKillTasks: Boolean): TestResultLine = {
+                        runner: QueryRunner,
+                        creator: TableCreator,
+                        session: SparkSession,
+                        id: String,
+                        desc: String,
+                        explain: Boolean,
+                        metricMapper: MetricMapper,
+                        randomKillTasks: Boolean): TestResultLine = {
     println(s"Running query: $id...")
     val testDesc = "Query %s [%s]".format(desc, id)
     val result =
-      runner.runQuery(session, testDesc, id, explain = explain, randomKillTasks = randomKillTasks)
+      runner.runQuery(session, testDesc, id, explain = explain, sqlMetricMapper = metricMapper, randomKillTasks = randomKillTasks)
     TestResultLine(result)
   }
 }

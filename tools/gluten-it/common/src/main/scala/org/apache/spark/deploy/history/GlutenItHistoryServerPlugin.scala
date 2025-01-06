@@ -117,7 +117,7 @@ class GlutenItHistoryServerPlugin extends AppHistoryServerPlugin {
     Seq()
   }
 
-  override def setupUI(ui: _root_.org.apache.spark.ui.SparkUI): Unit = {
+  override def setupUI(ui: org.apache.spark.ui.SparkUI): Unit = {
     // no-op
   }
 }

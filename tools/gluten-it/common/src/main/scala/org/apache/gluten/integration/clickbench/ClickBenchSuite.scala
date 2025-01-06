@@ -17,6 +17,7 @@
 package org.apache.gluten.integration.clickbench
 
 import org.apache.gluten.integration.action.Action
+import org.apache.gluten.integration.metrics.MetricMapper
 import org.apache.gluten.integration.{DataGen, Suite, TableCreator}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
@@ -30,22 +31,24 @@ import java.io.File
  * Site: https://benchmark.clickhouse.com/
  */
 class ClickBenchSuite(
-    val masterUrl: String,
-    val actions: Array[Action],
-    val testConf: SparkConf,
-    val baselineConf: SparkConf,
-    val extraSparkConf: Map[String, String],
-    val logLevel: Level,
-    val errorOnMemLeak: Boolean,
-    val dataDir: String,
-    val enableUi: Boolean,
-    val enableHsUi: Boolean,
-    val hsUiPort: Int,
-    val disableAqe: Boolean,
-    val disableBhj: Boolean,
-    val disableWscg: Boolean,
-    val shufflePartitions: Int,
-    val scanPartitions: Int)
+                       val masterUrl: String,
+                       val actions: Array[Action],
+                       val testConf: SparkConf,
+                       val baselineConf: SparkConf,
+                       val extraSparkConf: Map[String, String],
+                       val logLevel: Level,
+                       val errorOnMemLeak: Boolean,
+                       val dataDir: String,
+                       val enableUi: Boolean,
+                       val enableHsUi: Boolean,
+                       val hsUiPort: Int,
+                       val disableAqe: Boolean,
+                       val disableBhj: Boolean,
+                       val disableWscg: Boolean,
+                       val shufflePartitions: Int,
+                       val scanPartitions: Int,
+                       val baselineMetricMapper: MetricMapper,
+                       val testMetricMapper: MetricMapper)
     extends Suite(
       masterUrl,
       actions,
@@ -61,7 +64,9 @@ class ClickBenchSuite(
       disableBhj,
       disableWscg,
       shufflePartitions,
-      scanPartitions) {
+      scanPartitions,
+      baselineMetricMapper,
+      testMetricMapper) {
   import ClickBenchSuite._
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH

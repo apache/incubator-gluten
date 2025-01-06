@@ -38,11 +38,14 @@ public class Queries implements Callable<Integer> {
   @CommandLine.Option(names = {"--random-kill-tasks"}, description = "Every single task will get killed and retried after running for some time", defaultValue = "false")
   private boolean randomKillTasks;
 
+  @CommandLine.Option(names = {"--collect-sql-metrics"}, description = "Collect SQL metrics from run queries and generate a simple report based on them", defaultValue = "false")
+  private boolean collectSqlMetrics;
+
   @Override
   public Integer call() throws Exception {
     org.apache.gluten.integration.action.Queries queries =
         new org.apache.gluten.integration.action.Queries(dataGenMixin.getScale(), dataGenMixin.genPartitionedData(), queriesMixin.queries(),
-            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks, queriesMixin.noSessionReuse());
+            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks, queriesMixin.noSessionReuse(), collectSqlMetrics);
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queries));
   }
 }

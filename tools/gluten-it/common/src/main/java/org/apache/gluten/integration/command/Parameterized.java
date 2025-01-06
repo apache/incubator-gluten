@@ -131,7 +131,7 @@ public class Parameterized implements Callable<Integer> {
         new org.apache.gluten.integration.action.Parameterized(dataGenMixin.getScale(),
             dataGenMixin.genPartitionedData(), queriesMixin.queries(),
             queriesMixin.explain(), queriesMixin.iterations(), warmupIterations, queriesMixin.noSessionReuse(), parsedDims,
-            excludedCombinations, metrics);
+            excludedCombinations, JavaConverters.asScalaBufferConverter(Arrays.asList(metrics)).asScala());
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), parameterized));
   }
 }

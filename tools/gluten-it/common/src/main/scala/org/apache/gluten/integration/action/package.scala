@@ -40,7 +40,8 @@ package object action {
             c1.runResult.rows ++ c2.runResult.rows,
             c1.runResult.planningTimeMillis + c2.runResult.planningTimeMillis,
             c1.runResult.executionTimeMillis + c2.runResult.executionTimeMillis,
-            (c1.runResult.metrics, c2.runResult.metrics).sumUp))
+            c1.runResult.sqlMetrics ++ c2.runResult.sqlMetrics,
+            (c1.runResult.executorMetrics, c2.runResult.executorMetrics).sumUp))
       }
     }
   }
