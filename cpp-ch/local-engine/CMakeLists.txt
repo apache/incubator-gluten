@@ -21,11 +21,11 @@ endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -ffunction-sections -fdata-sections")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -ffunction-sections -fdata-sections")
-if (LINUX)
+if (APPLE)
+  ADD_DEFINITIONS(-D_GNU_SOURCE)
+else()
   set(CMAKE_SHARED_LINKER_FLAGS
       "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-export-dynamic -Wl,--gc-sections")
-else()
-  ADD_DEFINITIONS(-D_GNU_SOURCE)
 endif()
 if(COMPILER_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
   set(CMAKE_SHARED_LINKER_FLAGS
@@ -160,7 +160,7 @@ target_link_libraries(
 
 target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 
-if(LINUX)
+if(NOT APPLE)
   if(ENABLE_JEMALLOC)
     target_link_options(
       ${LOCALENGINE_SHARED_LIB} PRIVATE

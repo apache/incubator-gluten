@@ -34,7 +34,7 @@ target_link_libraries(
 else()
 target_link_libraries(
   substrait_source PUBLIC boost::headers_only ch_contrib::protobuf
-                          clickhouse_common_io ch_contrib::hdfs  substrait)
+                          clickhouse_common_io ch_contrib::hdfs substrait)
 endif()
 target_include_directories(
   substrait_source SYSTEM BEFORE
