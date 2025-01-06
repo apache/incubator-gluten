@@ -964,10 +964,10 @@ jobject create(JNIEnv * env, const SparkRowInfo & spark_row_info)
 {
     auto * offsets_arr = env->NewLongArray(spark_row_info.getNumRows());
     const auto * offsets_src = spark_row_info.getOffsets().data();
-    env->SetLongArrayRegion(offsets_arr, 0, spark_row_info.getNumRows(), offsets_src);
+    env->SetLongArrayRegion(offsets_arr, 0, spark_row_info.getNumRows(), static_cast<const jlong *>(offsets_src));
     auto * lengths_arr = env->NewLongArray(spark_row_info.getNumRows());
     const auto * lengths_src = spark_row_info.getLengths().data();
-    env->SetLongArrayRegion(lengths_arr, 0, spark_row_info.getNumRows(), lengths_src);
+    env->SetLongArrayRegion(lengths_arr, 0, spark_row_info.getNumRows(), static_cast<const jlong *>(lengths_src));
     int64_t address = reinterpret_cast<int64_t>(spark_row_info.getBufferAddress());
     int64_t column_number = spark_row_info.getNumCols();
     int64_t total_size = spark_row_info.getTotalBytes();

@@ -21,7 +21,9 @@
 #include <Storages/ObjectStorage/HDFS/HDFSCommon.h>
 #include <Storages/ObjectStorage/HDFS/WriteBufferFromHDFS.h>
 #include <Storages/Output/WriteBufferBuilder.h>
+#if USE_HDFS
 #include <hdfs/hdfs.h>
+#endif
 #include <Poco/URI.h>
 #include <Common/CHUtil.h>
 
@@ -101,7 +103,9 @@ void registerWriteBufferBuilders()
     auto & factory = WriteBufferBuilderFactory::instance();
     //TODO: support azure and S3
     factory.registerBuilder("file", [](DB::ContextPtr context_) { return std::make_shared<LocalFileWriteBufferBuilder>(context_); });
+#if USE_HDFS
     factory.registerBuilder("hdfs", [](DB::ContextPtr context_) { return std::make_shared<HDFSFileWriteBufferBuilder>(context_); });
+#endif
 }
 
 WriteBufferBuilderFactory & WriteBufferBuilderFactory::instance()
