@@ -256,18 +256,6 @@ void VeloxBackend::initConnector() {
     connectorConfMap[k] = v;
   }
 
-#ifdef ENABLE_ABFS
-  const auto& confValue = backendConf_->rawConfigs();
-  for (auto& [k, v] : confValue) {
-    if (k.find("fs.azure.account.key") == 0) {
-      connectorConfMap[k] = v;
-    } else if (k.find("spark.hadoop.fs.azure.account.key") == 0) {
-      constexpr int32_t accountKeyPrefixLength = 13;
-      connectorConfMap[k.substr(accountKeyPrefixLength)] = v;
-    }
-  }
-#endif
-
   connectorConfMap[velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 

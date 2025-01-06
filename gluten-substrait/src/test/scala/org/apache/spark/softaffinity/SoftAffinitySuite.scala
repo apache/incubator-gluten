@@ -16,7 +16,7 @@
  */
 package org.apache.spark.softaffinity
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenPartition
 import org.apache.gluten.softaffinity.SoftAffinityManager
 import org.apache.gluten.sql.shims.SparkShimLoader

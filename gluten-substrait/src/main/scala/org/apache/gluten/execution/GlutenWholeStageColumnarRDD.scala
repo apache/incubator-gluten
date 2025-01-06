@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.metrics.{GlutenTimeMetric, IMetrics}
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}

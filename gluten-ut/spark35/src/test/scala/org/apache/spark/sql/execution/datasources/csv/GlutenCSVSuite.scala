@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.csv
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
 
 import org.apache.spark.{SparkConf, SparkException}

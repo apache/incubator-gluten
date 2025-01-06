@@ -80,6 +80,7 @@ extern const ServerSettingsDouble primary_index_cache_size_ratio;
 }
 namespace Setting
 {
+extern const SettingsMaxThreads max_threads;
 extern const SettingsUInt64 prefer_external_sort_block_bytes;
 extern const SettingsUInt64 max_bytes_before_external_sort;
 extern const SettingsDouble max_bytes_ratio_before_external_sort;
@@ -634,6 +635,9 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("max_download_threads", 1);
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
     settings.set("output_format_parquet_use_custom_encoder", false);
+
+    // TODO: we need set Setting::max_threads to 1 by default, but now we can't get correct metrics for the some query if we set it to 1.
+    // settings[Setting::max_threads] = 1;
 
     /// Set false after https://github.com/ClickHouse/ClickHouse/pull/71539
     /// if true, we can't get correct metrics for the query

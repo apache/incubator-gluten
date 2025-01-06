@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.memtarget;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 
 import org.apache.spark.annotation.Experimental;
 import org.slf4j.Logger;

@@ -67,7 +67,16 @@ namespace local_engine
 // workaround for tryGetString
 
 bool tryGetString(const DB::Settings & settings, std::string_view name, std::string & value);
-bool settingsEqual(const DB::Settings & settings, std::string_view name, const std::string & value);
+bool settingsEqual(
+    const DB::Settings & settings,
+    std::string_view name,
+    const std::string & value,
+    const std::optional<std::string> & default_value = std::nullopt);
 void updateSettings(const DB::ContextMutablePtr &, std::string_view);
 
+namespace RuntimeSettings
+{
+inline constexpr auto COLLECT_METRICS = "collect_metrics";
+inline constexpr auto COLLECT_METRICS_DEFAULT = "true";
+}
 } // namespace local_engine

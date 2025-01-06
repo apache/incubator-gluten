@@ -36,7 +36,7 @@ namespace local_engine::PlanUtil
 
 std::string explainPlan(const DB::QueryPlan & plan)
 {
-    constexpr DB::QueryPlan::ExplainPlanOptions buf_opt{
+    constexpr DB::ExplainPlanOptions buf_opt{
         .header = true,
         .actions = true,
         .indexes = true,
