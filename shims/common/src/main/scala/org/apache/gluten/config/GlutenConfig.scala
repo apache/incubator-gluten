@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten
+package org.apache.gluten.config
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.{ByteUnit, JavaUtils}
@@ -544,9 +544,9 @@ object GlutenConfig {
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
+
   // ABFS config
-  val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
-  val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
+  val ABFS_PREFIX = "fs.azure."
 
   // GCS config
   val GCS_PREFIX = "fs.gs."
@@ -854,7 +854,7 @@ object GlutenConfig {
 
     // handle ABFS config
     conf
-      .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
+      .filter(_._1.startsWith(HADOOP_PREFIX + ABFS_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // put in all GCS configs

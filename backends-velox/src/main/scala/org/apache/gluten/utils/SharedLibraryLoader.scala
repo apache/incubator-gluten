@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.jni.JniLibLoader
 
@@ -90,9 +90,15 @@ object SharedLibraryLoader {
       new SharedLibraryLoaderUbuntu2204
     } else if (systemName.contains("CentOS") && systemVersion.startsWith("9")) {
       new SharedLibraryLoaderCentos9
-    } else if (systemName.contains("CentOS") && systemVersion.startsWith("8")) {
+    } else if (
+      (systemName.contains("CentOS") || systemName.contains("Oracle"))
+      && systemVersion.startsWith("8")
+    ) {
       new SharedLibraryLoaderCentos8
-    } else if (systemName.contains("CentOS") && systemVersion.startsWith("7")) {
+    } else if (
+      (systemName.contains("CentOS") || systemName.contains("Oracle"))
+      && systemVersion.startsWith("7")
+    ) {
       new SharedLibraryLoaderCentos7
     } else if (systemName.contains("Alibaba Cloud Linux") && systemVersion.startsWith("3")) {
       new SharedLibraryLoaderCentos8
@@ -119,7 +125,7 @@ object SharedLibraryLoader {
     } else {
       throw new GlutenException(
         s"Found unsupported OS($systemName, $systemVersion)! Currently, Gluten's Velox backend" +
-          " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
+          " only supports Ubuntu 20.04/22.04, CentOS 7/8, Oracle 7/8" +
           "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 2.4/3.2, RedHat 7/8, " +
           "Debian 11/12.")
     }

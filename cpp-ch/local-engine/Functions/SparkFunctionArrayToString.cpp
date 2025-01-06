@@ -14,23 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.joins
 
-import org.apache.gluten.config.GlutenConfig
+#include <Functions/SparkFunctionArrayToString.h>
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+namespace local_engine
+{
 
-class GlutenOuterJoinSuiteForceShjOn extends OuterJoinSuite with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
-  }
+REGISTER_FUNCTION(SparkFunctionArrayToString)
+{
+    factory.registerFunction<local_eingine::SparkFunctionArrayToString>();
 }
 
-class GlutenOuterJoinSuiteForceShjOff extends OuterJoinSuite with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
-  }
 }

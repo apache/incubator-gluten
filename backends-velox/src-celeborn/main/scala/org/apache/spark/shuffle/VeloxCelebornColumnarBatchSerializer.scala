@@ -16,8 +16,7 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.GlutenConfig.{GLUTEN_RSS_SORT_SHUFFLE_WRITER, GLUTEN_SORT_SHUFFLE_WRITER}
+import org.apache.gluten.config.GlutenConfig.{GLUTEN_RSS_SORT_SHUFFLE_WRITER, GLUTEN_SORT_SHUFFLE_WRITER}
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
@@ -38,6 +37,7 @@ import org.apache.spark.task.{TaskResource, TaskResources}
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.celeborn.client.read.CelebornInputStream
+import org.apache.gluten.config.GlutenConfig
 
 import java.io._
 import java.nio.ByteBuffer

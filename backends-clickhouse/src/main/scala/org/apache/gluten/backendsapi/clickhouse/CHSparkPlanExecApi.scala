@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._

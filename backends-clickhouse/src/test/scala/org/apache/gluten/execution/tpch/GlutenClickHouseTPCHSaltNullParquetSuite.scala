@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution.tpch
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeSettings}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.execution.GlutenPlan
 
@@ -1419,12 +1419,11 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    val confName = CHConf.runtimeSettings("query_plan_enable_optimizations")
 
-    withSQLConf((confName, "true")) {
+    withSQLConf((RuntimeSettings.COLLECT_METRICS.key, "false")) {
       compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
     }
-    withSQLConf((confName, "false")) {
+    withSQLConf((RuntimeSettings.COLLECT_METRICS.key, "true")) {
       compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
     }
   }

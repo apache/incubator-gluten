@@ -18,6 +18,7 @@ package org.apache.gluten
 
 import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.benchmarks.GenTPCHTableScripts
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig

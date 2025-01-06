@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution.iceberg
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, IcebergScanTransformer}
-import org.apache.gluten.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 
