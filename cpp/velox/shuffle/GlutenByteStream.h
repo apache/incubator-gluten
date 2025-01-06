@@ -119,7 +119,7 @@ class GlutenByteInputStream : public ByteInputStream {
     }
     const auto* lastRange = &ranges_[ranges_.size() - 1];
     auto cur = current_;
-    size_t total = cur->size - cur->position;
+    size_t total = std::max(0, cur->size - cur->position);
     while (++cur <= lastRange) {
       total += cur->size;
     }
