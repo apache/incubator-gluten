@@ -711,6 +711,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     if (!expr.options.isEmpty) {
       throw new GlutenNotSupportException("'from_json' with options is not supported in Velox")
     }
+    if (SQLConf.get.caseSensitiveAnalysis) {
+      throw new GlutenNotSupportException(
+        "'from_json' with 'spark.sql.caseSensitive = true' is not supported in Velox")
+    }
     val hasCorruptRecord = expr.schema match {
       case s: StructType =>
         !s.filter(_.name == SQLConf.get.getConf(SQLConf.COLUMN_NAME_OF_CORRUPT_RECORD)).isEmpty

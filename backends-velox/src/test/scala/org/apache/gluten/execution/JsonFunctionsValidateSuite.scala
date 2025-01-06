@@ -279,6 +279,28 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("from_json function row") {
+    if (SparkShimLoader.getSparkShims.fromJsonSupportPartialResults) {
+      withTempPath {
+        path =>
+          Seq[(String)](
+            ("""{"Id":"10", "Value":"11"}"""),
+            ("""{"Id":"11", "Value":"11.0"}"""),
+            ("""{"Id":"10", "Value":"11"}""")
+          )
+            .toDF("txt")
+            .write
+            .parquet(path.getCanonicalPath)
+
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+          runQueryAndCompare("select from_json(txt, 'Id STRING, Value STRING') from tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+  }
+
   test("from_json function CORRUPT_RECORD") {
     withTempPath {
       path =>
