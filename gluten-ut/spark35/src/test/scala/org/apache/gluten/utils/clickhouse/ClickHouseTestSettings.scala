@@ -531,6 +531,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("cast string to timestamp")
     .exclude("cast from boolean")
     .exclude("data type casting")
+    .excludeGlutenTest("data type casting")
     .exclude("cast between string and interval")
     .exclude("SPARK-27671: cast from nested null type in struct")
     .exclude("Process Infinity, -Infinity, NaN in case insensitive manner")

@@ -91,6 +91,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    // Set timezone through config.
+    .exclude("data type casting")
   enableSuite[GlutenTryCastSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
@@ -101,6 +103,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("ANSI mode: Throw exception on casting out-of-range value to long type")
     .exclude("cast from invalid string to numeric should throw NumberFormatException")
     .exclude("SPARK-26218: Fix the corner case of codegen when casting float to Integer")
+    // Set timezone through config.
+    .exclude("data type casting")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
