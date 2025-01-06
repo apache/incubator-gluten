@@ -18,8 +18,6 @@ package org.apache.spark.sql.internal
 
 import org.apache.gluten.config._
 
-import scala.collection.JavaConverters._
-
 object GlutenConfigUtil {
   private def getConfString(configProvider: ConfigProvider, key: String, value: String): String = {
     Option(ConfigEntry.findEntry(key))
@@ -34,7 +32,7 @@ object GlutenConfigUtil {
   }
 
   def parseConfig(conf: Map[String, String]): Map[String, String] = {
-    val provider = new ConfigProvider(conf.filter(_._1.startsWith("spark.gluten.")))
+    val provider = new MapProvider(conf.filter(_._1.startsWith("spark.gluten.")))
     conf.map {
       case (k, v) =>
         if (k.startsWith("spark.gluten.")) {
@@ -43,9 +41,5 @@ object GlutenConfigUtil {
           (k, v)
         }
     }.toMap
-  }
-
-  def sqlConfSetting(conf: SQLConf): Map[String, String] = {
-    conf.settings.asScala.toMap
   }
 }

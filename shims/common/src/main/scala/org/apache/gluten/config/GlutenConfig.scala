@@ -18,7 +18,7 @@ package org.apache.gluten.config
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.{ByteUnit, JavaUtils}
-import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
+import org.apache.spark.sql.internal.{SQLConf, SQLConfProvider}
 
 import com.google.common.collect.ImmutableList
 import org.apache.hadoop.security.UserGroupInformation
@@ -37,7 +37,7 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
-  private val configProvider = new ConfigProvider(GlutenConfigUtil.sqlConfSetting(conf))
+  private lazy val configProvider = new SQLConfProvider(conf)
 
   def getConf[T](entry: ConfigEntry[T]): T = {
     require(ConfigEntry.containsEntry(entry), s"$entry is not registered")

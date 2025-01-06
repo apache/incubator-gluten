@@ -18,6 +18,8 @@ package org.apache.gluten.config
 
 import org.apache.gluten.config.BackendType.BackendType
 
+import org.apache.spark.sql.internal.ConfigProvider
+
 /**
  * An entry contains all meta information for a configuration.
  *
