@@ -150,6 +150,12 @@ GlutenKafkaSource::~GlutenKafkaSource()
     std::lock_guard lock(consumer_mutex);
     auto topic_partition = TopicPartition{topics[0], partition};
     consumers_in_memory[topic_partition].emplace_back(consumer);
+    LOG_DEBUG(
+        log,
+        "Kafka consumer for topic: {}, partition: {} is returned to pool, current pool size: {}",
+        topics[0],
+        partition,
+        consumers_in_memory[topic_partition].size());
 }
 
 void GlutenKafkaSource::initConsumer()
@@ -162,6 +168,7 @@ void GlutenKafkaSource::initConsumer()
 
     if (!consumers.empty())
     {
+        LOG_DEBUG(log, "Reuse Kafka consumer for topic: {}, partition: {}", topics[0], partition);
         consumer = consumers.back();
         consumers.pop_back();
     }
@@ -175,7 +182,7 @@ void GlutenKafkaSource::initConsumer()
             getPollMaxBatchSize(),
             getPollTimeoutMillisecond(),
             /*intermediate_commit*/ false,
-            /*stream_cancelled*/ is_cancelled,
+            /*stream_cancelled*/ is_stopped,
             topics);
 
         KafkaConfigLoader::ConsumerConfigParams params{
@@ -234,24 +241,23 @@ Chunk GlutenKafkaSource::generateImpl()
     };
 
     EmptyReadBuffer empty_buf;
-    auto input_format
-        = FormatFactory::instance().getInput("Raw", empty_buf, non_virtual_header, context, max_block_size, std::nullopt, 1);
+    // auto input_format
+    //     = FormatFactory::instance().getInput("Raw", empty_buf, non_virtual_header, context, max_block_size, std::nullopt, 1);
 
-    StreamingFormatExecutor executor(non_virtual_header, input_format, std::move(on_error));
+    // StreamingFormatExecutor executor(non_virtual_header, input_format, std::move(on_error));
     size_t total_rows = 0;
     MutableColumns virtual_columns = virtual_header.cloneEmptyColumns();
+    MutableColumns no_virtual_columns = non_virtual_header.cloneEmptyColumns();
 
     while (true)
     {
         size_t new_rows = 0;
         if (auto buf = consumer->consume())
         {
-            ProfileEvents::increment(ProfileEvents::KafkaMessagesRead);
-            new_rows = executor.execute(*buf);
-        }
+            String message;
+            readStringUntilEOF(message, *buf);
+            no_virtual_columns[0]->insert(message);
 
-        if (new_rows)
-        {
             // In read_kafka_message(), KafkaConsumer::nextImpl()
             // will be called, that may make something unusable, i.e. clean
             // KafkaConsumer::messages, which is accessed from
@@ -269,28 +275,25 @@ Chunk GlutenKafkaSource::generateImpl()
             auto timestamp_raw = consumer->currentTimestamp();
             auto header_list = consumer->currentHeaderList();
 
-            for (size_t i = 0; i < new_rows; ++i)
+            virtual_columns[0]->insert(key);
+            virtual_columns[1]->insert(topic);
+            virtual_columns[2]->insert(partition);
+            virtual_columns[3]->insert(offset);
+
+            if (timestamp_raw)
             {
-                virtual_columns[0]->insert(key);
-                virtual_columns[1]->insert(topic);
-                virtual_columns[2]->insert(partition);
-                virtual_columns[3]->insert(offset);
-
-                if (timestamp_raw)
-                {
-                    auto ts = timestamp_raw->get_timestamp();
-                    virtual_columns[4]->insert(
-                        DecimalField<Decimal64>(std::chrono::duration_cast<std::chrono::milliseconds>(ts).count(), 3));
-                }
-                else
-                {
-                    virtual_columns[4]->insertDefault();
-                }
-
-                virtual_columns[5]->insertDefault();
+                auto ts = timestamp_raw->get_timestamp();
+                virtual_columns[4]->insert(
+                    DecimalField<Decimal64>(std::chrono::duration_cast<std::chrono::milliseconds>(ts).count(), 3));
+            }
+            else
+            {
+                virtual_columns[4]->insertDefault();
             }
 
-            total_rows = total_rows + new_rows;
+            virtual_columns[5]->insertDefault();
+
+            total_rows = total_rows + 1;
         }
         else if (consumer->polledDataUnusable())
         {
@@ -314,6 +317,8 @@ Chunk GlutenKafkaSource::generateImpl()
             break;
     }
 
+    LOG_DEBUG(log, "Read {} rows from Kafka topic: {}, partition: {}", total_rows, topics[0], partition);
+
     if (total_rows == 0)
         return {};
 
@@ -326,7 +331,7 @@ Chunk GlutenKafkaSource::generateImpl()
         return {};
     }
 
-    auto result_block = non_virtual_header.cloneWithColumns(executor.getResultColumns()); //.cloneWithCutColumns(0, max_block_size);
+    auto result_block = non_virtual_header.cloneWithColumns(std::move(no_virtual_columns)); //.cloneWithCutColumns(0, max_block_size);
 
     auto virtual_block = virtual_header.cloneWithColumns(std::move(virtual_columns)); //.cloneWithCutColumns(0, max_block_size);
     for (const auto & column : virtual_block.getColumnsWithTypeAndName())

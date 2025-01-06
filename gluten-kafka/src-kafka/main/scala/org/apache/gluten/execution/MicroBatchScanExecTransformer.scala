@@ -69,7 +69,7 @@ case class MicroBatchScanExecTransformer(
   /** Returns the actual schema of this data source scan. */
   override def getDataSchema: StructType = scan.readSchema()
 
-  override def nodeName: String = "Kafka" + super.nodeName
+  override def nodeName: String = s"MicroBatchScanExecTransformer(${scan.description()})"
 
   override lazy val fileFormat: ReadFileFormat = GlutenStreamKafkaSourceUtil.getFileFormat(scan)
 

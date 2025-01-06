@@ -60,7 +60,15 @@ DB::QueryPlanPtr StreamKafkaRelParser::parseReadRel(DB::QueryPlanPtr query_plan,
         else if (param.first == "bootstrap.servers")
             brokers = param.second;
         else
-            std::cout << param.first << " : " << param.second << std::endl;
+            LOG_DEBUG(getLogger("StreamKafkaRelParser"), "Unused kafka parameter: {}: {}", param.first, param.second);
+
+    LOG_INFO(
+        getLogger("StreamKafkaRelParser"),
+        "Kafka source: topic: {}, partition: {}, start_offset: {}, end_offset: {}",
+        topic,
+        partition,
+        start_offset,
+        end_offset);
 
     Names topics;
     topics.emplace_back(topic);
@@ -71,7 +79,6 @@ DB::QueryPlanPtr StreamKafkaRelParser::parseReadRel(DB::QueryPlanPtr query_plan,
         names, header, getContext(), topics, partition, start_offset, end_offset, poll_timeout_ms, group_id, brokers);
 
     query_plan->addStep(std::move(source));
-
 
     return query_plan;
 }

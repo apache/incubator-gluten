@@ -106,4 +106,5 @@ namespace local_engine
 {
 static std::mutex consumer_mutex;
 static std::unordered_map<GlutenKafkaSource::TopicPartition, std::vector<std::shared_ptr<DB::KafkaConsumer>>> consumers_in_memory;
+static const std::atomic<bool> is_stopped{false}; // for kafka progress, it always false
 }
