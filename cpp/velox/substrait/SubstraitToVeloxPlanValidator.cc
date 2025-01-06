@@ -300,8 +300,8 @@ bool SubstraitToVeloxPlanValidator::validateCast(
       LOG_VALIDATION_MSG("Invalid input type in casting: ARRAY/MAP/ROW/VARBINARY.");
       return false;
     case TypeKind::TIMESTAMP:
-      // Only support cast timestamp to date
-      if (!toType->isDate()) {
+      // Only support casting timestamp to date or varchar.
+      if (!toType->isDate() && toType->kind() != TypeKind::VARCHAR) {
         LOG_VALIDATION_MSG(
             "Casting from TIMESTAMP to " + toType->toString() + " is not supported or has incorrect result.");
         return false;
