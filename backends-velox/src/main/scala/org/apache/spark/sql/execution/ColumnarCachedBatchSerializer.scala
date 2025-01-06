@@ -28,7 +28,7 @@ import org.apache.gluten.vectorized.ColumnarBatchSerializerJniWrapper
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.columnar.{CachedBatch, CachedBatchSerializer}
 import org.apache.spark.sql.execution.columnar.DefaultCachedBatchSerializer
@@ -76,8 +76,10 @@ case class CachedColumnarBatch(
  *     -> Convert DefaultCachedBatch to InternalRow using vanilla Spark serializer
  */
 // format: on
-class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHelper with Logging {
+class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
   private lazy val rowBasedCachedBatchSerializer = new DefaultCachedBatchSerializer
+
+  private def glutenConf: GlutenConfig = GlutenConfig.get
 
   private def toStructType(schema: Seq[Attribute]): StructType = {
     StructType(schema.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
@@ -108,14 +110,14 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     // `convertColumnarBatchToCachedBatch`, but the inside ColumnarBatch is not arrow-based.
     // See: `InMemoryRelation.apply()`.
     // So we should disallow columnar input if using vanilla Spark columnar scan.
-    val noVanillaSparkColumnarScan = conf.getConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED) ||
-      !conf.getConf(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED)
-    conf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(
+    val noVanillaSparkColumnarScan = glutenConf.getConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED) ||
+      !glutenConf.getConf(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED)
+    glutenConf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(
       schema) && noVanillaSparkColumnarScan
   }
 
   override def supportsColumnarOutput(schema: StructType): Boolean = {
-    conf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(schema)
+    glutenConf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(schema)
   }
 
   override def convertInternalRowToCachedBatch(

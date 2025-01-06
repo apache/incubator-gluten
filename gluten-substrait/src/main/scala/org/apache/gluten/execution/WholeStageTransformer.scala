@@ -271,7 +271,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
   override def verboseStringWithOperatorId(): String = {
-    val nativePlan = if (conf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
+    val nativePlan = if (glutenConf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
       s"Native Plan:\n${nativePlanString()}"
     } else {
       ""
@@ -315,7 +315,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   def doWholeStageTransform(): WholeStageTransformContext = {
     val context = generateWholeStageTransformContext()
-    if (conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
+    if (glutenConf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
       wholeStageTransformerContext = Some(context)
     }
     context
