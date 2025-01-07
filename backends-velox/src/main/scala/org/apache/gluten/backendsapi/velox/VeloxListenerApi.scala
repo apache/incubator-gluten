@@ -67,10 +67,11 @@ class VeloxListenerApi extends ListenerApi with Logging {
         ByteUnit.BYTE.toMiB(desiredOverheadSize).toString)
     }
     val overheadSize: Long = SparkResourceUtil.getMemoryOverheadSize(conf)
-    if (overheadSize < desiredOverheadSize) {
+    if (ByteUnit.BYTE.toMiB(overheadSize) < ByteUnit.BYTE.toMiB(desiredOverheadSize)) {
       logWarning(
-        s"Memory overhead is set to $overheadSize which is smaller than the recommended size" +
-          s" $desiredOverheadSize. This may cause OOM.")
+        s"Memory overhead is set to ${ByteUnit.BYTE.toMiB(overheadSize)}MiB which is smaller than" +
+          s" the recommended size ${ByteUnit.BYTE.toMiB(desiredOverheadSize)}MiB." +
+          s" This may cause OOM.")
     }
     conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, overheadSize.toString)
 
