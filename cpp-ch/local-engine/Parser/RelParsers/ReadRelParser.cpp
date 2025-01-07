@@ -47,7 +47,7 @@ extern const int LOGICAL_ERROR;
 namespace local_engine
 {
 using namespace DB;
-DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
+DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
     if (query_plan)
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Source node's input plan should be null");
@@ -75,7 +75,7 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
     {
         StreamKafkaRelParser kafka_parser(parser_context, getContext());
         kafka_parser.setSplitInfo(split_info);
-        query_plan = kafka_parser.parseReadRel(std::make_unique<DB::QueryPlan>(), read);
+        query_plan = kafka_parser.parse(std::make_unique<DB::QueryPlan>(), rel, rel_stack);
         steps = kafka_parser.getSteps();
     }
     else

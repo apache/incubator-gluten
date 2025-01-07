@@ -36,9 +36,17 @@ extern const int UNKNOWN_TYPE;
 
 namespace local_engine
 {
-using namespace DB;
 
-DB::QueryPlanPtr StreamKafkaRelParser::parseReadRel(DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel)
+DB::QueryPlanPtr
+StreamKafkaRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
+{
+    if (rel.has_read())
+        return parseRelImpl(std::move(query_plan), rel.read());
+
+    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "StreamKafkaRelParser can't parse rel:{}", rel.ShortDebugString());
+}
+
+DB::QueryPlanPtr StreamKafkaRelParser::parseRelImpl(DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel)
 {
     if (!read_rel.has_stream_kafka())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Can't not parse kafka rel, because of read rel don't contained stream kafka");
@@ -78,6 +86,7 @@ DB::QueryPlanPtr StreamKafkaRelParser::parseReadRel(DB::QueryPlanPtr query_plan,
     auto source = std::make_unique<ReadFromGlutenStorageKafka>(
         names, header, getContext(), topics, partition, start_offset, end_offset, poll_timeout_ms, group_id, brokers);
 
+    steps.emplace_back(source.get());
     query_plan->addStep(std::move(source));
 
     return query_plan;

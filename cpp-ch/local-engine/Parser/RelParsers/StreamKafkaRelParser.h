@@ -38,21 +38,19 @@ public:
 
     ~StreamKafkaRelParser() override = default;
 
-    DB::QueryPlanPtr parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override
-    {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "StreamKafkaRelParser can't call parse(), call parseReadRel instead.");
-    }
+    DB::QueryPlanPtr
+    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
 
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel &) override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "StreamKafkaRelParser can't call getSingleInput().");
     }
 
-    DB::QueryPlanPtr parseReadRel(DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel);
-
     void setSplitInfo(String split_info_) { split_info = split_info_; }
 
 private:
+    DB::QueryPlanPtr parseRelImpl(DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel);
+
     DB::ContextPtr context;
 
     String split_info;

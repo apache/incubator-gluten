@@ -208,50 +208,12 @@ Chunk GlutenKafkaSource::generateImpl()
     if (!consumer)
         initConsumer();
 
-    // TODO: delete
-    bool put_error_to_stream = false;
-    std::optional<std::string> exception_message;
-
-    auto on_error = [&](const MutableColumns & result_columns, const ColumnCheckpoints & checkpoints, Exception & e)
-    {
-        ProfileEvents::increment(ProfileEvents::KafkaMessagesFailed);
-
-        if (put_error_to_stream)
-        {
-            exception_message = e.message();
-            for (size_t i = 0; i < result_columns.size(); ++i)
-            {
-                // We could already push some rows to result_columns before exception, we need to fix it.
-                result_columns[i]->rollback(*checkpoints[i]);
-
-                // all data columns will get default value in case of error
-                result_columns[i]->insertDefault();
-            }
-
-            return 1;
-        }
-
-        e.addMessage(
-            "while parsing Kafka message (topic: {}, partition: {}, offset: {})'",
-            consumer->currentTopic(),
-            consumer->currentPartition(),
-            consumer->currentOffset());
-        consumer->setExceptionInfo(e.message());
-        throw std::move(e);
-    };
-
-    EmptyReadBuffer empty_buf;
-    // auto input_format
-    //     = FormatFactory::instance().getInput("Raw", empty_buf, non_virtual_header, context, max_block_size, std::nullopt, 1);
-
-    // StreamingFormatExecutor executor(non_virtual_header, input_format, std::move(on_error));
     size_t total_rows = 0;
     MutableColumns virtual_columns = virtual_header.cloneEmptyColumns();
     MutableColumns no_virtual_columns = non_virtual_header.cloneEmptyColumns();
 
     while (true)
     {
-        size_t new_rows = 0;
         if (auto buf = consumer->consume())
         {
             String message;
@@ -265,7 +227,7 @@ Chunk GlutenKafkaSource::generateImpl()
             if (consumer->isStalled())
                 throw Exception(ErrorCodes::LOGICAL_ERROR, "Polled messages became unusable");
 
-            ProfileEvents::increment(ProfileEvents::KafkaRowsRead, new_rows);
+            ProfileEvents::increment(ProfileEvents::KafkaRowsRead, 1);
             consumer->storeLastReadMessageOffset();
 
             auto topic = consumer->currentTopic();
@@ -336,6 +298,8 @@ Chunk GlutenKafkaSource::generateImpl()
     auto virtual_block = virtual_header.cloneWithColumns(std::move(virtual_columns)); //.cloneWithCutColumns(0, max_block_size);
     for (const auto & column : virtual_block.getColumnsWithTypeAndName())
         result_block.insert(column);
+
+    progress(total_rows, result_block.bytes());
 
     auto converting_dag = ActionsDAG::makeConvertingActions(
         result_block.cloneEmpty().getColumnsWithTypeAndName(),
