@@ -280,10 +280,6 @@ void VeloxBackend::initConnector() {
       ioThreads >= 0,
       kVeloxIOThreads + " was set to negative number " + std::to_string(ioThreads) + ", this should not happen.");
   if (ioThreads > 0) {
-    LOG(WARNING)
-        << "Velox background IO threads is enabled. Which is highly unrecommended as of now, since it may cause"
-        << " some unexpected issues like query crash or hanging. Please turn it off if you are unsure about"
-        << " this option.";
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
   velox::connector::registerConnector(std::make_shared<velox::connector::hive::HiveConnector>(
