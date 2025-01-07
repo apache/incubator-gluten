@@ -54,7 +54,7 @@ import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
 import scala.collection.mutable
 import scala.util.control.Breaks.breakable
-// scalastyle:off
+
 class VeloxBackend extends SubstraitBackend {
   import VeloxBackend._
 
