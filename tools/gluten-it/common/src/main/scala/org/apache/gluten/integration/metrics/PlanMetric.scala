@@ -60,10 +60,15 @@ object PlanMetric {
 
   class SelfTimeReporter(topN: Int) extends Reporter {
     override def toString(metrics: Seq[PlanMetric]): String = {
+      def toNanoTime(m: SQLMetric): Long = m.metricType match {
+        case "nsTiming" => m.value
+        case "timing" => m.value * 1000000
+      }
+
       val sb = new StringBuilder()
       val selfTimes = metrics
         .filter(_.containsTags[MetricTag.IsSelfTime])
-      val sorted = selfTimes.sortBy(_.metric.value)(Ordering.Long.reverse)
+      val sorted = selfTimes.sortBy(m => toNanoTime(m.metric))(Ordering.Long.reverse)
       sb.append(s"Top $topN plan nodes that took longest time to execute: ")
       sb.append(System.lineSeparator())
       sb.append(System.lineSeparator())
@@ -81,7 +86,7 @@ object PlanMetric {
             f,
             m.plan.id.toString,
             m.plan.nodeName,
-            s"[${m.metric.name.getOrElse("")}] ${m.metric.value.toString}"))
+            s"[${m.metric.name.getOrElse("")}] ${toNanoTime(m.metric).toString}"))
       }
       val out = new ByteArrayOutputStream()
       tr.print(out)
