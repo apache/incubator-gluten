@@ -89,7 +89,8 @@ object Constants {
       "BroadcastHashJoinExec" -> Set(), // No available metrics provided by vanilla Spark.
       "ColumnarToRowExec" -> Set(), // No available metrics provided by vanilla Spark.
       "ShuffleExchangeExec" -> Set("fetchWaitTime", "shuffleWriteTime"),
-      "ShuffledHashJoinExec" -> Set("buildTime")
+      "ShuffledHashJoinExec" -> Set("buildTime"),
+      "WindowGroupLimitExec" -> Set() // No available metrics provided by vanilla Spark.
     ))
 
   val VELOX_METRIC_MAPPER: MetricMapper = VANILLA_METRIC_MAPPER.and(
@@ -114,7 +115,9 @@ object Constants {
         "ColumnarBroadcastExchangeExec" -> Set("broadcastTime", "collectTime"),
         "BroadcastHashJoinExecTransformer" -> Set("hashBuildWallNanos", "hashProbeWallNanos"),
         "WindowExecTransformer" -> Set("wallNanos"),
-        "WindowGroupLimitExecTransformer" -> Set("wallNanos")
+        "WindowGroupLimitExecTransformer" -> Set("wallNanos"),
+        "VeloxBroadcastNestedLoopJoinExecTransformer" -> Set("wallNanos"),
+        "ExpandExecTransformer" -> Set("wallNanos")
       )
     ))
 
