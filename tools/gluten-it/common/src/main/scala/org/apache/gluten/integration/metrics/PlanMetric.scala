@@ -65,7 +65,6 @@ object PlanMetric {
     }
 
     override def toString(metrics: Seq[PlanMetric]): String = {
-
       val sb = new StringBuilder()
       val selfTimes = metrics
         .filter(_.containsTags[MetricTag.IsSelfTime])
