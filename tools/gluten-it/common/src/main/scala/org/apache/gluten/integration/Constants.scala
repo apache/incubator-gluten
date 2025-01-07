@@ -80,7 +80,7 @@ object Constants {
 
   val VANILLA_METRIC_MAPPER: MetricMapper = SelfTimeMapper(Map()) // TODO
 
-  val VELOX_METRIC_MAPPER: MetricMapper = SelfTimeMapper(
+  val VELOX_METRIC_MAPPER: MetricMapper = VANILLA_METRIC_MAPPER + SelfTimeMapper(
     Map(
       "FileSourceScanExecTransformer" -> Set("scanTime", "pruningTime", "remainingFilterTime"),
       "ProjectExecTransformer" -> Set("wallNanos"),
