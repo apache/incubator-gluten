@@ -118,7 +118,7 @@ case class WriteFilesExecTransformer(
   }
 
   private def getFinalChildOutput: Seq[Attribute] = {
-    val metadataExclusionList = conf
+    val metadataExclusionList = glutenConf
       .getConf(GlutenConfig.NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST)
       .split(",")
       .map(_.trim)

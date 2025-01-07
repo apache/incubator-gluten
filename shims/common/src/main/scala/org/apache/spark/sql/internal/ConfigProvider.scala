@@ -16,30 +16,15 @@
  */
 package org.apache.spark.sql.internal
 
-import org.apache.gluten.config._
+/** A source of configuration values. */
+trait ConfigProvider {
+  def get(key: String): Option[String]
+}
 
-object GlutenConfigUtil {
-  private def getConfString(configProvider: ConfigProvider, key: String, value: String): String = {
-    Option(ConfigEntry.findEntry(key))
-      .map {
-        _.readFrom(configProvider) match {
-          case o: Option[_] => o.map(_.toString).getOrElse(value)
-          case null => value
-          case v => v.toString
-        }
-      }
-      .getOrElse(value)
-  }
+class SQLConfProvider(conf: SQLConf) extends ConfigProvider {
+  override def get(key: String): Option[String] = Option(conf.settings.get(key))
+}
 
-  def parseConfig(conf: Map[String, String]): Map[String, String] = {
-    val provider = new MapProvider(conf.filter(_._1.startsWith("spark.gluten.")))
-    conf.map {
-      case (k, v) =>
-        if (k.startsWith("spark.gluten.")) {
-          (k, getConfString(provider, k, v))
-        } else {
-          (k, v)
-        }
-    }.toMap
-  }
+class MapProvider(conf: Map[String, String]) extends ConfigProvider {
+  override def get(key: String): Option[String] = conf.get(key)
 }
