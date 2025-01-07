@@ -982,6 +982,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Change merge join to broadcast join without local shuffle read")
     .exclude(
       "Avoid changing merge join to broadcast join if too many empty partitions on build plan")
+    .exclude(
+      "SPARK-30953: InsertAdaptiveSparkPlan should apply AQE on child plan of v2 write commands")
     .exclude("SPARK-37753: Allow changing outer join to broadcast join even if too many empty partitions on broadcast side")
     .exclude("SPARK-29544: adaptive skew join with different join types")
     .exclude("SPARK-34682: AQEShuffleReadExec operating on canonicalized plan")

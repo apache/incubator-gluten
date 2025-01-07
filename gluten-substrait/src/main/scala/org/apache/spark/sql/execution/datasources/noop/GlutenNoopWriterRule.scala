@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources.noop
 
-import org.apache.gluten.config.GlutenConfig
-
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
@@ -26,9 +24,9 @@ import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, OverwriteB
 
 case class GlutenNoopWriterRule(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(p: SparkPlan): SparkPlan = p match {
-    case rc @ AppendDataExec(_, _, NoopWrite) if GlutenConfig.get.enableNoopWriter =>
+    case rc @ AppendDataExec(_, _, NoopWrite) =>
       injectFakeRowAdaptor(rc, rc.child)
-    case rc @ OverwriteByExpressionExec(_, _, NoopWrite) if GlutenConfig.get.enableNoopWriter =>
+    case rc @ OverwriteByExpressionExec(_, _, NoopWrite) =>
       injectFakeRowAdaptor(rc, rc.child)
     case _ => p
   }

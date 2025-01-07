@@ -181,7 +181,6 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-30403",
       "SPARK-30719",
       "SPARK-31384",
-      "SPARK-30953",
       "SPARK-31658",
       "SPARK-32717",
       "SPARK-32649",

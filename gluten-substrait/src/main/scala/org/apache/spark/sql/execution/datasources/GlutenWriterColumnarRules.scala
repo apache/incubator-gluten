@@ -134,7 +134,7 @@ object GlutenWriterColumnarRules {
 
   private[datasources] def injectFakeRowAdaptor(command: SparkPlan, child: SparkPlan): SparkPlan = {
     child match {
-      // if the child is columnar, we can just wrap&transfer the columnar data
+      // if the child is columnar, we can just wrap & transfer the columnar data
       case c2r: ColumnarToRowExecBase =>
         command.withNewChildren(Array(FakeRowAdaptor(c2r.child)))
       // If the child is aqe, we make aqe "support columnar",
