@@ -59,11 +59,12 @@ object PlanMetric {
   }
 
   class SelfTimeReporter(topN: Int) extends Reporter {
+    private def toNanoTime(m: SQLMetric): Long = m.metricType match {
+      case "nsTiming" => m.value
+      case "timing" => m.value * 1000000
+    }
+
     override def toString(metrics: Seq[PlanMetric]): String = {
-      def toNanoTime(m: SQLMetric): Long = m.metricType match {
-        case "nsTiming" => m.value
-        case "timing" => m.value * 1000000
-      }
 
       val sb = new StringBuilder()
       val selfTimes = metrics
