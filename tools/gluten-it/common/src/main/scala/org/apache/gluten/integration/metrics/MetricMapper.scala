@@ -48,7 +48,7 @@ object MetricMapper {
         case other => Seq(other)
       }
 
-    def +(
+    def and(
         other: MetricMapper): MetricMapper = {
       new ChainedTypeMetricMapper(unwrap(mapper) ++ unwrap(other))
     }
