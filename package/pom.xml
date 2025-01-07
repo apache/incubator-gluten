@@ -132,6 +132,167 @@
             <configuration>
               <createSourcesJar>true</createSourcesJar>
               <relocations>
+                                 <relocation>
+                        <pattern>org.apache.spark.TaskContextUtils</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.TaskContextUtils</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.ShuffleUtils</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.ShuffleUtils</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.hive.execution.HiveFileFormat</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.hive.execution.HiveFileFormat</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.hive.execution.AbstractHiveTableScanExec</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.hive.execution.AbstractHiveTableScanExec</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.catalyst.types.DataTypeUtils</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.catalyst.types.DataTypeUtils</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.catalyst.expressions.EvalMode</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.catalyst.expressions.EvalMode</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.FileSourceScanExecShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.FileSourceScanExecShim</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.AbstractFileSourceScanExec</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.AbstractFileSourceScanExec</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.stat.StatFunctions</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.stat.StatFunctions</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.BasicWriteStatsTracker</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.BasicWriteStatsTracker</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.orc.OrcFileFormat</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.orc.OrcFileFormat</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.v2.Spark33Scan</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.v2.Spark33Scan</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.v2.BatchScanExecShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.v2.BatchScanExecShim</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.v2.AbstractBatchScanExec</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.v2.AbstractBatchScanExec</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.FileFormatWriter</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.FileFormatWriter</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.FileFormatDataWriter</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.FileFormatDataWriter</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.WriteFiles</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.WriteFiles</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.ExpandOutputPartitioningShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.ExpandOutputPartitioningShim</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.python.BasePythonRunnerShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.python.BasePythonRunnerShim</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.window.WindowGroupLimitExecShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.window.WindowGroupLimitExecShim</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.SingleDirectoryDataWriter</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.SingleDirectoryDataWriter</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.BaseDynamicPartitionDataWriter</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.BaseDynamicPartitionDataWriter</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.DynamicPartitionDataSingleWriter</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.DynamicPartitionDataSingleWriter</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.WriterBucketSpec</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.WriterBucketSpec</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.WriteJobDescription</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.WriteJobDescription</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.WriteTaskResult</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.WriteTaskResult</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.datasources.ExecutedWriteSummary</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.datasources.ExecutedWriteSummary</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.PartitioningAndOrderingPreservingNodeShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.PartitioningAndOrderingPreservingNodeShim</shadedPattern>
+                    </relocation>
+                    <!-- <relocation>
+                        <pattern>org.apache.gluten.utils.InternalRowUtl</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.gluten.utils.InternalRowUtl</shadedPattern>
+                    </relocation> -->
+                    <!-- <relocation>
+                        <pattern>org.apache.gluten.sql.shims.spark33.SparkShimProvider</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.gluten.sql.shims.spark33.SparkShimProvider</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.gluten.sql.shims.spark33.Spark33Shims</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.gluten.sql.shims.spark33.Spark33Shims</shadedPattern>
+                    </relocation> -->
+                    <!-- <relocation>
+                        <pattern>org.apache.gluten.execution.GenerateTreeStringShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.gluten.execution.GenerateTreeStringShim</shadedPattern>
+                    </relocation>
+                    <relocation>
+                        <pattern>org.apache.spark.sql.execution.vectorized.WritableColumnVectorShim</pattern>
+                        <shadedPattern>org.apache.gluten.shaded.org.apache.spark.sql.execution.vectorized.WritableColumnVectorShim</shadedPattern>
+                    </relocation> -->
+
                 <relocation>
                   <pattern>com.google.protobuf</pattern>
                   <shadedPattern>${gluten.shade.packageName}.com.google.protobuf</shadedPattern>
@@ -190,6 +351,10 @@
                   <shadedPattern>${gluten.shade.packageName}.com.google.flatbuffers</shadedPattern>
                 </relocation>
               </relocations>
+              <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
+              </transformers>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>

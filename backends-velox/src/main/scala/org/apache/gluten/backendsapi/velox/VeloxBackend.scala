@@ -54,7 +54,7 @@ import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
 import scala.collection.mutable
 import scala.util.control.Breaks.breakable
-
+// scalastyle:off
 class VeloxBackend extends SubstraitBackend {
   import VeloxBackend._
 
@@ -191,10 +191,35 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
-    validateScheme().orElse(validateFormat()) match {
-      case Some(reason) => ValidationResult.failed(reason)
-      case _ => ValidationResult.succeeded
+    def validateEncryption(): Option[String] = {
+
+      val encryptionValidationEnabled = GlutenConfig.getConf.enableEncryptedParquetFallback
+      if (!encryptionValidationEnabled) {
+        return None
+      }
+
+      val encryptionResult =
+        ParquetMetadataUtils.validateEncryption(format, rootPaths, serializableHadoopConf)
+      if (encryptionResult.ok()) {
+        None
+      } else {
+        Some(s"Detected encrypted parquet files: ${encryptionResult.reason()}")
+      }
     }
+
+    val validationChecks = Seq(
+      validateScheme(),
+      validateFormat(),
+      validateEncryption()
+    )
+
+    for (check <- validationChecks) {
+      if (check.isDefined) {
+        return ValidationResult.failed(check.get)
+      }
+    }
+
+    ValidationResult.succeeded
   }
 
   def distinctRootPaths(paths: Seq[String]): Seq[String] = {
