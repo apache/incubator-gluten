@@ -62,6 +62,9 @@ app_name: ''
 # Hostname or IP to server for perf analysis. Able to connect via ssh.
 server: ''
 
+# Gluten home on server.
+server_gluten_home: /home/sparkuser/gluten
+
 # Specify the directory on perf analysis server. Usually a codename for this run.
 base_dir: test
 
