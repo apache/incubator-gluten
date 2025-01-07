@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
+
 #include "SparkFunctionDecimalBinaryOperator.h"
 
 #include <Columns/ColumnDecimal.h>
@@ -27,7 +29,6 @@
 #include <Functions/IFunction.h>
 #include <Functions/castTypeToEither.h>
 #include <Common/CurrentThread.h>
-#include <Common/Stopwatch.h>
 
 #if USE_EMBEDDED_COMPILER
 #include <DataTypes/Native.h>
