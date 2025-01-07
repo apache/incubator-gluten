@@ -5,17 +5,44 @@ nav_order: 7
 parent: Developer Overview
 ---
 
-Currently, Centos-7/8/9 and Ubuntu 20.04/22.04 are supported to build Gluten Velox backend. Please refer to
-`.github/workflows/velox_weekly.yml` to install required tools before the build.
+Currently, we have two way to build Gluten, static link or dynamic link. 
 
-There are two docker images with almost all dependencies installed, respective for static build and dynamic build.
-The according Dockerfiles are respectively `Dockerfile.centos7-static-build` and `Dockerfile.centos8-dynamic-build`
-under `dev/docker/`.
+# Static link
+The static link approach builds all dependency libraries in vcpkg for both Velox and Gluten. It then statically links these libraries into libvelox.so and libgluten.so, enabling the build of Gluten on *any* Linux OS on x86 platforms with 64G memory.
 
-```shell
-# For static build on centos-7.
-docker pull apache/gluten:vcpkg-centos-7
-
-# For dynamic build on centos-8.
-docker pull apache/gluten:centos-8 (dynamic build)
+Here is the dependency libraries required on target system, they are the essential libraries preinstalled in every Linux OS.
 ```
+linux-vdso.so.1
+librt.so.1
+libpthread.so.0
+libdl.so.2
+libm.so.6
+libc.so.6
+/lib64/ld-linux-x86-64.so.2
+```
+
+The 'dockerfile' to build Gluten jar:
+
+```
+# apache/gluten:vcpkg-centos-7 is used by all OSS Gluten CI test
+FROM apache/gluten:vcpkg-centos-7
+
+# Build Gluten Jar
+RUN source /opt/rh/devtoolset-11/enable && \
+    git clone https://github.com/apache/incubator-gluten.git && \
+    cd incubator-gluten && \
+    ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_s3=ON --enable_gcs=ON --enable_abfs=ON --enable_vcpkg=ON --build_arrow=OFF && \
+    mvn clean package -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-3.4 -DskipTests
+```
+`enable_vcpkg=ON` enables the static link. Vcpkg packages are already pre-installed in the vcpkg-centos-7 image and can be reused automatically. The image is maintained by Gluten community.
+
+The command builds Gluten jar in 'glutenimage':
+```
+docker build -t glutenimage -f dockerfile
+```
+The gluten jar can be copied from glutenimage:/incubator-gluten/package/target/gluten-velox-bundle-*.jar
+
+# Dynamic link
+Currently, Centos-7/8/9 and Ubuntu 20.04/22.04 are supported to build Gluten Velox backend. 
+
+

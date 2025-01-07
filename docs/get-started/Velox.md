@@ -16,8 +16,7 @@ parent: Getting-Started
 
 # Prerequisite
 
-Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**.
-Other kinds of OS support are still in progress. The long term goal is to support several common OS and conda env deployment.
+Currently, with static build Gluten+Velox backend supports all the Linux OSes, but is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**. With dynamic build, Gluten+Velox backend support **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8** and their variants.
 
 Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
 
@@ -103,9 +102,11 @@ mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.4 -DskipTests
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.5 -DskipTests
 ```
 
-Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox.
+Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox. The recommended minimal memory size is 64G.
 
 After the above build process, the Jar file will be generated under `package/target/`.
+
+Alternatively you may refer to [build in docker](docs/developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
 
 ## Dependency library deployment
 
