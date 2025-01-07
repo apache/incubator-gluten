@@ -72,7 +72,7 @@ object PlanMetric {
           Leaf("Query"),
           Leaf("Node ID"),
           Leaf("Node Name"),
-          Leaf("Execution Time (ms)"))
+          Leaf("Execution Time (ns)"))
       for (i <- 0 until (topN.min(sorted.size))) {
         val m = sorted(i)
         val f = new File(m.queryPath).toPath.getFileName.toString
