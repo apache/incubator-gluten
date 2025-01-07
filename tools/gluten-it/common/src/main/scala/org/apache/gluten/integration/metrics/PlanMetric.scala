@@ -28,7 +28,7 @@ import org.apache.commons.io.output.ByteArrayOutputStream
 import java.io.File
 import java.nio.charset.Charset
 
-import scala.reflect.{classTag, ClassTag}
+import scala.reflect.ClassTag
 
 case class PlanMetric(
     queryPath: String,
