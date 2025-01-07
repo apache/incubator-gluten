@@ -78,34 +78,45 @@ object Constants {
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
     .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false")
 
-  val VANILLA_METRIC_MAPPER: MetricMapper = SelfTimeMapper(Map(
-    "FileSourceScanExec" -> Set("metadataTime", "scanTime"),
-    "HashAggregateExec" -> Set("aggTime"),
-    "ProjectExec" -> Set(), // No available metrics provided by vanilla Spark.
-    "FilterExec" -> Set(), // No available metrics provided by vanilla Spark.
-    "BroadcastExchangeExec" -> Set("broadcastTime", "buildTime", "collectTime"),
-    "BroadcastHashJoinExec" -> Set(), // No available metrics provided by vanilla Spark.
-    "ColumnarToRowExec" -> Set(), // No available metrics provided by vanilla Spark.
-    "ShuffleExchangeExec" -> Set("fetchWaitTime", "shuffleWriteTime"),
-    "ShuffledHashJoinExec" -> Set("buildTime")
-  ))
-
-  val VELOX_METRIC_MAPPER: MetricMapper = VANILLA_METRIC_MAPPER and SelfTimeMapper(
+  val VANILLA_METRIC_MAPPER: MetricMapper = SelfTimeMapper(
     Map(
-      "FileSourceScanExecTransformer" -> Set("scanTime", "pruningTime", "remainingFilterTime"),
-      "ProjectExecTransformer" -> Set("wallNanos"),
-      "FilterExecTransformer" -> Set("wallNanos"),
-      "SortExecTransformer" -> Set("wallNanos"),
-      "RegularHashAggregateExecTransformer" -> Set("aggWallNanos", "rowConstructionWallNanos"),
-      "FlushableHashAggregateExecTransformer" -> Set("aggWallNanos", "rowConstructionWallNanos"),
-      "VeloxColumnarToRowExec" -> Set("convertTime"),
-      "VeloxResizeBatchesExec" -> Set("selfTime"),
-      "ColumnarShuffleExchangeExec" -> Set("splitTime", "shuffleWallTime", "fetchWaitTime", "decompressTime", "deserializeTime"),
-      "ShuffledHashJoinExecTransformer" -> Set("hashBuildWallNanos", "hashProbeWallNanos"),
-      "ColumnarBroadcastExchangeExec" -> Set("broadcastTime", "collectTime"),
-      "BroadcastHashJoinExecTransformer" -> Set("hashBuildWallNanos", "hashProbeWallNanos")
-    )
-  )
+      "FileSourceScanExec" -> Set("metadataTime", "scanTime"),
+      "HashAggregateExec" -> Set("aggTime"),
+      "ProjectExec" -> Set(), // No available metrics provided by vanilla Spark.
+      "FilterExec" -> Set(), // No available metrics provided by vanilla Spark.
+      "WindowExec" -> Set(), // No available metrics provided by vanilla Spark.
+      "BroadcastExchangeExec" -> Set("broadcastTime", "buildTime", "collectTime"),
+      "BroadcastHashJoinExec" -> Set(), // No available metrics provided by vanilla Spark.
+      "ColumnarToRowExec" -> Set(), // No available metrics provided by vanilla Spark.
+      "ShuffleExchangeExec" -> Set("fetchWaitTime", "shuffleWriteTime"),
+      "ShuffledHashJoinExec" -> Set("buildTime")
+    ))
+
+  val VELOX_METRIC_MAPPER: MetricMapper = VANILLA_METRIC_MAPPER.and(
+    SelfTimeMapper(
+      Map(
+        "FileSourceScanExecTransformer" -> Set("scanTime", "pruningTime", "remainingFilterTime"),
+        "ProjectExecTransformer" -> Set("wallNanos"),
+        "FilterExecTransformer" -> Set("wallNanos"),
+        "SortExecTransformer" -> Set("wallNanos"),
+        "RegularHashAggregateExecTransformer" -> Set("aggWallNanos", "rowConstructionWallNanos"),
+        "FlushableHashAggregateExecTransformer" -> Set("aggWallNanos", "rowConstructionWallNanos"),
+        "VeloxColumnarToRowExec" -> Set("convertTime"),
+        "RowToVeloxColumnarExec" -> Set("convertTime"),
+        "VeloxResizeBatchesExec" -> Set("selfTime"),
+        "ColumnarShuffleExchangeExec" -> Set(
+          "splitTime",
+          "shuffleWallTime",
+          "fetchWaitTime",
+          "decompressTime",
+          "deserializeTime"),
+        "ShuffledHashJoinExecTransformer" -> Set("hashBuildWallNanos", "hashProbeWallNanos"),
+        "ColumnarBroadcastExchangeExec" -> Set("broadcastTime", "collectTime"),
+        "BroadcastHashJoinExecTransformer" -> Set("hashBuildWallNanos", "hashProbeWallNanos"),
+        "WindowExecTransformer" -> Set("wallNanos"),
+        "WindowGroupLimitExecTransformer" -> Set("wallNanos")
+      )
+    ))
 
   @deprecated
   val TYPE_MODIFIER_DATE_AS_DOUBLE: TypeModifier =
