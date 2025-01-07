@@ -19,7 +19,7 @@ package org.apache.gluten.integration.action
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
-import org.apache.gluten.integration.metrics.MetricMapper
+import org.apache.gluten.integration.metrics.{MetricMapper, PlanMetric}
 import org.apache.gluten.integration.metrics.PlanMetric.SelfTimeReporter
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
@@ -33,7 +33,7 @@ case class Queries(
     iterations: Int,
     randomKillTasks: Boolean,
     noSessionReuse: Boolean,
-    collectSqlMetrics: Boolean)
+    metricsReporters: Seq[PlanMetric.Reporter])
     extends Action {
   import Queries._
 
@@ -81,11 +81,12 @@ case class Queries(
       RamStat.getProcessRamUsed())
     println("")
 
-    if (collectSqlMetrics) {
-      println("")
-      val r = new SelfTimeReporter(10)
-      val selfTimeReport = r.toString(succeeded.flatMap(_.queryResult.asSuccess().runResult.sqlMetrics))
-      println(selfTimeReport)
+    val sqlMetrics = succeeded.flatMap(_.queryResult.asSuccess().runResult.sqlMetrics)
+    metricsReporters.foreach {
+      r =>
+        val report = r.toString(sqlMetrics)
+        println(report)
+        println("")
     }
 
     println("Test report: ")

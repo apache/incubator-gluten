@@ -49,6 +49,11 @@ case class PlanMetric(
 }
 
 object PlanMetric {
+  def newReporter(`type`: String): Reporter = `type` match {
+    case "execution-time" => new SelfTimeReporter(10)
+    case other => throw new IllegalArgumentException(s"Metric reporter type $other not defined")
+  }
+
   sealed trait Reporter {
     def toString(metrics: Seq[PlanMetric]): String
   }
