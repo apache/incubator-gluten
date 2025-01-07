@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ExpressionNames._
 import org.apache.gluten.sql.shims.SparkShimLoader
 

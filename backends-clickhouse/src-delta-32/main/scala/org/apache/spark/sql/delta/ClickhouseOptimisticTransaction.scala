@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.delta
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
 
 import org.apache.spark.SparkException
@@ -38,6 +37,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SerializableConfiguration
 
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.gluten.config.GlutenConfig
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.delta.perf.DeltaOptimizedWriterExec
 

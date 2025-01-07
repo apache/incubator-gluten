@@ -665,11 +665,11 @@ Right keys [1]: [r_regionkey#X]
 Join condition: None
 
 (122) ProjectExecTransformer
-Output [4]: [year(o_orderdate#X) AS o_year#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) AS volume#X, n_name#X AS nation#X, CASE WHEN (n_name#X = BRAZIL) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) ELSE 0.0000 END AS _pre_X#X]
+Output [3]: [year(o_orderdate#X) AS o_year#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) AS volume#X, CASE WHEN (n_name#X = BRAZIL) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) ELSE 0.0000 END AS _pre_X#X]
 Input [6]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X, r_regionkey#X]
 
 (123) FlushableHashAggregateExecTransformer
-Input [4]: [o_year#X, volume#X, nation#X, _pre_X#X]
+Input [3]: [o_year#X, volume#X, _pre_X#X]
 Keys [1]: [o_year#X]
 Functions [2]: [partial_sum(_pre_X#X), partial_sum(volume#X)]
 Aggregate Attributes [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]

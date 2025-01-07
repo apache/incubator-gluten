@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.columnarbatch.CHBatch
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
@@ -61,6 +61,7 @@ object CHRuleApi {
       (spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
     injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
     injector.injectResolutionRule(spark => new RewriteDateTimestampComparisonRule(spark))
+    injector.injectResolutionRule(spark => new CollapseGetJsonObjectExpressionRule(spark))
     injector.injectOptimizerRule(spark => new CommonSubexpressionEliminateRule(spark))
     injector.injectOptimizerRule(spark => new ExtendedColumnPruning(spark))
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
@@ -85,7 +86,13 @@ object CHRuleApi {
     val validatorBuilder: GlutenConfig => Validator = conf =>
       Validators.newValidator(conf, offloads)
     val rewrites =
-      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
+      Seq(
+        RewriteIn,
+        RewriteMultiChildrenCount,
+        RewriteJoin,
+        PullOutPreProject,
+        PullOutPostProject,
+        ProjectColumnPruning)
     injector.injectTransform(
       c =>
         intercept(

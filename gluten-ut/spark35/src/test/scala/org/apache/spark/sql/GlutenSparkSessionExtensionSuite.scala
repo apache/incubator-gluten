@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 class GlutenSparkSessionExtensionSuite
   extends SparkSessionExtensionSuite

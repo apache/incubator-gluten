@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.hive.execution
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.SystemParameters
 
 import org.apache.spark.{DebugFilesystem, SparkConf}

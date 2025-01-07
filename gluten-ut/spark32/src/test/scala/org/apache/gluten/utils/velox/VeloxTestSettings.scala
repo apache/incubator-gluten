@@ -71,6 +71,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
     // User defined type.
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
+    // Set timezone through config.
+    .exclude("data type casting")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
     .exclude(

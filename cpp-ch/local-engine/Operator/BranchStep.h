@@ -42,7 +42,7 @@ class StaticBranchStep : public DB::ITransformingStep
 public:
     using BranchSelector = std::function<size_t(const std::list<DB::Chunk> &)>;
     explicit StaticBranchStep(
-        DB::ContextPtr context_, const DB::Block & header, size_t branches, size_t sample_rows, BranchSelector selector);
+        const DB::ContextPtr & context_, const DB::Block & header, size_t branches, size_t sample_rows, BranchSelector selector);
     ~StaticBranchStep() override = default;
 
     String getName() const override { return "StaticBranchStep"; }
@@ -67,7 +67,8 @@ private:
 class UniteBranchesStep : public DB::ITransformingStep
 {
 public:
-    explicit UniteBranchesStep(const DB::Block & header_, std::vector<DB::QueryPlanPtr> && branch_plans_, size_t num_streams_);
+    explicit UniteBranchesStep(
+        const DB::ContextPtr & context_, const DB::Block & header_, std::vector<DB::QueryPlanPtr> && branch_plans_, size_t num_streams_);
     ~UniteBranchesStep() override = default;
 
     String getName() const override { return "UniteBranchesStep"; }
@@ -76,6 +77,7 @@ public:
     void describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const override;
 
 private:
+    DB::ContextPtr context;
     DB::Block header;
     std::vector<DB::QueryPlanPtr> branch_plans;
     size_t num_streams;

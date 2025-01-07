@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten
+package org.apache.gluten.config
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.{ByteUnit, JavaUtils}
@@ -104,6 +104,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableRewriteDateTimestampComparison: Boolean =
     conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
+
+  def enableCollapseNestedGetJsonObject: Boolean =
+    conf.getConf(ENABLE_COLLAPSE_GET_JSON_OBJECT)
 
   def enableCHRewriteDateConversion: Boolean =
     conf.getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
@@ -544,9 +547,9 @@ object GlutenConfig {
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
+
   // ABFS config
-  val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
-  val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
+  val ABFS_PREFIX = "fs.azure."
 
   // GCS config
   val GCS_PREFIX = "fs.gs."
@@ -854,7 +857,7 @@ object GlutenConfig {
 
     // handle ABFS config
     conf
-      .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
+      .filter(_._1.startsWith(HADOOP_PREFIX + ABFS_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // put in all GCS configs
@@ -1966,6 +1969,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val ENABLE_COLLAPSE_GET_JSON_OBJECT =
+    buildConf("spark.gluten.sql.collapseGetJsonObject.enabled")
+      .internal()
+      .doc("Collapse nested get_json_object functions as one for optimization.")
+      .booleanConf
+      .createWithDefault(false)
+
   val ENABLE_CH_REWRITE_DATE_CONVERSION =
     buildConf("spark.gluten.sql.columnar.backend.ch.rewrite.dateConversion")
       .internal()
@@ -2161,7 +2171,7 @@ object GlutenConfig {
       .createWithDefault("200s")
 
   val VELOX_ORC_SCAN_ENABLED =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
+    buildConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
       .internal()
       .doc("Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
       .booleanConf

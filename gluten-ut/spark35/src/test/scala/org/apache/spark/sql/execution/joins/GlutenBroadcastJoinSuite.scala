@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.joins
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}

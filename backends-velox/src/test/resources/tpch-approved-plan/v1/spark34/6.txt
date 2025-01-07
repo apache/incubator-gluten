@@ -32,11 +32,11 @@ Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Arguments: (((((((isnotnull(l_shipdate#X) AND isnotnull(l_discount#X)) AND isnotnull(l_quantity#X)) AND (l_shipdate#X >= 1994-01-01)) AND (l_shipdate#X < 1995-01-01)) AND (l_discount#X >= 0.05)) AND (l_discount#X <= 0.07)) AND (l_quantity#X < 24.00))
 
 (3) ProjectExecTransformer
-Output [3]: [l_extendedprice#X, l_discount#X, (l_extendedprice#X * l_discount#X) AS _pre_X#X]
+Output [1]: [(l_extendedprice#X * l_discount#X) AS _pre_X#X]
 Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
 (4) FlushableHashAggregateExecTransformer
-Input [3]: [l_extendedprice#X, l_discount#X, _pre_X#X]
+Input [1]: [_pre_X#X]
 Keys: []
 Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]

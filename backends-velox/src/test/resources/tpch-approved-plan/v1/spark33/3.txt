@@ -208,11 +208,11 @@ Right keys [1]: [l_orderkey#X]
 Join condition: None
 
 (37) ProjectExecTransformer
-Output [6]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_X#X]
+Output [4]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)) AS _pre_X#X]
 Input [6]: [o_orderkey#X, o_orderdate#X, o_shippriority#X, l_orderkey#X, l_extendedprice#X, l_discount#X]
 
 (38) RegularHashAggregateExecTransformer
-Input [6]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, l_extendedprice#X, l_discount#X, _pre_X#X]
+Input [4]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, _pre_X#X]
 Keys [3]: [l_orderkey#X, o_orderdate#X, o_shippriority#X]
 Functions [1]: [sum(_pre_X#X)]
 Aggregate Attributes [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]

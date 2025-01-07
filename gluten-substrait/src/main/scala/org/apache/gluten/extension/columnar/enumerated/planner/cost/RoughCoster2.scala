@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.enumerated.planner.cost
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 

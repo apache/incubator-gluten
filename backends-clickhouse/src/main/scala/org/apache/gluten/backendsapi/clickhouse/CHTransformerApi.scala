@@ -142,13 +142,6 @@ class CHTransformerApi extends TransformerApi with Logging {
       "spark.hadoop.dfs.client.log.severity",
       s"$hdfsConfigPrefix.dfs_client_log_severity")
 
-    // TODO: set default to true when metrics could be collected
-    // while ch query plan optimization is enabled.
-    val planOptKey = CHConf.runtimeSettings("query_plan_enable_optimizations")
-    if (!nativeConfMap.containsKey(planOptKey)) {
-      nativeConfMap.put(planOptKey, "false")
-    }
-
     // Respect spark config spark.sql.orc.compression.codec for CH backend
     // TODO: consider compression or orc.compression in table options.
     val orcCompressionKey = CHConf.runtimeSettings("output_format_orc_compression_method")
