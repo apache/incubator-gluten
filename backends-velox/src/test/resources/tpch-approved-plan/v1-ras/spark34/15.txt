@@ -94,11 +94,11 @@ Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Arguments: (((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01)) AND isnotnull(l_suppkey#X))
 
 (12) ProjectExecTransformer
-Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X]
+Output [2]: [l_suppkey#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X]
 Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
 (13) FlushableHashAggregateExecTransformer
-Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, _pre_X#X]
+Input [2]: [l_suppkey#X, _pre_X#X]
 Keys [1]: [l_suppkey#X]
 Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
@@ -297,11 +297,11 @@ Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Arguments: ((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1996-01-01)) AND (l_shipdate#X < 1996-04-01))
 
 (50) ProjectExecTransformer
-Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X]
+Output [2]: [l_suppkey#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X]
 Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 
 (51) FlushableHashAggregateExecTransformer
-Input [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, _pre_X#X]
+Input [2]: [l_suppkey#X, _pre_X#X]
 Keys [1]: [l_suppkey#X]
 Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]

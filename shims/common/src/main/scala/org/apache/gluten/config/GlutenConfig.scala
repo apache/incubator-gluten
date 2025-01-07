@@ -105,6 +105,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableRewriteDateTimestampComparison: Boolean =
     conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
 
+  def enableCollapseNestedGetJsonObject: Boolean =
+    conf.getConf(ENABLE_COLLAPSE_GET_JSON_OBJECT)
+
   def enableCHRewriteDateConversion: Boolean =
     conf.getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
 
@@ -1965,6 +1968,13 @@ object GlutenConfig {
         + "For example `from_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
       .booleanConf
       .createWithDefault(true)
+
+  val ENABLE_COLLAPSE_GET_JSON_OBJECT =
+    buildConf("spark.gluten.sql.collapseGetJsonObject.enabled")
+      .internal()
+      .doc("Collapse nested get_json_object functions as one for optimization.")
+      .booleanConf
+      .createWithDefault(false)
 
   val ENABLE_CH_REWRITE_DATE_CONVERSION =
     buildConf("spark.gluten.sql.columnar.backend.ch.rewrite.dateConversion")
