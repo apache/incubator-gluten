@@ -44,7 +44,7 @@ public class Queries implements Callable<Integer> {
   @CommandLine.Option(names = {"--random-kill-tasks"}, description = "Every single task will get killed and retried after running for some time", defaultValue = "false")
   private boolean randomKillTasks;
 
-  @CommandLine.Option(names = {"--collect-sql-metrics"}, description = "Collect SQL metrics from run queries and generate a simple report based on them. Available types: execution-time")
+  @CommandLine.Option(names = {"--sql-metrics"}, description = "Collect SQL metrics from run queries and generate a simple report based on them. Available types: execution-time")
   private Set<String> collectSqlMetrics = Collections.emptySet();
 
   @Override
