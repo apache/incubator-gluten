@@ -498,7 +498,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableBroadcastBuildRelationInOffheap: Boolean =
     getConf(VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP)
 
-  def enableEncryptedParquetFallback: Boolean = conf.getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
+  def enableEncryptedParquetFallback: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
 
 }
 
@@ -2279,6 +2279,8 @@ object GlutenConfig {
       .internal()
       .doc("Experimental: If enabled, broadcast build relation will use offheap memory. " +
         "Otherwise, broadcast build relation will use onheap memory.")
+      .booleanConf
+      .createWithDefault(false)
 
   val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
     buildStaticConf("spark.gluten.sql.fallbackEncryptedParquet")
