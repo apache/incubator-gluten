@@ -46,7 +46,7 @@ public class Parameterized implements Callable<Integer> {
   @CommandLine.Option(names = {"--warmup-iterations"}, description = "Dry-run iterations before actually run the test", defaultValue = "0")
   private int warmupIterations;
 
-  @CommandLine.Option(names = {"-m", "--metric"}, description = "Specify a series of metrics to collect during execution")
+  @CommandLine.Option(names = {"-m", "--metric"}, description = "Specify a series of executor metrics to collect during execution")
   private String[] metrics = new String[0];
 
   @CommandLine.Option(names = {"-d", "--dim"}, description = "Set a series of dimensions consisting of possible config options, example: -d=offheap:1g,spark.memory.offHeap.enabled=true,spark.memory.offHeap.size=1g")
