@@ -16,13 +16,13 @@
  */
 package org.apache.gluten.integration.action
 
+import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
 import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.metrics.{MetricMapper, PlanMetric}
-import org.apache.gluten.integration.metrics.PlanMetric.SelfTimeReporter
 import org.apache.gluten.integration.stat.RamStat
-import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
+
 import org.apache.spark.sql.SparkSession
 
 case class Queries(
@@ -34,7 +34,7 @@ case class Queries(
     randomKillTasks: Boolean,
     noSessionReuse: Boolean,
     metricsReporters: Seq[PlanMetric.Reporter])
-    extends Action {
+  extends Action {
   import Queries._
 
   override def execute(suite: Suite): Boolean = {
@@ -78,7 +78,8 @@ case class Queries(
       "RAM statistics: JVM Heap size: %d KiB (total %d KiB), Process RSS: %d KiB\n",
       RamStat.getJvmHeapUsed(),
       RamStat.getJvmHeapTotal(),
-      RamStat.getProcessRamUsed())
+      RamStat.getProcessRamUsed()
+    )
     println("")
 
     val sqlMetrics = succeeded.flatMap(_.queryResult.asSuccess().runResult.sqlMetrics)
@@ -145,26 +146,30 @@ object Queries {
       "Plan Time (Millis)",
       "Query Time (Millis)")
 
-    results.foreach { line =>
-      render.appendRow(line)
-    }
+    results.foreach(line => render.appendRow(line))
 
     render.print(System.out)
   }
 
   private def runQuery(
-                        runner: QueryRunner,
-                        creator: TableCreator,
-                        session: SparkSession,
-                        id: String,
-                        desc: String,
-                        explain: Boolean,
-                        metricMapper: MetricMapper,
-                        randomKillTasks: Boolean): TestResultLine = {
+      runner: QueryRunner,
+      creator: TableCreator,
+      session: SparkSession,
+      id: String,
+      desc: String,
+      explain: Boolean,
+      metricMapper: MetricMapper,
+      randomKillTasks: Boolean): TestResultLine = {
     println(s"Running query: $id...")
     val testDesc = "Query %s [%s]".format(desc, id)
     val result =
-      runner.runQuery(session, testDesc, id, explain = explain, sqlMetricMapper = metricMapper, randomKillTasks = randomKillTasks)
+      runner.runQuery(
+        session,
+        testDesc,
+        id,
+        explain = explain,
+        sqlMetricMapper = metricMapper,
+        randomKillTasks = randomKillTasks)
     TestResultLine(result)
   }
 }
