@@ -207,9 +207,9 @@ function build_gluten_cpp {
 }
 
 function build_velox_backend {
-  # if [ $BUILD_ARROW == "ON" ]; then
-  #   build_arrow
-  # fi
+  if [ $BUILD_ARROW == "ON" ]; then
+    build_arrow
+  fi
   build_velox
   build_gluten_cpp
 }

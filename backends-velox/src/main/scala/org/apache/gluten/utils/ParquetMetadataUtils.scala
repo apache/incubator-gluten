@@ -72,7 +72,7 @@ object ParquetMetadataUtils {
   }
 
   /**
-   * Checks if any Parquet file under the given path is encrypted using a recursive
+   * Check any Parquet file under the given path is encrypted using a recursive
    * iterator. Only the first `fileLimit` files are processed for efficiency.
    *
    * @param fs
@@ -110,7 +110,10 @@ object ParquetMetadataUtils {
   }
 
   /**
-   * Recursively checks if the exception or its causes match the specified type.
+   * Utility to check the exception for the specified type.
+   * Parquet 1.12 does not provide direct utility to check for encryption.
+   * Newer versions provide utility to check encryption from read footer
+   * which can be used in the future once Spark brings it in.
    *
    * @param throwable
    *   Exception to check
