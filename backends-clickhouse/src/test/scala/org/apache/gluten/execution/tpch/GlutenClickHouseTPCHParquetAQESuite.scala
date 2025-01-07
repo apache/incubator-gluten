@@ -407,5 +407,40 @@ class GlutenClickHouseTPCHParquetAQESuite
       assert(result.length == 1)
     }
   }
+
+  test("GLUTEN-8432 count(distinct) contains grouping keys") {
+    compareResultsAgainstVanillaSpark(
+      s"""
+         |select n_regionkey, n_nationkey, count(distinct n_name, n_nationkey,  n_comment) as x
+         |from (
+         | select
+         |   n_regionkey,
+         |   n_nationkey,
+         |   if(n_nationkey = 0, null, n_name) as n_name,
+         |   if(n_nationkey = 0, null, n_comment) as n_comment
+         | from nation
+         |)
+         |group by n_regionkey, n_nationkey
+         |order by n_regionkey, n_nationkey
+         |""".stripMargin,
+      true,
+      { df => }
+    )
+    compareResultsAgainstVanillaSpark(
+      s"""
+         |select n_regionkey, n_nationkey, count(distinct n_nationkey) as x
+         |from (
+         | select
+         |   n_regionkey,
+         |   if (n_nationkey = 0, null, n_nationkey) as n_nationkey
+         | from nation
+         |)
+         |group by n_regionkey, n_nationkey
+         |order by n_regionkey, n_nationkey
+         |""".stripMargin,
+      true,
+      { df => }
+    )
+  }
 }
 // scalastyle:off line.size.limit
