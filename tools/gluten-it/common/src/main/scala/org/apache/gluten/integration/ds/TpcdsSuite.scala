@@ -16,52 +16,55 @@
  */
 package org.apache.gluten.integration.ds
 
+import org.apache.gluten.integration.{DataGen, Suite, TableCreator, TypeModifier}
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE_PATH, TPCDS_WRITE_RELATIVE_PATH}
 import org.apache.gluten.integration.metrics.MetricMapper
-import org.apache.gluten.integration.{DataGen, Suite, TableCreator, TypeModifier}
-import org.apache.log4j.Level
+
 import org.apache.spark.SparkConf
+
+import org.apache.log4j.Level
 
 import java.io.File
 
 class TpcdsSuite(
-                  val masterUrl: String,
-                  val actions: Array[Action],
-                  val testConf: SparkConf,
-                  val baselineConf: SparkConf,
-                  val extraSparkConf: Map[String, String],
-                  val logLevel: Level,
-                  val errorOnMemLeak: Boolean,
-                  val dataDir: String,
-                  val enableUi: Boolean,
-                  val enableHsUi: Boolean,
-                  val hsUiPort: Int,
-                  val disableAqe: Boolean,
-                  val disableBhj: Boolean,
-                  val disableWscg: Boolean,
-                  val shufflePartitions: Int,
-                  val scanPartitions: Int,
-                  val baselineMetricMapper: MetricMapper,
-                  val testMetricMapper: MetricMapper)
-    extends Suite(
-      masterUrl,
-      actions,
-      testConf,
-      baselineConf,
-      extraSparkConf,
-      logLevel,
-      errorOnMemLeak,
-      enableUi,
-      enableHsUi,
-      hsUiPort,
-      disableAqe,
-      disableBhj,
-      disableWscg,
-      shufflePartitions,
-      scanPartitions,
-      baselineMetricMapper,
-      testMetricMapper) {
+    val masterUrl: String,
+    val actions: Array[Action],
+    val testConf: SparkConf,
+    val baselineConf: SparkConf,
+    val extraSparkConf: Map[String, String],
+    val logLevel: Level,
+    val errorOnMemLeak: Boolean,
+    val dataDir: String,
+    val enableUi: Boolean,
+    val enableHsUi: Boolean,
+    val hsUiPort: Int,
+    val disableAqe: Boolean,
+    val disableBhj: Boolean,
+    val disableWscg: Boolean,
+    val shufflePartitions: Int,
+    val scanPartitions: Int,
+    val baselineMetricMapper: MetricMapper,
+    val testMetricMapper: MetricMapper)
+  extends Suite(
+    masterUrl,
+    actions,
+    testConf,
+    baselineConf,
+    extraSparkConf,
+    logLevel,
+    errorOnMemLeak,
+    enableUi,
+    enableHsUi,
+    hsUiPort,
+    disableAqe,
+    disableBhj,
+    disableWscg,
+    shufflePartitions,
+    scanPartitions,
+    baselineMetricMapper,
+    testMetricMapper
+  ) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 
@@ -201,6 +204,7 @@ object TpcdsSuite {
     "q96",
     "q97",
     "q98",
-    "q99")
+    "q99"
+  )
   private val HISTORY_WRITE_PATH = "/tmp/tpcds-history"
 }
