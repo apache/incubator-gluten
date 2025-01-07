@@ -16,9 +16,12 @@
  */
 package org.apache.gluten.integration
 
+import org.apache.gluten.integration.metrics.MetricMapper
+
+import org.apache.spark.sql.{RunResult, SparkQueryRunner, SparkSession}
+
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.spark.sql.{RunResult, SparkQueryRunner, SparkSession}
 
 import java.io.File
 
@@ -39,11 +42,20 @@ class QueryRunner(val queryResourceFolder: String, val dataPath: String) {
       desc: String,
       caseId: String,
       explain: Boolean = false,
-      metrics: Array[String] = Array(),
+      sqlMetricMapper: MetricMapper = MetricMapper.dummy,
+      executorMetrics: Seq[String] = Nil,
       randomKillTasks: Boolean = false): QueryResult = {
     val path = "%s/%s.sql".format(queryResourceFolder, caseId)
     try {
-      val r = SparkQueryRunner.runQuery(spark, desc, path, explain, metrics, randomKillTasks)
+      val r =
+        SparkQueryRunner.runQuery(
+          spark,
+          desc,
+          path,
+          explain,
+          sqlMetricMapper,
+          executorMetrics,
+          randomKillTasks)
       println(s"Successfully ran query $caseId. Returned row count: ${r.rows.length}")
       Success(caseId, r)
     } catch {

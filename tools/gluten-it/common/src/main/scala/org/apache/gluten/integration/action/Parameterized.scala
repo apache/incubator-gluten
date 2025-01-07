@@ -40,7 +40,7 @@ class Parameterized(
     noSessionReuse: Boolean,
     configDimensions: Seq[Parameterized.Dim],
     excludedCombinations: Seq[Set[Parameterized.DimKv]],
-    metrics: Array[String])
+    metrics: Seq[String])
     extends Action {
   import Parameterized._
 
@@ -301,7 +301,7 @@ object Parameterized {
           coords.foreach(coord =>
             inc
               .next()
-              .write(coord.queryResult.asSuccessOption().map(_.runResult.metrics(metricName)))))
+              .write(coord.queryResult.asSuccessOption().map(_.runResult.executorMetrics(metricName)))))
         coords.foreach(coord =>
           inc
             .next()
@@ -346,9 +346,9 @@ object Parameterized {
       coordinate: Coordinate,
       desc: String,
       explain: Boolean,
-      metrics: Array[String]): TestResultLine.Coord = {
+      metrics: Seq[String]): TestResultLine.Coord = {
     val testDesc = "Query %s [%s] %s".format(desc, id, coordinate)
-    val result = runner.runQuery(spark, testDesc, id, explain, metrics)
+    val result = runner.runQuery(spark, testDesc, id, explain, executorMetrics = metrics)
     TestResultLine.Coord(coordinate, result)
   }
 
@@ -358,6 +358,6 @@ object Parameterized {
       id: String,
       coordinate: Coordinate,
       desc: String): Unit = {
-    runQuery(runner, session, id, coordinate, desc, explain = false, Array.empty)
+    runQuery(runner, session, id, coordinate, desc, explain = false, Nil)
   }
 }

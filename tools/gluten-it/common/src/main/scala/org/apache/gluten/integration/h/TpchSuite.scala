@@ -18,6 +18,7 @@ package org.apache.gluten.integration.h
 
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_RELATIVE_PATH}
+import org.apache.gluten.integration.metrics.MetricMapper
 import org.apache.gluten.integration.{DataGen, Suite, TableCreator, TypeModifier}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
@@ -25,22 +26,24 @@ import org.apache.spark.SparkConf
 import java.io.File
 
 class TpchSuite(
-    val masterUrl: String,
-    val actions: Array[Action],
-    val testConf: SparkConf,
-    val baselineConf: SparkConf,
-    val extraSparkConf: Map[String, String],
-    val logLevel: Level,
-    val errorOnMemLeak: Boolean,
-    val dataDir: String,
-    val enableUi: Boolean,
-    val enableHsUi: Boolean,
-    val hsUiPort: Int,
-    val disableAqe: Boolean,
-    val disableBhj: Boolean,
-    val disableWscg: Boolean,
-    val shufflePartitions: Int,
-    val scanPartitions: Int)
+                 val masterUrl: String,
+                 val actions: Array[Action],
+                 val testConf: SparkConf,
+                 val baselineConf: SparkConf,
+                 val extraSparkConf: Map[String, String],
+                 val logLevel: Level,
+                 val errorOnMemLeak: Boolean,
+                 val dataDir: String,
+                 val enableUi: Boolean,
+                 val enableHsUi: Boolean,
+                 val hsUiPort: Int,
+                 val disableAqe: Boolean,
+                 val disableBhj: Boolean,
+                 val disableWscg: Boolean,
+                 val shufflePartitions: Int,
+                 val scanPartitions: Int,
+                 val baselineMetricMapper: MetricMapper,
+                 val testMetricMapper: MetricMapper)
     extends Suite(
       masterUrl,
       actions,
@@ -56,7 +59,9 @@ class TpchSuite(
       disableBhj,
       disableWscg,
       shufflePartitions,
-      scanPartitions) {
+      scanPartitions,
+      baselineMetricMapper,
+      testMetricMapper) {
 
   override protected def historyWritePath(): String = HISTORY_WRITE_PATH
 

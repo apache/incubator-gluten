@@ -17,25 +17,25 @@
 
 package org.apache.gluten.integration
 
+import org.apache.spark.VersionUtils
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.types.StructType
 
 object ShimUtils {
-
   def getExpressionEncoder(schema: StructType): ExpressionEncoder[Row] = {
-    try {
+    val sparkVersion = VersionUtils.majorMinorVersion()
+    if (VersionUtils.compareMajorMinorVersion(sparkVersion, (3, 5)) < 0) {
       RowEncoder.getClass
         .getMethod("apply", classOf[StructType])
         .invoke(RowEncoder, schema)
         .asInstanceOf[ExpressionEncoder[Row]]
-    } catch {
-      case _: Exception =>
-        // to be compatible with Spark 3.5 and later
-        ExpressionEncoder.getClass
-          .getMethod("apply", classOf[StructType])
-          .invoke(ExpressionEncoder, schema)
-          .asInstanceOf[ExpressionEncoder[Row]]
+    } else {
+      // to be compatible with Spark 3.5 and later
+      ExpressionEncoder.getClass
+        .getMethod("apply", classOf[StructType])
+        .invoke(ExpressionEncoder, schema)
+        .asInstanceOf[ExpressionEncoder[Row]]
     }
   }
 }
