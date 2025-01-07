@@ -78,7 +78,17 @@ object Constants {
     .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "0")
     .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false")
 
-  val VANILLA_METRIC_MAPPER: MetricMapper = SelfTimeMapper(Map()) // TODO
+  val VANILLA_METRIC_MAPPER: MetricMapper = SelfTimeMapper(Map(
+    "FileSourceScanExec" -> Set("metadataTime", "scanTime"),
+    "HashAggregateExec" -> Set("aggTime"),
+    "ProjectExec" -> Set(), // No available metrics provided by vanilla Spark.
+    "FilterExec" -> Set(), // No available metrics provided by vanilla Spark.
+    "BroadcastExchangeExec" -> Set("broadcastTime", "buildTime", "collectTime"),
+    "BroadcastHashJoinExec" -> Set(), // No available metrics provided by vanilla Spark.
+    "ColumnarToRowExec" -> Set(), // No available metrics provided by vanilla Spark.
+    "ShuffleExchangeExec" -> Set("fetchWaitTime", "shuffleWriteTime"),
+    "ShuffledHashJoinExec" -> Set("buildTime")
+  ))
 
   val VELOX_METRIC_MAPPER: MetricMapper = VANILLA_METRIC_MAPPER and SelfTimeMapper(
     Map(
@@ -95,7 +105,7 @@ object Constants {
       "ColumnarBroadcastExchangeExec" -> Set("broadcastTime", "collectTime"),
       "BroadcastHashJoinExecTransformer" -> Set("hashBuildWallNanos", "hashProbeWallNanos")
     )
-  ) // TODO
+  )
 
   @deprecated
   val TYPE_MODIFIER_DATE_AS_DOUBLE: TypeModifier =
