@@ -763,7 +763,7 @@ jobs:
           pip3 install pyspark==3.4.4 cython && \
           pip3 install pandas pyarrow
           yum remove -y java-1.8.0-openjdk-devel && yum -y install java-11-openjdk-devel
-      - name: Build and Run unit test for Spark 3.4.3 (other tests)
+      - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -801,21 +801,14 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
+      - name: Prepare
         run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.4.4 (slow tests)
-        run: |
-          bash .github/workflows/util/install_spark_resources.sh 3.4
+          yum remove -y java-1.8.0-openjdk-devel && yum -y install java-11-openjdk-devel
       - name: Build and Run unit test for Spark 3.4.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
+          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-11 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
