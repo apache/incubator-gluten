@@ -8,7 +8,7 @@ parent: Developer Overview
 Currently, we have two way to build Gluten, static link or dynamic link. 
 
 # Static link
-The static link approach builds all dependency libraries in vcpkg for both Velox and Gluten. It then statically links these libraries into libvelox.so and libgluten.so, enabling the build of Gluten on *any* Linux OS on x86 platforms with 64G memory.
+The static link approach builds all dependency libraries in vcpkg for both Velox and Gluten. It then statically links these libraries into libvelox.so and libgluten.so, enabling the build of Gluten on *any* Linux OS on x86 platforms with 64G memory. However we only verified on Centos-7/8/9 and Ubuntu 20.04/22.04. Please submit an issue if it fails on your OS.
 
 Here is the dependency libraries required on target system, they are the essential libraries pre-installed in every Linux OS.
 ```
@@ -54,12 +54,12 @@ FROM apache/gluten:centos-8
 RUN source /opt/rh/devtoolset-11/enable && \
     git clone https://github.com/apache/incubator-gluten.git && \
     cd incubator-gluten && \
-    ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_vcpkg=OFF --build_arrow=OFF && \
+    ./dev/builddeps-veloxbe.sh --run_setup_script=ON --enable_hdfs=ON --enable_vcpkg=OFF --build_arrow=OFF && \
     mvn clean package -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-3.4 -DskipTests && \
     ./dev/build-thirdparty.sh
 ```
-`enable_vcpkg=OFF` enables the dynamic link. All the shared libraries are pre-installed in the image and packaged into a third party jar by `build-thirdparty.sh`. The image 
-is built based on centos-8. It has risk to build and deploy the jar on other OSes.
+`enable_vcpkg=OFF` enables the dynamic link. Part of shared libraries are pre-installed in the image. You need to specify `--run_setup_script=ON` to install the rest of them. It then packages all dependency libraries into a jar by `build-thirdparty.sh`. 
+Please note the image is built based on centos-8. It has risk to build and deploy the jar on other OSes.
 
 The command builds Gluten jar in 'glutenimage':
 ```
