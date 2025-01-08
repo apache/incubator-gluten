@@ -40,7 +40,7 @@ package object component extends Logging {
     require(
       components.nonEmpty,
       s"No component found in container directories named with " +
-        s"\"META-INF/gluten-components\" from classpath. JVM classpath value " +
+        s"'META-INF/gluten-components' from classpath. JVM classpath value " +
         s"is: ${System.getProperty("java.class.path")}"
     )
     logInfo(s"Components registered within order: ${components.map(_.name()).mkString(", ")}")
