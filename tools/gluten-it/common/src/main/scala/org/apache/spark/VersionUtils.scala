@@ -14,22 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "SparkFunctionRoundHalfUp.h"
-#include <Functions/FunctionFactory.h>
+package org.apache.spark
 
-namespace local_engine
-{
-REGISTER_FUNCTION(RoundSpark)
-{
-    factory.registerFunction<FunctionRoundHalfUp>(
-        DB::FunctionDocumentation{
-            .description=R"(
-Similar to function round,except that in case when given number has equal distance to surrounding numbers, the function rounds away from zero(towards +inf/-inf).
-        )",
-            .examples{{"roundHalfUp", "SELECT roundHalfUp(3.165,2)", "3.17"}},
-            .category{"Rounding"}
-        },
-        DB::FunctionFactory::Case::Insensitive);
+object VersionUtils {
+  def majorMinorVersion(): (Int, Int) = {
+    org.apache.spark.util.VersionUtils.majorMinorVersion(org.apache.spark.SPARK_VERSION)
+  }
 
-}
+  // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.
+  def compareMajorMinorVersion(one: (Int, Int), other: (Int, Int)): Int = {
+    val base = 1000
+    assert(one._2 < base && other._2 < base)
+    one._1 * base + one._2 - (other._1 * base + other._2)
+  }
 }

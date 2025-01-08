@@ -14,22 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "SparkFunctionRoundHalfUp.h"
-#include <Functions/FunctionFactory.h>
+package org.apache.spark.sql.internal
 
-namespace local_engine
-{
-REGISTER_FUNCTION(RoundSpark)
-{
-    factory.registerFunction<FunctionRoundHalfUp>(
-        DB::FunctionDocumentation{
-            .description=R"(
-Similar to function round,except that in case when given number has equal distance to surrounding numbers, the function rounds away from zero(towards +inf/-inf).
-        )",
-            .examples{{"roundHalfUp", "SELECT roundHalfUp(3.165,2)", "3.17"}},
-            .category{"Rounding"}
-        },
-        DB::FunctionFactory::Case::Insensitive);
-
+/** A source of configuration values. */
+trait ConfigProvider {
+  def get(key: String): Option[String]
 }
+
+class SQLConfProvider(conf: SQLConf) extends ConfigProvider {
+  override def get(key: String): Option[String] = Option(conf.settings.get(key))
+}
+
+class MapProvider(conf: Map[String, String]) extends ConfigProvider {
+  override def get(key: String): Option[String] = conf.get(key)
 }

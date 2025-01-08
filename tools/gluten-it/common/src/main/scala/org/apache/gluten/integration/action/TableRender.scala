@@ -213,8 +213,16 @@ object TableRender {
   }
 
   object RowParser {
+    implicit object StringSeqParser extends RowParser[Seq[String]] {
+      override def parse(rowFactory: RowAppender, row: Seq[String]): Unit = {
+        val inc = rowFactory.incremental()
+        row.foreach(ceil => inc.next().write(ceil))
+      }
+    }
+
     trait FieldAppender {
       def child(name: String): FieldAppender
+
       def write(value: Any): Unit
     }
 

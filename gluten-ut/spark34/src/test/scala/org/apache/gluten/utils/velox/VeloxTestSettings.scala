@@ -715,9 +715,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
     // Exception msg.
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
-    // Velox only support read Timestamp with INT96 for now.
-    .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
-    .exclude("Read TimestampNTZ and TimestampLTZ for various logical TIMESTAMP types")
+    // Velox parquet reader not allow offset zero.
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
@@ -728,10 +726,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Enabling/disabling ignoreCorruptFiles")
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
-    // Timestamp is read as INT96.
-    .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
-    .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
-    .exclude("SPARK-36182: read TimestampNTZ as TimestampLTZ")
     // new added in spark-3.3 and need fix later, random failure may caused by memory free
     .exclude("SPARK-39833: pushed filters with project without filter columns")
     .exclude("SPARK-39833: pushed filters with count()")
@@ -744,10 +738,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Enabling/disabling ignoreCorruptFiles")
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
-    // Timestamp is read as INT96.
-    .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
-    .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
-    .exclude("SPARK-36182: read TimestampNTZ as TimestampLTZ")
     // Rewrite because the filter after datasource is not needed.
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")

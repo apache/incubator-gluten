@@ -14,22 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "SparkFunctionRoundHalfUp.h"
-#include <Functions/FunctionFactory.h>
 
-namespace local_engine
-{
-REGISTER_FUNCTION(RoundSpark)
-{
-    factory.registerFunction<FunctionRoundHalfUp>(
-        DB::FunctionDocumentation{
-            .description=R"(
-Similar to function round,except that in case when given number has equal distance to surrounding numbers, the function rounds away from zero(towards +inf/-inf).
-        )",
-            .examples{{"roundHalfUp", "SELECT roundHalfUp(3.165,2)", "3.17"}},
-            .category{"Rounding"}
-        },
-        DB::FunctionFactory::Case::Insensitive);
+package org.apache.gluten.integration.metrics
 
+import scala.reflect.{ClassTag, classTag}
+
+trait MetricTag[T] {
+  import MetricTag._
+  final def name(): String = nameOf(ClassTag(this.getClass))
+  def value(): T
 }
+
+object MetricTag {
+  def nameOf[T <: MetricTag[_]: ClassTag]: String = {
+    val clazz = classTag[T].runtimeClass
+    assert(classOf[MetricTag[_]].isAssignableFrom(clazz))
+    clazz.getSimpleName
+  }
+  case class IsSelfTime() extends MetricTag[Nothing] {
+    override def value(): Nothing = {
+      throw new UnsupportedOperationException()
+    }
+  }
 }

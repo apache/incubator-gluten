@@ -15,8 +15,14 @@
  * limitations under the License.
  */
 #pragma once
+#include "config.h"
 
 #include <base/arithmeticOverflow.h>
+
+#if USE_EMBEDDED_COMPILER
+#include <DataTypes/Native.h>
+#include <llvm/IR/IRBuilder.h>
+#endif
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wbit-int-extension"
@@ -27,11 +33,11 @@ using BitUInt128 = unsigned _BitInt(128);
 using BitInt256 = signed _BitInt(256);
 using BitUInt256 = unsigned _BitInt(256);
 #else
-// up to version 18, clang supports large _Bitint sizes on x86 and x86-64; 
+// up to version 18, clang supports large _Bitint sizes on x86 and x86-64;
 // but on arm and aarch64, they are currently only supported up to 128 bits.
 // https://stackoverflow.com/questions/78614816/why-am-i-getting-a-256-bit-arithmetic-error-unsigined-bitint-of-bit-sizes-gre
- using BitInt256 = Int256;
- using BitUInt256 = UInt256;
+using BitInt256 = Int256;
+using BitUInt256 = UInt256;
 #endif
 
 namespace local_engine

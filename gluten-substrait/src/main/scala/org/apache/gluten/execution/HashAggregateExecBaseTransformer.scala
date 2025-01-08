@@ -53,7 +53,7 @@ abstract class HashAggregateExecBaseTransformer(
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetrics(sparkContext)
 
   protected def isCapableForStreamingAggregation: Boolean = {
-    if (!conf.getConf(GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE)) {
+    if (!glutenConf.getConf(GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE)) {
       return false
     }
     if (groupingExpressions.isEmpty) {

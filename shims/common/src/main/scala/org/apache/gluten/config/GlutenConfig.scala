@@ -18,7 +18,7 @@ package org.apache.gluten.config
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.{ByteUnit, JavaUtils}
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.{SQLConf, SQLConfProvider}
 
 import com.google.common.collect.ImmutableList
 import org.apache.hadoop.security.UserGroupInformation
@@ -37,100 +37,104 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
+  private lazy val configProvider = new SQLConfProvider(conf)
+
+  def getConf[T](entry: ConfigEntry[T]): T = {
+    require(ConfigEntry.containsEntry(entry), s"$entry is not registered")
+    entry.readFrom(configProvider)
+  }
+
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
-  def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
+  def enableGluten: Boolean = getConf(GLUTEN_ENABLED)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
-  def enableNativeValidation: Boolean = conf.getConf(NATIVE_VALIDATION_ENABLED)
+  def enableNativeValidation: Boolean = getConf(NATIVE_VALIDATION_ENABLED)
 
-  def enableColumnarBatchScan: Boolean = conf.getConf(COLUMNAR_BATCHSCAN_ENABLED)
+  def enableColumnarBatchScan: Boolean = getConf(COLUMNAR_BATCHSCAN_ENABLED)
 
-  def enableColumnarFileScan: Boolean = conf.getConf(COLUMNAR_FILESCAN_ENABLED)
+  def enableColumnarFileScan: Boolean = getConf(COLUMNAR_FILESCAN_ENABLED)
 
-  def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
+  def enableColumnarHiveTableScan: Boolean = getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
 
   def enableColumnarHiveTableScanNestedColumnPruning: Boolean =
-    conf.getConf(COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED)
+    getConf(COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED)
 
-  def enableVanillaVectorizedReaders: Boolean = conf.getConf(VANILLA_VECTORIZED_READERS_ENABLED)
+  def enableVanillaVectorizedReaders: Boolean = getConf(VANILLA_VECTORIZED_READERS_ENABLED)
 
-  def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
+  def enableColumnarHashAgg: Boolean = getConf(COLUMNAR_HASHAGG_ENABLED)
 
-  def forceToUseHashAgg: Boolean = conf.getConf(COLUMNAR_FORCE_HASHAGG_ENABLED)
+  def forceToUseHashAgg: Boolean = getConf(COLUMNAR_FORCE_HASHAGG_ENABLED)
 
-  def mergeTwoPhasesAggEnabled: Boolean = conf.getConf(MERGE_TWO_PHASES_ENABLED)
+  def mergeTwoPhasesAggEnabled: Boolean = getConf(MERGE_TWO_PHASES_ENABLED)
 
-  def enableColumnarProject: Boolean = conf.getConf(COLUMNAR_PROJECT_ENABLED)
+  def enableColumnarProject: Boolean = getConf(COLUMNAR_PROJECT_ENABLED)
 
-  def enableColumnarFilter: Boolean = conf.getConf(COLUMNAR_FILTER_ENABLED)
+  def enableColumnarFilter: Boolean = getConf(COLUMNAR_FILTER_ENABLED)
 
-  def enableColumnarSort: Boolean = conf.getConf(COLUMNAR_SORT_ENABLED)
+  def enableColumnarSort: Boolean = getConf(COLUMNAR_SORT_ENABLED)
 
-  def enableColumnarWindow: Boolean = conf.getConf(COLUMNAR_WINDOW_ENABLED)
+  def enableColumnarWindow: Boolean = getConf(COLUMNAR_WINDOW_ENABLED)
 
-  def enableColumnarWindowGroupLimit: Boolean = conf.getConf(COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED)
+  def enableColumnarWindowGroupLimit: Boolean = getConf(COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED)
 
-  def veloxColumnarWindowType: String = conf.getConfString(COLUMNAR_VELOX_WINDOW_TYPE.key)
+  def veloxColumnarWindowType: String = getConf(COLUMNAR_VELOX_WINDOW_TYPE)
 
-  def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
+  def enableColumnarShuffledHashJoin: Boolean = getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
   def shuffledHashJoinOptimizeBuildSide: Boolean =
-    conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE)
+    getConf(COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE)
 
-  def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
+  def enableNativeColumnarToRow: Boolean = getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
 
-  def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED)
+  def forceShuffledHashJoin: Boolean = getConf(COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED)
 
-  def enableColumnarSortMergeJoin: Boolean = conf.getConf(COLUMNAR_SORTMERGEJOIN_ENABLED)
+  def enableColumnarSortMergeJoin: Boolean = getConf(COLUMNAR_SORTMERGEJOIN_ENABLED)
 
-  def enableColumnarUnion: Boolean = conf.getConf(COLUMNAR_UNION_ENABLED)
+  def enableColumnarUnion: Boolean = getConf(COLUMNAR_UNION_ENABLED)
 
-  def enableNativeUnion: Boolean = conf.getConf(NATIVE_UNION_ENABLED)
+  def enableNativeUnion: Boolean = getConf(NATIVE_UNION_ENABLED)
 
-  def enableColumnarExpand: Boolean = conf.getConf(COLUMNAR_EXPAND_ENABLED)
+  def enableColumnarExpand: Boolean = getConf(COLUMNAR_EXPAND_ENABLED)
 
-  def enableColumnarBroadcastExchange: Boolean = conf.getConf(COLUMNAR_BROADCAST_EXCHANGE_ENABLED)
+  def enableColumnarBroadcastExchange: Boolean = getConf(COLUMNAR_BROADCAST_EXCHANGE_ENABLED)
 
-  def enableColumnarBroadcastJoin: Boolean = conf.getConf(COLUMNAR_BROADCAST_JOIN_ENABLED)
+  def enableColumnarBroadcastJoin: Boolean = getConf(COLUMNAR_BROADCAST_JOIN_ENABLED)
 
-  def enableColumnarSample: Boolean = conf.getConf(COLUMNAR_SAMPLE_ENABLED)
+  def enableColumnarSample: Boolean = getConf(COLUMNAR_SAMPLE_ENABLED)
 
-  def enableColumnarArrowUDF: Boolean = conf.getConf(COLUMNAR_ARROW_UDF_ENABLED)
+  def enableColumnarArrowUDF: Boolean = getConf(COLUMNAR_ARROW_UDF_ENABLED)
 
-  def enableColumnarCoalesce: Boolean = conf.getConf(COLUMNAR_COALESCE_ENABLED)
+  def enableColumnarCoalesce: Boolean = getConf(COLUMNAR_COALESCE_ENABLED)
 
-  def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
+  def columnarTableCacheEnabled: Boolean = getConf(COLUMNAR_TABLE_CACHE_ENABLED)
 
   def enableRewriteDateTimestampComparison: Boolean =
-    conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
+    getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
 
   def enableCollapseNestedGetJsonObject: Boolean =
-    conf.getConf(ENABLE_COLLAPSE_GET_JSON_OBJECT)
+    getConf(ENABLE_COLLAPSE_GET_JSON_OBJECT)
 
   def enableCHRewriteDateConversion: Boolean =
-    conf.getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
+    getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
 
   def enableCommonSubexpressionEliminate: Boolean =
-    conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
+    getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
   def enableCountDistinctWithoutExpand: Boolean =
-    conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
+    getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
 
   def enableExtendedColumnPruning: Boolean =
-    conf.getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
+    getConf(ENABLE_EXTENDED_COLUMN_PRUNING)
 
   def veloxOrcScanEnabled: Boolean =
-    conf.getConf(VELOX_ORC_SCAN_ENABLED)
+    getConf(VELOX_ORC_SCAN_ENABLED)
 
   def forceOrcCharTypeScanFallbackEnabled: Boolean =
-    conf.getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
-
-  def forceParquetTimestampTypeScanFallbackEnabled: Boolean =
-    conf.getConf(VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK)
+    getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
 
   def scanFileSchemeValidationEnabled: Boolean =
-    conf.getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
+    getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
 
   // Whether to use GlutenShuffleManager (experimental).
   def isUseGlutenShuffleManager: Boolean =
@@ -161,44 +165,43 @@ class GlutenConfig(conf: SQLConf) extends Logging {
       .getConfString("spark.celeborn.client.spark.shuffle.writer", GLUTEN_HASH_SHUFFLE_WRITER)
       .toLowerCase(Locale.ROOT)
 
-  def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
+  def enableColumnarShuffle: Boolean = getConf(COLUMNAR_SHUFFLE_ENABLED)
 
-  def enablePreferColumnar: Boolean = conf.getConf(COLUMNAR_PREFER_ENABLED)
+  def enablePreferColumnar: Boolean = getConf(COLUMNAR_PREFER_ENABLED)
 
-  def enableOneRowRelationColumnar: Boolean = conf.getConf(COLUMNAR_ONE_ROW_RELATION_ENABLED)
+  def enableOneRowRelationColumnar: Boolean = getConf(COLUMNAR_ONE_ROW_RELATION_ENABLED)
 
   def physicalJoinOptimizationThrottle: Integer =
-    conf.getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
+    getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
   def enablePhysicalJoinOptimize: Boolean =
-    conf.getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED)
+    getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED)
 
   def logicalJoinOptimizationThrottle: Integer =
-    conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE)
+    getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE)
 
-  def enableScanOnly: Boolean = conf.getConf(COLUMNAR_SCAN_ONLY_ENABLED)
+  def enableScanOnly: Boolean = getConf(COLUMNAR_SCAN_ONLY_ENABLED)
 
-  def tmpFile: Option[String] = conf.getConf(COLUMNAR_TEMP_DIR)
+  def tmpFile: Option[String] = getConf(COLUMNAR_TEMP_DIR)
 
-  @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
+  @deprecated def broadcastCacheTimeout: Int = getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
 
   def columnarShuffleSortPartitionsThreshold: Int =
-    conf.getConf(COLUMNAR_SHUFFLE_SORT_PARTITIONS_THRESHOLD)
+    getConf(COLUMNAR_SHUFFLE_SORT_PARTITIONS_THRESHOLD)
 
   def columnarShuffleSortColumnsThreshold: Int =
-    conf.getConf(COLUMNAR_SHUFFLE_SORT_COLUMNS_THRESHOLD)
+    getConf(COLUMNAR_SHUFFLE_SORT_COLUMNS_THRESHOLD)
 
-  def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
+  def columnarShuffleReallocThreshold: Double = getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
-  def columnarShuffleMergeThreshold: Double = conf.getConf(SHUFFLE_WRITER_MERGE_THRESHOLD)
+  def columnarShuffleMergeThreshold: Double = getConf(SHUFFLE_WRITER_MERGE_THRESHOLD)
 
-  def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
+  def columnarShuffleCodec: Option[String] = getConf(COLUMNAR_SHUFFLE_CODEC)
 
   def columnarShuffleCompressionMode: String =
-    conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_MODE)
+    getConf(COLUMNAR_SHUFFLE_COMPRESSION_MODE)
 
-  def columnarShuffleCodecBackend: Option[String] = conf
-    .getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
+  def columnarShuffleCodecBackend: Option[String] = getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
     .filter(Set(GLUTEN_QAT_BACKEND_NAME, GLUTEN_IAA_BACKEND_NAME).contains(_))
 
   def columnarShuffleEnableQat: Boolean =
@@ -208,54 +211,53 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     columnarShuffleCodecBackend.contains(GlutenConfig.GLUTEN_IAA_BACKEND_NAME)
 
   def columnarShuffleCompressionThreshold: Int =
-    conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
+    getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
   def columnarShuffleReaderBufferSize: Long =
-    conf.getConf(COLUMNAR_SHUFFLE_READER_BUFFER_SIZE)
+    getConf(COLUMNAR_SHUFFLE_READER_BUFFER_SIZE)
 
-  def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
+  def maxBatchSize: Int = getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def columnarToRowMemThreshold: Long =
-    conf.getConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD)
+    getConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD)
 
-  def shuffleWriterBufferSize: Int = conf
-    .getConf(SHUFFLE_WRITER_BUFFER_SIZE)
+  def shuffleWriterBufferSize: Int = getConf(SHUFFLE_WRITER_BUFFER_SIZE)
     .getOrElse(maxBatchSize)
 
-  def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
+  def enableColumnarLimit: Boolean = getConf(COLUMNAR_LIMIT_ENABLED)
 
-  def enableColumnarGenerate: Boolean = conf.getConf(COLUMNAR_GENERATE_ENABLED)
+  def enableColumnarGenerate: Boolean = getConf(COLUMNAR_GENERATE_ENABLED)
 
   def enableTakeOrderedAndProject: Boolean =
-    conf.getConf(COLUMNAR_TAKE_ORDERED_AND_PROJECT_ENABLED)
+    getConf(COLUMNAR_TAKE_ORDERED_AND_PROJECT_ENABLED)
 
-  def enableNativeBloomFilter: Boolean = conf.getConf(COLUMNAR_NATIVE_BLOOMFILTER_ENABLED)
+  def enableNativeBloomFilter: Boolean = getConf(COLUMNAR_NATIVE_BLOOMFILTER_ENABLED)
 
   def enableNativeHyperLogLogAggregateFunction: Boolean =
-    conf.getConf(COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED)
+    getConf(COLUMNAR_NATIVE_HYPERLOGLOG_AGGREGATE_ENABLED)
 
   def columnarParquetWriteBlockSize: Long =
-    conf.getConf(COLUMNAR_PARQUET_WRITE_BLOCK_SIZE)
+    getConf(COLUMNAR_PARQUET_WRITE_BLOCK_SIZE)
 
   def columnarParquetWriteBlockRows: Long =
-    conf.getConf(COLUMNAR_PARQUET_WRITE_BLOCK_ROWS)
+    getConf(COLUMNAR_PARQUET_WRITE_BLOCK_ROWS)
 
-  def wholeStageFallbackThreshold: Int = conf.getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
+  def wholeStageFallbackThreshold: Int = getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
 
-  def queryFallbackThreshold: Int = conf.getConf(COLUMNAR_QUERY_FALLBACK_THRESHOLD)
+  def queryFallbackThreshold: Int = getConf(COLUMNAR_QUERY_FALLBACK_THRESHOLD)
 
-  def fallbackIgnoreRowToColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
+  def fallbackIgnoreRowToColumnar: Boolean = getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
 
-  def fallbackExpressionsThreshold: Int = conf.getConf(COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD)
+  def fallbackExpressionsThreshold: Int = getConf(COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD)
 
-  def fallbackPreferColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
+  def fallbackPreferColumnar: Boolean = getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
 
   def numaBindingInfo: GlutenNumaBindingInfo = {
-    val enableNumaBinding: Boolean = conf.getConf(COLUMNAR_NUMA_BINDING_ENABLED)
+    val enableNumaBinding: Boolean = getConf(COLUMNAR_NUMA_BINDING_ENABLED)
     if (!enableNumaBinding) {
       GlutenNumaBindingInfo(enableNumaBinding = false)
     } else {
-      val tmp = conf.getConf(COLUMNAR_NUMA_BINDING_CORE_RANGE)
+      val tmp = getConf(COLUMNAR_NUMA_BINDING_CORE_RANGE)
       if (tmp.isEmpty) {
         GlutenNumaBindingInfo(enableNumaBinding = false)
       } else {
@@ -267,78 +269,78 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
-  def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
+  def memoryIsolation: Boolean = getConf(COLUMNAR_MEMORY_ISOLATION)
 
-  def memoryBacktraceAllocation: Boolean = conf.getConf(COLUMNAR_MEMORY_BACKTRACE_ALLOCATION)
+  def memoryBacktraceAllocation: Boolean = getConf(COLUMNAR_MEMORY_BACKTRACE_ALLOCATION)
 
   def numTaskSlotsPerExecutor: Int = {
-    val numSlots = conf.getConf(NUM_TASK_SLOTS_PER_EXECUTOR)
+    val numSlots = getConf(NUM_TASK_SLOTS_PER_EXECUTOR)
     assert(numSlots > 0, s"Number of task slot not found. This should not happen.")
     numSlots
   }
 
-  def offHeapMemorySize: Long = conf.getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
+  def offHeapMemorySize: Long = getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
-  def taskOffHeapMemorySize: Long = conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
+  def taskOffHeapMemorySize: Long = getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
 
-  def memoryOverAcquiredRatio: Double = conf.getConf(COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO)
+  def memoryOverAcquiredRatio: Double = getConf(COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO)
 
-  def memoryReservationBlockSize: Long = conf.getConf(COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE)
+  def memoryReservationBlockSize: Long = getConf(COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE)
 
   def conservativeTaskOffHeapMemorySize: Long =
-    conf.getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
+    getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
 
   // Options used by RAS.
-  def enableRas: Boolean = conf.getConf(RAS_ENABLED)
+  def enableRas: Boolean = getConf(RAS_ENABLED)
 
-  def rasCostModel: String = conf.getConf(RAS_COST_MODEL)
+  def rasCostModel: String = getConf(RAS_COST_MODEL)
 
-  def rasRough2SizeBytesThreshold: Long = conf.getConf(RAS_ROUGH2_SIZEBYTES_THRESHOLD)
+  def rasRough2SizeBytesThreshold: Long = getConf(RAS_ROUGH2_SIZEBYTES_THRESHOLD)
 
-  def rasRough2R2cCost: Long = conf.getConf(RAS_ROUGH2_R2C_COST)
+  def rasRough2R2cCost: Long = getConf(RAS_ROUGH2_R2C_COST)
 
-  def rasRough2VanillaCost: Long = conf.getConf(RAS_ROUGH2_VANILLA_COST)
+  def rasRough2VanillaCost: Long = getConf(RAS_ROUGH2_VANILLA_COST)
 
-  def enableVeloxCache: Boolean = conf.getConf(COLUMNAR_VELOX_CACHE_ENABLED)
+  def enableVeloxCache: Boolean = getConf(COLUMNAR_VELOX_CACHE_ENABLED)
 
-  def veloxMemCacheSize: Long = conf.getConf(COLUMNAR_VELOX_MEM_CACHE_SIZE)
+  def veloxMemCacheSize: Long = getConf(COLUMNAR_VELOX_MEM_CACHE_SIZE)
 
-  def veloxSsdCachePath: String = conf.getConf(COLUMNAR_VELOX_SSD_CACHE_PATH)
+  def veloxSsdCachePath: String = getConf(COLUMNAR_VELOX_SSD_CACHE_PATH)
 
-  def veloxSsdCacheSize: Long = conf.getConf(COLUMNAR_VELOX_SSD_CACHE_SIZE)
+  def veloxSsdCacheSize: Long = getConf(COLUMNAR_VELOX_SSD_CACHE_SIZE)
 
-  def veloxSsdCacheShards: Integer = conf.getConf(COLUMNAR_VELOX_SSD_CACHE_SHARDS)
+  def veloxSsdCacheShards: Integer = getConf(COLUMNAR_VELOX_SSD_CACHE_SHARDS)
 
-  def veloxSsdCacheIOThreads: Integer = conf.getConf(COLUMNAR_VELOX_SSD_CACHE_IO_THREADS)
+  def veloxSsdCacheIOThreads: Integer = getConf(COLUMNAR_VELOX_SSD_CACHE_IO_THREADS)
 
-  def veloxSsdODirectEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
+  def veloxSsdODirectEnabled: Boolean = getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
 
   def veloxConnectorIOThreads: Int = {
-    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS).getOrElse(numTaskSlotsPerExecutor)
+    getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS).getOrElse(numTaskSlotsPerExecutor)
   }
 
-  def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
+  def veloxSplitPreloadPerDriver: Integer = getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
-  def veloxSpillStrategy: String = conf.getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
+  def veloxSpillStrategy: String = getConf(COLUMNAR_VELOX_SPILL_STRATEGY)
 
-  def veloxMaxSpillLevel: Int = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_LEVEL)
+  def veloxMaxSpillLevel: Int = getConf(COLUMNAR_VELOX_MAX_SPILL_LEVEL)
 
-  def veloxMaxSpillFileSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
+  def veloxMaxSpillFileSize: Long = getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
 
-  def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
+  def veloxSpillFileSystem: String = getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
 
-  def veloxMaxSpillRunRows: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_RUN_ROWS)
+  def veloxMaxSpillRunRows: Long = getConf(COLUMNAR_VELOX_MAX_SPILL_RUN_ROWS)
 
-  def veloxMaxSpillBytes: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_BYTES)
+  def veloxMaxSpillBytes: Long = getConf(COLUMNAR_VELOX_MAX_SPILL_BYTES)
 
   def veloxBloomFilterExpectedNumItems: Long =
-    conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS)
+    getConf(COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS)
 
-  def veloxBloomFilterNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS)
+  def veloxBloomFilterNumBits: Long = getConf(COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS)
 
-  def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
+  def veloxBloomFilterMaxNumBits: Long = getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
 
-  def castFromVarcharAddTrimNode: Boolean = conf.getConf(CAST_FROM_VARCHAR_ADD_TRIM_NODE)
+  def castFromVarcharAddTrimNode: Boolean = getConf(CAST_FROM_VARCHAR_ADD_TRIM_NODE)
 
   case class ResizeRange(min: Int, max: Int) {
     assert(max >= min)
@@ -356,62 +358,61 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   }
 
   def veloxResizeBatchesShuffleInput: Boolean =
-    conf.getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT)
+    getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT)
 
   def veloxResizeBatchesShuffleInputRange: ResizeRange = {
-    val standardSize = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
+    val standardSize = getConf(COLUMNAR_MAX_BATCH_SIZE)
     val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
-    val minSize = conf
-      .getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE)
+    val minSize = getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE)
       .getOrElse(defaultMinSize)
     ResizeRange(minSize, Int.MaxValue)
   }
 
   def chColumnarShuffleSpillThreshold: Long = {
-    val threshold = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
+    val threshold = getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
     if (threshold == 0) {
-      (conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES) * 0.9).toLong
+      (getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES) * 0.9).toLong
     } else {
       threshold
     }
   }
 
-  def chColumnarMaxSortBufferSize: Long = conf.getConf(COLUMNAR_CH_MAX_SORT_BUFFER_SIZE)
+  def chColumnarMaxSortBufferSize: Long = getConf(COLUMNAR_CH_MAX_SORT_BUFFER_SIZE)
 
   def chColumnarForceMemorySortShuffle: Boolean =
-    conf.getConf(COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE)
+    getConf(COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE)
 
   def cartesianProductTransformerEnabled: Boolean =
-    conf.getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
+    getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
 
   def broadcastNestedLoopJoinTransformerTransformerEnabled: Boolean =
-    conf.getConf(BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED)
+    getConf(BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED)
 
-  def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
+  def transformPlanLogLevel: String = getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
-  def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
+  def substraitPlanLogLevel: String = getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
 
-  def validationLogLevel: String = conf.getConf(VALIDATION_LOG_LEVEL)
+  def validationLogLevel: String = getConf(VALIDATION_LOG_LEVEL)
 
-  def softAffinityLogLevel: String = conf.getConf(SOFT_AFFINITY_LOG_LEVEL)
+  def softAffinityLogLevel: String = getConf(SOFT_AFFINITY_LOG_LEVEL)
 
   // A comma-separated list of classes for the extended columnar pre rules
-  def extendedColumnarTransformRules: String = conf.getConf(EXTENDED_COLUMNAR_TRANSFORM_RULES)
+  def extendedColumnarTransformRules: String = getConf(EXTENDED_COLUMNAR_TRANSFORM_RULES)
 
   // A comma-separated list of classes for the extended columnar post rules
-  def extendedColumnarPostRules: String = conf.getConf(EXTENDED_COLUMNAR_POST_RULES)
+  def extendedColumnarPostRules: String = getConf(EXTENDED_COLUMNAR_POST_RULES)
 
-  def extendedExpressionTransformer: String = conf.getConf(EXTENDED_EXPRESSION_TRAN_CONF)
+  def extendedExpressionTransformer: String = getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
   def expressionBlacklist: Set[String] = {
-    val blacklist = conf.getConf(EXPRESSION_BLACK_LIST)
+    val blacklist = getConf(EXPRESSION_BLACK_LIST)
     val blacklistSet: Set[String] = if (blacklist.isDefined) {
       blacklist.get.toLowerCase(Locale.ROOT).trim.split(",").toSet
     } else {
       Set.empty
     }
 
-    if (conf.getConf(FALLBACK_REGEXP_EXPRESSIONS)) {
+    if (getConf(FALLBACK_REGEXP_EXPRESSIONS)) {
       val regexpList = "rlike,regexp_replace,regexp_extract,regexp_extract_all,split"
       regexpList.trim.split(",").toSet ++ blacklistSet
     } else {
@@ -420,86 +421,92 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   }
 
   def printStackOnValidationFailure: Boolean =
-    conf.getConf(VALIDATION_PRINT_FAILURE_STACK_)
+    getConf(VALIDATION_PRINT_FAILURE_STACK_)
 
-  def enableFallbackReport: Boolean = conf.getConf(FALLBACK_REPORTER_ENABLED)
+  def enableFallbackReport: Boolean = getConf(FALLBACK_REPORTER_ENABLED)
 
   def enableVeloxUserExceptionStacktrace: Boolean =
-    conf.getConf(COLUMNAR_VELOX_ENABLE_USER_EXCEPTION_STACKTRACE)
+    getConf(COLUMNAR_VELOX_ENABLE_USER_EXCEPTION_STACKTRACE)
 
   def memoryUseHugePages: Boolean =
-    conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
+    getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
-  def debug: Boolean = conf.getConf(DEBUG_ENABLED)
-  def debugKeepJniWorkspace: Boolean = conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
-  def collectUtStats: Boolean = conf.getConf(UT_STATISTIC)
-  def benchmarkStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
-  def benchmarkPartitionId: String = conf.getConf(BENCHMARK_TASK_PARTITIONID)
-  def benchmarkTaskId: String = conf.getConf(BENCHMARK_TASK_TASK_ID)
-  def benchmarkSaveDir: String = conf.getConf(BENCHMARK_SAVE_DIR)
-  def textInputMaxBlockSize: Long = conf.getConf(TEXT_INPUT_ROW_MAX_BLOCK_SIZE)
-  def textIputEmptyAsDefault: Boolean = conf.getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
+  def debug: Boolean = getConf(DEBUG_ENABLED)
+  def debugKeepJniWorkspace: Boolean = getConf(DEBUG_KEEP_JNI_WORKSPACE)
+  def collectUtStats: Boolean = getConf(UT_STATISTIC)
+  def benchmarkStageId: Int = getConf(BENCHMARK_TASK_STAGEID)
+  def benchmarkPartitionId: String = getConf(BENCHMARK_TASK_PARTITIONID)
+  def benchmarkTaskId: String = getConf(BENCHMARK_TASK_TASK_ID)
+  def benchmarkSaveDir: String = getConf(BENCHMARK_SAVE_DIR)
+  def textInputMaxBlockSize: Long = getConf(TEXT_INPUT_ROW_MAX_BLOCK_SIZE)
+  def textIputEmptyAsDefault: Boolean = getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
   def enableParquetRowGroupMaxMinIndex: Boolean =
-    conf.getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
+    getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
   def enableVeloxFlushablePartialAggregation: Boolean =
-    conf.getConf(VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED)
+    getConf(VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED)
   def maxFlushableAggregationMemoryRatio: Double =
-    conf.getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+    getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
   def maxExtendedFlushableAggregationMemoryRatio: Double =
-    conf.getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+    getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
   def abandonFlushableAggregationMinPct: Int =
-    conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
+    getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
   def abandonFlushableAggregationMinRows: Int =
-    conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
+    getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
 
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
-  def enableNativeWriter: Option[Boolean] = conf.getConf(NATIVE_WRITER_ENABLED)
+  def enableNativeWriter: Option[Boolean] = getConf(NATIVE_WRITER_ENABLED)
 
-  def enableNativeArrowReader: Boolean = conf.getConf(NATIVE_ARROW_READER_ENABLED)
+  def enableNativeArrowReader: Boolean = getConf(NATIVE_ARROW_READER_ENABLED)
 
   def directorySizeGuess: Long =
-    conf.getConf(DIRECTORY_SIZE_GUESS)
+    getConf(DIRECTORY_SIZE_GUESS)
   def filePreloadThreshold: Long =
-    conf.getConf(FILE_PRELOAD_THRESHOLD)
+    getConf(FILE_PRELOAD_THRESHOLD)
   def prefetchRowGroups: Int =
-    conf.getConf(PREFETCH_ROW_GROUPS)
+    getConf(PREFETCH_ROW_GROUPS)
   def loadQuantum: Long =
-    conf.getConf(LOAD_QUANTUM)
+    getConf(LOAD_QUANTUM)
   def maxCoalescedDistance: String =
-    conf.getConf(MAX_COALESCED_DISTANCE_BYTES)
+    getConf(MAX_COALESCED_DISTANCE_BYTES)
   def maxCoalescedBytes: Long =
-    conf.getConf(MAX_COALESCED_BYTES)
+    getConf(MAX_COALESCED_BYTES)
   def cachePrefetchMinPct: Int =
-    conf.getConf(CACHE_PREFETCH_MINPCT)
+    getConf(CACHE_PREFETCH_MINPCT)
 
-  def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
+  def enableColumnarProjectCollapse: Boolean = getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
-  def enableColumnarPartialProject: Boolean = conf.getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
+  def enableColumnarPartialProject: Boolean = getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
 
-  def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
+  def awsSdkLogLevel: String = getConf(AWS_SDK_LOG_LEVEL)
 
-  def awsS3RetryMode: String = conf.getConf(AWS_S3_RETRY_MODE)
+  def awsS3RetryMode: String = getConf(AWS_S3_RETRY_MODE)
 
-  def awsConnectionTimeout: String = conf.getConf(AWS_S3_CONNECT_TIMEOUT)
+  def awsConnectionTimeout: String = getConf(AWS_S3_CONNECT_TIMEOUT)
 
-  def enableCastAvgAggregateFunction: Boolean = conf.getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
+  def enableCastAvgAggregateFunction: Boolean = getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
 
   def dynamicOffHeapSizingEnabled: Boolean =
-    conf.getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
+    getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 
-  def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
+  def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
-  def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
+  def enableCelebornFallback: Boolean = getConf(CELEBORN_FALLBACK_ENABLED)
 
-  def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
+  def enableHdfsViewfs: Boolean = getConf(HDFS_VIEWFS_ENABLED)
 
   def enableBroadcastBuildRelationInOffheap: Boolean =
-    conf.getConf(VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP)
+    getConf(VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP)
 }
 
 object GlutenConfig {
   import SQLConf._
+
+  def buildConf(key: String): ConfigBuilder = ConfigBuilder(key)
+
+  def buildStaticConf(key: String): ConfigBuilder = {
+    ConfigBuilder(key).onCreate(_ => SQLConf.registerStaticConfigKey(key))
+  }
 
   val GLUTEN_ENABLED_BY_DEFAULT = true
   val GLUTEN_ENABLED_KEY = "spark.gluten.enabled"
@@ -2183,13 +2190,6 @@ object GlutenConfig {
       .doc("Force fallback for orc char type scan.")
       .booleanConf
       .createWithDefault(true)
-
-  val VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK =
-    buildConf("spark.gluten.sql.parquet.timestampType.scan.fallback.enabled")
-      .internal()
-      .doc("Force fallback for parquet timestamp type scan.")
-      .booleanConf
-      .createWithDefault(false)
 
   val VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED =
     buildConf("spark.gluten.sql.scan.fileSchemeValidation.enabled")
