@@ -10,7 +10,7 @@ Currently, we have two way to build Gluten, static link or dynamic link.
 # Static link
 The static link approach builds all dependency libraries in vcpkg for both Velox and Gluten. It then statically links these libraries into libvelox.so and libgluten.so, enabling the build of Gluten on *any* Linux OS on x86 platforms with 64G memory.
 
-Here is the dependency libraries required on target system, they are the essential libraries preinstalled in every Linux OS.
+Here is the dependency libraries required on target system, they are the essential libraries pre-installed in every Linux OS.
 ```
 linux-vdso.so.1
 librt.so.1
@@ -24,7 +24,6 @@ libc.so.6
 The 'dockerfile' to build Gluten jar:
 
 ```
-# apache/gluten:vcpkg-centos-7 is used by all OSS Gluten CI test
 FROM apache/gluten:vcpkg-centos-7
 
 # Build Gluten Jar
@@ -43,6 +42,27 @@ docker build -t glutenimage -f dockerfile
 The gluten jar can be copied from glutenimage:/incubator-gluten/package/target/gluten-velox-bundle-*.jar
 
 # Dynamic link
-Currently, Centos-7/8/9 and Ubuntu 20.04/22.04 are supported to build Gluten Velox backend. 
+The dynamic link approach needs to install the dependencies libraries. It then dynamically link the .so files into libvelox.so and libgluten.so. Currently, Centos-7/8/9 and
+ Ubuntu 20.04/22.04 are supported to build Gluten Velox backend dynamically. 
 
+The 'dockerfile' to build Gluten jar:
 
+```
+FROM apache/gluten:centos-8
+
+# Build Gluten Jar
+RUN source /opt/rh/devtoolset-11/enable && \
+    git clone https://github.com/apache/incubator-gluten.git && \
+    cd incubator-gluten && \
+    ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_vcpkg=OFF --build_arrow=OFF && \
+    mvn clean package -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-3.4 -DskipTests && \
+    ./dev/build-thirdparty.sh
+```
+`enable_vcpkg=OFF` enables the dynamic link. All the shared libraries are pre-installed in the image and packaged into a third party jar by `build-thirdparty.sh`. The image 
+is built based on centos-8. It has risk to build and deploy the jar on other OSes.
+
+The command builds Gluten jar in 'glutenimage':
+```
+docker build -t glutenimage -f dockerfile
+```
+The gluten jar can be copied from glutenimage:/incubator-gluten/package/target/gluten-velox-bundle-*.jar and glutenimage:/incubator-gluten/package/target/gluten-thirdparty-lib-*.jar
