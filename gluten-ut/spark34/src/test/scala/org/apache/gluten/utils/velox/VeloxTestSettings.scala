@@ -801,7 +801,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceStrategySuite]
     // Plan comparison.
     .exclude("partitioned table - after scan filters")
-  enableSuite[GlutenNoopWriterRuleSuite]
   enableSuite[GlutenHadoopFileLinesReaderSuite]
   enableSuite[GlutenPathFilterStrategySuite]
   enableSuite[GlutenPathFilterSuite]

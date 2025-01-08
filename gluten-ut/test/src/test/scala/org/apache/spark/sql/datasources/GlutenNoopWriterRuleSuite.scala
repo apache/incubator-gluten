@@ -14,13 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources
+package org.apache.spark.sql.datasources
 
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, SaveMode}
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.{GlutenQueryTest, SaveMode}
 import org.apache.spark.sql.execution.QueryExecution
+import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
+import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.util.QueryExecutionListener
 
-class GlutenNoopWriterRuleSuite extends GlutenSQLTestsBaseTrait {
+class GlutenNoopWriterRuleSuite extends GlutenQueryTest with SharedSparkSession {
+
+  override def sparkConf: SparkConf = {
+    val conf = super.sparkConf
+      .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
+      .set("spark.default.parallelism", "1")
+      .set("spark.memory.offHeap.enabled", "true")
+      .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.ui.enabled", "false")
+      .set("spark.gluten.ui.enabled", "false")
+    if (BackendTestUtils.isCHBackendLoaded()) {
+      conf.set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+    }
+    conf
+  }
 
   class WriterColumnarListener extends QueryExecutionListener {
     var fakeRowAdaptor: Option[FakeRowAdaptor] = None
@@ -32,7 +52,7 @@ class GlutenNoopWriterRuleSuite extends GlutenSQLTestsBaseTrait {
     override def onFailure(funcName: String, qe: QueryExecution, exception: Exception): Unit = {}
   }
 
-  testGluten("writing to noop") {
+  test("writing to noop") {
     withTempDir {
       dir =>
         spark.range(0, 100).write.mode(SaveMode.Overwrite).parquet(dir.getPath)

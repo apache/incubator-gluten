@@ -70,7 +70,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
-  enableSuite[GlutenNoopWriterRuleSuite]
 
   enableSuite[GlutenQueryCompilationErrorsDSv2Suite]
 

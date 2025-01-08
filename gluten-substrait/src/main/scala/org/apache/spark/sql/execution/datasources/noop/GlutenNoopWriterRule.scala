@@ -22,6 +22,15 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.injectFakeRowAdaptor
 import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, OverwriteByExpressionExec}
 
+/**
+ * A rule that injects a FakeRowAdaptor for NoopWrite.
+ *
+ * The current V2 Command does not support columnar. Therefore, when its child node is a
+ * ColumnarNode, Vanilla Spark inserts a ColumnarToRow conversion between V2 Command and its child.
+ * This rule replaces the inserted ColumnarToRow with a FakeRowAdaptor, effectively bypassing the
+ * ColumnarToRow operation for NoopWrite. Since NoopWrite does not actually perform any data
+ * operations, it can accept input data in either row-based or columnar format.
+ */
 case class GlutenNoopWriterRule(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(p: SparkPlan): SparkPlan = p match {
     case rc @ AppendDataExec(_, _, NoopWrite) =>
