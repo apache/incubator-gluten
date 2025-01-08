@@ -89,18 +89,19 @@ public final class VeloxColumnarBatches {
   }
 
   /**
-   * Check if a columnar batch is in Velox format. If not, convert it to Velox format then
-   * return. If already in Velox format, return the batch directly.
-   * <p>
-   * Should only be used for certain conditions when unable to insert explicit to-Velox transitions
-   * through query planner.
-   * <p>
-   * For example, used by {@link org.apache.spark.sql.execution.ColumnarCachedBatchSerializer} as
+   * Check if a columnar batch is in Velox format. If not, convert it to Velox format then return.
+   * If already in Velox format, return the batch directly.
+   *
+   * <p>Should only be used for certain conditions when unable to insert explicit to-Velox
+   * transitions through query planner.
+   *
+   * <p>For example, used by {@link org.apache.spark.sql.execution.ColumnarCachedBatchSerializer} as
    * Spark directly calls API ColumnarCachedBatchSerializer#convertColumnarBatchToCachedBatch for
    * query plan that returns supportsColumnar=true without generating a cache-write query plan node.
    */
   public static ColumnarBatch ensureVeloxBatch(ColumnarBatch input) {
-    final ColumnarBatch light = ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), input);
+    final ColumnarBatch light =
+        ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), input);
     if (isVeloxBatch(light)) {
       return light;
     }
