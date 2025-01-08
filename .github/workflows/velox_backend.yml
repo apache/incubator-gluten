@@ -770,7 +770,8 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
           $MVN_CMD clean test -Pspark-3.4 -Pjava-11 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
+          -DargLine="-Dio.netty.tryReflectionSetAccessible=true" 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -810,7 +811,8 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
           $MVN_CMD clean test -Pspark-3.4 -Pjava-11 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
-          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
+          -DargLine="-Dio.netty.tryReflectionSetAccessible=true" 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
