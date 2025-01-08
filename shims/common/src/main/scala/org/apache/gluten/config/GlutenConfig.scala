@@ -498,7 +498,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableBroadcastBuildRelationInOffheap: Boolean =
     getConf(VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP)
 
-  def enableEncryptedParquetFallback: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
+  def parquetEncryptionValidationEnabled: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
 
 }
 
@@ -2283,7 +2283,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
-    buildStaticConf("spark.gluten.sql.fallbackEncryptedParquet")
+    buildConf("spark.gluten.sql.fallbackEncryptedParquet")
       .internal()
       .doc("If enabled, gluten will not offload scan when encrypted parquet files are detected")
       .booleanConf

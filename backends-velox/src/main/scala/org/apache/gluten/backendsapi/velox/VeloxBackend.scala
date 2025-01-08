@@ -193,7 +193,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     def validateEncryption(): Option[String] = {
 
-      val encryptionValidationEnabled = GlutenConfig.getConf.enableEncryptedParquetFallback
+      val encryptionValidationEnabled = GlutenConfig.getConf.parquetEncryptionValidationEnabled
       if (!encryptionValidationEnabled) {
         return None
       }
