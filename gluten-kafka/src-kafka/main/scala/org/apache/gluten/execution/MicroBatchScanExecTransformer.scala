@@ -55,7 +55,7 @@ case class MicroBatchScanExecTransformer(
 
   override lazy val readerFactory: PartitionReaderFactory = stream.createReaderFactory()
 
-  @transient override lazy val inputPartitions: Seq[InputPartition] =
+  @transient override lazy val inputPartitionsShim: Seq[InputPartition] =
     stream.planInputPartitions(start, end)
 
   override def filterExprs(): Seq[Expression] = Seq.empty
@@ -64,7 +64,7 @@ case class MicroBatchScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getPartitions: Seq[InputPartition] = inputPartitions
+  override def getPartitions: Seq[InputPartition] = inputPartitionsShim
 
   /** Returns the actual schema of this data source scan. */
   override def getDataSchema: StructType = scan.readSchema()
