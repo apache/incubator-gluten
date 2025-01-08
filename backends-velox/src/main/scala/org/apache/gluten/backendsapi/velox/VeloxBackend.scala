@@ -232,6 +232,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
+      isPartitionedTable: Boolean,
       options: Map[String, String]): ValidationResult = {
 
     // Validate if HiveFileFormat write is supported based on output file type
@@ -331,10 +332,17 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     def validateBucketSpec(): Option[String] = {
-      if (bucketSpec.nonEmpty) {
-        Some("Unsupported native write: bucket write is not supported.")
-      } else {
+      val isHiveCompatibleBucketTable = bucketSpec.nonEmpty && options
+        .getOrElse("__hive_compatible_bucketed_table_insertion__", "false")
+        .equals("true")
+      // Currently, the velox backend only supports bucketed tables compatible with Hive and
+      // is limited to partitioned tables. Therefore, we should add this condition restriction.
+      // After velox supports bucketed non-partitioned tables, we can remove the restriction on
+      // partitioned tables.
+      if (bucketSpec.isEmpty || (isHiveCompatibleBucketTable && isPartitionedTable)) {
         None
+      } else {
+        Some("Unsupported native write: non-compatible hive bucket write is not supported.")
       }
     }
 

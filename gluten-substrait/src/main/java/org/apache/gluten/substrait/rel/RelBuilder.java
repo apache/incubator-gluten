@@ -25,10 +25,7 @@ import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
 import org.apache.gluten.substrait.type.ColumnTypeNode;
 import org.apache.gluten.substrait.type.TypeNode;
 
-import io.substrait.proto.CrossRel;
-import io.substrait.proto.JoinRel;
-import io.substrait.proto.SetRel;
-import io.substrait.proto.SortField;
+import io.substrait.proto.*;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.util.List;
@@ -191,10 +188,11 @@ public class RelBuilder {
       List<String> names,
       List<ColumnTypeNode> columnTypeNodes,
       AdvancedExtensionNode extensionNode,
+      WriteRel.BucketSpec bucketSpec,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new WriteRelNode(input, types, names, columnTypeNodes, extensionNode);
+    return new WriteRelNode(input, types, names, columnTypeNodes, extensionNode, bucketSpec);
   }
 
   public static RelNode makeSortRel(
