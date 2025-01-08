@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import org.apache.gluten.iterator.Iterators
@@ -171,11 +171,24 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
       conf: SQLConf): RDD[CachedBatch] = {
     input.mapPartitions {
       it =>
+        val lightBatches = it.map {
+          /* Native code needs a Velox offloaded batch, making sure to offload
+             if heavy batch is encountered */
+          batch =>
+            val heavy = ColumnarBatches.isHeavyBatch(batch)
+            if (heavy) {
+              val offloaded = VeloxColumnarBatches.toVeloxBatch(
+                ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch))
+              offloaded
+            } else {
+              batch
+            }
+        }
         new Iterator[CachedBatch] {
-          override def hasNext: Boolean = it.hasNext
+          override def hasNext: Boolean = lightBatches.hasNext
 
           override def next(): CachedBatch = {
-            val batch = it.next()
+            val batch = lightBatches.next()
             val results =
               ColumnarBatchSerializerJniWrapper
                 .create(

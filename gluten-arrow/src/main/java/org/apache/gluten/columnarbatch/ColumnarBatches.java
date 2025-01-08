@@ -85,8 +85,7 @@ public final class ColumnarBatches {
   }
 
   /** Heavy batch: Data is readable from JVM and formatted as Arrow data. */
-  @VisibleForTesting
-  static boolean isHeavyBatch(ColumnarBatch batch) {
+  public static boolean isHeavyBatch(ColumnarBatch batch) {
     return identifyBatchType(batch) == BatchType.HEAVY;
   }
 
@@ -94,8 +93,7 @@ public final class ColumnarBatches {
    * Light batch: Data is not readable from JVM, a long int handle (which is a pointer usually) is
    * used to bind the batch to a native side implementation.
    */
-  @VisibleForTesting
-  static boolean isLightBatch(ColumnarBatch batch) {
+  public static boolean isLightBatch(ColumnarBatch batch) {
     return identifyBatchType(batch) == BatchType.LIGHT;
   }
 
@@ -230,7 +228,8 @@ public final class ColumnarBatches {
     if (input.numCols() == 0) {
       throw new IllegalArgumentException("batch with zero columns cannot be offloaded");
     }
-    // Batch-offloading doesn't involve any backend-specific native code. Use the internal
+    // Batch-offloading doesn't involve any backend-specific native code. Use the
+    // internal
     // backend to store native batch references only.
     final Runtime runtime =
         Runtimes.contextInstance(INTERNAL_BACKEND_KIND, "ColumnarBatches#offload");
