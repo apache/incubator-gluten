@@ -39,7 +39,7 @@ package object component extends Logging {
     val components = Component.sortedUnsafe()
     require(
       components.nonEmpty,
-      s"No component found in container directories named with " +
+      s"No component files found in container directories named with " +
         s"'META-INF/gluten-components' from classpath. JVM classpath value " +
         s"is: ${System.getProperty("java.class.path")}"
     )
