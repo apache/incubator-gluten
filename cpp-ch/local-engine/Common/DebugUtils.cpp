@@ -403,7 +403,10 @@ std::string dumpActionsDAG(const DB::ActionsDAG & dag)
 {
     std::stringstream ss;
     ss << "digraph ActionsDAG {\n";
-    ss << "  rankdir=BT;\n"; // Add this line to invert the vertical direction
+    ss << "  rankdir=BT;\n"; // Invert the vertical direction
+    ss << "  nodesep=0.1;\n"; // Reduce space between nodes
+    ss << "  ranksep=0.1;\n"; // Reduce space between ranks
+    ss << "  margin=0.1;\n"; // Reduce graph margin
 
     std::unordered_map<const DB::ActionsDAG::Node *, size_t> node_to_id;
     size_t id = 0;
