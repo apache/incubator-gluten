@@ -74,10 +74,14 @@ class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
       .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   }
 
+  /**
+   * Test for GLUTEN-8453: https://github.com/apache/incubator-gluten/issues/8453.
+   * To make sure no error is thrown when caching an Arrow Java query plan.
+   */
   test("csv scan v1 with table cache") {
     val df = spark.sql("select * from student")
     df.cache()
-    df.collect()
+    assert(df.collect().length == 3)
   }
 }
 
