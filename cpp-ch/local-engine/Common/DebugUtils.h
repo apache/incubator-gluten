@@ -25,6 +25,7 @@ class Message;
 namespace DB
 {
 class QueryPlan;
+class ActionsDAG;
 }
 namespace debug
 {
@@ -41,5 +42,6 @@ inline std::string verticalShowString(const DB::Block & block, size_t numRows = 
 {
     return showString(block, numRows, truncate, true);
 }
+std::string dumpActionsDAG(const DB::ActionsDAG & dag);
 
 }
