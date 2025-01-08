@@ -327,7 +327,7 @@ int16_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal&
 template <>
 int32_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
   if (literal.has_date()) {
-    return int32_t(literal.date());
+    return static_cast<int32_t>(literal.date());
   }
   return literal.i32();
 }

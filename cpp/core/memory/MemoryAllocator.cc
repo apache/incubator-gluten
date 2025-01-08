@@ -162,7 +162,7 @@ bool StdMemoryAllocator::reallocateAligned(void* p, uint64_t alignment, int64_t 
     return false;
   }
   if (newSize <= size) {
-    auto aligned = ROUND_TO_LINE(newSize, alignment);
+    auto aligned = ROUND_TO_LINE(static_cast<uint64_t>(newSize), alignment);
     if (aligned <= size) {
       // shrink-to-fit
       return reallocate(p, size, aligned, out);
