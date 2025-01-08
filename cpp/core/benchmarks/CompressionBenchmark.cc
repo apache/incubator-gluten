@@ -48,7 +48,9 @@ void printTrace(void) {
   for (i = 0; i < size; i++)
     printf("    %s\n", strings[i]);
   puts("");
-  free(strings);
+  if (strings != nullptr) {
+    free(strings);
+  }
 }
 
 using arrow::RecordBatchReader;
