@@ -747,14 +747,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.4.4 (other tests)
         run: |
           rm -rf /opt/shims/spark34
@@ -771,6 +763,7 @@ jobs:
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+          ls -l /opt/shims/spark34/spark_home/
           $MVN_CMD clean test -Pspark-3.4 -Pjava-11 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
@@ -814,6 +807,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+          ls -l /opt/shims/spark34/spark_home/
           $MVN_CMD clean test -Pspark-3.4 -Pjava-11 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
