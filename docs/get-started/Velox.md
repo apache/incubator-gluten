@@ -106,19 +106,15 @@ Notes： Building Velox may fail caused by OOM. You can prevent this failure by 
 
 After the above build process, the Jar file will be generated under `package/target/`.
 
-Alternatively you may refer to [build in docker](docs/developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
+Alternatively you may refer to [build in docker](../developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
 
 ## Dependency library deployment
 
-With build option `enable_vcpkg=ON`, all dependency libraries will be statically linked to `libvelox.so` and `libgluten.so` which are packed into the gluten-jar.
-In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build
-the static version using a clean docker image without any extra libraries installed ( [build in docker](docs/developers/velox-backend-build-in-docker.md) ). On host with
-some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host. We ** strongly recommend ** user to build Gluten in this way to avoid dependency lacking issue.
+With the `enable_vcpkg=ON` build option, all dependency libraries are statically linked to libvelox.so and libgluten.so, which are then packed into the gluten-jar. This means you only need to add the gluten-jar to `spark.<driver|executor>.extraClassPath`, and Spark will deploy the jar to each worker node. For best results, build the static version using a clean Docker image without any extra libraries. If you build on a host with additional libraries like jemalloc installed, you might encounter crashes and may need to uninstall those libraries to achieve a clean build environment. We **strongly recommend** building Gluten this way to avoid dependency issues.
 
-With build option `enable_vcpkg=OFF`, not all dependency libraries will be dynamically linked. After building, you need to separately execute `./dev/build-thirdparty.sh` to 
-pack required shared libraries into another jar named `gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar`. Then you need to add the jar to Spark config `extraClassPath` and 
-set `spark.gluten.loadLibFromJar=true`. Otherwise, you need to install required shared libraries with ** exactly the same versions ** on each worker node . You may find the 
-libraries list from the third-party jar.
+When using the `enable_vcpkg=OFF` build option, some dependency libraries are dynamically linked while others are static. After building, run ./dev/build-thirdparty.sh to pack the required shared libraries 
+into a jar named `gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar`. You'll need to add this jar to the Spark config extraClassPath and set `spark.gluten.loadLibFromJar=true`. Alternatively, if you don't 
+use the third-party jar, you'll need to install the required shared libraries with **exactly** the same versions on each worker node. You can find the list of necessary libraries in the third-party jar.
 
 ## HDFS support
 
