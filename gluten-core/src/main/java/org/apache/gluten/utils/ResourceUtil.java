@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -47,12 +48,26 @@ public class ResourceUtil {
    */
   public static List<String> getResources(final Pattern pattern) {
     final List<String> buffer = new ArrayList<>();
-    final String classPath = System.getProperty("java.class.path");
-    final String[] classPathElements = classPath.split(File.pathSeparator);
-    for (final String element : classPathElements) {
-      getResources(element, pattern, buffer);
-    }
+    String classPath = System.getProperty("java.class.path");
+    processClassPathElements(classPath, pattern, buffer);
     return Collections.unmodifiableList(buffer);
+  }
+
+  private static void processClassPathElements(
+      String classPath, Pattern pattern, List<String> buffer) {
+    if (classPath == null || classPath.isEmpty()) {
+      return;
+    }
+    String[] classPathElements = classPath.split(File.pathSeparator);
+    Arrays.stream(classPathElements).forEach(element -> getResources(element, pattern, buffer));
+    // the Gluten project may wrapped by the other service to use the Native Engine.
+    // As a result, the java.class.path points to xxx/other.jar instead of xxx/gluten.jar.
+    // This will result in the failure to properly load the required Components.
+    if (buffer.isEmpty()) {
+      classPath = ResourceUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+      classPathElements = classPath.split(File.pathSeparator);
+      Arrays.stream(classPathElements).forEach(element -> getResources(element, pattern, buffer));
+    }
   }
 
   private static void getResources(
