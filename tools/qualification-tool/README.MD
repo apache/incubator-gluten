@@ -17,7 +17,7 @@ This will create a jar file in the `target` directory.
 To execute the tool, use the following command:
 
 ```bash
-java -jar target/qualification-tool-1.2.1-SNAPSHOT-jar-with-dependencies.jar -f <eventFile>
+java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f <eventFile>
 ```
 
 ### Parameters:
@@ -27,7 +27,7 @@ java -jar target/qualification-tool-1.2.1-SNAPSHOT-jar-with-dependencies.jar -f 
   - Deeply nested folders of event log files.
   - Compressed event log files.
   - Rolling event log files.
-  - Comma deperated files
+  - Comma separated files
 - **`-k <gcsKey>`**: (Optional) Path to Google Cloud Storage service account keys.
 - **`-o <output>`**: (Optional) Path to the directory where output will be written. Defaults to a temporary directory.
 - **`-t <threads>`**: (Optional) Number of processing threads. Defaults to 4.
@@ -37,12 +37,12 @@ java -jar target/qualification-tool-1.2.1-SNAPSHOT-jar-with-dependencies.jar -f 
 
 ### Example Usage:
 ```bash
-java -jar target/qualification-tool-1.2.1-SNAPSHOT-jar-with-dependencies.jar -f /path/to/eventlog
+java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f /path/to/eventlog
 ```
 
 ### Advanced Example:
 ```bash
-java -jar target/qualification-tool-1.2.1-SNAPSHOT-jar-with-dependencies.jar -f /path/to/folder -o /output/path -t 8 -d 2023-01-01 -k /path/to/gcs_keys.json -p my_project
+java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f /path/to/folder -o /output/path -t 8 -d 2023-01-01 -k /path/to/gcs_keys.json -p my_project
 ```
 
 ## Features
@@ -160,4 +160,3 @@ The tool ensures that the Spark plan optimizes performance by:
 ## Requirements
 
 - **Java**: Ensure you have JDK 11 or later installed.
-- **Maven**: Used for building the project.
