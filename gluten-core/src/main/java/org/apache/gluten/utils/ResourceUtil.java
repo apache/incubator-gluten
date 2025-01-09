@@ -51,7 +51,7 @@ public class ResourceUtil {
    * @param pattern The pattern to match on the file names.
    * @return The relative resource paths in the order they are found.
    */
-  public static List<String> getResources(String container, final Pattern pattern) {
+  public static List<String> getResources(final String container, final Pattern pattern) {
     Preconditions.checkArgument(
         !container.isEmpty(),
         "Resource search should only be used under a certain container folder");
