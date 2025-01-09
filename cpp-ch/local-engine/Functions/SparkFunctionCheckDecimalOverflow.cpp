@@ -178,8 +178,18 @@ private:
         {
             ToFieldType result;
             bool success = convertToDecimalImpl<FromDataType, ToDataType>(datas[i], precision, scale_from, scale_to, decimal_int_part_max, decimal_int_part_min, result);
-            vec_to[i] = static_cast<ToFieldType>(result);
-            (*vec_null_map_to)[i] = !success;
+            if constexpr (exception_mode == CheckExceptionMode::Null)
+            {
+                vec_to[i] = static_cast<ToFieldType>(result);
+                (*vec_null_map_to)[i] = !success;
+            }
+            else
+            {
+                if (success)
+                    vec_to[i] = static_cast<ToFieldType>(result);
+                else
+                    throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "Decimal value is overflow.");
+            }
         }
 
         if constexpr (exception_mode == CheckExceptionMode::Null)
