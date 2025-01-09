@@ -38,6 +38,7 @@ import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.delta.rules.CHOptimizeMetadataOnlyDeltaQuery
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.noop.GlutenNoopWriterRule
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.util.SparkPlanRules
 
@@ -132,6 +133,7 @@ object CHRuleApi {
       c =>
         intercept(
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarPostRules)(c.session)))
+    injector.injectPost(c => GlutenNoopWriterRule.apply(c.session))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
