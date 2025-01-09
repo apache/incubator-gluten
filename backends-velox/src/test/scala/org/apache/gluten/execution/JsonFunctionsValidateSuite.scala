@@ -320,4 +320,27 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("from_json function duplicate key") {
+    withTempPath {
+      path =>
+        Seq[(String)](
+          ("""{"id":1,"Id":2}"""),
+          ("""{"id":3,"Id":4}""")
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select txt, from_json(txt, 'id INT, Id INT') from tbl") {
+          checkSparkOperatorMatch[ProjectExec]
+        }
+
+        runQueryAndCompare("select txt, from_json(txt, 'id INT') from tbl") {
+          checkSparkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }

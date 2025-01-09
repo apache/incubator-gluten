@@ -58,6 +58,8 @@ import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
 
+import java.util.Locale
+
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   /** Transform GetArrayItem to Substrait. */
@@ -714,6 +716,23 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     if (SQLConf.get.caseSensitiveAnalysis) {
       throw new GlutenNotSupportException(
         "'from_json' with 'spark.sql.caseSensitive = true' is not supported in Velox")
+    }
+
+    val hasCaseInsensitiveDuplicateKey = expr.schema match {
+      case s: StructType =>
+        !s.filter(
+          f =>
+            !s.names
+              .filter(
+                n => n != f.name && n.toLowerCase(Locale.ROOT) == f.name.toLowerCase(Locale.ROOT))
+              .isEmpty)
+          .isEmpty
+      case other =>
+        false
+    }
+    if (hasCaseInsensitiveDuplicateKey) {
+      throw new GlutenNotSupportException(
+        "'from_json' with case-insensitive duplicate keys is not supported in Velox")
     }
     val hasCorruptRecord = expr.schema match {
       case s: StructType =>
