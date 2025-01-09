@@ -171,24 +171,16 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
       conf: SQLConf): RDD[CachedBatch] = {
     input.mapPartitions {
       it =>
-        val lightBatches = it.map {
+        val veloxBatches = it.map {
           /* Native code needs a Velox offloaded batch, making sure to offload
              if heavy batch is encountered */
-          batch =>
-            val heavy = ColumnarBatches.isHeavyBatch(batch)
-            if (heavy) {
-              val offloaded = VeloxColumnarBatches.toVeloxBatch(
-                ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch))
-              offloaded
-            } else {
-              batch
-            }
+          batch => VeloxColumnarBatches.ensureVeloxBatch(batch)
         }
         new Iterator[CachedBatch] {
-          override def hasNext: Boolean = lightBatches.hasNext
+          override def hasNext: Boolean = veloxBatches.hasNext
 
           override def next(): CachedBatch = {
-            val batch = lightBatches.next()
+            val batch = veloxBatches.next()
             val results =
               ColumnarBatchSerializerJniWrapper
                 .create(

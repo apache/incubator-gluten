@@ -67,33 +67,26 @@ class ArrowCsvScanSuiteV2 extends ArrowCsvScanSuite {
   }
 }
 
-/** Since https://github.com/apache/incubator-gluten/pull/5850. */
-abstract class ArrowCsvScanSuite extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "N/A"
-  override protected val fileFormat: String = "N/A"
-
-  protected val rootPath: String = getClass.getResource("/").getPath
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    createCsvTables()
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
-  }
-
+class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.sql.files.maxPartitionBytes", "1g")
-      .set("spark.sql.shuffle.partitions", "1")
-      .set("spark.memory.offHeap.size", "2g")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
-      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
+      .set("spark.sql.sources.useV1SourceList", "csv")
+      .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   }
 
+  /**
+   * Test for GLUTEN-8453: https://github.com/apache/incubator-gluten/issues/8453. To make sure no
+   * error is thrown when caching an Arrow Java query plan.
+   */
+  test("csv scan v1 with table cache") {
+    val df = spark.sql("select * from student")
+    df.cache()
+    assert(df.collect().length == 3)
+  }
+}
+
+/** Since https://github.com/apache/incubator-gluten/pull/5850. */
+abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
   test("csv scan with option string as null") {
     val df = runAndCompare("select * from student_option_str")()
     val plan = df.queryExecution.executedPlan
@@ -151,6 +144,33 @@ abstract class ArrowCsvScanSuite extends VeloxWholeStageTransformerSuite {
   test("count(1) on csv scan") {
     val df = runAndCompare("select count(1) from student")()
     checkLengthAndPlan(df, 1)
+  }
+}
+
+abstract class ArrowCsvScanSuiteBase extends VeloxWholeStageTransformerSuite {
+  override protected val resourcePath: String = "N/A"
+  override protected val fileFormat: String = "N/A"
+
+  protected val rootPath: String = getClass.getResource("/").getPath
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    createCsvTables()
+  }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+  }
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.sql.files.maxPartitionBytes", "1g")
+      .set("spark.sql.shuffle.partitions", "1")
+      .set("spark.memory.offHeap.size", "2g")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "true")
+      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
+      .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
   }
 
   private def createCsvTables(): Unit = {
