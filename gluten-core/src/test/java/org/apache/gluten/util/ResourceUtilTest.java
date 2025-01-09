@@ -37,7 +37,7 @@ public class ResourceUtilTest {
 
   @Test
   public void testJar() {
-    // Use the class file of this test to verify the sanity of ResourceUtil.
+    // Use the class file of Spark code to verify the sanity of ResourceUtil.
     List<String> classes =
         ResourceUtil.getResources("org", Pattern.compile("apache/spark/SparkContext\\.class"));
     Assert.assertEquals(1, classes.size());
