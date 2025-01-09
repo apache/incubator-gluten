@@ -718,8 +718,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         "'from_json' with 'spark.sql.caseSensitive = true' is not supported in Velox")
     }
 
-    val hasCaseInsensitiveDuplicateKey = expr.schema match {
+    val hasDuplicateKey = expr.schema match {
       case s: StructType =>
+        s.names.distinct.size != s.names.size ||
         !s.filter(
           f =>
             !s.names
@@ -730,9 +731,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       case other =>
         false
     }
-    if (hasCaseInsensitiveDuplicateKey) {
+    if (hasDuplicateKey) {
       throw new GlutenNotSupportException(
-        "'from_json' with case-insensitive duplicate keys is not supported in Velox")
+        "'from_json' with duplicate keys is not supported in Velox")
     }
     val hasCorruptRecord = expr.schema match {
       case s: StructType =>

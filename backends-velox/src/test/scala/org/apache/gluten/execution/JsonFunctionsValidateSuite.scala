@@ -339,6 +339,10 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
             checkSparkOperatorMatch[ProjectExec]
           }
 
+          runQueryAndCompare("select txt, from_json(txt, 'id INT, id INT') from tbl") {
+            checkSparkOperatorMatch[ProjectExec]
+          }
+
           runQueryAndCompare("select txt, from_json(txt, 'id INT') from tbl") {
             checkSparkOperatorMatch[ProjectExecTransformer]
           }
