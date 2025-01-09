@@ -85,8 +85,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def shuffledHashJoinOptimizeBuildSide: Boolean =
     getConf(COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE)
 
-  def enableNativeColumnarToRow: Boolean = getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
-
   def forceShuffledHashJoin: Boolean = getConf(COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED)
 
   def enableColumnarSortMergeJoin: Boolean = getConf(COLUMNAR_SORTMERGEJOIN_ENABLED)
@@ -169,16 +167,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enablePreferColumnar: Boolean = getConf(COLUMNAR_PREFER_ENABLED)
 
-  def enableOneRowRelationColumnar: Boolean = getConf(COLUMNAR_ONE_ROW_RELATION_ENABLED)
-
   def physicalJoinOptimizationThrottle: Integer =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
   def enablePhysicalJoinOptimize: Boolean =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED)
-
-  def logicalJoinOptimizationThrottle: Integer =
-    getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE)
 
   def enableScanOnly: Boolean = getConf(COLUMNAR_SCAN_ONLY_ENABLED)
 
@@ -371,7 +364,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def chColumnarShuffleSpillThreshold: Long = {
     val threshold = getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
     if (threshold == 0) {
-      (getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES) * 0.9).toLong
+      (taskOffHeapMemorySize * 0.9).toLong
     } else {
       threshold
     }
@@ -432,47 +425,56 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
   def debug: Boolean = getConf(DEBUG_ENABLED)
+
   def debugKeepJniWorkspace: Boolean = getConf(DEBUG_KEEP_JNI_WORKSPACE)
+
   def collectUtStats: Boolean = getConf(UT_STATISTIC)
+
   def benchmarkStageId: Int = getConf(BENCHMARK_TASK_STAGEID)
+
   def benchmarkPartitionId: String = getConf(BENCHMARK_TASK_PARTITIONID)
+
   def benchmarkTaskId: String = getConf(BENCHMARK_TASK_TASK_ID)
+
   def benchmarkSaveDir: String = getConf(BENCHMARK_SAVE_DIR)
+
   def textInputMaxBlockSize: Long = getConf(TEXT_INPUT_ROW_MAX_BLOCK_SIZE)
+
   def textIputEmptyAsDefault: Boolean = getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
+
   def enableParquetRowGroupMaxMinIndex: Boolean =
     getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
   def enableVeloxFlushablePartialAggregation: Boolean =
     getConf(VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED)
-  def maxFlushableAggregationMemoryRatio: Double =
-    getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
-  def maxExtendedFlushableAggregationMemoryRatio: Double =
-    getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
-  def abandonFlushableAggregationMinPct: Int =
-    getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
-  def abandonFlushableAggregationMinRows: Int =
-    getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
+
+  def maxFlushableAggregationMemoryRatio: Double = getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+
+  def maxExtendedFlushableAggregationMemoryRatio: Double = getConf(
+    MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+
+  def abandonFlushableAggregationMinPct: Int = getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
+
+  def abandonFlushableAggregationMinRows: Int = getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
 
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
   def enableNativeWriter: Option[Boolean] = getConf(NATIVE_WRITER_ENABLED)
 
   def enableNativeArrowReader: Boolean = getConf(NATIVE_ARROW_READER_ENABLED)
 
-  def directorySizeGuess: Long =
-    getConf(DIRECTORY_SIZE_GUESS)
-  def filePreloadThreshold: Long =
-    getConf(FILE_PRELOAD_THRESHOLD)
-  def prefetchRowGroups: Int =
-    getConf(PREFETCH_ROW_GROUPS)
-  def loadQuantum: Long =
-    getConf(LOAD_QUANTUM)
-  def maxCoalescedDistance: String =
-    getConf(MAX_COALESCED_DISTANCE_BYTES)
-  def maxCoalescedBytes: Long =
-    getConf(MAX_COALESCED_BYTES)
-  def cachePrefetchMinPct: Int =
-    getConf(CACHE_PREFETCH_MINPCT)
+  def directorySizeGuess: Long = getConf(DIRECTORY_SIZE_GUESS)
+
+  def filePreloadThreshold: Long = getConf(FILE_PRELOAD_THRESHOLD)
+
+  def prefetchRowGroups: Int = getConf(PREFETCH_ROW_GROUPS)
+
+  def loadQuantum: Long = getConf(LOAD_QUANTUM)
+
+  def maxCoalescedDistance: String = getConf(MAX_COALESCED_DISTANCE_BYTES)
+
+  def maxCoalescedBytes: Long = getConf(MAX_COALESCED_BYTES)
+
+  def cachePrefetchMinPct: Int = getConf(CACHE_PREFETCH_MINPCT)
 
   def enableColumnarProjectCollapse: Boolean = getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
@@ -1032,13 +1034,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_COLUMNAR_TO_ROW_ENABLED =
-    buildConf("spark.gluten.sql.columnar.columnarToRow")
-      .internal()
-      .doc("Enable or disable columnar columnarToRow.")
-      .booleanConf
-      .createWithDefault(true)
-
   val COLUMNAR_SORTMERGEJOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.sortMergeJoin")
       .internal()
@@ -1126,13 +1121,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_ONE_ROW_RELATION_ENABLED =
-    buildConf("spark.gluten.sql.columnar.oneRowRelation")
-      .internal()
-      .doc("Enable or disable columnar `OneRowRelation`.")
-      .booleanConf
-      .createWithDefault(true)
-
   val COLUMNAR_TABLE_CACHE_ENABLED =
     buildConf("spark.gluten.sql.columnar.tableCache")
       .internal()
@@ -1153,13 +1141,6 @@ object GlutenConfig {
       .doc("Enable or disable columnar physicalJoinOptimize.")
       .booleanConf
       .createWithDefault(false)
-
-  val COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE =
-    buildConf("spark.gluten.sql.columnar.logicalJoinOptimizationLevel")
-      .internal()
-      .doc("Fallback to row operators if there are several continuous joins.")
-      .intConf
-      .createWithDefault(12)
 
   val COLUMNAR_SCAN_ONLY_ENABLED =
     buildConf("spark.gluten.sql.columnar.scanOnly")

@@ -42,7 +42,6 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
-      .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
