@@ -4,6 +4,9 @@ title: HBM Support in Velox Backend
 nav_order: 1
 parent: Getting-Started
 ---
+# High-Bandwidth Memory (HBM) support
+
+Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It is implemented on top of [Memkind library](http://memkind.github.io/memkind/). You can refer to memkind's [readme](https://github.com/memkind/memkind#memkind) for more details.
 
 # Build Gluten with HBM
 
