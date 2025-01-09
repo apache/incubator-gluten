@@ -757,12 +757,14 @@ jobs:
           $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.4.4 (other tests)
         run: |
+          bash .github/workflows/util/install_spark_resources.sh 3.4
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
           pip3 install pyspark==3.4.4 cython && \
           pip3 install pandas pyarrow
           yum remove -y java-1.8.0-openjdk-devel && yum -y install java-11-openjdk-devel
+          
       - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -805,6 +807,7 @@ jobs:
       - name: Prepare
         run: |
           yum remove -y java-1.8.0-openjdk-devel && yum -y install java-11-openjdk-devel
+          bash .github/workflows/util/install_spark_resources.sh 3.4
       - name: Build and Run unit test for Spark 3.4.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
