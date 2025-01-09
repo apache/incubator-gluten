@@ -57,7 +57,7 @@ public class ResourceUtil {
         "Resource search should only be used under a certain container folder");
     Preconditions.checkArgument(
         !container.startsWith("/") && !container.endsWith("/"),
-        "Resource container should not starts or end with\"/\"");
+        "Resource container should not start or end with\"/\"");
     final List<String> buffer = new ArrayList<>();
     final Enumeration<URL> containerUrls;
     try {
