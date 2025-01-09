@@ -37,6 +37,12 @@ package object component extends Logging {
     // Output log so user could view the component loading order.
     // Call #sortedUnsafe than on #sorted to avoid unnecessary recursion.
     val components = Component.sortedUnsafe()
+    require(
+      components.nonEmpty,
+      s"No component files found in container directories named with " +
+        s"'META-INF/gluten-components' from classpath. JVM classpath value " +
+        s"is: ${System.getProperty("java.class.path")}"
+    )
     logInfo(s"Components registered within order: ${components.map(_.name()).mkString(", ")}")
   }
 }
