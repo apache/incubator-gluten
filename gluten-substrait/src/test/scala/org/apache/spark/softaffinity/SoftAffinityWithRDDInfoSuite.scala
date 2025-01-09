@@ -49,7 +49,7 @@ class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession wit
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED, "true")
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM, "2")
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS, "2")
-    .set(GlutenConfig.SOFT_AFFINITY_LOG_LEVEL, "INFO")
+    .set(GlutenConfig.SOFT_AFFINITY_LOG_LEVEL.key, "INFO")
 
   test("Soft Affinity Scheduler with duplicate reading detection") {
     if (SparkShimLoader.getSparkShims.supportDuplicateReadingTracking) {

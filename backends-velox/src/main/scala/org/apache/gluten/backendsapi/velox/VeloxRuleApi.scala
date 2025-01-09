@@ -58,6 +58,7 @@ object VeloxRuleApi {
     // Inject the regular Spark rules directly.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
+    injector.injectOptimizerRule(CollapseGetJsonObjectExpressionRule.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
   }
 
@@ -77,7 +78,13 @@ object VeloxRuleApi {
     val validatorBuilder: GlutenConfig => Validator = conf =>
       Validators.newValidator(conf, offloads)
     val rewrites =
-      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
+      Seq(
+        RewriteIn,
+        RewriteMultiChildrenCount,
+        RewriteJoin,
+        PullOutPreProject,
+        PullOutPostProject,
+        ProjectColumnPruning)
     injector.injectTransform(
       c => HeuristicTransform.WithRewrites(validatorBuilder(c.glutenConf), rewrites, offloads))
 
@@ -123,7 +130,13 @@ object VeloxRuleApi {
     // Gluten RAS: The RAS rule.
     val validatorBuilder: GlutenConfig => Validator = conf => Validators.newValidator(conf)
     val rewrites =
-      Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
+      Seq(
+        RewriteIn,
+        RewriteMultiChildrenCount,
+        RewriteJoin,
+        PullOutPreProject,
+        PullOutPostProject,
+        ProjectColumnPruning)
     injector.injectCoster(_ => LegacyCoster)
     injector.injectCoster(_ => RoughCoster)
     injector.injectCoster(_ => RoughCoster2)

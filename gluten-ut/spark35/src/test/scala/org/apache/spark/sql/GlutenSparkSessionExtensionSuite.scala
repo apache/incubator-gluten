@@ -31,8 +31,10 @@ class GlutenSparkSessionExtensionSuite
         try {
           session.range(2).write.format("parquet").mode("overwrite").saveAsTable("a")
           def testWithFallbackSettings(scanFallback: Boolean, aggFallback: Boolean): Unit = {
-            session.sessionState.conf.setConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED, scanFallback)
-            session.sessionState.conf.setConf(GlutenConfig.COLUMNAR_HASHAGG_ENABLED, aggFallback)
+            session.sessionState.conf
+              .setConfString(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key, scanFallback.toString)
+            session.sessionState.conf
+              .setConfString(GlutenConfig.COLUMNAR_HASHAGG_ENABLED.key, aggFallback.toString)
             val df = session.sql("SELECT max(id) FROM a")
             val newDf = DummyFilterColmnarHelper.dfWithDummyFilterColumnar(
               session,

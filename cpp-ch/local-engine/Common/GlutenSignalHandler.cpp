@@ -159,7 +159,9 @@ static void signalHandler(int sig, siginfo_t * info, void * context) noexcept
 
 /// Avoid link time dependency on DB/Interpreters - will use this function only when linked.
 __attribute__((__weak__)) void
-collectGlutenCrashLog(Int32 signal, UInt64 thread_id, const String & query_id, const StackTrace & stack_trace);
+collectGlutenCrashLog(Int32 signal, UInt64 thread_id, const String & query_id, const StackTrace & stack_trace) {
+    
+}
 
 class SignalListener : public Poco::Runnable
 {

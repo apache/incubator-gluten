@@ -48,7 +48,11 @@ jobs:
           script: |
             const issueNumber = context.payload.number;
             let body;
-            body = "Run Gluten Clickhouse CI on x86";
+            if (issueNumber % 10 === 0) {
+              body = "Run Gluten ClickHouse CI on ARM";
+            } else {
+              body = "Run Gluten Clickhouse CI on x86";
+            }
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

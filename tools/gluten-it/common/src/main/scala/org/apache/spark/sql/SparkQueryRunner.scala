@@ -16,18 +16,22 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.integration.metrics.{MetricMapper, MetricTag, PlanMetric}
 import org.apache.spark.{SparkContext, Success, TaskKilled}
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd, SparkListenerTaskStart}
 import org.apache.spark.sql.KillTaskListener.INIT_WAIT_TIME_MS
 import org.apache.spark.sql.catalyst.QueryPlanningTracker
-
+import org.apache.spark.sql.execution.{QueryExecution, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
+import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.RandomUtils
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.mutable
 
 object SparkQueryRunner {
   private val availableExecutorMetrics: Set[String] = Set(
@@ -54,22 +58,24 @@ object SparkQueryRunner {
       desc: String,
       queryPath: String,
       explain: Boolean,
-      metrics: Array[String],
+      metricMapper: MetricMapper,
+      executorMetrics: Seq[String],
       randomKillTasks: Boolean): RunResult = {
-    val unrecognizableMetrics = metrics.filter(!availableExecutorMetrics.contains(_))
+    val unrecognizableMetrics = executorMetrics.filter(!availableExecutorMetrics.contains(_))
     if (unrecognizableMetrics.nonEmpty) {
       throw new IllegalArgumentException(
         "Unrecognizable metric names: " + unrecognizableMetrics.mkString("Array(", ", ", ")"))
     }
+
     val sc = spark.sparkContext
     sc.setJobDescription(desc)
 
-    // metrics listener
+    // Executor metrics listener.
     val em = new ExecutorMetrics()
     val metricsListener = new MetricsListener(em)
     sc.addSparkListener(metricsListener)
 
-    // kill task listener
+    // kill task listener.
     val killTaskListener: Option[KillTaskListener] = if (randomKillTasks) {
       Some(new KillTaskListener(sc))
     } else {
@@ -86,6 +92,7 @@ object SparkQueryRunner {
       val rows = QueryPlanningTracker.withTracker(tracker) {
         df.collect()
       }
+      val totalMillis = (System.nanoTime() - prev) / 1000000L
       if (explain) {
         df.explain(extended = true)
       }
@@ -95,9 +102,15 @@ object SparkQueryRunner {
       val otherRulesMillis =
         tracker.rules.map(_._2.totalTimeNs).sum / 1000000L
       val planMillis = sparkRulesMillis + otherRulesMillis
-      val totalMillis = (System.nanoTime() - prev) / 1000000L
-      val collectedMetrics = metrics.map(name => (name, em.getMetricValue(name))).toMap
-      RunResult(rows, planMillis, totalMillis - planMillis, collectedMetrics)
+      val collectedExecutorMetrics =
+        executorMetrics.map(name => (name, em.getMetricValue(name))).toMap
+      val collectedSQLMetrics = collectSQLMetrics(queryPath, metricMapper, df.queryExecution)
+      RunResult(
+        rows,
+        planMillis,
+        totalMillis - planMillis,
+        collectedSQLMetrics,
+        collectedExecutorMetrics)
     } finally {
       sc.removeSparkListener(metricsListener)
       killTaskListener.foreach(
@@ -108,6 +121,44 @@ object SparkQueryRunner {
         })
       sc.setJobDescription(null)
     }
+  }
+
+  private def collectAllNodes(plan: SparkPlan, nodes: mutable.LinkedHashMap[Int, SparkPlan]): Unit =
+    plan match {
+      case a: AdaptiveSparkPlanExec =>
+        nodes += a.id -> a
+        collectAllNodes(a.executedPlan, nodes)
+      case q: QueryStageExec =>
+        nodes += q.id -> q
+        collectAllNodes(q.plan, nodes)
+      case r: ReusedExchangeExec =>
+        nodes += r.id -> r
+        collectAllNodes(r.child, nodes)
+      case other =>
+        nodes += other.id -> other
+        other.children.foreach(c => collectAllNodes(c, nodes))
+    }
+
+  private def collectSQLMetrics(queryPath: String, mapper: MetricMapper, qe: QueryExecution): Seq[PlanMetric] = {
+    val nodes = mutable.LinkedHashMap[Int, SparkPlan]()
+    collectAllNodes(qe.executedPlan, nodes)
+    val all = nodes.flatMap {
+      case (_, p) =>
+        p.metrics.map {
+          case keyValue @ (k, m) =>
+            val tags = mapper.map(p, k, m)
+            val tagMapMutable = mutable.Map[String, mutable.Buffer[MetricTag[_]]]()
+            tags.foreach {
+              tag: MetricTag[_] =>
+                val buffer =
+                  tagMapMutable.getOrElseUpdate(tag.name(), mutable.ListBuffer[MetricTag[_]]())
+                buffer += tag
+            }
+            val tagMap = tagMapMutable.map { case (k, v) => (k, v.toSeq) }.toMap
+            PlanMetric(queryPath, p, k, m, tagMap)
+        }
+    }
+    all.toSeq
   }
 
   private def resourceToString(resource: String): String = {
@@ -135,7 +186,8 @@ case class RunResult(
     rows: Seq[Row],
     planningTimeMillis: Long,
     executionTimeMillis: Long,
-    metrics: Map[String, Long])
+    sqlMetrics: Seq[PlanMetric],
+    executorMetrics: Map[String, Long])
 
 class MetricsListener(em: ExecutorMetrics) extends SparkListener {
   override def onExecutorMetricsUpdate(

@@ -26,6 +26,7 @@
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Logger.h>
+#include <Common/DebugUtils.h>
 #include <Common/logger_useful.h>
 
 namespace DB
@@ -110,11 +111,11 @@ addArrayJoinStep(DB::ContextPtr context, DB::QueryPlan & plan, const DB::Actions
     {
         /// If generator in generate rel is explode/posexplode, transform arrayJoin function to ARRAY JOIN STEP to apply max_block_size
         /// which avoids OOM when several lateral view explode/posexplode is used in spark sqls
-        LOG_DEBUG(logger, "original actions_dag:{}", actions_dag.dumpDAG());
+        LOG_TEST(logger, "original actions_dag:\n{}", debug::dumpActionsDAG(actions_dag));
         auto splitted_actions_dags = splitActionsDAGInGenerate(actions_dag);
-        LOG_DEBUG(logger, "actions_dag before arrayJoin:{}", splitted_actions_dags.before_array_join.dumpDAG());
-        LOG_DEBUG(logger, "actions_dag during arrayJoin:{}", splitted_actions_dags.array_join.dumpDAG());
-        LOG_DEBUG(logger, "actions_dag after arrayJoin:{}", splitted_actions_dags.after_array_join.dumpDAG());
+        LOG_TEST(logger, "actions_dag before arrayJoin:\n{}", debug::dumpActionsDAG(splitted_actions_dags.before_array_join));
+        LOG_TEST(logger, "actions_dag during arrayJoin:\n{}", debug::dumpActionsDAG(splitted_actions_dags.array_join));
+        LOG_TEST(logger, "actions_dag after arrayJoin:\n{}", debug::dumpActionsDAG(splitted_actions_dags.after_array_join));
 
         auto ignore_actions_dag = [](const DB::ActionsDAG & actions_dag_) -> bool
         {

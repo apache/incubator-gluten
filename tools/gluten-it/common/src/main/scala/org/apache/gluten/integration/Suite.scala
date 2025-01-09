@@ -17,6 +17,7 @@
 package org.apache.gluten.integration
 
 import org.apache.gluten.integration.action.Action
+import org.apache.gluten.integration.metrics.MetricMapper
 
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
@@ -44,7 +45,9 @@ abstract class Suite(
     private val disableBhj: Boolean,
     private val disableWscg: Boolean,
     private val shufflePartitions: Int,
-    private val scanPartitions: Int) {
+    private val scanPartitions: Int,
+    private val baselineMetricMapper: MetricMapper,
+    private val testMetricMapper: MetricMapper) {
 
   resetLogLevel()
 
@@ -174,6 +177,14 @@ abstract class Suite(
     testConf.clone()
   }
 
+  private[integration] def getBaselineMetricMapper(): MetricMapper = {
+    baselineMetricMapper
+  }
+
+  private[integration] def getTestMetricMapper(): MetricMapper = {
+    testMetricMapper
+  }
+
   protected def historyWritePath(): String
 
   private[integration] def dataWritePath(scale: Double, genPartitionedData: Boolean): String
@@ -185,7 +196,6 @@ abstract class Suite(
   private[integration] def allQueryIds(): Array[String]
 
   private[integration] def desc(): String
-
 }
 
 object Suite {}
