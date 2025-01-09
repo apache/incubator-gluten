@@ -544,7 +544,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: [ "spark-3.2" ]
-        celeborn: [ "celeborn-0.5.2", "celeborn-0.4.3", "celeborn-0.3.2-incubating" ]
+        celeborn: [ "celeborn-0.5.3", "celeborn-0.4.3", "celeborn-0.3.2-incubating" ]
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
@@ -568,7 +568,7 @@ jobs:
           EXTRA_PROFILE=""
           if [ "${{ matrix.celeborn }}" = "celeborn-0.4.3" ]; then
             EXTRA_PROFILE="-Pceleborn-0.4"
-          elif [ "${{ matrix.celeborn }}" = "celeborn-0.5.2" ]; then
+          elif [ "${{ matrix.celeborn }}" = "celeborn-0.5.3" ]; then
             EXTRA_PROFILE="-Pceleborn-0.5"
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"

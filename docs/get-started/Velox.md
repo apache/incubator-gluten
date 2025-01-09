@@ -16,8 +16,7 @@ parent: Getting-Started
 
 # Prerequisite
 
-Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**.
-Other kinds of OS support are still in progress. The long term goal is to support several common OS and conda env deployment.
+Currently, with static build Gluten+Velox backend supports all the Linux OSes, but is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**. With dynamic build, Gluten+Velox backend support **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8** and their variants.
 
 Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
 
@@ -103,20 +102,25 @@ mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.4 -DskipTests
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.5 -DskipTests
 ```
 
-Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox.
+Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox. The recommended minimal memory size is 64G.
 
 After the above build process, the Jar file will be generated under `package/target/`.
+
+Alternatively you may refer to [build in docker](docs/developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
 
 ## Dependency library deployment
 
 With build option `enable_vcpkg=ON`, all dependency libraries will be statically linked to `libvelox.so` and `libgluten.so` which are packed into the gluten-jar.
 In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build
-the static version using a clean docker image without any extra libraries installed. On host with some libraries like jemalloc installed, the script may crash with
-odd message. You may need to uninstall those libraries to get a clean host. We strongly recommend user to build Gluten in this way to avoid dependency lacking issue.
+the static version using a clean docker image without any extra libraries installed ( [build in docker](docs/developers/velox-backend-build-in-docker.md) ). On host with
+some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host. We ** strongly recommend ** user to build Gluten in this way to avoid dependency lacking issue.
 
-With build option `enable_vcpkg=OFF`, not all dependency libraries will be statically linked. You need to separately execute `./dev/build-thirdparty.sh` to pack required
-shared libraries into another jar named `gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar`. Then you need to add the jar to Spark config `extraClassPath` and set
-`spark.gluten.loadLibFromJar=true`. Otherwise, you need to install required shared libraries on each worker node. You may find the libraries list from the third-party jar.
+With build option `enable_vcpkg=OFF`, not all dependency libraries will be dynamically linked. After building, you need to separately execute `./dev/build-thirdparty.sh` to 
+pack required shared libraries into another jar named `gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar`. Then you need to add the jar to Spark config `extraClassPath` and 
+set `spark.gluten.loadLibFromJar=true`. Otherwise, you need to install required shared libraries with ** exactly the same versions ** on each worker node . You may find the 
+libraries list from the third-party jar.
+
+# Remote storage support
 
 ## HDFS support
 
@@ -219,6 +223,12 @@ cd /path/to/gluten
 
 Currently there are several ways to access S3 in Spark. Please refer [Velox S3](VeloxS3.md) part for more detailed configurations
 
+## GCS support
+
+Please refer [GCS](VeloxGCS.md)
+
+# Remote Shuffle Service Support
+
 ## Celeborn support
 
 Gluten with velox backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x`, `0.4.x` and `0.5.x`.
@@ -308,6 +318,8 @@ spark.rss.storage.type LOCALFILE_HDFS
 spark.dynamicAllocation.enabled false
 ```
 
+# Datalake Framework Support
+
 ## DeltaLake Support
 
 Gluten with velox backend supports [DeltaLake](https://delta.io/) table.
@@ -393,7 +405,7 @@ native validation failed due to: in ProjectRel, Scalar function name not registe
 In the above, the symbol `^` indicates a plan is offloaded to Velox in a stage. In Spark DAG, all such pipelined plans (consecutive plans marked with `^`) are plotted
 inside an umbrella node named `WholeStageCodegenTransformer` (It's not codegen node. The naming is just for making it well plotted like Spark Whole Stage Codegen).
 
-# Spill (Experimental)
+# Spill
 
 Velox backend supports spilling-to-disk.
 
@@ -417,251 +429,9 @@ Using the following configuration options to customize spilling:
 
 Please check the [VeloxNativeUDF.md](../developers/VeloxNativeUDF.md) for more detailed usage and configurations.
 
-# High-Bandwidth Memory (HBM) support
-
-Gluten supports allocating memory on HBM. This feature is optional and is disabled by default. It is implemented on top of [Memkind library](http://memkind.github.io/memkind/). You can refer to memkind's [readme](https://github.com/memkind/memkind#memkind) for more details.
-
-## Build Gluten with HBM
-
-Gluten will internally build and link to a specific version of Memkind library and [hwloc](https://github.com/open-mpi/hwloc). Other dependencies should be installed on Driver and Worker node first:
-
-```bash
-sudo apt install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
-```
-
-After the set-up, you can now build Gluten with HBM. Below command is used to enable this feature
-
-```bash
-cd /path/to/gluten
-
-## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
-./dev/buildbundle-veloxbe.sh --enable_hbm=ON
-```
-
-## Configure and enable HBM in Spark Application
-
-At runtime, `MEMKIND_HBW_NODES` enviroment variable is detected for configuring HBM NUMA nodes. For the explaination to this variable, please refer to memkind's manual page. This can be set for all executors through spark conf, e.g. `--conf spark.executorEnv.MEMKIND_HBW_NODES=8-15`. Note that memory allocation fallback is also supported and cannot be turned off. If HBM is unavailable or fills up, the allocator will use default(DDR) memory.
-
-# Intel® QuickAssist Technology (QAT) support
-
-Gluten supports using Intel® QuickAssist Technology (QAT) for data compression during Spark Shuffle. It benefits from QAT Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
-
-This feature is based on QAT driver library and [QATzip](https://github.com/intel/QATzip) library. Please manually download QAT driver for your system, and follow its README to build and install on all Driver and Worker node: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist).
-
-## Software Requirements
-
-- Download QAT driver for your system, and follow its README to build and install on all Driver and Worker nodes: [Intel® QuickAssist Technology Driver for Linux* – HW Version 2.0](https://www.intel.com/content/www/us/en/download/765501/intel-quickassist-technology-driver-for-linux-hw-version-2-0.html?wapkw=quickassist).
-- Below compression libraries need to be installed on all Driver and Worker nodes:
-  - Zlib* library of version 1.2.7 or higher
-  - ZSTD* library of version 1.5.4 or higher
-  - LZ4* library
-
-## Build Gluten with QAT
-
-1. Setup ICP_ROOT environment variable to the directory where QAT driver is extracted. This environment variable is required during building Gluten and running Spark applications. It's recommended to put it in .bashrc on Driver and Worker nodes.
-
-```bash
-echo "export ICP_ROOT=/path/to/QAT_driver" >> ~/.bashrc
-source ~/.bashrc
-
-# Also set for root if running as non-root user
-sudo su - 
-echo "export ICP_ROOT=/path/to/QAT_driver" >> ~/.bashrc
-exit
-```
-
-2. **This step is required if your application is running as Non-root user.**
-   The users must be added to the 'qat' group after QAT drvier is installed. And change the amount of max locked memory for the username that is included in the group name. This can be done by specifying the limit in /etc/security/limits.conf.
-
-```bash
-sudo su -
-usermod -aG qat username # need relogin to take effect
-
-# To set 500MB add a line like this in /etc/security/limits.conf
-echo "@qat - memlock 500000" >> /etc/security/limits.conf
-
-exit
-```
-
-3. Enable huge page. This step is required to execute each time after system reboot. We recommend using systemctl to manage at system startup. You change the values for "max_huge_pages" and "max_huge_pages_per_process" to make sure there are enough resources for your workload. As for Spark applications, one process matches one executor. Within the executor, every task is allocated a maximum of 5 huge pages.
-
-```bash
-sudo su -
-
-cat << EOF > /usr/local/bin/qat_startup.sh
-#!/bin/bash
-echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
-rmmod usdm_drv
-insmod $ICP_ROOT/build/usdm_drv.ko max_huge_pages=1024 max_huge_pages_per_process=32
-EOF
-
-chmod +x /usr/local/bin/qat_startup.sh
-
-cat << EOF > /etc/systemd/system/qat_startup.service
-[Unit]
-Description=Configure QAT
-
-[Service]
-ExecStart=/usr/local/bin/qat_startup.sh
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl enable qat_startup.service
-systemctl start qat_startup.service # setup immediately
-systemctl status qat_startup.service
-
-exit
-```
-
-4. After the setup, you are now ready to build Gluten with QAT. Use the command below to enable this feature:
-
-```bash
-cd /path/to/gluten
-
-## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
-./dev/buildbundle-veloxbe.sh --enable_qat=ON
-```
-
-## Enable QAT with Gzip/Zstd for shuffle compression
-
-1. To offload shuffle compression into QAT, first make sure you have the right QAT configuration file at /etc/4xxx_devX.conf. We provide a [example configuration file](../qat/4x16.conf). This configuration sets up to 4 processes that can bind to 1 QAT, and each process can use up to 16 QAT DC instances.
-
-```bash
-## run as root
-## Overwrite QAT configuration file.
-cd /etc
-for i in {0..7}; do echo "4xxx_dev$i.conf"; done | xargs -i cp -f /path/to/gluten/docs/qat/4x16.conf {}
-## Restart QAT after updating configuration files.
-adf_ctl restart
-```
-
-2. Check QAT status and make sure the status is up
-
-```bash
-adf_ctl status
-```
-
-The output should be like:
-
-```
-Checking status of all devices.
-There is 8 QAT acceleration device(s) in the system:
- qat_dev0 - type: 4xxx,  inst_id: 0,  node_id: 0,  bsf: 0000:6b:00.0,  #accel: 1 #engines: 9 state: up
- qat_dev1 - type: 4xxx,  inst_id: 1,  node_id: 1,  bsf: 0000:70:00.0,  #accel: 1 #engines: 9 state: up
- qat_dev2 - type: 4xxx,  inst_id: 2,  node_id: 2,  bsf: 0000:75:00.0,  #accel: 1 #engines: 9 state: up
- qat_dev3 - type: 4xxx,  inst_id: 3,  node_id: 3,  bsf: 0000:7a:00.0,  #accel: 1 #engines: 9 state: up
- qat_dev4 - type: 4xxx,  inst_id: 4,  node_id: 4,  bsf: 0000:e8:00.0,  #accel: 1 #engines: 9 state: up
- qat_dev5 - type: 4xxx,  inst_id: 5,  node_id: 5,  bsf: 0000:ed:00.0,  #accel: 1 #engines: 9 state: up
- qat_dev6 - type: 4xxx,  inst_id: 6,  node_id: 6,  bsf: 0000:f2:00.0,  #accel: 1 #engines: 9 state: up
- qat_dev7 - type: 4xxx,  inst_id: 7,  node_id: 7,  bsf: 0000:f7:00.0,  #accel: 1 #engines: 9 state: up
-```
-
-3. Extra Gluten configurations are required when starting Spark application
-
-```
---conf spark.gluten.sql.columnar.shuffle.codec=gzip # Valid options are gzip and zstd
---conf spark.gluten.sql.columnar.shuffle.codecBackend=qat
-```
-
-4. You can use below command to check whether QAT is working normally at run-time. The value of fw_counters should continue to increase during shuffle.
-
-```
-while :; do cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/fw_counters; sleep 1; done
-```
-
-## QAT driver references
-
-**Documentation**
-
-[README Text Files (README_QAT20.L.1.0.0-00021.txt)](https://downloadmirror.intel.com/765523/README_QAT20.L.1.0.0-00021.txt)
-
-**Release Notes**
-
-Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.intel.com/content/www/us/en/content-details/632507/intel-quickassist-technology-intel-qat-software-for-linux-release-notes-hardware-version-2-0.html) - Release Notes for the latest changes in this release.
-
-**Getting Started Guide**
-
-Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.intel.com/content/www/us/en/content-details/632506/intel-quickassist-technology-intel-qat-software-for-linux-getting-started-guide-hardware-version-2-0.html) - Getting Started Guide for detailed installation instructions.
-
-**Programmer's Guide**
-
-Check out the [Intel® QuickAssist Technology Software for Linux*](https://www.intel.com/content/www/us/en/content-details/743912/intel-quickassist-technology-intel-qat-software-for-linux-programmers-guide-hardware-version-2-0.html) - Programmer's Guide for software usage guidelines.
-
-For more Intel® QuickAssist Technology resources go to [Intel® QuickAssist Technology (Intel® QAT)](https://developer.intel.com/quickassist)
-
-# Intel® In-memory Analytics Accelerator (IAA/IAX) support
-
-Similar to Intel® QAT, Gluten supports using Intel® In-memory Analytics Accelerator (IAA, also called IAX) for data compression during Spark Shuffle. It benefits from IAA Hardware-based acceleration on compression/decompression, and uses Gzip as compression format for higher compression ratio to reduce the pressure on disks and network transmission.
-
-This feature is based on Intel® [QPL](https://github.com/intel/qpl).
-
-## Build Gluten with IAA
-
-Gluten will internally build and link to a specific version of QPL library, but extra environment setup is still required. Please refer to [QPL Installation Guide](https://intel.github.io/qpl/documentation/get_started_docs/installation.html) to install dependencies and configure accelerators.
-
-**This step is required if your application is running as Non-root user.**
-Create a group for the users who have privilege to use IAA, and grant group iaa read/write access to the IAA Work-Queues.
-
-```bash
-sudo groupadd iaa
-sudo usermod -aG iaa username # need to relogin
-sudo chgrp -R iaa /dev/iax
-sudo chmod -R g+rw /dev/iax
-```
-
-After the set-up, you can now build Gluten with QAT. Below command is used to enable this feature
-
-```bash
-cd /path/to/gluten
-
-## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
-./dev/buildbundle-veloxbe.sh --enable_iaa=ON
-```
-
-## Enable IAA with Gzip Compression for shuffle compression
-
-1. To enable QAT at run-time, first make sure you have configured the IAA Work-Queues correctly, and the file permissions of /dev/iax/wqX.0 are correct.
-
-```bash
-sudo ls -l /dev/iax
-```
-
-The output should be like:
-
-```
-total 0
-crw-rw---- 1 root iaa 509, 0 Apr  5 18:54 wq1.0
-crw-rw---- 1 root iaa 509, 5 Apr  5 18:54 wq11.0
-crw-rw---- 1 root iaa 509, 6 Apr  5 18:54 wq13.0
-crw-rw---- 1 root iaa 509, 7 Apr  5 18:54 wq15.0
-crw-rw---- 1 root iaa 509, 1 Apr  5 18:54 wq3.0
-crw-rw---- 1 root iaa 509, 2 Apr  5 18:54 wq5.0
-crw-rw---- 1 root iaa 509, 3 Apr  5 18:54 wq7.0
-crw-rw---- 1 root iaa 509, 4 Apr  5 18:54 wq9.0
-```
-
-2. Extra Gluten configurations are required when starting Spark application
-
-```
---conf spark.gluten.sql.columnar.shuffle.codec=gzip
---conf spark.gluten.sql.columnar.shuffle.codecBackend=iaa
-```
-
-## IAA references
-
-**Intel® IAA Enabling Guide**
-
-Check out the [Intel® In-Memory Analytics Accelerator (Intel® IAA) Enabling Guide](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-iaa-enabling-guide.html)
-
-**Intel® QPL Documentation**
-
-Check out the [Intel® Query Processing Library (Intel® QPL) Documentation](https://intel.github.io/qpl/index.html)
-
 # Test TPC-H or TPC-DS on Gluten with Velox backend
 
-All TPC-H and TPC-DS queries are supported in Gluten Velox backend.
+All TPC-H and TPC-DS queries are supported in Gluten Velox backend. You may refer to the [notebook](../../tools/workload/benchmark_velox) we used to do the performance test.
 
 ## Data preparation
 
@@ -724,118 +494,9 @@ Both Parquet and ORC datasets are sf1024.
 | TPC-H Q6 | 13.6 | 21.6  | 34.9 |
 | TPC-H Q1 | 26.1 | 76.7 | 84.9 |
 
-# External reference setup
-
-TO ease your first-hand experience of using Gluten, we have set up an external reference cluster. If you are interested, please contact Weiting.Chen@intel.com.
-
 # Gluten UI
 
-## Gluten event
-
-Gluten provides two events `GlutenBuildInfoEvent` and `GlutenPlanFallbackEvent`:
-
-- GlutenBuildInfoEvent, it contains the Gluten build information so that we are able to be aware of the environment when doing some debug.
-  It includes `Java Version`, `Scala Version`, `GCC Version`, `Gluten Version`, `Spark Version`, `Hadoop Version`, `Gluten Revision`, `Backend`, `Backend Revision`, etc.
-
-- GlutenPlanFallbackEvent, it contains the fallback information for each query execution.
-  Note, if the query execution is in AQE, then Gluten will post it for each stage.
-
-Developers can register `SparkListener` to handle these two Gluten events.
-
-## SQL tab
-
-Gluten provides a tab based on Spark UI, named `Gluten SQL / DataFrame`
-
-![Gluten-UI](../image/gluten-ui.png)
-
-This tab contains two parts:
-
-1. The Gluten build information.
-2. SQL/Dataframe queries fallback information.
-
-If you want to disable Gluten UI, add a config when submitting `--conf spark.gluten.ui.enabled=false`.
-
-## History server
-
-Gluten UI also supports Spark history server. Add gluten-ui jar into the history server classpath, e.g., $SPARK_HOME/jars, then restart history server.
-
-## Native plan string
-
-Gluten supports inject native plan string into Spark explain with formatted mode by setting `--conf spark.gluten.sql.injectNativePlanStringToExplain=true`.
-Here is an example, how Gluten show the native plan string.
-
-```
-(9) WholeStageCodegenTransformer (2)
-Input [6]: [c1#0L, c2#1L, c3#2L, c1#3L, c2#4L, c3#5L]
-Arguments: false
-Native Plan:
--- Project[expressions: (n3_6:BIGINT, "n0_0"), (n3_7:BIGINT, "n0_1"), (n3_8:BIGINT, "n0_2"), (n3_9:BIGINT, "n1_0"), (n3_10:BIGINT, "n1_1"), (n3_11:BIGINT, "n1_2")] -> n3_6:BIGINT, n3_7:BIGINT, n3_8:BIGINT, n3_9:BIGINT, n3_10:BIGINT, n3_11:BIGINT
-  -- HashJoin[INNER n1_1=n0_1] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT, n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
-    -- TableScan[table: hive_table, range filters: [(c2, Filter(IsNotNull, deterministic, null not allowed))]] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT
-    -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
-```
-
-## Native plan with stats
-
-Gluten supports print native plan with stats to executor system output stream by setting `--conf spark.gluten.sql.debug=true`.
-Note that, the plan string with stats is task level which may cause executor log size big. Here is an example, how Gluten show the native plan string with stats.
-
-```
-I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan with stats for: [Stage: 1 TID: 16]
--- Project[expressions: (n3_6:BIGINT, "n0_0"), (n3_7:BIGINT, "n0_1"), (n3_8:BIGINT, "n0_2"), (n3_9:BIGINT, "n1_0"), (n3_10:BIGINT, "n1_1"), (n3_11:BIGINT, "n1_2")] -> n3_6:BIGINT, n3_7:BIGINT, n3_8:BIGINT, n3_9:BIGINT, n3_10:BIGINT, n3_11:BIGINT
-   Output: 27 rows (3.56KB, 3 batches), Cpu time: 10.58us, Blocked wall time: 0ns, Peak memory: 0B, Memory allocations: 0, Threads: 1
-      queuedWallNanos              sum: 2.00us, count: 1, min: 2.00us, max: 2.00us
-      runningAddInputWallNanos     sum: 626ns, count: 1, min: 626ns, max: 626ns
-      runningFinishWallNanos       sum: 0ns, count: 1, min: 0ns, max: 0ns
-      runningGetOutputWallNanos    sum: 5.54us, count: 1, min: 5.54us, max: 5.54us
-  -- HashJoin[INNER n1_1=n0_1] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT, n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
-     Output: 27 rows (3.56KB, 3 batches), Cpu time: 223.00us, Blocked wall time: 0ns, Peak memory: 93.12KB, Memory allocations: 15
-     HashBuild: Input: 10 rows (960B, 10 batches), Output: 0 rows (0B, 0 batches), Cpu time: 185.67us, Blocked wall time: 0ns, Peak memory: 68.00KB, Memory allocations: 2, Threads: 1
-        distinctKey0                 sum: 4, count: 1, min: 4, max: 4
-        hashtable.capacity           sum: 4, count: 1, min: 4, max: 4
-        hashtable.numDistinct        sum: 10, count: 1, min: 10, max: 10
-        hashtable.numRehashes        sum: 1, count: 1, min: 1, max: 1
-        queuedWallNanos              sum: 0ns, count: 1, min: 0ns, max: 0ns
-        rangeKey0                    sum: 4, count: 1, min: 4, max: 4
-        runningAddInputWallNanos     sum: 1.27ms, count: 1, min: 1.27ms, max: 1.27ms
-        runningFinishWallNanos       sum: 0ns, count: 1, min: 0ns, max: 0ns
-        runningGetOutputWallNanos    sum: 1.29us, count: 1, min: 1.29us, max: 1.29us
-     H23/11/21 10:19:42 INFO TaskSetManager: Finished task 3.0 in stage 1.0 (TID 13) in 335 ms on 10.221.97.35 (executor driver) (1/10)
-ashProbe: Input: 9 rows (864B, 3 batches), Output: 27 rows (3.56KB, 3 batches), Cpu time: 37.33us, Blocked wall time: 0ns, Peak memory: 25.12KB, Memory allocations: 13, Threads: 1
-        dynamicFiltersProduced       sum: 1, count: 1, min: 1, max: 1
-        queuedWallNanos              sum: 0ns, count: 1, min: 0ns, max: 0ns
-        runningAddInputWallNanos     sum: 4.54us, count: 1, min: 4.54us, max: 4.54us
-        runningFinishWallNanos       sum: 83ns, count: 1, min: 83ns, max: 83ns
-        runningGetOutputWallNanos    sum: 29.08us, count: 1, min: 29.08us, max: 29.08us
-    -- TableScan[table: hive_table, range filters: [(c2, Filter(IsNotNull, deterministic, null not allowed))]] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT
-       Input: 9 rows (864B, 3 batches), Output: 9 rows (864B, 3 batches), Cpu time: 630.75us, Blocked wall time: 0ns, Peak memory: 2.44KB, Memory allocations: 63, Threads: 1, Splits: 3
-          dataSourceWallNanos              sum: 102.00us, count: 1, min: 102.00us, max: 102.00us
-          dynamicFiltersAccepted           sum: 1, count: 1, min: 1, max: 1
-          flattenStringDictionaryValues    sum: 0, count: 1, min: 0, max: 0
-          ioWaitNanos                      sum: 312.00us, count: 1, min: 312.00us, max: 312.00us
-          localReadBytes                   sum: 0B, count: 1, min: 0B, max: 0B
-          numLocalRead                     sum: 0, count: 1, min: 0, max: 0
-          numPrefetch                      sum: 0, count: 1, min: 0, max: 0
-          numRamRead                       sum: 0, count: 1, min: 0, max: 0
-          numStorageRead                   sum: 6, count: 1, min: 6, max: 6
-          overreadBytes                    sum: 0B, count: 1, min: 0B, max: 0B
-          prefetchBytes                    sum: 0B, count: 1, min: 0B, max: 0B
-          queryThreadIoLatency             sum: 12, count: 1, min: 12, max: 12
-          ramReadBytes                     sum: 0B, count: 1, min: 0B, max: 0B
-          runningAddInputWallNanos         sum: 0ns, count: 1, min: 0ns, max: 0ns
-          runningFinishWallNanos           sum: 125ns, count: 1, min: 125ns, max: 125ns
-          runningGetOutputWallNanos        sum: 1.07ms, count: 1, min: 1.07ms, max: 1.07ms
-          skippedSplitBytes                sum: 0B, count: 1, min: 0B, max: 0B
-          skippedSplits                    sum: 0, count: 1, min: 0, max: 0
-          skippedStrides                   sum: 0, count: 1, min: 0, max: 0
-          storageReadBytes                 sum: 3.44KB, count: 1, min: 3.44KB, max: 3.44KB
-          totalScanTime                    sum: 0ns, count: 1, min: 0ns, max: 0ns
-    -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
-       Input: 0 rows (0B, 0 batches), Output: 10 rows (960B, 10 batches), Cpu time: 1.03ms, Blocked wall time: 0ns, Peak memory: 0B, Memory allocations: 0, Threads: 1
-          runningAddInputWallNanos     sum: 0ns, count: 1, min: 0ns, max: 0ns
-          runningFinishWallNanos       sum: 54.62us, count: 1, min: 54.62us, max: 54.62us
-          runningGetOutputWallNanos    sum: 1.10ms, count: 1, min: 1.10ms, max: 1.10ms
-```
+Please refer [Gluten UI](VeloxGlutenUI.md)
 
 # Gluten Implicits
 
@@ -850,3 +511,7 @@ df.fallbackSummary
 Note that, if AQE is enabled, but the query is not materialized, then it will re-plan
 the query execution with disabled AQE. It is a workaround to get the final plan, and it may
 cause the inconsistent results with a materialized query. However, we have no choice.
+
+# Accelerators
+
+Please refer [HBM](VeloxHBM.md) [QAT](VeloxQAT.md) [IAA](VeloxIAA.md) for details

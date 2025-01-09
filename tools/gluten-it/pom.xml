@@ -183,7 +183,7 @@
     <profile>
       <id>celeborn-0.5</id>
       <properties>
-        <celeborn.version>0.5.2</celeborn.version>
+        <celeborn.version>0.5.3</celeborn.version>
       </properties>
     </profile>
   </profiles>
