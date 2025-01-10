@@ -549,4 +549,18 @@ class Spark35Shims extends SparkShims {
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     QueryPlan.localIdMap.get().remove(plan)
   }
+
+
+  override def isParquetFileEncrypted(
+                                       fileStatus: LocatedFileStatus,
+                                       conf: Configuration): Boolean = {
+    try {
+      ParquetFileReader.readFooter(conf, fileStatus.getPath)
+      false
+    } catch {
+      case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+        true
+      case _: Throwable => false
+    }
+  }
 }

@@ -377,4 +377,25 @@ class Spark33Shims extends SparkShims {
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
+  // scalastyle:off
+  override def isParquetFileEncrypted(
+                                       fileStatus: LocatedFileStatus,
+                                       conf: Configuration): Boolean = {
+    try {
+      // Attempt to read the footer
+      ParquetFileReader.readFooter(conf, fileStatus.getPath)
+      false // No exception means the file is not encrypted
+    } catch {
+      case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+        println(s"DEBUG: Detected ParquetCryptoRuntimeException: ${e.getMessage}")
+        e.printStackTrace() // Print the full stack trace for debugging
+        true
+      case e: Throwable =>
+        // Print general exceptions for debugging
+        println(s"DEBUG: Unexpected exception occurred: ${e.getClass.getName}")
+        println(s"DEBUG: Exception message: ${e.getMessage}")
+        e.printStackTrace() // Print the full stack trace
+        false
+    }
+  }
 }

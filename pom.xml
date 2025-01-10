@@ -1367,7 +1367,7 @@
             <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
             <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
             <outputEncoding>UTF-8</outputEncoding>
-            <configLocation>dev/scalastyle-config.xml</configLocation>
+            <configLocation>/home/user/gluten/dev/scalastyle-config.xml</configLocation>
           </configuration>
           <executions>
             <execution>
