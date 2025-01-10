@@ -47,7 +47,7 @@ case class CastTransformer(substraitExprName: String, child: ExpressionTransform
     ExpressionBuilder.makeCast(
       typeNode,
       child.doTransform(args),
-      SparkShimLoader.getSparkShims.withTryEvalMode(original))
+      !SparkShimLoader.getSparkShims.withTryEvalMode(original))
   }
 }
 

@@ -1482,7 +1482,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     withTempView("try_cast_table") {
       withTempPath {
         path =>
-          Seq[(String)](("123456"), ("000A1234"), ("1.1"))
+          Seq[(String)](("123456"), ("000A1234"), ("1.1"), ("1a.1"))
             .toDF("str")
             .write
             .parquet(path.getCanonicalPath)
