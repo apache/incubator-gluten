@@ -33,17 +33,14 @@ import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 import scala.collection.JavaConverters._
-// scalastyle:off println
 
 class ParquetEncryptionDetectionSuite extends AnyFunSuite {
 
-  // Encryption keys
   private val masterKey =
     Base64.getEncoder.encodeToString("0123456789012345".getBytes(StandardCharsets.UTF_8))
   private val columnKey =
     Base64.getEncoder.encodeToString("1234567890123456".getBytes(StandardCharsets.UTF_8))
 
-  // Schema definition
   private val schema: MessageType = Types
     .buildMessage()
     .addField(
@@ -54,7 +51,6 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
         .named("name"))
     .named("TestSchema")
 
-  // Helper to write a Parquet file
   private def writeParquet(
       path: String,
       encryptionProperties: Option[FileEncryptionProperties],
@@ -88,14 +84,12 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
     }
   }
 
-  // Helper to get LocatedFileStatus
   private def getLocatedFileStatus(path: String): LocatedFileStatus = {
     val conf = new Configuration()
     val fs = FileSystem.get(conf)
     fs.listFiles(new Path(path), false).next()
   }
 
-  // Helper to create and clean temporary directories
   private def withTempDir(testCode: File => Any): Unit = {
     val tempDir = File.createTempFile("test", "").getCanonicalFile
     if (tempDir.exists()) {
@@ -109,7 +103,6 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
     }
   }
 
-  // Test: Detect encrypted Parquet with encrypted footer
   test("Detect encrypted Parquet with encrypted footer") {
     withTempDir {
       tempDir =>
@@ -132,7 +125,6 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
     }
   }
 
-  // Test: Detect encrypted Parquet without encrypted footer (plaintext footer)
   test("Detect encrypted Parquet without encrypted footer (plaintext footer)") {
     withTempDir {
       tempDir =>
@@ -149,20 +141,15 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
           .build()
 
         writeParquet(
-          "/home/user/plaintext_footer.parquet",
+          filePath,
           Some(encryptionProps),
           Seq(Map("id" -> 1, "name" -> "Bob")))
-        val fileStatus = getLocatedFileStatus("/home/user/plaintext_footer.parquet")
-//        ParquetFileReader.readFooter(new Configuration(), fileStatus.getPath)
-        println(
-          "Parquet file utils, 152, ",
-          SparkShimLoader.getSparkShims.isParquetFileEncrypted(fileStatus, new Configuration()))
+        val fileStatus = getLocatedFileStatus(filePath)
         assertTrue(
           SparkShimLoader.getSparkShims.isParquetFileEncrypted(fileStatus, new Configuration()))
     }
   }
 
-  // Test: Detect plain (unencrypted) Parquet file
   test("Detect plain (unencrypted) Parquet file") {
     withTempDir {
       tempDir =>

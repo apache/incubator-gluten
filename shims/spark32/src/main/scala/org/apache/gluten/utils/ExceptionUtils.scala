@@ -19,9 +19,7 @@ package org.apache.gluten.utils
 object ExceptionUtils {
 
   /**
-   * Utility to check the exception for the specified type. Parquet 1.12 does not provide direct
-   * utility to check for encryption. Newer versions provide utility to check encryption from read
-   * footer which can be used in the future once Spark brings it in.
+   * Utility to check the exception for the specified type.
    *
    * @param throwable
    *   Exception to check
