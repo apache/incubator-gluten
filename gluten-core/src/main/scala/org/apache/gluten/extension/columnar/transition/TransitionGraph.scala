@@ -77,6 +77,7 @@ object TransitionGraph {
     }
   }
 
+  // TODO: Consolidate transition graph's cost model with RAS cost model.
   private object TransitionCostModel extends FloydWarshallGraph.CostModel[Transition] {
     override def zero(): TransitionCost = TransitionCost(0, Nil)
     override def costOf(transition: Transition): TransitionCost = {
