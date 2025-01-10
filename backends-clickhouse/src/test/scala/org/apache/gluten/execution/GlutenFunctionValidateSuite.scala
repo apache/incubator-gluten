@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.CHConfig
+import org.apache.gluten.expression.{FlattenedAnd, FlattenedOr}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
@@ -378,6 +379,45 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     runQueryAndCompare(
       "select get_json_object(string_field1, '$.a[*].z.n.p') from json_test where int_field1 = 7") {
       _ =>
+    }
+  }
+
+  test("GLUTEN-8557: Optimize nested and/or") {
+    def checkFlattenedFunctions(plan: SparkPlan, functionName: String, argNum: Int): Boolean = {
+
+      def checkExpression(expr: Expression, functionName: String, argNum: Int): Boolean =
+        expr match {
+          case s: FlattenedAnd if s.name.equals(functionName) && s.children.size == argNum =>
+            true
+          case o: FlattenedOr if o.name.equals(functionName) && o.children.size == argNum =>
+            true
+          case _ => expr.children.exists(c => checkExpression(c, functionName, argNum))
+        }
+      plan match {
+        case f: FilterExecTransformer => return checkExpression(f.condition, functionName, argNum)
+        case _ => return plan.children.exists(c => checkFlattenedFunctions(c, functionName, argNum))
+      }
+      false
+    }
+    runQueryAndCompare(
+      "SELECT count(1) from json_test where int_field1 = 5 and double_field1 > 1.0" +
+        " and string_field1 is not null") {
+      x => assert(checkFlattenedFunctions(x.queryExecution.executedPlan, "and", 5))
+    }
+    runQueryAndCompare(
+      "SELECT count(1) from json_test where int_field1 = 5 or double_field1 > 1.0" +
+        " or string_field1 is not null") {
+      x => assert(checkFlattenedFunctions(x.queryExecution.executedPlan, "or", 3))
+    }
+    runQueryAndCompare(
+      "SELECT count(1) from json_test where int_field1 = 5 and double_field1 > 1.0" +
+        " and double_field1 < 10 or int_field1 = 12 or string_field1 is not null") {
+      x =>
+        assert(
+          checkFlattenedFunctions(
+            x.queryExecution.executedPlan,
+            "and",
+            3) && checkFlattenedFunctions(x.queryExecution.executedPlan, "or", 3))
     }
   }
 
