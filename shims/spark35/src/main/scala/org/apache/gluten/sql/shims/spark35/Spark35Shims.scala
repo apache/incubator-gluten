@@ -488,6 +488,7 @@ class Spark35Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.ANSI
       case d: Divide => d.evalMode == EvalMode.ANSI
       case m: Multiply => m.evalMode == EvalMode.ANSI
+      case c: Cast => c.ansiEnabled
       case _ => false
     }
   }
