@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.component
 
 import org.apache.gluten.exception.GlutenException
@@ -26,11 +25,8 @@ import org.apache.spark.util.SparkReflectionUtil
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.matching.Regex
-
-
-
-
 // format: off
+
 /**
  * Gluten's global discovery to find all [[Component]] definitions in the classpath.
  *
@@ -54,12 +50,12 @@ import scala.util.matching.Regex
 // format: on
 private object Discovery extends Logging {
   private val container: String = "META-INF/gluten-components"
-  private val componentFilePattern: Regex = s"^$container/(.+)$$".r
+  private val componentFilePattern: Regex = s"^(.+)$$".r
 
   def discoverAll(): Seq[Component] = {
     logInfo("Start discovering components in the current classpath... ")
     val prev = System.currentTimeMillis()
-    val allFiles = ResourceUtil.getResources(componentFilePattern.pattern).asScala
+    val allFiles = ResourceUtil.getResources(container, componentFilePattern.pattern).asScala
     val duration = System.currentTimeMillis() - prev
     logInfo(s"Discovered component files: ${allFiles.mkString(", ")}. Duration: $duration ms.")
     val deDup = mutable.Set[String]()
