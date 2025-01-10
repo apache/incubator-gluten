@@ -496,19 +496,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def parquetEncryptionValidationEnabled: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
 
-  def enableHdfsViewfs: Boolean = conf.getConf(HDFS_VIEWFS_ENABLED)
-
   def enableAutoAdjustStageResourceProfile: Boolean =
-    conf.getConf(AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED)
+    getConf(AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED)
 
-  def autoAdjustStageRPHeapRatio: Double = {
-    conf.getConf(AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO)
-  }
+  def autoAdjustStageRPHeapRatio: Double = getConf(AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO)
 
-  def autoAdjustStageC2RorR2CRatioThreshold: Double = {
-    conf.getConf(AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_RATIO_THRESHOLD)
-  }
-
+  def autoAdjustStageC2RorR2CRatioThreshold: Double =
+    getConf(AUTO_ADJUST_STAGE_RESOURCES_C2R_OR_R2C_RATIO_THRESHOLD)
 }
 
 object GlutenConfig {
