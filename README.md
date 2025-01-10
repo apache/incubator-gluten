@@ -64,7 +64,7 @@ There are several key components in Gluten:
 * **Metrics**: collected from Gluten native engine to help identify bugs, performance bottlenecks, etc. The metrics are displayed in Spark UI.
 * **Shim Layer**: supports multiple Spark versions. We plan to only support Spark's latest 2 or 3 releases. Currently, Spark-3.2, Spark-3.3 & Spark-3.4 (experimental) are supported.
 
-# 3 How to Use
+# 3 User Guide
 
 Here is a basic configuration to enable Gluten in Spark.
 
@@ -83,11 +83,11 @@ spark-shell \
 
 There are two ways to acquire Gluten jar.
 
-# 3.1 Use Released Jar (only applicable to Velox backend)
+## 3.1 Use Released Jar (currently only applicable to Velox backend)
 
 Please download a tar package [here](https://downloads.apache.org/incubator/gluten/), then extract out Gluten jar from it.
 
-# 3.2 Custom Build
+## 3.2 Custom Build
 
 For **Velox** backend, please refer to [Velox.md](./docs/get-started/Velox.md) and [build-guide.md](./docs/get-started/build-guide.md).
 
@@ -95,36 +95,34 @@ For **ClickHouse** backend, please refer to [ClickHouse.md](./docs/get-started/C
 
 Gluten jar will be generated under `/PATH/TO/GLUTEN/package/target/` after build.
 
-# 4 Contribution
+# 4 Gluten website
+
+https://gluten.apache.org/
+
+# 5 Contribution
 
 Welcome to contribute to Gluten project! See [CONTRIBUTING.md](CONTRIBUTING.md) about how to make contributions.
 
-## 4.1 Community
+# 6 Community
 
 Gluten successfully became Apache incubator project in March'24. We welcome all developers and users who are interested in this project. Here are several ways to contact us:
 
-### Gluten website
-https://gluten.apache.org/
+### GitHub
+Welcome to report any issue or file any discussion related to Gluten in GitHub. Please search from GitHub issue list before creating a new issue to avoid repeat.
 
 ### Mailing lists
 For any technical discussion, please send email to [dev@gluten.apache.org](mailto:dev@gluten.apache.org). You can go to [archives](https://lists.apache.org/list.html?dev@gluten.apache.org)
 for getting historical discussions. Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe the mail list.
 
-### Wechat group
-We also have a Wechat group (in Chinese) which may be more friendly for PRC developers/users. Due to the limitation of wechat group, please contact with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 
+### Slack channel (English communication)
+Please click [here](https://join.slack.com/t/the-asf/shared_invite/zt-2x74bfj6u-_3mH6Njlq6lZoIAZKNsutw) to get invitation for ASF Slack workspace where you can find "incubator-gluten“ channel.
 
-### Slack channel
-There's also a Spark channel in Velox Slack group (in English) for community communication for Velox backend. Please check Velox document here: https://github.com/facebookincubator/velox?tab=readme-ov-file#community
+The ASF Slack login entry: https://the-asf.slack.com/.
 
-## 4.2 Issue Report
+### WeChat group (Chinese communication)
+For PRC developers/users, please contact weitingchen at apache.org or zhangzc at apache.org for getting invited to the WeChat group. 
 
-Please feel free to create Github issue for reporting bug or proposing enhancement. For contributing code, please submit an issue firstly and mention that issue in your PR.
-
-## 4.3 Documentation
-
-Currently, all gluten documents are held at [docs](https://github.com/apache/incubator-gluten/tree/main/docs). The documents may not reflect the latest designs. Please feel free to contact us for getting design details or sharing your design ideas.
-
-# 5 Performance
+# 7 Performance
 
 We use Decision Support Benchmark1 (TPC-H like) to evaluate Gluten's performance.
 Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). We use Parquet file format for Velox testing & MergeTree file format for Clickhouse testing, compared to Parquet file format as baseline. See [Decision Support Benchmark1](./tools/workload/tpch).
@@ -137,13 +135,13 @@ The below testing environment: a 8-nodes AWS cluster with 1TB data; Spark-3.1.1 
 
 ![Performance](./docs/image/clickhouse_decision_support_bench1_22queries_performance.png)
 
-# 6 License
+# 8 License
 
 Gluten is licensed under [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
-# 7 Acknowledgements
+# 9 Acknowledgements
 
-Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, etc.
+Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, IBM, Google, etc.
 
 <a href="https://github.com/apache/incubator-gluten/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=apache/incubator-gluten&columns=25" />
