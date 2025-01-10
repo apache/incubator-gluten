@@ -67,8 +67,8 @@ class Spark34Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   override def getDistribution(
-                                leftKeys: Seq[Expression],
-                                rightKeys: Seq[Expression]): Seq[Distribution] = {
+      leftKeys: Seq[Expression],
+      rightKeys: Seq[Expression]): Seq[Distribution] = {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
   }
 
@@ -99,15 +99,15 @@ class Spark34Shims extends SparkShims {
   }
 
   override def convertPartitionTransforms(
-                                           partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
+      partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
     CatalogUtil.convertPartitionTransforms(partitions)
   }
 
   override def generateFileScanRDD(
-                                    sparkSession: SparkSession,
-                                    readFunction: PartitionedFile => Iterator[InternalRow],
-                                    filePartitions: Seq[FilePartition],
-                                    fileSourceScanExec: FileSourceScanExec): FileScanRDD = {
+      sparkSession: SparkSession,
+      readFunction: PartitionedFile => Iterator[InternalRow],
+      filePartitions: Seq[FilePartition],
+      fileSourceScanExec: FileSourceScanExec): FileScanRDD = {
     new FileScanRDD(
       sparkSession,
       readFunction,
@@ -120,14 +120,14 @@ class Spark34Shims extends SparkShims {
   }
 
   override def getTextScan(
-                            sparkSession: SparkSession,
-                            fileIndex: PartitioningAwareFileIndex,
-                            dataSchema: StructType,
-                            readDataSchema: StructType,
-                            readPartitionSchema: StructType,
-                            options: CaseInsensitiveStringMap,
-                            partitionFilters: Seq[Expression],
-                            dataFilters: Seq[Expression]): TextScan = {
+      sparkSession: SparkSession,
+      fileIndex: PartitioningAwareFileIndex,
+      dataSchema: StructType,
+      readDataSchema: StructType,
+      readPartitionSchema: StructType,
+      options: CaseInsensitiveStringMap,
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): TextScan = {
     new TextScan(
       sparkSession,
       fileIndex,
@@ -140,7 +140,7 @@ class Spark34Shims extends SparkShims {
   }
 
   override def filesGroupedToBuckets(
-                                      selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
+      selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
     selectedPartitions
       .flatMap {
         p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, f.getPath, p.values))
@@ -156,11 +156,11 @@ class Spark34Shims extends SparkShims {
   override def getBatchScanExecTable(batchScan: BatchScanExec): Table = batchScan.table
 
   override def generatePartitionedFile(
-                                        partitionValues: InternalRow,
-                                        filePath: String,
-                                        start: Long,
-                                        length: Long,
-                                        @transient locations: Array[String] = Array.empty): PartitionedFile =
+      partitionValues: InternalRow,
+      filePath: String,
+      start: Long,
+      length: Long,
+      @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, SparkPath.fromPathString(filePath), start, length, locations)
 
   override def bloomFilterExpressionMappings(): Seq[Sig] = Seq(
@@ -169,11 +169,11 @@ class Spark34Shims extends SparkShims {
   )
 
   override def newBloomFilterAggregate[T](
-                                           child: Expression,
-                                           estimatedNumItemsExpression: Expression,
-                                           numBitsExpression: Expression,
-                                           mutableAggBufferOffset: Int,
-                                           inputAggBufferOffset: Int): TypedImperativeAggregate[T] = {
+      child: Expression,
+      estimatedNumItemsExpression: Expression,
+      numBitsExpression: Expression,
+      mutableAggBufferOffset: Int,
+      inputAggBufferOffset: Int): TypedImperativeAggregate[T] = {
     BloomFilterAggregate(
       child,
       estimatedNumItemsExpression,
@@ -183,25 +183,25 @@ class Spark34Shims extends SparkShims {
   }
 
   override def newMightContain(
-                                bloomFilterExpression: Expression,
-                                valueExpression: Expression): BinaryExpression = {
+      bloomFilterExpression: Expression,
+      valueExpression: Expression): BinaryExpression = {
     BloomFilterMightContain(bloomFilterExpression, valueExpression)
   }
 
   override def replaceBloomFilterAggregate[T](
-                                               expr: Expression,
-                                               bloomFilterAggReplacer: (
-                                                 Expression,
-                                                   Expression,
-                                                   Expression,
-                                                   Int,
-                                                   Int) => TypedImperativeAggregate[T]): Expression = expr match {
+      expr: Expression,
+      bloomFilterAggReplacer: (
+          Expression,
+          Expression,
+          Expression,
+          Int,
+          Int) => TypedImperativeAggregate[T]): Expression = expr match {
     case BloomFilterAggregate(
-    child,
-    estimatedNumItemsExpression,
-    numBitsExpression,
-    mutableAggBufferOffset,
-    inputAggBufferOffset) =>
+          child,
+          estimatedNumItemsExpression,
+          numBitsExpression,
+          mutableAggBufferOffset,
+          inputAggBufferOffset) =>
       bloomFilterAggReplacer(
         child,
         estimatedNumItemsExpression,
@@ -212,21 +212,21 @@ class Spark34Shims extends SparkShims {
   }
 
   override def replaceMightContain[T](
-                                       expr: Expression,
-                                       mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression = expr match {
+      expr: Expression,
+      mightContainReplacer: (Expression, Expression) => BinaryExpression): Expression = expr match {
     case BloomFilterMightContain(bloomFilterExpression, valueExpression) =>
       mightContainReplacer(bloomFilterExpression, valueExpression)
     case other => other
   }
 
   override def getFileSizeAndModificationTime(
-                                               file: PartitionedFile): (Option[Long], Option[Long]) = {
+      file: PartitionedFile): (Option[Long], Option[Long]) = {
     (Some(file.fileSize), Some(file.modificationTime))
   }
 
   override def generateMetadataColumns(
-                                        file: PartitionedFile,
-                                        metadataColumnNames: Seq[String]): JMap[String, String] = {
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String]): JMap[String, String] = {
     val metadataColumn = new JHashMap[String, String]()
     val path = new Path(file.filePath.toString)
     for (columnName <- metadataColumnNames) {
@@ -282,13 +282,13 @@ class Spark34Shims extends SparkShims {
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 
   override def writeFilesExecuteTask(
-                                      description: WriteJobDescription,
-                                      jobTrackerID: String,
-                                      sparkStageId: Int,
-                                      sparkPartitionId: Int,
-                                      sparkAttemptNumber: Int,
-                                      committer: FileCommitProtocol,
-                                      iterator: Iterator[InternalRow]): WriteTaskResult = {
+      description: WriteJobDescription,
+      jobTrackerID: String,
+      sparkStageId: Int,
+      sparkPartitionId: Int,
+      sparkAttemptNumber: Int,
+      committer: FileCommitProtocol,
+      iterator: Iterator[InternalRow]): WriteTaskResult = {
     GlutenFileFormatWriter.writeFilesExecuteTask(
       description,
       jobTrackerID,
@@ -311,8 +311,8 @@ class Spark34Shims extends SparkShims {
   }
 
   def setJobDescriptionOrTagForBroadcastExchange(
-                                                  sc: SparkContext,
-                                                  broadcastExchange: BroadcastExchangeLike): Unit = {
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
     // Setup a job group here so later it may get cancelled by groupId if necessary.
     sc.setJobGroup(
       broadcastExchange.runId.toString,
@@ -321,17 +321,17 @@ class Spark34Shims extends SparkShims {
   }
 
   def cancelJobGroupForBroadcastExchange(
-                                          sc: SparkContext,
-                                          broadcastExchange: BroadcastExchangeLike): Unit = {
+      sc: SparkContext,
+      broadcastExchange: BroadcastExchangeLike): Unit = {
     sc.cancelJobGroup(broadcastExchange.runId.toString)
   }
 
   override def getShuffleReaderParam[K, C](
-                                            handle: ShuffleHandle,
-                                            startMapIndex: Int,
-                                            endMapIndex: Int,
-                                            startPartition: Int,
-                                            endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
     ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
 
@@ -344,14 +344,14 @@ class Spark34Shims extends SparkShims {
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
   def isFileSplittable(
-                        relation: HadoopFsRelation,
-                        filePath: Path,
-                        sparkSchema: StructType): Boolean = {
+      relation: HadoopFsRelation,
+      filePath: Path,
+      sparkSchema: StructType): Boolean = {
     // SPARK-39634: Allow file splitting in combination with row index generation once
     // the fix for PARQUET-2161 is available.
     relation.fileFormat
       .isSplitable(relation.sparkSession, relation.options, filePath) &&
-      !(RowIndexUtil.findRowIndexColumnIndexInSchema(sparkSchema) >= 0)
+    !(RowIndexUtil.findRowIndexColumnIndexInSchema(sparkSchema) >= 0)
   }
 
   def isRowIndexMetadataColumn(name: String): Boolean = {
@@ -375,12 +375,12 @@ class Spark34Shims extends SparkShims {
   }
 
   def splitFiles(
-                  sparkSession: SparkSession,
-                  file: FileStatus,
-                  filePath: Path,
-                  isSplitable: Boolean,
-                  maxSplitBytes: Long,
-                  partitionValues: InternalRow): Seq[PartitionedFile] = {
+      sparkSession: SparkSession,
+      file: FileStatus,
+      filePath: Path,
+      isSplitable: Boolean,
+      maxSplitBytes: Long,
+      partitionValues: InternalRow): Seq[PartitionedFile] = {
     PartitionedFileUtil.splitFiles(
       sparkSession,
       file,
@@ -409,15 +409,15 @@ class Spark34Shims extends SparkShims {
   }
 
   override def getCommonPartitionValues(
-                                         batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] = {
+      batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] = {
     batchScan.commonPartitionValues
   }
 
   override def orderPartitions(
-                                scan: Scan,
-                                keyGroupedPartitioning: Option[Seq[Expression]],
-                                filteredPartitions: Seq[Seq[InputPartition]],
-                                outputPartitioning: Partitioning): Seq[InputPartition] = {
+      scan: Scan,
+      keyGroupedPartitioning: Option[Seq[Expression]],
+      filteredPartitions: Seq[Seq[InputPartition]],
+      outputPartitioning: Partitioning): Seq[InputPartition] = {
     scan match {
       case _ if keyGroupedPartitioning.isDefined =>
         var newPartitions = filteredPartitions
@@ -468,12 +468,12 @@ class Spark34Shims extends SparkShims {
   }
 
   override def dateTimestampFormatInReadIsDefaultValue(
-                                                        csvOptions: CSVOptions,
-                                                        timeZone: String): Boolean = {
+      csvOptions: CSVOptions,
+      timeZone: String): Boolean = {
     val default = new CSVOptions(CaseInsensitiveMap(Map()), csvOptions.columnPruning, timeZone)
     csvOptions.dateFormatInRead == default.dateFormatInRead &&
-      csvOptions.timestampFormatInRead == default.timestampFormatInRead &&
-      csvOptions.timestampNTZFormatInRead == default.timestampNTZFormatInRead
+    csvOptions.timestampFormatInRead == default.timestampFormatInRead &&
+    csvOptions.timestampNTZFormatInRead == default.timestampNTZFormatInRead
   }
 
   override def isPlannedV1Write(write: DataWritingCommandExec): Boolean = {
@@ -481,9 +481,9 @@ class Spark34Shims extends SparkShims {
   }
 
   override def createParquetFilters(
-                                     conf: SQLConf,
-                                     schema: MessageType,
-                                     caseSensitive: Option[Boolean] = None): ParquetFilters = {
+      conf: SQLConf,
+      schema: MessageType,
+      caseSensitive: Option[Boolean] = None): ParquetFilters = {
     new ParquetFilters(
       schema,
       conf.parquetFilterPushDownDate,

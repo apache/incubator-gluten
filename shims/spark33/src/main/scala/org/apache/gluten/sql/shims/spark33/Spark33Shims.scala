@@ -378,8 +378,8 @@ class Spark33Shims extends SparkShims {
     plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
   override def isParquetFileEncrypted(
-                                       fileStatus: LocatedFileStatus,
-                                       conf: Configuration): Boolean = {
+      fileStatus: LocatedFileStatus,
+      conf: Configuration): Boolean = {
     try {
       ParquetFileReader.readFooter(new Configuration(), fileStatus.getPath).toString
       false
@@ -391,6 +391,5 @@ class Spark33Shims extends SparkShims {
         false
     }
   }
-
 
 }

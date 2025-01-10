@@ -34,6 +34,22 @@ import java.util.Base64
 
 import scala.collection.JavaConverters._
 
+/**
+ * This suite attempt to test parquet encryption for fallback of scan operator. Will check the
+ * following:
+ *   1. Plain Parquet File:
+ *      - Writes a Parquet file with no encryption.
+ *      - Asserts that parquet is not encrypted
+ *
+ * 2. Encrypted Parquet File (with encrypted footer):
+ *   - Writes a Parquet file with column-level encryption and an encrypted footer.
+ *   - Asserts that the file is encrypted.
+ *
+ * 3. Encrypted Parquet File (with plaintext footer):
+ *   - Writes a Parquet file with column-level encryption but a plaintext (unencrypted) footer.
+ *   - Ensures the file is still detected as encrypted despite the plaintext footer.
+ */
+
 class ParquetEncryptionDetectionSuite extends AnyFunSuite {
 
   private val masterKey =
@@ -140,10 +156,7 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
           .withPlaintextFooter()
           .build()
 
-        writeParquet(
-          filePath,
-          Some(encryptionProps),
-          Seq(Map("id" -> 1, "name" -> "Bob")))
+        writeParquet(filePath, Some(encryptionProps), Seq(Map("id" -> 1, "name" -> "Bob")))
         val fileStatus = getLocatedFileStatus(filePath)
         assertTrue(
           SparkShimLoader.getSparkShims.isParquetFileEncrypted(fileStatus, new Configuration()))

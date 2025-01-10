@@ -550,10 +550,9 @@ class Spark35Shims extends SparkShims {
     QueryPlan.localIdMap.get().remove(plan)
   }
 
-
   override def isParquetFileEncrypted(
-                                       fileStatus: LocatedFileStatus,
-                                       conf: Configuration): Boolean = {
+      fileStatus: LocatedFileStatus,
+      conf: Configuration): Boolean = {
     try {
       ParquetFileReader.readFooter(conf, fileStatus.getPath)
       false
