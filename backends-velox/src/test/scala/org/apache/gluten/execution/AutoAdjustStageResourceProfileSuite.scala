@@ -95,6 +95,7 @@ class AutoAdjustStageResourceProfileSuite
         df =>
           val plan = df.queryExecution.executedPlan
           // scalastyle:off
+          // @formatter:off
           /*
             VeloxColumnarToRow
             +- ^(7) HashAggregateTransformer(keys=[c1#22], functions=[count(1)], isStreamingAgg=false, output=[c1#22, count(1)#33L])
@@ -108,6 +109,7 @@ class AutoAdjustStageResourceProfileSuite
                                     +- ^(6) FlushableHashAggregateTransformer(keys=[c1#22], functions=[partial_count(1)], isStreamingAgg=false, output=[c1#22, count#37L])
                                        +- ^(6) FileScanTransformer parquet default.tmp1[c1#22] Batched: true, DataFilters: [],
            */
+          // @formatter:on
           // scalastyle:on
           assert(collectColumnarShuffleExchange(plan) == 0)
           assert(collectShuffleExchange(plan) == 1)
@@ -137,6 +139,7 @@ class AutoAdjustStageResourceProfileSuite
           "java_method('java.lang.Integer', 'signum', tmp1.c1), count(*) " +
           "from tmp1 group by java_method('java.lang.Integer', 'signum', tmp1.c1)") {
         // scalastyle:off
+        // @formatter:off
         /*
          DeserializeToObject createexternalrow(java_method(java.lang.Integer, signum, c1)#35.toString, count(1)#36L, StructField(java_method(java.lang.Integer, signum, c1),StringType,true), StructField(count(1),LongType,false)), obj#42: org.apache.spark.sql.Row
          +- *(3) HashAggregate(keys=[_nondeterministic#37], functions=[count(1)], output=[java_method(java.lang.Integer, signum, c1)#35, count(1)#36L])
@@ -149,6 +152,7 @@ class AutoAdjustStageResourceProfileSuite
                               +- *(1) ColumnarToRow
                                  +- FileScan parquet default.tmp1[c1#22] Batched: true, DataFilters: [], Format: Parquet
          */
+        // @formatter:on
         // scalastyle:on
         df => assert(collectApplyResourceProfileExec(df.queryExecution.executedPlan) == 1)
       }
