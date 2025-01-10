@@ -103,7 +103,7 @@ For any technical discussion, please send email to [dev@gluten.apache.org](mailt
 for getting historical discussions. Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe the mail list.
 
 ## Slack Channel (English communication)
-Please click [here](https://join.slack.com/t/the-asf/shared_invite/zt-2x74bfj6u-_3mH6Njlq6lZoIAZKNsutw) to get invitation for ASF Slack workspace where you can find "incubator-gluten“ channel.
+Please click [here](https://github.com/apache/incubator-gluten/discussions/8429) to get invitation for ASF Slack workspace where you can find "incubator-gluten" channel.
 
 The ASF Slack login entry: https://the-asf.slack.com/.
 
