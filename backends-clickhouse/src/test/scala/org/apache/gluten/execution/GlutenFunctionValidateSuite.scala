@@ -379,6 +379,21 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("GLUTEN-8557: Optimize nested and/or") {
+
+    runQueryAndCompare(
+      "SELECT count(1) from json_test where int_field1 = 5 and double_field1 > 1.0" +
+        " and string_field1 is not null") { _ => }
+
+    runQueryAndCompare(
+      "SELECT count(1) from json_test where int_field1 = 5 or double_field1 > 1.0" +
+        " or string_field1 is not null") { _ => }
+
+    runQueryAndCompare(
+      "SELECT count(1) from json_test where int_field1 = 5 and double_field1 > 1.0" +
+        " or double_field1 < 100 or string_field1 is not null") { _ => }
+  }
+
   test("Test covar_samp") {
     runQueryAndCompare("SELECT covar_samp(double_field1, int_field1) from json_test") { _ => }
   }

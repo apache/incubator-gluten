@@ -711,4 +711,11 @@ trait SparkPlanExecApi {
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec
+
+  def genCollapseNestedExpressionsTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression): ExpressionTransformer
+
+  def expressionCollapseSupported(exprName: String): Boolean = false
 }
