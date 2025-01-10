@@ -469,24 +469,22 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
         new_data_part->uuid = UUIDHelpers::generateV4();
 
     SyncGuardPtr sync_guard;
-    if (new_data_part->isStoredOnDisk())
+
+    /// The name could be non-unique in case of stale files from previous runs.
+    String full_path = new_data_part->getDataPartStorage().getFullPath();
+
+    if (new_data_part->getDataPartStorage().exists())
     {
-        /// The name could be non-unique in case of stale files from previous runs.
-        String full_path = new_data_part->getDataPartStorage().getFullPath();
+        LOG_WARNING(log, "Removing old temporary directory {}", full_path);
+        data_part_storage->removeRecursive();
+    }
 
-        if (new_data_part->getDataPartStorage().exists())
-        {
-            // LOG_WARNING(log, "Removing old temporary directory {}", full_path);
-            data_part_storage->removeRecursive();
-        }
+    data_part_storage->createDirectories();
 
-        data_part_storage->createDirectories();
-
-        if ((*data.getSettings())[MergeTreeSetting::fsync_part_directory])
-        {
-            const auto disk = data_part_volume->getDisk();
-            sync_guard = disk->getDirectorySyncGuard(full_path);
-        }
+    if ((*data.getSettings())[MergeTreeSetting::fsync_part_directory])
+    {
+        const auto disk = data_part_volume->getDisk();
+        sync_guard = disk->getDirectorySyncGuard(full_path);
     }
 
     /// This effectively chooses minimal compression method:
