@@ -60,7 +60,7 @@ using gluten::ShuffleWriterOptions;
 
 namespace gluten {
 
-#define ALIGNMENT 2 * 1024 * 1024
+#define ALIGNMENT (2 * 1024 * 1024)
 
 const int32_t kQatGzip = 0;
 const int32_t kQatZstd = 1;
