@@ -21,7 +21,7 @@
 #include <Columns/ColumnTuple.h>
 #include <Columns/ColumnsNumber.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
@@ -68,14 +68,12 @@ public:
     DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
     {
         const size_t number_of_arguments = arguments.size();
-
         if (number_of_arguments < 2 || number_of_arguments > 3)
             throw Exception(
                 ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH,
                 "Number of arguments for function {} doesn't match: passed {}, should be 2 or 3",
                 getName(),
                 number_of_arguments);
-
         std::vector<bool> arrays_is_nullable;
         DataTypePtr input_type = arguments[0].type;
         while (const DataTypeArray * array = checkAndGetDataType<DataTypeArray>(removeNullable(input_type).get()))
@@ -108,9 +106,6 @@ public:
                 if (*it)
                     return_type = makeNullable(return_type);
             }
-
-            // std::cout << "return_type:" << return_type->getName() << std::endl;
-
             return return_type;
         }
         else
@@ -163,7 +158,6 @@ public:
             return arguments[2].column;
 
         ColumnPtr res = input_col_as_tuple->getColumns()[index.value()];
-
         /// Wrap into Nullable if needed
         if (input_col_as_nullable_tuple)
         {
