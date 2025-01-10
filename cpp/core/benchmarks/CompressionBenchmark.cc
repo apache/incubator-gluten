@@ -42,7 +42,7 @@ void printTrace(void) {
   char** strings;
   size_t i, size;
   enum Constexpr { kMaxSize = 1024 };
-  void* array[kMaxSize];
+  void* array[kMaxSize] = {};
   size = backtrace(array, kMaxSize);
   strings = backtrace_symbols(array, size);
   for (i = 0; i < size; i++)
