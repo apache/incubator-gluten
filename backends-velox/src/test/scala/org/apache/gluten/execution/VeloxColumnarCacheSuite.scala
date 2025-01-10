@@ -130,9 +130,9 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
           val df = spark.read.schema(readSchema).parquet(dir.getCanonicalPath)
           df.cache()
           df.explain()
-          // FIXME: The following call will throw since the vanilla Parquet scan could confuse
-          //  ColumnarCachedBatchSerializer by calling its #convertColumnarBatchToCachedBatch
-          //  method.
+          // FIXME: The following call will throw since ColumnarCachedBatchSerializer will be
+          //  confused by the input vanilla Parquet scan when its #convertColumnarBatchToCachedBatch
+          //  method is called.
           assert(df.collect().nonEmpty)
         }
     }
