@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-#include "VeloxShuffleReader.h"
-#include "GlutenByteStream.h"
+#include "shuffle/VeloxShuffleReader.h"
 
 #include <arrow/array/array_binary.h>
 #include <arrow/io/buffered.h>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "shuffle/GlutenByteStream.h"
 #include "shuffle/Payload.h"
 #include "shuffle/Utils.h"
 #include "utils/Common.h"
@@ -576,7 +576,7 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
-VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
+VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(
     const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
     const facebook::velox::common::CompressionKind veloxCompressionType,
@@ -598,7 +598,7 @@ VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
   initFromSchema();
 }
 
-std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::createDeserializer(
+std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::createDeserializer(
     std::shared_ptr<arrow::io::InputStream> in) {
   switch (shuffleWriterType_) {
     case ShuffleWriterType::kHashShuffle:
@@ -635,23 +635,19 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
   }
 }
 
-arrow::MemoryPool* VeloxColumnarBatchDeserializerFactory::getPool() {
+arrow::MemoryPool* VeloxShuffleReaderDeserializerFactory::getPool() {
   return memoryPool_;
 }
 
-ShuffleWriterType VeloxColumnarBatchDeserializerFactory::getShuffleWriterType() {
-  return shuffleWriterType_;
-}
-
-int64_t VeloxColumnarBatchDeserializerFactory::getDecompressTime() {
+int64_t VeloxShuffleReaderDeserializerFactory::getDecompressTime() {
   return decompressTime_;
 }
 
-int64_t VeloxColumnarBatchDeserializerFactory::getDeserializeTime() {
+int64_t VeloxShuffleReaderDeserializerFactory::getDeserializeTime() {
   return deserializeTime_;
 }
 
-void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
+void VeloxShuffleReaderDeserializerFactory::initFromSchema() {
   GLUTEN_ASSIGN_OR_THROW(auto arrowColumnTypes, toShuffleTypeId(schema_->fields()));
   isValidityBuffer_.reserve(arrowColumnTypes.size());
   for (size_t i = 0; i < arrowColumnTypes.size(); ++i) {
@@ -681,7 +677,23 @@ void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
   }
 }
 
-VeloxShuffleReader::VeloxShuffleReader(std::unique_ptr<DeserializerFactory> factory)
-    : ShuffleReader(std::move(factory)) {}
+VeloxShuffleReader::VeloxShuffleReader(std::unique_ptr<VeloxShuffleReaderDeserializerFactory> factory)
+    : factory_(std::move(factory)) {}
+
+std::shared_ptr<ResultIterator> VeloxShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
+  return std::make_shared<ResultIterator>(factory_->createDeserializer(in));
+}
+
+arrow::MemoryPool* VeloxShuffleReader::getPool() const {
+  return factory_->getPool();
+}
+
+int64_t VeloxShuffleReader::getDecompressTime() const {
+  return factory_->getDecompressTime();
+}
+
+int64_t VeloxShuffleReader::getDeserializeTime() const {
+  return factory_->getDeserializeTime();
+}
 
 } // namespace gluten

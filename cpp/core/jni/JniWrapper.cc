@@ -1132,7 +1132,6 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
     jlong shuffleReaderHandle) {
   JNI_METHOD_START
   auto reader = ObjectStore::retrieve<ShuffleReader>(shuffleReaderHandle);
-  GLUTEN_THROW_NOT_OK(reader->close());
   ObjectStore::release(shuffleReaderHandle);
   JNI_METHOD_END()
 }
