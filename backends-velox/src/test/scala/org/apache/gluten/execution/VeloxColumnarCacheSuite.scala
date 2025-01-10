@@ -24,8 +24,6 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{LongType, Metadata, MetadataBuilder, StructType}
 import org.apache.spark.storage.StorageLevel
 
@@ -103,10 +101,10 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     }
   }
 
-  // TODO: Fix this case.
-  ignore("Input fallen back vanilla Spark columnar scan") {
+  // TODO: Fix this case. See https://github.com/apache/incubator-gluten/issues/8497.
+  testWithSpecifiedSparkVersion("Input fallen back vanilla Spark columnar scan", Some("3.3")) {
     def withId(id: Int): Metadata =
-      new MetadataBuilder().putLong(ParquetUtils.FIELD_ID_METADATA_KEY, id).build()
+      new MetadataBuilder().putLong("parquet.field.id", id).build()
 
     withTempDir {
       dir =>
@@ -116,7 +114,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
         val writeSchema =
           new StructType()
             .add("l_orderkey_write", LongType, true, withId(1))
-        withSQLConf(SQLConf.PARQUET_FIELD_ID_READ_ENABLED.key -> "true") {
+        withSQLConf("spark.sql.parquet.fieldId.read.enabled" -> "true") {
           // Write a table with metadata information that Gluten Velox backend doesn't support,
           // to emulate the scenario that a Spark columnar scan is not offload-able so fallen back,
           // then user tries to cache it.
@@ -129,11 +127,10 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
             .parquet(dir.getCanonicalPath)
           val df = spark.read.schema(readSchema).parquet(dir.getCanonicalPath)
           df.cache()
-          df.explain()
           // FIXME: The following call will throw since ColumnarCachedBatchSerializer will be
           //  confused by the input vanilla Parquet scan when its #convertColumnarBatchToCachedBatch
           //  method is called.
-          assert(df.collect().nonEmpty)
+          assertThrows[Exception](df.collect())
         }
     }
   }
