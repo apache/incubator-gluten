@@ -119,7 +119,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
         withSQLConf(SQLConf.PARQUET_FIELD_ID_READ_ENABLED.key -> "true") {
           // Write a table with metadata information that Gluten Velox backend doesn't support,
           // to emulate the scenario that a Spark columnar scan is not offload-able so fallen back,
-          // then user happens to cache it.
+          // then user tries to cache it.
           spark
             .createDataFrame(
               spark.sql("select l_orderkey from lineitem").collect().toList.asJava,
