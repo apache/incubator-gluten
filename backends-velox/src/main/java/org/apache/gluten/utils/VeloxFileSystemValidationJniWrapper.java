@@ -22,5 +22,5 @@ public class VeloxFileSystemValidationJniWrapper {
     return allSupportedByRegisteredFileSystemsNative(paths);
   } 
 
-  public static native boolean allSupportedByRegisteredFileSystemsNative(String[] paths);
+  private static native boolean allSupportedByRegisteredFileSystemsNative(String[] paths);
 }
