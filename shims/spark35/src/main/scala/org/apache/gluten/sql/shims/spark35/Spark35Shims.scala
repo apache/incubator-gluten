@@ -554,6 +554,7 @@ class Spark35Shims extends SparkShims {
   override def isParquetFileEncrypted(
       fileStatus: LocatedFileStatus,
       conf: Configuration): Boolean = {
+    // TODO: Support will be added (https://github.com/apache/incubator-gluten/pull/8501)
     return false
   }
 }

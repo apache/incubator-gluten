@@ -14,9 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.gluten
+package org.apache.gluten.utils
 
 import org.apache.gluten.sql.shims.SparkShimLoader
+
+import org.apache.spark.sql.{GlutenQueryTest, SparkSession}
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, Path}
@@ -26,9 +28,7 @@ import org.apache.parquet.hadoop.example.ExampleParquetWriter
 import org.apache.parquet.hadoop.metadata.ColumnPath
 import org.apache.parquet.schema.{MessageType, PrimitiveType, Type, Types}
 import org.junit.Assert._
-import org.scalatest.funsuite.AnyFunSuite
 
-import java.io.File
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
@@ -50,7 +50,7 @@ import scala.collection.JavaConverters._
  *   - Ensures the file is still detected as encrypted despite the plaintext footer.
  */
 
-class ParquetEncryptionDetectionSuite extends AnyFunSuite {
+class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
 
   private val masterKey =
     Base64.getEncoder.encodeToString("0123456789012345".getBytes(StandardCharsets.UTF_8))
@@ -66,6 +66,10 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
         .primitive(PrimitiveType.PrimitiveTypeName.BINARY, Type.Repetition.REQUIRED)
         .named("name"))
     .named("TestSchema")
+
+  private var _spark: SparkSession = _
+
+  override protected def spark: SparkSession = _spark
 
   private def writeParquet(
       path: String,
@@ -106,20 +110,22 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
     fs.listFiles(new Path(path), false).next()
   }
 
-  private def withTempDir(testCode: File => Any): Unit = {
-    val tempDir = File.createTempFile("test", "").getCanonicalFile
-    if (tempDir.exists()) {
-      tempDir.delete()
-    }
-    tempDir.mkdir()
-    try {
-      testCode(tempDir)
-    } finally {
-      tempDir.delete()
-    }
-  }
+//  private def withTempDir(testCode: File => Any): Unit = {
+//    val tempDir = File.createTempFile("test", "").getCanonicalFile
+//    if (tempDir.exists()) {
+//      tempDir.delete()
+//    }
+//    tempDir.mkdir()
+//    try {
+//      testCode(tempDir)
+//    } finally {
+//      tempDir.delete()
+//    }
+//  }
 
-  test("Detect encrypted Parquet with encrypted footer") {
+  testWithSpecifiedSparkVersion(
+    "Detect encrypted Parquet with encrypted footer",
+    Array("3.2", "3.3", "3.4")) {
     withTempDir {
       tempDir =>
         val filePath = s"${tempDir.getAbsolutePath}/encrypted_footer.parquet"
@@ -141,7 +147,9 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
     }
   }
 
-  test("Detect encrypted Parquet without encrypted footer (plaintext footer)") {
+  testWithSpecifiedSparkVersion(
+    "Detect encrypted Parquet without encrypted footer (plaintext footer)",
+    Array("3.2", "3.3")) {
     withTempDir {
       tempDir =>
         val filePath = s"${tempDir.getAbsolutePath}/plaintext_footer.parquet"
@@ -163,7 +171,7 @@ class ParquetEncryptionDetectionSuite extends AnyFunSuite {
     }
   }
 
-  test("Detect plain (unencrypted) Parquet file") {
+  testWithSpecifiedSparkVersion("Detect plain (unencrypted) Parquet file", Array("3.3", "3.4")) {
     withTempDir {
       tempDir =>
         val filePath = s"${tempDir.getAbsolutePath}/plain.parquet"
