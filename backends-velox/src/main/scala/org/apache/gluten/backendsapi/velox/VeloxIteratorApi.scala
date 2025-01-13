@@ -89,9 +89,9 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
   /** Generate native row partition. */
   override def genPartitions(
-      wsCtx: WholeStageTransformContext,
-      splitInfos: Seq[Seq[SplitInfo]],
-      scans: Seq[BasicScanExecTransformer]): Seq[BaseGlutenPartition] = {
+                              wsCtx: WholeStageTransformContext,
+                              splitInfos: Seq[Seq[SplitInfo]],
+                              leafs: Seq[LeafTransformSupport]): Seq[BaseGlutenPartition] = {
     // Only serialize plan once, save lots time when plan is complex.
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
 

@@ -694,4 +694,9 @@ trait SparkPlanExecApi {
       limitExpr: ExpressionTransformer,
       original: StringSplit): ExpressionTransformer =
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
+
+  def genRangeExecTransformer(
+      range: org.apache.spark.sql.catalyst.plans.logical.Range): SparkPlan = {
+    throw new GlutenNotSupportException("RangeExec is not supported")
+  }
 }

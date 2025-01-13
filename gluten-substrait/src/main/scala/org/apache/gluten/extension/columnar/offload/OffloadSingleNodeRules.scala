@@ -333,6 +333,9 @@ object OffloadOthers {
             plan.withReplacement,
             plan.seed,
             child)
+        case plan: RangeExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          BackendsApiManager.getSparkPlanExecApiInstance.genRangeExecTransformer(plan.range)
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
           p
