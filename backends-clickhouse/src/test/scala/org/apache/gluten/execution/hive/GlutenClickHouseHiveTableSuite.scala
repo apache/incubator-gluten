@@ -1651,21 +1651,25 @@ class GlutenClickHouseHiveTableSuite
 
   test("GLUTEN-8516: Optimize and filter by move equal conditions ahead") {
 
-    def checkConditionsMoveAhead(x: DataFrame): Boolean = {
+    import org.apache.spark.sql.execution.SparkPlan
+
+    def checkConditionsMoveAhead(plan: SparkPlan): Boolean = {
       var ruleEffected = false
-      val plan = x.queryExecution.sparkPlan
-      plan.children.foreach {
+      plan match {
         case f: FilterExecTransformer if f.condition.isInstanceOf[And] =>
           val cond = f.condition.asInstanceOf[And]
           cond.left match {
             case e: EqualTo if (e.left.isInstanceOf[Attribute] && e.right.isInstanceOf[Literal]) =>
               ruleEffected = true
-            case en: EqualNullSafe
-                if (en.left.isInstanceOf[Attribute] && en.right.isInstanceOf[Literal]) =>
+            case e: EqualNullSafe
+                if (e.left.isInstanceOf[Attribute] && e.right.isInstanceOf[Literal]) =>
               ruleEffected = true
             case _ =>
           }
-        case _ =>
+        case p =>
+          if (!ruleEffected) {
+            ruleEffected = p.children.exists(c => checkConditionsMoveAhead(c))
+          }
       }
       ruleEffected
     }
@@ -1673,12 +1677,14 @@ class GlutenClickHouseHiveTableSuite
     val insert_data_sql = "insert into test_tbl_8516 values(1, 2), (2, 3), (3, 4)"
     val query_sql_1 = "select count(1) from test_tbl_8516 where cast(b as string) != '' and a = 1"
     val query_sql_2 =
-      "select count(1) from test_tbl_8516 where cast(b as string) != '' and a is null"
+      "select count(1) from test_tbl_8516 where cast(b as string) != '' and a <=> 1"
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
     withSQLConf(("spark.gluten.sql.moveAndFilterEqualConditionsAhead.enabled", "true")) {
-      runQueryAndCompare(query_sql_1)(x => checkConditionsMoveAhead(x))
-      runQueryAndCompare(query_sql_2)(x => checkConditionsMoveAhead(x))
+      runQueryAndCompare(query_sql_1)(
+        x => assert(checkConditionsMoveAhead(x.queryExecution.executedPlan)))
+      runQueryAndCompare(query_sql_2)(
+        x => assert(checkConditionsMoveAhead(x.queryExecution.executedPlan)))
     }
     spark.sql("drop table test_tbl_8516")
   }
