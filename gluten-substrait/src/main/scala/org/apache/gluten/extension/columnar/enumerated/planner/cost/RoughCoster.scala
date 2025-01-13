@@ -42,8 +42,6 @@ object RoughCoster extends LongCoster {
         // Avoid moving computation back to native when transition has complex types in schema.
         // Such transitions are observed to be extremely expensive as of now.
         Long.MaxValue
-      case ColumnarToRowExec(_) => 10L
-      case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L
       case RowToColumnarLike(_) => 10L
       case ColumnarToColumnarLike(_) => 5L

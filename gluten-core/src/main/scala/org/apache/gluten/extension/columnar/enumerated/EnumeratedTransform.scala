@@ -20,11 +20,11 @@ import org.apache.gluten.component.Component
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
+import org.apache.gluten.extension.columnar.enumerated.planner.cost.GlutenCostModel
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
 import org.apache.gluten.extension.injector.Injector
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
-import org.apache.gluten.ras.CostModel
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.RasRule
 
@@ -44,7 +44,7 @@ import org.apache.spark.sql.execution._
  *
  * The feature requires enabling RAS to function.
  */
-case class EnumeratedTransform(costModel: CostModel[SparkPlan], rules: Seq[RasRule[SparkPlan]])
+case class EnumeratedTransform(costModel: GlutenCostModel, rules: Seq[RasRule[SparkPlan]])
   extends Rule[SparkPlan]
   with LogLevelUtil {
 

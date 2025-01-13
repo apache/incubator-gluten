@@ -16,11 +16,36 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
+import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
+import org.apache.gluten.extension.columnar.transition.Convention.BatchType
+import org.apache.gluten.ras.Cost
+
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.util.SparkReflectionUtil
 
+import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.collection.mutable
+
 object TransitionGraph {
   trait Vertex {
+    private val initialized: AtomicBoolean = new AtomicBoolean(false)
+
+    final def ensureRegistered(): Unit = {
+      if (!initialized.compareAndSet(false, true)) {
+        // Already registered.
+        return
+      }
+      register()
+    }
+
+    final private def register(): Unit = BatchType.synchronized {
+      Transition.graph.addVertex(this)
+      register0()
+    }
+
+    protected[this] def register0(): Unit
+
     override def toString: String = SparkReflectionUtil.getSimpleClassName(this.getClass)
   }
 
@@ -67,54 +92,76 @@ object TransitionGraph {
     }
   }
 
-  private case class TransitionCost(count: Int, nodeNames: Seq[String])
-    extends FloydWarshallGraph.Cost {
-    override def +(other: FloydWarshallGraph.Cost): TransitionCost = {
-      other match {
-        case TransitionCost(otherCount, otherNodeNames) =>
-          TransitionCost(count + otherCount, nodeNames ++ otherNodeNames)
-      }
-    }
-  }
+  /** Reuse RAS cost to represent transition cost. */
+  private case class TransitionCost(value: Cost, nodeNames: Seq[String])
+    extends FloydWarshallGraph.Cost
 
-  // TODO: Consolidate transition graph's cost model with RAS cost model.
+  /**
+   * The cost model reuses RAS's cost model to evaluate cost of transitions.
+   *
+   * Note the transition graph is built once for all subsequent Spark sessions created on the same
+   * driver, so any access to Spark dynamic SQL config in RAS cost model will not take effect for
+   * the transition cost evaluation. Hence, it's not recommended to access Spark dynamic
+   * configurations in RAS cost model as well.
+   */
   private object TransitionCostModel extends FloydWarshallGraph.CostModel[Transition] {
-    override def zero(): TransitionCost = TransitionCost(0, Nil)
+    private val rasCostModel = EnumeratedTransform.static().costModel
+
+    override def zero(): TransitionCost = TransitionCost(rasCostModel.makeZeroCost(), Nil)
     override def costOf(transition: Transition): TransitionCost = {
       costOf0(transition)
+    }
+    override def sum(
+        one: FloydWarshallGraph.Cost,
+        other: FloydWarshallGraph.Cost): FloydWarshallGraph.Cost = (one, other) match {
+      case (TransitionCost(c1, p1), TransitionCost(c2, p2)) =>
+        TransitionCost(rasCostModel.sum(c1, c2), p1 ++ p2)
     }
     override def costComparator(): Ordering[FloydWarshallGraph.Cost] = {
       (x: FloydWarshallGraph.Cost, y: FloydWarshallGraph.Cost) =>
         (x, y) match {
-          case (TransitionCost(count, nodeNames), TransitionCost(otherCount, otherNodeNames)) =>
-            if (count != otherCount) {
-              count - otherCount
+          case (TransitionCost(v1, nodeNames1), TransitionCost(v2, nodeNames2)) =>
+            val diff = rasCostModel.costComparator().compare(v1, v2)
+            if (diff != 0) {
+              diff
             } else {
               // To make the output order stable.
-              nodeNames.mkString.hashCode - otherNodeNames.mkString.hashCode
+              nodeNames1.mkString.hashCode - nodeNames2.mkString.hashCode
             }
         }
     }
 
     private def costOf0(transition: Transition): TransitionCost = {
       val leaf = DummySparkPlan()
+      val transited = transition.apply(leaf)
 
       /**
        * The calculation considers C2C's cost as half of C2R / R2C's cost. So query planner prefers
        * C2C than C2R / R2C.
        */
-      def costOfPlan(plan: SparkPlan): TransitionCost = plan
-        .map {
-          case p if p == leaf => TransitionCost(0, Nil)
-          case node @ RowToColumnarLike(_) => TransitionCost(2, Seq(node.nodeName))
-          case node @ ColumnarToRowLike(_) => TransitionCost(2, Seq(node.nodeName))
-          case node @ ColumnarToColumnarLike(_) => TransitionCost(1, Seq(node.nodeName))
-        }
-        .reduce((l, r) => l + r)
+      def rasCostOfPlan(plan: SparkPlan): Cost = rasCostModel.costOf(plan)
+      def nodeNamesOfPlan(plan: SparkPlan): Seq[String] = {
+        plan.map(_.nodeName).reverse
+      }
 
-      val plan = transition.apply(leaf)
-      val cost = costOfPlan(plan)
-      cost
+      val leafCost = rasCostOfPlan(leaf)
+      val accumulatedCost = rasCostOfPlan(transited)
+      val costDiff = rasCostModel.diff(accumulatedCost, leafCost)
+
+      val leafNodeNames = nodeNamesOfPlan(leaf)
+      val accumulatedNodeNames = nodeNamesOfPlan(transited)
+      require(
+        accumulatedNodeNames.startsWith(leafNodeNames),
+        s"Transition should only add unary nodes on the input plan or leave it unchanged. Before: $leaf, after: $transited"
+      )
+      val nodeNamesDiff = mutable.ListBuffer[String]()
+      nodeNamesDiff ++= accumulatedNodeNames
+      leafNodeNames.foreach(n => assert(nodeNamesDiff.remove(0) == n))
+      assert(
+        nodeNamesDiff.size == accumulatedNodeNames.size - leafNodeNames.size,
+        s"Dummy leaf node not found in the transited plan: $transited")
+
+      TransitionCost(costDiff, nodeNamesDiff.toSeq)
     }
   }
 }

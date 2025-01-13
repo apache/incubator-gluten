@@ -37,7 +37,7 @@ private class LongCosterChain private (costers: Seq[LongCoster]) extends LongCos
         case (c @ Some(_), _) =>
           c
       }
-      .getOrElse(throw new GlutenException(s"Cost node found for node: $node"))
+      .getOrElse(throw new GlutenException(s"Cost not found for node: $node"))
   }
 }
 

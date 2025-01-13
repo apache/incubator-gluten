@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar.enumerated.planner.cost
 import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarWriteFilesExec, ProjectExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, ProjectExec, SparkPlan}
 
 object LegacyCoster extends LongCoster {
   override def kind(): LongCostModel.Kind = LongCostModel.Legacy
@@ -34,8 +34,6 @@ object LegacyCoster extends LongCoster {
   private def selfCostOf0(node: SparkPlan): Long = {
     node match {
       case ColumnarWriteFilesExec.OnNoopLeafPath(_) => 0
-      case ColumnarToRowExec(_) => 10L
-      case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L
       case RowToColumnarLike(_) => 10L
       case ColumnarToColumnarLike(_) => 5L

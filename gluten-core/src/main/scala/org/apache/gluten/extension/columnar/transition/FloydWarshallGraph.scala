@@ -30,12 +30,11 @@ trait FloydWarshallGraph[V <: AnyRef, E <: AnyRef] {
 }
 
 object FloydWarshallGraph {
-  trait Cost {
-    def +(other: Cost): Cost
-  }
+  trait Cost
 
   trait CostModel[E <: AnyRef] {
     def zero(): Cost
+    def sum(one: Cost, other: Cost): Cost
     def costOf(edge: E): Cost
     def costComparator(): Ordering[Cost]
   }
@@ -54,7 +53,10 @@ object FloydWarshallGraph {
     private case class Impl[E <: AnyRef](override val edges: Seq[E])(costModel: CostModel[E])
       extends Path[E] {
       override val cost: Cost = {
-        edges.map(costModel.costOf).reduceOption(_ + _).getOrElse(costModel.zero())
+        edges
+          .map(costModel.costOf)
+          .reduceOption((c1, c2) => costModel.sum(c1, c2))
+          .getOrElse(costModel.zero())
       }
     }
   }
