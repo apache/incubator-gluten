@@ -17,12 +17,13 @@
 package org.apache.gluten.execution.hive
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, FilterExecTransformer, GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
 import org.apache.gluten.test.AllDataTypesWithComplexType
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, EqualNullSafe, EqualTo, Literal}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -1646,6 +1647,40 @@ class GlutenClickHouseHiveTableSuite
       }
       spark.sql("drop table if exists %s".format(table_name))
     }
+  }
+
+  test("GLUTEN-8516: Optimize and filter by move equal conditions ahead") {
+
+    def checkConditionsMoveAhead(x: DataFrame): Boolean = {
+      var ruleEffected = false
+      val plan = x.queryExecution.sparkPlan
+      plan.children.foreach {
+        case f: FilterExecTransformer if f.condition.isInstanceOf[And] =>
+          val cond = f.condition.asInstanceOf[And]
+          cond.left match {
+            case e: EqualTo if (e.left.isInstanceOf[Attribute] && e.right.isInstanceOf[Literal]) =>
+              ruleEffected = true
+            case en: EqualNullSafe
+                if (en.left.isInstanceOf[Attribute] && en.right.isInstanceOf[Literal]) =>
+              ruleEffected = true
+            case _ =>
+          }
+        case _ =>
+      }
+      ruleEffected
+    }
+    val create_table_sql = "create table test_tbl_8516(a int, b float) using parquet"
+    val insert_data_sql = "insert into test_tbl_8516 values(1, 2), (2, 3), (3, 4)"
+    val query_sql_1 = "select count(1) from test_tbl_8516 where cast(b as string) != '' and a = 1"
+    val query_sql_2 =
+      "select count(1) from test_tbl_8516 where cast(b as string) != '' and a is null"
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+    withSQLConf(("spark.gluten.sql.moveAndFilterEqualConditionsAhead.enabled", "true")) {
+      runQueryAndCompare(query_sql_1)(x => checkConditionsMoveAhead(x))
+      runQueryAndCompare(query_sql_2)(x => checkConditionsMoveAhead(x))
+    }
+    spark.sql("drop table test_tbl_8516")
   }
 
 }

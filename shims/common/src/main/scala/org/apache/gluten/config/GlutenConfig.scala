@@ -115,6 +115,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCollapseNestedGetJsonObject: Boolean =
     getConf(ENABLE_COLLAPSE_GET_JSON_OBJECT)
 
+  def enableMoveAndFilterEqualConditionsAhead: Boolean =
+    getConf(ENABLE_MOVE_AND_FILTER_EQUAL_CONDITIONS_AHEAD)
+
   def enableCHRewriteDateConversion: Boolean =
     getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
 
@@ -1985,6 +1988,13 @@ object GlutenConfig {
       .doc("Collapse nested get_json_object functions as one for optimization.")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_MOVE_AND_FILTER_EQUAL_CONDITIONS_AHEAD =
+    buildConf("spark.gluten.sql.moveAndFilterEqualConditionsAhead.enabled")
+      .internal()
+      .doc("Move and filter equal conditions ahead for optimization.")
+      .booleanConf
+      .createWithDefault(true)
 
   val ENABLE_CH_REWRITE_DATE_CONVERSION =
     buildConf("spark.gluten.sql.columnar.backend.ch.rewrite.dateConversion")
