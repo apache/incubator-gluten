@@ -118,6 +118,7 @@ object CHRuleApi {
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatch))
     injector.injectPostTransform(c => RemoveDuplicatedColumns.apply(c.session))
     injector.injectPostTransform(c => AddPreProjectionForHashJoin.apply(c.session))
+    injector.injectPostTransform(_ => MoveEqualConditionsAheadForAnd)
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(

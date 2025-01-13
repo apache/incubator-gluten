@@ -26,7 +26,7 @@ import org.apache.spark.sql.execution.SparkPlan
  * rewrite `and` filter conditions, move the simple conditions ahead for example: ... where cast(b
  * as string) != '' and a = 1 => ... where a = and cast(b as string) != ''
  */
-object RewriteFilter extends Rule[SparkPlan] {
+object MoveEqualConditionsAheadForAnd extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     moveSimpleConditionsAhead(plan)
   }
@@ -74,11 +74,5 @@ object RewriteFilter extends Rule[SparkPlan] {
       }
     }
     false
-  }
-
-  private def buildNewFilter(
-      simpleConditions: Array[Expression],
-      otherConditions: Array[Expression]): SparkPlan = {
-    null
   }
 }
