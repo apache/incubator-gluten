@@ -78,8 +78,9 @@ There are two ways to acquire Gluten jar for the above configuration.
 
 ### Use Released Jar
 Please download a tar package [here](https://downloads.apache.org/incubator/gluten/), then extract out Gluten jar from it.
+It was verified on Centos-7, Centos-8, Ubuntu-20.04 and Ubuntu-22.04.
 
-### Custom Build
+### Build From Source
 For **Velox** backend, please refer to [Velox.md](./docs/get-started/Velox.md) and [build-guide.md](./docs/get-started/build-guide.md).
 
 For **ClickHouse** backend, please refer to [ClickHouse.md](./docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more information.
@@ -93,7 +94,7 @@ https://gluten.apache.org/
 Welcome to contribute to Gluten project! See [CONTRIBUTING.md](CONTRIBUTING.md) about how to make contributions.
 
 # 6. Community
-Gluten successfully became Apache incubator project in March'24. We welcome all developers and users who are interested in this project. Here are several ways to contact us:
+Gluten successfully became Apache incubator project in March 2024. Here are several ways to contact us:
 
 ## GitHub
 Welcome to report any issue or create any discussion related to Gluten in GitHub. Please do a search from GitHub issue list before creating a new one to avoid repetition.
