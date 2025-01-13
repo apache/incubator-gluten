@@ -33,8 +33,8 @@ inline int64_t getFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index) {
 }
 
 inline bool isNull(uint8_t* buffer_address, int32_t index) {
-  int64_t mask = 1L << (index & 0x3f); // mod 64 and shift
-  int64_t wordOffset = (index >> 6) * 8;
+  int64_t mask = 1L << (static_cast<int64_t>(index) & 0x3f); // mod 64 and shift
+  int64_t wordOffset = (static_cast<int64_t>(index) >> 6) * 8;
   int64_t value = *((int64_t*)(buffer_address + wordOffset));
   return (value & mask) != 0;
 }
