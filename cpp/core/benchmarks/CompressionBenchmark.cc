@@ -45,8 +45,11 @@ void printTrace(void) {
   void* array[kMaxSize];
   size = backtrace(array, kMaxSize);
   strings = backtrace_symbols(array, size);
-  for (i = 0; i < size; i++)
-    printf("    %s\n", strings[i]);
+  for (i = 0; i < size; i++) {
+    if (strings[i] != nullptr) {
+      printf("    %s\n", strings[i]);
+    }
+  }
   puts("");
   if (strings != nullptr) {
     free(strings);
