@@ -70,9 +70,6 @@ fi
 if [ "$ENABLE_GCS" = "ON" ]; then
   EXTRA_FEATURES+="--x-feature=velox-gcs "
 fi
-if [ "$ENABLE_HDFS" = "ON" ]; then
-  EXTRA_FEATURES+="--x-feature=velox-hdfs "
-fi
 if [ "$ENABLE_ABFS" = "ON" ]; then
   EXTRA_FEATURES+="--x-feature=velox-abfs"
 fi
@@ -90,6 +87,3 @@ cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libssl.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
 cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libcrypto.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
 cp $VCPKG_TRIPLET_INSTALL_DIR/lib/liblzma.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
 cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libdwarf.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
-# Allow libhdfs3.a is not installed as build option may not enable hdfs.
-cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libhdfs3.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib || true
-
