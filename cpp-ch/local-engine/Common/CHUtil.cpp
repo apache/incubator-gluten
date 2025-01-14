@@ -77,6 +77,10 @@ namespace ServerSetting
 extern const ServerSettingsString primary_index_cache_policy;
 extern const ServerSettingsUInt64 primary_index_cache_size;
 extern const ServerSettingsDouble primary_index_cache_size_ratio;
+extern const ServerSettingsString skipping_index_cache_policy;
+extern const ServerSettingsUInt64 skipping_index_cache_size;
+extern const ServerSettingsUInt64 skipping_index_cache_max_entries;
+extern const ServerSettingsDouble skipping_index_cache_size_ratio;
 }
 namespace Setting
 {
@@ -762,11 +766,11 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         global_context->setConfig(config);
 
         auto tmp_path = config->getString("tmp_path", PathConfig::DEFAULT_TEMP_FILE_PATH);
-        if(config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
+        if (config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
         {
             char buffer[PATH_MAX];
             if (getcwd(buffer, sizeof(buffer)) != nullptr)
-                tmp_path =  std::string(buffer) + tmp_path;
+                tmp_path = std::string(buffer) + tmp_path;
         };
 
         global_context->setTemporaryStoragePath(tmp_path, 0);
@@ -804,6 +808,14 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
         global_context->setIndexMarkCache(index_mark_cache_policy, index_mark_cache_size, index_mark_cache_size_ratio);
+
+        String skipping_index_cache_policy = server_settings[ServerSetting::skipping_index_cache_policy];
+        size_t skipping_index_cache_size = server_settings[ServerSetting::skipping_index_cache_size];
+        size_t skipping_index_cache_max_entries = server_settings[ServerSetting::skipping_index_cache_max_entries];
+        double skipping_index_cache_size_ratio = server_settings[ServerSetting::skipping_index_cache_size_ratio];
+        LOG_INFO(log, "Skipping index cache size to {}", formatReadableSizeWithBinarySuffix(skipping_index_cache_size));
+        global_context->setSkippingIndexCache(
+            skipping_index_cache_policy, skipping_index_cache_size, skipping_index_cache_max_entries, skipping_index_cache_size_ratio);
 
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);
