@@ -20,6 +20,7 @@
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeDataMergerMutator.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
+#include <Storages/MergeTree/Compaction/CompactionStatistics.h>
 #include <Common/ProfileEvents.h>
 #include <Common/ProfileEventsScope.h>
 #include <Common/ThreadFuzzer.h>
@@ -149,7 +150,7 @@ void MergeSparkMergeTreeTask::prepare()
         task_context,
         //merge_mutate_entry->tagger->reserved_space,
         storage.tryReserveSpace(
-            MergeTreeDataMergerMutator::estimateNeededDiskSpace(future_part->parts),
+            CompactionStatistics::estimateNeededDiskSpace(future_part->parts),
             future_part->parts[0]->getDataPartStorage()),
         deduplicate,
         deduplicate_by_columns,
