@@ -2297,11 +2297,13 @@ object GlutenConfig {
 
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
     .doc("Enable query tracing flag.")
+    .internal()
     .booleanConf
     .createWithDefault(false)
 
   val QUERY_TRACE_DIR = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceDir")
     .doc("Base dir of a query to store tracing data.")
+    .internal()
     .stringConf
     .createWithDefault("")
 
@@ -2309,18 +2311,21 @@ object GlutenConfig {
     .doc(
       "A comma-separated list of plan node ids whose input data will be traced. " +
         "Empty string if only want to trace the query metadata.")
+    .internal()
     .stringConf
     .createWithDefault("")
 
   val QUERY_TRACE_MAX_BYTES =
     buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes")
       .doc("The max trace bytes limit. Tracing is disabled if zero.")
+      .internal()
       .longConf
       .createWithDefault(0)
 
   val QUERY_TRACE_TASK_REG_EXP =
     buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp")
       .doc("The regexp of traced task id. We only enable trace on a task if its id matches.")
+      .internal()
       .stringConf
       .createWithDefault("")
 
@@ -2330,6 +2335,7 @@ object GlutenConfig {
         "Config used to create operator trace directory. This config is provided to" +
           " underlying file system and the config is free form. The form should be " +
           "defined by the underlying file system.")
+      .internal()
       .stringConf
       .createWithDefault("")
 
