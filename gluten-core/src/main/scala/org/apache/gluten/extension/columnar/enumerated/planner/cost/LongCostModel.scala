@@ -34,9 +34,18 @@ abstract class LongCostModel extends GlutenCostModel {
     case _ => LongCost(longCostOf(node))
   }
 
-  override def sum(one: Cost, other: Cost): LongCost = (one, other) match {
-    case (LongCost(value), LongCost(otherValue)) => LongCost(Math.addExact(value, otherValue))
+  // Sum with ceil to avoid overflow.
+  private def safeSum(a: Long, b: Long): Long = {
+    assert(a >= 0)
+    assert(b >= 0)
+    val sum = a + b
+    if (sum < a || sum < b) Long.MaxValue else sum
   }
+
+  override def sum(one: Cost, other: Cost): LongCost = (one, other) match {
+    case (LongCost(value), LongCost(otherValue)) => LongCost(safeSum(value, otherValue))
+  }
+
   // Returns cost value of one - other.
   override def diff(one: Cost, other: Cost): Cost = (one, other) match {
     case (LongCost(value), LongCost(otherValue)) =>
@@ -48,7 +57,7 @@ abstract class LongCostModel extends GlutenCostModel {
   private def longCostOf(node: SparkPlan): Long = node match {
     case n =>
       val selfCost = selfLongCostOf(n)
-      (n.children.map(longCostOf).toSeq :+ selfCost).reduce[Long](Math.addExact)
+      (n.children.map(longCostOf).toSeq :+ selfCost).reduce[Long](safeSum)
   }
 
   def selfLongCostOf(node: SparkPlan): Long
