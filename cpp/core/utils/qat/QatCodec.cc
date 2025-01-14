@@ -26,9 +26,9 @@
 
 #include "QatCodec.h"
 
-#define QZ_INIT_FAIL(rc) (QZ_OK != rc && QZ_DUPLICATE != rc)
+#define QZ_INIT_FAIL(rc) ((QZ_OK != (rc)) && (QZ_DUPLICATE != (rc)))
 
-#define QZ_SETUP_SESSION_FAIL(rc) (QZ_PARAMS == rc || QZ_NOSW_NO_HW == rc || QZ_NOSW_LOW_MEM == rc)
+#define QZ_SETUP_SESSION_FAIL(rc) (QZ_PARAMS == (rc) || QZ_NOSW_NO_HW == (rc) || QZ_NOSW_LOW_MEM == (rc))
 
 namespace gluten {
 namespace qat {
