@@ -88,7 +88,8 @@ object FloydWarshallGraph {
 
   private object Builder {
     // Thread safe.
-    private class Impl[V <: AnyRef, E <: AnyRef](costModelFactory: () => CostModel[E]) extends Builder[V, E] {
+    private class Impl[V <: AnyRef, E <: AnyRef](costModelFactory: () => CostModel[E])
+      extends Builder[V, E] {
       private val pathTable: mutable.Map[V, mutable.Map[V, Path[E]]] = mutable.Map()
       private var graph: Option[FloydWarshallGraph[V, E]] = None
 
