@@ -19,7 +19,6 @@
 #include <Columns/ColumnsNumber.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Processors/Chunk.h>
-#include <iostream>
 
 using namespace DB;
 
@@ -69,23 +68,6 @@ SourceFromRange::SourceFromRange(const DB::Block & header_, Int64 start_, Int64 
     current = safe_partition_start;
     previous = 0;
     overflow = false;
-
-    /*
-    // Print all member variables
-    std::cout << "start: " << start << std::endl;
-    std::cout << "end: " << end << std::endl;
-    std::cout << "step: " << step << std::endl;
-    std::cout << "num_slices: " << num_slices << std::endl;
-    std::cout << "slice_index: " << slice_index << std::endl;
-    std::cout << "max_block_size: " << max_block_size << std::endl;
-    // std::cout << "num_elements: " << num_elements << std::endl;
-    std::cout << "is_empty_range: " << is_empty_range << std::endl;
-    std::cout << "safe_partition_start: " << safe_partition_start << std::endl;
-    std::cout << "safe_partition_end: " << safe_partition_end << std::endl;
-    std::cout << "current: " << current << std::endl;
-    std::cout << "previous: " << previous << std::endl;
-    std::cout << "overflow: " << overflow << std::endl;
-    */
 }
 
 Int128 SourceFromRange::getNumElements() const
