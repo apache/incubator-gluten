@@ -52,7 +52,7 @@ object TransitionGraph {
   type Builder = FloydWarshallGraph.Builder[TransitionGraph.Vertex, Transition]
 
   def builder(): Builder = {
-    FloydWarshallGraph.builder(() => TransitionCostModel)
+    FloydWarshallGraph.builder(() => new TransitionCostModel())
   }
 
   implicit class TransitionGraphOps(val graph: TransitionGraph) {
@@ -104,7 +104,7 @@ object TransitionGraph {
    * the transition cost evaluation. Hence, it's not recommended to access Spark dynamic
    * configurations in RAS cost model as well.
    */
-  private object TransitionCostModel extends FloydWarshallGraph.CostModel[Transition] {
+  private class TransitionCostModel() extends FloydWarshallGraph.CostModel[Transition] {
     private val rasCostModel = EnumeratedTransform.static().costModel
 
     override def zero(): TransitionCost = TransitionCost(rasCostModel.makeZeroCost(), Nil)
