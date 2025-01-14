@@ -152,7 +152,8 @@ object TransitionGraph {
       val accumulatedNodeNames = nodeNamesOfPlan(transited)
       require(
         accumulatedNodeNames.startsWith(leafNodeNames),
-        s"Transition should only add unary nodes on the input plan or leave it unchanged. Before: $leaf, after: $transited"
+        s"Transition should only add unary nodes on the input plan or leave it unchanged. " +
+          s"Before: $leaf, after: $transited"
       )
       val nodeNamesDiff = mutable.ListBuffer[String]()
       nodeNamesDiff ++= accumulatedNodeNames
