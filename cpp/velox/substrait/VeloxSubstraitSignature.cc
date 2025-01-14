@@ -159,6 +159,10 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
     return DATE();
   }
 
+  if (signature == "nothing") {
+    return UNKNOWN();
+  }
+
   auto startWith = [](const std::string& str, const std::string& prefix) {
     return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
   };

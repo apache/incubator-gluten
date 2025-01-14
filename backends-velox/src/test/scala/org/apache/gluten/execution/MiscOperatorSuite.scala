@@ -1985,4 +1985,10 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
   }
+
+  test("support null type in aggregate") {
+    runQueryAndCompare("SELECT max(null), min(null) from range(10)".stripMargin) {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+  }
 }
