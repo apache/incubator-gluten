@@ -52,7 +52,7 @@ object TransitionGraph {
   type Builder = FloydWarshallGraph.Builder[TransitionGraph.Vertex, Transition]
 
   def builder(): Builder = {
-    FloydWarshallGraph.builder(TransitionCostModel)
+    FloydWarshallGraph.builder(() => TransitionCostModel)
   }
 
   implicit class TransitionGraphOps(val graph: TransitionGraph) {

@@ -36,7 +36,7 @@ class FloydWarshallGraphSuite extends AnyFunSuite {
     val e42 = Edge(3)
 
     val graph = FloydWarshallGraph
-      .builder(CostModel)
+      .builder(() => CostModel)
       .addVertex(v0)
       .addVertex(v1)
       .addVertex(v2)
