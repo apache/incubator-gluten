@@ -94,3 +94,4 @@ jobs:
           file: dev/docker/Dockerfile.centos8-dynamic-build-jdk17
           push: true
           tags: apache/gluten:centos-8-jdk17
+
