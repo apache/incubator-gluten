@@ -54,7 +54,7 @@ object TransitionGraph {
     FloydWarshallGraph.builder()
   }
 
-  private[transition] def newCostModel(
+  private[transition] def asTransitionCostModel(
       base: GlutenCostModel): FloydWarshallGraph.CostModel[Transition] = {
     new TransitionCostModel(base)
   }

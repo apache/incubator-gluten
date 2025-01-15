@@ -99,7 +99,7 @@ object Transition {
         graphCache.getOrElseUpdate(
           aliasOrClass, {
             val base = GlutenCostModel.find(aliasOrClass)
-            graphBuilder.build(TransitionGraph.newCostModel(base))
+            graphBuilder.build(TransitionGraph.asTransitionCostModel(base))
           })
       }
 
