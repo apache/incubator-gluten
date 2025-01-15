@@ -21,9 +21,8 @@ import org.apache.gluten.extension.GlutenColumnarRule
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.enumerated.{EnumeratedApplier, EnumeratedTransform}
-import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LongCoster, LongCostModel}
+import org.apache.gluten.extension.columnar.enumerated.planner.cost.{GlutenCostModel, LongCoster, LongCostModel}
 import org.apache.gluten.extension.columnar.heuristic.{HeuristicApplier, HeuristicTransform}
-import org.apache.gluten.ras.CostModel
 import org.apache.gluten.ras.rule.RasRule
 
 import org.apache.spark.internal.Logging
@@ -149,7 +148,7 @@ object GlutenInjector {
 
     private def findCostModel(
         registry: LongCostModel.Registry,
-        aliasOrClass: String): CostModel[SparkPlan] = {
+        aliasOrClass: String): GlutenCostModel = {
       if (LongCostModel.Kind.values().contains(aliasOrClass)) {
         val kind = LongCostModel.Kind.values()(aliasOrClass)
         val model = registry.get(kind)
@@ -159,7 +158,7 @@ object GlutenInjector {
       logInfo(s"Using user cost model: $aliasOrClass")
       val ctor = clazz.getDeclaredConstructor()
       ctor.setAccessible(true)
-      val model: CostModel[SparkPlan] = ctor.newInstance()
+      val model: GlutenCostModel = ctor.newInstance().asInstanceOf[GlutenCostModel]
       model
     }
   }

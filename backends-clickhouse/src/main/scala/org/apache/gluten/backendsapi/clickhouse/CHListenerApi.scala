@@ -23,6 +23,7 @@ import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.extension.ExpressionExtensionTrait
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.jni.JniLibLoader
 import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
@@ -70,7 +71,8 @@ class CHListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
-    // Force batch type initializations.
+    // Do row / batch type initializations.
+    Convention.ensureSparkRowAndBatchTypesRegistered()
     CHBatch.ensureRegistered()
     SparkDirectoryUtil.init(conf)
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
