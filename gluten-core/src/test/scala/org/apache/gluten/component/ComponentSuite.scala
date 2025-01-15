@@ -17,7 +17,6 @@
 package org.apache.gluten.component
 
 import org.apache.gluten.backend.Backend
-import org.apache.gluten.extension.columnar.cost.LongCoster
 import org.apache.gluten.extension.injector.Injector
 
 import org.scalatest.BeforeAndAfterAll
