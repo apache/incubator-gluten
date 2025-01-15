@@ -403,6 +403,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("parse date with locale")
     .exclude("parse decimals using locale")
     // NOT use gluten
+    .exclude("$.store.basket[0][*].b") // issue: https://github.com/apache/incubator-gluten/issues/8529
     .exclude("$..no_recursive")
     .exclude("non foldable literal")
     .exclude("some big value")
