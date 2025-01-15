@@ -158,7 +158,9 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
     }
   }
 
-  testWithSpecifiedSparkVersion("Detect plain (unencrypted) Parquet file", Array("3.2", "3.3", "3.4")) {
+  testWithSpecifiedSparkVersion(
+    "Detect plain (unencrypted) Parquet file",
+    Array("3.2", "3.3", "3.4")) {
     withTempDir {
       tempDir =>
         val filePath = s"${tempDir.getAbsolutePath}/plain.parquet"
