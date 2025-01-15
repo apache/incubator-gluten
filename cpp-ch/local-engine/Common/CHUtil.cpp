@@ -855,22 +855,24 @@ extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCom
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
 extern void registerAggregateFunctionRowNumGroup(AggregateFunctionFactory &);
+extern void registerAggregateFunctionUniqHyperLogLogPlusPlus(AggregateFunctionFactory & factory);
+
 extern void registerFunctions(FunctionFactory &);
 
 void registerAllFunctions()
 {
     DB::registerFunctions();
-
     DB::registerAggregateFunctions();
+
     auto & agg_factory = AggregateFunctionFactory::instance();
     registerAggregateFunctionsBloomFilter(agg_factory);
     registerAggregateFunctionSparkAvg(agg_factory);
     registerAggregateFunctionRowNumGroup(agg_factory);
-    {
-        /// register aggregate function combinators from local_engine
-        auto & factory = AggregateFunctionCombinatorFactory::instance();
-        registerAggregateFunctionCombinatorPartialMerge(factory);
-    }
+    registerAggregateFunctionUniqHyperLogLogPlusPlus(agg_factory);
+
+    /// register aggregate function combinators from local_engine
+    auto & combinator_factory = AggregateFunctionCombinatorFactory::instance();
+    registerAggregateFunctionCombinatorPartialMerge(combinator_factory);
 }
 
 void registerGlutenDisks()
