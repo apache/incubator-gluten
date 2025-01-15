@@ -734,7 +734,7 @@ jobs:
   run-spark-test-spark34:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8-jdk11
+    container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -760,10 +760,10 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-11 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
           -DargLine="-Dio.netty.tryReflectionSetAccessible=true" 
@@ -784,7 +784,7 @@ jobs:
   run-spark-test-spark34-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8-jdk11
+    container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -804,10 +804,10 @@ jobs:
       - name: Build and Run unit test for Spark 3.4.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-11 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
           -DargLine="-Dio.netty.tryReflectionSetAccessible=true" 
