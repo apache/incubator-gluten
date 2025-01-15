@@ -765,8 +765,7 @@ jobs:
           ls -l /opt/shims/spark34/spark_home/
           $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
-          -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
-          -DargLine="-Dio.netty.tryReflectionSetAccessible=true" 
+          -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/ -Dio.netty.tryReflectionSetAccessible=true -Djdk.reflect.useDirectMethodHandle=false" 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -809,8 +808,7 @@ jobs:
           ls -l /opt/shims/spark34/spark_home/
           $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
-          -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
-          -DargLine="-Dio.netty.tryReflectionSetAccessible=true" 
+          -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/ -Dio.netty.tryReflectionSetAccessible=true -Djdk.reflect.useDirectMethodHandle=false" 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
