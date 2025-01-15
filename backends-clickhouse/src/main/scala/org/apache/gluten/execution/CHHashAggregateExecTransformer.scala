@@ -143,9 +143,10 @@ case class CHHashAggregateExecTransformer(
   protected lazy val childOutput: Seq[Attribute] = {
     val distinctChildOutput = child.output.distinct
     if (distinctChildOutput.length != child.output.length) {
-      logWarning(s"Found duplicate columns in child's output: ${child.output}")
+      logWarning(s"Found duplicate columns in child's output: ${child.output}\n$child")
     }
-    distinctChildOutput
+    // distinctChildOutput
+    child.output
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
