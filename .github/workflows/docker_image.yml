@@ -23,6 +23,8 @@ on:
       - '.github/workflows/docker_image.yml'
       - 'dev/docker/Dockerfile.centos7-static-build'
       - 'dev/docker/Dockerfile.centos8-dynamic-build'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk11'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk17'
   schedule:
     - cron: '0 20 * * 0'
 
