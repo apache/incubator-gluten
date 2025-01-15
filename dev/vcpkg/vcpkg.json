@@ -80,12 +80,6 @@
         }
       ]
     },
-    "velox-hdfs": {
-      "description": "Velox HDFS Support",
-      "dependencies": [
-        "libhdfs3"
-      ]
-    },
     "velox-abfs": {
       "description": "Velox ABFS Support",
       "dependencies": [

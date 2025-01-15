@@ -22,6 +22,7 @@ import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
 import org.apache.gluten.udf.UdfJniWrapper
@@ -126,10 +127,11 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
-    // Force batch type initializations.
-    VeloxBatch.ensureRegistered()
+    // Do row / batch type initializations.
+    Convention.ensureSparkRowAndBatchTypesRegistered()
     ArrowJavaBatch.ensureRegistered()
     ArrowNativeBatch.ensureRegistered()
+    VeloxBatch.ensureRegistered()
 
     // Register columnar shuffle so can be considered when
     // `org.apache.spark.shuffle.GlutenShuffleManager` is set as Spark shuffle manager.

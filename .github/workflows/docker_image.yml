@@ -23,6 +23,8 @@ on:
       - '.github/workflows/docker_image.yml'
       - 'dev/docker/Dockerfile.centos7-static-build'
       - 'dev/docker/Dockerfile.centos8-dynamic-build'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk11'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk17'
   schedule:
     - cron: '0 20 * * 0'
 
@@ -69,10 +71,27 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image Centos8
         uses: docker/build-push-action@v2
         with:
           context: .
           file: dev/docker/Dockerfile.centos8-dynamic-build
           push: true
-          tags: apache/gluten:centos-8
+          tags: apache/gluten:centos-8 # JDK8 based
+
+      - name: Build and push Docker image Centos8 + JDK11
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: dev/docker/Dockerfile.centos8-dynamic-build-jdk11
+          push: true
+          tags: apache/gluten:centos-8-jdk11
+
+      - name: Build and push Docker image Centos8 + JDK17
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: dev/docker/Dockerfile.centos8-dynamic-build-jdk17
+          push: true
+          tags: apache/gluten:centos-8-jdk17
+

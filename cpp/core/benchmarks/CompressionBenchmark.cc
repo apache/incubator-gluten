@@ -48,7 +48,9 @@ void printTrace(void) {
   for (i = 0; i < size; i++)
     printf("    %s\n", strings[i]);
   puts("");
-  free(strings);
+  if (strings != nullptr) {
+    free(strings);
+  }
 }
 
 using arrow::RecordBatchReader;
@@ -58,7 +60,7 @@ using gluten::ShuffleWriterOptions;
 
 namespace gluten {
 
-#define ALIGNMENT 2 * 1024 * 1024
+#define ALIGNMENT (2 * 1024 * 1024)
 
 const int32_t kQatGzip = 0;
 const int32_t kQatZstd = 1;

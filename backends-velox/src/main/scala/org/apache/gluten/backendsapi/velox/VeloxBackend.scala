@@ -191,10 +191,35 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
-    validateScheme().orElse(validateFormat()) match {
-      case Some(reason) => ValidationResult.failed(reason)
-      case _ => ValidationResult.succeeded
+    def validateEncryption(): Option[String] = {
+
+      val encryptionValidationEnabled = GlutenConfig.get.parquetEncryptionValidationEnabled
+      if (!encryptionValidationEnabled) {
+        return None
+      }
+
+      val encryptionResult =
+        ParquetMetadataUtils.validateEncryption(format, rootPaths, serializableHadoopConf)
+      if (encryptionResult.ok()) {
+        None
+      } else {
+        Some(s"Detected encrypted parquet files: ${encryptionResult.reason()}")
+      }
     }
+
+    val validationChecks = Seq(
+      validateScheme(),
+      validateFormat(),
+      validateEncryption()
+    )
+
+    for (check <- validationChecks) {
+      if (check.isDefined) {
+        return ValidationResult.failed(check.get)
+      }
+    }
+
+    ValidationResult.succeeded
   }
 
   def distinctRootPaths(paths: Seq[String]): Seq[String] = {
