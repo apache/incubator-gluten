@@ -492,7 +492,7 @@ public:
         DB::ColumnNullable & nullable_col_str = assert_cast<DB::ColumnNullable &>(dest);
         DB::ColumnString * col_str = assert_cast<DB::ColumnString *>(&nullable_col_str.getNestedColumn());
         JSONStringSerializer serializer(*col_str);
-        if (elements.size() == 1 && (!path_has_asterisk || elements[0].isArray())) [[likely]]
+        if (elements.size() == 1) [[likely]]
         {
             if (elements[0].isNull())
                 return false;
@@ -501,6 +501,10 @@ public:
             if (elements[0].isString())
             {
                 auto str = elements[0].getString();
+                if (path_has_asterisk)
+                {
+                    str = "\"" + std::string(str) + "\"";
+                }
                 serializer.addRawString(str);
             }
             else

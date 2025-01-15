@@ -376,6 +376,10 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       "SELECT get_json_object(string_field1, '$.a[*].y') from json_test where int_field1 = 7") {
       _ =>
     }
+    runQueryAndCompare(
+      "select get_json_object(string_field1, '$.a[*].z.n.p') from json_test where int_field1 = 7") {
+      _ =>
+    }
   }
 
   test("Test covar_samp") {
