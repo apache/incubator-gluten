@@ -74,7 +74,7 @@ trait Component {
    * A sequence of [[org.apache.gluten.extension.columnar.cost.LongCoster]] Gluten is using for cost
    * evaluation.
    */
-  def costers(): Seq[LongCoster]
+  def costers(): Seq[LongCoster] = Nil
 
   /** Query planner rules. */
   def injectRules(injector: Injector): Unit

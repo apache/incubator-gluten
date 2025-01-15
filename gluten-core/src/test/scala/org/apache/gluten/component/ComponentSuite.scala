@@ -62,7 +62,6 @@ object ComponentSuite {
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo("DUMMY_BACKEND_A", "N/A", "N/A", "N/A")
     override def injectRules(injector: Injector): Unit = {}
-    override def costers(): Seq[LongCoster] = Nil
   }
 
   private class DummyBackendB extends Backend {
@@ -70,7 +69,6 @@ object ComponentSuite {
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo("DUMMY_BACKEND_B", "N/A", "N/A", "N/A")
     override def injectRules(injector: Injector): Unit = {}
-    override def costers(): Seq[LongCoster] = Nil
   }
 
   private class DummyComponentC extends Component {
@@ -80,7 +78,6 @@ object ComponentSuite {
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo("DUMMY_COMPONENT_C", "N/A", "N/A", "N/A")
     override def injectRules(injector: Injector): Unit = {}
-    override def costers(): Seq[LongCoster] = Nil
   }
 
   private class DummyComponentD extends Component {
@@ -91,7 +88,6 @@ object ComponentSuite {
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo("DUMMY_COMPONENT_D", "N/A", "N/A", "N/A")
     override def injectRules(injector: Injector): Unit = {}
-    override def costers(): Seq[LongCoster] = Nil
   }
 
   private class DummyComponentE extends Component {
@@ -102,6 +98,5 @@ object ComponentSuite {
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo("DUMMY_COMPONENT_E", "N/A", "N/A", "N/A")
     override def injectRules(injector: Injector): Unit = {}
-    override def costers(): Seq[LongCoster] = Nil
   }
 }
