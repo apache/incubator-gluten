@@ -154,4 +154,7 @@ const std::string kQueryTraceTaskRegExp = "spark.gluten.sql.columnar.backend.vel
 /// defined by the underlying file system.
 const std::string kOpTraceDirectoryCreateConfig =
     "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig";
+// Internal config for query benchmark and enable query trace. The default query id for Velox QueryCtx is "", set it if
+// this config is set.
+const std::string kQueryTraceQueryId = "spark.gluten.sql.columnar.backend.velox.queryTraceQueryId";
 } // namespace gluten

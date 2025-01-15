@@ -78,7 +78,7 @@ DEFINE_string(
     "'stream' mode: Input file scan happens inside of the pipeline."
     "'buffered' mode: First read all data into memory and feed the pipeline with it.");
 DEFINE_bool(debug_mode, false, "Whether to enable debug mode. Same as setting `spark.gluten.sql.debug`");
-DEFINE_bool(query_trace_enabled, false, "Whether to enable query trace");
+DEFINE_bool(query_trace_enabled, false, "Whether to enable query trace.");
 DEFINE_string(query_trace_dir, "", "Base dir of a query to store tracing data.");
 DEFINE_string(
     query_trace_node_ids,
@@ -89,6 +89,8 @@ DEFINE_string(
     query_trace_task_reg_exp,
     "",
     "The regexp of traced task id. We only enable trace on a task if its id matches.");
+
+DEFINE_string(query_trace_query_id, "", "The user defined query id");
 
 struct WriterMetrics {
   int64_t splitTime{0};
@@ -367,6 +369,8 @@ void setQueryTraceConfig(std::unordered_map<std::string, std::string>& configs) 
   if (FLAGS_query_trace_task_reg_exp != "") {
     configs[kQueryTraceTaskRegExp] = FLAGS_query_trace_task_reg_exp;
   }
+  GLUTEN_CHECK(FLAGS_query_trace_query_id != "", "query is should be set");
+  configs[kQueryTraceQueryId] = FLAGS_query_trace_query_id;
 }
 } // namespace
 

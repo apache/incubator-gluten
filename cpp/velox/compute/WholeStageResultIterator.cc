@@ -51,6 +51,14 @@ const std::string kWriteIOTime = "writeIOTime";
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 
+std::string getQueryId(const std::unordered_map<std::string, std::string>& confMap) {
+  auto it = confMap.find(kQueryTraceQueryId);
+  if (it != confMap.end()) {
+    return it->second;
+  }
+  return "";
+}
+
 } // namespace
 
 WholeStageResultIterator::WholeStageResultIterator(
@@ -67,6 +75,7 @@ WholeStageResultIterator::WholeStageResultIterator(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
+      queryId_(getQueryId(confMap)),
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -186,7 +195,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
       gluten::VeloxBackend::get()->getAsyncDataCache(),
       memoryManager_->getAggregateMemoryPool(),
       spillExecutor_.get(),
-      "");
+      queryId_);
   return ctx;
 }
 
