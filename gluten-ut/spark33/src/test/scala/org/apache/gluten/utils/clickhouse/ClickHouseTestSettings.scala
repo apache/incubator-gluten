@@ -385,6 +385,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite].exclude(
     "SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
   enableSuite[GlutenJsonExpressionsSuite]
+    .exclude(
+      "$.store.basket[0][*].b"
+    ) // issue: https://github.com/apache/incubator-gluten/issues/8529
     .exclude("from_json - invalid data")
     .exclude("from_json - input=object, schema=array, output=array of single row")
     .exclude("from_json - input=empty object, schema=array, output=array of single row with null")
@@ -403,7 +406,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("parse date with locale")
     .exclude("parse decimals using locale")
     // NOT use gluten
-    .exclude("$.store.basket[0][*].b") // issue: https://github.com/apache/incubator-gluten/issues/8529
     .exclude("$..no_recursive")
     .exclude("non foldable literal")
     .exclude("some big value")
