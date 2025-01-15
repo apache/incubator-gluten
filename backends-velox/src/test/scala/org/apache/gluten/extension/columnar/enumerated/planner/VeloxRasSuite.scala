@@ -17,11 +17,11 @@
 package org.apache.gluten.extension.columnar.enumerated.planner
 
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.extension.columnar.cost.{GlutenCost, GlutenCostModel, LegacyCoster, LongCostModel}
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
-import org.apache.gluten.extension.columnar.enumerated.planner.cost.{GlutenCostModel, LegacyCoster, LongCostModel}
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
-import org.apache.gluten.ras.{Cost, Ras}
+import org.apache.gluten.ras.Ras
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
@@ -152,7 +152,7 @@ object VeloxRasSuite {
   def newRas(rasRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {
     GlutenOptimization
       .builder()
-      .costModel(sessionCostModel())
+      .costModel(EnumeratedTransform.asRasCostModel(sessionCostModel()))
       .addRules(rasRules)
       .create()
       .asInstanceOf[Ras[SparkPlan]]
@@ -205,27 +205,27 @@ object VeloxRasSuite {
 
   class UserCostModel1 extends GlutenCostModel {
     private val base = legacyCostModel()
-    override def costOf(node: SparkPlan): Cost = node match {
+    override def costOf(node: SparkPlan): GlutenCost = node match {
       case _: RowUnary => base.makeInfCost()
       case other => base.costOf(other)
     }
-    override def costComparator(): Ordering[Cost] = base.costComparator()
-    override def makeInfCost(): Cost = base.makeInfCost()
-    override def sum(one: Cost, other: Cost): Cost = base.sum(one, other)
-    override def diff(one: Cost, other: Cost): Cost = base.diff(one, other)
-    override def makeZeroCost(): Cost = base.makeZeroCost()
+    override def costComparator(): Ordering[GlutenCost] = base.costComparator()
+    override def makeInfCost(): GlutenCost = base.makeInfCost()
+    override def sum(one: GlutenCost, other: GlutenCost): GlutenCost = base.sum(one, other)
+    override def diff(one: GlutenCost, other: GlutenCost): GlutenCost = base.diff(one, other)
+    override def makeZeroCost(): GlutenCost = base.makeZeroCost()
   }
 
   class UserCostModel2 extends GlutenCostModel {
     private val base = legacyCostModel()
-    override def costOf(node: SparkPlan): Cost = node match {
+    override def costOf(node: SparkPlan): GlutenCost = node match {
       case _: ColumnarUnary => base.makeInfCost()
       case other => base.costOf(other)
     }
-    override def costComparator(): Ordering[Cost] = base.costComparator()
-    override def makeInfCost(): Cost = base.makeInfCost()
-    override def sum(one: Cost, other: Cost): Cost = base.sum(one, other)
-    override def diff(one: Cost, other: Cost): Cost = base.diff(one, other)
-    override def makeZeroCost(): Cost = base.makeZeroCost()
+    override def costComparator(): Ordering[GlutenCost] = base.costComparator()
+    override def makeInfCost(): GlutenCost = base.makeInfCost()
+    override def sum(one: GlutenCost, other: GlutenCost): GlutenCost = base.sum(one, other)
+    override def diff(one: GlutenCost, other: GlutenCost): GlutenCost = base.diff(one, other)
+    override def makeZeroCost(): GlutenCost = base.makeZeroCost()
   }
 }

@@ -36,7 +36,7 @@ class FloydWarshallGraphSuite extends AnyFunSuite {
     val e42 = Edge(3)
 
     val graph = FloydWarshallGraph
-      .builder(() => CostModel)
+      .builder()
       .addVertex(v0)
       .addVertex(v1)
       .addVertex(v2)
@@ -47,7 +47,7 @@ class FloydWarshallGraphSuite extends AnyFunSuite {
       .addEdge(v0, v3, e03)
       .addEdge(v3, v4, e34)
       .addEdge(v4, v2, e42)
-      .build()
+      .build(CostModel)
 
     assert(graph.hasPath(v0, v1))
     assert(graph.hasPath(v0, v2))

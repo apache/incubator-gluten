@@ -14,56 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.enumerated.planner.cost
+package org.apache.gluten.extension.columnar.cost
 
-import org.apache.gluten.execution.RowToColumnarExecBase
 import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
-import org.apache.spark.sql.execution._
-import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, ProjectExec, SparkPlan}
 
-object RoughCoster extends LongCoster {
-  override def kind(): LongCostModel.Kind = LongCostModel.Rough
+object LegacyCoster extends LongCoster {
+  override def kind(): LongCostModel.Kind = LongCostModel.Legacy
 
   override def selfCostOf(node: SparkPlan): Option[Long] = {
     Some(selfCostOf0(node))
   }
 
+  // A very rough estimation as of now. The cost model basically considers any
+  // fallen back ops as having extreme high cost so offloads computations as
+  // much as possible.
   private def selfCostOf0(node: SparkPlan): Long = {
     node match {
       case ColumnarWriteFilesExec.OnNoopLeafPath(_) => 0
-      case ProjectExec(projectList, _) if projectList.forall(isCheapExpression) =>
-        // Make trivial ProjectExec has the same cost as ProjectExecTransform to reduce unnecessary
-        // c2r and r2c.
-        10L
-      case r2c: RowToColumnarExecBase if hasComplexTypes(r2c.schema) =>
-        // Avoid moving computation back to native when transition has complex types in schema.
-        // Such transitions are observed to be extremely expensive as of now.
-        Long.MaxValue
       case ColumnarToRowLike(_) => 10L
       case RowToColumnarLike(_) => 10L
       case ColumnarToColumnarLike(_) => 5L
       case p if PlanUtil.isGlutenColumnarOp(p) => 10L
+      // 1. 100L << 1000L, to keep the pulled out non-offload-able projects if the main op
+      // turns into offload-able after pulling.
+      // 2. 100L >> 10L, to offload project op itself eagerly.
+      case ProjectExec(_, _) => 100L
       case p if PlanUtil.isVanillaColumnarOp(p) => 1000L
       // Other row ops. Usually a vanilla row op.
       case _ => 1000L
     }
-  }
-
-  private def isCheapExpression(ne: NamedExpression): Boolean = ne match {
-    case Alias(_: Attribute, _) => true
-    case _: Attribute => true
-    case _ => false
-  }
-
-  private def hasComplexTypes(schema: StructType): Boolean = {
-    schema.exists(_.dataType match {
-      case _: StructType => true
-      case _: ArrayType => true
-      case _: MapType => true
-      case _ => false
-    })
   }
 }

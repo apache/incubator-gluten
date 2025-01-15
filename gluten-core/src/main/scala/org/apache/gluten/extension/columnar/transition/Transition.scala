@@ -16,9 +16,13 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.extension.columnar.cost.GlutenCostModel
 
 import org.apache.spark.sql.execution.SparkPlan
+
+import scala.collection.mutable
 
 /**
  * Transition is a simple function to convert a query plan to interested [[ConventionReq]].
@@ -49,7 +53,9 @@ object Transition {
   private val abort: Transition = (_: SparkPlan) => throw new UnsupportedOperationException("Abort")
   private[transition] val graph: TransitionGraph.Builder = TransitionGraph.builder()
 
-  def factory(): Factory = Factory.newBuiltin(graph.build())
+  def factory(): Factory = {
+    Factory.newBuiltin(graph)
+  }
 
   def notFound(plan: SparkPlan): GlutenException = {
     new GlutenException(s"No viable transition found from plan's child to itself: $plan")
@@ -79,11 +85,24 @@ object Transition {
   }
 
   private object Factory {
-    def newBuiltin(graph: TransitionGraph): Factory = {
-      new BuiltinFactory(graph)
+    def newBuiltin(graphBuilder: TransitionGraph.Builder): Factory = {
+      new BuiltinFactory(graphBuilder)
     }
 
-    private class BuiltinFactory(graph: TransitionGraph) extends Factory {
+    private class BuiltinFactory(graphBuilder: TransitionGraph.Builder) extends Factory {
+      // Use of this cache allows user to set a new cost model in the same Spark session,
+      // then the new cost model will take effect for new transition-finding requests.
+      private val graphCache = mutable.Map[String, TransitionGraph]()
+
+      private def graph(): TransitionGraph = synchronized {
+        val aliasOrClass = GlutenConfig.get.rasCostModel
+        graphCache.getOrElseUpdate(
+          aliasOrClass, {
+            val base = GlutenCostModel.find(aliasOrClass)
+            graphBuilder.build(TransitionGraph.newCostModel(base))
+          })
+      }
+
       override def findTransition(from: Convention, to: ConventionReq)(
           orElse: => Transition): Transition = {
         assert(
@@ -104,7 +123,7 @@ object Transition {
               case Convention.RowType.None =>
                 // Input query plan doesn't have recognizable row-based output,
                 // find columnar-to-row transition.
-                graph.transitionOfOption(from.batchType, toRowType).getOrElse(orElse)
+                graph().transitionOfOption(from.batchType, toRowType).getOrElse(orElse)
               case fromRowType if toRowType == fromRowType =>
                 // We have only one single built-in row type.
                 Transition.empty
@@ -117,12 +136,12 @@ object Transition {
               case Convention.BatchType.None =>
                 // Input query plan doesn't have recognizable columnar output,
                 // find row-to-columnar transition.
-                graph.transitionOfOption(from.rowType, toBatchType).getOrElse(orElse)
+                graph().transitionOfOption(from.rowType, toBatchType).getOrElse(orElse)
               case fromBatchType if toBatchType == fromBatchType =>
                 Transition.empty
               case fromBatchType =>
                 // Find columnar-to-columnar transition.
-                graph.transitionOfOption(fromBatchType, toBatchType).getOrElse(orElse)
+                graph().transitionOfOption(fromBatchType, toBatchType).getOrElse(orElse)
             }
           case (ConventionReq.RowType.Any, ConventionReq.BatchType.Any) =>
             Transition.empty

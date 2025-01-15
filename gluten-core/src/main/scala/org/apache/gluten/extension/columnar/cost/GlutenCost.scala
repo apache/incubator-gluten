@@ -14,17 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.enumerated.planner.cost
+package org.apache.gluten.extension.columnar.cost
 
-import org.apache.gluten.ras.{Cost, CostModel}
-
-import org.apache.spark.sql.execution.SparkPlan
-
-trait GlutenCostModel extends CostModel[SparkPlan] {
-  // Returns cost value of one + other.
-  def sum(one: Cost, other: Cost): Cost
-  // Returns cost value of one - other.
-  def diff(one: Cost, other: Cost): Cost
-
-  def makeZeroCost(): Cost
-}
+trait GlutenCost

@@ -23,7 +23,6 @@ import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
 import org.apache.gluten.extension.columnar.enumerated.{RasOffload, RemoveSort}
-import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LegacyCoster, RoughCoster}
 import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.rewrite._
@@ -120,10 +119,6 @@ object VeloxRuleApi {
   }
 
   private def injectRas(injector: RasInjector): Unit = {
-    // Gluten RAS: Costers.
-    injector.injectCoster(_ => LegacyCoster)
-    injector.injectCoster(_ => RoughCoster)
-
     // Gluten RAS: Pre rules.
     injector.injectPreTransform(_ => RemoveTransitions)
     injector.injectPreTransform(_ => PushDownInputFileExpression.PreOffload)

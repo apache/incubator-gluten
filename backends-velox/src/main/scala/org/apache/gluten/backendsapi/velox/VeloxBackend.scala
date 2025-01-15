@@ -25,6 +25,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster, RoughCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode
@@ -61,7 +62,6 @@ class VeloxBackend extends SubstraitBackend {
   override def name(): String = VeloxBackend.BACKEND_NAME
   override def buildInfo(): BuildInfo =
     BuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
-  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def iteratorApi(): IteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
   override def transformerApi(): TransformerApi = new VeloxTransformerApi
@@ -70,6 +70,8 @@ class VeloxBackend extends SubstraitBackend {
   override def listenerApi(): ListenerApi = new VeloxListenerApi
   override def ruleApi(): RuleApi = new VeloxRuleApi
   override def settings(): BackendSettingsApi = VeloxBackendSettings
+  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
+  override def costers(): Seq[LongCoster] = Seq(LegacyCoster, RoughCoster)
 }
 
 object VeloxBackend {

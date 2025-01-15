@@ -34,7 +34,6 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters
 
 class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
-
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"

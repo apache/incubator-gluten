@@ -16,9 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
+import org.apache.gluten.extension.columnar.cost.{GlutenCost, GlutenCostModel}
 import org.apache.gluten.extension.columnar.transition.Convention.BatchType
-import org.apache.gluten.ras.Cost
 
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.util.SparkReflectionUtil
@@ -51,8 +50,13 @@ object TransitionGraph {
 
   type Builder = FloydWarshallGraph.Builder[TransitionGraph.Vertex, Transition]
 
-  def builder(): Builder = {
-    FloydWarshallGraph.builder(() => new TransitionCostModel())
+  private[transition] def builder(): Builder = {
+    FloydWarshallGraph.builder()
+  }
+
+  private[transition] def newCostModel(
+      base: GlutenCostModel): FloydWarshallGraph.CostModel[Transition] = {
+    new TransitionCostModel(base)
   }
 
   implicit class TransitionGraphOps(val graph: TransitionGraph) {
@@ -93,21 +97,22 @@ object TransitionGraph {
   }
 
   /** Reuse RAS cost to represent transition cost. */
-  private case class TransitionCost(value: Cost, nodeNames: Seq[String])
+  private case class TransitionCost(value: GlutenCost, nodeNames: Seq[String])
     extends FloydWarshallGraph.Cost
 
   /**
-   * The cost model reuses RAS's cost model to evaluate cost of transitions.
+   * The transition cost model relies on the registered Gluten cost model internally to evaluate
+   * cost of transitions.
    *
    * Note the transition graph is built once for all subsequent Spark sessions created on the same
-   * driver, so any access to Spark dynamic SQL config in RAS cost model will not take effect for
+   * driver, so any access to Spark dynamic SQL config in Gluten cost model will not take effect for
    * the transition cost evaluation. Hence, it's not recommended to access Spark dynamic
-   * configurations in RAS cost model as well.
+   * configurations in Gluten cost model as well.
    */
-  private class TransitionCostModel() extends FloydWarshallGraph.CostModel[Transition] {
-    private val rasCostModel = EnumeratedTransform.static().costModel
+  private class TransitionCostModel(base: GlutenCostModel)
+    extends FloydWarshallGraph.CostModel[Transition] {
 
-    override def zero(): TransitionCost = TransitionCost(rasCostModel.makeZeroCost(), Nil)
+    override def zero(): TransitionCost = TransitionCost(base.makeZeroCost(), Nil)
     override def costOf(transition: Transition): TransitionCost = {
       costOf0(transition)
     }
@@ -115,13 +120,13 @@ object TransitionGraph {
         one: FloydWarshallGraph.Cost,
         other: FloydWarshallGraph.Cost): FloydWarshallGraph.Cost = (one, other) match {
       case (TransitionCost(c1, p1), TransitionCost(c2, p2)) =>
-        TransitionCost(rasCostModel.sum(c1, c2), p1 ++ p2)
+        TransitionCost(base.sum(c1, c2), p1 ++ p2)
     }
     override def costComparator(): Ordering[FloydWarshallGraph.Cost] = {
       (x: FloydWarshallGraph.Cost, y: FloydWarshallGraph.Cost) =>
         (x, y) match {
           case (TransitionCost(v1, nodeNames1), TransitionCost(v2, nodeNames2)) =>
-            val diff = rasCostModel.costComparator().compare(v1, v2)
+            val diff = base.costComparator().compare(v1, v2)
             if (diff != 0) {
               diff
             } else {
@@ -139,14 +144,14 @@ object TransitionGraph {
        * The calculation considers C2C's cost as half of C2R / R2C's cost. So query planner prefers
        * C2C than C2R / R2C.
        */
-      def rasCostOfPlan(plan: SparkPlan): Cost = rasCostModel.costOf(plan)
+      def rasCostOfPlan(plan: SparkPlan): GlutenCost = base.costOf(plan)
       def nodeNamesOfPlan(plan: SparkPlan): Seq[String] = {
         plan.map(_.nodeName).reverse
       }
 
       val leafCost = rasCostOfPlan(leaf)
       val accumulatedCost = rasCostOfPlan(transited)
-      val costDiff = rasCostModel.diff(accumulatedCost, leafCost)
+      val costDiff = base.diff(accumulatedCost, leafCost)
 
       val leafNodeNames = nodeNamesOfPlan(leaf)
       val accumulatedNodeNames = nodeNamesOfPlan(transited)
