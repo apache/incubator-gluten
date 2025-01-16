@@ -269,12 +269,24 @@ case class CHHashAggregateExecTransformer(
         val childrenNodeList = new util.ArrayList[ExpressionNode]()
         val childrenNodes = aggExpr.mode match {
           case Partial | Complete =>
-            aggregateFunc.children.toList.map(
+            val nodes = aggregateFunc.children.toList.map(
               expr => {
                 ExpressionConverter
                   .replaceWithExpressionTransformer(expr, child.output)
                   .doTransform(args)
               })
+
+            val extraNodes = aggregateFunc match {
+              case hll: HyperLogLogPlusPlus =>
+                val relativeSDLiteral = Literal(hll.relativeSD)
+                Seq(
+                  ExpressionConverter
+                    .replaceWithExpressionTransformer(relativeSDLiteral, child.output)
+                    .doTransform(args))
+              case _ => Seq.empty
+            }
+
+            nodes ++ extraNodes
           case PartialMerge if distinct_modes.contains(Partial) =>
             // this is the case where PartialMerge co-exists with Partial
             // so far, it only happens in a three-stage count distinct case
@@ -437,6 +449,12 @@ case class CHHashAggregateExecTransformer(
               fields = fields :+ (
                 percentile.percentageExpression.dataType,
                 percentile.percentageExpression.nullable)
+              (makeStructType(fields), attr.nullable)
+            case hllpp: HyperLogLogPlusPlus =>
+              var fields = Seq[(DataType, Boolean)]()
+              fields = fields :+ (hllpp.child.dataType, hllpp.child.nullable)
+              val relativeSDLiteral = Literal(hllpp.relativeSD)
+              fields = fields :+ (relativeSDLiteral.dataType, false)
               (makeStructType(fields), attr.nullable)
             case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
