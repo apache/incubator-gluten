@@ -39,7 +39,7 @@ object TransitionGraph {
     }
 
     final private def register(): Unit = BatchType.synchronized {
-      Transition.graph.addVertex(this)
+      Transition.factory.update(graph => graph.addVertex(this))
       register0()
     }
 
