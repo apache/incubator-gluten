@@ -51,11 +51,7 @@ trait Transition {
 object Transition {
   val empty: Transition = (plan: SparkPlan) => plan
   private val abort: Transition = (_: SparkPlan) => throw new UnsupportedOperationException("Abort")
-  private[transition] val graph: TransitionGraph.Builder = TransitionGraph.builder()
-
-  def factory(): Factory = {
-    Factory.newBuiltin(graph)
-  }
+  val factory = Factory.newBuiltin()
 
   def notFound(plan: SparkPlan): GlutenException = {
     new GlutenException(s"No viable transition found from plan's child to itself: $plan")
@@ -80,16 +76,19 @@ object Transition {
       transition.isEmpty
     }
 
-    protected def findTransition(from: Convention, to: ConventionReq)(
+    def update(body: TransitionGraph.Builder => Unit): Unit
+
+    protected[Factory] def findTransition(from: Convention, to: ConventionReq)(
         orElse: => Transition): Transition
   }
 
   private object Factory {
-    def newBuiltin(graphBuilder: TransitionGraph.Builder): Factory = {
-      new BuiltinFactory(graphBuilder)
+    def newBuiltin(): Factory = {
+      new BuiltinFactory()
     }
 
-    private class BuiltinFactory(graphBuilder: TransitionGraph.Builder) extends Factory {
+    private class BuiltinFactory() extends Factory {
+      private val graphBuilder: TransitionGraph.Builder = TransitionGraph.builder()
       // Use of this cache allows user to set a new cost model in the same Spark session,
       // then the new cost model will take effect for new transition-finding requests.
       private val graphCache = mutable.Map[String, TransitionGraph]()
@@ -150,6 +149,11 @@ object Transition {
               s"Illegal convention requirement: $ConventionReq")
         }
         out
+      }
+
+      override def update(func: TransitionGraph.Builder => Unit): Unit = synchronized {
+        func(graphBuilder)
+        graphCache.clear()
       }
     }
   }

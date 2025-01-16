@@ -116,21 +116,21 @@ object Convention {
     protected[this] def registerTransitions(): Unit
 
     final protected[this] def fromRow(transition: Transition): Unit = {
-      Transition.graph.addEdge(RowType.VanillaRow, this, transition)
+      Transition.factory.update(graph => graph.addEdge(RowType.VanillaRow, this, transition))
     }
 
     final protected[this] def toRow(transition: Transition): Unit = {
-      Transition.graph.addEdge(this, RowType.VanillaRow, transition)
+      Transition.factory.update(graph => graph.addEdge(this, RowType.VanillaRow, transition))
     }
 
     final protected[this] def fromBatch(from: BatchType, transition: Transition): Unit = {
       assert(from != this)
-      Transition.graph.addEdge(from, this, transition)
+      Transition.factory.update(graph => graph.addEdge(from, this, transition))
     }
 
     final protected[this] def toBatch(to: BatchType, transition: Transition): Unit = {
       assert(to != this)
-      Transition.graph.addEdge(this, to, transition)
+      Transition.factory.update(graph => graph.addEdge(this, to, transition))
     }
   }
 
