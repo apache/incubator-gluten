@@ -58,6 +58,7 @@
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <arrow/util/compression.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <sys/resource.h>
 #include <Poco/Logger.h>
@@ -91,6 +92,7 @@ extern const SettingsDouble max_bytes_ratio_before_external_sort;
 extern const SettingsBool query_plan_merge_filters;
 extern const SettingsBool compile_expressions;
 extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
+extern const SettingsUInt64 output_format_compression_level;
 }
 namespace ErrorCodes
 {
@@ -640,22 +642,30 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
     settings.set("output_format_parquet_use_custom_encoder", false);
 
+    //1.
     // TODO: we need set Setting::max_threads to 1 by default, but now we can't get correct metrics for the some query if we set it to 1.
     // settings[Setting::max_threads] = 1;
 
-    /// Set false after https://github.com/ClickHouse/ClickHouse/pull/71539
-    /// if true, we can't get correct metrics for the query
+    /// 2. After https://github.com/ClickHouse/ClickHouse/pull/71539
+    /// Set false to query_plan_merge_filters.
+    /// If true, we can't get correct metrics for the query
     settings[Setting::query_plan_merge_filters] = false;
 
+    /// 3. After https://github.com/ClickHouse/ClickHouse/pull/70598.
+    /// Set false to compile_expressions to avoid dead loop.
+    /// TODO: FIXME set true again.
     /// We now set BuildQueryPipelineSettings according to config.
-    // TODO: FIXME. Set false after https://github.com/ClickHouse/ClickHouse/pull/70598.
     settings[Setting::compile_expressions] = false;
     settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
-    ///
 
-    // After https://github.com/ClickHouse/ClickHouse/pull/73422
-    // Since we already set max_bytes_before_external_sort, set max_bytes_ratio_before_external_sort to 0
+    /// 4. After https://github.com/ClickHouse/ClickHouse/pull/73422
+    /// Since we already set max_bytes_before_external_sort, set max_bytes_ratio_before_external_sort to 0
     settings[Setting::max_bytes_ratio_before_external_sort] = 0.;
+
+    /// 5. After https://github.com/ClickHouse/ClickHouse/pull/73651.
+    /// See following settings, we always use Snappy compression for Parquet, however after https://github.com/ClickHouse/ClickHouse/pull/73651,
+    /// output_format_compression_level is set to 3, which is wrong, since snappy does not support it.
+    settings[Setting::output_format_compression_level] = arrow::util::kUseDefaultCompressionLevel;
 
     for (const auto & [key, value] : spark_conf_map)
     {

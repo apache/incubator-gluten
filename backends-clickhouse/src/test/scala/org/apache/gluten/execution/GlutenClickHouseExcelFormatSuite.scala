@@ -16,10 +16,11 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.exception.GlutenException
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.{functions, DataFrame, Row}
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -1464,16 +1465,14 @@ class GlutenClickHouseExcelFormatSuite
     fileName
   }
 
-  /** TODO: fix the issue and test in spark 3.5 */
-  testSparkVersionLE33("write into hdfs") {
+  test("write into hdfs") {
 
     /**
      * There is a bug in pipeline write to HDFS; when a pipeline returns column batch, it doesn't
      * close the hdfs file, and hence the file is not flushed.HDFS file is closed when LocalExecutor
      * is destroyed, but before that, the file moved by spark committer.
      */
-    val tableName = "write_into_hdfs"
-    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/$tableName/"
+    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/write_into_hdfs/"
     val format = "parquet"
     val sql =
       s"""
@@ -1484,5 +1483,50 @@ class GlutenClickHouseExcelFormatSuite
     withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
       testFileFormatBase(tablePath, format, sql, df => {})
     }
+  }
+
+  // TODO: pass spark configuration to FileFormatWriter in Spark 3.3 and 3.2
+  testWithSpecifiedSparkVersion("write failed if set wrong snappy compression codec level", Some("3.5")) {
+    // TODO: remove duplicated test codes
+    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/failed_test/"
+    val format = "parquet"
+    val sql =
+      s"""
+         | select *
+         | from $format.`$tablePath`
+         | where long_field > 30
+         |""".stripMargin
+
+    withSQLConf(
+      (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
+      (
+        RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.key,
+        RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.defaultValue.get.toString)
+    ) {
+      testFileFormatBase(tablePath, format, sql, df => {})
+    }
+
+    /// we can't pass the configuration to FileFormatWriter in Spark 3.3 and 3.2
+    withSQLConf(
+      (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
+      (RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.key, "3")
+    ) {
+      val sparkError = intercept[SparkException] {
+        testFileFormatBase(tablePath, format, sql, df => {})
+      }
+
+      // throw at org.apache.spark.sql.execution.CHColumnarWriteFilesRDD
+      val causeOuter = sparkError.getCause
+      assert(causeOuter.isInstanceOf[SparkException])
+      assert(causeOuter.getMessage.contains("Task failed while writing rows to output path: hdfs"))
+
+      // throw at the writing file
+      val causeInner = causeOuter.getCause
+      assert(causeInner.isInstanceOf[GlutenException])
+      assert(
+        causeInner.getMessage.contains(
+          "Invalid: Codec 'snappy' doesn't support setting a compression level"))
+    }
+
   }
 }

@@ -37,6 +37,11 @@ public:
             output->flush();
             write_buffer->finalize();
         }
+        void cancel()
+        {
+            output.reset();
+            write_buffer->finalize();
+        }
     };
     using OutputFormatPtr = std::shared_ptr<OutputFormat>;
 
