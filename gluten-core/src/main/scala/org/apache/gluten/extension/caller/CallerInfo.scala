@@ -40,7 +40,7 @@ object CallerInfo {
   private class Impl(override val isAqe: Boolean, override val isCache: Boolean) extends CallerInfo
 
   /*
-   * Find the information about the caller initiated the rule call.
+   * Find the information about the caller that initiated the rule call.
    */
   def create(): CallerInfo = {
     if (localStorage.get().nonEmpty) {
