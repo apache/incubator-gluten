@@ -26,6 +26,7 @@ import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.MiscColumnarRules.RemoveTopmostColumnarToRow
 import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicApplier}
 import org.apache.gluten.extension.columnar.transition.{Convention, InsertBackendTransitions}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
