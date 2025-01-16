@@ -119,7 +119,7 @@ abstract class HashAggregateExecTransformer(
    * @return
    *   a project rel
    */
-  def applyExtractStruct(
+  private def applyExtractStruct(
       context: SubstraitContext,
       aggRel: RelNode,
       operatorId: Long,
@@ -260,7 +260,7 @@ abstract class HashAggregateExecTransformer(
    * Return the output types after partial aggregation through Velox.
    * @return
    */
-  def getPartialAggOutTypes: JList[TypeNode] = {
+  private def getPartialAggOutTypes: JList[TypeNode] = {
     val typeNodeList = new JArrayList[TypeNode]()
     groupingExpressions.foreach(
       expression => {
@@ -398,8 +398,7 @@ abstract class HashAggregateExecTransformer(
                     childNodes.add(expressionNode)
                   }
               }
-              exprNodes.add(
-                getRowConstructNode(args, childNodes, newInputAttributes.toSeq, aggFunc))
+              exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes, aggFunc))
             case other =>
               throw new GlutenNotSupportException(s"$other is not supported.")
           }
@@ -669,13 +668,13 @@ abstract class HashAggregateExecTransformer(
 object VeloxAggregateFunctionsBuilder {
 
   /**
-   * Create an scalar function for the input aggregate function.
+   * Create a scalar function for the input aggregate function.
    * @param args:
    *   the function map.
    * @param aggregateFunc:
    *   the input aggregate function.
-   * @param forMergeCompanion:
-   *   whether this is a special case to solve mixed aggregation phases.
+   * @param mode:
+   *   the mode of input aggregate function.
    * @return
    */
   def create(
