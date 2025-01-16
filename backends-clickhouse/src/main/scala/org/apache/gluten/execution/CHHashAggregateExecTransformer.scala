@@ -141,11 +141,6 @@ case class CHHashAggregateExecTransformer(
   // There is an exception case, when a shuffle result is reused, the child's output may contain
   // duplicate columns. It's mismatched with the the real output of CH.
   protected lazy val childOutput: Seq[Attribute] = {
-    val distinctChildOutput = child.output.distinct
-    if (distinctChildOutput.length != child.output.length) {
-      logWarning(s"Found duplicate columns in child's output: ${child.output}\n$child")
-    }
-    // distinctChildOutput
     child.output
   }
 
