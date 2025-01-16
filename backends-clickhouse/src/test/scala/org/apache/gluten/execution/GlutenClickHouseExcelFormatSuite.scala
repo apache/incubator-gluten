@@ -1486,7 +1486,9 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   // TODO: pass spark configuration to FileFormatWriter in Spark 3.3 and 3.2
-  testWithSpecifiedSparkVersion("write failed if set wrong snappy compression codec level", Some("3.5")) {
+  testWithSpecifiedSparkVersion(
+    "write failed if set wrong snappy compression codec level",
+    Some("3.5")) {
     // TODO: remove duplicated test codes
     val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/failed_test/"
     val format = "parquet"
@@ -1506,7 +1508,7 @@ class GlutenClickHouseExcelFormatSuite
       testFileFormatBase(tablePath, format, sql, df => {})
     }
 
-    /// we can't pass the configuration to FileFormatWriter in Spark 3.3 and 3.2
+    // we can't pass the configuration to FileFormatWriter in Spark 3.3 and 3.2
     withSQLConf(
       (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
       (RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.key, "3")
