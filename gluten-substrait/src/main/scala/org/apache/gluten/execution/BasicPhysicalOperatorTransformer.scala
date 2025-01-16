@@ -18,14 +18,12 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilderUtil, RelNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -77,24 +75,14 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    assert(condExpr != null)
-    val args = context.registeredFunction
-    val condExprNode = ExpressionConverter
-      .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
-      .doTransform(args)
-
-    if (!validation) {
-      RelBuilder.makeFilterRel(input, condExprNode, context, operatorId)
-    } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        .asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
-    }
+    RelBuilderUtil.createFilterRel(
+      context,
+      condExpr,
+      originalInputAttributes,
+      operatorId,
+      input,
+      validation
+    )
   }
 
   override def output: Seq[Attribute] = {
@@ -229,27 +217,15 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
       validation: Boolean): RelNode = {
     val args = context.registeredFunction
     val columnarProjExprs: Seq[ExpressionTransformer] = ExpressionConverter
-      .replaceWithExpressionTransformer(projectList, attributeSeq = originalInputAttributes)
+      .replaceWithExpressionTransformer(projectList, originalInputAttributes)
     val projExprNodeList = columnarProjExprs.map(_.doTransform(args)).asJava
-    val emitStartIndex = originalInputAttributes.size
-    if (!validation) {
-      RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId, emitStartIndex)
-    } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        .asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(
-        input,
-        projExprNodeList,
-        extensionNode,
-        context,
-        operatorId,
-        emitStartIndex)
-    }
+    RelBuilderUtil.createProjectRel(
+      originalInputAttributes,
+      input,
+      projExprNodeList,
+      context,
+      operatorId,
+      validation)
   }
 
   override def verboseStringWithOperatorId(): String = {

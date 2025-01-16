@@ -17,20 +17,15 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilderUtil, RelNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, LessThan, Literal, Rand}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.DoubleType
-
-import scala.collection.JavaConverters._
 
 /**
  * SampleExec supports two sampling methods: with replacement and without replacement. This
@@ -77,24 +72,14 @@ case class SampleExecTransformer(
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    assert(condExpr != null)
-    val args = context.registeredFunction
-    val condExprNode = ExpressionConverter
-      .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
-      .doTransform(args)
-
-    if (!validation) {
-      RelBuilder.makeFilterRel(input, condExprNode, context, operatorId)
-    } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        .asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
-    }
+    RelBuilderUtil.createFilterRel(
+      context,
+      condExpr,
+      originalInputAttributes,
+      operatorId,
+      input,
+      validation
+    )
   }
 
   override protected def doValidateInternal(): ValidationResult = {

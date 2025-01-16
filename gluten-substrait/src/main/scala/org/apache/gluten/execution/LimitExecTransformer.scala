@@ -17,18 +17,13 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilder, RelBuilderUtil, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.SparkPlan
-
-import scala.collection.JavaConverters._
 
 case class LimitExecTransformer(child: SparkPlan, offset: Long, count: Long)
   extends UnaryTransformSupport {
@@ -71,12 +66,13 @@ case class LimitExecTransformer(child: SparkPlan, offset: Long, count: Long)
     if (!validation) {
       RelBuilder.makeFetchRel(input, offset, count, context, operatorId)
     } else {
-      val inputTypeNodes =
-        inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodes).toProtobuf))
-      RelBuilder.makeFetchRel(input, offset, count, extensionNode, context, operatorId)
+      RelBuilder.makeFetchRel(
+        input,
+        offset,
+        count,
+        RelBuilderUtil.createExtensionNode(inputAttributes),
+        context,
+        operatorId)
     }
   }
 }

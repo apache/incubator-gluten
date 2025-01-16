@@ -24,7 +24,7 @@ import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
-import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilder, RelBuilderUtil, RelNode}
 import org.apache.gluten.utils.VeloxIntermediateData
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -419,25 +419,13 @@ abstract class HashAggregateExecTransformer(
     }
 
     // Create a project rel.
-    val emitStartIndex = originalInputAttributes.size
-    val projectRel = if (!validation) {
-      RelBuilder.makeProjectRel(inputRel, exprNodes, context, operatorId, emitStartIndex)
-    } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        .asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(
-        inputRel,
-        exprNodes,
-        extensionNode,
-        context,
-        operatorId,
-        emitStartIndex)
-    }
+    val projectRel = RelBuilderUtil.createProjectRel(
+      originalInputAttributes,
+      inputRel,
+      exprNodes,
+      context,
+      operatorId,
+      validation)
 
     // Create aggregation rel.
     val groupingList = new JArrayList[ExpressionNode]()
