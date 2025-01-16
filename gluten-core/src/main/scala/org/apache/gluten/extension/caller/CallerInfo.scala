@@ -20,6 +20,12 @@ package org.apache.gluten.extension.caller
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 
+/**
+ * Helper API that stores information about the call site's information of the columnar rule.
+ * Specific columnar rules could call the API to check whether this time of rule call was initiated
+ * for certain purpose. For example, a rule call could be for AQE optimization, or for cached plan
+ * optimization, or for regular executed plan optimization.
+ */
 trait CallerInfo {
   def isAqe(): Boolean
   def isCache(): Boolean
