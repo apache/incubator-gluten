@@ -19,6 +19,7 @@ package org.apache.gluten.sql.shims.spark34
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.expression.ExpressionNames.KNOWN_NULLABLE
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
@@ -55,7 +56,10 @@ import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructTyp
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
+import org.apache.parquet.crypto.ParquetCryptoRuntimeException
+import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
@@ -511,5 +515,19 @@ class Spark34Shims extends SparkShims {
 
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     plan.unsetTagValue(QueryPlan.OP_ID_TAG)
+  }
+  override def isParquetFileEncrypted(
+      fileStatus: LocatedFileStatus,
+      conf: Configuration): Boolean = {
+    try {
+      ParquetFileReader.readFooter(new Configuration(), fileStatus.getPath).toString
+      false
+    } catch {
+      case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+        true
+      case e: Throwable =>
+        e.printStackTrace()
+        false
+    }
   }
 }
