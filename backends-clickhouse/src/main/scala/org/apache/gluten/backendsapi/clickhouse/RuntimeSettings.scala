@@ -36,6 +36,17 @@ object RuntimeSettings {
       .doc("https://clickhouse.com/docs/en/operations/settings/query-complexity#settings-max_bytes_before_external_sort")
       .longConf
       .createWithDefault(0)
+
+  // TODO: support check value
+  val OUTPUT_FORMAT_COMPRESSION_LEVEL =
+    buildConf(runtimeSettings("output_format_compression_level"))
+      .doc(s"""https://clickhouse.com/docs/en/operations/settings/settings#output_format_compression_level
+              | Notes: we always use Snappy compression, and Snappy doesn't support compression level.
+              | Currently, we ONLY set it in UT.
+              |""".stripMargin)
+      .longConf
+      .createWithDefault(Integer.MIN_VALUE & 0xffffffffL)
+  // .checkValue(v => v >= 0, "COMPRESSION LEVEL must be greater than 0")
   // scalastyle:on line.size.limit
 
   /** Gluten Configuration */

@@ -106,12 +106,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       updateInputMetrics,
       updateInputMetrics.map(_ => context.taskMetrics().inputMetrics).orNull)
 
-    context.addTaskFailureListener(
-      (ctx, _) => {
-        if (ctx.isInterrupted()) {
-          iter.cancel()
-        }
-      })
+    context.addTaskFailureListener((ctx, _) => { iter.cancel() })
+
     context.addTaskCompletionListener[Unit](_ => iter.close())
     new CloseableCHColumnBatchIterator(iter, Some(pipelineTime))
   }

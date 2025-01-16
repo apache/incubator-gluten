@@ -371,12 +371,22 @@ protected:
     }
     void onFinish() override
     {
-        if (output_format_) [[unlikely]]
+        if (output_format_)
         {
             output_format_->finalizeOutput();
+            /// We need close reset output_format_ here before return to spark, because the file is closed in ~WriteBufferFromHDFSImpl().
+            /// So that Spark Commit protocol can move the file safely.
+            output_format_.reset();
             assert(delta_stats_.row_count > 0);
             if (stats_)
                 stats_->collectStats(relative_path_, partition_id_, delta_stats_);
+        }
+    }
+    void onCancel() noexcept override
+    {
+        if (output_format_) {
+            output_format_->cancel();
+            output_format_.reset();
         }
     }
 };
