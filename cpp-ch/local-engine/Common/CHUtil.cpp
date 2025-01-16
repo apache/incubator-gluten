@@ -109,6 +109,8 @@ extern const ServerSettingsUInt64 thread_pool_queue_size;
 extern const ServerSettingsUInt64 max_io_thread_pool_size;
 extern const ServerSettingsUInt64 io_thread_pool_queue_size;
 }
+
+extern void registerAggregateFunctionUniqHyperLogLogPlusPlus(AggregateFunctionFactory &);
 }
 
 namespace local_engine
@@ -855,7 +857,7 @@ extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCom
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
 extern void registerAggregateFunctionRowNumGroup(AggregateFunctionFactory &);
-extern void registerAggregateFunctionUniqHyperLogLogPlusPlus(AggregateFunctionFactory & factory);
+
 
 extern void registerFunctions(FunctionFactory &);
 
@@ -868,7 +870,7 @@ void registerAllFunctions()
     registerAggregateFunctionsBloomFilter(agg_factory);
     registerAggregateFunctionSparkAvg(agg_factory);
     registerAggregateFunctionRowNumGroup(agg_factory);
-    registerAggregateFunctionUniqHyperLogLogPlusPlus(agg_factory);
+    DB::registerAggregateFunctionUniqHyperLogLogPlusPlus(agg_factory);
 
     /// register aggregate function combinators from local_engine
     auto & combinator_factory = AggregateFunctionCombinatorFactory::instance();
