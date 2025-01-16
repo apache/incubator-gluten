@@ -57,7 +57,7 @@ object GlutenInjector {
     private val preTransformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
     private val transformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
     private val postTransformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
-    private val fallbackPolicyBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
+    private val fallbackPolicyBuilders = mutable.Buffer.empty[ColumnarRuleCall => SparkPlan => Rule[SparkPlan]]
     private val postBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
     private val finalBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
 
@@ -73,7 +73,7 @@ object GlutenInjector {
       postTransformBuilders += builder
     }
 
-    def injectFallbackPolicy(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
+    def injectFallbackPolicy(builder: ColumnarRuleCall => SparkPlan => Rule[SparkPlan]): Unit = {
       fallbackPolicyBuilders += builder
     }
 

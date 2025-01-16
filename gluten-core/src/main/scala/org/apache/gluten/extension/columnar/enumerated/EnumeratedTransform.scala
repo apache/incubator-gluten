@@ -18,17 +18,16 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.component.Component
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.extension.caller.CallerInfo
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.cost.{GlutenCost, GlutenCostModel}
 import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
 import org.apache.gluten.extension.injector.Injector
-import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.RasRule
-
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
@@ -81,7 +80,7 @@ object EnumeratedTransform {
     val session = SparkSession.getActiveSession.getOrElse(
       throw new GlutenException(
         "HeuristicTransform#static can only be called when an active Spark session exists"))
-    val call = new ColumnarRuleCall(session, AdaptiveContext(session), false)
+    val call = new ColumnarRuleCall(session, CallerInfo.create(), false)
     dummyInjector.gluten.ras.createEnumeratedTransform(call)
   }
 
