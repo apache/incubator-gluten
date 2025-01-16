@@ -25,7 +25,7 @@
 #    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #    include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
 #    include <Processors/Formats/Impl/ParquetBlockOutputFormat.h>
-#    include <parquet/arrow/writer.h>
+#    include <arrow/util/compression.h>
 
 namespace local_engine
 {
@@ -46,6 +46,13 @@ OutputFormatFile::OutputFormatPtr ParquetOutputFormatFile::createOutputFormat(co
     auto new_header = createHeaderWithPreferredSchema(header);
     // TODO: align all spark parquet config with ch parquet config
     auto format_settings = DB::getFormatSettings(context);
+
+    /// ClickHouse has always used Snappy compression for Parquet by default, which is similar to Spark.
+    /// As a result, we have not supported set the codec. However after https://github.com/ClickHouse/ClickHouse/pull/73651,
+    /// output_format_compression_level will be set to 3, which is wrong, since snappy does not support it.
+    format_settings.parquet.output_compression_method = DB::FormatSettings::ParquetCompression::SNAPPY;
+    format_settings.parquet.output_compression_level = arrow::util::kUseDefaultCompressionLevel;
+
     auto output_format = std::make_shared<DB::ParquetBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);
     res->output = output_format;
     return res;
