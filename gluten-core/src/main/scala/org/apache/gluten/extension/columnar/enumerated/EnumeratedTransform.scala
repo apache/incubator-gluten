@@ -28,6 +28,7 @@ import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.RasRule
+
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
