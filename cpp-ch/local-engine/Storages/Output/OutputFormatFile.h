@@ -29,8 +29,8 @@ class OutputFormatFile
 public:
     struct OutputFormat
     {
-        DB::OutputFormatPtr output;
         std::unique_ptr<DB::WriteBuffer> write_buffer;
+        DB::OutputFormatPtr output;
         void finalizeOutput() const
         {
             output->finalize();
