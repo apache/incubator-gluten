@@ -40,16 +40,17 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
   private val resourceRWLock = new ReentrantReadWriteLock(true)
 
   lazy val softAffinityReplicationNum: Int =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.defaultValue.get
 
-  lazy val minOnTargetHosts: Int = GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
+  lazy val minOnTargetHosts: Int =
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.defaultValue.get
 
   lazy val usingSoftAffinity: Boolean = true
 
   lazy val detectDuplicateReading: Boolean = true
 
   lazy val duplicateReadingMaxCacheItems: Int =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS.defaultValue.get
 
   // (execId, host) list
   private val idForExecutors = new mutable.ListBuffer[(String, String)]()
@@ -305,27 +306,27 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
 object SoftAffinityManager extends AffinityManager {
   override lazy val usingSoftAffinity: Boolean = SparkEnv.get.conf.getBoolean(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED.defaultValue.get
   )
 
   override lazy val softAffinityReplicationNum: Int = SparkEnv.get.conf.getInt(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM_DEFAULT_VALUE)
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.defaultValue.get)
 
   override lazy val minOnTargetHosts: Int = SparkEnv.get.conf.getInt(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.defaultValue.get
   )
 
   override lazy val detectDuplicateReading: Boolean = SparkEnv.get.conf.getBoolean(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED.defaultValue.get
   ) &&
     SparkShimLoader.getSparkShims.supportDuplicateReadingTracking
 
   override lazy val duplicateReadingMaxCacheItems: Int = SparkEnv.get.conf.getInt(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS.defaultValue.get
   )
 }

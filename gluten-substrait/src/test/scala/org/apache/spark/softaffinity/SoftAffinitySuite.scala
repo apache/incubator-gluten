@@ -36,9 +36,9 @@ import scala.collection.mutable.ListBuffer
 class SoftAffinitySuite extends QueryTest with SharedSparkSession with PredicateHelper {
 
   override protected def sparkConf: SparkConf = super.sparkConf
-    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED, "true")
-    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM, "2")
-    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS, "2")
+    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED.key, "true")
+    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.key, "2")
+    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.key, "2")
 
   val scalaVersion = scala.util.Properties.versionNumberString
 

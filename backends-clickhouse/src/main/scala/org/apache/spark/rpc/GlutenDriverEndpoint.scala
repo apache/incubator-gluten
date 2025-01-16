@@ -96,8 +96,8 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
 
 object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Set[String]] {
   private lazy val executionResourceExpiredTime = SparkEnv.get.conf.getLong(
-    GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME,
-    GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME_DEFAULT
+    GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME.key,
+    GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME.defaultValue.get
   )
 
   var glutenDriverEndpointRef: RpcEndpointRef = _

@@ -113,7 +113,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
           .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
           .config("spark.gluten.sql.enable.native.validation", "false")
           .config("spark.sql.files.openCostInBytes", "134217728")
-          .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+          .config(GlutenConfig.GLUTEN_LIB_PATH.key, SystemParameters.getClickHouseLibPath)
           .config("spark.unsafe.exceptionOnMemoryLeak", "true")
           .config(GlutenConfig.UT_STATISTIC.key, "true")
           .getOrCreate()
