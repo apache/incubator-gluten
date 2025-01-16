@@ -20,7 +20,7 @@ import org.apache.gluten.backend.Backend
 import org.apache.gluten.component.Component
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
-import org.apache.gluten.extension.columnar.enumerated.planner.cost.LegacyCoster
+import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster}
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.rdd.RDD
@@ -152,8 +152,7 @@ object TransitionSuite extends TransitionSuiteBase {
     override def name(): String = "dummy-backend"
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo("DUMMY_BACKEND", "N/A", "N/A", "N/A")
-    override def injectRules(injector: Injector): Unit = {
-      injector.gluten.ras.injectCoster(_ => LegacyCoster)
-    }
+    override def injectRules(injector: Injector): Unit = {}
+    override def costers(): Seq[LongCoster] = Seq(LegacyCoster)
   }
 }

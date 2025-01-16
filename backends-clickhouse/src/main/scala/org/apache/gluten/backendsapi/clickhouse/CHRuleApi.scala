@@ -22,7 +22,6 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
-import org.apache.gluten.extension.columnar.enumerated.planner.cost.LegacyCoster
 import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.rewrite._
@@ -143,9 +142,6 @@ object CHRuleApi {
   }
 
   private def injectRas(injector: RasInjector): Unit = {
-    // Register legacy coster for transition planner.
-    injector.injectCoster(_ => LegacyCoster)
-
     // CH backend doesn't work with RAS at the moment. Inject a rule that aborts any
     // execution calls.
     injector.injectPreTransform(

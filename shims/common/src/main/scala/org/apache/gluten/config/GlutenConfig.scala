@@ -1431,12 +1431,15 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  // FIXME: This option is no longer only used by RAS. Should change key to
+  //  `spark.gluten.costModel` or something similar.
   val RAS_COST_MODEL =
     buildConf("spark.gluten.ras.costModel")
       .doc(
         "The class name of user-defined cost model that will be used by Gluten's transition " +
-          "planner as well as by RAS. If not specified, a legacy built-in cost model that " +
-          "exhaustively offloads computations will be used.")
+          "planner as well as by RAS. If not specified, a legacy built-in cost model will be " +
+          "used. The legacy cost model helps RAS planner exhaustively offload computations, and " +
+          "helps transition planner choose columnar-to-columnar transition over others.")
       .stringConf
       .createWithDefaultString("legacy")
 

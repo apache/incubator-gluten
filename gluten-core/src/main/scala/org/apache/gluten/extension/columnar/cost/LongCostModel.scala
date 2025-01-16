@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.enumerated.planner.cost
+package org.apache.gluten.extension.columnar.cost
 
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.enumerated.planner.plan.GlutenPlanModel.GroupLeafExec
-import org.apache.gluten.ras.Cost
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
@@ -39,15 +38,15 @@ abstract class LongCostModel extends GlutenCostModel {
     assert(a >= 0)
     assert(b >= 0)
     val sum = a + b
-    if (sum < a || sum < b) Long.MaxValue else sum
+    if (sum < a || sum < b) infLongCost else sum
   }
 
-  override def sum(one: Cost, other: Cost): LongCost = (one, other) match {
+  override def sum(one: GlutenCost, other: GlutenCost): LongCost = (one, other) match {
     case (LongCost(value), LongCost(otherValue)) => LongCost(safeSum(value, otherValue))
   }
 
   // Returns cost value of one - other.
-  override def diff(one: Cost, other: Cost): Cost = (one, other) match {
+  override def diff(one: GlutenCost, other: GlutenCost): GlutenCost = (one, other) match {
     case (LongCost(value), LongCost(otherValue)) =>
       val d = Math.subtractExact(value, otherValue)
       require(d >= zeroLongCost, s"Difference between cost $one and $other should not be negative")
@@ -62,13 +61,13 @@ abstract class LongCostModel extends GlutenCostModel {
 
   def selfLongCostOf(node: SparkPlan): Long
 
-  override def costComparator(): Ordering[Cost] = Ordering.Long.on {
+  override def costComparator(): Ordering[GlutenCost] = Ordering.Long.on {
     case LongCost(value) => value
     case _ => throw new IllegalStateException("Unexpected cost type")
   }
 
-  override def makeInfCost(): Cost = LongCost(infLongCost)
-  override def makeZeroCost(): Cost = LongCost(zeroLongCost)
+  override def makeInfCost(): GlutenCost = LongCost(infLongCost)
+  override def makeZeroCost(): GlutenCost = LongCost(zeroLongCost)
 }
 
 object LongCostModel extends Logging {

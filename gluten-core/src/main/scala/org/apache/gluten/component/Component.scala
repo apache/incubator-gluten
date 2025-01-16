@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.component
 
+import org.apache.gluten.extension.columnar.cost.LongCoster
 import org.apache.gluten.extension.columnar.transition.ConventionFunc
 import org.apache.gluten.extension.injector.Injector
 
@@ -68,6 +69,12 @@ trait Component {
    * and input conventions it requires.
    */
   def convFuncOverride(): ConventionFunc.Override = ConventionFunc.Override.Empty
+
+  /**
+   * A sequence of [[org.apache.gluten.extension.columnar.cost.LongCoster]] Gluten is using for cost
+   * evaluation.
+   */
+  def costers(): Seq[LongCoster] = Nil
 
   /** Query planner rules. */
   def injectRules(injector: Injector): Unit

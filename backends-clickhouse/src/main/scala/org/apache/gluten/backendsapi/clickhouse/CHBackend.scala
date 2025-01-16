@@ -24,6 +24,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -54,7 +55,6 @@ class CHBackend extends SubstraitBackend {
   override def name(): String = CHConf.BACKEND_NAME
   override def buildInfo(): BuildInfo =
     BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
-  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
@@ -63,6 +63,8 @@ class CHBackend extends SubstraitBackend {
   override def listenerApi(): ListenerApi = new CHListenerApi
   override def ruleApi(): RuleApi = new CHRuleApi
   override def settings(): BackendSettingsApi = CHBackendSettings
+  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
+  override def costers(): Seq[LongCoster] = Seq(LegacyCoster)
 }
 
 object CHBackend {

@@ -44,8 +44,8 @@ object FloydWarshallGraph {
     def cost(costModel: CostModel[E]): Cost
   }
 
-  def builder[V <: AnyRef, E <: AnyRef](costModelFactory: () => CostModel[E]): Builder[V, E] = {
-    Builder.create(costModelFactory)
+  def builder[V <: AnyRef, E <: AnyRef](): Builder[V, E] = {
+    Builder.create()
   }
 
   private object Path {
@@ -83,24 +83,22 @@ object FloydWarshallGraph {
   trait Builder[V <: AnyRef, E <: AnyRef] {
     def addVertex(v: V): Builder[V, E]
     def addEdge(from: V, to: V, edge: E): Builder[V, E]
-    def build(): FloydWarshallGraph[V, E]
+    def build(costModel: CostModel[E]): FloydWarshallGraph[V, E]
   }
 
   private object Builder {
-    // Thread safe.
-    private class Impl[V <: AnyRef, E <: AnyRef](costModelFactory: () => CostModel[E])
-      extends Builder[V, E] {
+    private class Impl[V <: AnyRef, E <: AnyRef]() extends Builder[V, E] {
       private val pathTable: mutable.Map[V, mutable.Map[V, Path[E]]] = mutable.Map()
       private var graph: Option[FloydWarshallGraph[V, E]] = None
 
-      override def addVertex(v: V): Builder[V, E] = synchronized {
+      override def addVertex(v: V): Builder[V, E] = {
         assert(!pathTable.contains(v), s"Vertex $v already exists in graph")
         pathTable.getOrElseUpdate(v, mutable.Map()).getOrElseUpdate(v, Path(Nil))
         graph = None
         this
       }
 
-      override def addEdge(from: V, to: V, edge: E): Builder[V, E] = synchronized {
+      override def addEdge(from: V, to: V, edge: E): Builder[V, E] = {
         assert(from != to, s"Input vertices $from and $to should be different")
         assert(pathTable.contains(from), s"Vertex $from not exists in graph")
         assert(pathTable.contains(to), s"Vertex $to not exists in graph")
@@ -110,26 +108,7 @@ object FloydWarshallGraph {
         this
       }
 
-      override def build(): FloydWarshallGraph[V, E] = synchronized {
-        if (graph.isEmpty) {
-          graph = Some(compile())
-        }
-        return graph.get
-      }
-
-      private def hasPath(from: V, to: V): Boolean = {
-        if (!pathTable.contains(from)) {
-          return false
-        }
-        val vec = pathTable(from)
-        if (!vec.contains(to)) {
-          return false
-        }
-        true
-      }
-
-      private def compile(): FloydWarshallGraph[V, E] = {
-        val costModel = costModelFactory()
+      override def build(costModel: CostModel[E]): FloydWarshallGraph[V, E] = {
         val vertices = pathTable.keys
         for (k <- vertices) {
           for (i <- vertices) {
@@ -156,10 +135,21 @@ object FloydWarshallGraph {
         }
         new FloydWarshallGraph.Impl(pathTable.map { case (k, m) => (k, m.toMap) }.toMap)
       }
+
+      private def hasPath(from: V, to: V): Boolean = {
+        if (!pathTable.contains(from)) {
+          return false
+        }
+        val vec = pathTable(from)
+        if (!vec.contains(to)) {
+          return false
+        }
+        true
+      }
     }
 
-    def create[V <: AnyRef, E <: AnyRef](costModelFactory: () => CostModel[E]): Builder[V, E] = {
-      new Impl(costModelFactory)
+    def create[V <: AnyRef, E <: AnyRef](): Builder[V, E] = {
+      new Impl()
     }
   }
 }

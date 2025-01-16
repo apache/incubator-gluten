@@ -20,8 +20,8 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.GlutenColumnarRule
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
+import org.apache.gluten.extension.columnar.cost.GlutenCostModel
 import org.apache.gluten.extension.columnar.enumerated.{EnumeratedApplier, EnumeratedTransform}
-import org.apache.gluten.extension.columnar.enumerated.planner.cost.{GlutenCostModel, LongCoster, LongCostModel}
 import org.apache.gluten.extension.columnar.heuristic.{HeuristicApplier, HeuristicTransform}
 import org.apache.gluten.ras.rule.RasRule
 
@@ -29,7 +29,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.util.SparkReflectionUtil
 
 import scala.collection.mutable
 
@@ -106,7 +105,6 @@ object GlutenInjector {
   class RasInjector extends Logging {
     private val preTransformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
     private val rasRuleBuilders = mutable.Buffer.empty[ColumnarRuleCall => RasRule[SparkPlan]]
-    private val costerBuilders = mutable.Buffer.empty[ColumnarRuleCall => LongCoster]
     private val postTransformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
 
     def injectPreTransform(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
@@ -115,10 +113,6 @@ object GlutenInjector {
 
     def injectRasRule(builder: ColumnarRuleCall => RasRule[SparkPlan]): Unit = {
       rasRuleBuilders += builder
-    }
-
-    def injectCoster(builder: ColumnarRuleCall => LongCoster): Unit = {
-      costerBuilders += builder
     }
 
     def injectPostTransform(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
@@ -135,31 +129,9 @@ object GlutenInjector {
     def createEnumeratedTransform(call: ColumnarRuleCall): EnumeratedTransform = {
       // Build RAS rules.
       val rules = rasRuleBuilders.map(_(call))
-
-      // Build the cost model.
-      val costModelRegistry = LongCostModel.registry()
-      costerBuilders.foreach(cb => costModelRegistry.register(cb(call)))
-      val aliasOrClass = call.glutenConf.rasCostModel
-      val costModel = findCostModel(costModelRegistry, aliasOrClass)
-
+      val costModel = GlutenCostModel.find(call.glutenConf.rasCostModel)
       // Create transform.
       EnumeratedTransform(costModel, rules.toSeq)
-    }
-
-    private def findCostModel(
-        registry: LongCostModel.Registry,
-        aliasOrClass: String): GlutenCostModel = {
-      if (LongCostModel.Kind.values().contains(aliasOrClass)) {
-        val kind = LongCostModel.Kind.values()(aliasOrClass)
-        val model = registry.get(kind)
-        return model
-      }
-      val clazz = SparkReflectionUtil.classForName(aliasOrClass)
-      logInfo(s"Using user cost model: $aliasOrClass")
-      val ctor = clazz.getDeclaredConstructor()
-      ctor.setAccessible(true)
-      val model: GlutenCostModel = ctor.newInstance().asInstanceOf[GlutenCostModel]
-      model
     }
   }
 }
