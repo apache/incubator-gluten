@@ -18,6 +18,7 @@ package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
@@ -58,6 +59,7 @@ import org.apache.spark.storage.{BlockId, BlockManagerId}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
 import org.apache.parquet.format.converter.ParquetMetadataConverter
+import org.apache.parquet.crypto.ParquetCryptoRuntimeException
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.schema.MessageType
@@ -566,13 +568,12 @@ class Spark35Shims extends SparkShims {
           false
         case EncryptionType.PLAINTEXT_FOOTER =>
           true
-        case EncryptionType.ENCRYPTED_FOOTER =>
-          true
         case _ =>
           false
       }
     } catch {
-      case _: Exception => false
+      case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) => true
+      case e: Exception => false
     }
   }
 }
