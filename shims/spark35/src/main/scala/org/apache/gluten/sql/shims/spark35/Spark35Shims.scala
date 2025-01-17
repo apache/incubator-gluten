@@ -18,6 +18,7 @@ package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
@@ -53,6 +54,7 @@ import org.apache.spark.sql.internal.{LegacyBehaviorPolicy, SQLConf}
 import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
 import org.apache.parquet.format.converter.ParquetMetadataConverter
@@ -61,7 +63,8 @@ import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{Properties, HashMap => JHashMap, Map => JMap}
+import java.util.{HashMap => JHashMap, Map => JMap, Properties}
+
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
@@ -555,7 +558,8 @@ class Spark35Shims extends SparkShims {
       fileStatus: LocatedFileStatus,
       conf: Configuration): Boolean = {
     try {
-      val footer = ParquetFileReader.readFooter(conf, fileStatus.getPath, ParquetMetadataConverter.NO_FILTER)
+      val footer =
+        ParquetFileReader.readFooter(conf, fileStatus.getPath, ParquetMetadataConverter.NO_FILTER)
       val fileMetaData = footer.getFileMetaData
       fileMetaData.getEncryptionType match {
         case EncryptionType.UNENCRYPTED =>
@@ -567,8 +571,7 @@ class Spark35Shims extends SparkShims {
         case _ =>
           false
       }
-    }
-    catch {
+    } catch {
       case _: Exception => false
     }
   }
