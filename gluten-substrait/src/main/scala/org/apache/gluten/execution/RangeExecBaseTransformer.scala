@@ -42,17 +42,6 @@ abstract class RangeExecBaseTransformer(
     outputAttributes
   }
 
-  override protected def doValidateInternal(): ValidationResult = {
-    val isSupported = BackendsApiManager.getSettings.supportRangeExec()
-
-    if (!isSupported) {
-      return ValidationResult.failed(
-        s"RangeExec is not supported by the current backend."
-      )
-    }
-    ValidationResult.succeeded
-  }
-
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override protected def doExecute()
