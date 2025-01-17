@@ -114,7 +114,7 @@ class BenchmarkCompression {
     setCpu(state.range(2) + state.thread_index());
     auto ipcWriteOptions = arrow::ipc::IpcWriteOptions::Defaults();
     ipcWriteOptions.use_threads = false;
-    auto compressBufferSize = (uint32_t)state.range(1);
+    auto compressBufferSize = static_cast<uint32_t>(state.range(1));
     auto compressionType = state.range(0);
     switch (compressionType) {
       case gluten::kLZ4: {
@@ -253,7 +253,7 @@ class BenchmarkCompression {
           GLUTEN_ASSIGN_OR_THROW(
               auto len,
               codec->Decompress(buffers[j]->size() - 8, buffers[j]->data() + 8, outputSize, out->mutable_data()));
-          (void)len;
+          static_cast<void>(len);
         }
       }
     }
