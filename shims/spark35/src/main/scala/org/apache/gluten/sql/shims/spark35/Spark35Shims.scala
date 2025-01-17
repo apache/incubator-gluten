@@ -18,7 +18,6 @@ package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
-
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
@@ -54,14 +53,15 @@ import org.apache.spark.sql.internal.{LegacyBehaviorPolicy, SQLConf}
 import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
+import org.apache.parquet.format.converter.ParquetMetadataConverter
+import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap, Properties}
-
+import java.util.{Properties, HashMap => JHashMap, Map => JMap}
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
@@ -554,7 +554,22 @@ class Spark35Shims extends SparkShims {
   override def isParquetFileEncrypted(
       fileStatus: LocatedFileStatus,
       conf: Configuration): Boolean = {
-    // TODO: Support will be added (https://github.com/apache/incubator-gluten/pull/8501)
-    return false
+    try {
+      val footer = ParquetFileReader.readFooter(conf, fileStatus.getPath, ParquetMetadataConverter.NO_FILTER)
+      val fileMetaData = footer.getFileMetaData
+      fileMetaData.getEncryptionType match {
+        case EncryptionType.UNENCRYPTED =>
+          false
+        case EncryptionType.PLAINTEXT_FOOTER =>
+          true
+        case EncryptionType.ENCRYPTED_FOOTER =>
+          true
+        case _ =>
+          false
+      }
+    }
+    catch {
+      case _: Exception => false
+    }
   }
 }
