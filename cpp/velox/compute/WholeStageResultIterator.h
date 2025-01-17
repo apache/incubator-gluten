@@ -109,6 +109,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   const SparkTaskInfo taskInfo_;
   std::shared_ptr<facebook::velox::exec::Task> task_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
+  const std::string queryId_;
 
   /// Spill.
   std::string spillStrategy_;

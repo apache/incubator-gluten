@@ -51,6 +51,14 @@ const std::string kWriteIOTime = "writeIOTime";
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 
+std::string getQueryId(const std::unordered_map<std::string, std::string>& confMap) {
+  auto it = confMap.find(kQueryTraceQueryId);
+  if (it != confMap.end()) {
+    return it->second;
+  }
+  return "";
+}
+
 } // namespace
 
 WholeStageResultIterator::WholeStageResultIterator(
@@ -67,6 +75,7 @@ WholeStageResultIterator::WholeStageResultIterator(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
+      queryId_(getQueryId(confMap)),
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -186,7 +195,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
       gluten::VeloxBackend::get()->getAsyncDataCache(),
       memoryManager_->getAggregateMemoryPool(),
       spillExecutor_.get(),
-      "");
+      queryId_);
   return ctx;
 }
 
@@ -558,6 +567,18 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "false";
     }
 
+    const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
+      const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);
+      if (valueOptional.hasValue()) {
+        configs[veloxKey] = valueOptional.value();
+      }
+    };
+    setIfExists(kQueryTraceEnabled, velox::core::QueryConfig::kQueryTraceEnabled);
+    setIfExists(kQueryTraceDir, velox::core::QueryConfig::kQueryTraceDir);
+    setIfExists(kQueryTraceNodeIds, velox::core::QueryConfig::kQueryTraceNodeIds);
+    setIfExists(kQueryTraceMaxBytes, velox::core::QueryConfig::kQueryTraceMaxBytes);
+    setIfExists(kQueryTraceTaskRegExp, velox::core::QueryConfig::kQueryTraceTaskRegExp);
+    setIfExists(kOpTraceDirectoryCreateConfig, velox::core::QueryConfig::kOpTraceDirectoryCreateConfig);
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);

@@ -123,6 +123,9 @@ class SubstraitToVeloxPlanConverter {
 
   core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
 
+  // This is only used in benchmark and enable query trace, which will load all the data to ValuesNode.
+  core::PlanNodePtr constructValuesNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+
   /// Used to convert Substrait Rel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::Rel& sRel);
 
