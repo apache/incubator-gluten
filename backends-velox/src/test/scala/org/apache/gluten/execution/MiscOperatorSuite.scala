@@ -2010,4 +2010,33 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
   }
+
+  test("test get_struct_field with scalar function as input") {
+    withSQLConf("spark.sql.json.enablePartialResults" -> "true") {
+      withTable("t") {
+        withTempPath {
+          path =>
+            Seq[String](
+              "{\"a\":1,\"b\":[10, 11, 12]}",
+              "{\"a\":2,\"b\":[20, 21, 22]}"
+            ).toDF("json_str").write.parquet(path.getCanonicalPath)
+            spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+
+            val query =
+              """
+                | select
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').a,
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').b
+                | from t
+                |""".stripMargin
+
+            runQueryAndCompare(query)(
+              df => {
+                val executedPlan = getExecutedPlan(df)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+              })
+        }
+      }
+    }
+  }
 }
