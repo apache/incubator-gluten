@@ -995,4 +995,25 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
     compareResultsAgainstVanillaSpark(sql, true, checkProjects, false)
   }
+
+  test("GLUTEN-8406 replace from_json with get_json_object") {
+    withTable("test_8406") {
+      spark.sql("create table test_8406(x string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_8406 values
+          |('{"a":1}'),
+          |('{"a":2'),
+          |('{"b":3}'),
+          |('{"a":"5"}'),
+          |('{"a":{"x":1}}')
+          |""".stripMargin
+      spark.sql(insert_sql)
+      val sql =
+        """
+          |select from_json(x, 'Map<String, String>')['a'] from test_8406
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
 }
