@@ -161,7 +161,7 @@ object Executor {
   }
 
   private def addThread(thread: Thread): Unit = {
-    stateStore.put(thread, RunState("IDLE"))
+    stateStore.put(thread, RunState("NEW"))
   }
 
   private def getStates: Seq[RunState] = _stateStore.values().asScala.toSeq

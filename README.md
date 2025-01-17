@@ -124,7 +124,7 @@ For any technical discussion, please send email to [dev@gluten.apache.org](mailt
 for getting historical discussions. Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe the mail list.
 
 ### Wechat group
-We also have a Wechat group (in Chinese) which may be more friendly for PRC developers/users. Due to the limitation of wechat group, please contact with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 
+We also have a Wechat group (in Chinese) which may be more friendly for PRC developers/users. Due to the limitation of wechat group, please contact with weitingchen at apache.org or zhangzc at apache.org to be invited to the group.
 
 ### Slack channel
 There's also a Spark channel in Velox Slack group (in English) for community communication for Velox backend. Please check Velox document here: https://github.com/facebookincubator/velox?tab=readme-ov-file#community
@@ -150,18 +150,40 @@ The below testing environment: a 8-nodes AWS cluster with 1TB data; Spark-3.1.1 
 
 ![Performance](./docs/image/clickhouse_decision_support_bench1_22queries_performance.png)
 
-# 6 License
+# 6 Qualification Tool
+
+The Qualification Tool is a utility to analyze Spark event log files and assess the compatibility and performance of SQL workloads with Gluten. This tool helps users understand how their workloads can benefit from Gluten.
+
+## Features
+- Analyzes Spark SQL execution plans for compatibility with Gluten.
+- Supports various types of event log files, including single files, folders, compressed files, and rolling event logs.
+- Generates detailed reports highlighting supported and unsupported operations.
+- Provides metrics on SQL execution times and operator impact.
+- Offers configurable options such as threading, output directory, and date-based filtering.
+
+## Usage
+
+To use the Qualification Tool, follow the instructions in its [README](tools/qualification-tool/README.MD).
+
+## Example Command
+```bash
+java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f /path/to/eventlog
+```
+For detailed usage instructions and advanced options, see the Qualification Tool README.
+
+
+# 7 License
 
 Gluten is licensed under [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
-# 7 Contact
+# 8 Contact
 
 Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, etc. If you are interested in Gluten project, please contact and subscribe below mailing lists for further discussion.
 
 * For community activity: dev@gluten.apache.org
 * For code repository activity: commits@gluten.apache.org
 
-# 8 Thanks to our contributors
+# 9 Thanks to our contributors
 
 <a href="https://github.com/apache/incubator-gluten/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=apache/incubator-gluten&columns=25" />
