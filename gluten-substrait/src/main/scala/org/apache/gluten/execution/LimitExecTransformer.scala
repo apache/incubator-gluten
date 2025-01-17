@@ -20,10 +20,12 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.rel.{RelBuilder, RelBuilderUtil, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.SparkPlan
+
+import scala.collection.JavaConverters._
 
 case class LimitExecTransformer(child: SparkPlan, offset: Long, count: Long)
   extends UnaryTransformSupport {
@@ -70,7 +72,7 @@ case class LimitExecTransformer(child: SparkPlan, offset: Long, count: Long)
         input,
         offset,
         count,
-        RelBuilderUtil.createExtensionNode(inputAttributes),
+        RelBuilder.createExtensionNode(inputAttributes.asJava),
         context,
         operatorId)
     }

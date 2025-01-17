@@ -24,7 +24,7 @@ import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.WindowFunctionNode
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.rel.{RelBuilder, RelBuilderUtil, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
@@ -152,7 +152,7 @@ case class WindowExecTransformer(
         windowExpressions,
         partitionsExpressions,
         sortFieldList,
-        RelBuilderUtil.createExtensionNode(originalInputAttributes),
+        RelBuilder.createExtensionNode(originalInputAttributes.asJava),
         context,
         operatorId)
     }

@@ -20,7 +20,7 @@ import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.rel.{RelBuilder, RelBuilderUtil, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, Distribution, Partitioning, UnspecifiedDistribution}
@@ -106,7 +106,7 @@ case class TopNTransformer(
         input,
         count,
         sortFieldList.asJava,
-        RelBuilderUtil.createExtensionNode(inputAttributes),
+        RelBuilder.createExtensionNode(inputAttributes.asJava),
         context,
         operatorId)
     }

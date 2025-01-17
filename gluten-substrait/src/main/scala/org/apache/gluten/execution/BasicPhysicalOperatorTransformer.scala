@@ -23,7 +23,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.rel.{RelBuilderUtil, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -75,10 +75,14 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    RelBuilderUtil.createFilterRel(
+    assert(condExpr != null)
+    val condExprNode = ExpressionConverter
+      .replaceWithExpressionTransformer(condExpr, originalInputAttributes)
+      .doTransform(context.registeredFunction)
+    RelBuilder.makeFilterRel(
       context,
-      condExpr,
-      originalInputAttributes,
+      condExprNode,
+      originalInputAttributes.asJava,
       operatorId,
       input,
       validation
@@ -219,8 +223,8 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
     val columnarProjExprs: Seq[ExpressionTransformer] = ExpressionConverter
       .replaceWithExpressionTransformer(projectList, originalInputAttributes)
     val projExprNodeList = columnarProjExprs.map(_.doTransform(args)).asJava
-    RelBuilderUtil.createProjectRel(
-      originalInputAttributes,
+    RelBuilder.makeProjectRel(
+      originalInputAttributes.asJava,
       input,
       projExprNodeList,
       context,

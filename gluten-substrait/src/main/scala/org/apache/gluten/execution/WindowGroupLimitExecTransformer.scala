@@ -21,7 +21,7 @@ import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.rel.{RelBuilder, RelBuilderUtil, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
@@ -126,7 +126,7 @@ case class WindowGroupLimitExecTransformer(
         partitionsExpressions,
         sortFieldList,
         limit,
-        RelBuilderUtil.createExtensionNode(originalInputAttributes),
+        RelBuilder.createExtensionNode(originalInputAttributes.asJava),
         context,
         operatorId)
     }

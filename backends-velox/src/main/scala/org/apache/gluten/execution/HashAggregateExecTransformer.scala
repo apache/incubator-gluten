@@ -24,7 +24,7 @@ import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
-import org.apache.gluten.substrait.rel.{RelBuilder, RelBuilderUtil, RelNode}
+import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.gluten.utils.VeloxIntermediateData
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -419,8 +419,8 @@ abstract class HashAggregateExecTransformer(
     }
 
     // Create a project rel.
-    val projectRel = RelBuilderUtil.createProjectRel(
-      originalInputAttributes,
+    val projectRel = RelBuilder.makeProjectRel(
+      originalInputAttributes.asJava,
       inputRel,
       exprNodes,
       context,
