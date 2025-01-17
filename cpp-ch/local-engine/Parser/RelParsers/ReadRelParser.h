@@ -34,12 +34,14 @@ public:
         return parse(std::move(query_plan), rel, rel_stack_);
     }
 
-    DB::QueryPlanPtr parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &) override;
+    DB::QueryPlanPtr parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack) override;
     // This is source node, there is no input
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return {}; }
 
+    bool isReadFromDefault(const substrait::ReadRel & rel);
     bool isReadRelFromJava(const substrait::ReadRel & rel);
     bool isReadFromMergeTree(const substrait::ReadRel & rel);
+    bool isReadFromStreamKafka(const substrait::ReadRel & rel);
 
     void setInputIter(jobject input_iter_, bool is_materialze)
     {
