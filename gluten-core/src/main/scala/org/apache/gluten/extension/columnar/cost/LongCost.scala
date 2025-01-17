@@ -14,24 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.enumerated.planner.cost
+package org.apache.gluten.extension.columnar.cost
 
-import org.apache.spark.sql.execution.SparkPlan
-
-/**
- * Costs one single Spark plan node. The coster returns none if the input plan node is not
- * recognizable.
- *
- * Used by the composite cost model [[LongCosterChain]].
- */
-trait LongCoster {
-
-  /** The coster will be registered as part of the cost model associated with this kind. */
-  def kind(): LongCostModel.Kind
-
-  /**
-   * Calculates the long integer cost of the input query plan node. Note, this calculation should
-   * omit children's costs.
-   */
-  def selfCostOf(node: SparkPlan): Option[Long]
-}
+case class LongCost(value: Long) extends GlutenCost

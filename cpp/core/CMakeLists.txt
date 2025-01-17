@@ -120,7 +120,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     shuffle/RandomPartitioner.cc
     shuffle/RoundRobinPartitioner.cc
     shuffle/ShuffleMemoryPool.cc
-    shuffle/ShuffleReader.cc
     shuffle/ShuffleWriter.cc
     shuffle/SinglePartitioner.cc
     shuffle/Spill.cc

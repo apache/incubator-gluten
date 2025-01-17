@@ -313,7 +313,6 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             DataTypePtr denull_input_type = removeNullable(input_type);
             DataTypePtr output_type = TypeParser::parseType(substrait_type);
             DataTypePtr denull_output_type = removeNullable(output_type);
-
             const ActionsDAG::Node * result_node = nullptr;
             if (substrait_type.has_binary())
             {
@@ -336,11 +335,15 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                 String function_name = "sparkCastFloatTo" + denull_output_type->getName();
                 result_node = toFunctionNode(actions_dag, function_name, args);
             }
-            else if ((isDecimal(denull_input_type) && substrait_type.has_decimal()))
+            else if ((isDecimal(denull_input_type) || isNativeNumber(denull_input_type)) && substrait_type.has_decimal())
             {
-                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().precision()));
-                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().scale()));
-                result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
+                int decimal_precision = substrait_type.decimal().precision();
+                if (decimal_precision)
+                {
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), decimal_precision));
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().scale()));
+                    result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
+                }
             }
             else if (isMap(denull_input_type) && isString(denull_output_type))
             {

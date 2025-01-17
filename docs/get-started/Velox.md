@@ -9,7 +9,7 @@ parent: Getting-Started
 
 | Type  | Version                      |
 |-------|------------------------------|
-| Spark | 3.2.2, 3.3.1, 3.4.4, 3.5.1   |
+| Spark | 3.2.2, 3.3.1, 3.4.4, 3.5.2   |
 | OS    | Ubuntu20.04/22.04, Centos7/8 |
 | jdk   | openjdk8/jdk17               |
 | scala | 2.12                         |
@@ -18,7 +18,7 @@ parent: Getting-Started
 
 Currently, with static build Gluten+Velox backend supports all the Linux OSes, but is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**. With dynamic build, Gluten+Velox backend support **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8** and their variants.
 
-Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.4 and 3.5.1.
+Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.4 and 3.5.2.
 
 We need to set up the `JAVA_HOME` env. Currently, Gluten supports **java 8** and **java 17**.
 
@@ -113,11 +113,11 @@ Alternatively you may refer to [build in docker](docs/developers/velox-backend-b
 With build option `enable_vcpkg=ON`, all dependency libraries will be statically linked to `libvelox.so` and `libgluten.so` which are packed into the gluten-jar.
 In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build
 the static version using a clean docker image without any extra libraries installed ( [build in docker](docs/developers/velox-backend-build-in-docker.md) ). On host with
-some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host. We ** strongly recommend ** user to build Gluten in this way to avoid dependency lacking issue.
+some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host. We **strongly recommend** user to build Gluten in this way to avoid dependency lacking issue.
 
 With build option `enable_vcpkg=OFF`, not all dependency libraries will be dynamically linked. After building, you need to separately execute `./dev/build-thirdparty.sh` to 
 pack required shared libraries into another jar named `gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar`. Then you need to add the jar to Spark config `extraClassPath` and 
-set `spark.gluten.loadLibFromJar=true`. Otherwise, you need to install required shared libraries with ** exactly the same versions ** on each worker node . You may find the 
+set `spark.gluten.loadLibFromJar=true`. Otherwise, you need to install required shared libraries with **exactly the same versions** on each worker node . You may find the 
 libraries list from the third-party jar.
 
 # Remote storage support
@@ -126,6 +126,10 @@ libraries list from the third-party jar.
 
 Gluten supports dynamically loading both libhdfs.so and libhdfs3.so at runtime by using dlopen, allowing the JVM to load the appropriate shared library file as needed. This means you do not need to set the library path during the compilation phase.
 To enable this functionality, you must set the JAVA_HOME and HADOOP_HOME environment variables. Gluten will then locate and load the ${HADOOP_HOME}/lib/native/libhdfs.so file at runtime. If you prefer to use libhdfs3.so instead, simply replace the ${HADOOP_HOME}/lib/native/libhdfs.so file with libhdfs3.so.
+
+### Build libhdfs3
+
+If you want to run Gluten with libhdfs3.so, you need to manually compile libhdfs3 to obtain the libhdfs3.so file. We provide the script dev/build_libhdfs3.sh in Gluten to help you compile libhdfs3.so.
 
 ### Build with HDFS support
 

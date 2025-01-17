@@ -14,48 +14,60 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.enumerated.planner.cost
+package org.apache.gluten.extension.columnar.cost
 
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.enumerated.planner.plan.GlutenPlanModel.GroupLeafExec
-import org.apache.gluten.ras.{Cost, CostModel}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.mutable
 
-abstract class LongCostModel extends CostModel[SparkPlan] {
+abstract class LongCostModel extends GlutenCostModel {
   private val infLongCost = Long.MaxValue
+  private val zeroLongCost = 0
 
   override def costOf(node: SparkPlan): LongCost = node match {
     case _: GroupLeafExec => throw new IllegalStateException()
     case _ => LongCost(longCostOf(node))
   }
 
+  // Sum with ceil to avoid overflow.
+  private def safeSum(a: Long, b: Long): Long = {
+    assert(a >= 0)
+    assert(b >= 0)
+    val sum = a + b
+    if (sum < a || sum < b) infLongCost else sum
+  }
+
+  override def sum(one: GlutenCost, other: GlutenCost): LongCost = (one, other) match {
+    case (LongCost(value), LongCost(otherValue)) => LongCost(safeSum(value, otherValue))
+  }
+
+  // Returns cost value of one - other.
+  override def diff(one: GlutenCost, other: GlutenCost): GlutenCost = (one, other) match {
+    case (LongCost(value), LongCost(otherValue)) =>
+      val d = Math.subtractExact(value, otherValue)
+      require(d >= zeroLongCost, s"Difference between cost $one and $other should not be negative")
+      LongCost(d)
+  }
+
   private def longCostOf(node: SparkPlan): Long = node match {
     case n =>
       val selfCost = selfLongCostOf(n)
-
-      // Sum with ceil to avoid overflow.
-      def safeSum(a: Long, b: Long): Long = {
-        assert(a >= 0)
-        assert(b >= 0)
-        val sum = a + b
-        if (sum < a || sum < b) Long.MaxValue else sum
-      }
-
-      (n.children.map(longCostOf).toList :+ selfCost).reduce(safeSum)
+      (n.children.map(longCostOf).toSeq :+ selfCost).reduce[Long](safeSum)
   }
 
   def selfLongCostOf(node: SparkPlan): Long
 
-  override def costComparator(): Ordering[Cost] = Ordering.Long.on {
+  override def costComparator(): Ordering[GlutenCost] = Ordering.Long.on {
     case LongCost(value) => value
     case _ => throw new IllegalStateException("Unexpected cost type")
   }
 
-  override def makeInfCost(): Cost = LongCost(infLongCost)
+  override def makeInfCost(): GlutenCost = LongCost(infLongCost)
+  override def makeZeroCost(): GlutenCost = LongCost(zeroLongCost)
 }
 
 object LongCostModel extends Logging {
@@ -96,11 +108,6 @@ object LongCostModel extends Logging {
   /** A rough cost model with some empirical heuristics. */
   case object Rough extends Kind {
     override def name(): String = "rough"
-  }
-
-  /** Compared with rough, rough2 can be more precise to avoid the costly r2c. */
-  case object Rough2 extends Kind {
-    override def name(): String = "rough2"
   }
 
   class Registry private[LongCostModel] {

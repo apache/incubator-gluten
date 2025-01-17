@@ -38,7 +38,7 @@ arrow::Status gluten::RoundRobinPartitioner::compute(
     std::unordered_map<int32_t, std::vector<int64_t>>& rowVectorIndexMap) {
   auto index = static_cast<int64_t>(vectorIndex) << 32;
   for (int32_t i = 0; i < numRows; ++i) {
-    int64_t combined = index | (i & 0xFFFFFFFFLL);
+    int64_t combined = index | (static_cast<int64_t>(i) & 0xFFFFFFFFLL);
     auto& vec = rowVectorIndexMap[pidSelection_];
     vec.push_back(combined);
     pidSelection_ = (pidSelection_ + 1) % numPartitions_;

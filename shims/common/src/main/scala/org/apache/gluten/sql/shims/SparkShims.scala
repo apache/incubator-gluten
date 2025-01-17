@@ -48,7 +48,9 @@ import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.fs.LocatedFileStatus
 import org.apache.parquet.schema.MessageType
 
 import java.util.{Map => JMap, Properties}
@@ -285,4 +287,7 @@ trait SparkShims {
 
   /** Shim method for usages from GlutenExplainUtils.scala. */
   def unsetOperatorId(plan: QueryPlan[_]): Unit
+
+  def isParquetFileEncrypted(fileStatus: LocatedFileStatus, conf: Configuration): Boolean
+
 }

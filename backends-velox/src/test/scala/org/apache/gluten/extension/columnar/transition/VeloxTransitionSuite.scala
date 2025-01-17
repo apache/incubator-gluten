@@ -200,13 +200,13 @@ class VeloxTransitionSuite extends SharedSparkSession {
   }
 
   override protected def beforeAll(): Unit = {
-    api.onExecutorStart(MockVeloxBackend.mockPluginContext())
     super.beforeAll()
+    api.onExecutorStart(MockVeloxBackend.mockPluginContext())
   }
 
   override protected def afterAll(): Unit = {
-    super.afterAll()
     api.onExecutorShutdown()
+    super.afterAll()
   }
 }
 
