@@ -18,13 +18,14 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.component.Component
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.extension.caller.CallerInfo
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
+import org.apache.gluten.extension.columnar.cost.{GlutenCost, GlutenCostModel}
 import org.apache.gluten.extension.columnar.enumerated.planner.GlutenOptimization
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
 import org.apache.gluten.extension.injector.Injector
-import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
-import org.apache.gluten.ras.CostModel
+import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.RasRule
 
@@ -44,14 +45,15 @@ import org.apache.spark.sql.execution._
  *
  * The feature requires enabling RAS to function.
  */
-case class EnumeratedTransform(costModel: CostModel[SparkPlan], rules: Seq[RasRule[SparkPlan]])
+case class EnumeratedTransform(costModel: GlutenCostModel, rules: Seq[RasRule[SparkPlan]])
   extends Rule[SparkPlan]
   with LogLevelUtil {
+  import EnumeratedTransform._
 
   private val optimization = {
     GlutenOptimization
       .builder()
-      .costModel(costModel)
+      .costModel(asRasCostModel(costModel))
       .addRules(rules)
       .create()
   }
@@ -79,7 +81,21 @@ object EnumeratedTransform {
     val session = SparkSession.getActiveSession.getOrElse(
       throw new GlutenException(
         "HeuristicTransform#static can only be called when an active Spark session exists"))
-    val call = new ColumnarRuleCall(session, AdaptiveContext(session), false)
+    val call = new ColumnarRuleCall(session, CallerInfo.create(), false)
     dummyInjector.gluten.ras.createEnumeratedTransform(call)
   }
+
+  def asRasCostModel(gcm: GlutenCostModel): CostModel[SparkPlan] = {
+    new CostModelAdapter(gcm)
+  }
+
+  /** The adapter to make GlutenCostModel comply with RAS cost model. */
+  private class CostModelAdapter(gcm: GlutenCostModel) extends CostModel[SparkPlan] {
+    override def costOf(node: SparkPlan): Cost = CostAdapter(gcm.costOf(node))
+    override def costComparator(): Ordering[Cost] =
+      gcm.costComparator().on[Cost] { case CostAdapter(gc) => gc }
+    override def makeInfCost(): Cost = CostAdapter(gcm.makeInfCost())
+  }
+
+  private case class CostAdapter(gc: GlutenCost) extends Cost
 }

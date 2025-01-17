@@ -385,16 +385,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite].exclude(
     "SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
   enableSuite[GlutenJsonExpressionsSuite]
-    .exclude("$.store.book[*]")
-    .exclude("$.store.book[*].category")
-    .exclude("$.store.book[*].isbn")
-    .exclude("$.store.basket[*]")
-    .exclude("$.store.basket[*][0]")
-    .exclude("$.store.basket[0][*]")
-    .exclude("$.store.basket[*][*]")
-    .exclude("$.store.basket[0][*].b")
-    .exclude("$.zip code")
-    .exclude("$.fb:testid")
+    .exclude(
+      "$.store.basket[0][*].b"
+    ) // issue: https://github.com/apache/incubator-gluten/issues/8529
     .exclude("from_json - invalid data")
     .exclude("from_json - input=object, schema=array, output=array of single row")
     .exclude("from_json - input=empty object, schema=array, output=array of single row with null")
@@ -1119,6 +1112,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Change merge join to broadcast join without local shuffle read")
     .exclude(
       "Avoid changing merge join to broadcast join if too many empty partitions on build plan")
+    .exclude("SPARK-32932: Do not use local shuffle read at final stage on write command")
+    .exclude(
+      "SPARK-30953: InsertAdaptiveSparkPlan should apply AQE on child plan of v2 write commands")
     .exclude("SPARK-37753: Allow changing outer join to broadcast join even if too many empty partitions on broadcast side")
     .exclude("SPARK-29544: adaptive skew join with different join types")
     .exclude("SPARK-34682: AQEShuffleReadExec operating on canonicalized plan")

@@ -55,7 +55,8 @@ import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructTyp
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
@@ -548,5 +549,12 @@ class Spark35Shims extends SparkShims {
 
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     QueryPlan.localIdMap.get().remove(plan)
+  }
+
+  override def isParquetFileEncrypted(
+      fileStatus: LocatedFileStatus,
+      conf: Configuration): Boolean = {
+    // TODO: Support will be added (https://github.com/apache/incubator-gluten/pull/8501)
+    return false
   }
 }

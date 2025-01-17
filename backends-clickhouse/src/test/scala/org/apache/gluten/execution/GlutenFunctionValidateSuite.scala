@@ -56,7 +56,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.databricks.delta.snapshotPartitions", "1")
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
-      .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
@@ -369,6 +368,17 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     runQueryAndCompare(
       "SELECT string_field1 from json_test where" +
         " get_json_object(string_field1, '$.a') is not null") { _ => }
+  }
+
+  test("Test get_json_object 12") {
+    runQueryAndCompare(
+      "SELECT get_json_object(string_field1, '$.a[*].y') from json_test where int_field1 = 7") {
+      _ =>
+    }
+    runQueryAndCompare(
+      "select get_json_object(string_field1, '$.a[*].z.n.p') from json_test where int_field1 = 7") {
+      _ =>
+    }
   }
 
   test("Test covar_samp") {

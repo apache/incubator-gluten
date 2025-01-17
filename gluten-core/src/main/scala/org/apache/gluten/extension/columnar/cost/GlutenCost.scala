@@ -14,8 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.enumerated.planner.cost
+package org.apache.gluten.extension.columnar.cost
 
-import org.apache.gluten.ras.Cost
-
-case class LongCost(value: Long) extends Cost
+trait GlutenCost

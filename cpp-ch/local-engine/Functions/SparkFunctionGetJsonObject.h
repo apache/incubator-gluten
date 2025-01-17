@@ -462,8 +462,8 @@ public:
 
     static size_t getNumberOfIndexArguments(const DB::ColumnsWithTypeAndName & arguments) { return arguments.size() - 1; }
 
-    bool insertResultToColumn(DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, bool)
-    {
+    bool insertResultToColumn(DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, bool path_has_asterisk)
+    {   
         Element current_element = root;
         DB::VisitorStatus status;
         std::stringstream out; // STYLE_CHECK_ALLOW_STD_STRING_STREAM
@@ -501,10 +501,14 @@ public:
             if (elements[0].isString())
             {
                 auto str = elements[0].getString();
+                if (path_has_asterisk)
+                {
+                    str = "\"" + std::string(str) + "\"";
+                }
                 serializer.addRawString(str);
             }
             else
-            {
+            { 
                 serializer.addElement(elements[0]);
             }
         }
@@ -684,6 +688,7 @@ private:
         std::vector<DB::ASTPtr> json_path_asts;
 
         std::vector<String> required_fields;
+        std::vector<bool> path_has_asterisk;
         const auto & first_column = arguments[0];
         if (const auto * required_fields_col = typeid_cast<const DB::ColumnConst *>(arguments[1].column.get()))
         {
@@ -694,6 +699,11 @@ private:
             {
                 auto normalized_field = JSONPathNormalizer::normalize(field);
                 // LOG_ERROR(getLogger("JSONPatch"), "xxx field {} -> {}", field, normalized_field);
+                if(normalized_field.find("[*]") != std::string::npos)
+                    path_has_asterisk.emplace_back(true);
+                else
+                    path_has_asterisk.emplace_back(false);
+
                 required_fields.push_back(normalized_field);
                 tuple_columns.emplace_back(str_type->createColumn());
 
@@ -776,7 +786,7 @@ private:
                 for (size_t j = 0; j < tuple_size; ++j)
                 {
                     generator_json_paths[j]->reinitialize();
-                    if (!impl.insertResultToColumn(*tuple_columns[j], document, *generator_json_paths[j], true))
+                    if (!impl.insertResultToColumn(*tuple_columns[j], document, *generator_json_paths[j], path_has_asterisk[j]))
                     {
                         tuple_columns[j]->insertDefault();
                     }

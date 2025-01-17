@@ -58,6 +58,7 @@
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <arrow/util/compression.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <sys/resource.h>
 #include <Poco/Logger.h>
@@ -77,6 +78,10 @@ namespace ServerSetting
 extern const ServerSettingsString primary_index_cache_policy;
 extern const ServerSettingsUInt64 primary_index_cache_size;
 extern const ServerSettingsDouble primary_index_cache_size_ratio;
+extern const ServerSettingsString skipping_index_cache_policy;
+extern const ServerSettingsUInt64 skipping_index_cache_size;
+extern const ServerSettingsUInt64 skipping_index_cache_max_entries;
+extern const ServerSettingsDouble skipping_index_cache_size_ratio;
 }
 namespace Setting
 {
@@ -87,6 +92,7 @@ extern const SettingsDouble max_bytes_ratio_before_external_sort;
 extern const SettingsBool query_plan_merge_filters;
 extern const SettingsBool compile_expressions;
 extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
+extern const SettingsUInt64 output_format_compression_level;
 }
 namespace ErrorCodes
 {
@@ -636,22 +642,30 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
     settings.set("output_format_parquet_use_custom_encoder", false);
 
+    //1.
     // TODO: we need set Setting::max_threads to 1 by default, but now we can't get correct metrics for the some query if we set it to 1.
     // settings[Setting::max_threads] = 1;
 
-    /// Set false after https://github.com/ClickHouse/ClickHouse/pull/71539
-    /// if true, we can't get correct metrics for the query
+    /// 2. After https://github.com/ClickHouse/ClickHouse/pull/71539
+    /// Set false to query_plan_merge_filters.
+    /// If true, we can't get correct metrics for the query
     settings[Setting::query_plan_merge_filters] = false;
 
+    /// 3. After https://github.com/ClickHouse/ClickHouse/pull/70598.
+    /// Set false to compile_expressions to avoid dead loop.
+    /// TODO: FIXME set true again.
     /// We now set BuildQueryPipelineSettings according to config.
-    // TODO: FIXME. Set false after https://github.com/ClickHouse/ClickHouse/pull/70598.
     settings[Setting::compile_expressions] = false;
     settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
-    ///
 
-    // After https://github.com/ClickHouse/ClickHouse/pull/73422
-    // Since we already set max_bytes_before_external_sort, set max_bytes_ratio_before_external_sort to 0
+    /// 4. After https://github.com/ClickHouse/ClickHouse/pull/73422
+    /// Since we already set max_bytes_before_external_sort, set max_bytes_ratio_before_external_sort to 0
     settings[Setting::max_bytes_ratio_before_external_sort] = 0.;
+
+    /// 5. After https://github.com/ClickHouse/ClickHouse/pull/73651.
+    /// See following settings, we always use Snappy compression for Parquet, however after https://github.com/ClickHouse/ClickHouse/pull/73651,
+    /// output_format_compression_level is set to 3, which is wrong, since snappy does not support it.
+    settings[Setting::output_format_compression_level] = arrow::util::kUseDefaultCompressionLevel;
 
     for (const auto & [key, value] : spark_conf_map)
     {
@@ -762,11 +776,11 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         global_context->setConfig(config);
 
         auto tmp_path = config->getString("tmp_path", PathConfig::DEFAULT_TEMP_FILE_PATH);
-        if(config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
+        if (config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
         {
             char buffer[PATH_MAX];
             if (getcwd(buffer, sizeof(buffer)) != nullptr)
-                tmp_path =  std::string(buffer) + tmp_path;
+                tmp_path = std::string(buffer) + tmp_path;
         };
 
         global_context->setTemporaryStoragePath(tmp_path, 0);
@@ -804,6 +818,14 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
         global_context->setIndexMarkCache(index_mark_cache_policy, index_mark_cache_size, index_mark_cache_size_ratio);
+
+        String skipping_index_cache_policy = server_settings[ServerSetting::skipping_index_cache_policy];
+        size_t skipping_index_cache_size = server_settings[ServerSetting::skipping_index_cache_size];
+        size_t skipping_index_cache_max_entries = server_settings[ServerSetting::skipping_index_cache_max_entries];
+        double skipping_index_cache_size_ratio = server_settings[ServerSetting::skipping_index_cache_size_ratio];
+        LOG_INFO(log, "Skipping index cache size to {}", formatReadableSizeWithBinarySuffix(skipping_index_cache_size));
+        global_context->setSkippingIndexCache(
+            skipping_index_cache_policy, skipping_index_cache_size, skipping_index_cache_max_entries, skipping_index_cache_size_ratio);
 
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);

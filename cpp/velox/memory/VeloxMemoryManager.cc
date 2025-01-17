@@ -126,7 +126,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   uint64_t shrinkCapacity(uint64_t targetBytes, bool allowSpill, bool allowAbort) override {
     velox::memory::ScopedMemoryArbitrationContext ctx{};
     facebook::velox::exec::MemoryReclaimer::Stats status;
-    velox::memory::MemoryPool* pool;
+    velox::memory::MemoryPool* pool = nullptr;
     {
       std::unique_lock guard{mutex_};
       VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
@@ -178,7 +178,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return freeBytes;
   }
 
-  gluten::AllocationListener* listener_;
+  gluten::AllocationListener* listener_ = nullptr;
   const uint64_t memoryPoolInitialCapacity_; // FIXME: Unused.
   const uint64_t memoryPoolTransferCapacity_;
   const uint64_t memoryReclaimMaxWaitMs_;

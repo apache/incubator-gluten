@@ -14,7 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.enumerated.planner.cost
+package org.apache.gluten.extension.columnar.cost
+
 import org.apache.gluten.exception.GlutenException
 
 import org.apache.spark.sql.execution.SparkPlan
@@ -37,7 +38,7 @@ private class LongCosterChain private (costers: Seq[LongCoster]) extends LongCos
         case (c @ Some(_), _) =>
           c
       }
-      .getOrElse(throw new GlutenException(s"Cost node found for node: $node"))
+      .getOrElse(throw new GlutenException(s"Cost not found for node: $node"))
   }
 }
 

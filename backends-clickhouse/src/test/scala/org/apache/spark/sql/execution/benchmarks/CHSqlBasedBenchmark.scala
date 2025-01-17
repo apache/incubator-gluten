@@ -43,7 +43,6 @@ trait CHSqlBasedBenchmark extends SqlBasedBenchmark {
       .set("spark.databricks.delta.snapshotPartitions", "1")
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
-      .set("spark.gluten.sql.columnar.columnarToRow", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.adaptive.enabled", "false")
       .setIfMissing("spark.memory.offHeap.size", offheapSize)

@@ -85,8 +85,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def shuffledHashJoinOptimizeBuildSide: Boolean =
     getConf(COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE)
 
-  def enableNativeColumnarToRow: Boolean = getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
-
   def forceShuffledHashJoin: Boolean = getConf(COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED)
 
   def enableColumnarSortMergeJoin: Boolean = getConf(COLUMNAR_SORTMERGEJOIN_ENABLED)
@@ -169,16 +167,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enablePreferColumnar: Boolean = getConf(COLUMNAR_PREFER_ENABLED)
 
-  def enableOneRowRelationColumnar: Boolean = getConf(COLUMNAR_ONE_ROW_RELATION_ENABLED)
-
   def physicalJoinOptimizationThrottle: Integer =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
   def enablePhysicalJoinOptimize: Boolean =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_ENABLED)
-
-  def logicalJoinOptimizationThrottle: Integer =
-    getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE)
 
   def enableScanOnly: Boolean = getConf(COLUMNAR_SCAN_ONLY_ENABLED)
 
@@ -295,12 +288,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def rasCostModel: String = getConf(RAS_COST_MODEL)
 
-  def rasRough2SizeBytesThreshold: Long = getConf(RAS_ROUGH2_SIZEBYTES_THRESHOLD)
-
-  def rasRough2R2cCost: Long = getConf(RAS_ROUGH2_R2C_COST)
-
-  def rasRough2VanillaCost: Long = getConf(RAS_ROUGH2_VANILLA_COST)
-
   def enableVeloxCache: Boolean = getConf(COLUMNAR_VELOX_CACHE_ENABLED)
 
   def veloxMemCacheSize: Long = getConf(COLUMNAR_VELOX_MEM_CACHE_SIZE)
@@ -371,7 +358,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def chColumnarShuffleSpillThreshold: Long = {
     val threshold = getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
     if (threshold == 0) {
-      (getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES) * 0.9).toLong
+      (taskOffHeapMemorySize * 0.9).toLong
     } else {
       threshold
     }
@@ -432,47 +419,56 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
   def debug: Boolean = getConf(DEBUG_ENABLED)
+
   def debugKeepJniWorkspace: Boolean = getConf(DEBUG_KEEP_JNI_WORKSPACE)
+
   def collectUtStats: Boolean = getConf(UT_STATISTIC)
+
   def benchmarkStageId: Int = getConf(BENCHMARK_TASK_STAGEID)
+
   def benchmarkPartitionId: String = getConf(BENCHMARK_TASK_PARTITIONID)
+
   def benchmarkTaskId: String = getConf(BENCHMARK_TASK_TASK_ID)
+
   def benchmarkSaveDir: String = getConf(BENCHMARK_SAVE_DIR)
+
   def textInputMaxBlockSize: Long = getConf(TEXT_INPUT_ROW_MAX_BLOCK_SIZE)
+
   def textIputEmptyAsDefault: Boolean = getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
+
   def enableParquetRowGroupMaxMinIndex: Boolean =
     getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
   def enableVeloxFlushablePartialAggregation: Boolean =
     getConf(VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED)
-  def maxFlushableAggregationMemoryRatio: Double =
-    getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
-  def maxExtendedFlushableAggregationMemoryRatio: Double =
-    getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
-  def abandonFlushableAggregationMinPct: Int =
-    getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
-  def abandonFlushableAggregationMinRows: Int =
-    getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
+
+  def maxFlushableAggregationMemoryRatio: Double = getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+
+  def maxExtendedFlushableAggregationMemoryRatio: Double = getConf(
+    MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+
+  def abandonFlushableAggregationMinPct: Int = getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
+
+  def abandonFlushableAggregationMinRows: Int = getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
 
   // Please use `BackendsApiManager.getSettings.enableNativeWriteFiles()` instead
   def enableNativeWriter: Option[Boolean] = getConf(NATIVE_WRITER_ENABLED)
 
   def enableNativeArrowReader: Boolean = getConf(NATIVE_ARROW_READER_ENABLED)
 
-  def directorySizeGuess: Long =
-    getConf(DIRECTORY_SIZE_GUESS)
-  def filePreloadThreshold: Long =
-    getConf(FILE_PRELOAD_THRESHOLD)
-  def prefetchRowGroups: Int =
-    getConf(PREFETCH_ROW_GROUPS)
-  def loadQuantum: Long =
-    getConf(LOAD_QUANTUM)
-  def maxCoalescedDistance: String =
-    getConf(MAX_COALESCED_DISTANCE_BYTES)
-  def maxCoalescedBytes: Long =
-    getConf(MAX_COALESCED_BYTES)
-  def cachePrefetchMinPct: Int =
-    getConf(CACHE_PREFETCH_MINPCT)
+  def directorySizeGuess: Long = getConf(DIRECTORY_SIZE_GUESS)
+
+  def filePreloadThreshold: Long = getConf(FILE_PRELOAD_THRESHOLD)
+
+  def prefetchRowGroups: Int = getConf(PREFETCH_ROW_GROUPS)
+
+  def loadQuantum: Long = getConf(LOAD_QUANTUM)
+
+  def maxCoalescedDistance: String = getConf(MAX_COALESCED_DISTANCE_BYTES)
+
+  def maxCoalescedBytes: Long = getConf(MAX_COALESCED_BYTES)
+
+  def cachePrefetchMinPct: Int = getConf(CACHE_PREFETCH_MINPCT)
 
   def enableColumnarProjectCollapse: Boolean = getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
@@ -497,6 +493,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableBroadcastBuildRelationInOffheap: Boolean =
     getConf(VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP)
+
+  def parquetEncryptionValidationEnabled: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
+
 }
 
 object GlutenConfig {
@@ -1032,13 +1031,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_COLUMNAR_TO_ROW_ENABLED =
-    buildConf("spark.gluten.sql.columnar.columnarToRow")
-      .internal()
-      .doc("Enable or disable columnar columnarToRow.")
-      .booleanConf
-      .createWithDefault(true)
-
   val COLUMNAR_SORTMERGEJOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.sortMergeJoin")
       .internal()
@@ -1126,13 +1118,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_ONE_ROW_RELATION_ENABLED =
-    buildConf("spark.gluten.sql.columnar.oneRowRelation")
-      .internal()
-      .doc("Enable or disable columnar `OneRowRelation`.")
-      .booleanConf
-      .createWithDefault(true)
-
   val COLUMNAR_TABLE_CACHE_ENABLED =
     buildConf("spark.gluten.sql.columnar.tableCache")
       .internal()
@@ -1153,13 +1138,6 @@ object GlutenConfig {
       .doc("Enable or disable columnar physicalJoinOptimize.")
       .booleanConf
       .createWithDefault(false)
-
-  val COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE =
-    buildConf("spark.gluten.sql.columnar.logicalJoinOptimizationLevel")
-      .internal()
-      .doc("Fallback to row operators if there are several continuous joins.")
-      .intConf
-      .createWithDefault(12)
 
   val COLUMNAR_SCAN_ONLY_ENABLED =
     buildConf("spark.gluten.sql.columnar.scanOnly")
@@ -1453,34 +1431,17 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  // FIXME: This option is no longer only used by RAS. Should change key to
+  //  `spark.gluten.costModel` or something similar.
   val RAS_COST_MODEL =
     buildConf("spark.gluten.ras.costModel")
       .doc(
-        "Experimental: The class name of user-defined cost model that will be used by RAS. If " +
-          "not specified, a legacy built-in cost model that exhaustively offloads computations " +
-          "will be used.")
+        "The class name of user-defined cost model that will be used by Gluten's transition " +
+          "planner as well as by RAS. If not specified, a legacy built-in cost model will be " +
+          "used. The legacy cost model helps RAS planner exhaustively offload computations, and " +
+          "helps transition planner choose columnar-to-columnar transition over others.")
       .stringConf
       .createWithDefaultString("legacy")
-
-  val RAS_ROUGH2_SIZEBYTES_THRESHOLD =
-    buildConf("spark.gluten.ras.rough2.sizeBytesThreshold")
-      .doc(
-        "Experimental: Threshold of the byte size consumed by sparkPlan, coefficient used " +
-          "to calculate cost in RAS rough2 model")
-      .longConf
-      .createWithDefault(1073741824L)
-
-  val RAS_ROUGH2_R2C_COST =
-    buildConf("spark.gluten.ras.rough2.r2c.cost")
-      .doc("Experimental: Cost of RowToVeloxColumnarExec in RAS rough2 model")
-      .longConf
-      .createWithDefault(100L)
-
-  val RAS_ROUGH2_VANILLA_COST =
-    buildConf("spark.gluten.ras.rough2.vanilla.cost")
-      .doc("Experimental: Cost of vanilla spark operater in RAS rough model")
-      .longConf
-      .createWithDefault(20L)
 
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
@@ -2276,6 +2237,13 @@ object GlutenConfig {
       .internal()
       .doc("Experimental: If enabled, broadcast build relation will use offheap memory. " +
         "Otherwise, broadcast build relation will use onheap memory.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
+    buildConf("spark.gluten.sql.fallbackEncryptedParquet")
+      .internal()
+      .doc("If enabled, gluten will not offload scan when encrypted parquet files are detected")
       .booleanConf
       .createWithDefault(false)
 }

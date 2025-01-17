@@ -44,7 +44,7 @@ arrow::Status gluten::FallbackRangePartitioner::compute(
   auto index = static_cast<int64_t>(vectorIndex) << 32;
   for (auto i = 0; i < numRows; ++i) {
     auto pid = pidArr[i];
-    int64_t combined = index | (i & 0xFFFFFFFFLL);
+    int64_t combined = index | (static_cast<int64_t>(i) & 0xFFFFFFFFLL);
     auto& vec = rowVectorIndexMap[pid];
     vec.push_back(combined);
     if (pid >= numPartitions_) {

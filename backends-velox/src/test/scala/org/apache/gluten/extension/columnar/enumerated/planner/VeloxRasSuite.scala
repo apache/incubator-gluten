@@ -17,11 +17,11 @@
 package org.apache.gluten.extension.columnar.enumerated.planner
 
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.extension.columnar.cost.{GlutenCost, GlutenCostModel, LegacyCoster, LongCostModel}
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
-import org.apache.gluten.extension.columnar.enumerated.planner.cost.{LegacyCoster, LongCostModel}
 import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv
-import org.apache.gluten.extension.columnar.transition.ConventionReq
-import org.apache.gluten.ras.{Cost, CostModel, Ras}
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
+import org.apache.gluten.ras.Ras
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
@@ -36,6 +36,11 @@ import org.apache.spark.sql.types.StringType
 
 class VeloxRasSuite extends SharedSparkSession {
   import VeloxRasSuite._
+
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    Convention.ensureSparkRowAndBatchTypesRegistered()
+  }
 
   test("C2R, R2C - basic") {
     val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
@@ -147,20 +152,20 @@ object VeloxRasSuite {
   def newRas(rasRules: Seq[RasRule[SparkPlan]]): Ras[SparkPlan] = {
     GlutenOptimization
       .builder()
-      .costModel(sessionCostModel())
+      .costModel(EnumeratedTransform.asRasCostModel(sessionCostModel()))
       .addRules(rasRules)
       .create()
       .asInstanceOf[Ras[SparkPlan]]
   }
 
-  private def legacyCostModel(): CostModel[SparkPlan] = {
+  private def legacyCostModel(): GlutenCostModel = {
     val registry = LongCostModel.registry()
     val coster = LegacyCoster
     registry.register(coster)
     registry.get(coster.kind())
   }
 
-  private def sessionCostModel(): CostModel[SparkPlan] = {
+  private def sessionCostModel(): GlutenCostModel = {
     val transform = EnumeratedTransform.static()
     transform.costModel
   }
@@ -198,23 +203,29 @@ object VeloxRasSuite {
     override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
   }
 
-  class UserCostModel1 extends CostModel[SparkPlan] {
+  class UserCostModel1 extends GlutenCostModel {
     private val base = legacyCostModel()
-    override def costOf(node: SparkPlan): Cost = node match {
+    override def costOf(node: SparkPlan): GlutenCost = node match {
       case _: RowUnary => base.makeInfCost()
       case other => base.costOf(other)
     }
-    override def costComparator(): Ordering[Cost] = base.costComparator()
-    override def makeInfCost(): Cost = base.makeInfCost()
+    override def costComparator(): Ordering[GlutenCost] = base.costComparator()
+    override def makeInfCost(): GlutenCost = base.makeInfCost()
+    override def sum(one: GlutenCost, other: GlutenCost): GlutenCost = base.sum(one, other)
+    override def diff(one: GlutenCost, other: GlutenCost): GlutenCost = base.diff(one, other)
+    override def makeZeroCost(): GlutenCost = base.makeZeroCost()
   }
 
-  class UserCostModel2 extends CostModel[SparkPlan] {
+  class UserCostModel2 extends GlutenCostModel {
     private val base = legacyCostModel()
-    override def costOf(node: SparkPlan): Cost = node match {
+    override def costOf(node: SparkPlan): GlutenCost = node match {
       case _: ColumnarUnary => base.makeInfCost()
       case other => base.costOf(other)
     }
-    override def costComparator(): Ordering[Cost] = base.costComparator()
-    override def makeInfCost(): Cost = base.makeInfCost()
+    override def costComparator(): Ordering[GlutenCost] = base.costComparator()
+    override def makeInfCost(): GlutenCost = base.makeInfCost()
+    override def sum(one: GlutenCost, other: GlutenCost): GlutenCost = base.sum(one, other)
+    override def diff(one: GlutenCost, other: GlutenCost): GlutenCost = base.diff(one, other)
+    override def makeZeroCost(): GlutenCost = base.makeZeroCost()
   }
 }

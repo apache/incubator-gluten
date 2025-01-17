@@ -1,0 +1,13 @@
+FROM apache/gluten:centos-8
+
+
+RUN yum install -y java-17-openjdk-devel patch wget git perl
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+ENV PATH=${PATH}:/usr/lib/maven/bin
+
+RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
+
+RUN cd /opt/gluten && source /opt/rh/gcc-toolset-11/enable && ./dev/builddeps-veloxbe.sh --run_setup_script=ON build_arrow && rm -rf /opt/gluten
+

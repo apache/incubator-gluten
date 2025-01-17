@@ -16,15 +16,20 @@
  */
 package org.apache.gluten.utils;
 
+import org.apache.gluten.exception.GlutenException;
+
+import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
@@ -36,44 +41,73 @@ import java.util.zip.ZipFile;
  * and then modified for Gluten's use.
  */
 public class ResourceUtil {
-
   private static final Logger LOG = LoggerFactory.getLogger(ResourceUtil.class);
 
   /**
-   * Get a collection of resource paths by the input RegEx pattern.
+   * Get a collection of resource paths by the input RegEx pattern in a certain container folder.
    *
-   * @param pattern The pattern to match.
+   * @param container The container folder. E.g., `META-INF`. Should not be left empty, because
+   *     Classloader requires for at a meaningful file name to search inside the loaded jar files.
+   * @param pattern The pattern to match on the file names.
    * @return The relative resource paths in the order they are found.
    */
-  public static List<String> getResources(final Pattern pattern) {
+  public static List<String> getResources(final String container, final Pattern pattern) {
+    Preconditions.checkArgument(
+        !container.isEmpty(),
+        "Resource search should only be used under a certain container folder");
+    Preconditions.checkArgument(
+        !container.startsWith("/") && !container.endsWith("/"),
+        "Resource container should not start or end with\"/\"");
     final List<String> buffer = new ArrayList<>();
-    final String classPath = System.getProperty("java.class.path");
-    final String[] classPathElements = classPath.split(File.pathSeparator);
-    for (final String element : classPathElements) {
-      getResources(element, pattern, buffer);
+    final Enumeration<URL> containerUrls;
+    try {
+      containerUrls = Thread.currentThread().getContextClassLoader().getResources(container);
+    } catch (IOException e) {
+      throw new GlutenException(e);
+    }
+    while (containerUrls.hasMoreElements()) {
+      final URL containerUrl = containerUrls.nextElement();
+      getResources(containerUrl, pattern, buffer);
     }
     return Collections.unmodifiableList(buffer);
   }
 
   private static void getResources(
-      final String element, final Pattern pattern, final List<String> buffer) {
-    final File file = new File(element);
-    if (!file.exists()) {
-      LOG.info("Skip non-existing classpath: {}", element);
-      return;
-    }
-    if (file.isDirectory()) {
-      getResourcesFromDirectory(file, file, pattern, buffer);
-    } else {
-      getResourcesFromJarFile(file, pattern, buffer);
+      final URL containerUrl, final Pattern pattern, final List<String> buffer) {
+    final String protocol = containerUrl.getProtocol();
+    switch (protocol) {
+      case "file":
+        final File fileContainer = new File(containerUrl.getPath());
+        Preconditions.checkState(
+            fileContainer.exists() && fileContainer.isDirectory(),
+            "Specified file container " + containerUrl + " is not a directory or not a file");
+        getResourcesFromDirectory(fileContainer, fileContainer, pattern, buffer);
+        break;
+      case "jar":
+        final String jarContainerPath = containerUrl.getPath();
+        final Pattern jarContainerPattern = Pattern.compile("file:([^!]+)!/(.+)");
+        final Matcher m = jarContainerPattern.matcher(jarContainerPath);
+        if (!m.matches()) {
+          throw new GlutenException("Illegal Jar container URL: " + containerUrl);
+        }
+        final String jarPath = m.group(1);
+        final File jarFile = new File(jarPath);
+        Preconditions.checkState(
+            jarFile.exists() && jarFile.isFile(),
+            "Specified Jar container " + containerUrl + " is not a Jar file");
+        final String dir = m.group(2);
+        getResourcesFromJarFile(jarFile, dir, pattern, buffer);
+        break;
+      default:
+        throw new GlutenException("Unrecognizable resource protocol: " + protocol);
     }
   }
 
   private static void getResourcesFromJarFile(
-      final File file, final Pattern pattern, final List<String> buffer) {
-    ZipFile zf;
+      final File jarFile, final String dir, final Pattern pattern, final List<String> buffer) {
+    final ZipFile zf;
     try {
-      zf = new ZipFile(file);
+      zf = new ZipFile(jarFile);
     } catch (final ZipException e) {
       throw new RuntimeException(e);
     } catch (final IOException e) {
@@ -83,9 +117,14 @@ public class ResourceUtil {
     while (e.hasMoreElements()) {
       final ZipEntry ze = (ZipEntry) e.nextElement();
       final String fileName = ze.getName();
-      final boolean accept = pattern.matcher(fileName).matches();
+      if (!fileName.startsWith(dir)) {
+        continue;
+      }
+      final String relativeFileName =
+          new File(dir).toURI().relativize(new File(fileName).toURI()).getPath();
+      final boolean accept = pattern.matcher(relativeFileName).matches();
       if (accept) {
-        buffer.add(fileName);
+        buffer.add(relativeFileName);
       }
     }
     try {
