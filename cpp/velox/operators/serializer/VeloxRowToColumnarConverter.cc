@@ -108,6 +108,7 @@ VectorPtr createFlatVector<TypeKind::HUGEINT>(
       uint8_t bytesValue[length];
       memcpy(bytesValue, memoryAddress + offsets[pos] + wordoffset, length);
       uint8_t bytesValue2[16]{};
+      GLUTEN_CHECK(length <= 16, "array out of bounds exception");
       for (int k = length - 1; k >= 0; k--) {
         bytesValue2[length - 1 - k] = bytesValue[k];
       }
