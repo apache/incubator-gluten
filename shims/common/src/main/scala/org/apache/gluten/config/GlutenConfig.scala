@@ -2308,9 +2308,8 @@ object GlutenConfig {
     .createWithDefault("")
 
   val QUERY_TRACE_NODE_IDS = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds")
-    .doc(
-      "A comma-separated list of plan node ids whose input data will be traced. " +
-        "Empty string if only want to trace the query metadata.")
+    .doc("A comma-separated list of plan node ids whose input data will be traced. " +
+      "Empty string if only want to trace the query metadata.")
     .internal()
     .stringConf
     .createWithDefault("")
