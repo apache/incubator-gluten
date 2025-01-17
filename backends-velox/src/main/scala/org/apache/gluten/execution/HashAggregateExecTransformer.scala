@@ -419,25 +419,13 @@ abstract class HashAggregateExecTransformer(
     }
 
     // Create a project rel.
-    val emitStartIndex = originalInputAttributes.size
-    val projectRel = if (!validation) {
-      RelBuilder.makeProjectRel(inputRel, exprNodes, context, operatorId, emitStartIndex)
-    } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        .asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeProjectRel(
-        inputRel,
-        exprNodes,
-        extensionNode,
-        context,
-        operatorId,
-        emitStartIndex)
-    }
+    val projectRel = RelBuilder.makeProjectRel(
+      originalInputAttributes.asJava,
+      inputRel,
+      exprNodes,
+      context,
+      operatorId,
+      validation)
 
     // Create aggregation rel.
     val groupingList = new JArrayList[ExpressionNode]()
