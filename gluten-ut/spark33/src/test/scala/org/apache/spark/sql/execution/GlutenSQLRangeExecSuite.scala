@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.RangeExecBaseTransformer
+
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.functions.sum
 
@@ -27,7 +28,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
     val executedPlan = getExecutedPlan(df)
     assert(
       executedPlan.exists(plan => implicitly[reflect.ClassTag[T]].runtimeClass.isInstance(plan)),
-      s"Expected operator ${implicitly[reflect.ClassTag[T]].runtimeClass.getSimpleName} not found " +
+      s"Operator ${implicitly[reflect.ClassTag[T]].runtimeClass.getSimpleName} not found " +
         s"in executed plan:\n $executedPlan"
     )
   }
