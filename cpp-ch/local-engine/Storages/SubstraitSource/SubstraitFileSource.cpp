@@ -159,9 +159,11 @@ bool SubstraitFileSource::tryPrepareReader()
     }
     else
         file_reader = std::make_unique<NormalFileReader>(current_file, context, to_read_header, output_header);
+
     input_file_name_parser.setFileName(current_file->getURIPath());
     input_file_name_parser.setBlockStart(current_file->getStartOffset());
     input_file_name_parser.setBlockLength(current_file->getLength());
+
     file_reader->applyKeyCondition(key_condition, column_index_filter);
     return true;
 }
