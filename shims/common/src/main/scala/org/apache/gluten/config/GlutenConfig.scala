@@ -113,6 +113,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCollapseNestedGetJsonObject: Boolean =
     getConf(ENABLE_COLLAPSE_GET_JSON_OBJECT)
 
+  def enableCollapseNestedFunctions: Boolean =
+    getConf(ENABLE_COLLAPSE_NESTED_FUNCTIONS)
+
   def enableCHRewriteDateConversion: Boolean =
     getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
 
@@ -1943,6 +1946,13 @@ object GlutenConfig {
       .doc("Collapse nested get_json_object functions as one for optimization.")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_COLLAPSE_NESTED_FUNCTIONS =
+    buildConf("spark.gluten.sql.nestedFunctionsCollapsed.enabled")
+      .internal()
+      .doc("Collapse nested functions as one for optimization.")
+      .booleanConf
+      .createWithDefault(true)
 
   val ENABLE_CH_REWRITE_DATE_CONVERSION =
     buildConf("spark.gluten.sql.columnar.backend.ch.rewrite.dateConversion")
