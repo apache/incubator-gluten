@@ -16,13 +16,21 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.ColumnarRangeExec
-
-import org.apache.spark.sql.GlutenSQLTestsTrait
-import org.apache.spark.sql.Row
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.RangeExecBaseTransformer
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.functions.sum
 
 class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
+
+  private def assertGlutenOperatorMatch[T: reflect.ClassTag](df: DataFrame): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(
+      executedPlan.exists(plan => implicitly[reflect.ClassTag[T]].runtimeClass.isInstance(plan)),
+      s"Expected operator ${implicitly[reflect.ClassTag[T]].runtimeClass.getSimpleName} not found " +
+        s"in executed plan:\n $executedPlan"
+    )
+  }
 
   testGluten("ColumnarRangeExec produces correct results") {
     val df = spark.range(0, 10, 1).toDF("id")
@@ -30,12 +38,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(df, expectedData)
 
-    assert(
-      getExecutedPlan(df).exists {
-        case _: ColumnarRangeExec => true
-        case _ => false
-      }
-    )
+    assertGlutenOperatorMatch[RangeExecBaseTransformer](df)
   }
 
   testGluten("ColumnarRangeExec with step") {
@@ -44,12 +47,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(df, expectedData)
 
-    assert(
-      getExecutedPlan(df).exists {
-        case _: ColumnarRangeExec => true
-        case _ => false
-      }
-    )
+    assertGlutenOperatorMatch[RangeExecBaseTransformer](df)
   }
 
   testGluten("ColumnarRangeExec with filter") {
@@ -58,12 +56,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(df, expectedData)
 
-    assert(
-      getExecutedPlan(df).exists {
-        case _: ColumnarRangeExec => true
-        case _ => false
-      }
-    )
+    assertGlutenOperatorMatch[RangeExecBaseTransformer](df)
   }
 
   testGluten("ColumnarRangeExec with aggregation") {
@@ -73,12 +66,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(sumDf, expectedData)
 
-    assert(
-      getExecutedPlan(sumDf).exists {
-        case _: ColumnarRangeExec => true
-        case _ => false
-      }
-    )
+    assertGlutenOperatorMatch[RangeExecBaseTransformer](df)
   }
 
   testGluten("ColumnarRangeExec with join") {
@@ -89,11 +77,6 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(joinDf, expectedData)
 
-    assert(
-      getExecutedPlan(joinDf).exists {
-        case _: ColumnarRangeExec => true
-        case _ => false
-      }
-    )
+    assertGlutenOperatorMatch[RangeExecBaseTransformer](joinDf)
   }
 }

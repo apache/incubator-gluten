@@ -56,30 +56,41 @@ trait BackendSettingsApi {
       options: Map[String, String]): ValidationResult = ValidationResult.succeeded
 
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
+
   def supportNativeMetadataColumns(): Boolean = false
+
   def supportNativeRowIndexColumn(): Boolean = false
 
   def supportExpandExec(): Boolean = false
+
   def supportSortExec(): Boolean = false
+
   def supportSortMergeJoinExec(): Boolean = true
+
   def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     false
   }
+
   def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
     false
   }
+
   def supportColumnarShuffleExec(): Boolean = {
     GlutenConfig.get.enableColumnarShuffle
   }
+
   def enableJoinKeysRewrite(): Boolean = true
+
   def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     case _: InnerLike | RightOuter | FullOuter => true
     case _ => false
   }
+
   def supportHashBuildJoinTypeOnRight: JoinType => Boolean = {
     case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
     case _ => false
   }
+
   def supportStructType(): Boolean = false
 
   def structFieldToLowerCase(): Boolean = true
@@ -90,6 +101,7 @@ trait BackendSettingsApi {
   def recreateJoinExecOnFallback(): Boolean = false
 
   def excludeScanExecFromCollapsedStage(): Boolean = false
+
   def rescaleDecimalArithmetic: Boolean = false
 
   def allowDecimalArithmetic: Boolean = true
@@ -141,7 +153,6 @@ trait BackendSettingsApi {
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
 
-  def supportRangeExec(): Boolean = {
-    false
-  }
+  def supportRangeExec(): Boolean = false
+
 }
