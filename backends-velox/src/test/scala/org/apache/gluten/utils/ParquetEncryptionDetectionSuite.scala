@@ -112,7 +112,7 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
 
   testWithSpecifiedSparkVersion(
     "Detect encrypted Parquet with encrypted footer",
-    Array("3.2", "3.3", "3.4")) {
+    Array("3.2", "3.3", "3.4", "3.5")) {
     withTempDir {
       tempDir =>
         val filePath = s"${tempDir.getAbsolutePath}/encrypted_footer.parquet"
@@ -136,7 +136,7 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
 
   testWithSpecifiedSparkVersion(
     "Detect encrypted Parquet without encrypted footer (plaintext footer)",
-    Array("3.2", "3.3", "3.4")) {
+    Array("3.2", "3.3", "3.4", "3.5")) {
     withTempDir {
       tempDir =>
         val filePath = s"${tempDir.getAbsolutePath}/plaintext_footer.parquet"
@@ -160,7 +160,7 @@ class ParquetEncryptionDetectionSuite extends GlutenQueryTest {
 
   testWithSpecifiedSparkVersion(
     "Detect plain (unencrypted) Parquet file",
-    Array("3.2", "3.3", "3.4")) {
+    Array("3.2", "3.3", "3.4", "3.5")) {
     withTempDir {
       tempDir =>
         val filePath = s"${tempDir.getAbsolutePath}/plain.parquet"
