@@ -37,7 +37,7 @@ class GlutenNoopWriterRuleSuite extends GlutenQueryTest with SharedSparkSession 
       .set("spark.ui.enabled", "false")
       .set("spark.gluten.ui.enabled", "false")
     if (BackendTestUtils.isCHBackendLoaded()) {
-      conf.set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+      conf.set(GlutenConfig.GLUTEN_LIB_PATH.key, SystemParameters.getClickHouseLibPath)
     }
     conf
   }

@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.ReservedKeys
 import org.apache.gluten.execution.ValidatablePlan
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -127,8 +127,8 @@ case class ColumnarShuffleExchangeExec(
 
   override def stringArgs: Iterator[Any] = {
     val shuffleWriterType = {
-      if (useSortBasedShuffle) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
-      else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
+      if (useSortBasedShuffle) ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
+      else ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
     }
     super.stringArgs ++ Iterator(s"[shuffle_writer_type=$shuffleWriterType]")
   }

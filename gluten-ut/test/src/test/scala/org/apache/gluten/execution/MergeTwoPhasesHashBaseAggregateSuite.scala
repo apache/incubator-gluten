@@ -57,7 +57,7 @@ abstract class BaseMergeTwoPhasesHashBaseAggregateSuite extends WholeStageTransf
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
         .set("spark.gluten.sql.enable.native.validation", "false")
-        .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+        .set(GlutenConfig.GLUTEN_LIB_PATH.key, SystemParameters.getClickHouseLibPath)
     }
     conf
   }

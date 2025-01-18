@@ -79,7 +79,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     import org.apache.gluten.backendsapi.clickhouse.CHConf._
 
     val conf = super.sparkConf
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
+      .set(GlutenConfig.GLUTEN_LIB_PATH.key, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")

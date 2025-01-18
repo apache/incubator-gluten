@@ -18,6 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.ReservedKeys
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
@@ -545,7 +546,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
     val conf = GlutenConfig.get
     lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
-      conf.celebornShuffleWriterType == GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
+      conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
     partitioning != SinglePartition &&
     (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
       output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold) ||

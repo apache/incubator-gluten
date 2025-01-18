@@ -31,10 +31,10 @@ object CHUTSoftAffinityManager extends AffinityManager {
   override lazy val usingSoftAffinity: Boolean = true
 
   override lazy val minOnTargetHosts: Int =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.defaultValue.get
 
   override lazy val detectDuplicateReading: Boolean = true
 
   override lazy val duplicateReadingMaxCacheItems: Int =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS.defaultValue.get
 }

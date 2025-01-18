@@ -32,7 +32,7 @@ private[gluten] class GlutenSessionExtensions
     injector.control.disableOn {
       session =>
         val glutenEnabledGlobally = session.conf
-          .get(GlutenConfig.GLUTEN_ENABLED_KEY, GlutenConfig.GLUTEN_ENABLED_BY_DEFAULT.toString)
+          .get(GlutenConfig.GLUTEN_ENABLED.key, GlutenConfig.GLUTEN_ENABLED.defaultValueString)
           .toBoolean
         val disabled = !glutenEnabledGlobally
         logDebug(s"Gluten is disabled by variable: glutenEnabledGlobally: $glutenEnabledGlobally")

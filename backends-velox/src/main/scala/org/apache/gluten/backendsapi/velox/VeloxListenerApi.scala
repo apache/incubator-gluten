@@ -74,7 +74,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
           s" the recommended size ${ByteUnit.BYTE.toMiB(desiredOverheadSize)}MiB." +
           s" This may cause OOM.")
     }
-    conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, overheadSize.toString)
+    conf.set(GlutenConfig.COLUMNAR_OVERHEAD_SIZE_IN_BYTES.key, overheadSize.toString)
 
     // Sql table cache serializer.
     if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
@@ -147,8 +147,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
       )
 
     // Sets this configuration only once, since not undoable.
-    if (conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)) {
-      val debugDir = conf.get(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
+    if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
+      val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
       JniWorkspace.enableDebug(debugDir)
     }
 
@@ -166,11 +166,11 @@ class VeloxListenerApi extends ListenerApi with Logging {
     SharedLibraryLoader.load(conf, loader)
 
     // Load backend libraries.
-    val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
+    val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH.key, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
       JniLibLoader.loadFromPath(libPath, false)
     } else {
-      val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
+      val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME.key, "gluten")
       loader.load(s"$platformLibDir/${System.mapLibraryName(baseLibName)}", false)
       loader.load(s"$platformLibDir/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}", false)
     }

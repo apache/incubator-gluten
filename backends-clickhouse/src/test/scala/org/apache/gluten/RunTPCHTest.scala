@@ -94,7 +94,7 @@ object RunTPCHTest {
       .config("spark.databricks.delta.properties.defaults.checkpointInterval", 5)
       .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
       .config(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
+      .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
       .config("spark.gluten.sql.columnar.iterator", "true")
       .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .config("spark.gluten.sql.enable.native.validation", "false")

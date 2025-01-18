@@ -17,6 +17,7 @@
 package org.apache.spark.shuffle.writer;
 
 import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.ReservedKeys;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
@@ -170,8 +171,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                       columnarDep.nativePartitioning(), partitionId),
                   "uniffle",
                   isSort
-                      ? GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER()
-                      : GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER(),
+                      ? ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER()
+                      : ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER(),
                   reallocThreshold);
           runtime
               .memoryManager()

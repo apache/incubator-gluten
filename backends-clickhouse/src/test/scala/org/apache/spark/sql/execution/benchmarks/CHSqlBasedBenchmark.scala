@@ -32,7 +32,7 @@ trait CHSqlBasedBenchmark extends SqlBasedBenchmark {
   def getSparkConf: SparkConf = {
     val conf = new SparkConf()
       .setAppName(appName)
-      .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
+      .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH.key, UTSystemParameters.clickHouseLibPath)
       .setIfMissing("spark.master", s"local[$thrdNum]")
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set(
@@ -57,7 +57,8 @@ trait CHSqlBasedBenchmark extends SqlBasedBenchmark {
 
   override def afterAll(): Unit = {
     DeltaLog.clearCache()
-    val libPath = spark.conf.get(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
+    val libPath =
+      spark.conf.get(GlutenConfig.GLUTEN_LIB_PATH.key, UTSystemParameters.clickHouseLibPath)
     JniLibLoader.unloadFromPath(libPath)
     // Wait for Ctrl+C, convenient for seeing Spark UI
     // Thread.sleep(600000)
