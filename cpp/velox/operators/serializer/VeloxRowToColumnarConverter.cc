@@ -35,7 +35,7 @@ inline int64_t getFieldOffset(int64_t nullBitsetWidthInBytes, int32_t index) {
 inline bool isNull(uint8_t* buffer_address, int32_t index) {
   int64_t mask = 1L << (static_cast<int64_t>(index) & 0x3f); // mod 64 and shift
   int64_t wordOffset = (static_cast<int64_t>(index) >> 6) * 8;
-  int64_t value = *((int64_t*)(buffer_address + wordOffset));
+  int64_t value = *reinterpret_cast<int64_t*>(buffer_address + wordOffset);
   return (value & mask) != 0;
 }
 
@@ -51,7 +51,7 @@ int32_t getTotalStringSize(
       continue;
     }
 
-    int64_t offsetAndSize = *(int64_t*)(memoryAddress + offsets[pos] + fieldOffset);
+    int64_t offsetAndSize = *(reinterpret_cast<int64_t*>(memoryAddress + offsets[pos] + fieldOffset));
     int32_t length = static_cast<int32_t>(offsetAndSize);
     if (!StringView::isInline(length)) {
       size += length;
@@ -98,20 +98,21 @@ VectorPtr createFlatVector<TypeKind::HUGEINT>(
   auto column = BaseVector::create<FlatVector<int128_t>>(type, numRows, pool);
   auto rawValues = column->mutableRawValues<uint8_t>();
   auto typeWidth = sizeof(int128_t);
-  auto shift = __builtin_ctz((uint32_t)typeWidth);
+  auto shift = __builtin_ctz(static_cast<uint32_t>(typeWidth));
   for (auto pos = 0; pos < numRows; pos++) {
     if (!isNull(memoryAddress + offsets[pos], columnIdx)) {
       uint8_t* destptr = rawValues + (pos << shift);
-      int64_t offsetAndSize = *(int64_t*)(memoryAddress + offsets[pos] + fieldOffset);
+      int64_t offsetAndSize = *reinterpret_cast<int64_t*>(memoryAddress + offsets[pos] + fieldOffset);
       int32_t length = static_cast<int32_t>(offsetAndSize);
       int32_t wordoffset = static_cast<int32_t>(offsetAndSize >> 32);
       uint8_t bytesValue[length];
       memcpy(bytesValue, memoryAddress + offsets[pos] + wordoffset, length);
       uint8_t bytesValue2[16]{};
+      GLUTEN_CHECK(length <= 16, "array out of bounds exception");
       for (int k = length - 1; k >= 0; k--) {
         bytesValue2[length - 1 - k] = bytesValue[k];
       }
-      if (int8_t(bytesValue[0]) < 0) {
+      if (static_cast<int8_t>(bytesValue[0]) < 0) {
         memset(bytesValue2 + length, 255, 16 - length);
       }
       memcpy(destptr, bytesValue2, typeWidth);
@@ -135,7 +136,7 @@ VectorPtr createFlatVector<TypeKind::BOOLEAN>(
   auto rawValues = column->mutableRawValues<uint64_t>();
   for (auto pos = 0; pos < numRows; pos++) {
     if (!isNull(memoryAddress + offsets[pos], columnIdx)) {
-      bool value = *(bool*)(memoryAddress + offsets[pos] + fieldOffset);
+      bool value = *(reinterpret_cast<bool*>(memoryAddress + offsets[pos] + fieldOffset));
       bits::setBit(rawValues, pos, value);
     } else {
       column->setNull(pos, true);
@@ -156,7 +157,7 @@ VectorPtr createFlatVector<TypeKind::TIMESTAMP>(
   auto column = BaseVector::create<FlatVector<Timestamp>>(type, numRows, pool);
   for (auto pos = 0; pos < numRows; pos++) {
     if (!isNull(memoryAddress + offsets[pos], columnIdx)) {
-      int64_t value = *(int64_t*)(memoryAddress + offsets[pos] + fieldOffset);
+      int64_t value = *reinterpret_cast<int64_t*>(memoryAddress + offsets[pos] + fieldOffset);
       column->set(pos, Timestamp::fromMicros(value));
     } else {
       column->setNull(pos, true);
@@ -178,7 +179,7 @@ VectorPtr createFlatVectorStringView(
   char* rawBuffer = column->getRawStringBufferWithSpace(size, true);
   for (auto pos = 0; pos < numRows; pos++) {
     if (!isNull(memoryAddress + offsets[pos], columnIdx)) {
-      int64_t offsetAndSize = *(int64_t*)(memoryAddress + offsets[pos] + fieldOffset);
+      int64_t offsetAndSize = *(reinterpret_cast<int64_t*>(memoryAddress + offsets[pos] + fieldOffset));
       int32_t length = static_cast<int32_t>(offsetAndSize);
       int32_t wordoffset = static_cast<int32_t>(offsetAndSize >> 32);
       auto valueSrcPtr = memoryAddress + offsets[pos] + wordoffset;

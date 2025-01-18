@@ -21,11 +21,15 @@ import org.apache.gluten.component.Component
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.util.SparkReflectionUtil
-
+// format: off
 /**
  * The cost model API of Gluten. Used by:
- *   1. RAS planner for cost-based optimization; 2. Transition graph for choosing transition paths.
+ * <p>
+ *   1. RAS planner for cost-based optimization;
+ * <p>
+ *   2. Transition graph for choosing transition paths.
  */
+// format: on
 trait GlutenCostModel {
   def costOf(node: SparkPlan): GlutenCost
   def costComparator(): Ordering[GlutenCost]
@@ -38,14 +42,18 @@ trait GlutenCostModel {
 }
 
 object GlutenCostModel extends Logging {
-  def find(aliasOrClass: String): GlutenCostModel = {
-    val costModelRegistry = LongCostModel.registry()
+  private val costModelRegistry = {
+    val r = LongCostModel.registry()
     // Components should override Backend's costers. Hence, reversed registration order is applied.
     Component
       .sorted()
       .reverse
       .flatMap(_.costers())
-      .foreach(coster => costModelRegistry.register(coster))
+      .foreach(coster => r.register(coster))
+    r
+  }
+
+  def find(aliasOrClass: String): GlutenCostModel = {
     val costModel = find(costModelRegistry, aliasOrClass)
     costModel
   }

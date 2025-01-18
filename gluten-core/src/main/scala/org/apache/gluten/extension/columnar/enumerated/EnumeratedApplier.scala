@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
+import org.apache.gluten.extension.caller.CallerInfo
 import org.apache.gluten.extension.columnar.{ColumnarRuleApplier, ColumnarRuleExecutor}
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
-import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 
 import org.apache.spark.internal.Logging
@@ -39,27 +39,14 @@ class EnumeratedApplier(
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
-  private val adaptiveContext = AdaptiveContext(session)
-
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    val call = new ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
-    val finalPlan = maybeAqe {
-      apply0(ruleBuilders.map(b => b(call)), plan)
-    }
+    val call = new ColumnarRuleCall(session, CallerInfo.create(), outputsColumnar)
+    val finalPlan = apply0(ruleBuilders.map(b => b(call)), plan)
     finalPlan
   }
 
   private def apply0(rules: Seq[Rule[SparkPlan]], plan: SparkPlan): SparkPlan =
     new ColumnarRuleExecutor("ras", rules).execute(plan)
-
-  private def maybeAqe[T](f: => T): T = {
-    adaptiveContext.setAdaptiveContext()
-    try {
-      f
-    } finally {
-      adaptiveContext.resetAdaptiveContext()
-    }
-  }
 }
 
 object EnumeratedApplier {}

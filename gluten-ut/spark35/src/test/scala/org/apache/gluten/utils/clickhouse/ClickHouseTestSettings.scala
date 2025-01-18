@@ -385,16 +385,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite].exclude(
     "SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
   enableSuite[GlutenJsonExpressionsSuite]
-    .exclude("$.store.book[*]")
-    .exclude("$.store.book[*].category")
-    .exclude("$.store.book[*].isbn")
-    .exclude("$.store.basket[*]")
-    .exclude("$.store.basket[*][0]")
-    .exclude("$.store.basket[0][*]")
-    .exclude("$.store.basket[*][*]")
     .exclude("$.store.basket[0][*].b")
-    .exclude("$.zip code")
-    .exclude("$.fb:testid")
     .exclude("from_json - invalid data")
     .exclude("from_json - input=object, schema=array, output=array of single row")
     .exclude("from_json - input=empty object, schema=array, output=array of single row with null")

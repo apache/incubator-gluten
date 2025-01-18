@@ -25,7 +25,7 @@ Spill::Spill(Spill::SpillType type) : type_(type) {}
 
 Spill::~Spill() {
   if (is_) {
-    (void)is_->Close();
+    static_cast<void>(is_->Close());
   }
 }
 

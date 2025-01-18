@@ -34,11 +34,11 @@ constexpr uint32_t kPartitionIdEndByteIndex = 7;
 
 uint64_t toCompactRowId(uint32_t partitionId, uint32_t pageNumber, uint32_t offsetInPage) {
   // |63 partitionId(24) |39 inputIndex(13) |26 rowIndex(27) |
-  return (uint64_t)partitionId << 40 | (uint64_t)pageNumber << 27 | offsetInPage;
+  return static_cast<uint64_t>(partitionId) << 40 | static_cast<uint64_t>(pageNumber) << 27 | offsetInPage;
 }
 
 uint32_t extractPartitionId(uint64_t compactRowId) {
-  return (uint32_t)(compactRowId >> 40);
+  return static_cast<uint32_t>(compactRowId >> 40);
 }
 
 std::pair<uint32_t, uint32_t> extractPageNumberAndOffset(uint64_t compactRowId) {
@@ -187,7 +187,7 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
     auto rows = maxRowsToInsert(rowOffset, remainingRows);
     if (rows == 0) {
       auto minSizeRequired = fixedRowSize_ ? fixedRowSize_.value() : rowSize_[rowOffset];
-      acquireNewBuffer((uint64_t)memLimit, minSizeRequired);
+      acquireNewBuffer(static_cast<uint64_t>(memLimit), minSizeRequired);
       rows = maxRowsToInsert(rowOffset, remainingRows);
       ARROW_RETURN_IF(
           rows == 0, arrow::Status::Invalid("Failed to insert rows. Remaining rows: " + std::to_string(remainingRows)));
@@ -294,7 +294,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
   while (index < end) {
     auto pageIndex = extractPageNumberAndOffset(arrayPtr_[index]);
     addr = pageAddresses_[pageIndex.first] + pageIndex.second;
-    size = *(RowSizeType*)addr;
+    size = *(reinterpret_cast<RowSizeType*>(addr));
     if (offset + size > options_.sortEvictBufferSize && offset > 0) {
       sortTime.stop();
       RETURN_NOT_OK(evictPartitionInternal(partitionId, index - begin, rawBuffer_, offset));
@@ -302,7 +302,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
       begin = index;
       offset = 0;
     }
-    if (size > options_.sortEvictBufferSize) {
+    if (size > static_cast<uint32_t>(options_.sortEvictBufferSize)) {
       // Split large rows.
       sortTime.stop();
       RowSizeType bytes = 0;
@@ -355,7 +355,8 @@ facebook::velox::vector_size_t VeloxSortShuffleWriter::maxRowsToInsert(
   }
   auto remainingBytes = pages_.back()->size() - pageCursor_;
   if (fixedRowSize_) {
-    return std::min((facebook::velox::vector_size_t)(remainingBytes / (fixedRowSize_.value())), remainingRows);
+    return std::min(
+        static_cast<facebook::velox::vector_size_t>(remainingBytes / (fixedRowSize_.value())), remainingRows);
   }
   auto beginIter = rowSizePrefixSum_.begin() + 1 + offset;
   auto bytesWritten = rowSizePrefixSum_[offset];

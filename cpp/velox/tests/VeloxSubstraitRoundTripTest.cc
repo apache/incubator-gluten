@@ -371,10 +371,10 @@ TEST_F(VeloxSubstraitRoundTripTest, notNullLiteral) {
                         makeConstantExpr(BOOLEAN(), static_cast<bool>(1)),
                         makeConstantExpr(TINYINT(), static_cast<int8_t>(23)),
                         makeConstantExpr(SMALLINT(), static_cast<int16_t>(45)),
-                        makeConstantExpr(INTEGER(), static_cast<int32_t>(678)),
+                        makeConstantExpr(INTEGER(), 678),
                         makeConstantExpr(BIGINT(), static_cast<int64_t>(910)),
                         makeConstantExpr(REAL(), static_cast<float>(1.23)),
-                        makeConstantExpr(DOUBLE(), static_cast<double>(4.56)),
+                        makeConstantExpr(DOUBLE(), 4.56),
                         makeConstantExpr(VARCHAR(), "789")};
                     return std::make_shared<core::ProjectNode>(
                         id, std::move(projectNames), std::move(projectExpressions), input);
