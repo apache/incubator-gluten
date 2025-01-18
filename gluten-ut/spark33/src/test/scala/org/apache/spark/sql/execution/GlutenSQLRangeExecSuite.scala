@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.RangeExecBaseTransformer
 
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row}

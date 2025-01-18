@@ -163,7 +163,6 @@ object VeloxRuleApi {
       RasOffload.from[GenerateExec](OffloadOthers()),
       RasOffload.from[EvalPythonExec](OffloadOthers()),
       RasOffload.from[SampleExec](OffloadOthers()),
-      RasOffload.from[ColumnarRangeExec](OffloadOthers()),
       RasOffload.from[RangeExec](OffloadOthers())
     )
     offloads.foreach(
