@@ -403,6 +403,16 @@
     </profile>
 
     <profile>
+      <id>qualification-tool</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>tools/qualification-tool</module>
+      </modules>
+    </profile>
+
+    <profile>
       <id>backends-clickhouse</id>
       <activation>
         <activeByDefault>false</activeByDefault>
