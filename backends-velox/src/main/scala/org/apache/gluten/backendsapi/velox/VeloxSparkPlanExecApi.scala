@@ -837,4 +837,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     VeloxHiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
   }
+
+  override def genColumnarCollectLimitExec(
+      limit: Int,
+      child: SparkPlan): ColumnarCollectLimitExecBaseTransformer =
+    ColumnarCollectLimitExec(limit, child)
 }
