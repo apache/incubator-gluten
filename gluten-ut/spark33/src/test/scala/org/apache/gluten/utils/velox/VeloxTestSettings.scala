@@ -1177,6 +1177,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenImplicitsTest]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]
+  enableSuite[GlutenSQLCollectLimitExecSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
