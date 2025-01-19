@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi.velox
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.execution.ColumnarRangeExec
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
@@ -160,7 +161,8 @@ object VeloxRuleApi {
       RasOffload.from[LimitExec](OffloadOthers()),
       RasOffload.from[GenerateExec](OffloadOthers()),
       RasOffload.from[EvalPythonExec](OffloadOthers()),
-      RasOffload.from[SampleExec](OffloadOthers())
+      RasOffload.from[SampleExec](OffloadOthers()),
+      RasOffload.from[RangeExec](OffloadOthers())
     )
     offloads.foreach(
       offload =>

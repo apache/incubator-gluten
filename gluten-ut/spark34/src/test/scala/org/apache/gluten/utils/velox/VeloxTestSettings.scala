@@ -1066,6 +1066,8 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     // test for sort node not present but gluten uses shuffle hash join
     .exclude("SPARK-41048: Improve output partitioning and ordering with AQE cache")
+    // Rewrite this test since it checks the physical operator which is changed in Gluten
+    .exclude("SPARK-27439: Explain result should match collected result after view change")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]

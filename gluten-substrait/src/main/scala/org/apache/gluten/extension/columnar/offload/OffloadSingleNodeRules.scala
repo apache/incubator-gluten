@@ -324,6 +324,17 @@ object OffloadOthers {
               child,
               plan.evalType)
           }
+        case plan: RangeExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarRangeExec(
+            plan.start,
+            plan.end,
+            plan.step,
+            plan.numSlices,
+            plan.numElements,
+            plan.output,
+            plan.children
+          )
         case plan: SampleExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
