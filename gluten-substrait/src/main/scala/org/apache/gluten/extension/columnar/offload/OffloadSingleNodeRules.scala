@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 package org.apache.gluten.extension.columnar.offload
-// scalastyle:off
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._

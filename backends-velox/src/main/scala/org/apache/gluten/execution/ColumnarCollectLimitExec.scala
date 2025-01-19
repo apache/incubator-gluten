@@ -21,6 +21,7 @@ import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.ColumnarBatchUtils
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -31,22 +32,22 @@ import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarCollectLimitExec(
-                                     limit: Int,
-                                     child: SparkPlan
-                                   ) extends ColumnarCollectLimitExecBaseTransformer(limit, child) {
+    limit: Int,
+    child: SparkPlan
+) extends ColumnarCollectLimitExecBaseTransformer(limit, child) {
 
   override def batchType(): Convention.BatchType =
     BackendsApiManager.getSettings.primaryBatchType
 
   /**
    * Returns an iterator that yields up to `limit` rows in total from the input partitionIter.
-   * Either retain the entire batch if it fits within the remaining limit, or
-   * prune it if it partially exceeds the remaining limit.
+   * Either retain the entire batch if it fits within the remaining limit, or prune it if it
+   * partially exceeds the remaining limit.
    */
   private def collectLimitedRows(
-                          partitionIter: Iterator[ColumnarBatch],
-                          limit: Int
-                        ): Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
+      partitionIter: Iterator[ColumnarBatch],
+      limit: Int
+  ): Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
 
     private var rowsCollected = 0
     private var nextBatch: Option[ColumnarBatch] = None
@@ -65,9 +66,8 @@ case class ColumnarCollectLimitExec(
     }
 
     /**
-     * Attempt to fetch the next batch from the underlying iterator
-     * if we haven't yet hit the limit. Returns true if we found a
-     * new batch, false otherwise.
+     * Attempt to fetch the next batch from the underlying iterator if we haven't yet hit the limit.
+     * Returns true if we found a new batch, false otherwise.
      */
     private def fetchNext(): Boolean = {
       if (rowsCollected >= limit || !partitionIter.hasNext) {

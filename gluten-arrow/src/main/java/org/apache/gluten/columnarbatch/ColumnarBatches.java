@@ -16,10 +16,6 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
@@ -34,6 +30,10 @@ import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.CDataDictionaryProvider;
 import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.types.StructType;
@@ -414,49 +414,5 @@ public final class ColumnarBatches {
         JavaConverters.<InternalRow>asScalaIterator(loadedBatch.rowIterator()),
         start,
         length);
-  }
-
-  public static ColumnarBatch pruneBatch(ColumnarBatch batch, int limit) {
-    int totalRows = batch.numRows();
-    if (limit >= totalRows) {
-      return batch;
-    }
-
-    ColumnVector[] prunedColumns = new ColumnVector[batch.numCols()];
-    for (int colIdx = 0; colIdx < batch.numCols(); colIdx++) {
-      ArrowWritableColumnVector arrowCol =
-              (ArrowWritableColumnVector) batch.column(colIdx);
-      ValueVector sourceVec = arrowCol.getValueVector();
-
-      ValueVector targetVec = createEmptyVectorLike(sourceVec, limit);
-
-      TransferPair tp = sourceVec.makeTransferPair(targetVec);
-      for (int i = 0; i < limit; i++) {
-        tp.copyValueSafe(i, i);
-      }
-      targetVec.setValueCount(limit);
-
-      ArrowWritableColumnVector prunedCol = new ArrowWritableColumnVector(
-              targetVec,
-              null,
-              colIdx,
-              limit,
-              false
-      );
-      prunedCol.setValueCount(limit);
-      prunedColumns[colIdx] = prunedCol;
-    }
-
-    return new ColumnarBatch(prunedColumns, limit);
-  }
-
-  private static ValueVector createEmptyVectorLike(ValueVector source, int capacity) {
-    Field field = source.getField();
-    BufferAllocator allocator = source.getAllocator();
-    FieldVector newFieldVector = field.createVector(allocator);
-    newFieldVector.setInitialCapacity(capacity);
-    newFieldVector.allocateNew();
-
-    return newFieldVector;
   }
 }

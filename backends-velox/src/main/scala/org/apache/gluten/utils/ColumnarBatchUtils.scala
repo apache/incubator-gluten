@@ -14,28 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.utils
+
+import org.apache.gluten.vectorized.ArrowWritableColumnVector
+
+import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, ValueVector}
 import org.apache.arrow.vector.types.pojo.Field
-import org.apache.gluten.vectorized.ArrowWritableColumnVector
-import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 
 object ColumnarBatchUtils {
 
   /**
-   * Returns a new ColumnarBatch that contains at most `limit` rows
-   * from the given batch.
+   * Returns a new ColumnarBatch that contains at most `limit` rows from the given batch.
    *
-   * If `limit >= batch.numRows()`, returns the original batch. Otherwise,
-   * copies up to `limit` rows into new column vectors.
+   * If `limit >= batch.numRows()`, returns the original batch. Otherwise, copies up to `limit` rows
+   * into new column vectors.
    *
-   * @param batch the original batch
-   * @param limit the maximum number of rows to include
-   * @return a new pruned [[ColumnarBatch]] with row count = `limit`,
-   *         or the original batch if no pruning is required
+   * @param batch
+   *   the original batch
+   * @param limit
+   *   the maximum number of rows to include
+   * @return
+   *   a new pruned [[ColumnarBatch]] with row count = `limit`, or the original batch if no pruning
+   *   is required
    */
   def pruneBatch(batch: ColumnarBatch, limit: Int): ColumnarBatch = {
     val totalRows = batch.numRows()
@@ -57,10 +60,14 @@ object ColumnarBatchUtils {
   /**
    * Prune a single column to the specified limit rows.
    *
-   * @param original the original column
-   * @param limit the number of rows to copy
-   * @param colIndex the column index (used when creating a new ArrowWritableColumnVector)
-   * @return a new ColumnVector containing up to `limit` rows
+   * @param original
+   *   the original column
+   * @param limit
+   *   the number of rows to copy
+   * @param colIndex
+   *   the column index (used when creating a new ArrowWritableColumnVector)
+   * @return
+   *   a new ColumnVector containing up to `limit` rows
    */
   private def pruneColumn(original: ColumnVector, limit: Int, colIndex: Int): ColumnVector = {
     val arrowCol = original.asInstanceOf[ArrowWritableColumnVector]
@@ -86,7 +93,7 @@ object ColumnarBatchUtils {
   }
 
   private def createEmptyVectorLike(source: ValueVector, capacity: Int): ValueVector = {
-    val field: Field            = source.getField
+    val field: Field = source.getField
     val allocator: BufferAllocator = source.getAllocator
     val newFieldVector = field.createVector(allocator).asInstanceOf[FieldVector]
 

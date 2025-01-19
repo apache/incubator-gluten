@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.ColumnarCollectLimitExecBaseTransformer
+
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row}
 
 class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
@@ -25,12 +25,13 @@ class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
   private def assertGlutenOperatorMatch[T: reflect.ClassTag](df: DataFrame): Unit = {
     val executedPlan = getExecutedPlan(df)
 
-    val operatorFound = executedPlan.exists { plan =>
-      try {
-        implicitly[reflect.ClassTag[T]].runtimeClass.isInstance(plan)
-      } catch {
-        case _: Throwable => false
-      }
+    val operatorFound = executedPlan.exists {
+      plan =>
+        try {
+          implicitly[reflect.ClassTag[T]].runtimeClass.isInstance(plan)
+        } catch {
+          case _: Throwable => false
+        }
     }
 
     assert(
@@ -49,9 +50,10 @@ class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
     assertGlutenOperatorMatch[ColumnarCollectLimitExecBaseTransformer](df)
   }
 
-
   testGluten("ColumnarCollectLimitExec - with filter") {
-    val df = spark.range(0, 20, 1).toDF("id")
+    val df = spark
+      .range(0, 20, 1)
+      .toDF("id")
       .filter("id % 2 == 0")
       .limit(5)
     val expectedData = Seq(Row(0L), Row(2L), Row(4L), Row(6L), Row(8L))
@@ -62,7 +64,9 @@ class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("ColumnarCollectLimitExec - range with repartition") {
-    val df = spark.range(0, 10, 1).toDF("id")
+    val df = spark
+      .range(0, 10, 1)
+      .toDF("id")
       .repartition(3)
       .limit(3)
     val expectedData = Seq(Row(0L), Row(4L), Row(6L))
@@ -73,7 +77,9 @@ class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("ColumnarCollectLimitExec - with distinct values") {
-    val df = spark.range(0, 10, 1).toDF("id")
+    val df = spark
+      .range(0, 10, 1)
+      .toDF("id")
       .select("id")
       .distinct()
       .limit(5)
@@ -85,7 +91,9 @@ class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("ColumnarCollectLimitExec - chained limit") {
-    val df = spark.range(0, 10, 1).toDF("id")
+    val df = spark
+      .range(0, 10, 1)
+      .toDF("id")
       .limit(8)
       .limit(3)
     val expectedData = Seq(Row(0L), Row(1L), Row(2L))
