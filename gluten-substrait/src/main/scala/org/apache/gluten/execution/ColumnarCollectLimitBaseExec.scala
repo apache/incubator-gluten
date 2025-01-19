@@ -17,12 +17,13 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.ValidationResult
 
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.execution.{CollectLimitExec, LimitExec, SparkPlan}
 
-abstract class ColumnarCollectLimitExecBaseTransformer(
+abstract class ColumnarCollectLimitBaseExec(
     limit: Int,
     childPlan: SparkPlan
 ) extends LimitExec
@@ -38,7 +39,14 @@ abstract class ColumnarCollectLimitExecBaseTransformer(
         s"CollectLimitExec is not supported by the current backend."
       )
     }
-    ValidationResult.succeeded
+
+    if (
+      (childPlan.supportsColumnar || GlutenConfig.get.enablePreferColumnar) &&
+      BackendsApiManager.getSettings.supportColumnarShuffleExec()
+    ) {
+      return ValidationResult.succeeded
+    }
+    ValidationResult.failed("Columnar shuffle not enabled or child does not support columnar.")
   }
 
   override protected def doExecute()
@@ -47,8 +55,8 @@ abstract class ColumnarCollectLimitExecBaseTransformer(
   }
 
 }
-object ColumnarCollectLimitExecBaseTransformer {
-  def from(collectLimitExec: CollectLimitExec): ColumnarCollectLimitExecBaseTransformer = {
+object ColumnarCollectLimitBaseExec {
+  def from(collectLimitExec: CollectLimitExec): ColumnarCollectLimitBaseExec = {
     BackendsApiManager.getSparkPlanExecApiInstance
       .genColumnarCollectLimitExec(
         collectLimitExec.limit,

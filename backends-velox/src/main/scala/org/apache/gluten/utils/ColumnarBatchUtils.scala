@@ -16,13 +16,11 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.vectorized.ArrowWritableColumnVector
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatchJniWrapper}
+import org.apache.gluten.runtime.{Runtime, Runtimes}
 
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-
-import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, ValueVector}
-import org.apache.arrow.vector.types.pojo.Field
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object ColumnarBatchUtils {
 
@@ -46,59 +44,13 @@ object ColumnarBatchUtils {
       // No need to prune
       batch
     } else {
-      val numCols = batch.numCols()
-      val prunedColumns = Array.ofDim[ColumnVector](numCols)
-
-      for (colIdx <- 0 until numCols) {
-        prunedColumns(colIdx) = pruneColumn(batch.column(colIdx), limit, colIdx)
-      }
-
-      new ColumnarBatch(prunedColumns, limit)
+      val runtime: Runtime = Runtimes.contextInstance(
+        BackendsApiManager.getBackendName,
+        "VeloxColumnarBatches#pruneBatch")
+      val nativeHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
+      val handle: Long =
+        VeloxColumnarBatchJniWrapper.create(runtime).pruneBatch(nativeHandle, limit)
+      ColumnarBatches.create(handle)
     }
-  }
-
-  /**
-   * Prune a single column to the specified limit rows.
-   *
-   * @param original
-   *   the original column
-   * @param limit
-   *   the number of rows to copy
-   * @param colIndex
-   *   the column index (used when creating a new ArrowWritableColumnVector)
-   * @return
-   *   a new ColumnVector containing up to `limit` rows
-   */
-  private def pruneColumn(original: ColumnVector, limit: Int, colIndex: Int): ColumnVector = {
-    val arrowCol = original.asInstanceOf[ArrowWritableColumnVector]
-    val sourceVec = arrowCol.getValueVector
-
-    val targetVec = createEmptyVectorLike(sourceVec, limit)
-
-    val tp = sourceVec.makeTransferPair(targetVec)
-    for (i <- 0 until limit) {
-      tp.copyValueSafe(i, i)
-    }
-    targetVec.setValueCount(limit)
-
-    val prunedCol = new ArrowWritableColumnVector(
-      targetVec,
-      null,
-      colIndex,
-      limit,
-      false
-    )
-    prunedCol.setValueCount(limit)
-    prunedCol
-  }
-
-  private def createEmptyVectorLike(source: ValueVector, capacity: Int): ValueVector = {
-    val field: Field = source.getField
-    val allocator: BufferAllocator = source.getAllocator
-    val newFieldVector = field.createVector(allocator).asInstanceOf[FieldVector]
-
-    newFieldVector.setInitialCapacity(capacity)
-    newFieldVector.allocateNew()
-    newFieldVector
   }
 }

@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 package org.apache.spark.sql.execution
+
 import org.apache.gluten.execution.{GlutenPlan, WholeStageTransformer}
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
