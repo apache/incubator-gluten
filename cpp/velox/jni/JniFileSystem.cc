@@ -338,11 +338,12 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     std::vector<std::string> out;
-    jobjectArray jarray = (jobjectArray)env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path));
+    jobjectArray jarray =
+        static_cast<jobjectArray>(env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path)));
     checkException(env);
     jsize length = env->GetArrayLength(jarray);
     for (jsize i = 0; i < length; ++i) {
-      jstring element = (jstring)env->GetObjectArrayElement(jarray, i);
+      jstring element = static_cast<jstring>(env->GetObjectArrayElement(jarray, i));
       std::string cElement = jStringToCString(env, element);
       out.push_back(cElement);
     }
