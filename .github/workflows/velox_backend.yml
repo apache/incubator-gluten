@@ -46,6 +46,7 @@ env:
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  # for JDK17 unit tests
   EXTRA_FLAGS:  "-XX:+IgnoreUnrecognizedVMOptions 
                 --add-opens=java.base/java.lang=ALL-UNNAMED
                 --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
