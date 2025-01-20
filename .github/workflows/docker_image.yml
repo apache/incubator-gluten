@@ -50,7 +50,7 @@ jobs:
           context: .
           file: dev/docker/Dockerfile.centos7-static-build
           push: true
-          tags: apache/gluten:vcpkg-centos-7
+          tags: apache/gluten:1.3-vcpkg-centos-7
 
   build-centos-8:
     if: ${{ startsWith(github.repository, 'apache/') }}
@@ -75,4 +75,4 @@ jobs:
           context: .
           file: dev/docker/Dockerfile.centos8-dynamic-build
           push: true
-          tags: apache/gluten:centos-8
+          tags: apache/gluten:1.3-centos-8
