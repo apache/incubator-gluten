@@ -1503,7 +1503,7 @@ class GlutenClickHouseExcelFormatSuite
       (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
       (
         RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.key,
-        RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.defaultValue.get.toString)
+        RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.defaultValueString)
     ) {
       testFileFormatBase(tablePath, format, sql, df => {})
     }

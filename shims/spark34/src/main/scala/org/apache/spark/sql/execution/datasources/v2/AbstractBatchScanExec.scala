@@ -57,7 +57,10 @@ abstract class AbstractBatchScanExec(
 
   override def hashCode(): Int = Objects.hashCode(batch, runtimeFilters)
 
-  @transient override lazy val inputPartitions: Seq[InputPartition] = batch.planInputPartitions()
+  @transient override lazy val inputPartitions: Seq[InputPartition] = inputPartitionsShim
+
+  @transient protected lazy val inputPartitionsShim: Seq[InputPartition] =
+    batch.planInputPartitions()
 
   @transient private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
     val dataSourceFilters = runtimeFilters.flatMap {
