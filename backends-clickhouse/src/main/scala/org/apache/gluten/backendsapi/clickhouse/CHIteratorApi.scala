@@ -243,6 +243,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 (filesNode.toProtobuf.toByteArray, filesNode.getPaths.asScala.toSeq)
               case extensionTableNode: ExtensionTableNode =>
                 (extensionTableNode.toProtobuf.toByteArray, extensionTableNode.getPartList)
+              case kafkaSourceNode: StreamKafkaSourceNode =>
+                (kafkaSourceNode.toProtobuf.toByteArray, Seq.empty)
             }
         }.unzip
 
