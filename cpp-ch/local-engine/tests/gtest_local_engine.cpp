@@ -18,7 +18,6 @@
 #include <iostream>
 #include <gluten_test_util.h>
 #include <incbin.h>
-#include <Builder/SerializedPlanBuilder.h>
 #include <Disks/DiskLocal.h>
 #include <Formats/FormatFactory.h>
 #include <Interpreters/Context.h>
@@ -99,9 +98,6 @@ int main(int argc, char ** argv)
         local_engine::JsonStringToBinary<gluten::ConfigMap>(EMBEDDED_PLAN(_config_json)),
         [&](const SparkConfigs::ConfigMap & spark_conf_map) { BackendInitializerUtil::initBackend(spark_conf_map); },
         true);
-
-    auto & factory = FormatFactory::instance();
-    DB::registerOutputFormatParquet(factory);
 
     SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
 
