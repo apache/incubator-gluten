@@ -29,6 +29,34 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
 
   private def secs(millis: Long): Long = TimeUnit.MILLISECONDS.toSeconds(millis)
 
+  test("unix_timestamp/to_unix_timestamp") {
+    Seq("corrected", "legacy").foreach {
+      time_parser_policy =>
+        withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> time_parser_policy) {
+          val df = Seq("2022-01-04 14:52:40").toDF("d")
+          val fmt = "yyyy-MM-dd"
+          val r1 = df.selectExpr(s"unix_timestamp(d, '$fmt')")
+          val r2 = df.selectExpr(s"to_unix_timestamp(d, '$fmt')")
+          if (time_parser_policy == "corrected") {
+            checkAnswer(r1, Seq(Row(null)))
+            checkAnswer(r2, Seq(Row(null)))
+          } else {
+            checkAnswer(r1, Seq(Row(1641283200)))
+            checkAnswer(r2, Seq(Row(1641283200)))
+          }
+          val r3 = df.selectExpr(s"unix_timestamp('2022-01-04 14:52:40.017')")
+          val r4 = df.selectExpr(s"to_unix_timestamp('2022-01-04 14:52:40.017')")
+          if (time_parser_policy == "corrected") {
+            checkAnswer(r1, Seq(Row(null)))
+            checkAnswer(r2, Seq(Row(null)))
+          } else {
+            checkAnswer(r3, Seq(Row(1641336760)))
+            checkAnswer(r4, Seq(Row(1641336760)))
+          }
+        }
+    }
+  }
+
   testGluten("unix_timestamp") {
     Seq("corrected", "legacy").foreach {
       legacyParserPolicy =>
