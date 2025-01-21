@@ -623,7 +623,13 @@ object GlutenConfig {
       SPARK_GCS_STORAGE_ROOT_URL,
       SPARK_GCS_AUTH_TYPE,
       SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
-      SPARK_REDACTION_REGEX
+      SPARK_REDACTION_REGEX,
+      QUERY_TRACE_ENABLED,
+      QUERY_TRACE_DIR,
+      QUERY_TRACE_NODE_IDS,
+      QUERY_TRACE_MAX_BYTES,
+      QUERY_TRACE_TASK_REG_EXP,
+      OP_TRACE_DIRECTORY_CREATE_CONFIG
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -2224,4 +2230,48 @@ object GlutenConfig {
       .doc("If enabled, gluten will not offload scan when encrypted parquet files are detected")
       .booleanConf
       .createWithDefault(false)
+
+  val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
+    .doc("Enable query tracing flag.")
+    .internal()
+    .booleanConf
+    .createWithDefault(false)
+
+  val QUERY_TRACE_DIR = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceDir")
+    .doc("Base dir of a query to store tracing data.")
+    .internal()
+    .stringConf
+    .createWithDefault("")
+
+  val QUERY_TRACE_NODE_IDS = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds")
+    .doc("A comma-separated list of plan node ids whose input data will be traced. " +
+      "Empty string if only want to trace the query metadata.")
+    .internal()
+    .stringConf
+    .createWithDefault("")
+
+  val QUERY_TRACE_MAX_BYTES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes")
+      .doc("The max trace bytes limit. Tracing is disabled if zero.")
+      .internal()
+      .longConf
+      .createWithDefault(0)
+
+  val QUERY_TRACE_TASK_REG_EXP =
+    buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp")
+      .doc("The regexp of traced task id. We only enable trace on a task if its id matches.")
+      .internal()
+      .stringConf
+      .createWithDefault("")
+
+  val OP_TRACE_DIRECTORY_CREATE_CONFIG =
+    buildConf("spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig")
+      .doc(
+        "Config used to create operator trace directory. This config is provided to" +
+          " underlying file system and the config is free form. The form should be " +
+          "defined by the underlying file system.")
+      .internal()
+      .stringConf
+      .createWithDefault("")
+
 }

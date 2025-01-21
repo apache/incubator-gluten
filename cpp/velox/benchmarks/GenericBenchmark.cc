@@ -78,6 +78,17 @@ DEFINE_string(
     "'stream' mode: Input file scan happens inside of the pipeline."
     "'buffered' mode: First read all data into memory and feed the pipeline with it.");
 DEFINE_bool(debug_mode, false, "Whether to enable debug mode. Same as setting `spark.gluten.sql.debug`");
+DEFINE_bool(query_trace_enabled, false, "Whether to enable query trace.");
+DEFINE_string(query_trace_dir, "", "Base dir of a query to store tracing data.");
+DEFINE_string(
+    query_trace_node_ids,
+    "",
+    "A comma-separated list of plan node ids whose input data will be traced. Empty string if only want to trace the query metadata.");
+DEFINE_int64(query_trace_max_bytes, 0, "The max trace bytes limit. Tracing is disabled if zero.");
+DEFINE_string(
+    query_trace_task_reg_exp,
+    "",
+    "The regexp of traced task id. We only enable trace on a task if its id matches.");
 
 struct WriterMetrics {
   int64_t splitTime{0};
@@ -338,6 +349,25 @@ void updateBenchmarkMetrics(
         writerMetrics.bytesWritten, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
   }
 }
+
+void setQueryTraceConfig(std::unordered_map<std::string, std::string>& configs) {
+  if (!FLAGS_query_trace_enabled) {
+    return;
+  }
+  configs[kQueryTraceEnabled] = "true";
+  if (FLAGS_query_trace_dir != "") {
+    configs[kQueryTraceDir] = FLAGS_query_trace_dir;
+  }
+  if (FLAGS_query_trace_max_bytes) {
+    configs[kQueryTraceMaxBytes] = std::to_string(FLAGS_query_trace_max_bytes);
+  }
+  if (FLAGS_query_trace_node_ids != "") {
+    configs[kQueryTraceNodeIds] = FLAGS_query_trace_node_ids;
+  }
+  if (FLAGS_query_trace_task_reg_exp != "") {
+    configs[kQueryTraceTaskRegExp] = FLAGS_query_trace_task_reg_exp;
+  }
+}
 } // namespace
 
 using RuntimeFactory = std::function<VeloxRuntime*(MemoryManager* memoryManager)>;
@@ -455,6 +485,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
       auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->getInputIter());
       const auto* task = rawIter->task();
+      LOG(WARNING) << task->toString();
       const auto* planNode = rawIter->veloxPlan();
       auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
       LOG(WARNING) << statsStr;
@@ -584,6 +615,8 @@ int main(int argc, char** argv) {
   if (sessionConf.empty()) {
     sessionConf = backendConf;
   }
+  setQueryTraceConfig(sessionConf);
+  setQueryTraceConfig(backendConf);
 
   initVeloxBackend(backendConf);
   memory::MemoryManager::testingSetInstance({});
