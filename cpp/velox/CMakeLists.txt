@@ -71,8 +71,6 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
-set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
-
 function(import_library TARGET_NAME LIB_PATH)
   if(NOT EXISTS ${LIB_PATH})
     message(FATAL_ERROR "Library does not exist: ${LIB_PATH}")
@@ -241,7 +239,7 @@ if(BUILD_TESTS)
     ${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_temp_path.a)
   import_library(
     facebook::velox::exec_test_lib
-    ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a)
+    ${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_exec_test_lib.a)
   target_link_libraries(
     facebook::velox::exec_test_lib
     INTERFACE facebook::velox::vector_test_lib
