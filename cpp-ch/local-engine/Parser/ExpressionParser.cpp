@@ -479,7 +479,7 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
 
             PreparedSets prepared_sets;
             FutureSet::Hash emptyKey;
-            auto future_set = prepared_sets.addFromTuple(emptyKey, {elem_block}, context->queryContext()->getSettingsRef());
+            auto future_set = prepared_sets.addFromTuple(emptyKey, nullptr, {elem_block}, context->queryContext()->getSettingsRef());
             auto arg = DB::ColumnSet::create(1, std::move(future_set));
             args.emplace_back(&actions_dag.addColumn(DB::ColumnWithTypeAndName(std::move(arg), std::make_shared<DB::DataTypeSet>(), name)));
 
