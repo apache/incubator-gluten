@@ -154,7 +154,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         context->getSettingsRef()[Setting::max_block_size],
         1);
 
-    auto * source_step_with_filter = static_cast<SourceStepWithFilter *>(read_step.get());
+    auto * source_step_with_filter = static_cast<SourceStepWithFilterBase *>(read_step.get());
     if (const auto & storage_prewhere_info = query_info->prewhere_info)
     {
         source_step_with_filter->addFilter(storage_prewhere_info->prewhere_actions.clone(), storage_prewhere_info->prewhere_column_name);
