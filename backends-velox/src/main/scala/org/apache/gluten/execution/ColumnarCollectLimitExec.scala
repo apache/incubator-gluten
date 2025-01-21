@@ -81,8 +81,8 @@ case class ColumnarCollectLimitExec(
         val currentBatchRowCount = currentBatch.numRows()
         val remaining = limit - rowsCollected
 
+        ColumnarBatches.retain(currentBatch)
         if (currentBatchRowCount <= remaining) {
-          ColumnarBatches.retain(currentBatch)
           rowsCollected += currentBatchRowCount
           nextBatch = Some(currentBatch)
         } else {
@@ -147,9 +147,6 @@ case class ColumnarCollectLimitExec(
       readMetrics
     )
   }
-
-  override protected def doExecute(): RDD[org.apache.spark.sql.catalyst.InternalRow] =
-    throw new UnsupportedOperationException("doExecute is not supported for this operator")
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
 

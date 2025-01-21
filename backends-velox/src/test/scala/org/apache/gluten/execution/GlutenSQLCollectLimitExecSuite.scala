@@ -48,7 +48,9 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     )
   }
 
-  test("ColumnarCollectLimitExec - basic limit test") {
+  testWithSpecifiedSparkVersion(
+    "ColumnarCollectLimitExec - basic limit test",
+    Array("3.2", "3.3")) {
     val df = spark.range(0, 1000, 1).toDF("id").limit(5)
     val expectedData = Seq(Row(0L), Row(1L), Row(2L), Row(3L), Row(4L))
 
@@ -57,7 +59,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
   }
 
-  test("ColumnarCollectLimitExec - with filter") {
+  testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - with filter", Array("3.2", "3.3")) {
     val df = spark
       .range(0, 20, 1)
       .toDF("id")
@@ -70,7 +72,9 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
   }
 
-  test("ColumnarCollectLimitExec - range with repartition") {
+  testWithSpecifiedSparkVersion(
+    "ColumnarCollectLimitExec - range with repartition",
+    Array("3.2", "3.3")) {
 
     val df = spark
       .range(0, 10, 1)
@@ -84,7 +88,9 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
   }
 
-  test("ColumnarCollectLimitExec - with distinct values") {
+  testWithSpecifiedSparkVersion(
+    "ColumnarCollectLimitExec - with distinct values",
+    Array("3.2", "3.3")) {
     val df = spark
       .range(0, 10, 1)
       .toDF("id")
@@ -98,7 +104,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
   }
 
-  test("ColumnarCollectLimitExec - chained limit") {
+  testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - chained limit", Array("3.2", "3.3")) {
     val df = spark
       .range(0, 10, 1)
       .toDF("id")
@@ -111,7 +117,9 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
   }
 
-  test("ColumnarCollectLimitExec - limit after union") {
+  testWithSpecifiedSparkVersion(
+    "ColumnarCollectLimitExec - limit after union",
+    Array("3.2", "3.3")) {
     val df1 = spark.range(0, 5).toDF("id")
     val df2 = spark.range(5, 10).toDF("id")
     val unionDf = df1.union(df2).limit(3)
