@@ -564,7 +564,8 @@ class Spark35Shims extends SparkShims {
         ParquetFileReader.readFooter(conf, fileStatus.getPath, ParquetMetadataConverter.NO_FILTER)
       val fileMetaData = footer.getFileMetaData
       fileMetaData.getEncryptionType match {
-        // UNENCRYPTED file has a plaintext footer and no file encryption, return unencrypted.
+        // UNENCRYPTED file has a plaintext footer and no file encryption,
+        // We can leverage file metadata for this check and return unencrypted.
         case EncryptionType.UNENCRYPTED =>
           false
         // PLAINTEXT_FOOTER has a plaintext footer however the file is encrypted.
