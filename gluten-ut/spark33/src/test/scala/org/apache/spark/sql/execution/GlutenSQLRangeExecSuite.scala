@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.RangeExecBaseTransformer
+import org.apache.gluten.execution.ColumnarRangeBaseExec
 
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.functions.sum
@@ -38,7 +38,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[RangeExecBaseTransformer](df)
+    assertGlutenOperatorMatch[ColumnarRangeBaseExec](df)
   }
 
   testGluten("ColumnarRangeExec with step") {
@@ -47,7 +47,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[RangeExecBaseTransformer](df)
+    assertGlutenOperatorMatch[ColumnarRangeBaseExec](df)
   }
 
   testGluten("ColumnarRangeExec with filter") {
@@ -56,7 +56,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[RangeExecBaseTransformer](df)
+    assertGlutenOperatorMatch[ColumnarRangeBaseExec](df)
   }
 
   testGluten("ColumnarRangeExec with aggregation") {
@@ -66,7 +66,7 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(sumDf, expectedData)
 
-    assertGlutenOperatorMatch[RangeExecBaseTransformer](df)
+    assertGlutenOperatorMatch[ColumnarRangeBaseExec](df)
   }
 
   testGluten("ColumnarRangeExec with join") {
@@ -77,6 +77,6 @@ class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
     checkAnswer(joinDf, expectedData)
 
-    assertGlutenOperatorMatch[RangeExecBaseTransformer](joinDf)
+    assertGlutenOperatorMatch[ColumnarRangeBaseExec](joinDf)
   }
 }

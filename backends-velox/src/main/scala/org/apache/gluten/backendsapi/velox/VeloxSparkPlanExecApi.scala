@@ -845,7 +845,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       numSlices: Int,
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
-      child: Seq[SparkPlan]): RangeExecBaseTransformer =
+      child: Seq[SparkPlan]): ColumnarRangeBaseExec =
     ColumnarRangeExec(start, end, step, numSlices, numElements, outputAttributes, child)
 
 }

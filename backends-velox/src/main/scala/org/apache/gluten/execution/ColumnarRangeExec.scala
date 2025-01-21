@@ -27,8 +27,8 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 /**
- * ColumnarRangeExec is a concrete implementation of RangeExecBaseTransformer that executes the
- * Range operation and supports columnar processing. It generates columnar batches for the specified
+ * ColumnarRangeExec is a concrete implementation of ColumnarRangeBaseExec that executes the Range
+ * operation and supports columnar processing. It generates columnar batches for the specified
  * range.
  *
  * @param start
@@ -54,14 +54,7 @@ case class ColumnarRangeExec(
     numElements: BigInt,
     outputAttributes: Seq[Attribute],
     child: Seq[SparkPlan]
-) extends RangeExecBaseTransformer(
-    start,
-    end,
-    step,
-    numSlices,
-    numElements,
-    outputAttributes,
-    child) {
+) extends ColumnarRangeBaseExec(start, end, step, numSlices, numElements, outputAttributes, child) {
 
   override def batchType(): Convention.BatchType = {
     ArrowJavaBatch

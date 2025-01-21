@@ -702,6 +702,6 @@ trait SparkPlanExecApi {
       numSlices: Int,
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
-      child: Seq[SparkPlan]): RangeExecBaseTransformer
+      child: Seq[SparkPlan]): ColumnarRangeBaseExec
 
 }

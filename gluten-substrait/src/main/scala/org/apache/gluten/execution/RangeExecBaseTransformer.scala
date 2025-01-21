@@ -26,7 +26,7 @@ import org.apache.spark.sql.execution.{LeafExecNode, RangeExec, SparkPlan}
  * Base class for RangeExec transformation, can be implemented by the by supported backends.
  * Currently velox is supported.
  */
-abstract class RangeExecBaseTransformer(
+abstract class ColumnarRangeBaseExec(
     start: Long,
     end: Long,
     step: Long,
@@ -50,11 +50,11 @@ abstract class RangeExecBaseTransformer(
 }
 
 /**
- * Companion object for RangeExecBaseTransformer, provides factory methods to create instance from
+ * Companion object for ColumnarRangeBaseExec, provides factory methods to create instance from
  * existing RangeExec plan.
  */
-object RangeExecBaseTransformer {
-  def from(rangeExec: RangeExec): RangeExecBaseTransformer = {
+object ColumnarRangeBaseExec {
+  def from(rangeExec: RangeExec): ColumnarRangeBaseExec = {
     BackendsApiManager.getSparkPlanExecApiInstance
       .genColumnarRangeExec(
         rangeExec.start,
