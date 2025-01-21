@@ -246,7 +246,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
               case kafkaSourceNode: StreamKafkaSourceNode =>
                 kafkaSourceNode.toProtobuf.toByteArray
             }
-        }.unzip
+        }
 
         GlutenPartition(
           index,
