@@ -95,9 +95,6 @@ case class ColumnarCollectLimitExec(
     }
   }
 
-  private def takeLocalLimit(inputRDD: RDD[ColumnarBatch], limit: Int): RDD[ColumnarBatch] =
-    inputRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
-
   private lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
 
@@ -128,11 +125,11 @@ case class ColumnarCollectLimitExec(
       if (childRDD.getNumPartitions == 1) childRDD
       else shuffleLimitedPartitions(childRDD)
 
-    takeLocalLimit(processedRDD, limit)
+    processedRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
   }
 
   private def shuffleLimitedPartitions(childRDD: RDD[ColumnarBatch]): RDD[ColumnarBatch] = {
-    val locallyLimited = takeLocalLimit(childRDD, limit)
+    val locallyLimited = childRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
     new ShuffledColumnarBatchRDD(
       BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
         locallyLimited,

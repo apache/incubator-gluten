@@ -42,7 +42,7 @@ abstract class ColumnarCollectLimitBaseExec(
     }
 
     if (
-      (childPlan.supportsColumnar || GlutenConfig.get.enablePreferColumnar) &&
+      (childPlan.supportsColumnar && GlutenConfig.get.enablePreferColumnar) &&
       BackendsApiManager.getSettings.supportColumnarShuffleExec() && (getSparkVersion.startsWith(
         "3.3") || getSparkVersion.startsWith("3.2"))
     ) {

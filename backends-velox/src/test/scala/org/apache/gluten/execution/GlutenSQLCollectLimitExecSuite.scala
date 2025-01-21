@@ -29,7 +29,9 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
   }
 
-  private def assertGlutenOperatorMatch[T: reflect.ClassTag](df: DataFrame): Unit = {
+  private def assertGlutenOperatorMatch[T: reflect.ClassTag](
+      df: DataFrame,
+      checkMatch: Boolean): Unit = {
     val executedPlan = getExecutedPlan(df)
 
     val operatorFound = executedPlan.exists {
@@ -41,11 +43,17 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
         }
     }
 
-    assert(
-      operatorFound,
-      s"Operator ${implicitly[reflect.ClassTag[T]].runtimeClass.getSimpleName} not found " +
-        s"in executed plan:\n $executedPlan"
-    )
+    val assertionCondition = operatorFound == checkMatch
+    val assertionMessage =
+      if (checkMatch) {
+        s"Operator ${implicitly[reflect.ClassTag[T]].runtimeClass.getSimpleName} not found " +
+          s"in executed plan:\n $executedPlan"
+      } else {
+        s"Operator ${implicitly[reflect.ClassTag[T]].runtimeClass.getSimpleName} was found " +
+          s"in executed plan:\n $executedPlan"
+      }
+
+    assert(assertionCondition, assertionMessage)
   }
 
   testWithSpecifiedSparkVersion(
@@ -56,7 +64,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = false)
   }
 
   testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - with filter", Array("3.2", "3.3")) {
@@ -69,7 +77,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
   testWithSpecifiedSparkVersion(
@@ -85,7 +93,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
   testWithSpecifiedSparkVersion(
@@ -101,7 +109,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
   testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - chained limit", Array("3.2", "3.3")) {
@@ -114,7 +122,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = false)
   }
 
   testWithSpecifiedSparkVersion(
@@ -128,6 +136,6 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
 
     checkAnswer(unionDf, expectedData)
 
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](unionDf)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](unionDf, checkMatch = true)
   }
 }
