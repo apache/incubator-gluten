@@ -14,27 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.config
 
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.utils.{TestExceptionUtils, UTSystemParameters}
+/**
+ * The ReservedKeys retains the configuration constants used internally by Gluten, which are not
+ * exposed to users.
+ *
+ * TODO: Other internal constant key should be moved here.
+ */
+object ReservedKeys {
 
-import org.apache.spark.SparkConf
+  // Tokens of current user, split by `\0`
+  val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
-class GlutenClickHouseNativeExceptionSuite extends GlutenClickHouseWholeStageTransformerSuite {
+  // Principal of current user
+  val GLUTEN_UGI_USERNAME = "spark.gluten.ugi.username"
 
-  override protected def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.GLUTEN_LIB_PATH.key, UTSystemParameters.clickHouseLibPath)
-  }
-
-  test("native exception caught by jvm") {
-    try {
-      TestExceptionUtils.generateNativeException()
-      assert(false)
-    } catch {
-      case e: Exception =>
-        assert(e.getMessage.contains("test native exception"))
-    }
-  }
+  // Shuffle writer type.
+  val GLUTEN_HASH_SHUFFLE_WRITER = "hash"
+  val GLUTEN_SORT_SHUFFLE_WRITER = "sort"
+  val GLUTEN_RSS_SORT_SHUFFLE_WRITER = "rss_sort"
 }

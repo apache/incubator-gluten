@@ -395,6 +395,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  def enableReplaceFromJsonWithGetJsonObject(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_replace_from_json_with_get_json_object"),
+      defaultValue = true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.get.enableNativeWriter.getOrElse(false)
   }

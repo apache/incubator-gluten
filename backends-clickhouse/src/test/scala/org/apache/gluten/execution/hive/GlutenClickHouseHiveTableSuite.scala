@@ -56,7 +56,7 @@ class GlutenClickHouseHiveTableSuite
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
+      .set(GlutenConfig.GLUTEN_LIB_PATH.key, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")

@@ -57,7 +57,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
+      .set(GlutenConfig.GLUTEN_LIB_PATH.key, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -994,5 +994,26 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       assert(projects.size >= 1)
     }
     compareResultsAgainstVanillaSpark(sql, true, checkProjects, false)
+  }
+
+  test("GLUTEN-8406 replace from_json with get_json_object") {
+    withTable("test_8406") {
+      spark.sql("create table test_8406(x string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_8406 values
+          |('{"a":1}'),
+          |('{"a":2'),
+          |('{"b":3}'),
+          |('{"a":"5"}'),
+          |('{"a":{"x":1}}')
+          |""".stripMargin
+      spark.sql(insert_sql)
+      val sql =
+        """
+          |select from_json(x, 'Map<String, String>')['a'] from test_8406
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
   }
 }
