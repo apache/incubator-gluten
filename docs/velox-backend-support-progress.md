@@ -33,7 +33,7 @@ And also some notations for the function implementation's restrictions:
 
 ### Operator Map
 
-Gluten supports 28 operators (Drag to right to see all data types)
+Gluten supports 30+ operators (Drag to right to see all data types)
 
 | Executor                    | Description                                                                                                                                                                 | Gluten Name                                            | Velox Name            | BOOLEAN | BYTE | SHORT | INT | LONG | FLOAT | DOUBLE | STRING | NULL | BINARY | ARRAY | MAP | STRUCT(ROW) | DATE | TIMESTAMP | DECIMAL | CALENDAR | UDT |
 |-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|-----------------------|---------|------|-------|-----|------|-------|--------|--------|------|--------|-------|-----|-------------|------|-----------|---------|----------|-----|
