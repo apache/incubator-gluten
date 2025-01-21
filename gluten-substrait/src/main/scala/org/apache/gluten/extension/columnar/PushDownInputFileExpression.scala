@@ -82,11 +82,11 @@ object PushDownInputFileExpression {
         replacedExprs: mutable.Map[String, Alias]): SparkPlan =
       plan match {
         case p: LeafExecNode =>
-          ProjectExec(p.output ++ replacedExprs.values, p)
+          addFallbackTag(ProjectExec(p.output ++ replacedExprs.values, p))
         // Output of SerializeFromObjectExec's child and output of DeserializeToObjectExec must be
         // a single-field row.
         case p @ (_: SerializeFromObjectExec | _: DeserializeToObjectExec) =>
-          ProjectExec(p.output ++ replacedExprs.values, p)
+          addFallbackTag(ProjectExec(p.output ++ replacedExprs.values, p))
         case p: ProjectExec =>
           p.copy(
             projectList = p.projectList ++ replacedExprs.values.toSeq.map(_.toAttribute),
@@ -104,6 +104,11 @@ object PushDownInputFileExpression {
           u.copy(children = newFirstChild +: newOtherChildren)
         case p => p.withNewChildren(p.children.map(child => addMetadataCol(child, replacedExprs)))
       }
+
+    def addFallbackTag(plan: SparkPlan): SparkPlan = {
+      FallbackTags.add(plan, "fallback input file expression")
+      plan
+    }
   }
 
   object PostOffload extends Rule[SparkPlan] {
