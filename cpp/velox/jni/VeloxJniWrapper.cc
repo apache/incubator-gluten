@@ -435,7 +435,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
     JNIEnv* env,
     jobject wrapper,
     jlong veloxBatchHandle,
-    jint limit) {
+    jint limit,
+    jint offset) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
   auto batch = ObjectStore::retrieve<ColumnarBatch>(veloxBatchHandle);
@@ -449,7 +450,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
   VELOX_CHECK_NOT_NULL(veloxBatch, "Expected VeloxColumnarBatch but got a different type.");
 
   auto rowVector = veloxBatch->getRowVector();
-  auto prunedVector = rowVector->slice(0, limit);
+  auto prunedVector = rowVector->slice(offset, limit);
 
   auto prunedRowVector = std::dynamic_pointer_cast<facebook::velox::RowVector>(prunedVector);
   VELOX_CHECK_NOT_NULL(prunedRowVector, "Expected RowVector but got a different type.");

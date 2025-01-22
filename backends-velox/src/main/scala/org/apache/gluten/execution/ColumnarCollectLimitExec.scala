@@ -31,8 +31,11 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarCollectLimitExec(
     limit: Int,
-    child: SparkPlan
+    child: SparkPlan,
+    offset: Int = 0
 ) extends ColumnarCollectLimitBaseExec(limit, child) {
+
+  assert(limit >= 0 || (limit == -1 && offset > 0))
 
   override def batchType(): Convention.BatchType =
     BackendsApiManager.getSettings.primaryBatchType
@@ -85,7 +88,7 @@ case class ColumnarCollectLimitExec(
           rowsCollected += currentBatchRowCount
           nextBatch = Some(currentBatch)
         } else {
-          val prunedBatch = VeloxColumnarBatches.pruneBatch(currentBatch, remaining)
+          val prunedBatch = VeloxColumnarBatches.pruneBatch(currentBatch, remaining, 0)
           rowsCollected += remaining
           nextBatch = Some(prunedBatch)
         }
@@ -93,6 +96,76 @@ case class ColumnarCollectLimitExec(
       }
     }
   }
+
+  /**
+   * Drop offset rows from the beginning of the partition iterator. If a batch is completely within
+   * the offset, skip it. If offset lands inside a batch, prune that batch partially and
+   * return the remainder. Then return all subsequent batches unmodified.
+   */
+  private def dropLimitedRows(
+                               partitionIter: Iterator[ColumnarBatch],
+                               offset: Int
+                             ): Iterator[ColumnarBatch] = {
+    if (partitionIter.isEmpty) {
+      return Iterator.empty
+    }
+
+    new Iterator[ColumnarBatch] {
+      private var rowsDropped = 0
+      private var nextBatch: Option[ColumnarBatch] = None
+
+      override def hasNext: Boolean = {
+        nextBatch.isDefined || fetchNext()
+      }
+
+      override def next(): ColumnarBatch = {
+        if (!hasNext) {
+          throw new NoSuchElementException("No batches available.")
+        }
+        val batch = nextBatch.get
+        nextBatch = None
+        batch
+      }
+
+      /**
+       * Attempt to fetch the next batch from the iterator, skipping batches
+       * until we've satisfied the `offset`.
+       *
+       * @return true if we found a new batch to return, false otherwise
+       */
+      private def fetchNext(): Boolean = {
+        while (rowsDropped < offset && partitionIter.hasNext) {
+          val currentBatch = partitionIter.next()
+          val rowCount = currentBatch.numRows()
+          val remain = offset - rowsDropped
+
+          if (rowCount <= remain) {
+            rowsDropped += rowCount
+          } else {
+            ColumnarBatches.retain(currentBatch)
+            val prunedBatch = VeloxColumnarBatches.pruneBatch(currentBatch, 0, remain)
+            rowsDropped += remain
+            nextBatch = Some(prunedBatch)
+            return true
+          }
+        }
+
+        if (rowsDropped < offset) {
+          return false
+        }
+
+        if (!partitionIter.hasNext) {
+          return false
+        }
+
+        val nextOne = partitionIter.next()
+        ColumnarBatches.retain(nextOne)
+        nextBatch = Some(nextOne)
+        true
+      }
+    }
+  }
+
 
   private lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
@@ -124,11 +197,18 @@ case class ColumnarCollectLimitExec(
       if (childRDD.getNumPartitions == 1) childRDD
       else shuffleLimitedPartitions(childRDD)
 
-    processedRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
+    processedRDD.mapPartitions(partition => {
+      val collectedRows = collectLimitedRows(partition, limit)
+      dropLimitedRows(collectedRows, offset)
+    })
   }
 
   private def shuffleLimitedPartitions(childRDD: RDD[ColumnarBatch]): RDD[ColumnarBatch] = {
-    val locallyLimited = childRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
+    val locallyLimited = if (limit >= 0) {
+      childRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
+    } else {
+      childRDD
+    }
     new ShuffledColumnarBatchRDD(
       BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
         locallyLimited,
