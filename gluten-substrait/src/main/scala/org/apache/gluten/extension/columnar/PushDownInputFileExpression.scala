@@ -120,11 +120,13 @@ object PushDownInputFileExpression {
           if projectList.exists(containsInputFileRelatedExpr) =>
         child.copy(output = p.output.asInstanceOf[Seq[AttributeReference]])
       case p1 @ ProjectExec(_, p2: ProjectExec) if canCollapseProject(p2) =>
-        addFallbackTag(p2.copy(projectList =
-          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList)))
+        addFallbackTag(
+          p2.copy(projectList =
+            CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList)))
       case p1 @ ProjectExecTransformer(_, p2: ProjectExec) if canCollapseProject(p1, p2) =>
-        addFallbackTag(p2.copy(projectList =
-          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList)))
+        addFallbackTag(
+          p2.copy(projectList =
+            CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList)))
     }
 
     private def canCollapseProject(project: ProjectExec): Boolean = {
