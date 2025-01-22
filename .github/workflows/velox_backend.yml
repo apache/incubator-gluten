@@ -767,8 +767,6 @@ jobs:
           path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare spark.test.home for Spark 3.4.4 (other tests)
         run: |
-          rm -rf /opt/shims/spark34
-          bash .github/workflows/util/install_spark_resources.sh 3.4
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
@@ -815,8 +813,6 @@ jobs:
           path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare spark.test.home for Spark 3.4.4 (other tests)
         run: |
-          rm -rf /opt/shims/spark34
-          bash .github/workflows/util/install_spark_resources.sh 3.4
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
@@ -861,10 +857,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
-        run: |
-          rm -rf /opt/shims/spark34
-          bash .github/workflows/util/install_spark_resources.sh 3.4
       - name: Build and Run unit test for Spark 3.4.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -896,10 +888,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
-        run: |
-          rm -rf /opt/shims/spark34
-          bash .github/workflows/util/install_spark_resources.sh 3.4
       - name: Build and Run unit test for Spark 3.4.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -944,6 +932,50 @@ jobs:
           export SPARK_SCALA_VERSION=2.12
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark35
+          path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload golden files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-files-spark35
+          path: /tmp/tpch-approved-plan/**
+
+  run-spark-test-spark35-jdk17:
+    needs: build-native-lib-centos-7
+    runs-on: ubuntu-20.04
+    container: apache/gluten:centos-8-jdk17
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v3
+        with:
+          name: arrow-jars-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Prepare
+        run: |
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
+          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pandas pyarrow
+      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/  ${EXTRA_FLAGS}" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
         if: always()
