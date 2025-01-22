@@ -46,6 +46,11 @@ object PushDownInputFileExpression {
     }
   }
 
+  def addFallbackTag(plan: SparkPlan): SparkPlan = {
+    FallbackTags.add(plan, "fallback input file expression")
+    plan
+  }
+
   object PreOffload extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
       case ProjectExec(projectList, child) if projectList.exists(containsInputFileRelatedExpr) =>
@@ -104,11 +109,6 @@ object PushDownInputFileExpression {
           u.copy(children = newFirstChild +: newOtherChildren)
         case p => p.withNewChildren(p.children.map(child => addMetadataCol(child, replacedExprs)))
       }
-
-    def addFallbackTag(plan: SparkPlan): SparkPlan = {
-      FallbackTags.add(plan, "fallback input file expression")
-      plan
-    }
   }
 
   object PostOffload extends Rule[SparkPlan] {
@@ -120,11 +120,11 @@ object PushDownInputFileExpression {
           if projectList.exists(containsInputFileRelatedExpr) =>
         child.copy(output = p.output.asInstanceOf[Seq[AttributeReference]])
       case p1 @ ProjectExec(_, p2: ProjectExec) if canCollapseProject(p2) =>
-        p2.copy(projectList =
-          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList))
+        addFallbackTag(p2.copy(projectList =
+          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList)))
       case p1 @ ProjectExecTransformer(_, p2: ProjectExec) if canCollapseProject(p1, p2) =>
-        p2.copy(projectList =
-          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList))
+        addFallbackTag(p2.copy(projectList =
+          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList)))
     }
 
     private def canCollapseProject(project: ProjectExec): Boolean = {
