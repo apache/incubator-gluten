@@ -27,6 +27,7 @@
 #include "utils/ConfigExtractor.h"
 
 #include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "operators/plannodes/RowVectorStream.h"
 
 namespace gluten {
@@ -1206,6 +1207,24 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
   return node;
 }
 
+core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValuesNode(
+    const ::substrait::ReadRel& readRel,
+    int32_t streamIdx) {
+  std::vector<RowVectorPtr> values;
+  VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
+  const auto iterator = inputIters_[streamIdx];
+  while (iterator->hasNext()) {
+    auto cb = VeloxColumnarBatch::from(defaultLeafVeloxMemoryPool().get(), iterator->next());
+    values.emplace_back(cb->getRowVector());
+  }
+  auto node = std::make_shared<facebook::velox::core::ValuesNode>(nextPlanNodeId(), std::move(values));
+
+  auto splitInfo = std::make_shared<SplitInfo>();
+  splitInfo->isStream = true;
+  splitInfoMap_[node->id()] = splitInfo;
+  return node;
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::ReadRel& readRel) {
   // emit is not allowed in TableScanNode and ValuesNode related
   // outputs
@@ -1217,7 +1236,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Check if the ReadRel specifies an input of stream. If yes, build ValueStreamNode as the data source.
   auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
-    return constructValueStreamNode(readRel, streamIdx);
+    // Only used in benchmark enable query trace, replace ValueStreamNode to ValuesNode to support serialization.
+    if (LIKELY(confMap_[kQueryTraceEnabled] != "true")) {
+      return constructValueStreamNode(readRel, streamIdx);
+    } else {
+      return constructValuesNode(readRel, streamIdx);
+    }
   }
 
   // Otherwise, will create TableScan node for ReadRel.
