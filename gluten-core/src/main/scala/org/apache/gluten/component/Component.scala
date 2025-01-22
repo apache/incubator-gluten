@@ -29,12 +29,11 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import scala.collection.mutable
 
 /**
- * The base API to inject user-defined logic to Gluten. To register a component, its implementations
- * should be placed to Gluten's classpath with a Java service file. Gluten will discover all the
- * component implementations then register them at the booting time.
+ * The base API to inject user-defined logic to Gluten. To register a component, the implementation
+ * class of this trait should be placed to Gluten's classpath with a component file. Gluten will
+ * discover all the component implementations then register them at the booting time.
  *
- * Experimental: This is not expected to be used in production yet. Use
- * [[org.apache.gluten.backend.Backend]] instead.
+ * See [[Discovery]] to find more information about how the component files are handled.
  */
 @Experimental
 trait Component {
