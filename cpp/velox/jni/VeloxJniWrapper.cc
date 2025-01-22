@@ -431,18 +431,18 @@ Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitio
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_pruneBatch( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_sliceBatch( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong batchHandle,
+    jlong veloxBatchHandle,
     jint limit) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
-  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(veloxBatchHandle);
 
   auto numRows = batch->numRows();
   if (limit >= numRows) {
-    return batchHandle;
+    return veloxBatchHandle;
   }
 
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch);

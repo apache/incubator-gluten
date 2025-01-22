@@ -19,7 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.sql.shims.SparkShimLoader.getSparkVersion
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.execution.{CollectLimitExec, LimitExec, SparkPlan}
@@ -43,8 +43,8 @@ abstract class ColumnarCollectLimitBaseExec(
 
     if (
       (childPlan.supportsColumnar && GlutenConfig.get.enablePreferColumnar) &&
-      BackendsApiManager.getSettings.supportColumnarShuffleExec() && (getSparkVersion.startsWith(
-        "3.3") || getSparkVersion.startsWith("3.2"))
+      BackendsApiManager.getSettings.supportColumnarShuffleExec() &&
+      SparkShimLoader.getSparkShims.isColumnarLimitExecSupported()
     ) {
       return ValidationResult.succeeded
     }

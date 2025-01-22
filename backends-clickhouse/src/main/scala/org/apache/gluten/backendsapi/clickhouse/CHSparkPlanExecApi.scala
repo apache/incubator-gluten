@@ -935,5 +935,5 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   override def genColumnarCollectLimitExec(
       limit: Int,
       child: SparkPlan): ColumnarCollectLimitBaseExec =
-    ColumnarCollectLimitExec(limit, child)
+    throw new GlutenNotSupportException("ColumnarCollectLimit is not supported in ch backend.")
 }

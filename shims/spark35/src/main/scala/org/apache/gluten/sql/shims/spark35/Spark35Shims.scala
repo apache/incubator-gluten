@@ -557,4 +557,7 @@ class Spark35Shims extends SparkShims {
     // TODO: Support will be added (https://github.com/apache/incubator-gluten/pull/8501)
     return false
   }
+
+  override def isColumnarLimitExecSupported(): Boolean = false
+
 }
