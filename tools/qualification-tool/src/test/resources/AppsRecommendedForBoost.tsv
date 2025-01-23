@@ -1,0 +1,4 @@
+applicationId	applicationName	batchUuid	rddPercentage	unsupportedSqlPercentage	totalTaskTime	supportedTaskTime	supportedSqlPercentage	recommendedForBoost	expectedRuntimeReduction
+local-1736931836972	QT - SQL	UNKNOWN	0.0%	0.0%	111	111	100.0%	true	30.0%
+local-1736931811258	QT - RDD	UNKNOWN	100.0%	0.0%	22	0	0.0%	false	0.0%
+local-1736932805054	QT - SQL 2	UNKNOWN	23.0%	0.0%	1167	0	0.0%	false	0.0%

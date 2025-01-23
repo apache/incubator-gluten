@@ -123,10 +123,31 @@ The below testing environment: a 8-nodes AWS cluster with 1TB data; Spark-3.1.1 
 
 ![Performance](./docs/image/clickhouse_decision_support_bench1_22queries_performance.png)
 
-# 8. License
+# 8. Qualification Tool
+
+The Qualification Tool is a utility to analyze Spark event log files and assess the compatibility and performance of SQL workloads with Gluten. This tool helps users understand how their workloads can benefit from Gluten.
+
+## Features
+- Analyzes Spark SQL execution plans for compatibility with Gluten.
+- Supports various types of event log files, including single files, folders, compressed files, and rolling event logs.
+- Generates detailed reports highlighting supported and unsupported operations.
+- Provides metrics on SQL execution times and operator impact.
+- Offers configurable options such as threading, output directory, and date-based filtering.
+
+## Usage
+
+To use the Qualification Tool, follow the instructions in its [README](tools/qualification-tool/README.MD).
+
+## Example Command
+```bash
+java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f /path/to/eventlog
+```
+For detailed usage instructions and advanced options, see the Qualification Tool README.
+
+# 9. License
 Gluten is licensed under [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
-# 9. Acknowledgements
+# 10. Acknowledgements
 Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, IBM, Google, etc.
 
 <a href="https://github.com/apache/incubator-gluten/graphs/contributors">
