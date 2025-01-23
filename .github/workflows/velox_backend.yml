@@ -786,7 +786,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-report-spark34
+          name: test-report-spark34-jdk17
           path: '**/surefire-reports/TEST-*.xml'
       - name: Upload golden files
         if: failure()
@@ -838,7 +838,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-files-spark34
+          name: golden-files-spark34-jdk8
           path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark34-slow:
@@ -869,7 +869,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-report-spark34-slow
+          name: test-report-spark34-slow-jdk17
           path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark34-slow-jdk8:
@@ -901,7 +901,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-report-spark34-slow
+          name: test-report-spark34-slow-jdk8
           path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark35:
@@ -988,7 +988,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-files-spark35
+          name: golden-files-spark35-jdk17
           path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark35-scala213:
