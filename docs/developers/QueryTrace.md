@@ -27,7 +27,7 @@ Firstly, we should use MicroBenchmark to generate the input parquet data file an
 ├── plan_35_0.json
 └── split_35_0_0.json
 ```
-Secondly, execute the benchmark to get the task id and query trace node id, for example, the task id is `Gluten_Stage_0_TID_0_VTID_0` and we will profile partial aggregation if node id `7`.
+Secondly, execute the benchmark to get the task id and query trace node id, for example, the task id is `Gluten_Stage_0_TID_0_VTID_0` and we will profile partial aggregation of node id `7`.
 
 ```shell
 W0113 15:30:18.903225 2524110 GenericBenchmark.cc:251] Setting CPU for thread 0 to 0
@@ -46,10 +46,9 @@ Plan:
 ```
 
 Thirdly, execute the benchmark and enable the query trace.
-Note: you need to specify a unique query id for this trace process, then the trace data can be generated to the correct directory layer.
 
 ```shell
- ./generic_benchmark --conf /tmp/saveDir/conf_35_0.ini --plan /tmp/saveDir/plan_35_0.json \  --split /tmp/saveDir/split_35_0_0.json --data /tmp/saveDir/data_35_0_0.parquet  --query_trace_enabled=true --query_trace_dir=/tmp/query_trace --query_trace_node_ids=7 --query_trace_max_bytes=100000000000   --query_trace_task_reg_exp=Gluten_Stage_0_TID_0_VTID_0 --query_trace_query_id=query_1 --threads 1 --noprint-result
+ ./generic_benchmark --conf /tmp/saveDir/conf_35_0.ini --plan /tmp/saveDir/plan_35_0.json \  --split /tmp/saveDir/split_35_0_0.json --data /tmp/saveDir/data_35_0_0.parquet  --query_trace_enabled=true --query_trace_dir=/tmp/query_trace --query_trace_node_ids=7 --query_trace_max_bytes=100000000000   --query_trace_task_reg_exp=Gluten_Stage_0_TID_0_VTID_0 --threads 1 --noprint-result
 ```
 
 We can see the following message, which indicates the query trace runs successfully.
