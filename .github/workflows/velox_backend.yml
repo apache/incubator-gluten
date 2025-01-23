@@ -610,7 +610,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare Python3.9 and PySpark 3.2.2
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
@@ -681,7 +681,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare Python3.9 and PySpark 3.3.1
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
@@ -804,7 +804,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare Spark Resources for Spark 3.4.4
         run: |
           rm -rf /opt/shims/spark34
           bash .github/workflows/util/install_spark_resources.sh 3.4
@@ -840,14 +840,14 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare Python3.9 and PySpark 3.5.4
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.4 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -883,14 +883,14 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare Python3.9 and PySpark 3.5.4
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.4 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
+      - name: Build and Run unit test for Spark 3.5.4 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
@@ -920,7 +920,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Prepare Spark Resources for Spark 3.5.4
+        run: |
+          rm -rf /opt/shims/spark35
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: Build and Run unit test for Spark 3.5.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
@@ -949,14 +953,14 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare Python3.9 and PySpark 3.5.4
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.4 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -985,7 +989,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Prepare Spark Resources for Spark 3.5.4
+        run: |
+          rm -rf /opt/shims/spark35
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: Build and Run unit test for Spark 3.5.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
@@ -1013,14 +1021,14 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare Python3.9 and PySpark 3.5.4
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.4 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -1049,7 +1057,11 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Prepare Spark Resources for Spark 3.5.4
+        run: |
+          rm -rf /opt/shims/spark35
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: Build and Run unit test for Spark 3.5.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
