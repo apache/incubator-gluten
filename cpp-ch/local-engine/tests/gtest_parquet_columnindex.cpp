@@ -392,13 +392,18 @@ void assertRows(const local_engine::RowRanges & ranges, const std::vector<size_t
     ASSERT_EQ(actualRows, expectedRows);
 }
 
-void testCondition(const std::string & exp, const std::vector<size_t> & expectedRows)
+local_engine::RowRanges calculateRowRangesForTest(const std::string & exp)
 {
     static const AnotherRowType name_and_types = buildTestRowType();
     static const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
     const local_engine::ColumnIndexFilter filter(
         local_engine::test::parseFilter(exp, name_and_types).value(), local_engine::QueryContext::globalContext());
-    assertRows(filter.calculateRowRanges(column_index_store, TOTALSIZE), expectedRows);
+    return filter.calculateRowRanges(column_index_store, TOTALSIZE);
+}
+
+void testCondition(const std::string & exp, const std::vector<size_t> & expectedRows)
+{
+    assertRows(calculateRowRangesForTest(exp), expectedRows);
 }
 
 void testCondition(const std::string & exp, size_t rowCount)
@@ -432,6 +437,7 @@ TEST(RowRanges, Create)
     ASSERT_EQ(0, empty.rowCount());
     ASSERT_FALSE(empty.isOverlapping(0, std::numeric_limits<size_t>::max()));
 }
+
 TEST(RowRanges, Union)
 {
     using local_engine::RowRanges;
@@ -496,6 +502,30 @@ TEST(ColumnIndex, Filtering)
     testCondition("column1 >= 7 and column2 > 'India' and column3 is null and column4 is not null", {7, 16, 17, 18, 19, 20});
 
     testCondition("column1 >= 7 and column1 < 11 and column2 > 'Romeo' and column2 <= 'Tango'", {7, 11, 12, 13});
+}
+
+struct FakeRowRangesProvider : public local_engine::IRowRangesProvider
+{
+    std::vector<local_engine::RowRanges> row_ranges_;
+    explicit FakeRowRangesProvider(const std::vector<local_engine::RowRanges> & row_ranges) : row_ranges_(row_ranges) { }
+    std::optional<local_engine::RowRanges> getRowRanges(Int32 row_group_index) override
+    {
+        if (row_group_index < 0 || row_group_index >= static_cast<Int32>(row_ranges_.size()))
+            return std::nullopt;
+        return row_ranges_[row_group_index];
+    }
+};
+
+TEST(RowIndex, VirtualColumnRowIndexReader)
+{
+    local_engine::RowRanges row_ranges = calculateRowRangesForTest("column1 in (7)");
+    FakeRowRangesProvider provider({row_ranges});
+    local_engine::VirtualColumnRowIndexReader reader(&provider, {0}, {0}, local_engine::BIGINT());
+    DB::ColumnPtr col = reader.readBatch(TOTALSIZE);
+    const auto & col_str = typeid_cast<const ColumnInt64 &>(*col);
+    std::vector<size_t> result;
+    std::ranges::for_each(col_str.getData(), [&](const auto & val) { result.push_back(val); });
+    ASSERT_EQ(result, std::vector<size_t>({7, 8, 9, 10, 11, 12, 13}));
 }
 
 TEST(ColumnIndex, FilteringWithAllNullPages)
@@ -1102,7 +1132,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     Block blockHeader({{BIGINT(), "11"}, {STRING(), "18"}});
 
     local_engine::VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
-    recordReader.initialize(blockHeader, arrow_file, column_index_filter);
+    recordReader.initialize(arrow_file, column_index_filter);
     auto chunk{recordReader.nextBatch()};
     ASSERT_EQ(chunk.getNumColumns(), 2);
     ASSERT_EQ(chunk.getNumRows(), format_settings.parquet.max_block_size);

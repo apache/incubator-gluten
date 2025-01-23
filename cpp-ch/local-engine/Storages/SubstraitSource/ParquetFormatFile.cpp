@@ -95,7 +95,15 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
 
     const DB::Settings & settings = context->getSettingsRef();
 
-    if (use_pageindex_reader && supportPageindexReader(header))
+    bool supportReadPageIndex = supportPageindexReader(header);
+    bool readRowIndex = ParquetVirtualMeta::hasMetaColumns(header);
+    if (!supportReadPageIndex && readRowIndex)
+        throw DB::Exception(
+            DB::ErrorCodes::UNSUPPORTED_METHOD,
+            "VectorizedParquetBlockInputFormat doesn't support read complex type and "
+            "ParquetBlockInputFormat doesn't support read row index.");
+
+    if (readRowIndex || (use_pageindex_reader && supportReadPageIndex))
     {
         res->input = std::make_shared<VectorizedParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
     }
