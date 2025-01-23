@@ -101,11 +101,10 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
 
     // Gluten columnar: Fallback policies.
-    injector.injectFallbackPolicy(
-      c => ExpandFallbackPolicy(c.ac.isAdaptiveContext(), c.ac.originalPlan()))
+    injector.injectFallbackPolicy(c => p => ExpandFallbackPolicy(c.caller.isAqe(), p))
 
     // Gluten columnar: Post rules.
-    injector.injectPost(c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()))
+    injector.injectPost(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
@@ -162,7 +161,8 @@ object VeloxRuleApi {
       RasOffload.from[GenerateExec](OffloadOthers()),
       RasOffload.from[EvalPythonExec](OffloadOthers()),
       RasOffload.from[SampleExec](OffloadOthers()),
-      RasOffload.from[CollectLimitExec](OffloadOthers())
+      RasOffload.from[CollectLimitExec](OffloadOthers()),
+      RasOffload.from[RangeExec](OffloadOthers())
     )
     offloads.foreach(
       offload =>
@@ -181,8 +181,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
-    injector.injectPostTransform(
-      c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()))
+    injector.injectPostTransform(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPostTransform(c => each(c.session)))

@@ -121,6 +121,7 @@ void ListenableMemoryAllocator::updateUsage(int64_t size) {
 }
 
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {
+  GLUTEN_CHECK(size >= 0, "size is less than 0");
   *out = std::malloc(size);
   if (*out == nullptr) {
     return false;
@@ -130,6 +131,8 @@ bool StdMemoryAllocator::allocate(int64_t size, void** out) {
 }
 
 bool StdMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, void** out) {
+  GLUTEN_CHECK(nmemb >= 0, "nmemb is less than 0");
+  GLUTEN_CHECK(size >= 0, "size is less than 0");
   *out = std::calloc(nmemb, size);
   if (*out == nullptr) {
     return false;
@@ -139,6 +142,7 @@ bool StdMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, void** 
 }
 
 bool StdMemoryAllocator::allocateAligned(uint64_t alignment, int64_t size, void** out) {
+  GLUTEN_CHECK(size >= 0, "size is less than 0");
   *out = aligned_alloc(alignment, size);
   if (*out == nullptr) {
     return false;
@@ -162,7 +166,7 @@ bool StdMemoryAllocator::reallocateAligned(void* p, uint64_t alignment, int64_t 
     return false;
   }
   if (newSize <= size) {
-    auto aligned = ROUND_TO_LINE(newSize, alignment);
+    auto aligned = ROUND_TO_LINE(static_cast<uint64_t>(newSize), alignment);
     if (aligned <= size) {
       // shrink-to-fit
       return reallocate(p, size, aligned, out);

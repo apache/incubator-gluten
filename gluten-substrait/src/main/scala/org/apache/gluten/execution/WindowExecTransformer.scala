@@ -21,7 +21,6 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.WindowFunctionNode
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
@@ -148,20 +147,12 @@ case class WindowExecTransformer(
         context,
         operatorId)
     } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        .asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-
       RelBuilder.makeWindowRel(
         input,
         windowExpressions,
         partitionsExpressions,
         sortFieldList,
-        extensionNode,
+        RelBuilder.createExtensionNode(originalInputAttributes.asJava),
         context,
         operatorId)
     }

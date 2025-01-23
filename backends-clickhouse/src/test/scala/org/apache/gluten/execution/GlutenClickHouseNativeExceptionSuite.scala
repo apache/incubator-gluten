@@ -25,7 +25,7 @@ class GlutenClickHouseNativeExceptionSuite extends GlutenClickHouseWholeStageTra
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
+      .set(GlutenConfig.GLUTEN_LIB_PATH.key, UTSystemParameters.clickHouseLibPath)
   }
 
   test("native exception caught by jvm") {

@@ -137,6 +137,8 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     // Double precision loss: https://github.com/facebookincubator/velox/pull/6051#issuecomment-1731028215.
     .exclude("SPARK-22271: mean overflows and returns null for some decimal variables")
+    // Rewrite this test since it checks the physical operator which is changed in Gluten
+    .exclude("SPARK-27439: Explain result should match collected result after view change")
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
     .exclude(
@@ -161,7 +163,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
-      "SPARK-29906",
       "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",

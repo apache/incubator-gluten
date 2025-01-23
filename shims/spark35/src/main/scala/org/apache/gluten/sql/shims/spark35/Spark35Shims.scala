@@ -18,6 +18,7 @@ package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
@@ -57,6 +58,10 @@ import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
+import org.apache.parquet.crypto.ParquetCryptoRuntimeException
+import org.apache.parquet.format.converter.ParquetMetadataConverter
+import org.apache.parquet.hadoop.ParquetFileReader
+import org.apache.parquet.hadoop.metadata.FileMetaData.EncryptionType
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
@@ -554,8 +559,28 @@ class Spark35Shims extends SparkShims {
   override def isParquetFileEncrypted(
       fileStatus: LocatedFileStatus,
       conf: Configuration): Boolean = {
-    // TODO: Support will be added (https://github.com/apache/incubator-gluten/pull/8501)
-    return false
+    try {
+      val footer =
+        ParquetFileReader.readFooter(conf, fileStatus.getPath, ParquetMetadataConverter.NO_FILTER)
+      val fileMetaData = footer.getFileMetaData
+      fileMetaData.getEncryptionType match {
+        // UNENCRYPTED file has a plaintext footer and no file encryption,
+        // We can leverage file metadata for this check and return unencrypted.
+        case EncryptionType.UNENCRYPTED =>
+          false
+        // PLAINTEXT_FOOTER has a plaintext footer however the file is encrypted.
+        // In such cases, read the footer and use the metadata for encryption check.
+        case EncryptionType.PLAINTEXT_FOOTER =>
+          true
+        case _ =>
+          false
+      }
+    } catch {
+      // Both footer and file are encrypted, return false.
+      case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+        true
+      case e: Exception => false
+    }
   }
 
   override def isColumnarLimitExecSupported(): Boolean = false

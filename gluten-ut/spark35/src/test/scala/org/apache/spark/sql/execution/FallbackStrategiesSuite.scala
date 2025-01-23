@@ -20,6 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BasicScanExecTransformer, GlutenPlan}
 import org.apache.gluten.extension.GlutenSessionExtensions
+import org.apache.gluten.extension.caller.CallerInfo
 import org.apache.gluten.extension.columnar.{FallbackTags, RemoveFallbackTagRule}
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.MiscColumnarRules.RemoveTopmostColumnarToRow
@@ -54,37 +55,39 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 
   testGluten("Fall back the whole plan if meeting the configured threshold") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "1")) {
-      val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = newRuleApplier(
-        spark,
-        List(
-          _ =>
-            _ => {
-              UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
-            },
-          c => InsertBackendTransitions(c.outputsColumnar)))
-        .enableAdaptiveContext()
-      val outputPlan = rule.apply(originalPlan, false)
-      // Expect to fall back the entire plan.
-      assert(outputPlan == originalPlan)
+      CallerInfo.withLocalValue(isAqe = true, isCache = false) {
+        val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
+        val rule = newRuleApplier(
+          spark,
+          List(
+            _ =>
+              _ => {
+                UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
+              },
+            c => InsertBackendTransitions(c.outputsColumnar)))
+        val outputPlan = rule.apply(originalPlan, false)
+        // Expect to fall back the entire plan.
+        assert(outputPlan == originalPlan)
+      }
     }
   }
 
   testGluten("Don't fall back the whole plan if NOT meeting the configured threshold") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "4")) {
-      val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = newRuleApplier(
-        spark,
-        List(
-          _ =>
-            _ => {
-              UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
-            },
-          c => InsertBackendTransitions(c.outputsColumnar)))
-        .enableAdaptiveContext()
-      val outputPlan = rule.apply(originalPlan, false)
-      // Expect to get the plan with columnar rule applied.
-      assert(outputPlan != originalPlan)
+      CallerInfo.withLocalValue(isAqe = true, isCache = false) {
+        val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
+        val rule = newRuleApplier(
+          spark,
+          List(
+            _ =>
+              _ => {
+                UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOp()))))
+              },
+            c => InsertBackendTransitions(c.outputsColumnar)))
+        val outputPlan = rule.apply(originalPlan, false)
+        // Expect to get the plan with columnar rule applied.
+        assert(outputPlan != originalPlan)
+      }
     }
   }
 
@@ -92,19 +95,20 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     "Fall back the whole plan if meeting the configured threshold (leaf node is" +
       " transformable)") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "2")) {
-      val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = newRuleApplier(
-        spark,
-        List(
-          _ =>
-            _ => {
-              UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
-            },
-          c => InsertBackendTransitions(c.outputsColumnar)))
-        .enableAdaptiveContext()
-      val outputPlan = rule.apply(originalPlan, false)
-      // Expect to fall back the entire plan.
-      assert(outputPlan == originalPlan)
+      CallerInfo.withLocalValue(isAqe = true, isCache = false) {
+        val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
+        val rule = newRuleApplier(
+          spark,
+          List(
+            _ =>
+              _ => {
+                UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
+              },
+            c => InsertBackendTransitions(c.outputsColumnar)))
+        val outputPlan = rule.apply(originalPlan, false)
+        // Expect to fall back the entire plan.
+        assert(outputPlan == originalPlan)
+      }
     }
   }
 
@@ -112,19 +116,20 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     "Don't Fall back the whole plan if NOT meeting the configured threshold (" +
       "leaf node is transformable)") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "3")) {
-      val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = newRuleApplier(
-        spark,
-        List(
-          _ =>
-            _ => {
-              UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
-            },
-          c => InsertBackendTransitions(c.outputsColumnar)))
-        .enableAdaptiveContext()
-      val outputPlan = rule.apply(originalPlan, false)
-      // Expect to get the plan with columnar rule applied.
-      assert(outputPlan != originalPlan)
+      CallerInfo.withLocalValue(isAqe = true, isCache = false) {
+        val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
+        val rule = newRuleApplier(
+          spark,
+          List(
+            _ =>
+              _ => {
+                UnaryOp2(UnaryOp1Transformer(UnaryOp2(UnaryOp1Transformer(LeafOpTransformer()))))
+              },
+            c => InsertBackendTransitions(c.outputsColumnar)))
+        val outputPlan = rule.apply(originalPlan, false)
+        // Expect to get the plan with columnar rule applied.
+        assert(outputPlan != originalPlan)
+      }
     }
   }
 
@@ -180,9 +185,9 @@ private object FallbackStrategiesSuite {
     new HeuristicApplier(
       spark,
       transformBuilders,
-      List(c => ExpandFallbackPolicy(c.ac.isAdaptiveContext(), c.ac.originalPlan())),
+      List(c => p => ExpandFallbackPolicy(c.caller.isAqe(), p)),
       List(
-        c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()),
+        c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()),
         _ => ColumnarCollapseTransformStages(GlutenConfig.get)
       ),
       List(_ => RemoveFallbackTagRule())

@@ -696,4 +696,14 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
 
   def genColumnarCollectLimitExec(limit: Int, plan: SparkPlan): ColumnarCollectLimitBaseExec
+
+  def genColumnarRangeExec(
+      start: Long,
+      end: Long,
+      step: Long,
+      numSlices: Int,
+      numElements: BigInt,
+      outputAttributes: Seq[Attribute],
+      child: Seq[SparkPlan]): ColumnarRangeBaseExec
+
 }

@@ -56,15 +56,39 @@
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-spark-${sparkbundle.version}_${scala.binary.version}</artifactId>
+          <artifactId>iceberg-spark-runtime-${sparkbundle.version}_${scala.binary.version}</artifactId>
           <version>${iceberg.version}</version>
           <scope>provided</scope>
         </dependency>
         <dependency>
-          <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-spark-runtime-${sparkbundle.version}_${scala.binary.version}</artifactId>
-          <version>${iceberg.version}</version>
+          <groupId>org.scala-lang.modules</groupId>
+          <artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>kafka</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-kafka</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-kafka</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
           <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql-kafka-0-10_${scala.binary.version}</artifactId>
+          <version>${spark.version}</version>
+          <scope>provided</scope>
         </dependency>
       </dependencies>
     </profile>

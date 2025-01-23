@@ -135,7 +135,7 @@ public final class VeloxColumnarBatches {
    * @return a new pruned [[ColumnarBatch]] with row count = `limit`, or the original batch if no
    *     pruning is required
    */
-  public static ColumnarBatch pruneBatch(ColumnarBatch batch, int limit) {
+  public static ColumnarBatch sliceBatch(ColumnarBatch batch, int limit) {
     int totalRows = batch.numRows();
     if (limit >= totalRows) {
       // No need to prune
@@ -146,7 +146,7 @@ public final class VeloxColumnarBatches {
               BackendsApiManager.getBackendName(), "VeloxColumnarBatches#sliceBatch");
       long nativeHandle =
           ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), batch);
-      long handle = VeloxColumnarBatchJniWrapper.create(runtime).sliceBatch(nativeHandle, limit);
+      long handle = VeloxColumnarBatchJniWrapper.create(runtime).slice(nativeHandle, limit);
       return ColumnarBatches.create(handle);
     }
   }

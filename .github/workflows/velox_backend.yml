@@ -46,6 +46,24 @@ env:
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
   CCACHE_DIR: "${{ github.workspace }}/.ccache"
+  # for JDK17 unit tests
+  EXTRA_FLAGS:  "-XX:+IgnoreUnrecognizedVMOptions 
+                --add-opens=java.base/java.lang=ALL-UNNAMED
+                --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+                --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+                --add-opens=java.base/java.io=ALL-UNNAMED
+                --add-opens=java.base/java.net=ALL-UNNAMED
+                --add-opens=java.base/java.nio=ALL-UNNAMED
+                --add-opens=java.base/java.util=ALL-UNNAMED
+                --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+                --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+                --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+                --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+                --add-opens=java.base/sun.security.action=ALL-UNNAMED
+                --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+                -Djdk.reflect.useDirectMethodHandle=false
+                -Dio.netty.tryReflectionSetAccessible=true"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -734,7 +752,7 @@ jobs:
   run-spark-test-spark34:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -747,20 +765,25 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare spark.test.home for Spark 3.4.4 (other tests)
         run: |
+          rm -rf /opt/shims/spark34
+          bash .github/workflows/util/install_spark_resources.sh 3.4
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.4.3 cython && \
+          pip3 install pyspark==3.4.4 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.4.3 (other tests)
+      - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
-          -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
-          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export SPARK_HOME=/opt/shims/spark34/spark_home/
+          ls -l /opt/shims/spark34/spark_home/
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
+          -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/ ${EXTRA_FLAGS}" 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -778,7 +801,7 @@ jobs:
   run-spark-test-spark34-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -791,12 +814,19 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.4.3 (slow tests)
+      - name: Prepare
+        run: |
+          rm -rf /opt/shims/spark34
+          bash .github/workflows/util/install_spark_resources.sh 3.4
+      - name: Build and Run unit test for Spark 3.4.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
-          -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" \
-          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export SPARK_HOME=/opt/shims/spark34/spark_home/
+          ls -l /opt/shims/spark34/spark_home/
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
+          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
+          -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/ ${EXTRA_FLAGS}" 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4

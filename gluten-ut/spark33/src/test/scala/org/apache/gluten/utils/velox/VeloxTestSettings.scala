@@ -185,7 +185,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
-      "SPARK-29906",
       "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
@@ -1036,6 +1035,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
     // We can enable the below test for spark 3.4 and higher versions.
     .excludeGlutenTest("describe")
+    // Rewrite this test since it checks the physical operator which is changed in Gluten
+    .exclude("SPARK-27439: Explain result should match collected result after view change")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
@@ -1177,6 +1178,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenImplicitsTest]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]
+  enableSuite[GlutenSQLRangeExecSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

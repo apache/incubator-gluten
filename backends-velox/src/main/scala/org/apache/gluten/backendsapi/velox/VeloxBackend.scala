@@ -578,4 +578,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def needPreComputeRangeFrameBoundary(): Boolean = true
 
   override def supportCollectLimitExec(): Boolean = true
+
+  override def supportRangeExec(): Boolean = true
+
 }

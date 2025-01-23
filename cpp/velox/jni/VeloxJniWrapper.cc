@@ -431,7 +431,7 @@ Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitio
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_sliceBatch( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_slice( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong veloxBatchHandle,

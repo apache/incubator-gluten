@@ -235,23 +235,24 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
       case (splits, index) =>
-        val (splitInfosByteArray, files) = splits.zipWithIndex.map {
+        val splitInfosByteArray = splits.zipWithIndex.map {
           case (split, i) =>
             split match {
               case filesNode: LocalFilesNode =>
                 setFileSchemaForLocalFiles(filesNode, scans(i))
-                (filesNode.toProtobuf.toByteArray, filesNode.getPaths.asScala.toSeq)
+                filesNode.toProtobuf.toByteArray
               case extensionTableNode: ExtensionTableNode =>
-                (extensionTableNode.toProtobuf.toByteArray, extensionTableNode.getPartList)
+                extensionTableNode.toProtobuf.toByteArray
+              case kafkaSourceNode: StreamKafkaSourceNode =>
+                kafkaSourceNode.toProtobuf.toByteArray
             }
-        }.unzip
+        }
 
         GlutenPartition(
           index,
           planByteArray,
           splitInfosByteArray.toArray,
-          locations = splits.flatMap(_.preferredLocations().asScala).toArray,
-          files.flatten.toArray
+          locations = splits.flatMap(_.preferredLocations().asScala).toArray
         )
     }
   }

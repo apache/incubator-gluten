@@ -200,6 +200,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
           ValidationResult.failed("Has complex type.")
         }
       case JsonReadFormat => ValidationResult.succeeded
+      case KafkaReadFormat => ValidationResult.succeeded
       case _ => ValidationResult.failed(s"Unsupported file format $format")
     }
   }
@@ -221,6 +222,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       case "OrcScan" => ReadFileFormat.OrcReadFormat
       case "ParquetScan" => ReadFileFormat.ParquetReadFormat
       case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
+      case "KafkaScan" => ReadFileFormat.KafkaReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
   }
@@ -389,6 +391,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def enableConvertWindowGroupLimitToAggregate(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConf.runtimeConfig("enable_window_group_limit_to_aggregate"),
+      defaultValue = true
+    )
+  }
+
+  def enableReplaceFromJsonWithGetJsonObject(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_replace_from_json_with_get_json_object"),
       defaultValue = true
     )
   }

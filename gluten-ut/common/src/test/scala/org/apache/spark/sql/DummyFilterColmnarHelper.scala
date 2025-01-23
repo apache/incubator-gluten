@@ -86,7 +86,7 @@ object DummyFilterColmnarHelper {
         .config("spark.memory.offHeap.size", "1024MB")
         .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-        .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+        .config(GlutenConfig.GLUTEN_LIB_PATH.key, SystemParameters.getClickHouseLibPath)
         .config("spark.io.compression.codec", "LZ4")
         .config("spark.gluten.sql.enable.native.validation", "false")
     } else {

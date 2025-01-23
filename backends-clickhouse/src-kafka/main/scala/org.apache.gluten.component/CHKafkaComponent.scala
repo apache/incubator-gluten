@@ -14,17 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
 
-import org.apache.spark.rdd.InputFileBlockHolder
+package org.apache.gluten.component
 
-object InputFileBlockHolderProxy {
-  def set(files: String): Unit = {
-    InputFileBlockHolder.set(files, 0, 0)
+import org.apache.gluten.backendsapi.clickhouse.CHBackend
+import org.apache.gluten.execution.OffloadKafkaScan
+import org.apache.gluten.extension.injector.Injector
+
+class CHKafkaComponent extends Component {
+  override def name(): String = "clickhouse-kafka"
+  override def buildInfo(): Component.BuildInfo =
+    Component.BuildInfo("ClickHouseKafka", "N/A", "N/A", "N/A")
+  override def dependencies(): Seq[Class[_ <: Component]] = classOf[CHBackend] :: Nil
+  override def injectRules(injector: Injector): Unit = {
+    OffloadKafkaScan.inject(injector)
   }
-
-  def unset(): Unit = {
-    InputFileBlockHolder.unset()
-  }
-
 }

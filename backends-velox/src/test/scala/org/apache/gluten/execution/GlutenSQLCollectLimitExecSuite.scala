@@ -64,7 +64,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = false)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
   testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - with filter", Array("3.2", "3.3")) {
@@ -122,7 +122,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
 
     checkAnswer(df, expectedData)
 
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = false)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
   testWithSpecifiedSparkVersion(
