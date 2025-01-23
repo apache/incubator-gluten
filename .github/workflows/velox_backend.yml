@@ -510,7 +510,7 @@ jobs:
         uniffle: [ "0.9.1" ]
         hadoop: [ "2.8.5" ]
     runs-on: ubuntu-20.04
-    container: centos:8
+    container: apache/gluten:centos-8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Native Artifacts
@@ -523,14 +523,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup java and maven
-        run: |
-          yum update -y && yum install -y java-1.8.0-openjdk-devel wget git
-          $SETUP install_maven
       - name: Install Uniffle ${{ matrix.uniffle }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
