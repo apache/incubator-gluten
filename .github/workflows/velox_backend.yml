@@ -982,13 +982,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-report-spark35
+          name: test-report-spark35-jdk17
           path: '**/surefire-reports/TEST-*.xml'
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-files-spark35-jdk17
+          name: golden-files-spark35
           path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark35-scala213:
