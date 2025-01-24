@@ -61,27 +61,146 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
     }
   }
 
-  case class AnalyzedAggregteInfo(aggregate: Aggregate) {
-    lazy val resultGroupingExpressions = aggregate.aggregateExpressions.filter {
-      e =>
-        removeAlias(e) match {
-          case aggExpr: AggregateExpression => false
-          case _ => true
-        }
+  def hasAggregateExpression(e: Expression): Boolean = {
+    if (e.children.isEmpty && !e.isInstanceOf[AggregateExpression]) {
+      return false
+    }
+    e match {
+      case _: AggregateExpression => true
+      case _ => e.children.exists(hasAggregateExpression(_))
+    }
+  }
+
+  def hasAggregateExpressionsWithFilter(e: Expression): Boolean = {
+    if (e.children.isEmpty && !e.isInstanceOf[AggregateExpression]) {
+      return false
+    }
+    e match {
+      case aggExpr: AggregateExpression =>
+        aggExpr.filter.isDefined
+      case _ => e.children.exists(hasAggregateExpressionsWithFilter(_))
+    }
+  }
+
+  case class AggregateAnalzyInfo(originalAggregate: Aggregate) {
+
+    protected def buildAttributesToExpressionsMap(
+        attributes: Seq[Attribute],
+        expressions: Seq[Expression]): Map[ExprId, Expression] = {
+      val map = new mutable.HashMap[ExprId, Expression]()
+      attributes.zip(expressions).foreach {
+        case (attr, expr) =>
+          map.put(attr.exprId, expr)
+      }
+      map.toMap
     }
 
-    lazy val hasAggregateWithFilter = aggregate.aggregateExpressions.exists {
-      e =>
-        removeAlias(e) match {
-          case aggExpr: AggregateExpression => aggExpr.filter.isDefined
-          case _ => false
-        }
+    protected def replaceAttributes(
+        expression: Expression,
+        replaceMap: Map[ExprId, Expression]): Expression = {
+      expression.transform {
+        case attr: Attribute =>
+          logError(s"xxx replace attr:$attr")
+          replaceMap.getOrElse(attr.exprId, attr.asInstanceOf[Expression])
+      }
     }
 
-    lazy val resultPositionInGroupingKeys = {
+    protected def getFilter(): Option[Filter] = {
+      originalAggregate.child match {
+        case filter: Filter => Some(filter)
+        case project @ Project(_, filter: Filter) => Some(filter)
+        case subquery: SubqueryAlias =>
+          subquery.child match {
+            case filter: Filter => Some(filter)
+            case project @ Project(_, filter: Filter) => Some(filter)
+            case _ => None
+          }
+      }
+    }
+
+    lazy val sourcePlan = {
+      val filter = getFilter()
+      if (!filter.isDefined) {
+        None
+      } else {
+        filter.get.child match {
+          case project: Project => Some(project.child)
+          case other => Some(other)
+        }
+      }
+    }
+
+    lazy val filterPlan = {
+      val filter = getFilter()
+      if (!filter.isDefined || !sourcePlan.isDefined) {
+        None
+      } else {
+        val project = filter.get.child match {
+          case project: Project => Some(project)
+          case other => None
+        }
+        val replacedFilter = project match {
+          case Some(project) =>
+            val replaceMap = buildAttributesToExpressionsMap(project.output, project.child.output)
+            val replacedCondition = replaceAttributes(filter.get.condition, replaceMap)
+            Filter(replacedCondition, sourcePlan.get)
+          case None => filter.get.withNewChildren(Seq(sourcePlan.get))
+        }
+        Some(replacedFilter)
+      }
+    }
+
+    lazy val aggregatePlan = {
+      if (!filterPlan.isDefined) {
+        None
+      } else {
+
+        val project = originalAggregate.child match {
+          case p: Project => Some(p)
+          case subquery: SubqueryAlias =>
+            subquery.child match {
+              case p: Project => Some(p)
+              case _ => None
+            }
+          case _ => None
+        }
+
+        val replacedAggregate = project match {
+          case Some(innerProject) =>
+            val replaceMap =
+              buildAttributesToExpressionsMap(innerProject.output, innerProject.projectList)
+            logError(s"xxx replace map:\n$replaceMap")
+            val groupExpressions = originalAggregate.groupingExpressions.map {
+              e => replaceAttributes(e, replaceMap)
+            }
+            val aggregateExpressions = originalAggregate.aggregateExpressions.map {
+              e => replaceAttributes(e, replaceMap).asInstanceOf[NamedExpression]
+            }
+            logError(
+              s"xxx group expressions:$groupExpressions\n" +
+                s"aggregateExpressions:$aggregateExpressions")
+            Aggregate(groupExpressions, aggregateExpressions, filterPlan.get)
+          case None => originalAggregate.withNewChildren(Seq(filterPlan.get))
+        }
+        Some(replacedAggregate)
+      }
+    }
+
+    lazy val hasAggregateWithFilter = originalAggregate.aggregateExpressions.exists {
+      e => hasAggregateExpressionsWithFilter(e)
+    }
+
+    lazy val resultGroupingExpressions = aggregatePlan match {
+      case Some(agg) =>
+        agg.asInstanceOf[Aggregate].aggregateExpressions.filter(e => !hasAggregateExpression(e))
+      case None => Seq.empty
+    }
+
+    lazy val positionInGroupingKeys = {
       var i = 0
       resultGroupingExpressions.map {
         e =>
+          val aggregate = aggregatePlan.get.asInstanceOf[Aggregate]
           e match {
             case literal @ Alias(_: Literal, _) =>
               var idx = aggregate.groupingExpressions.indexOf(e)
@@ -90,13 +209,21 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
                 i += 1
               }
               idx
-            case _ => aggregate.groupingExpressions.indexOf(removeAlias(e))
+            case _ =>
+              var idx = aggregate.groupingExpressions.indexOf(removeAlias(e))
+              idx = if (idx == -1) {
+                aggregate.groupingExpressions.indexOf(e)
+              } else {
+                idx
+              }
+              assert(idx != -1, s"Expected $e in ${aggregate.groupingExpressions}")
+              idx
           }
       }
     }
   }
 
-  case class AnalyzedPlan(plan: LogicalPlan, analyzedAggregateInfo: Option[AnalyzedAggregteInfo])
+  case class AnalyzedPlan(plan: LogicalPlan, analyzedInfo: Option[AggregateAnalzyInfo])
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (plan.resolved) {
@@ -118,16 +245,17 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
             if (groupedPlans.length == 1) {
               groupedPlans.head.plan
             } else {
-              val aggregates = groupedPlans.map(_.plan)
+              val firstAggregateAnalzyInfo = groupedPlans.head.analyzedInfo.get
+              val aggregates = groupedPlans.map(_.analyzedInfo.get.aggregatePlan.get)
               val replaceAttributes = collectReplaceAttributes(aggregates)
               val filterConditions = buildAggregateCasesConditions(aggregates, replaceAttributes)
               val firstAggregateFilter =
-                groupedPlans.head.plan.asInstanceOf[Aggregate].child.asInstanceOf[Filter]
+                firstAggregateAnalzyInfo.filterPlan.get.asInstanceOf[Filter]
 
               // Concat all filter conditions with `or` and apply it on the source node
               val unionFilter = Filter(
                 buildUnionConditionForAggregateSource(filterConditions),
-                firstAggregateFilter.child)
+                firstAggregateAnalzyInfo.sourcePlan.get)
               logError(s"xxx union filter:\n$unionFilter")
 
               val wrappedAttributesProject =
@@ -167,17 +295,20 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
     newPlan
   }
 
-  def isSupportedAggregate(info: AnalyzedAggregteInfo): Boolean = {
+  def isSupportedAggregate(info: AggregateAnalzyInfo): Boolean = {
     if (info.hasAggregateWithFilter) {
-      false
-    } else {
-      true
+      return false
     }
+
+    if (!info.aggregatePlan.isDefined) {
+      return false
+    }
+    true
   }
 
-  def areSameStructureAggregate(l: AnalyzedAggregteInfo, r: AnalyzedAggregteInfo): Boolean = {
-    val lAggregate = l.aggregate
-    val rAggregate = r.aggregate
+  def areSameStructureAggregate(l: AggregateAnalzyInfo, r: AggregateAnalzyInfo): Boolean = {
+    val lAggregate = l.aggregatePlan.get.asInstanceOf[Aggregate]
+    val rAggregate = r.aggregatePlan.get.asInstanceOf[Aggregate]
 
     // Check aggregate result expressions. need same schema.
     if (lAggregate.aggregateExpressions.length != rAggregate.aggregateExpressions.length) {
@@ -189,18 +320,16 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
         if (!lExpr.dataType.equals(rExpr.dataType)) {
           return false
         }
-        (removeAlias(lExpr), removeAlias(rExpr)) match {
-          case (lAggExpr: AggregateExpression, rAggExpr: AggregateExpression) =>
-            if (lAggExpr.aggregateFunction.getClass != rAggExpr.aggregateFunction.getClass) {
+        (hasAggregateExpression(lExpr), hasAggregateExpression(rExpr)) match {
+          case (true, true) =>
+            if (!areEqualExpressions(lExpr, rExpr)) {
               return false
             }
-            if (
-              lAggExpr.aggregateFunction.children.length !=
-                rAggExpr.aggregateFunction.children.length
-            ) {
-              return false
-            }
-          case _ =>
+          case (false, true) =>
+            return false
+          case (true, false) =>
+            return false
+          case (false, false) =>
         }
     }
 
@@ -209,40 +338,14 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
       return false
     }
 
-    def hasAggregateExpression(e: Expression): Boolean = {
-      if (e.children.isEmpty && !e.isInstanceOf[AggregateExpression]) {
-        return false
-      }
-      e match {
-        case _: AggregateExpression => true
-        case _ => e.children.exists(hasAggregateExpression(_))
-      }
-    }
-
-    // 1. data types must be same.
-    // 2. The aggregate expressions must have same structure and at the same position.
-    lAggregate.groupingExpressions.zip(rAggregate.groupingExpressions).foreach {
-      case (lExpr, rExpr) =>
-        if (!lExpr.dataType.equals(rExpr.dataType)) {
-          return false
-        }
-        val lHasAgg = hasAggregateExpression(lExpr)
-        val rHasAgg = hasAggregateExpression(rExpr)
-        if (lHasAgg != rHasAgg) {
-          return false
-        } else if (lHasAgg && !areEqualExpressions(lExpr, rExpr)) {
-          return false
-        }
-    }
-
     if (
-      l.resultPositionInGroupingKeys.length !=
-        r.resultPositionInGroupingKeys.length
+      l.positionInGroupingKeys.length !=
+        r.positionInGroupingKeys.length
     ) {
       return false
     }
-    l.resultPositionInGroupingKeys
-      .zip(r.resultPositionInGroupingKeys)
+    l.positionInGroupingKeys
+      .zip(r.positionInGroupingKeys)
       .foreach {
         case (lPos, rPos) =>
           if (lPos != rPos) {
@@ -251,11 +354,7 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
       }
 
     // Must come from same source.
-    if (
-      areSameAggregateSource(
-        lAggregate.child.asInstanceOf[Filter].child,
-        rAggregate.child.asInstanceOf[Filter].child)
-    ) {
+    if (areSameAggregateSource(l.sourcePlan.get, r.sourcePlan.get)) {
       return true
     }
 
@@ -265,14 +364,12 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
   // If returns -1, not found same structure aggregate.
   def findSameStructureAggregate(
       planGroups: ArrayBuffer[ArrayBuffer[AnalyzedPlan]],
-      analyzedAggregateInfo: AnalyzedAggregteInfo): Int = {
+      analyzedInfo: AggregateAnalzyInfo): Int = {
     planGroups.zipWithIndex.foreach {
       case (groupedPlans, i) =>
         if (
-          groupedPlans.head.analyzedAggregateInfo.isDefined &&
-          areSameStructureAggregate(
-            groupedPlans.head.analyzedAggregateInfo.get,
-            analyzedAggregateInfo)
+          groupedPlans.head.analyzedInfo.isDefined &&
+          areSameStructureAggregate(groupedPlans.head.analyzedInfo.get, analyzedInfo)
         ) {
           return i
         }
@@ -283,8 +380,8 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
   def groupSameStructureAggregate(union: Union): ArrayBuffer[ArrayBuffer[AnalyzedPlan]] = {
     val groupResults = ArrayBuffer[ArrayBuffer[AnalyzedPlan]]()
     union.children.foreach {
-      case agg @ Aggregate(_, _, filter: Filter) =>
-        val analyzedInfo = AnalyzedAggregteInfo(agg)
+      case agg: Aggregate =>
+        val analyzedInfo = AggregateAnalzyInfo(agg)
         if (isSupportedAggregate(analyzedInfo)) {
           if (groupResults.isEmpty) {
             groupResults += ArrayBuffer(AnalyzedPlan(agg, Some(analyzedInfo)))
@@ -403,8 +500,8 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
     val structPrefix = "field_"
     groupedPlans.zipWithIndex.foreach {
       case (aggregateCase, case_index) =>
-        val aggregate = aggregateCase.plan.asInstanceOf[Aggregate]
-        val analyzedInfo = aggregateCase.analyzedAggregateInfo.get
+        val analyzedInfo = aggregateCase.analyzedInfo.get
+        val aggregate = analyzedInfo.aggregatePlan.get.asInstanceOf[Aggregate]
         val structFields = ArrayBuffer[Expression]()
         var fieldIndex: Int = 0
         aggregate.groupingExpressions.foreach {
@@ -413,8 +510,8 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
             structFields += replaceAttributes(e, replaceMap)
             fieldIndex += 1
         }
-        for (i <- 0 until analyzedInfo.resultPositionInGroupingKeys.length) {
-          val position = analyzedInfo.resultPositionInGroupingKeys(i)
+        for (i <- 0 until analyzedInfo.positionInGroupingKeys.length) {
+          val position = analyzedInfo.positionInGroupingKeys(i)
           if (position >= fieldIndex) {
             val expr = analyzedInfo.resultGroupingExpressions(i)
             structFields += Literal(UTF8String.fromString(s"$structPrefix$fieldIndex"), StringType)
@@ -531,19 +628,22 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
       child: LogicalPlan,
       groupedPlans: ArrayBuffer[AnalyzedPlan]): LogicalPlan = {
     val attributes = child.output
-    val aggregateTemplate = groupedPlans.head.plan.asInstanceOf[Aggregate]
-    val analyzedAggregateInfo = groupedPlans.head.analyzedAggregateInfo.get
+    val firstAggregateAnalzyInfo = groupedPlans.head.analyzedInfo.get
+    val aggregateTemplate = firstAggregateAnalzyInfo.aggregatePlan.get.asInstanceOf[Aggregate]
+    val analyzedInfo = groupedPlans.head.analyzedInfo.get
 
     val totalGroupingExpressionsCount =
       math.max(
         aggregateTemplate.groupingExpressions.length,
-        analyzedAggregateInfo.resultPositionInGroupingKeys.max + 1)
+        analyzedInfo.positionInGroupingKeys.max + 1)
 
     val groupingExpressions = attributes
       .slice(0, totalGroupingExpressionsCount)
       .map(_.asInstanceOf[Expression]) :+ attributes.last
 
-    val normalExpressionPosition = analyzedAggregateInfo.resultPositionInGroupingKeys
+    val normalExpressionPosition = analyzedInfo.positionInGroupingKeys
+    logError(s"xxx normalExpressionPosition:$normalExpressionPosition")
+    logError(s"xxx aggregateExpressions:${aggregateTemplate.aggregateExpressions}")
     var normalExpressionCount = 0
     var aggregateExpressionIndex = totalGroupingExpressionsCount
     val aggregateExpressions = ArrayBuffer[NamedExpression]()
@@ -568,6 +668,9 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
             aggregateExpressions += makeAlias(newAggExpr, e.name)
 
           case other =>
+            logError(
+              s"xxx normalExpressionPosition.len:${normalExpressionPosition.length}" +
+                s", normalExpressionCount:$normalExpressionCount")
             val position = normalExpressionPosition(normalExpressionCount)
             val attr = attributes(position)
             normalExpressionCount += 1
