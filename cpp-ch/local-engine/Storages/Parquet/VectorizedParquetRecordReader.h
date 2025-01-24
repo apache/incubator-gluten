@@ -413,8 +413,11 @@ protected:
     void onCancel() noexcept override { is_stopped = 1; }
 
 public:
-    VectorizedParquetBlockInputFormat(DB::ReadBuffer & in_, const DB::Block & header_, const DB::FormatSettings & format_settings);
-    void setColumnIndexFilter(const ColumnIndexFilterPtr & column_index_filter) { column_index_filter_ = column_index_filter; }
+    VectorizedParquetBlockInputFormat(
+        DB::ReadBuffer & in_,
+        const DB::Block & header_,
+        const ColumnIndexFilterPtr & column_index_filter,
+        const DB::FormatSettings & format_settings);
     String getName() const override { return "VectorizedParquetBlockInputFormat"; }
     void resetParser() override;
 

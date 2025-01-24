@@ -403,8 +403,11 @@ const ColumnIndexStore & ParquetFileReaderExt::getColumnIndexStore(const Int32 r
 
 /// input format
 VectorizedParquetBlockInputFormat::VectorizedParquetBlockInputFormat(
-    DB::ReadBuffer & in_, const DB::Block & header_, const DB::FormatSettings & format_settings)
-    : DB::IInputFormat(header_, &in_), record_reader_(getPort().getHeader(), format_settings)
+    DB::ReadBuffer & in_,
+    const DB::Block & header_,
+    const ColumnIndexFilterPtr & column_index_filter,
+    const DB::FormatSettings & format_settings)
+    : DB::IInputFormat(header_, &in_), record_reader_(getPort().getHeader(), format_settings), column_index_filter_(column_index_filter)
 {
 }
 

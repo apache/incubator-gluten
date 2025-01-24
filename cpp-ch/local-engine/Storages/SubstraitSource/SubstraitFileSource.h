@@ -20,13 +20,14 @@
 #include <Core/Block.h>
 #include <Core/Field.h>
 #include <Processors/Chunk.h>
-#include <Storages/Parquet/ColumnIndexFilter.h>
-#include <Storages/Parquet/VectorizedParquetRecordReader.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <base/types.h>
 
 namespace local_engine
 {
+class ColumnIndexFilter;
+using ColumnIndexFilterPtr = std::shared_ptr<ColumnIndexFilter>;
+
 class BaseReader
 {
 public:
@@ -45,13 +46,6 @@ public:
 
     virtual bool pull(DB::Chunk & chunk) = 0;
     bool isCancelled() const { return is_cancelled.load(std::memory_order_acquire); }
-
-    /// Apply key condition to the reader, if use_local_format is true, column_index_filter will be used
-    /// otherwise it will be ignored
-    virtual void applyKeyCondition(
-        const std::shared_ptr<const DB::KeyCondition> & /*key_condition*/, const ColumnIndexFilterPtr & /*column_index_filter*/)
-    {
-    }
 
 protected:
     virtual void onCancel() { };
@@ -73,23 +67,18 @@ protected:
 class NormalFileReader : public BaseReader
 {
 public:
-    NormalFileReader(const FormatFilePtr & file_, const DB::Block & to_read_header_, const DB::Block & output_header_);
+    NormalFileReader(
+        const FormatFilePtr & file_,
+        const DB::Block & to_read_header_,
+        const DB::Block & output_header_,
+        const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
+        const ColumnIndexFilterPtr & column_index_filter = nullptr);
     ~NormalFileReader() override = default;
 
     bool pull(DB::Chunk & chunk) override;
 
-protected:
-    void applyKeyCondition(
-        const std::shared_ptr<const DB::KeyCondition> & key_condition, const ColumnIndexFilterPtr & column_index_filter) override
-    {
-        if (auto * const vectorized = dynamic_cast<VectorizedParquetBlockInputFormat *>(input_format->input.get()))
-            vectorized->setColumnIndexFilter(column_index_filter);
-        else
-            input_format->input->setKeyCondition(key_condition);
-    }
-
 private:
-    void onCancel() override { input_format->input->cancel(); }
+    void onCancel() override { input_format->cancel(); }
     FormatFile::InputFormatPtr input_format;
 };
 

@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 #include "FormatFile.h"
-#include <memory>
 #include <Core/Settings.h>
 #include <IO/ReadBufferFromFile.h>
 #include <Storages/SubstraitSource/JSONFormatFile.h>

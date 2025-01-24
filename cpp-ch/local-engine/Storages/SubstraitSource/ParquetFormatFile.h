@@ -20,10 +20,12 @@
 
 #if USE_PARQUET
 #include <Storages/SubstraitSource/FormatFile.h>
-#include <parquet/metadata.h>
 
 namespace local_engine
 {
+class ColumnIndexFilter;
+using ColumnIndexFilterPtr = std::shared_ptr<ColumnIndexFilter>;
+
 struct RowGroupInformation
 {
     UInt32 index = 0;
@@ -32,6 +34,7 @@ struct RowGroupInformation
     UInt64 total_size = 0;
     UInt64 num_rows = 0;
 };
+
 class ParquetFormatFile : public FormatFile
 {
 public:
@@ -42,7 +45,16 @@ public:
         bool use_local_format_);
     ~ParquetFormatFile() override = default;
 
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+    InputFormatPtr createInputFormat(const DB::Block & header) override
+    {
+        throw new DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Use createInputFormat with key_condition and column_index_filter");
+    }
+
+    InputFormatPtr createInputFormat(
+        const DB::Block & header,
+        const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
+        const ColumnIndexFilterPtr & column_index_filter = nullptr) const;
+
     std::optional<size_t> getTotalRows() override;
 
     bool supportSplit() const override { return true; }

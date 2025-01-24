@@ -53,6 +53,15 @@ extern const int UNKNOWN_TYPE;
 namespace local_engine
 {
 
+struct ParquetInputFormat : FormatFile::InputFormat
+{
+    ParquetInputFormat(std::unique_ptr<DB::ReadBuffer> read_buffer_, const DB::InputFormatPtr & input_)
+        : InputFormat(std::move(read_buffer_), input_)
+    {
+    }
+};
+
+
 ParquetFormatFile::ParquetFormatFile(
     const DB::ContextPtr & context_,
     const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
@@ -62,14 +71,16 @@ ParquetFormatFile::ParquetFormatFile(
 {
 }
 
-FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block & header)
+FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
+    const DB::Block & header,
+    const std::shared_ptr<const DB::KeyCondition> & key_condition,
+    const ColumnIndexFilterPtr & column_index_filter) const
 {
-    auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = read_buffer_builder->build(file_info);
+    auto read_buffer = read_buffer_builder->build(file_info);
 
     std::vector<RowGroupInformation> required_row_groups;
     int total_row_groups = 0;
-    if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(res->read_buffer.get()))
+    if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
     {
         // reuse the read_buffer to avoid opening the file twice.
         // especially，the cost of opening a hdfs file is large.
@@ -103,21 +114,23 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
             "VectorizedParquetBlockInputFormat doesn't support read complex type and "
             "ParquetBlockInputFormat doesn't support read row index.");
 
+    DB::InputFormatPtr input;
     if (readRowIndex || (use_pageindex_reader && supportReadPageIndex))
     {
-        res->input = std::make_shared<VectorizedParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
+        input = std::make_shared<VectorizedParquetBlockInputFormat>(*read_buffer, header, column_index_filter, format_settings);
     }
     else
     {
-        res->input = std::make_shared<DB::ParquetBlockInputFormat>(
-            *(res->read_buffer),
+        input = std::make_shared<DB::ParquetBlockInputFormat>(
+            *read_buffer,
             header,
             format_settings,
             settings[DB::Setting::max_parsing_threads],
             settings[DB::Setting::max_download_threads],
             8192);
+        input->setKeyCondition(key_condition);
     }
-    return res;
+    return std::make_shared<ParquetInputFormat>(std::move(read_buffer), input);
 }
 
 std::optional<size_t> ParquetFormatFile::getTotalRows()

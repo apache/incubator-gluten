@@ -26,7 +26,9 @@
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <QueryPipeline/Pipe.h>
+#include <Storages/Parquet/ColumnIndexFilter.h>
 #include <Storages/SubstraitSource/FormatFile.h>
+#include <Storages/SubstraitSource/ParquetFormatFile.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <substrait/plan.pb.h>
@@ -143,8 +145,7 @@ bool SubstraitFileSource::tryPrepareReader()
             }
         }
         else
-            file_reader = std::make_unique<NormalFileReader>(current_file, readHeader, outputHeader);
-        file_reader->applyKeyCondition(key_condition, column_index_filter);
+            file_reader = std::make_unique<NormalFileReader>(current_file, readHeader, outputHeader, key_condition, column_index_filter);
         return true;
     }
     return false;
@@ -350,9 +351,25 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
     return true;
 }
 
-NormalFileReader::NormalFileReader(const FormatFilePtr & file_, const DB::Block & to_read_header_, const DB::Block & output_header_)
-    : BaseReader(file_, to_read_header_, output_header_), input_format(file_->createInputFormat(to_read_header_))
+NormalFileReader::NormalFileReader(
+    const FormatFilePtr & file_,
+    const DB::Block & to_read_header_,
+    const DB::Block & output_header_,
+    const std::shared_ptr<const DB::KeyCondition> & key_condition,
+    const ColumnIndexFilterPtr & column_index_filter)
+    : BaseReader(file_, to_read_header_, output_header_)
 {
+    if (auto * parquetFile = dynamic_cast<ParquetFormatFile *>(file.get()))
+    {
+        input_format = parquetFile->createInputFormat(to_read_header_, key_condition, column_index_filter);
+    }
+    else
+    {
+        /// Apply key condition to the reader.
+        /// If use_local_format is true, column_index_filter will be used  otherwise it will be ignored
+        input_format = file_->createInputFormat(to_read_header_);
+        input_format->inputFormat().setKeyCondition(key_condition);
+    }
 }
 
 bool NormalFileReader::pull(DB::Chunk & chunk)
@@ -361,7 +378,7 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
         return false;
 
     /// read read real data chunk from input.
-    DB::Chunk dataChunk = input_format->input->generate();
+    DB::Chunk dataChunk = input_format->generate();
     const size_t rows = dataChunk.getNumRows();
     if (!rows)
         return false;

@@ -62,7 +62,6 @@ public:
         = {FILE_PATH, FILE_NAME, FILE_BLOCK_START, FILE_BLOCK_LENGTH, FILE_SIZE, FILE_MODIFICATION_TIME};
 
     /// Caution: only used in InputFileNameParser
-    ///
     static bool isVirtualColumn(const std::string & column_name)
     {
         return METADATA_COLUMNS_SET.contains(column_name) || INPUT_FILE_COLUMNS_SET.contains(column_name);
@@ -100,10 +99,19 @@ protected:
 class FormatFile
 {
 public:
-    struct InputFormat
+    class InputFormat
     {
         std::unique_ptr<DB::ReadBuffer> read_buffer;
         DB::InputFormatPtr input;
+
+    public:
+        DB::IInputFormat & inputFormat() const { return *input; }
+        void cancel() const noexcept { return input->cancel(); }
+        DB::Chunk generate() const { return input->generate(); }
+        InputFormat(std::unique_ptr<DB::ReadBuffer> read_buffer_, const DB::InputFormatPtr & input_)
+            : read_buffer(std::move(read_buffer_)), input(input_)
+        {
+        }
     };
     using InputFormatPtr = std::shared_ptr<InputFormat>;
 
