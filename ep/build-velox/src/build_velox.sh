@@ -181,8 +181,6 @@ echo "ENABLE_ABFS=${ENABLE_ABFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
 cd ${VELOX_HOME}
-# Branch-new build requires all untracked files to be deleted. We only need the source code.
-sudo git clean -dffx :/
 compile
 
 echo "Successfully built Velox from Source."
