@@ -552,12 +552,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSparkPartitionId] = std::to_string(taskInfo_.partitionId);
 
     // Enable Spark legacy date formatter if spark.sql.legacy.timeParserPolicy is set to 'LEGACY'
-    // or 'legacy'.
-    auto sparkPolicy = veloxCfg_->get<std::string>(kSparkLegacyTimeParserPolicy, "");
-    for (auto& c : sparkPolicy) {
-      c = std::toupper(static_cast<unsigned char>(c));
-    }
-    if (sparkPolicy == "LEGACY") {
+    // or 'legacy'
+    if (veloxCfg_->get<std::string>(kSparkLegacyTimeParserPolicy, "") == "LEGACY") {
       configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "true";
     } else {
       configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "false";

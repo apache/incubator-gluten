@@ -112,18 +112,9 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
             df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd mm:HH:ss')"),
             Seq(Row(secs(ts4.getTime)), Row(null), Row(secs(ts3.getTime)), Row(null)))
 
-          // legacyParserPolicy is not respected by Gluten.
           // invalid format
-          // val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
-          // if (legacyParserPolicy == "legacy") {
-          //   checkAnswer(invalid,
-          //     Seq(Row(null), Row(null), Row(null), Row(null)))
-          // } else {
-          //   val e = intercept[SparkUpgradeException](invalid.collect())
-          //   assert(e.getCause.isInstanceOf[IllegalArgumentException])
-          //   assert( e.getMessage.contains(
-          //     "You may get a different result due to the upgrading to Spark"))
-          // }
+          val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
+          checkAnswer(invalid, Seq(Row(null), Row(null), Row(null), Row(null)))
 
           // February
           val y1 = "2016-02-29"
@@ -196,11 +187,8 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
             df2.select(unix_timestamp(col("y"), "yyyy-MM-dd")),
             Seq(Row(secs(ts5.getTime)), Row(null)))
 
-          // Not consistent behavior with gluten + velox.
-          // invalid format
-          //        val invalid = df1.selectExpr(s"to_unix_timestamp(x, 'yyyy-MM-dd bb:HH:ss')")
-          //        val e = intercept[IllegalArgumentException](invalid.collect())
-          //        assert(e.getMessage.contains('b'))
+          val invalid = df1.selectExpr(s"to_unix_timestamp(x, 'yyyy-MM-dd bb:HH:ss')")
+          checkAnswer(invalid, Seq(Row(null), Row(null), Row(null), Row(null)))
         }
     }
   }
@@ -232,10 +220,8 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
           if (legacyParserPolicy == "legacy") {
             // In Spark 2.4 and earlier, to_timestamp() parses in seconds precision and cuts off
             // the fractional part of seconds. The behavior was changed by SPARK-27438.
-            // Ignore this test case. Velox returns null for such case.
-            // val legacyFmt = "yyyy/MM/dd HH:mm:ss"
-            // checkAnswer(df.select(to_timestamp(col("s"), legacyFmt)), Seq(
-            //  Row(ts1), Row(ts2)))
+            val legacyFmt = "yyyy/MM/dd HH:mm:ss"
+            checkAnswer(df.select(to_timestamp(col("s"), legacyFmt)), Seq(Row(ts1), Row(ts2)))
           } else {
             checkAnswer(df.select(to_timestamp(col("s"), fmt)), Seq(Row(ts1m), Row(ts2m)))
           }
