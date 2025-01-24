@@ -92,8 +92,7 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
       return applyNewResourceProfileIfPossible(plan, newRP, rpManager)
     }
 
-    // case 1: check whether fallback exists and decide whether increase heap memory
-    //  todo:
+    // case 2: check whether fallback exists and decide whether increase heap memory
     val fallenNodeCnt = planNodes.count(p => !p.isInstanceOf[GlutenPlan])
     val totalCount = planNodes.size
 
@@ -161,7 +160,7 @@ object GlutenAutoAdjustStageResourceProfile extends Logging {
       plan.withNewChildren(IndexedSeq(wrapperPlan))
     } else {
       logInfo(s"Ignore apply resource profile for plan ${plan.nodeName}")
-      // todo: support set InsertInto stage's resource profile
+      // todo: support set final stage's resource profile
       plan
     }
   }

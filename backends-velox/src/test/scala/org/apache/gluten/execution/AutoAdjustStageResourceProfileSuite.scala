@@ -19,10 +19,12 @@ package org.apache.gluten.execution
 import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.execution.{ApplyResourceProfileExec, ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 
+@Experimental
 class AutoAdjustStageResourceProfileSuite
   extends VeloxWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper {
@@ -87,7 +89,7 @@ class AutoAdjustStageResourceProfileSuite
     collect(plan) { case c: ApplyResourceProfileExec => c }.size
   }
 
-  test("stage contains r2c and apply new resource profile") {
+  test("stage contains fallback nodes and apply new resource profile") {
     withSQLConf(
       GlutenConfig.COLUMNAR_SHUFFLE_ENABLED.key -> "false",
       GlutenConfig.AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD.key -> "0.1") {
@@ -95,7 +97,7 @@ class AutoAdjustStageResourceProfileSuite
         df =>
           val plan = df.queryExecution.executedPlan
           // scalastyle:off
-          // @formatter:off
+          // format: off
           /*
             VeloxColumnarToRow
             +- ^(7) HashAggregateTransformer(keys=[c1#22], functions=[count(1)], isStreamingAgg=false, output=[c1#22, count(1)#33L])
@@ -109,7 +111,7 @@ class AutoAdjustStageResourceProfileSuite
                                     +- ^(6) FlushableHashAggregateTransformer(keys=[c1#22], functions=[partial_count(1)], isStreamingAgg=false, output=[c1#22, count#37L])
                                        +- ^(6) FileScanTransformer parquet default.tmp1[c1#22] Batched: true, DataFilters: [],
            */
-          // @formatter:on
+          // format: on
           // scalastyle:on
           assert(collectColumnarShuffleExchange(plan) == 0)
           assert(collectShuffleExchange(plan) == 1)
@@ -127,7 +129,7 @@ class AutoAdjustStageResourceProfileSuite
     }
   }
 
-  test("whole stage fallback") {
+  test("Apply new resource profile when whole stage fallback") {
     withSQLConf(
       GlutenConfig.COLUMNAR_FALLBACK_PREFER_COLUMNAR.key -> "false",
       GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
@@ -139,7 +141,7 @@ class AutoAdjustStageResourceProfileSuite
           "java_method('java.lang.Integer', 'signum', tmp1.c1), count(*) " +
           "from tmp1 group by java_method('java.lang.Integer', 'signum', tmp1.c1)") {
         // scalastyle:off
-        // @formatter:off
+        // format: off
         /*
          DeserializeToObject createexternalrow(java_method(java.lang.Integer, signum, c1)#35.toString, count(1)#36L, StructField(java_method(java.lang.Integer, signum, c1),StringType,true), StructField(count(1),LongType,false)), obj#42: org.apache.spark.sql.Row
          +- *(3) HashAggregate(keys=[_nondeterministic#37], functions=[count(1)], output=[java_method(java.lang.Integer, signum, c1)#35, count(1)#36L])
@@ -152,7 +154,7 @@ class AutoAdjustStageResourceProfileSuite
                               +- *(1) ColumnarToRow
                                  +- FileScan parquet default.tmp1[c1#22] Batched: true, DataFilters: [], Format: Parquet
          */
-        // @formatter:on
+        // format: on
         // scalastyle:on
         df => assert(collectApplyResourceProfileExec(df.queryExecution.executedPlan) == 1)
       }
