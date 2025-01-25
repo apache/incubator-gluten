@@ -669,6 +669,13 @@ object GlutenConfig {
               SPARK_SHUFFLE_FILE_BUFFER,
               (JavaUtils.byteStringAs(v, ByteUnit.KiB) * 1024).toString))
 
+    conf
+      .get(LEGACY_TIME_PARSER_POLICY.key)
+      .foreach(
+        v =>
+          nativeConfMap
+            .put(LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
+
     // Backend's dynamic session conf only.
     val confPrefix = prefixOf(backendName)
     conf
