@@ -117,8 +117,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
     const ColumnIndexFilterPtr & column_index_filter) const
 {
     bool readRowIndex = hasMetaColumns(header);
-    bool shouldUseClickHouseReader = !supportPageindexReader(header);
-    bool usePageIndexReader = !shouldUseClickHouseReader && (use_pageindex_reader || readRowIndex);
+    bool usePageIndexReader = (use_pageindex_reader || readRowIndex) && onlyHasFlatType(header);
     auto read_buffer = read_buffer_builder->build(file_info);
     auto format_settings = DB::getFormatSettings(context);
 
@@ -207,18 +206,16 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
     }
 }
 
-bool ParquetFormatFile::supportPageindexReader(const DB::Block & header)
+bool ParquetFormatFile::onlyHasFlatType(const DB::Block & header)
 {
-    const auto result = std::ranges::find_if(
+    return std::ranges::all_of(
         header,
         [](DB::ColumnWithTypeAndName const & col)
         {
             const DB::DataTypePtr type_not_nullable = DB::removeNullable(col.type);
             const DB::WhichDataType which(type_not_nullable);
-            return DB::isArray(which) || DB::isMap(which) || DB::isTuple(which);
+            return !DB::isArray(which) && !DB::isMap(which) && !DB::isTuple(which);
         });
-
-    return result == header.end();
 }
 
 

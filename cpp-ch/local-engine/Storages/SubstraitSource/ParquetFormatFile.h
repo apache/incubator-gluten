@@ -52,7 +52,7 @@ public:
 
     String getFileFormat() const override { return "Parquet"; }
 
-    static bool supportPageindexReader(const DB::Block & header);
+    static bool onlyHasFlatType(const DB::Block & header);
 
 private:
     bool use_pageindex_reader;

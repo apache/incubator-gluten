@@ -145,20 +145,20 @@ TEST(ParquetRead, ReadSchema)
 
 TEST(ParquetRead, VerifyPageindexReaderSupport)
 {
-    EXPECT_FALSE(ParquetFormatFile::supportPageindexReader(
-        toBlockRowType(test::readParquetSchema(test::gtest_data("alltypes/alltypes_notnull.parquet")))));
-    EXPECT_FALSE(ParquetFormatFile::supportPageindexReader(
-        toBlockRowType(test::readParquetSchema(test::gtest_data("alltypes/alltypes_null.parquet")))));
+    EXPECT_FALSE(
+        ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("alltypes/alltypes_notnull.parquet")))));
+    EXPECT_FALSE(
+        ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("alltypes/alltypes_null.parquet")))));
 
 
-    EXPECT_FALSE(ParquetFormatFile::supportPageindexReader(toBlockRowType(test::readParquetSchema(test::gtest_data("array.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::supportPageindexReader(toBlockRowType(test::readParquetSchema(test::gtest_data("date.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::supportPageindexReader(toBlockRowType(test::readParquetSchema(test::gtest_data("datetime64.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::supportPageindexReader(toBlockRowType(test::readParquetSchema(test::gtest_data("decimal.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::supportPageindexReader(toBlockRowType(test::readParquetSchema(test::gtest_data("iris.parquet")))));
-    EXPECT_FALSE(ParquetFormatFile::supportPageindexReader(toBlockRowType(test::readParquetSchema(test::gtest_data("map.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::supportPageindexReader(toBlockRowType(test::readParquetSchema(test::gtest_data("sample.parquet")))));
-    EXPECT_FALSE(ParquetFormatFile::supportPageindexReader(toBlockRowType(test::readParquetSchema(test::gtest_data("struct.parquet")))));
+    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("array.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("date.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("datetime64.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("decimal.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("iris.parquet")))));
+    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("map.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("sample.parquet")))));
+    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("struct.parquet")))));
 }
 
 TEST(ParquetRead, ReadDataNotNull)
