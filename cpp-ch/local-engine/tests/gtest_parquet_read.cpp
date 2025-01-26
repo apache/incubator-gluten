@@ -422,14 +422,13 @@ TEST(ParquetRead, VectorizedColumnReader)
     const FormatSettings format_settings{};
     Block blockHeader({{DOUBLE(), "b"}, {BIGINT(), "a"}});
 
-    ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
+    ReadBufferFromFile in(sample);
 
-    const std::unique_ptr<parquet::ParquetFileReader> parquet_reader = parquet::ParquetFileReader::OpenFile(sample, false);
-    metaBuilder.build(*parquet_reader, &blockHeader, nullptr, [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+    ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
+    metaBuilder.build(&in, &blockHeader, nullptr, [](UInt64 /*midpoint_offset*/) -> bool { return true; });
     ColumnIndexRowRangesProvider provider{metaBuilder};
     VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
 
-    ReadBufferFromFile in(sample);
     auto arrow_file = test::asArrowFileForParquet(in, format_settings);
     recordReader.initialize(arrow_file, provider);
 

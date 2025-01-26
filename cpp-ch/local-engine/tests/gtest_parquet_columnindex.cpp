@@ -1130,14 +1130,13 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
 
     Block blockHeader({{BIGINT(), "11"}, {STRING(), "18"}});
 
+    ReadBufferFromFilePRead in(filename);
 
     ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
-    const std::unique_ptr<parquet::ParquetFileReader> parquet_reader = parquet::ParquetFileReader::OpenFile(filename, false);
-    metaBuilder.build(*parquet_reader, &blockHeader, column_index_filter.get(), [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+    metaBuilder.build(&in, &blockHeader, column_index_filter.get(), [](UInt64 /*midpoint_offset*/) -> bool { return true; });
     ColumnIndexRowRangesProvider provider{metaBuilder};
 
     VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
-    ReadBufferFromFilePRead in(filename);
     auto arrow_file = test::asArrowFileForParquet(in, format_settings);
     recordReader.initialize(arrow_file, provider);
 

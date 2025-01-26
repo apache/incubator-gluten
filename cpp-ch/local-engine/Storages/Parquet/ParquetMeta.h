@@ -16,9 +16,9 @@
  */
 #pragma once
 
+#include <Core/Block.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
 #include <Storages/Parquet/RowRanges.h>
-#include <Storages/SubstraitSource/FormatFile.h>
 #include <base/types.h>
 #include <parquet/file_reader.h>
 
@@ -55,19 +55,8 @@ struct ParquetMetaBuilder
     // collectPageIndex
     std::vector<Int32> readColumns;
 
-    static ParquetMetaBuilder collectRequiredRowGroups(DB::ReadBuffer * read_buffer, const substraitInputFile & file_info)
-    {
-        ParquetMetaBuilder result;
-        result.build(read_buffer, file_info);
-        return result;
-    }
     ParquetMetaBuilder & build(
         DB::ReadBuffer * read_buffer,
-        const substraitInputFile & file_info,
-        const DB::Block * readBlock = nullptr,
-        const ColumnIndexFilter * column_index_filter = nullptr);
-    ParquetMetaBuilder & build(
-        parquet::ParquetFileReader & reader,
         const DB::Block * readBlock,
         const ColumnIndexFilter * column_index_filter,
         const std::function<bool(UInt64)> & should_include_row_group);
@@ -163,7 +152,7 @@ private:
     Int32 adjustRowIndex(Int32 row_group_index) const
     {
         Int32 realIndex = row_group_index - startRowGroupIndex_;
-        assert ( realIndex >= 0 || realIndex < static_cast<Int32>(rowGroupInfos_.size()));
+        assert(realIndex >= 0 || realIndex < static_cast<Int32>(rowGroupInfos_.size()));
         return realIndex;
     };
 

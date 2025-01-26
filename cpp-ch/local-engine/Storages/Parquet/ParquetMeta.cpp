@@ -16,10 +16,10 @@
  */
 
 #include "ParquetMeta.h"
+#include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ArrowFieldIndexUtil.h>
 #include <Storages/Parquet/ArrowUtils.h>
-#include <Storages/SubstraitSource/FormatFile.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/arrow/schema.h>
 #include <parquet/metadata.h>
@@ -173,30 +173,18 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildRowRange(
     return *this;
 }
 
-/// TODO: Benchmark
+/// TODO: Benchmark the performance of this function
 ParquetMetaBuilder & ParquetMetaBuilder::build(
     DB::ReadBuffer * read_buffer,
-    const substraitInputFile & file_info,
-    const DB::Block * readBlock,
-    const ColumnIndexFilter * column_index_filter)
-{
-    auto reader = openInputParquetFile(read_buffer);
-    auto should_include_row_group = [&file_info](UInt64 midpoint_offset) -> bool
-    { return file_info.start() <= midpoint_offset && midpoint_offset < file_info.start() + file_info.length(); };
-
-    return build(*reader, readBlock, column_index_filter, should_include_row_group);
-}
-
-ParquetMetaBuilder & ParquetMetaBuilder::build(
-    parquet::ParquetFileReader & reader,
     const DB::Block * readBlock,
     const ColumnIndexFilter * column_index_filter,
     const std::function<bool(UInt64)> & should_include_row_group)
 {
-    const auto file_meta = reader.metadata();
+    auto reader = openInputParquetFile(read_buffer);
+    const auto file_meta = reader->metadata();
     return buildRequiredRowGroups(*file_meta, should_include_row_group)
         .buildSkipRowGroup(*file_meta)
-        .buildRowRange(reader, *file_meta, *readBlock, column_index_filter);
+        .buildRowRange(*reader, *file_meta, *readBlock, column_index_filter);
 }
 
 }
