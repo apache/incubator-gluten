@@ -34,8 +34,6 @@ ENABLE_BENCHMARK=OFF
 ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
-# Enable vcpkg for Gluten can affect Velox cmake build options such as gflags library type.
-ENABLE_VCPKG=OFF
 # Number of threads to use for building.
 NUM_THREADS=""
 
@@ -82,10 +80,6 @@ for arg in "$@"; do
     ENABLE_BENCHMARK=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --enable_vcpkg=*)
-    ENABLE_VCPKG=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
   --num_threads=*)
     NUM_THREADS=("${arg#*=}")
     shift # Remove argument name from processing
@@ -127,7 +121,7 @@ function compile {
     echo "ENABLE_BENCHMARK is ON. Disabling Tests, GCS and ABFS connectors if enabled."
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_BENCHMARKS=ON"
   fi
-  if [ $ENABLE_VCPKG == "ON" ]; then
+  if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
   fi
 
