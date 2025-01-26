@@ -101,13 +101,15 @@ class FormatFile
 public:
     class InputFormat
     {
+    protected:
         std::unique_ptr<DB::ReadBuffer> read_buffer;
         DB::InputFormatPtr input;
 
     public:
+        virtual ~InputFormat() = default;
         DB::IInputFormat & inputFormat() const { return *input; }
         void cancel() const noexcept { return input->cancel(); }
-        DB::Chunk generate() const { return input->generate(); }
+        virtual DB::Chunk generate() { return input->generate(); }
         InputFormat(std::unique_ptr<DB::ReadBuffer> read_buffer_, const DB::InputFormatPtr & input_)
             : read_buffer(std::move(read_buffer_)), input(input_)
         {

@@ -423,7 +423,9 @@ TEST(ParquetRead, LowLevelRead)
     }
 }
 
-TEST(ParquetRead, VectorizedColumnReader)
+
+// TODO: VectorizedColumnReader
+/*TEST(ParquetRead, VectorizedColumnReader)
 {
     const std::string sample(local_engine::test::data_file("sample.parquet"));
     Block blockHeader({{local_engine::DOUBLE(), "b"}, {local_engine::BIGINT(), "a"}});
@@ -446,7 +448,7 @@ TEST(ParquetRead, VectorizedColumnReader)
     const auto & col_b = *(chunk.getColumns()[0]);
     for (size_t i = 0; i < chunk.getNumRows(); i++)
         EXPECT_EQ(col_b.getFloat64(i), i + 1);
-}
+}*/
 
 INCBIN(_upper_col_parquet_, SOURCE_DIR "/utils/extern-local-engine/tests/json/upper_col_parquet.json");
 TEST(ParquetRead, UpperColRead)

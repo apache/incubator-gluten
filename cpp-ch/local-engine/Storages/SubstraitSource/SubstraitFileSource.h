@@ -67,12 +67,17 @@ protected:
 class NormalFileReader : public BaseReader
 {
 public:
-    NormalFileReader(
-        const FormatFilePtr & file_,
+    static std::unique_ptr<NormalFileReader> create(
+        const FormatFilePtr & file,
         const DB::Block & to_read_header_,
         const DB::Block & output_header_,
         const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
         const ColumnIndexFilterPtr & column_index_filter = nullptr);
+    NormalFileReader(
+        const FormatFilePtr & file_,
+        const DB::Block & to_read_header_,
+        const DB::Block & output_header_,
+        const FormatFile::InputFormatPtr & input_format_);
     ~NormalFileReader() override = default;
 
     bool pull(DB::Chunk & chunk) override;

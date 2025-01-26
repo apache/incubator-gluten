@@ -141,12 +141,13 @@ bool SubstraitFileSource::tryPrepareReader()
             {
                 /// If we can't get total rows from file metadata (i.e. text/json format file), adding a dummy column to
                 /// indicate the number of rows.
-                file_reader = std::make_unique<NormalFileReader>(current_file, getRealHeader(readHeader), getRealHeader(outputHeader));
+                file_reader = NormalFileReader::create(current_file, getRealHeader(readHeader), getRealHeader(outputHeader));
             }
         }
         else
-            file_reader = std::make_unique<NormalFileReader>(current_file, readHeader, outputHeader, key_condition, column_index_filter);
-        return true;
+            file_reader = NormalFileReader::create(current_file, readHeader, outputHeader, key_condition, column_index_filter);
+        if (file_reader)
+            return true;
     }
     return false;
 }
@@ -351,25 +352,38 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
     return true;
 }
 
-NormalFileReader::NormalFileReader(
-    const FormatFilePtr & file_,
+std::unique_ptr<NormalFileReader> NormalFileReader::create(
+    const FormatFilePtr & file,
     const DB::Block & to_read_header_,
     const DB::Block & output_header_,
     const std::shared_ptr<const DB::KeyCondition> & key_condition,
     const ColumnIndexFilterPtr & column_index_filter)
-    : BaseReader(file_, to_read_header_, output_header_)
 {
+    FormatFile::InputFormatPtr input_format;
     if (auto * parquetFile = dynamic_cast<ParquetFormatFile *>(file.get()))
     {
+        /// Apply key condition to the reader.
+        /// If use_local_format is true, column_index_filter will be used  otherwise it will be ignored
         input_format = parquetFile->createInputFormat(to_read_header_, key_condition, column_index_filter);
     }
     else
     {
-        /// Apply key condition to the reader.
-        /// If use_local_format is true, column_index_filter will be used  otherwise it will be ignored
-        input_format = file_->createInputFormat(to_read_header_);
-        input_format->inputFormat().setKeyCondition(key_condition);
+        input_format = file->createInputFormat(to_read_header_);
+        if (key_condition)
+            input_format->inputFormat().setKeyCondition(key_condition);
     }
+    if (!input_format)
+        return nullptr;
+    return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
+}
+
+NormalFileReader::NormalFileReader(
+    const FormatFilePtr & file_,
+    const DB::Block & to_read_header_,
+    const DB::Block & output_header_,
+    const FormatFile::InputFormatPtr & input_format_)
+    : BaseReader(file_, to_read_header_, output_header_), input_format(input_format_)
+{
 }
 
 bool NormalFileReader::pull(DB::Chunk & chunk)

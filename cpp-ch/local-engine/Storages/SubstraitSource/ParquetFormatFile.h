@@ -19,21 +19,12 @@
 #include "config.h"
 
 #if USE_PARQUET
+#include <Storages/Parquet/ParquetMeta.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 
 namespace local_engine
 {
-class ColumnIndexFilter;
-using ColumnIndexFilterPtr = std::shared_ptr<ColumnIndexFilter>;
 
-struct RowGroupInformation
-{
-    UInt32 index = 0;
-    UInt64 start = 0;
-    UInt64 total_compressed_size = 0;
-    UInt64 total_size = 0;
-    UInt64 num_rows = 0;
-};
 
 class ParquetFormatFile : public FormatFile
 {
@@ -45,9 +36,9 @@ public:
         bool use_local_format_);
     ~ParquetFormatFile() override = default;
 
-    InputFormatPtr createInputFormat(const DB::Block & header) override
+    InputFormatPtr createInputFormat(const DB::Block & /*header*/) override
     {
-        throw new DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Use createInputFormat with key_condition and column_index_filter");
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Use createInputFormat with key_condition and column_index_filter");
     }
 
     InputFormatPtr createInputFormat(
@@ -67,9 +58,6 @@ private:
     bool use_pageindex_reader;
     std::mutex mutex;
     std::optional<size_t> total_rows;
-
-    std::vector<RowGroupInformation> collectRequiredRowGroups(int & total_row_groups) const;
-    std::vector<RowGroupInformation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups) const;
 };
 
 }
