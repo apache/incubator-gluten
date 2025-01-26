@@ -151,7 +151,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
     DB::Block output_header = header;
     DB::Block read_header = removeMetaColumns(header);
 
-    if (usePageIndexReader)
+    if (usePageIndexReader || readRowIndex)
     {
         metaBuilder.collectPageIndex = true;
         metaBuilder.case_insensitive = format_settings.parquet.case_insensitive_column_matching;
