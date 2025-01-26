@@ -508,9 +508,18 @@ TEST(ColumnIndex, Filtering)
 
 TEST(RowIndex, VirtualColumnRowIndexReader)
 {
-    local_engine::RowRanges row_ranges = calculateRowRangesForTest("column1 in (7)");
-    local_engine::DefaultRowRangesProvider provider(std::vector<Int32>{0}, std::vector<UInt64>{0}, std::vector{row_ranges});
+    local_engine::RowGroupInformation rg_info{
+        .index = 0,
+        .num_rows = 30,
+        .rowStartIndexOffset = 0,
+        .columnIndexStore = nullptr,
+        .rowRanges{calculateRowRangesForTest("column1 in (7)")}};
+    std::vector<local_engine::RowGroupInformation> rowGroups;
+    rowGroups.push_back(std::move(rg_info));
+
+    local_engine::ColumnIndexRowRangesProvider provider({std::move(rowGroups)});
     local_engine::VirtualColumnRowIndexReader reader(provider, local_engine::BIGINT());
+
     DB::ColumnPtr col = reader.readBatch(TOTALSIZE);
     const auto & col_str = typeid_cast<const ColumnInt64 &>(*col);
     std::vector<size_t> result;
@@ -1104,26 +1113,34 @@ TEST_P(TestBuildPageReadStates, BuildPageReadStates)
     BuildAndVerifyPageReadStates();
 }
 
-// TODO: VectorizedParquetRecordReader
-/*TEST(ColumnIndex, VectorizedParquetRecordReader)
+TEST(ColumnIndex, VectorizedParquetRecordReader)
 {
     using namespace local_engine;
+
     //TODO: move test parquet to s3 and download to CI machine.
     const std::string filename
         = "/home/chang/test/tpch/parquet/Index/60001/part-00000-76ef9b89-f292-495f-9d0d-98325f3d8956-c000.snappy.parquet";
-    ReadBufferFromFilePRead in(filename);
+
     const FormatSettings format_settings{};
-    auto arrow_file = local_engine::test::asArrowFileForParquet(in, format_settings);
+
 
     static const AnotherRowType name_and_types{{"11", BIGINT()}};
-    const auto filterAction = local_engine::test::parseFilter("`11` = 10 or `11` = 50", name_and_types);
-    auto column_index_filter
-        = std::make_shared<local_engine::ColumnIndexFilter>(filterAction.value(), local_engine::QueryContext::globalContext());
+    const auto filterAction = test::parseFilter("`11` = 10 or `11` = 50", name_and_types);
+    auto column_index_filter = std::make_shared<ColumnIndexFilter>(filterAction.value(), local_engine::QueryContext::globalContext());
 
     Block blockHeader({{BIGINT(), "11"}, {STRING(), "18"}});
 
-    local_engine::VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
-    recordReader.initialize(arrow_file, column_index_filter);
+
+    ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
+    const std::unique_ptr<parquet::ParquetFileReader> parquet_reader = parquet::ParquetFileReader::OpenFile(filename, false);
+    metaBuilder.build(*parquet_reader, &blockHeader, column_index_filter.get(), [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+    ColumnIndexRowRangesProvider provider{metaBuilder};
+
+    VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
+    ReadBufferFromFilePRead in(filename);
+    auto arrow_file = test::asArrowFileForParquet(in, format_settings);
+    recordReader.initialize(arrow_file, provider);
+
     auto chunk{recordReader.nextBatch()};
     ASSERT_EQ(chunk.getNumColumns(), 2);
     ASSERT_EQ(chunk.getNumRows(), format_settings.parquet.max_block_size);
@@ -1142,6 +1159,6 @@ TEST_P(TestBuildPageReadStates, BuildPageReadStates)
         }
         chunk = recordReader.nextBatch();
     } while (chunk.getNumRows() > 0);
-}*/
+}
 
 #endif //USE_PARQUET
