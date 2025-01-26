@@ -395,10 +395,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
     true
   }
 
-  override def supportNativeMetadataColumns(): Boolean = true
-
-  override def supportNativeRowIndexColumn(): Boolean = true
-
   override def supportExpandExec(): Boolean = true
 
   override def supportSortExec(): Boolean = true
