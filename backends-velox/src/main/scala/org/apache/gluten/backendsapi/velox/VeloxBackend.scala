@@ -200,8 +200,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
         return None
       }
 
+      val fileLimit = GlutenConfig.get.parquetEncryptionValidationFileLimit
       val encryptionResult =
-        ParquetMetadataUtils.validateEncryption(format, rootPaths, serializableHadoopConf)
+        ParquetMetadataUtils.validateEncryption(
+          format,
+          rootPaths,
+          serializableHadoopConf,
+          fileLimit)
       if (encryptionResult.ok()) {
         None
       } else {
