@@ -77,7 +77,7 @@ private:
     pruneColumn(const DB::Block & header, const parquet::FileMetaData & metadata, bool case_insensitive, bool allow_missing_columns);
     static std::unique_ptr<ColumnIndexStore> collectColumnIndex(
         const parquet::RowGroupMetaData & rgMeta,
-        parquet::RowGroupPageIndexReader & rowGroupIndex,
+        parquet::RowGroupPageIndexReader & rowGroupPageIndex,
         const std::vector<Int32> & column_indices,
         bool case_insensitive = false);
 };
@@ -129,9 +129,12 @@ public:
 
     std::optional<RowRanges> getRowRanges(Int32 row_group_index) const
     {
-        if (rowGroupCount(row_group_index) == 0)
+        auto index = adjustRowIndex(row_group_index);
+        auto ranges = rowGroupInfos_[index].rowRanges;
+        auto rgCount = rowGroupInfos_[index].num_rows;
+        if (rgCount == 0 || ranges.rowCount() == 0)
             return std::nullopt;
-        return rowGroupInfos_[adjustRowIndex(row_group_index)].rowRanges;
+        return ranges;
     }
 
     UInt64 getRowGroupStartIndex(Int32 row_group_index) const
@@ -160,7 +163,6 @@ private:
     const std::vector<RowGroupInformation> rowGroupInfos_;
     std::vector<Int32> readRowGroups_;
     const std::vector<Int32> readColumns_;
-    Int64 rowGroupCount(const Int32 row_group_index) const { return rowGroupInfos_[adjustRowIndex(row_group_index)].num_rows; }
 };
 
 }

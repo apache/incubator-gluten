@@ -64,7 +64,7 @@ std::vector<Int32> ParquetMetaBuilder::pruneColumn(
 
 std::unique_ptr<ColumnIndexStore> ParquetMetaBuilder::collectColumnIndex(
     const parquet::RowGroupMetaData & rgMeta,
-    parquet::RowGroupPageIndexReader & rowGroupIndex,
+    parquet::RowGroupPageIndexReader & rowGroupPageIndex,
     const std::vector<Int32> & column_indices,
     bool case_insensitive)
 {
@@ -75,8 +75,8 @@ std::unique_ptr<ColumnIndexStore> ParquetMetaBuilder::collectColumnIndex(
     for (auto const column_index : column_indices)
     {
         const auto * col_desc = rgMeta.schema()->Column(column_index);
-        const auto col_index = rowGroupIndex.GetColumnIndex(column_index);
-        const auto offset_index = rowGroupIndex.GetOffsetIndex(column_index);
+        const auto col_index = rowGroupPageIndex.GetColumnIndex(column_index);
+        const auto offset_index = rowGroupPageIndex.GetOffsetIndex(column_index);
         const std::string columnName = case_insensitive ? boost::to_lower_copy(col_desc->name()) : col_desc->name();
         column_index_store[columnName] = ColumnIndex::create(col_desc, col_index, offset_index);
     }
@@ -159,12 +159,12 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildRowRange(
         {
             const auto rgMeta = file_meta.RowGroup(row_group.index);
             const auto pageIndex = reader.GetPageIndexReader();
-            if (column_index_filter == nullptr || pageIndex == nullptr)
+            const auto rowGroupPageIndex = pageIndex == nullptr ? nullptr : pageIndex->RowGroup(row_group.index);
+            if (column_index_filter == nullptr || rowGroupPageIndex == nullptr)
                 row_group.rowRanges = RowRanges::createSingle(row_group.num_rows);
             else
             {
-                const auto rowGroupIndex = pageIndex->RowGroup(row_group.index);
-                auto columnIndex = collectColumnIndex(*rgMeta, *rowGroupIndex, readColumns, case_insensitive);
+                auto columnIndex = collectColumnIndex(*rgMeta, *rowGroupPageIndex, readColumns, case_insensitive);
                 row_group.rowRanges = column_index_filter->calculateRowRanges(*columnIndex, row_group.num_rows);
                 row_group.columnIndexStore = std::move(columnIndex);
             }
