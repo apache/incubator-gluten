@@ -215,7 +215,8 @@ class FileSystemWrapper : public facebook::velox::filesystems::FileSystem {
 
   std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
       std::string_view path,
-      const facebook::velox::filesystems::FileOptions& options) override {
+      const facebook::velox::filesystems::FileOptions& options,
+      facebook::velox::io::IoStatistics* ioStats) override {
     return fs_->openFileForRead(rewrite(path), options);
   }
 
@@ -286,7 +287,8 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
 
   std::unique_ptr<facebook::velox::ReadFile> openFileForRead(
       std::string_view path,
-      const facebook::velox::filesystems::FileOptions& options) override {
+      const facebook::velox::filesystems::FileOptions& options,
+      facebook::velox::io::IoStatistics* ioStats) override {
     GLUTEN_CHECK(
         options.values.empty(),
         "JniFileSystem::openFileForRead: file options is not empty, this is not currently supported");
