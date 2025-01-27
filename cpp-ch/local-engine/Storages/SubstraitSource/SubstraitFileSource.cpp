@@ -59,7 +59,8 @@ static DB::Block getRealHeader(const DB::Block & header)
 
 static std::vector<FormatFilePtr> initializeFiles(const substrait::ReadRel::LocalFiles & file_infos, const DB::ContextPtr & context)
 {
-    assert(file_infos.items().size());
+    if (file_infos.items().empty())
+        return {};
     std::vector<FormatFilePtr> files;
     const Poco::URI file_uri(file_infos.items().Get(0).uri_file());
     ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
@@ -70,7 +71,8 @@ static std::vector<FormatFilePtr> initializeFiles(const substrait::ReadRel::Loca
 
 static DB::Block initReadHeader(const DB::Block & block, const FormatFiles & files)
 {
-    assert(files.size());
+    if (files.empty())
+        return block;
     const auto & partitions = files[0]->getFilePartitionValues();
     const auto & fileMetaColumns = files[0]->fileMetaColumns();
     DB::ColumnsWithTypeAndName result_columns;
