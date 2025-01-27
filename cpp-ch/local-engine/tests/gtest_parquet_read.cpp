@@ -453,7 +453,7 @@ TEST(ParquetRead, UpperColRead)
 {
     constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","length":"459","parquet":{},"schema":{},"metadataColumns":[{"key":"input_file_name","value":"{replace_local_files}"},{"key":"input_file_block_length","value":"459"},{"key":"input_file_block_start","value":"0"}],"properties":{"fileSize":"459","modificationTime":"1735012863732"}}]})";
-    const std::string file{test::gtest_file("upper_case_col.parquet")};
+    const std::string file{test::gtest_uri("upper_case_col.parquet")};
     auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_upper_col_parquet_), split_template, file, {});
     EXPECT_TRUE(local_executor->hasNext());
     const Block & block = *local_executor->nextColumnar();

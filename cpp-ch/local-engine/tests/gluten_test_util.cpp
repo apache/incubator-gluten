@@ -116,7 +116,7 @@ std::string internal_data_file(const char * file, const std::string & dir_string
 }
 
 /// used with the PARQUET_TEST_DATA environment variable
-std::string third_party_data_file(const char * file)
+std::string third_party_data(const char * file)
 {
     return internal_data_file(file, get_data_dir());
 }
@@ -130,7 +130,7 @@ std::string gtest_data(const char * file)
 }
 
 /// It represents a test data file in 'utils/extern-local-engine/tests/data' with 'file://' schema
-std::string gtest_file(const char * file)
+std::string gtest_uri(const char * file)
 {
 #define GLUTEN_DATA_DIR(file) "file://" SOURCE_DIR file
     return internal_data_file(file, GLUTEN_DATA_DIR("/utils/extern-local-engine/tests/data"));

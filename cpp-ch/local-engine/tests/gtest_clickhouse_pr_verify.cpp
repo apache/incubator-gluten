@@ -47,7 +47,7 @@ TEST(Clickhouse, PR54881)
     constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"1529","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
 
-    const std::string file{test::gtest_file("54881.snappy.parquet")};
+    const std::string file{test::gtest_uri("54881.snappy.parquet")};
     auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_pr_54881_), split_template, file, context1);
 
     EXPECT_TRUE(local_executor->hasNext());
@@ -102,7 +102,7 @@ TEST(Clickhouse, PR68135)
 {
     constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"461","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
-    const std::string file{test::gtest_file("68135.snappy.parquet")};
+    const std::string file{test::gtest_uri("68135.snappy.parquet")};
     auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_pr_68135_), split_template, file);
 
     EXPECT_TRUE(local_executor->hasNext());
@@ -115,7 +115,7 @@ TEST(Clickhouse, PR68131)
 {
     constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"289","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
-    auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_pr_68131_), split_template, test::gtest_file("68131.parquet"));
+    auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_pr_68131_), split_template, test::gtest_uri("68131.parquet"));
     EXPECT_TRUE(local_executor->hasNext());
     const Block & x = *local_executor->nextColumnar();
     debug::headBlock(x);

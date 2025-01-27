@@ -59,9 +59,9 @@ class RandomAccessFile;
 namespace local_engine::test
 {
 
-std::string third_party_data_file(const char * file);
+std::string third_party_data(const char * file);
 std::string gtest_data(const char * file);
-std::string gtest_file(const char * file);
+std::string gtest_uri(const char * file);
 
 std::shared_ptr<arrow::io::RandomAccessFile> asArrowFileForParquet(DB::ReadBuffer & in, const DB::FormatSettings & settings);
 
@@ -93,7 +93,7 @@ inline std::string replaceLocalFilesWildcards(const std::string_view haystack, c
 inline std::string replaceLocalFilesWithTPCH(const std::string_view haystack)
 {
     static constexpr auto wildcard = "{replace_GLUTEN_SOURCE_TPCH_DIR}";
-    constexpr std::string_view replaced = GLUTEN_SOURCE_TPCH_DIR("");
+    constexpr std::string_view replaced = GLUTEN_SOURCE_TPCH_URI("");
     return boost::replace_all_copy(std::string{haystack}, wildcard, replaced);
 }
 
