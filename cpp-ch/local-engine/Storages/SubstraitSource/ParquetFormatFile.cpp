@@ -146,22 +146,16 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
     auto read_buffer = read_buffer_builder->build(file_info);
     auto format_settings = DB::getFormatSettings(context);
 
-    ParquetMetaBuilder metaBuilder;
-
     DB::Block output_header = header;
     DB::Block read_header = removeMetaColumns(header);
 
-    if (usePageIndexReader || readRowIndex)
-    {
-        metaBuilder.collectPageIndex = true;
-        metaBuilder.case_insensitive = format_settings.parquet.case_insensitive_column_matching;
-        metaBuilder.allow_missing_columns = format_settings.parquet.allow_missing_columns;
-    }
-    else
-        metaBuilder.collectSkipRowGroup = true;
+    ParquetMetaBuilder metaBuilder{
+        .collectPageIndex = usePageIndexReader || readRowIndex,
+        .collectSkipRowGroup = !usePageIndexReader,
+        .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
+        .allow_missing_columns = format_settings.parquet.allow_missing_columns};
 
     ShouldIncludeRowGroup should_include_row_group{file_info};
-
     if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
     {
         // reuse the read_buffer to avoid opening the file twice.
@@ -192,6 +186,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
 
     if (readRowIndex)
     {
+        assert(provider);
         /// In case of readRowIndex, we need to preserve the order of the rows
         format_settings.parquet.preserve_order = true;
 
