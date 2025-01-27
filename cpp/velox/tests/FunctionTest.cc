@@ -73,7 +73,7 @@ TEST_F(FunctionTest, getIdxFromNodeName) {
 
 TEST_F(FunctionTest, getNameBeforeDelimiter) {
   std::string functionSpec = "lte:fp64_fp64";
-  std::string_view funcName = SubstraitParser::getNameBeforeDelimiter(functionSpec);
+  auto funcName = SubstraitParser::getNameBeforeDelimiter(functionSpec);
   ASSERT_EQ(funcName, "lte");
 
   functionSpec = "lte:";
