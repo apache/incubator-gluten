@@ -173,7 +173,6 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildRowRange(
     return *this;
 }
 
-/// TODO: Benchmark the performance of this function
 ParquetMetaBuilder & ParquetMetaBuilder::build(
     DB::ReadBuffer * read_buffer,
     const DB::Block * readBlock,
