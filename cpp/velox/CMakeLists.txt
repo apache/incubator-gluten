@@ -282,18 +282,27 @@ endif()
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
-set(icu_components i18n uc data)
-foreach(component ${icu_components})
-  find_library(ICU_${component}_LIB NAMES icu${component})
-  if(NOT ICU_${component}_LIB)
-    message(FATAL_ERROR "icu${component} library not found")
+# Adopted from Velox's CMakeLists.txt.
+# https://github.com/facebookincubator/velox/pull/11410
+if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  execute_process(
+    COMMAND brew --prefix icu4c
+    RESULT_VARIABLE BREW_ICU4C
+    OUTPUT_VARIABLE BREW_ICU4C_PREFIX
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(BREW_ICU4C EQUAL 0 AND EXISTS "${BREW_ICU4C_PREFIX}")
+    message(STATUS "Found icu4c installed by Homebrew at ${BREW_ICU4C_PREFIX}")
+    list(APPEND CMAKE_PREFIX_PATH "${BREW_ICU4C_PREFIX}")
+  else()
+    list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/icu4c")
   endif()
-  message(STATUS "Found ICU::${component}: ${ICU_${component}_LIB}")
-  add_library(ICU::${component} UNKNOWN IMPORTED)
-  set_target_properties(ICU::${component} PROPERTIES IMPORTED_LOCATION
-                                                     ${ICU_${component}_LIB})
-  target_link_libraries(velox PUBLIC ICU::${component})
-endforeach()
+endif()
+
+find_package(
+  ICU
+  COMPONENTS i18n uc data
+  REQUIRED)
+target_link_libraries(velox PUBLIC ICU::i18n ICU::uc ICU::data)
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
