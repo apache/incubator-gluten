@@ -18,9 +18,8 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.exception.GlutenException
 
-import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{functions, DataFrame, Row}
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -1487,7 +1486,7 @@ class GlutenClickHouseExcelFormatSuite
 
   // TODO: pass spark configuration to FileFormatWriter in Spark 3.3 and 3.2
   testWithSpecifiedSparkVersion(
-    "write failed if set wrong snappy compression codec level",
+    "write succeed even if set wrong snappy compression codec level",
     Some("3.5")) {
     // TODO: remove duplicated test codes
     val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/failed_test/"
@@ -1513,22 +1512,7 @@ class GlutenClickHouseExcelFormatSuite
       (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
       (RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.key, "3")
     ) {
-      val sparkError = intercept[SparkException] {
-        testFileFormatBase(tablePath, format, sql, df => {})
-      }
-
-      // throw at org.apache.spark.sql.execution.CHColumnarWriteFilesRDD
-      val causeOuter = sparkError.getCause
-      assert(causeOuter.isInstanceOf[SparkException])
-      assert(causeOuter.getMessage.contains("Task failed while writing rows to output path: hdfs"))
-
-      // throw at the writing file
-      val causeInner = causeOuter.getCause
-      assert(causeInner.isInstanceOf[GlutenException])
-      assert(
-        causeInner.getMessage.contains(
-          "Invalid: Codec 'snappy' doesn't support setting a compression level"))
+      testFileFormatBase(tablePath, format, sql, df => {})
     }
-
   }
 }

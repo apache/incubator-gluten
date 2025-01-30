@@ -496,6 +496,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def parquetEncryptionValidationEnabled: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
 
+  def enableAutoAdjustStageResourceProfile: Boolean =
+    getConf(AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED)
+
+  def autoAdjustStageRPHeapRatio: Double = getConf(AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO)
+
+  def autoAdjustStageFallenNodeThreshold: Double =
+    getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
 }
 
 object GlutenConfig {
@@ -661,6 +668,13 @@ object GlutenConfig {
             .put(
               SPARK_SHUFFLE_FILE_BUFFER,
               (JavaUtils.byteStringAs(v, ByteUnit.KiB) * 1024).toString))
+
+    conf
+      .get(LEGACY_TIME_PARSER_POLICY.key)
+      .foreach(
+        v =>
+          nativeConfMap
+            .put(LEGACY_TIME_PARSER_POLICY.key, v.toUpperCase(Locale.ROOT)))
 
     // Backend's dynamic session conf only.
     val confPrefix = prefixOf(backendName)
@@ -2274,4 +2288,26 @@ object GlutenConfig {
       .stringConf
       .createWithDefault("")
 
+  val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
+    buildStaticConf("spark.gluten.auto.adjustStageResource.enabled")
+      .internal()
+      .doc("Experimental: If enabled, gluten will try to set the stage resource according " +
+        "to stage execution plan. Only worked when aqe is enabled at the same time!!")
+      .booleanConf
+      .createWithDefault(false)
+
+  val AUTO_ADJUST_STAGE_RESOURCES_HEAP_RATIO =
+    buildConf("spark.gluten.auto.adjustStageResources.heap.ratio")
+      .internal()
+      .doc("Experimental: Increase executor heap memory when match adjust stage resource rule.")
+      .doubleConf
+      .createWithDefault(2.0d)
+
+  val AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD =
+    buildConf("spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold")
+      .internal()
+      .doc("Experimental: Increase executor heap memory when stage contains fallen node " +
+        "count exceeds the total node count ratio.")
+      .doubleConf
+      .createWithDefault(0.5d)
 }

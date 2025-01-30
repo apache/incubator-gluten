@@ -16,6 +16,8 @@
 
 set -exu
 # New build option may need to be included in get_build_summary to ensure EP build cache workable.
+# Path to the Velox source code.
+VELOX_HOME=""
 # Enable S3 connector.
 ENABLE_S3=OFF
 # Enable GCS connector.
@@ -24,15 +26,17 @@ ENABLE_GCS=OFF
 ENABLE_HDFS=OFF
 # Enable ABFS connector.
 ENABLE_ABFS=OFF
+# CMake build type for Velox.
 BUILD_TYPE=release
-VELOX_HOME=""
 # May be deprecated in Gluten build.
 ENABLE_BENCHMARK=OFF
 # May be deprecated in Gluten build.
 ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
+# Number of threads to use for building.
 NUM_THREADS=""
+
 OTHER_ARGUMENTS=""
 
 OS=`uname -s`
@@ -92,7 +96,7 @@ function compile {
   set -exu
 
   CXX_FLAGS='-Wno-missing-field-initializers'
-  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF"
+  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
@@ -116,6 +120,9 @@ function compile {
   else
     echo "ENABLE_BENCHMARK is ON. Disabling Tests, GCS and ABFS connectors if enabled."
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_BENCHMARKS=ON"
+  fi
+  if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
@@ -181,8 +188,6 @@ echo "ENABLE_ABFS=${ENABLE_ABFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
 cd ${VELOX_HOME}
-# Branch-new build requires all untracked files to be deleted. We only need the source code.
-sudo git clean -dffx :/
 compile
 
 echo "Successfully built Velox from Source."
