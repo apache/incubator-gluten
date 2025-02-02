@@ -271,7 +271,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
 
   // Only support cast of certain types to timestamp (date and double)
   if (toType->kind() == TypeKind::TIMESTAMP && !input->type()->isDate() && input->type()->kind() != TypeKind::DOUBLE) {
-      LOG_VALIDATION_MSG(
+    LOG_VALIDATION_MSG(
         "Casting from " + input->type()->toString() + " to " + toType->toString() + " is not supported.");
     return false;
   }
