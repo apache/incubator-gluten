@@ -214,12 +214,6 @@
             <goals>
               <goal>test</goal>
             </goals>
-            <configuration>
-              <systemProperties>
-                <spark.gluten.sql.columnar.libpath>${spark.gluten.sql.columnar.libpath}</spark.gluten.sql.columnar.libpath>
-                <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
-              </systemProperties>
-            </configuration>
           </execution>
         </executions>
       </plugin>
