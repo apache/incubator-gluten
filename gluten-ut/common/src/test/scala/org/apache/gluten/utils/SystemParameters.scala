@@ -18,17 +18,8 @@ package org.apache.gluten.utils
 
 object SystemParameters {
 
-  val CLICKHOUSE_LIB_PATH_KEY = "clickhouse.lib.path"
-  val CLICKHOUSE_LIB_PATH_DEFAULT_VALUE = "/usr/local/clickhouse/lib/libch.so"
-
   val TPCDS_DATA_PATH_KEY = "tpcds.data.path"
   val TPCDS_DATA_PATH_DEFAULT_VALUE = "/data/tpcds-data-sf1"
-
-  def getClickHouseLibPath: String = {
-    System.getProperty(
-      SystemParameters.CLICKHOUSE_LIB_PATH_KEY,
-      SystemParameters.CLICKHOUSE_LIB_PATH_DEFAULT_VALUE)
-  }
 
   def getTpcdsDataPath: String = {
     System.getProperty(
