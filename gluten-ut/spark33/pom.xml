@@ -87,9 +87,6 @@
           <scope>test</scope>
         </dependency>
       </dependencies>
-      <properties>
-        <clickhouse.lib.path></clickhouse.lib.path>
-      </properties>
     </profile>
   </profiles>
 
@@ -135,7 +132,6 @@
             </goals>
             <configuration>
               <systemProperties>
-                <clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
                 <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
               </systemProperties>
             </configuration>

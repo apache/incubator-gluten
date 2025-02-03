@@ -492,7 +492,6 @@
             </goals>
             <configuration>
               <systemProperties>
-                <clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
                 <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
               </systemProperties>
             </configuration>
