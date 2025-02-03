@@ -82,7 +82,6 @@
     <!-- To build built-in backend c++ codes -->
     <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
-    <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
     <fasterxml.version>2.13.5</fasterxml.version>
     <junit.version>4.13.1</junit.version>
 
