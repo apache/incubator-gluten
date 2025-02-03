@@ -18,15 +18,6 @@ package org.apache.gluten.utils
 
 object UTSystemParameters {
 
-  private val CLICKHOUSE_LIB_PATH_KEY = "clickhouse.lib.path"
-  private val CLICKHOUSE_LIB_PATH_DEFAULT_VALUE = "/usr/local/clickhouse/lib/libch.so"
-
-  def clickHouseLibPath: String = {
-    System.getProperty(
-      UTSystemParameters.CLICKHOUSE_LIB_PATH_KEY,
-      UTSystemParameters.CLICKHOUSE_LIB_PATH_DEFAULT_VALUE)
-  }
-
   private val TEST_DATA_PATH_KEY = "gluten.test.data.path"
   private val TEST_DATA_PATH_DEFAULT_VALUE = "/data"
 
