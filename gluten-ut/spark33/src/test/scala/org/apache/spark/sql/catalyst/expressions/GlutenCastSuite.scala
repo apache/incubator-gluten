@@ -24,6 +24,7 @@ import org.apache.spark.sql.types._
 
 import java.sql.{Date, Timestamp}
 import java.util.Calendar
+import java.util.TimeZone
 
 class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
   override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): CastBase = {
@@ -154,9 +155,8 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
   }
 
   test("cast from double to timestamp format") {
-    withSQLConf(
-      SQLConf.SESSION_LOCAL_TIMEZONE.key -> UTC_OPT.get
-    ) {
+    val originalDefaultTz = TimeZone.getDefault
+    try {
       TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 
       checkEvaluation(
@@ -178,6 +178,8 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
         cast(-1.2, TimestampType, UTC_OPT),
         Timestamp.valueOf("1969-12-31 23:59:58.8")
       )
+    } finally {
+      TimeZone.setDefault(originalDefaultTz)
     }
   }
 }
