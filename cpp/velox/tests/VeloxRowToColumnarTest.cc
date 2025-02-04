@@ -43,7 +43,7 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
     uint8_t* address = columnarToRowConverter->getBufferAddress();
     auto lengthVec = columnarToRowConverter->getLengths();
 
-    long lengthArr[lengthVec.size()];
+    int64_t lengthArr[lengthVec.size()];
     for (int i = 0; i < lengthVec.size(); i++) {
       lengthArr[i] = lengthVec[i];
     }
