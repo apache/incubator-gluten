@@ -144,7 +144,7 @@ DB::QueryPlanStepPtr ReadRelParser::parseReadRelWithJavaIter(const substrait::Re
     return source_step;
 }
 
-QueryPlanStepPtr ReadRelParser::parseReadRelWithLocalFile(const substrait::ReadRel & rel)
+QueryPlanStepPtr ReadRelParser::parseReadRelWithLocalFile(const substrait::ReadRel & rel) const
 {
     auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
     substrait::ReadRel::LocalFiles local_files;
