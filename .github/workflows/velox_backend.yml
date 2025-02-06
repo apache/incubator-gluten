@@ -75,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos7-release-default-${{github.sha}}
@@ -96,7 +96,7 @@ jobs:
           "
 
       - name: "Save ccache"
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
@@ -794,12 +794,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download Arrow Jars
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
@@ -871,12 +871,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download Arrow Jars
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
@@ -946,12 +946,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download Arrow Jars
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
@@ -1183,7 +1183,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos8-release-default-${{github.sha}}
@@ -1195,7 +1195,7 @@ jobs:
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
       # - name: "Save ccache"
-      #   uses: actions/cache/save@v3
+      #   uses: actions/cache/save@v4
       #   id: ccache
       #   with:
       #     path: '${{ env.CCACHE_DIR }}'
