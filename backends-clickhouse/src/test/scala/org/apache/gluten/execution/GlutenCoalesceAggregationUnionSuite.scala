@@ -16,9 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.utils.UTSystemParameters
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -42,7 +39,6 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -154,12 +150,12 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
     val sql =
       """
         |select * from (
-        | select a, 1 as t, count(x) + sum(y) as y from coalesce_union_t1 where b % 3 = 0
+        | select a, 1 as t, count(x) + sum(y) as n from coalesce_union_t1 where b % 3 = 0
         |   group by a
         | union all
-        | select a, 2 as t, count(x) + sum(y) as y from coalesce_union_t1 where b % 3 = 1
+        | select a, 2 as t, count(x) + sum(y) as n from coalesce_union_t1 where b % 3 = 1
         |   group by a
-        |) order by a, t, y
+        |) order by a, t, n
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
   }
@@ -236,6 +232,40 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
         | select a, count(x) as x, sum(y) as y from coalesce_union_t1 where b % 3 = 3
         |   group by a
         |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
+  test("coalesce aggregation union. case 10") {
+    val sql =
+      """
+        |select * from (
+        | select a as a, sum(y) as y from (
+        |   select concat(a, "x") as a, y from coalesce_union_t1 where b % 3 = 0
+        | ) group by a
+        | union all
+        | select x as a , sum(y) as y from coalesce_union_t1 where b % 3 = 1
+        |   group by x
+        |) order by a, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
+  test("coalesce aggregation union. case 11") {
+    val sql =
+      """
+        |select t1.a, t1.y, t2.x from (
+        | select a as a, sum(y) as y from (
+        |   select concat(a, "x") as a, y from coalesce_union_t1 where b % 3 = 0
+        | ) group by a
+        | union all
+        | select x as a , sum(y) as y from coalesce_union_t1 where b % 3 = 1
+        |   group by x
+        |) as t1
+        |left join (
+        | select a, x from coalesce_union_t2
+        |) as t2
+        |on t1.a = t2.a
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
   }
