@@ -985,7 +985,7 @@
       <properties>
         <platform>linux</platform>
         <arch>amd64</arch>
-        <os.full.name>${os.detected.release}_${os.detected.release.version}_${os.detected.arch}</os.full.name>
+        <os.full.name>${platform}_${arch}</os.full.name>
       </properties>
     </profile>
     <profile>
@@ -999,7 +999,7 @@
       <properties>
         <platform>linux</platform>
         <arch>aarch64</arch>
-        <os.full.name>${os.detected.release}_${os.detected.release.version}_${os.detected.arch}</os.full.name>
+        <os.full.name>${platform}_${arch}</os.full.name>
       </properties>
     </profile>
   </profiles>
