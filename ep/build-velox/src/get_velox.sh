@@ -160,6 +160,8 @@ if [ -d $VELOX_SOURCE_DIR ]; then
     fi
     git reset --hard HEAD
     git checkout refs/tags/build_$TARGET_BUILD_COMMIT
+  else
+    echo $VELOX_BRANCH can't be found in $VELOX_REPO, skipping the download...
   fi
 else
   git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
