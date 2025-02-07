@@ -21,6 +21,8 @@ import org.apache.gluten.exception.GlutenNotSupportException
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
+import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -31,6 +33,7 @@ import org.apache.spark.unsafe.types.UTF8String
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.util.{Failure, Success, Try}
 
 /*
  * Example:
@@ -92,28 +95,30 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
     }
   }
 
+  def buildAttributesMap(
+      attributes: Seq[Attribute],
+      expressions: Seq[Expression]): Map[ExprId, Expression] = {
+    assert(attributes.length == expressions.length)
+    val map = new mutable.HashMap[ExprId, Expression]()
+    attributes.zip(expressions).foreach {
+      case (attr, expr) =>
+        map.put(attr.exprId, expr)
+    }
+    map.toMap
+  }
+
+  def replaceAttributes(e: Expression, replaceMap: Map[ExprId, Expression]): Expression = {
+    e.transform {
+      case attr: Attribute =>
+        replaceMap.get(attr.exprId) match {
+          case Some(replaceAttr) => replaceAttr
+          case None =>
+            throw new GlutenNotSupportException(s"Not found attribute: ${attr.qualifiedName}")
+        }
+    }
+  }
+
   case class AggregateAnalzyInfo(originalAggregate: Aggregate) {
-
-    protected def createAttributeToExpressionMap(
-        attributes: Seq[Attribute],
-        expressions: Seq[Expression]): Map[ExprId, Expression] = {
-      val map = new mutable.HashMap[ExprId, Expression]()
-      attributes.zip(expressions).foreach {
-        case (attr, expr) =>
-          map.put(attr.exprId, expr)
-      }
-      map.toMap
-    }
-
-    protected def replaceAttributesInExpression(
-        expression: Expression,
-        replaceMap: Map[ExprId, Expression]): Expression = {
-      expression.transform {
-        case attr: Attribute =>
-          replaceMap.getOrElse(attr.exprId, attr.asInstanceOf[Expression])
-      }
-    }
-
     protected def extractFilter(): Option[Filter] = {
       originalAggregate.child match {
         case filter: Filter => Some(filter)
@@ -122,13 +127,10 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
           subquery.child match {
             case filter: Filter => Some(filter)
             case project @ Project(_, filter: Filter) => Some(filter)
-            case relation: LogicalRelation => Some(Filter(Literal(true, BooleanType), subquery))
-            case nestedRelation: SubqueryAlias =>
-              if (nestedRelation.child.isInstanceOf[LogicalRelation]) {
-                Some(Filter(Literal(true, BooleanType), nestedRelation))
-              } else {
-                None
-              }
+            case relation if isRelation(relation) =>
+              Some(Filter(Literal(true, BooleanType), subquery))
+            case nestedRelation: SubqueryAlias if (isRelation(nestedRelation.child)) =>
+              Some(Filter(Literal(true, BooleanType), nestedRelation))
             case _ => None
           }
         case _ => None
@@ -160,8 +162,10 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
         }
         val newFilter = project match {
           case Some(project) =>
-            val replaceMap = createAttributeToExpressionMap(project.output, project.child.output)
-            val newCondition = replaceAttributesInExpression(filter.get.condition, replaceMap)
+            val replaceMap = buildAttributesMap(
+              project.output,
+              project.child.output.map(_.asInstanceOf[Expression]))
+            val newCondition = replaceAttributes(filter.get.condition, replaceMap)
             Filter(newCondition, extractedSourcePlan.get)
           case None => filter.get.withNewChildren(Seq(extractedSourcePlan.get))
         }
@@ -185,13 +189,14 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
 
         val newAggregate = project match {
           case Some(innerProject) =>
-            val replaceMap =
-              createAttributeToExpressionMap(innerProject.output, innerProject.projectList)
+            val replaceMap = buildAttributesMap(
+              innerProject.output,
+              innerProject.projectList.map(_.asInstanceOf[Expression]))
             val newGroupExpressions = originalAggregate.groupingExpressions.map {
-              e => replaceAttributesInExpression(e, replaceMap)
+              e => replaceAttributes(e, replaceMap)
             }
             val newAggregateExpressions = originalAggregate.aggregateExpressions.map {
-              e => replaceAttributesInExpression(e, replaceMap).asInstanceOf[NamedExpression]
+              e => replaceAttributes(e, replaceMap).asInstanceOf[NamedExpression]
             }
             Aggregate(newGroupExpressions, newAggregateExpressions, constructedFilterPlan.get)
           case None => originalAggregate.withNewChildren(Seq(constructedFilterPlan.get))
@@ -256,7 +261,14 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
         .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_AGGREGATION_UNION, "true")
         .toBoolean
     ) {
-      visitPlan(plan)
+      Try {
+        visitPlan(plan)
+      } match {
+        case Success(res) => res
+        case Failure(e) =>
+          logError(s"Failed to rewrite plan. ", e)
+          plan
+      }
     } else {
       plan
     }
@@ -276,8 +288,7 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
               } else {
                 val firstAggregateAnalzyInfo = groupedPlans.head.analyzedInfo.get
                 val aggregates = groupedPlans.map(_.analyzedInfo.get.constructedAggregatePlan.get)
-                val replaceAttributes = collectreplaceAttributesInExpression(aggregates)
-                val filterConditions = buildAggregateCasesConditions(aggregates, replaceAttributes)
+                val filterConditions = buildAggregateCasesConditions(groupedPlans)
                 val firstAggregateFilter =
                   firstAggregateAnalzyInfo.constructedFilterPlan.get.asInstanceOf[Filter]
 
@@ -288,11 +299,8 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
                   firstAggregateAnalzyInfo.extractedSourcePlan.get)
 
                 // Wrap all the attributes into a single structure attribute.
-                val wrappedAttributesProject = buildProjectFoldIntoStruct(
-                  unionFilter,
-                  groupedPlans,
-                  filterConditions,
-                  replaceAttributes)
+                val wrappedAttributesProject =
+                  buildProjectFoldIntoStruct(unionFilter, groupedPlans, filterConditions)
 
                 // Build an array which element are response to each union clause.
                 val arrayProject =
@@ -337,6 +345,32 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
           }
         }
       case _ => plan.withNewChildren(plan.children.map(visitPlan))
+    }
+  }
+
+  def isRelation(plan: LogicalPlan): Boolean = {
+    plan.isInstanceOf[MultiInstanceRelation]
+  }
+
+  def areSameRelation(l: LogicalPlan, r: LogicalPlan): Boolean = {
+    (l, r) match {
+      case (lRelation: LogicalRelation, rRelation: LogicalRelation) =>
+        val lTable = lRelation.catalogTable.map(_.identifier.unquotedString).getOrElse("")
+        val rTable = rRelation.catalogTable.map(_.identifier.unquotedString).getOrElse("")
+        lRelation.output.length == rRelation.output.length &&
+        lRelation.output.zip(rRelation.output).forall {
+          case (lAttr, rAttr) =>
+            lAttr.dataType.equals(rAttr.dataType) && lAttr.name.equals(rAttr.name)
+        } &&
+        lTable.equals(rTable) && lTable.nonEmpty
+      case (lCTE: CTERelationRef, rCTE: CTERelationRef) =>
+        lCTE.cteId == rCTE.cteId
+      case (lHiveTable: HiveTableRelation, rHiveTable: HiveTableRelation) =>
+        lHiveTable.tableMeta.identifier.unquotedString
+          .equals(rHiveTable.tableMeta.identifier.unquotedString)
+      case (_, _) =>
+        logInfo(s"xxx unknow relation: ${l.getClass}, ${r.getClass}")
+        false
     }
   }
 
@@ -421,7 +455,9 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
             planWithIndex._1.head.analyzedInfo.get,
             analyzedInfo)) match {
       case Some((_, i)) => i
-      case None => -1
+      case None =>
+        logError(s"xxx not found match plan: ${analyzedInfo.originalAggregate}")
+        -1
     }
 
   }
@@ -460,6 +496,7 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
           }
         }
       } else {
+        logError(s"xxx not supported plan: $agg")
         val rewrittenPlan = visitPlan(agg)
         groupResults += ArrayBuffer(AnalyzedPlan(rewrittenPlan, None))
       }
@@ -484,18 +521,22 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
   }
 
   def areStructureMatchedExpressions(l: Expression, r: Expression): Boolean = {
-    (l, r) match {
-      case (lAttr: Attribute, rAttr: Attribute) =>
-        // The the qualifier may be overwritten by a subquery alias, and make this check fail.
-        lAttr.qualifiedName.equals(rAttr.qualifiedName)
-      case (lLiteral: Literal, rLiteral: Literal) =>
-        lLiteral.value.equals(rLiteral.value)
-      case _ =>
-        l.children.length == r.children.length &&
-        l.getClass == r.getClass &&
-        l.children.zip(r.children).forall {
-          case (lChild, rChild) => areStructureMatchedExpressions(lChild, rChild)
-        }
+    if (l.dataType.equals(r.dataType)) {
+      (l, r) match {
+        case (lAttr: Attribute, rAttr: Attribute) =>
+          // The the qualifier may be overwritten by a subquery alias, and make this check fail.
+          lAttr.qualifiedName.equals(rAttr.qualifiedName)
+        case (lLiteral: Literal, rLiteral: Literal) =>
+          lLiteral.value == rLiteral.value
+        case _ =>
+          l.children.length == r.children.length &&
+          l.getClass == r.getClass &&
+          l.children.zip(r.children).forall {
+            case (lChild, rChild) => areStructureMatchedExpressions(lChild, rChild)
+          }
+      }
+    } else {
+      false
     }
   }
 
@@ -504,73 +545,36 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
       false
     } else {
       lPlan.children.zip(rPlan.children).forall {
-        case (lRel: LogicalRelation, rRel: LogicalRelation) =>
-          val lTable = lRel.catalogTable.map(_.identifier.unquotedString).getOrElse("")
-          val rTable = rRel.catalogTable.map(_.identifier.unquotedString).getOrElse("")
-          lTable.equals(rTable) && lTable.nonEmpty
-        case (lRef: CTERelationRef, rRelf: CTERelationRef) =>
-          lRef.cteId == rRelf.cteId
+        case (lRelation, rRelation) if (isRelation(lRelation) && isRelation(rRelation)) =>
+          areSameRelation(lRelation, rRelation)
         case (lSubQuery: SubqueryAlias, rSubQuery: SubqueryAlias) =>
           areSameAggregateSource(lSubQuery.child, rSubQuery.child)
-        case (lChild, rChild) =>
-          false
+        case (lproject: Project, rproject: Project) =>
+          lproject.projectList.length == rproject.projectList.length &&
+          lproject.projectList.zip(rproject.projectList).forall {
+            case (lExpr, rExpr) => areStructureMatchedExpressions(lExpr, rExpr)
+          } &&
+          areSameAggregateSource(lproject.child, rproject.child)
+        case (lFilter: Filter, rFilter: Filter) =>
+          areStructureMatchedExpressions(lFilter.condition, rFilter.condition) &&
+          areSameAggregateSource(lFilter.child, rFilter.child)
+        case (lChild, rChild) => false
       }
-    }
-  }
-
-  def collectreplaceAttributesInExpression(
-      groupedPlans: ArrayBuffer[LogicalPlan]): Map[String, Attribute] = {
-    def findFirstRelation(plan: LogicalPlan): LogicalPlan = {
-      if (plan.isInstanceOf[LogicalRelation] || plan.isInstanceOf[CTERelationRef]) {
-        return plan
-      } else if (plan.children.isEmpty) {
-        return null
-      } else {
-        plan.children.foreach {
-          child =>
-            val rel = findFirstRelation(child)
-            if (rel != null) {
-              return rel
-            }
-        }
-        return null
-      }
-    }
-    val replaceMap = new mutable.HashMap[String, Attribute]()
-    val firstFilter = groupedPlans.head.asInstanceOf[Aggregate].child.asInstanceOf[Filter]
-    val qualifierPrefix =
-      firstFilter.output.find(e => e.qualifier.nonEmpty).head.qualifier.mkString(".")
-    val firstRelation = findFirstRelation(firstFilter.child)
-    if (firstRelation == null) {
-      throw new GlutenNotSupportException(s"Not found relation in plan: $firstFilter")
-    }
-    firstRelation.output.foreach {
-      attr =>
-        val qualifiedName = s"$qualifierPrefix.${attr.name}"
-        replaceMap.put(qualifiedName, attr)
-    }
-    replaceMap.toMap
-  }
-
-  def replaceAttributesInExpression(
-      expression: Expression,
-      replaceMap: Map[String, Attribute]): Expression = {
-    expression.transform {
-      case attr: Attribute =>
-        replaceMap.get(attr.qualifiedName) match {
-          case Some(replaceAttr) => replaceAttr
-          case None => attr
-        }
     }
   }
 
   def buildAggregateCasesConditions(
-      groupedPlans: ArrayBuffer[LogicalPlan],
-      replaceMap: Map[String, Attribute]): ArrayBuffer[Expression] = {
+      groupedPlans: ArrayBuffer[AnalyzedPlan]): ArrayBuffer[Expression] = {
+    val firstPlanSourceOutputAttrs =
+      groupedPlans.head.analyzedInfo.get.extractedSourcePlan.get.output
     groupedPlans.map {
       plan =>
-        val filter = plan.asInstanceOf[Aggregate].child.asInstanceOf[Filter]
-        replaceAttributesInExpression(filter.condition, replaceMap)
+        val attrsMap =
+          buildAttributesMap(
+            plan.analyzedInfo.get.extractedSourcePlan.get.output,
+            firstPlanSourceOutputAttrs)
+        val filter = plan.analyzedInfo.get.constructedFilterPlan.get.asInstanceOf[Filter]
+        replaceAttributes(filter.condition, attrsMap)
     }
   }
 
@@ -579,21 +583,24 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
   }
 
   def wrapAggregatesAttributesInStructs(
-      groupedPlans: ArrayBuffer[AnalyzedPlan],
-      replaceMap: Map[String, Attribute]): Seq[NamedExpression] = {
+      groupedPlans: ArrayBuffer[AnalyzedPlan]): Seq[NamedExpression] = {
     val structAttributes = ArrayBuffer[NamedExpression]()
     val casePrefix = "case_"
     val structPrefix = "field_"
+    val firstSourceAttrs = groupedPlans.head.analyzedInfo.get.extractedSourcePlan.get.output
     groupedPlans.zipWithIndex.foreach {
       case (aggregateCase, case_index) =>
         val analyzedInfo = aggregateCase.analyzedInfo.get
         val aggregate = analyzedInfo.constructedAggregatePlan.get.asInstanceOf[Aggregate]
         val structFields = ArrayBuffer[Expression]()
         var fieldIndex: Int = 0
+        val attrReplaceMap = buildAttributesMap(
+          aggregateCase.analyzedInfo.get.extractedSourcePlan.get.output,
+          firstSourceAttrs)
         aggregate.groupingExpressions.foreach {
           e =>
             structFields += Literal(UTF8String.fromString(s"$structPrefix$fieldIndex"), StringType)
-            structFields += replaceAttributesInExpression(e, replaceMap)
+            structFields += replaceAttributes(e, attrReplaceMap)
             fieldIndex += 1
         }
         for (i <- 0 until analyzedInfo.positionInGroupingKeys.length) {
@@ -601,9 +608,9 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
           if (position >= fieldIndex) {
             val expr = analyzedInfo.resultGroupingExpressions(i)
             structFields += Literal(UTF8String.fromString(s"$structPrefix$fieldIndex"), StringType)
-            structFields += replaceAttributesInExpression(
+            structFields += replaceAttributes(
               analyzedInfo.resultGroupingExpressions(i),
-              replaceMap)
+              attrReplaceMap)
             fieldIndex += 1
           }
         }
@@ -622,7 +629,7 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
                         structFields += Literal(
                           UTF8String.fromString(s"$structPrefix$fieldIndex"),
                           StringType)
-                        structFields += replaceAttributesInExpression(child, replaceMap)
+                        structFields += replaceAttributes(child, attrReplaceMap)
                         fieldIndex += 1
                     }
                   case combineAgg if hasAggregateExpression(combineAgg) =>
@@ -633,7 +640,7 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
                     structFields += Literal(
                       UTF8String.fromString(s"$structPrefix$fieldIndex"),
                       StringType)
-                    structFields += replaceAttributesInExpression(other, replaceMap)
+                    structFields += replaceAttributes(other, attrReplaceMap)
                     fieldIndex += 1
                 }
               }
@@ -651,9 +658,8 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
   def buildProjectFoldIntoStruct(
       child: LogicalPlan,
       groupedPlans: ArrayBuffer[AnalyzedPlan],
-      conditions: ArrayBuffer[Expression],
-      replaceMap: Map[String, Attribute]): LogicalPlan = {
-    val wrappedAttributes = wrapAggregatesAttributesInStructs(groupedPlans, replaceMap)
+      conditions: ArrayBuffer[Expression]): LogicalPlan = {
+    val wrappedAttributes = wrapAggregatesAttributesInStructs(groupedPlans)
     val ifAttributes = wrappedAttributes.zip(conditions).map {
       case (attr, condition) =>
         makeAlias(If(condition, attr, Literal(null, attr.dataType)), attr.name)
