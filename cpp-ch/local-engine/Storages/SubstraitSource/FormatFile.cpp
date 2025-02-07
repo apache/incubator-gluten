@@ -17,6 +17,7 @@
 #include "FormatFile.h"
 #include <Core/Settings.h>
 #include <IO/ReadBufferFromFile.h>
+#include <IO/ReadBufferFromString.h>
 #include <Storages/SubstraitSource/JSONFormatFile.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/GlutenConfig.h>
