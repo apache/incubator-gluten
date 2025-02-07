@@ -160,18 +160,16 @@ if [ -d $VELOX_SOURCE_DIR ]; then
     fi
     git reset --hard HEAD
     git checkout refs/tags/build_$TARGET_BUILD_COMMIT
-    #sync submodules
-    git submodule sync --recursive
-    git submodule update --init --recursive
   fi
 else
   git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
   cd $VELOX_SOURCE_DIR
   git checkout $TARGET_BUILD_COMMIT
-  #sync submodules
-  git submodule sync --recursive
-  git submodule update --init --recursive
 fi
+
+#sync submodules
+git submodule sync --recursive
+git submodule update --init --recursive
 
 function apply_compilation_fixes {
   current_dir=$1
