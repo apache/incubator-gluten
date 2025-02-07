@@ -19,6 +19,7 @@
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
 #include <Columns/ColumnMap.h>
+#include <Columns/ColumnTuple.h>
 #include <QueryPipeline/QueryPipeline.h>
 #include <Poco/URI.h>
 #include <Common/DebugUtils.h>
