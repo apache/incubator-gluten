@@ -145,12 +145,14 @@ if [ "$VELOX_HOME" == "" ]; then
 fi
 VELOX_SOURCE_DIR="${VELOX_HOME}"
 
-if git ls-remote $VELOX_REPO $VELOX_BRANCH &> /dev/null; then
-  # checkout code
-  TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}' | head -n 1)"
-  if [ -d $VELOX_SOURCE_DIR ]; then
-    echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
-    cd $VELOX_SOURCE_DIR
+# checkout code
+TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}' | head -n 1)"  
+if [ -d $VELOX_SOURCE_DIR ]; then
+  echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
+  cd $VELOX_SOURCE_DIR
+  # if velox_branch exists, check it out, 
+  # otherwise assume that user prepared velox source in velox_home, skip checkout
+  if [ -n "$TARGET_BUILD_COMMIT" ]; then
     git init .
     EXISTS=$(git show-ref refs/tags/build_$TARGET_BUILD_COMMIT || true)
     if [ -z "$EXISTS" ]; then
@@ -158,22 +160,17 @@ if git ls-remote $VELOX_REPO $VELOX_BRANCH &> /dev/null; then
     fi
     git reset --hard HEAD
     git checkout refs/tags/build_$TARGET_BUILD_COMMIT
-  else
-    git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
-    cd $VELOX_SOURCE_DIR
-    git checkout $TARGET_BUILD_COMMIT
+    #sync submodules
+    git submodule sync --recursive
+    git submodule update --init --recursive
   fi
+else
+  git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
+  cd $VELOX_SOURCE_DIR
+  git checkout $TARGET_BUILD_COMMIT
   #sync submodules
   git submodule sync --recursive
   git submodule update --init --recursive
-else
-  if [ -d $VELOX_SOURCE_DIR ]; then
-    # if velox repo isn't accessable and velox_home is set
-    cd $VELOX_SOURCE_DIR
-  else
-    echo "download from $VELOX_REPO failed"
-    exit 1
-  fi
 fi
 
 function apply_compilation_fixes {
