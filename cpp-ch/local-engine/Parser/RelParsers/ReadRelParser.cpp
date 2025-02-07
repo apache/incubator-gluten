@@ -19,6 +19,7 @@
 #include <memory>
 #include <Core/Block.h>
 #include <Core/Settings.h>
+#include <IO/ReadBufferFromString.h>
 #include <Interpreters/Context.h>
 #include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/RelParsers/MergeTreeRelParser.h>
@@ -47,7 +48,8 @@ extern const int LOGICAL_ERROR;
 namespace local_engine
 {
 using namespace DB;
-DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
+DB::QueryPlanPtr
+ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
     if (query_plan)
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Source node's input plan should be null");
