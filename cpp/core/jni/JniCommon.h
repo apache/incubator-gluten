@@ -509,7 +509,7 @@ class JavaRssClient : public RssClient {
         array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
       }
 
-      env->SetByteArrayRegion(array_, 0, chunkSize, reinterpret_cast<jbyte*>(bytes + offset));
+      env->SetByteArrayRegion(array_, 0, chunkSize, (jbyte*)(bytes + offset));
       jint javaBytesSize =
           env->CallIntMethod(javaRssShuffleWriter_, javaPushPartitionData_, partitionId, array_, chunkSize);
       checkException(env);
