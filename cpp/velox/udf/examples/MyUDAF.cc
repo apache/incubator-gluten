@@ -139,25 +139,26 @@ class MyAvgRegisterer final : public gluten::UdafRegisterer {
             core::AggregationNode::Step step,
             const std::vector<TypePtr>& argTypes,
             const TypePtr& resultType,
-            const core::QueryConfig& /*config*/) -> std::unique_ptr<exec::Aggregate> {
+            const core::QueryConfig &
+            /*config*/) -> std::unique_ptr<exec::Aggregate> {
           VELOX_CHECK_LE(argTypes.size(), 1, "{} takes at most one argument", name_);
           auto inputType = argTypes[0];
           if (exec::isRawInput(step)) {
             switch (inputType->kind()) {
               case TypeKind::REAL:
-                return std::make_unique<SimpleAggregateAdapter<AverageAggregate<float>>>(resultType);
+                return std::make_unique<SimpleAggregateAdapter<AverageAggregate<float>>>(step, argTypes, resultType);
               case TypeKind::DOUBLE:
-                return std::make_unique<SimpleAggregateAdapter<AverageAggregate<double>>>(resultType);
+                return std::make_unique<SimpleAggregateAdapter<AverageAggregate<double>>>(step, argTypes, resultType);
               default:
                 VELOX_FAIL("Unknown input type for {} aggregation {}", name_, inputType->kindName());
             }
           } else {
             switch (resultType->kind()) {
               case TypeKind::REAL:
-                return std::make_unique<SimpleAggregateAdapter<AverageAggregate<float>>>(resultType);
+                return std::make_unique<SimpleAggregateAdapter<AverageAggregate<float>>>(step, argTypes, resultType);
               case TypeKind::DOUBLE:
               case TypeKind::ROW:
-                return std::make_unique<SimpleAggregateAdapter<AverageAggregate<double>>>(resultType);
+                return std::make_unique<SimpleAggregateAdapter<AverageAggregate<double>>>(step, argTypes, resultType);
               default:
                 VELOX_FAIL("Unsupported result type for final aggregation: {}", resultType->kindName());
             }
