@@ -66,7 +66,7 @@ class AverageAggregate {
     AccumulatorType() = delete;
 
     // Constructor used in initializeNewGroups().
-    explicit AccumulatorType(HashStringAllocator* /*allocator*/) {
+    explicit AccumulatorType(HashStringAllocator* /*allocator*/, AverageAggregate* /* fn*/) {
       sum_ = 0;
       count_ = 0;
     }
