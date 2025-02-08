@@ -139,8 +139,7 @@ class MyAvgRegisterer final : public gluten::UdafRegisterer {
             core::AggregationNode::Step step,
             const std::vector<TypePtr>& argTypes,
             const TypePtr& resultType,
-            const core::QueryConfig &
-            /*config*/) -> std::unique_ptr<exec::Aggregate> {
+            const core::QueryConfig& /*config*/) -> std::unique_ptr<exec::Aggregate> {
           VELOX_CHECK_LE(argTypes.size(), 1, "{} takes at most one argument", name_);
           auto inputType = argTypes[0];
           if (exec::isRawInput(step)) {
