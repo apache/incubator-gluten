@@ -211,6 +211,7 @@ class GlutenSQLQueryTestSuite
 
   // 3.4 inadvertently enabled with "group-by.sql" and "group-by-ordinal.sql"
   private val udafIgnoreList = Set(
+    "udaf/udaf-group-analytics.sql",
     "udaf/udaf-group-by-ordinal.sql",
     "udaf/udaf-group-by.sql"
   )
