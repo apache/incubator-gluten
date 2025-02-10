@@ -267,7 +267,6 @@ class ClickhouseOptimisticTransaction(
       // TODO: val checkInvariants = DeltaInvariantCheckerExec(empty2NullPlan, constraints)
       val checkInvariants = empty2NullPlan
 
-      // TODO: DeltaOptimizedWriterExec
       // No need to plan optimized write if the write command is OPTIMIZE, which aims to produce
       // evenly-balanced data files already.
        val physicalPlan =
