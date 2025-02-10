@@ -270,6 +270,18 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
     compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
   }
 
+  test("coalesce aggregation union. case 12") {
+    val sql =
+      """
+        |select a, x, y from (
+        | select a, count(distinct x) as x, sum(y) as y from coalesce_union_t1 group by a
+        | union all
+        | select a, count(distinct x) as x, sum(y) as y from coalesce_union_t1 group by a
+        |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
   test("no coalesce aggregation union. case 1") {
     val sql =
       """
@@ -364,6 +376,18 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
         | select a, count(y) as y from coalesce_union_t2
         |   group by a
         |) order by a, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
+  }
+
+  test("no coalesce aggregation union. case 8") {
+    val sql =
+      """
+        |select a, x, y from (
+        | select a, count(distinct x) as x, sum(y) as y from coalesce_union_t1 group by a
+        | union all
+        | select a, count(x) as x, sum(y) as y from coalesce_union_t1 group by a
+        |) order by a, x, y
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
   }
