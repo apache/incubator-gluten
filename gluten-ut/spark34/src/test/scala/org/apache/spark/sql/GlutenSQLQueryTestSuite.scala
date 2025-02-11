@@ -213,6 +213,7 @@ class GlutenSQLQueryTestSuite
 
   // 3.4 inadvertently enabled with "group-by.sql" and "group-by-ordinal.sql"
   private val udafIgnoreList = Set(
+    "udaf/udaf-group-analytics.sql",
     "udaf/udaf-group-by-ordinal.sql",
     "udaf/udaf-group-by.sql"
   )
@@ -223,9 +224,6 @@ class GlutenSQLQueryTestSuite
     "explain-aqe.sql", // explain plan is different
     "explain-cbo.sql", // explain
     "explain.sql", // explain
-    "group-analytics.sql", // wait velox to fix issue 3357
-    "array.sql", // blocked by VELOX-5768
-    "higher-order-functions.sql", // blocked by VELOX-5768
     "udf/udf-window.sql", // Local window fixes are not added.
     "window.sql" // Local window fixes are not added.
   ) ++ otherIgnoreList ++ udafIgnoreList
