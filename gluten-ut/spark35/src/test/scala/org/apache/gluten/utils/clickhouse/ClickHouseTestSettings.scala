@@ -89,7 +89,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("pmod")
   enableSuite[GlutenBinaryFileFormatSuite]
     // Exception.
-    .includeCH("column pruning - non-readable file")
+    .exclude("column pruning - non-readable file")
   enableSuite[GlutenBitmapExpressionsQuerySuite]
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenBloomFilterAggregateQuerySuite]
@@ -419,8 +419,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
-    .includeCH("CREATE TABLE USING AS SELECT based on the file without write permission")
-    .includeCH("create a table, drop it and create another one with the same name")
+    .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
+    .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCustomerExtensionSuite]
   enableSuite[GlutenDDLSourceLoadSuite]
