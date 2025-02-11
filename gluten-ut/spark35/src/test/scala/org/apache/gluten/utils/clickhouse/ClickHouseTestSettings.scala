@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.utils.clickhouse
 
-import org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.GlutenSortShuffleSuite
@@ -1770,7 +1769,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
-  enableSuite[GlutenParquetV1FilterSuite2]
+  // avoid Velox compile error
+  enableSuite(
+    "org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2"
+  )
     // Rewrite.
     .includeCH("SPARK-23852: Broken Parquet push-down for partially-written stats")
     // Rewrite for supported INT96 - timestamp.
