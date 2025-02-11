@@ -40,7 +40,7 @@ public:
         static QueryContext instance;
         return instance;
     }
-    int64_t initializeQuery(const String & task_id);
+    int64_t initializeQuery(const String & task_id, std::string_view serialized_config);
     DB::ContextMutablePtr currentQueryContext();
     String currentTaskIdOrEmpty();
     static std::shared_ptr<DB::ThreadGroup> currentThreadGroup();

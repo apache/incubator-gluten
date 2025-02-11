@@ -16,9 +16,14 @@
  */
 package org.apache.gluten.memory;
 
+import org.apache.gluten.utils.ConfigUtil;
+import org.apache.gluten.vectorized.CHNativeExpressionEvaluator;
+
 import org.apache.spark.TaskContext;
 import org.apache.spark.task.TaskResource;
 import org.apache.spark.task.TaskResources;
+
+import java.util.Map;
 
 public class CHThreadGroup implements TaskResource {
 
@@ -47,7 +52,9 @@ public class CHThreadGroup implements TaskResource {
   private long peak_memory = -1;
 
   private CHThreadGroup(String taskId) {
-    thread_group_id = createThreadGroup(taskId);
+    Map<String, String> config = CHNativeExpressionEvaluator.getNativeBackendConf();
+    byte[] serializedConfig = ConfigUtil.serialize(config);
+    thread_group_id = createThreadGroup(taskId, serializedConfig);
   }
 
   public long getPeakMemory() {
@@ -75,7 +82,7 @@ public class CHThreadGroup implements TaskResource {
     return "CHThreadGroup";
   }
 
-  private static native long createThreadGroup(String taskId);
+  private static native long createThreadGroup(String taskId, byte[] config);
 
   private static native long threadGroupPeakMemory(long id);
 

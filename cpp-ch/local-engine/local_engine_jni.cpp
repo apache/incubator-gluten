@@ -1254,11 +1254,13 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_SimpleExpressionEval_nativeNex
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT jlong Java_org_apache_gluten_memory_CHThreadGroup_createThreadGroup(JNIEnv * env, jclass, jstring task_id_)
+JNIEXPORT jlong Java_org_apache_gluten_memory_CHThreadGroup_createThreadGroup(JNIEnv * env, jclass, jstring task_id_, jbyteArray config)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto task_id = jstring2string(env, task_id_);
-    return local_engine::QueryContext::instance().initializeQuery(task_id);
+    const auto conf_a = local_engine::getByteArrayElementsSafe(env, config);
+    return local_engine::QueryContext::instance().initializeQuery(task_id, 
+        {reinterpret_cast<const char *>(conf_a.elems()), static_cast<size_t>(conf_a.length())});
     LOCAL_ENGINE_JNI_METHOD_END(env, 0l)
 }
 
