@@ -40,8 +40,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-/// TODO(taiyang-li): remove int_max_value and int_min_value for it is determined by T
-template <is_integer T, typename Name, T int_max_value, T int_min_value>
+template <is_integer T, typename Name>
 class SparkFunctionCastFloatToInt : public DB::IFunction
 {
 public:
@@ -98,18 +97,13 @@ public:
     void executeInternal(const DB::ColumnPtr & src, DB::PaddedPODArray<T> & data, DB::PaddedPODArray<UInt8> & null_map_data) const
     {
         const DB::ColumnVector<F> * src_vec = assert_cast<const DB::ColumnVector<F> *>(src.get());
-        /// TODO(taiyang-li): try to vectorize below loop
-        for (size_t i = 0; i < src_vec->size(); ++i)
+        const auto & src_data = src_vec->getData();
+        size_t rows = src_vec->size();
+
+        for (size_t i = 0; i < rows; ++i)
         {
-            F element = src_vec->getElement(i);
-            if (isNaN(element) || !isFinite(element))
-                null_map_data[i] = 1;
-            else if (element > int_max_value)
-                data[i] = int_max_value;
-            else if (element < int_min_value)
-                data[i] = int_min_value;
-            else
-                data[i] = static_cast<T>(element);
+            null_map_data[i] = !isFinite(src_data[i]);
+            data[i] = static_cast<T>(src_data[i]);
         }
     }
 
@@ -140,16 +134,7 @@ public:
             b.CreateFCmpOEQ(src_value, llvm::ConstantFP::getInfinity(float_type, true)));
 
         bool is_signed = std::is_signed_v<T>;
-        llvm::Value * max_value = llvm::ConstantInt::get(int_type, static_cast<UInt64>(int_max_value), is_signed);
-        llvm::Value * min_value = llvm::ConstantInt::get(int_type, static_cast<UInt64>(int_min_value), is_signed);
-        llvm::Value * clamped_value = b.CreateSelect(
-            b.CreateFCmpOGT(src_value, llvm::ConstantFP::get(float_type, static_cast<Float64>(int_max_value))),
-            max_value,
-            b.CreateSelect(
-                b.CreateFCmpOLT(src_value, llvm::ConstantFP::get(float_type, static_cast<Float64>(int_min_value))),
-                min_value,
-                is_signed_v<T> ? b.CreateFPToSI(src_value, int_type) : b.CreateFPToUI(src_value, int_type)));
-        llvm::Value * result_value = b.CreateSelect(b.CreateOr(is_nan, is_inf), llvm::Constant::getNullValue(int_type), clamped_value);
+        llvm::Value * result_value = is_signed_v<T> ? b.CreateFPToSI(src_value, int_type) : b.CreateFPToUI(src_value, int_type);
         llvm::Value * result_is_null = b.CreateOr(is_nan, is_inf);
 
         auto * nullable_structure_type = toNativeType(b, result_type);
