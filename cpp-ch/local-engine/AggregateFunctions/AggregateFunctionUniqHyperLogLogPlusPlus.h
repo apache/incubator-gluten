@@ -41,7 +41,7 @@ extern const int INCORRECT_DATA;
 
 struct HyperLogLogPlusPlusData
 {
-    explicit HyperLogLogPlusPlusData(double relative_sd_ = 0.05)
+    explicit HyperLogLogPlusPlusData(Float64 relative_sd_ = 0.05)
         : relative_sd(relative_sd_)
         , p(static_cast<UInt64>(std::ceil(2.0 * std::log(1.106 / relative_sd) / std::log(2.0))))
         , idx_shift(64 - p)
@@ -137,7 +137,7 @@ struct HyperLogLogPlusPlusData
 
     UInt64 query() const
     {
-        double z_inverse = 0.0;
+        Float64 z_inverse = 0.0;
         UInt64 v = 0;
 
         size_t i = 0; // global register index
@@ -156,10 +156,10 @@ struct HyperLogLogPlusPlusData
         }
         // std::cout << "num_zero:" << v << std::endl;
 
-        double e = alpha_mm / z_inverse;
+        Float64 e = alpha_mm / z_inverse;
         // std::cout << "e:" << e << std::endl;
 
-        double e_bias_corrected = e;
+        Float64 e_bias_corrected = e;
         if (p < 19 && e < 5.0 * m)
             e_bias_corrected = e - estimateBias(e);
 
@@ -167,7 +167,7 @@ struct HyperLogLogPlusPlusData
 
         if (v > 0)
         {
-            double h = m * std::log(static_cast<double>(m) / v);
+            Float64 h = m * std::log(static_cast<Float64>(m) / v);
             if ((p < 19 && h <= THRESHOLDS[p - 4]) || e <= 2.5 * m)
             {
                 // std::cout << "h:" << h << std::endl;
@@ -198,7 +198,7 @@ private:
     /// Estimate the bias using the raw estimates with their respective biases from the HLL++
     /// appendix. We currently use KNN interpolation to determine the bias (as suggested in the
     /// paper).
-    double estimateBias(double e) const
+    Float64 estimateBias(Float64 e) const
     {
         const auto & estimates = RAW_ESTIMATE_DATA[p - 4];
         size_t num_estimates = estimates.size();
@@ -210,7 +210,7 @@ private:
         // Distance metric: square of the difference
         auto distance = [&](size_t i)
         {
-            double diff = e - estimates[i];
+            Float64 diff = e - estimates[i];
             return diff * diff;
         };
 
@@ -225,7 +225,7 @@ private:
 
         // Sum biases in the interval
         const auto & biases = BIAS_DATA[p - 4];
-        double bias_sum = 0.0;
+        Float64 bias_sum = 0.0;
         for (size_t i = low; i < high; ++i)
             bias_sum += biases[i];
 
@@ -258,7 +258,7 @@ private:
 
     /// The pre-calculated combination of: alpha * m * m
     /// 'alpha' corrects the raw cardinality estimate 'Z'. See the FlFuGaMe07 paper for its derivation.
-    const double alpha_mm;
+    const Float64 alpha_mm;
 
     /// The number of bits that is required per register.
     ///
@@ -277,7 +277,7 @@ private:
     /// Number of points used for interpolating the bias value.
     static constexpr UInt64 K = 6;
 
-    inline static const std::vector<std::vector<double>> BIAS_DATA = {
+    inline static const std::vector<std::vector<Float64>> BIAS_DATA = {
         // precision 4
         {10,
          9.717,
@@ -2706,11 +2706,11 @@ private:
 
 
     /// Thresholds which decide if the linear counting or the regular algorithm is used.
-    static constexpr double THRESHOLDS[15] = {10, 20, 40, 80, 220, 400, 900, 1800, 3100, 6500, 15500, 20000, 50000, 120000, 350000};
+    static constexpr Float64 THRESHOLDS[15] = {10, 20, 40, 80, 220, 400, 900, 1800, 3100, 6500, 15500, 20000, 50000, 120000, 350000};
 
     /// Lookup table used to find the (index of the) bias correction for a given precision (exact)
     /// and estimate (nearest).
-    inline static const std::vector<std::vector<double>> RAW_ESTIMATE_DATA = {
+    inline static const std::vector<std::vector<Float64>> RAW_ESTIMATE_DATA = {
         {// precision 4
          {11,      11.717,  12.207,  12.7896, 13.2882, 13.8204, 14.3772, 14.9342, 15.5202, 16.161,  16.7722, 17.4636, 18.0396, 18.6766,
           19.3566, 20.0454, 20.7936, 21.4856, 22.2666, 22.9946, 23.766,  24.4692, 25.3638, 26.0764, 26.7864, 27.7602, 28.4814, 29.433,
