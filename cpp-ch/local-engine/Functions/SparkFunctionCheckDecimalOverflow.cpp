@@ -204,29 +204,25 @@ private:
 
         for (size_t i = 0; i < rows; ++i)
         {
-            ToFieldType to;
             bool success = false;
             if constexpr (IsDataTypeDecimal<FromDataType>)
             {
                 success = convertDecimalToDecimalImpl<FromDataType, ToDataType, MaxNativeType>(
-                    src_data[i], scale_direction, scale_multiplier, pow10_to_precision, to);
+                    src_data[i], scale_direction, scale_multiplier, pow10_to_precision, res_data[i]);
             }
             else
             {
                 success = convertNumberToDecimalImpl<FromDataType, ToDataType>(
-                    src_data[i], to_scale, whole_part_max, to);
+                    src_data[i], to_scale, whole_part_max, res_data[i]);
             }
 
             if constexpr (exception_mode == CheckExceptionMode::Null)
             {
-                res_data[i] = static_cast<ToFieldType>(to);
                 (*res_nullmap_data)[i] = !success;
             }
             else
             {
-                if (success)
-                    res_data[i] = static_cast<ToFieldType>(to);
-                else
+                if (!success)
                     throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "Decimal value is overflow.");
             }
         }
