@@ -468,7 +468,6 @@ trait SparkPlanExecApi {
       windowExpressionNodes: JList[WindowFunctionNode],
       originalInputAttributes: Seq[Attribute],
       args: JMap[String, JLong]): Unit = {
-
     windowExpression.map {
       windowExpr =>
         val aliasExpr = windowExpr.asInstanceOf[Alias]
@@ -703,9 +702,4 @@ trait SparkPlanExecApi {
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec
-
-  def genRangeExecTransformer(
-      range: org.apache.spark.sql.catalyst.plans.logical.Range): SparkPlan = {
-    throw new GlutenNotSupportException("RangeExec is not supported")
-  }
 }

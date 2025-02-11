@@ -27,6 +27,7 @@ import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
@@ -35,17 +36,20 @@ import io.substrait.proto.NamedStruct
 
 import scala.collection.JavaConverters;
 
-case class CHRangeExecTransformer(range: org.apache.spark.sql.catalyst.plans.logical.Range)
-  extends LeafTransformSupport {
+case class CHRangeExecTransformer(
+    start: Long,
+    end: Long,
+    step: Long,
+    numSlices: Int,
+    numElements: BigInt,
+    outputAttributes: Seq[Attribute],
+    child: Seq[SparkPlan])
+  extends ColumnarRangeBaseExec(start, end, step, numSlices, numElements, outputAttributes, child)
+  with LeafTransformSupport {
 
-  override def output: Seq[Attribute] = range.output
+  override def output: Seq[Attribute] = outputAttributes
 
   override def getSplitInfos: Seq[SplitInfo] = {
-    val start = range.start
-    val end = range.end
-    val step = range.step
-    val numSlices = range.numSlices.getOrElse(1)
-
     (0 until numSlices).map {
       sliceIndex =>
         ExtensionTableBuilder.makeExtensionTable(start, end, step, numSlices, sliceIndex)
@@ -53,11 +57,6 @@ case class CHRangeExecTransformer(range: org.apache.spark.sql.catalyst.plans.log
   }
 
   override def getPartitions: Seq[InputPartition] = {
-    val start = range.start
-    val end = range.end
-    val step = range.step
-    val numSlices = range.numSlices.getOrElse(1)
-
     (0 until numSlices).map {
       sliceIndex => GlutenRangeExecPartition(start, end, step, numSlices, sliceIndex)
     }
@@ -83,7 +82,7 @@ case class CHRangeExecTransformer(range: org.apache.spark.sql.catalyst.plans.log
   override protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val output = range.output
+    val output = outputAttributes
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = JavaConverters

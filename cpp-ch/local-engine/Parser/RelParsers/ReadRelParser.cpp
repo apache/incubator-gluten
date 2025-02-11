@@ -120,7 +120,7 @@ bool ReadRelParser::isReadRelFromLocalFile(const substrait::ReadRel & rel)
     if (rel.has_local_files())
         return !isReadRelFromJavaIter(rel);
     else
-        return !rel.has_extension_table() && !isReadRelFromMergeTree(rel) && !isReadRelFromRange(rel) && !isReadFromStreamKafka(read));
+        return !rel.has_extension_table() && !isReadRelFromMergeTree(rel) && !isReadRelFromRange(rel) && !isReadFromStreamKafka(rel)
 }
 
 bool ReadRelParser::isReadRelFromMergeTree(const substrait::ReadRel & rel)

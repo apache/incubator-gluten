@@ -242,7 +242,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 setFileSchemaForLocalFiles(
                   filesNode,
                   leafs(i).asInstanceOf[BasicScanExecTransformer])
-                (filesNode.toProtobuf.toByteArray, filesNode.getPaths.asScala.toSeq)
+                filesNode.toProtobuf.toByteArray
               case extensionTableNode: ExtensionTableNode =>
                 extensionTableNode.toProtobuf.toByteArray
               case kafkaSourceNode: StreamKafkaSourceNode =>
