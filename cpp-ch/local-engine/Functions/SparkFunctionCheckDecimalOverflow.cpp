@@ -102,11 +102,12 @@ public:
 
     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
     {
-        const auto & src_col = arguments[0];
-        UInt32 dst_precision = extractArgument(arguments[1]);
-        UInt32 dst_scale = extractArgument(arguments[2]);
+        UInt32 to_precision = extractArgument(arguments[1]);
+        UInt32 to_scale = extractArgument(arguments[2]);
 
+        const auto & src_col = arguments[0];
         ColumnPtr dst_col;
+
         auto call = [&](const auto & types) -> bool
         {
             using Types = std::decay_t<decltype(types)>;
@@ -118,7 +119,7 @@ public:
                 using FromFieldType = typename FromDataType::FieldType;
                 if (const ColumnVectorOrDecimal<FromFieldType> * col_vec = checkAndGetColumn<ColumnVectorOrDecimal<FromFieldType>>(src_col.column.get()))
                 {
-                    executeInternal<FromDataType, ToDataType>(*col_vec, dst_col, input_rows_count, dst_precision, dst_scale);
+                    executeInternal<FromDataType, ToDataType>(*col_vec, dst_col, input_rows_count, to_precision, to_scale);
                     return true;
                 }
             }
@@ -126,15 +127,14 @@ public:
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal column while execute function {}", getName());
         };
 
-        if (dst_precision <= DecimalUtils::max_precision<Decimal32>)
+        if (to_precision <= DecimalUtils::max_precision<Decimal32>)
             callOnIndexAndDataType<DataTypeDecimal<Decimal32>>(src_col.type->getTypeId(), call);
-        else if (dst_precision <= DecimalUtils::max_precision<Decimal64>)
+        else if (to_precision <= DecimalUtils::max_precision<Decimal64>)
             callOnIndexAndDataType<DataTypeDecimal<Decimal64>>(src_col.type->getTypeId(), call);
-        else if (dst_precision <= DecimalUtils::max_precision<Decimal128>)
+        else if (to_precision <= DecimalUtils::max_precision<Decimal128>)
             callOnIndexAndDataType<DataTypeDecimal<Decimal128>>(src_col.type->getTypeId(), call);
         else
             callOnIndexAndDataType<DataTypeDecimal<Decimal256>>(src_col.type->getTypeId(), call);
-
 
         if (!dst_col)
             throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Wrong call for {} with {}", getName(), src_col.type->getName());
