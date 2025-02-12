@@ -51,18 +51,7 @@ install_gcc11_from_source() {
 install_centos_7() {
     export PATH=/usr/local/bin:$PATH
 
-    sed -i \
-        -e 's/^mirrorlist/#mirrorlist/' \
-        -e 's/^# *baseurl *=/baseurl=/' \
-        -e 's/mirror\.centos\.org/vault.centos.org/' \
-        /etc/yum.repos.d/*.repo
-
-    yum -y install epel-release centos-release-scl
-    sed -i \
-        -e 's/^mirrorlist/#mirrorlist/' \
-        -e 's/^# *baseurl *=/baseurl=/' \
-        -e 's/mirror\.centos\.org/vault.centos.org/' \
-        /etc/yum.repos.d/*.repo
+    cat /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
 
     yum -y install \
         wget curl tar zip unzip which patch sudo \
@@ -128,6 +117,11 @@ install_centos_8() {
         gcc-toolset-11 \
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
+
+    pip3 install --upgrade pip
+
+    # Requires cmake >= 3.28.3
+    pip3 install cmake==3.28.3
 
     dnf -y --enablerepo=powertools install autoconf-archive ninja-build
 

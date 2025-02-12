@@ -5,19 +5,34 @@ RUN sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.o
 
 RUN yum install -y epel-release centos-release-scl
 RUN rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
-RUN sed -i \
-       -e 's/^mirrorlist/#mirrorlist/' \
-       -e 's/^#baseurl/baseurl/' \
-       -e 's/mirror\.centos\.org/vault.centos.org/' \
-       /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+RUN if [ "$(uname -m)" = "aarch64" ]; then \
+        sed -i \
+            -e 's/^mirrorlist/#mirrorlist/' \
+            -e 's/^#baseurl/baseurl/' \
+            -e 's/mirror\.centos\.org\/centos/vault.centos.org\/altarch/' \
+            -e 's/debuginfo\.centos\.org\/centos/debuginfo.centos.org\/altarch/' \
+            -e 's/vault\.centos\.org\/centos/vault.centos.org\/altarch/' \
+            /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo; \
+    else \
+        sed -i \
+            -e 's/^mirrorlist/#mirrorlist/' \
+            -e 's/^#baseurl/baseurl/' \
+            -e 's/mirror\.centos\.org/vault.centos.org/' \
+            /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo; \
+    fi
 
 RUN yum install -y git patch wget sudo java-1.8.0-openjdk-devel ccache
 
-RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
+RUN git clone https://github.com/kevinw66/incubator-gluten /opt/gluten
 
 RUN echo "check_certificate = off" >> ~/.wgetrc
 
-RUN cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh
+# test
+RUN id -u
+RUN echo whoami
+
+# test
+RUN cd /opt/gluten && git checkout origin/arm-ci && bash ./dev/vcpkg/setup-build-depends.sh
 
 # An actual path used for vcpkg cache.
 RUN mkdir -p /var/cache/vcpkg
