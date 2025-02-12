@@ -14,45 +14,99 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.hive.execution
+package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.{ColumnarPartialProjectExec, CustomerUDF}
+import org.apache.gluten.execution.ColumnarPartialProjectExec
+import org.apache.gluten.test.udf.CustomerUDF
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Row
+import org.apache.spark.internal.config
+import org.apache.spark.internal.config.UI.UI_ENABLED
+import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row, SparkSession}
+import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
+import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
+import org.apache.spark.sql.hive.HiveUtils
+import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
+import org.apache.spark.sql.test.SQLTestUtils
 
 import java.io.File
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
-class GlutenHiveUDFSuite extends GlutenHiveSQLQuerySuiteBase {
+class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
+  private var _spark: SparkSession = _
 
-  override def sparkConf: SparkConf = {
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+
+    if (_spark == null) {
+      _spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
+    }
+
+    _spark.sparkContext.setLogLevel("info")
+
+    createTestTable()
+  }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+  }
+
+  override protected def spark: SparkSession = _spark
+
+  protected def defaultSparkConf: SparkConf = {
+    val conf = new SparkConf()
+      .set("spark.master", "local[1]")
+      .set("spark.sql.test", "")
+      .set("spark.sql.testkey", "true")
+      .set(SQLConf.CODEGEN_FALLBACK.key, "false")
+      .set(SQLConf.CODEGEN_FACTORY_MODE.key, CodegenObjectFactoryMode.CODEGEN_ONLY.toString)
+      .set(
+        HiveUtils.HIVE_METASTORE_BARRIER_PREFIXES.key,
+        "org.apache.spark.sql.hive.execution.PairSerDe")
+      // SPARK-8910
+      .set(UI_ENABLED, false)
+      .set(config.UNSAFE_EXCEPTION_ON_MEMORY_LEAK, true)
+      // Hive changed the default of hive.metastore.disallow.incompatible.col.type.changes
+      // from false to true. For details, see the JIRA HIVE-12320 and HIVE-17764.
+      .set("spark.hadoop.hive.metastore.disallow.incompatible.col.type.changes", "false")
+      // Disable ConvertToLocalRelation for better test coverage. Test cases built on
+      // LocalRelation will exercise the optimization rules better by disabling it as
+      // this rule may potentially block testing of other optimization rules such as
+      // ConstantPropagation etc.
+      .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+
+    conf.set(
+      StaticSQLConf.WAREHOUSE_PATH,
+      conf.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
+  }
+
+  protected def sparkConf: SparkConf = {
     defaultSparkConf
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.gluten.sql.native.writer.enabled", "true")
   }
 
-  def withTempFunction(funcName: String)(f: => Unit): Unit = {
+  private def withTempFunction(funcName: String)(f: => Unit): Unit = {
     try f
     finally sql(s"DROP TEMPORARY FUNCTION IF EXISTS $funcName")
   }
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
+  private def checkOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(executedPlan.exists(plan => plan.getClass == tag.runtimeClass))
+  }
+
+  private def createTestTable(): Unit = {
     val table = "lineitem"
-    val tableDir =
-      getClass.getResource("").getPath + "/../../../../../../../../../../../" +
-        "/backends-velox/src/test/resources/tpch-data-parquet/"
+    val tableDir = getClass.getResource("/tpch-data-parquet").getFile
     val tablePath = new File(tableDir, table).getAbsolutePath
     val tableDF = spark.read.format("parquet").load(tablePath)
     tableDF.createOrReplaceTempView(table)
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
   }
 
   test("customer udf") {
