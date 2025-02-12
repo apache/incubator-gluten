@@ -39,6 +39,18 @@ extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 extern const int INCORRECT_DATA;
 }
 
+
+/**
+ * @brief HyperLogLog++ algorithm for approximate distinct counting.
+ *
+ * This structure implements the HyperLogLog++ algorithm, which is an improved version of the HyperLogLog algorithm.
+ * It provides an efficient way to estimate the number of distinct elements in a multiset.
+ *
+ * The algorithm uses a fixed amount of memory and provides a trade-off between memory usage and accuracy.
+ * The accuracy is controlled by the relative standard deviation (relative_sd) parameter.
+ *
+ * The algorithm also includes bias correction and linear counting for improved accuracy.
+ */
 struct HyperLogLogPlusPlusData
 {
     explicit HyperLogLogPlusPlusData(Float64 relative_sd_ = 0.05)
@@ -62,8 +74,6 @@ struct HyperLogLogPlusPlusData
                 "HLL++ requires at most 25 bits for addressing instead of {} to avoid allocating too much memory",
                 p);
 
-        // std::cout << "relative_sd:" << relative_sd << " p:" << p << " m:" << m << " num_words:" << num_words << " alpha_mm:" << alpha_mm
-        //   << std::endl;
         registers = PaddedPODArray<UInt64>(num_words, 0); // Initialize registers with zeros
     }
 
@@ -96,7 +106,6 @@ struct HyperLogLogPlusPlusData
 
     void add(UInt64 value)
     {
-        // std::cout << "add:" << value << std::endl;
         UInt64 x = value;
         UInt64 idx = x >> idx_shift;
         UInt64 w = (x << p) | w_padding;
@@ -108,13 +117,10 @@ struct HyperLogLogPlusPlusData
         UInt64 shift = (idx - word_offset * REGISTERS_PER_WORD) * REGISTER_SIZE;
         UInt64 mask = REGISTER_WORD_MASK << shift;
         UInt64 midx = (word & mask) >> shift;
-        // std::cout << "bucket[" << std::setw(3) << std::setfill('0') << idx << "]=" << midx << " input:" << value << " pw:" << pw;
         if (pw > midx)
         {
-            // std::cout << " updated";
             registers[word_offset] = (word & ~mask) | (pw << shift);
         }
-        // std::cout << std::endl;
     }
 
     void merge(const HyperLogLogPlusPlusData & other)
@@ -147,30 +153,24 @@ struct HyperLogLogPlusPlusData
             for (size_t register_i = 0; i < m && register_i < REGISTERS_PER_WORD; ++register_i, ++i)
             {
                 UInt64 midx = (word >> (register_i * REGISTER_SIZE)) & REGISTER_WORD_MASK;
-                // std::cout << "bucket[" << std::setw(3) << std::setfill('0') << i << "]=" << midx << std::endl;
                 z_inverse += 1.0 / (1ULL << midx);
 
                 if (midx == 0)
                     ++v;
             }
         }
-        // std::cout << "num_zero:" << v << std::endl;
 
         Float64 e = alpha_mm / z_inverse;
-        // std::cout << "e:" << e << std::endl;
 
         Float64 e_bias_corrected = e;
         if (p < 19 && e < 5.0 * m)
             e_bias_corrected = e - estimateBias(e);
-
-        // std::cout << "e_bias_corrected:" << e_bias_corrected << std::endl;
 
         if (v > 0)
         {
             Float64 h = m * std::log(static_cast<Float64>(m) / v);
             if ((p < 19 && h <= THRESHOLDS[p - 4]) || e <= 2.5 * m)
             {
-                // std::cout << "h:" << h << std::endl;
                 return static_cast<UInt64>(std::round(h));
             }
             else
