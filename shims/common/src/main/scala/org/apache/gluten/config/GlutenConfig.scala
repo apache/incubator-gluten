@@ -17,8 +17,8 @@
 package org.apache.gluten.config
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.util.{ByteUnit, JavaUtils}
-import org.apache.spark.sql.internal.{SQLConf, SQLConfProvider}
+import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf, SQLConfProvider}
 
 import com.google.common.collect.ImmutableList
 import org.apache.hadoop.security.UserGroupInformation
@@ -447,7 +447,7 @@ object GlutenConfig {
    */
   def getNativeSessionConf(
       backendName: String,
-      conf: scala.collection.Map[String, String]): util.Map[String, String] = {
+      conf: Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = Set(
       DEBUG_ENABLED.key,
@@ -505,31 +505,17 @@ object GlutenConfig {
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
-
-    conf
-      .get(SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE)
-      .foreach(
-        v =>
-          nativeConfMap
-            .put(
-              SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE,
-              JavaUtils.byteStringAs(v, ByteUnit.BYTE).toString))
-    conf
-      .get(SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE)
-      .foreach(
-        v =>
-          nativeConfMap
-            .put(
-              SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE,
-              JavaUtils.byteStringAs(v, ByteUnit.BYTE).toString))
-    conf
-      .get(SPARK_SHUFFLE_FILE_BUFFER)
-      .foreach(
-        v =>
-          nativeConfMap
-            .put(
-              SPARK_SHUFFLE_FILE_BUFFER,
-              (JavaUtils.byteStringAs(v, ByteUnit.KiB) * 1024).toString))
+    GlutenConfigUtil.mapByteConfValue(
+      conf,
+      SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE,
+      ByteUnit.BYTE)(
+      v => nativeConfMap.put(SPARK_UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE, v.toString))
+    GlutenConfigUtil.mapByteConfValue(
+      conf,
+      SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE,
+      ByteUnit.BYTE)(v => nativeConfMap.put(SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE, v.toString))
+    GlutenConfigUtil.mapByteConfValue(conf, SPARK_SHUFFLE_FILE_BUFFER, ByteUnit.KiB)(
+      v => nativeConfMap.put(SPARK_SHUFFLE_FILE_BUFFER, (v * 1024).toString))
 
     conf
       .get(LEGACY_TIME_PARSER_POLICY.key)
