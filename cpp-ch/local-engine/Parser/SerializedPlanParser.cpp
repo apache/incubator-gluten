@@ -266,8 +266,6 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             if (!read.has_local_files())
                 read_rel_parser->setSplitInfo(nextSplitInfo());
         }
-        else
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Unknown read rel:{}", read.ShortDebugString());
     }
 
     DB::QueryPlanPtr query_plan = rel_parser->parse(input_query_plans, rel, rel_stack);
