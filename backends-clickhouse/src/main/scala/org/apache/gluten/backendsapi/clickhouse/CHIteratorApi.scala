@@ -230,7 +230,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genPartitions(
       wsCtx: WholeStageTransformContext,
       splitInfos: Seq[Seq[SplitInfo]],
-      leafs: Seq[LeafTransformSupport]): Seq[BaseGlutenPartition] = {
+      leaves: Seq[LeafTransformSupport]): Seq[BaseGlutenPartition] = {
     // Only serialize plan once, save lots time when plan is complex.
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
@@ -238,10 +238,10 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val splitInfosByteArray = splits.zipWithIndex.map {
           case (split, i) =>
             split match {
-              case filesNode: LocalFilesNode if leafs(i).isInstanceOf[BasicScanExecTransformer] =>
+              case filesNode: LocalFilesNode if leaves(i).isInstanceOf[BasicScanExecTransformer] =>
                 setFileSchemaForLocalFiles(
                   filesNode,
-                  leafs(i).asInstanceOf[BasicScanExecTransformer])
+                  leaves(i).asInstanceOf[BasicScanExecTransformer])
                 filesNode.toProtobuf.toByteArray
               case extensionTableNode: ExtensionTableNode =>
                 extensionTableNode.toProtobuf.toByteArray

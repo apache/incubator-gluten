@@ -323,7 +323,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     context
   }
 
-  /** Find all BasicScanExecTransformer in one WholeStageTransformer */
+  /** Find all [[LeafTransformSupport]] in one WholeStageTransformer */
   private def findAllLeafTransformers(): Seq[LeafTransformSupport] = {
     val allLeafTransformers = new mutable.ListBuffer[LeafTransformSupport]()
 
@@ -338,7 +338,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         }
 
         // according to the substrait plan order
-        // SHJ may include two scans in a whole stage.
+        // SHJ may include two leaves in a whole stage.
         plan match {
           case shj: HashJoinLikeExecTransformer =>
             transformChildren(shj.streamedPlan, leafTransformers)
@@ -371,9 +371,9 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     if (leafTransformers.nonEmpty) {
 
       /**
-       * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
-       * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
-       * rather than genFinalStageIterator will be invoked
+       * If containing leaf exec transformer this "whole stage" generates a RDD which itself takes
+       * care of [[LeafTransformSupport]] there won't be any other RDD for leaf operator. As a
+       * result, genFirstStageIterator rather than genFinalStageIterator will be invoked
        */
       val allInputPartitions = leafTransformers.map(_.getPartitions.toIndexedSeq)
       val allSplitInfos = getSplitInfosFromPartitions(leafTransformers)
@@ -429,7 +429,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     } else {
 
       /**
-       * the whole stage contains NO BasicScanExecTransformer. this the default case for:
+       * the whole stage contains NO [[LeafTransformSupport]]. this the default case for:
        *   1. SCAN with clickhouse backend (check ColumnarCollapseTransformStages#separateScanRDD())
        *      2. test case where query plan is constructed from simple dataframes (e.g.
        *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
@@ -486,15 +486,15 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   private def getSplitInfosFromPartitions(
       leafTransformers: Seq[LeafTransformSupport]): Seq[Seq[SplitInfo]] = {
-    // If these are two scan transformers, they must have same partitions,
-    // otherwise, exchange will be inserted. We should combine the two scan
+    // If these are two leaf transformers, they must have same partitions,
+    // otherwise, exchange will be inserted. We should combine the two leaf
     // transformers' partitions with same index, and set them together in
     // the substraitContext. We use transpose to do that, You can refer to
     // the diagram below.
-    // scan1  p11 p12 p13 p14 ... p1n
-    // scan2  p21 p22 p23 p24 ... p2n
+    // leaf1  p11 p12 p13 p14 ... p1n
+    // leaf2  p21 p22 p23 p24 ... p2n
     // transpose =>
-    // scan1 | scan2
+    // leaf1 | leaf2
     //  p11  |  p21    => substraitContext.setSplitInfo([p11, p21])
     //  p12  |  p22    => substraitContext.setSplitInfo([p12, p22])
     //  p13  |  p23    ...
@@ -505,7 +505,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     val partitionLength = allSplitInfos.head.size
     if (allSplitInfos.exists(_.size != partitionLength)) {
       throw new GlutenException(
-        "The partition length of all the scan transformer are not the same.")
+        "The partition length of all the leaf transformer are not the same.")
     }
 
     allSplitInfos.transpose

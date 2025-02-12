@@ -43,7 +43,7 @@ trait IteratorApi {
   def genPartitions(
       wsCtx: WholeStageTransformContext,
       splitInfos: Seq[Seq[SplitInfo]],
-      leafs: Seq[LeafTransformSupport]): Seq[BaseGlutenPartition]
+      leaves: Seq[LeafTransformSupport]): Seq[BaseGlutenPartition]
 
   /**
    * Inject the task attempt temporary path for native write files, this method should be called

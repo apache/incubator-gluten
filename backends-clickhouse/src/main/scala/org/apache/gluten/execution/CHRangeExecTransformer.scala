@@ -47,8 +47,6 @@ case class CHRangeExecTransformer(
   extends ColumnarRangeBaseExec(start, end, step, numSlices, numElements, outputAttributes, child)
   with LeafTransformSupport {
 
-  override def output: Seq[Attribute] = outputAttributes
-
   override def getSplitInfos: Seq[SplitInfo] = {
     (0 until numSlices).map {
       sliceIndex =>
