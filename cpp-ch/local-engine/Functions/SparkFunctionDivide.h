@@ -116,8 +116,7 @@ public:
 
                         const DB::ColumnVector<L> * col_left = nullptr;
                         const DB::ColumnVector<R> * col_right = nullptr;
-                        const DB::ColumnVector<L> * const_col_left
-                            = checkAndGetColumnConstData<DB::ColumnVector<L>>(arguments[0].column.get());
+                        const DB::ColumnVector<L> * const_col_left = checkAndGetColumnConstData<DB::ColumnVector<L>>(arguments[0].column.get());
                         const DB::ColumnVector<R> * const_col_right
                             = checkAndGetColumnConstData<DB::ColumnVector<R>>(arguments[1].column.get());
 
@@ -133,65 +132,33 @@ public:
                             right_const_val = const_col_right->getElement(0);
                             if (right_const_val == 0)
                             {
-                                auto data_col = DB::ColumnVector<T>::create(1, 0);
-                                auto null_map_col = DB::ColumnVector<UInt8>::create(1, 1);
-                                result = DB::ColumnConst::create(DB::ColumnNullable::create(std::move(data_col), std::move(null_map_col)), input_rows_count);
+                                /// TODO(taiyang-li): return const column instead
+                                auto data_col = DB::ColumnVector<T>::create(arguments[0].column->size(), 0);
+                                auto null_map_col = DB::ColumnVector<UInt8>::create(arguments[0].column->size(), 1);
+                                result = DB::ColumnNullable::create(std::move(data_col), std::move(null_map_col));
                                 return true;
                             }
                         }
                         else
                             col_right = assert_cast<const DB::ColumnVector<R> *>(arguments[1].column.get());
 
-                        if (const_col_left && const_col_right)
-                        {
-                            L l = left_const_val;
-                            R r = right_const_val;
-                            T v = SparkDivideFloatingImpl<L, R>::apply(l, r);
-
-                            auto data_col = DB::ColumnVector<T>::create(1, v);
-                            auto null_map_col = DB::ColumnVector<UInt8>::create(1, !r);
-                            result = DB::ColumnConst::create(
-                                DB::ColumnNullable::create(std::move(data_col), std::move(null_map_col)), input_rows_count);
-                            return true;
-                        }
-
-                        auto res_col = DB::ColumnVector<T>::create(input_rows_count, 0);
+                        auto res_values = DB::ColumnVector<T>::create(input_rows_count, 0);
                         auto res_null_map = DB::ColumnVector<UInt8>::create(input_rows_count, 0);
-                        DB::PaddedPODArray<T> & res_data = res_col->getData();
+                        DB::PaddedPODArray<T> & res_data = res_values->getData();
                         DB::PaddedPODArray<UInt8> & res_null_map_data = res_null_map->getData();
+                        for (size_t i = 0; i < input_rows_count; ++i)
+                        {
+                            L l = col_left ? col_left->getElement(i) : left_const_val;
+                            R r = col_right ? col_right->getElement(i) : right_const_val;
 
-                        if (col_left && col_right)
-                        {
-                            for (size_t i = 0; i < input_rows_count; ++i)
-                            {
-                                L l = col_left->getData()[i];
-                                R r = col_right->getData()[i];
-                                res_null_map_data[i] = !r;
-                                res_data[i] = SparkDivideFloatingImpl<L, R>::apply(l, r ? r : 1);
-                            }
-                        }
-                        else if (col_left)
-                        {
-                            R r = right_const_val;
-                            for (size_t i = 0; i < input_rows_count; ++i)
-                            {
-                                L l = col_left->getData()[i];
-                                res_null_map_data[i] = 0; /// r = 0 is already processed in fast path
+                            /// TODO(taiyang-li): try to vectorize it
+                            if (r == 0)
+                                res_null_map_data[i] = 1;
+                            else
                                 res_data[i] = SparkDivideFloatingImpl<L, R>::apply(l, r);
-                            }
-                        }
-                        else if (col_right)
-                        {
-                            L l = left_const_val;
-                            for (size_t i = 0; i < input_rows_count; ++i)
-                            {
-                                R r = col_right->getData()[i];
-                                res_null_map_data[i] = !r;
-                                res_data[i] = SparkDivideFloatingImpl<L, R>::apply(l, r ? r : 1);
-                            }
                         }
 
-                        result = DB::ColumnNullable::create(std::move(res_col), std::move(res_null_map));
+                        result = DB::ColumnNullable::create(std::move(res_values), std::move(res_null_map));
                         return true;
                     });
             });

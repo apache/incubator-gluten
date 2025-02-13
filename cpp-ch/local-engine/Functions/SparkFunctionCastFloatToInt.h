@@ -97,13 +97,16 @@ public:
     void executeInternal(const DB::ColumnPtr & src, DB::PaddedPODArray<T> & data, DB::PaddedPODArray<UInt8> & null_map_data) const
     {
         const DB::ColumnVector<F> * src_vec = assert_cast<const DB::ColumnVector<F> *>(src.get());
-        const auto & src_data = src_vec->getData();
-        size_t rows = src_vec->size();
 
+        size_t rows = src_vec->size();
+        const auto & src_data = src_vec->getData();
+
+        const auto int_min = static_cast<F>(std::numeric_limits<T>::min());
+        const auto int_max = static_cast<F>(std::numeric_limits<T>::max());
         for (size_t i = 0; i < rows; ++i)
         {
             null_map_data[i] = !isFinite(src_data[i]);
-            data[i] = static_cast<T>(src_data[i]);
+            data[i] = static_cast<T>(std::fmax(int_min, std::fmin(int_max, src_data[i])));
         }
     }
 
