@@ -16,12 +16,12 @@
  */
 
 #pragma once
-#include "testConfig.h"
 
 #include <string>
 #include <Core/Block.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
+#include <tests/testConfig.h>
 
 #include <Interpreters/ActionsDAG.h>
 #include <boost/algorithm/string/replace.hpp>

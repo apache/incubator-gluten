@@ -29,7 +29,7 @@
 #include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
 #include <substrait/plan.pb.h>
-#include <tests/gluten_test_util.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>

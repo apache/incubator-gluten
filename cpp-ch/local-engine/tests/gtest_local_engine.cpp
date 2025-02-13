@@ -16,7 +16,6 @@
  */
 #include <fstream>
 #include <iostream>
-#include <gluten_test_util.h>
 #include <incbin.h>
 #include <Disks/DiskLocal.h>
 #include <Formats/FormatFactory.h>
@@ -29,6 +28,7 @@
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <gtest/gtest.h>
+#include <tests/utils/gluten_test_util.h>
 #include <config.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
