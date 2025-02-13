@@ -34,8 +34,6 @@ ENABLE_BENCHMARK=OFF
 ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
-# Set to ON for machines have AVX-512 instruction.
-SIMDJSON_AVX512_ALLOWED=OFF
 # Number of threads to use for building.
 NUM_THREADS=""
 
@@ -82,10 +80,6 @@ for arg in "$@"; do
     ENABLE_BENCHMARK=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --simdjson_avx512_allowed=*)
-    SIMDJSON_AVX512_ALLOWED=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
   --num_threads=*)
     NUM_THREADS=("${arg#*=}")
     shift # Remove argument name from processing
@@ -130,7 +124,10 @@ function compile {
   if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
   fi
-  if [ $SIMDJSON_AVX512_ALLOWED == "OFF" ]; then
+  CPU_CAPABILITIES=$(cat /proc/cpuinfo | grep flags | head -n 1| awk '{print tolower($0)}')
+  # Set to OFF for machines don't have AVX-512 instruction set,
+  # which is used to compile simdjson, the default value is 'ON'.
+  if [[ "$CPU_CAPABILITIES" != *"avx512"* ]]; then
       COMPILE_OPTION="$COMPILE_OPTION -DSIMDJSON_AVX512_ALLOWED=OFF"
   fi
 
