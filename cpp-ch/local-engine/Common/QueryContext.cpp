@@ -91,7 +91,8 @@ int64_t QueryContext::initializeQuery(const String & task_id, std::string_view s
     query_context->query_context = Context::createCopy(globalContext());
     // ThreadGroup has dependency on context settings, we must setup the settings before the thread
     // group is created.
-    // SparkConfigs::updateConfig(query_context->query_context, serialized_config);
+    LOG_ERROR(getLogger("QueryContext"), "xxxx initializeQuery");
+    SparkConfigs::updateConfig(query_context->query_context, serialized_config);
     query_context->query_context->makeQueryContext();
     query_context->task_id = task_id;
 

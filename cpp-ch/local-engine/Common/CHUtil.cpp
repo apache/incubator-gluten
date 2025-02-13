@@ -703,8 +703,8 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
         else if (key == SPARK_SESSION_TIME_ZONE)
         {
             String time_zone_val = DateTimeUtil::convertTimeZone(value);
+            LOG_ERROR(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", time_zone_val);
             settings.set("session_timezone", time_zone_val);
-            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", time_zone_val);
         }
         else if (key == DECIMAL_OPERATIONS_ALLOW_PREC_LOSS)
         {
