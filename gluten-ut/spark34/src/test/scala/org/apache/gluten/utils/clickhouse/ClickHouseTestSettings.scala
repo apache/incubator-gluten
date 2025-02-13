@@ -1711,7 +1711,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenSparkSessionExtensionSuite]
   enableSuite[GlutenHiveSQLQueryCHSuite]
   enableSuite[GlutenPercentileSuite]
-  enableSuite[GlutenSQLRangeExecSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

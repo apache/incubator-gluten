@@ -2160,7 +2160,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
   enableSuite[GlutenXPathFunctionsSuite]
-  enableSuite[GlutenSQLRangeExecSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

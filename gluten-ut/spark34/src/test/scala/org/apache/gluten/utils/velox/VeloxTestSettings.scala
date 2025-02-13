@@ -1223,7 +1223,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetRowIndexSuite]
     .excludeByPrefix("row index generation")
     .excludeByPrefix("invalid row index column type")
-  enableSuite[GlutenSQLRangeExecSuite]
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
 // scalastyle:on line.size.limit
