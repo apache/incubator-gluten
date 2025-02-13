@@ -17,9 +17,8 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.ColumnarRangeBaseExec
-
-import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.functions.sum
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row}
 
 class GlutenSQLRangeExecSuite extends GlutenSQLTestsTrait {
 
