@@ -99,7 +99,6 @@ int64_t QueryContext::initializeQuery(const String & task_id)
     // Notice:
     // this generated random query id a qualified global queryid for the spark query
     query_context->query_context->setCurrentQueryId(toString(UUIDHelpers::generateV4()) + "_" + task_id);
-    query_context->query_context->setSetting("enable_adaptive_memory_spill_scheduler", true);
     auto config = MemoryConfig::loadFromContext(query_context->query_context);
     query_context->thread_status = std::make_shared<ThreadStatus>(false);
     query_context->thread_group = std::make_shared<ThreadGroup>(query_context->query_context);

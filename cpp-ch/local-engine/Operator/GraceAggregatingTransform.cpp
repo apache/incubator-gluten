@@ -479,6 +479,7 @@ void GraceAggregatingTransform::mergeOneBlock(const DB::Block & block, bool is_o
     {
         rehashDataVariants();
     }
+    // reset the flag
     force_spill = false;
 
     LOG_DEBUG(
