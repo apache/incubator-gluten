@@ -80,6 +80,11 @@ static ColumnPtr createColumn(const DataTypePtr & type, size_t rows)
             double d = i * 1.0;
             column->insert(d);
         }
+        else if (isDecimal(type_not_nullable))
+        {
+            Decimal128 d = Decimal128(i * i);
+            column->insert(d);
+        }
         else if (isString(type_not_nullable))
         {
             String s = "helloworld";
@@ -164,7 +169,7 @@ BENCHMARK(BM_CHFloorFunction_For_Float64);
 BENCHMARK(BM_SparkFloorFunction_For_Int64);
 BENCHMARK(BM_SparkFloorFunction_For_Float64);
 
-static void BM_SparkDivide_VectorVector(benchmark::State & state)
+static void BM_OptSparkDivide_VectorVector(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
@@ -181,7 +186,7 @@ static void BM_SparkDivide_VectorVector(benchmark::State & state)
     }
 }
 
-static void BM_SparkDivide_VectorConstant(benchmark::State & state)
+static void BM_OptSparkDivide_VectorConstant(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
@@ -199,7 +204,7 @@ static void BM_SparkDivide_VectorConstant(benchmark::State & state)
     }
 }
 
-static void BM_SparkDivide_ConstantVector(benchmark::State & state)
+static void BM_OptSparkDivide_ConstantVector(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
@@ -217,9 +222,77 @@ static void BM_SparkDivide_ConstantVector(benchmark::State & state)
     }
 }
 
-BENCHMARK(BM_SparkDivide_VectorVector);
-BENCHMARK(BM_SparkDivide_VectorConstant);
-BENCHMARK(BM_SparkDivide_ConstantVector);
+BENCHMARK(BM_OptSparkDivide_VectorVector);
+BENCHMARK(BM_OptSparkDivide_VectorConstant);
+BENCHMARK(BM_OptSparkDivide_ConstantVector);
+
+static void BM_OptSparkCastFloatToInt(benchmark::State & state)
+{
+    using namespace DB;
+    auto & factory = FunctionFactory::instance();
+    auto function = factory.get("sparkCastFloatToInt32", local_engine::QueryContext::globalContext());
+    auto type = DataTypeFactory::instance().get("Nullable(Float64)");
+    auto input = createColumn(type, 65536);
+    auto block = Block({ColumnWithTypeAndName(std::move(input), type, "input")});
+    auto executable = function->build(block.getColumnsWithTypeAndName());
+    for (auto _ : state)
+    {
+        auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows(), false);
+        benchmark::DoNotOptimize(result);
+    }
+}
+
+BENCHMARK(BM_OptSparkCastFloatToInt);
+
+static void BM_OptCheckDecimalOverflowSparkOrNull1(benchmark::State & state)
+{
+    using namespace DB;
+    auto & factory = FunctionFactory::instance();
+    auto function = factory.get("checkDecimalOverflowSparkOrNull", local_engine::QueryContext::globalContext());
+    auto type = DataTypeFactory::instance().get("Nullable(Decimal128(10))");
+
+    auto input = createColumn(type, 65536);
+    auto precision = ColumnConst::create(ColumnUInt32::create(1, 38), 65536);
+    auto scale = ColumnConst::create(ColumnUInt32::create(1, 5), 65536);
+
+    auto block = Block(
+        {ColumnWithTypeAndName(std::move(input), type, "input"),
+         ColumnWithTypeAndName(std::move(precision), std::make_shared<DataTypeUInt32>(), "precision"),
+         ColumnWithTypeAndName(std::move(scale), std::make_shared<DataTypeUInt32>(), "scale")});
+    auto executable = function->build(block.getColumnsWithTypeAndName());
+    for (auto _ : state)
+    {
+        auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows(), false);
+        benchmark::DoNotOptimize(result);
+    }
+}
+
+static void BM_OptCheckDecimalOverflowSparkOrNull2(benchmark::State & state)
+{
+    using namespace DB;
+    auto & factory = FunctionFactory::instance();
+    auto function = factory.get("checkDecimalOverflowSparkOrNull", local_engine::QueryContext::globalContext());
+    auto type = DataTypeFactory::instance().get("Nullable(Decimal128(10))");
+
+    auto input = createColumn(type, 65536);
+    auto precision = ColumnConst::create(ColumnUInt32::create(1, 38), 65536);
+    auto scale = ColumnConst::create(ColumnUInt32::create(1, 15), 65536);
+
+    auto block = Block(
+        {ColumnWithTypeAndName(std::move(input), type, "input"),
+         ColumnWithTypeAndName(std::move(precision), std::make_shared<DataTypeUInt32>(), "precision"),
+         ColumnWithTypeAndName(std::move(scale), std::make_shared<DataTypeUInt32>(), "scale")});
+    auto executable = function->build(block.getColumnsWithTypeAndName());
+    for (auto _ : state)
+    {
+        auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows(), false);
+        benchmark::DoNotOptimize(result);
+    }
+}
+
+BENCHMARK(BM_OptCheckDecimalOverflowSparkOrNull1);
+BENCHMARK(BM_OptCheckDecimalOverflowSparkOrNull2);
+
 
 static void nanInfToNullAutoOpt(float * data, uint8_t * null_map, size_t size)
 {
