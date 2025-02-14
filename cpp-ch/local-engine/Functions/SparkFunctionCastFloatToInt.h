@@ -143,14 +143,6 @@ public:
         const auto & src_data = src_vec->getData();
         const auto int_min = static_cast<F>(std::numeric_limits<T>::min());
         const auto int_max = static_cast<F>(std::numeric_limits<T>::max());
-
-        /*
-        for (size_t i = 0; i < rows; ++i)
-        {
-            null_map_data[i] = !isFinite(src_data[i]);
-            data[i] = static_cast<T>(std::fmax(int_min, std::fmin(int_max, src_data[i])));
-        }
-        */
         vector(int_min, int_max, src_data, data, null_map_data, rows);
     }
 
