@@ -32,7 +32,7 @@
 #include <benchmark/benchmark.h>
 #include <Common/QueryContext.h>
 #include <Common/TargetSpecific.h>
-#include "DataTypes/DataTypeNullable.h"
+#include <DataTypes/DataTypeNullable.h>
 
 #if USE_MULTITARGET_CODE
 #include <immintrin.h>

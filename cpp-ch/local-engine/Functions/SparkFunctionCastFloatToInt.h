@@ -60,19 +60,16 @@ public:
         if (arguments.size() != 1)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1", name);
 
+        if (!isFloat(removeNullable(arguments[0])))
+            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s 1st argument must be float type", name);
+
         return makeNullable(std::make_shared<const DB::DataTypeNumber<T>>());
     }
 
-    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
+    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t input_rows_count) const override
     {
-        if (arguments.size() != 1)
-            throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1", name);
-
-        if (!isFloat(removeNullable(arguments[0].type)))
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s 1st argument must be float type", name);
-
         DB::ColumnPtr src_col = arguments[0].column;
-        size_t size = src_col->size();
+        size_t size = input_rows_count;
 
         auto res_col = DB::ColumnVector<T>::create(size, 0);
         auto null_map_col = DB::ColumnUInt8::create(size, 0);
@@ -93,6 +90,50 @@ public:
         return DB::ColumnNullable::create(std::move(res_col), std::move(null_map_col));
     }
 
+    MULTITARGET_FUNCTION_AVX2_SSE42(
+        MULTITARGET_FUNCTION_HEADER(template <typename F> static void NO_SANITIZE_UNDEFINED NO_INLINE),
+        vectorImpl,
+        MULTITARGET_FUNCTION_BODY(
+            (F int_min,
+             F int_max,
+             const DB::PaddedPODArray<F> & src_data,
+             DB::PaddedPODArray<T> & data,
+             DB::PaddedPODArray<UInt8> & null_map_data,
+             size_t rows) /// NOLINT
+            {
+                for (size_t i = 0; i < rows; ++i)
+                {
+                    null_map_data[i] = !isFinite(src_data[i]);
+                    data[i] = static_cast<T>(std::fmax(int_min, std::fmin(int_max, src_data[i])));
+                }
+            }))
+
+    template <typename F>
+    static void NO_INLINE vector(
+        F int_min,
+        F int_max,
+        const DB::PaddedPODArray<F> & src_data,
+        DB::PaddedPODArray<T> & data,
+        DB::PaddedPODArray<UInt8> & null_map_data,
+        size_t rows)
+    {
+#if USE_MULTITARGET_CODE
+        if (isArchSupported(DB::TargetArch::AVX2))
+        {
+            vectorImplAVX2(int_min, int_max, src_data, data, null_map_data, rows);
+            return;
+        }
+
+        if (isArchSupported(DB::TargetArch::SSE42))
+        {
+            vectorImplSSE42(int_min, int_max, src_data, data, null_map_data, rows);
+            return;
+        }
+#endif
+
+        vectorImpl(int_min, int_max, src_data, data, null_map_data, rows);
+    }
+
     template <typename F>
     void executeInternal(const DB::ColumnPtr & src, DB::PaddedPODArray<T> & data, DB::PaddedPODArray<UInt8> & null_map_data) const
     {
@@ -100,14 +141,17 @@ public:
 
         size_t rows = src_vec->size();
         const auto & src_data = src_vec->getData();
-
         const auto int_min = static_cast<F>(std::numeric_limits<T>::min());
         const auto int_max = static_cast<F>(std::numeric_limits<T>::max());
+
+        /*
         for (size_t i = 0; i < rows; ++i)
         {
             null_map_data[i] = !isFinite(src_data[i]);
             data[i] = static_cast<T>(std::fmax(int_min, std::fmin(int_max, src_data[i])));
         }
+        */
+        vector(int_min, int_max, src_data, data, null_map_data, rows);
     }
 
 #if USE_EMBEDDED_COMPILER
@@ -121,6 +165,7 @@ public:
 
         return true;
     }
+
 
     llvm::Value *
     compileImpl(llvm::IRBuilderBase & builder, const DB::ValuesWithType & arguments, const DB::DataTypePtr & result_type) const override
