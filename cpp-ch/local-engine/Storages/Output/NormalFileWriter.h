@@ -48,10 +48,12 @@ public:
     NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_);
     ~NormalFileWriter() override = default;
 
-    void write(DB::Block & block) override;
+    void write(const DB::Block & block) override;
     void close() override;
 
 private:
+    DB::Block castBlock(const DB::Block & block) const;
+
     OutputFormatFilePtr file;
     DB::ContextPtr context;
 
@@ -385,7 +387,8 @@ protected:
     }
     void onCancel() noexcept override
     {
-        if (output_format_) {
+        if (output_format_)
+        {
             output_format_->cancel();
             output_format_.reset();
         }
