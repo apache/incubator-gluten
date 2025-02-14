@@ -166,7 +166,7 @@ public:
 private:
     template <typename FromDataType, typename ToDataType>
     requires(IsDataTypeDecimal<ToDataType> && (IsDataTypeDecimal<FromDataType> || IsDataTypeNumber<FromDataType>))
-    static NO_INLINE void
+    static void
     executeInternal(const FromDataType::ColumnType & src_col, ColumnPtr & dst_col, size_t rows, UInt32 to_precision, UInt32 to_scale)
     {
         using ToFieldType = typename ToDataType::FieldType;
@@ -181,15 +181,13 @@ private:
         using MaxNativeType = typename MaxFieldType::NativeType;
 
         /// Calculate const parameters for decimal conversion outside the loop to avoid unnecessary calculations.
-        ToNativeType whole_part_max = 0;
         ScaleDirection scale_direction;
-        MaxNativeType scale_multiplier = 0;
-        MaxNativeType pow10_to_precision = 0;
         UInt32 from_scale = 0;
+        MaxNativeType scale_multiplier = 0;
+        MaxNativeType pow10_to_precision = DecimalUtils::scaleMultiplier<MaxNativeType>(to_precision);
         if constexpr (IsDataTypeDecimal<FromDataType>)
         {
             from_scale = src_col.getScale();
-            pow10_to_precision = DecimalUtils::scaleMultiplier<MaxNativeType>(to_precision);
             if (to_scale > from_scale)
             {
                 scale_direction = ScaleDirection::Up;
@@ -208,7 +206,7 @@ private:
         }
         else
         {
-            whole_part_max = DecimalUtils::scaleMultiplier<ToNativeType>(to_precision - to_scale) - 1;
+            scale_multiplier = DecimalUtils::scaleMultiplier<MaxNativeType>(to_scale);
         }
 
         auto & src_data = src_col.getData();
@@ -237,13 +235,14 @@ private:
         {
             for (size_t i = 0; i < rows; ++i)
                 res_nullmap_data[i]
-                    = !convertNumberToDecimalImpl<FromDataType, ToDataType>(src_data[i], to_scale, whole_part_max, res_data[i]);
+                    = !convertNumberToDecimalImpl<FromDataType, ToDataType>(src_data[i], scale_multiplier, pow10_to_precision, res_data[i]);
         }
 
         if constexpr (exception_mode == CheckExceptionMode::Throw)
         {
             if (!memoryIsZero(res_nullmap_data.data(), 0, rows))
                 throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "Decimal value is overflow.");
+
             dst_col = std::move(res_data_col);
         }
         else
@@ -254,16 +253,32 @@ private:
     requires(IsDataTypeNumber<FromDataType> && IsDataTypeDecimal<ToDataType>)
     static ALWAYS_INLINE bool convertNumberToDecimalImpl(
         const typename FromDataType::FieldType & from,
-        UInt32 to_scale,
-        typename ToDataType::FieldType::NativeType whole_part_max,
+        const typename ToDataType::FieldType::NativeType & scale_multiplier,
+        const typename ToDataType::FieldType::NativeType & pow10_to_precision,
         typename ToDataType::FieldType & to)
     {
         using FromFieldType = typename FromDataType::FieldType;
         using ToNativeType = typename ToDataType::FieldType::NativeType;
 
-        ToNativeType whole_part = static_cast<ToNativeType>(from);
-        return whole_part >= -whole_part_max && whole_part <= whole_part_max
-            && tryConvertToDecimal<FromDataType, ToDataType>(from, to_scale, to);
+        bool ok = false;
+        if constexpr (std::is_floating_point_v<FromFieldType>)
+        {
+            /// float to decimal
+            auto converted = from * static_cast<FromFieldType>(scale_multiplier);
+            auto float_pow10_to_precision = static_cast<FromFieldType>(pow10_to_precision);
+            ok = !isFinite(from) && converted < float_pow10_to_precision && converted > -float_pow10_to_precision;
+            to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
+        }
+        else
+        {
+            /// signed integer to decimal
+            using MaxNativeType = std::conditional_t<(sizeof(FromFieldType) > sizeof(ToNativeType)), FromFieldType, ToNativeType>;
+
+            auto converted = static_cast<MaxNativeType>(from) * static_cast<MaxNativeType>(scale_multiplier);
+            ok = converted < pow10_to_precision && converted > -pow10_to_precision;
+            to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
+        }
+        return ok;
     }
 
     template <ScaleDirection scale_direction, typename FromDataType, typename ToDataType, typename MaxNativeType>
@@ -283,17 +298,17 @@ private:
         if constexpr (scale_direction == ScaleDirection::Up)
         {
             ok = !common::mulOverflow(static_cast<MaxNativeType>(from.value), scale_multiplier, converted)
-                && converted <= pow10_to_precision && converted >= -pow10_to_precision;
+                && converted < pow10_to_precision && converted > -pow10_to_precision;
         }
         else if constexpr (scale_direction == ScaleDirection::None)
         {
             converted = from.value;
-            ok = converted <= pow10_to_precision && converted >= -pow10_to_precision;
+            ok = converted < pow10_to_precision && converted > -pow10_to_precision;
         }
         else
         {
             converted = from.value / scale_multiplier;
-            ok = converted <= pow10_to_precision && converted >= -pow10_to_precision;
+            ok = converted < pow10_to_precision && converted > -pow10_to_precision;
         }
 
         to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
