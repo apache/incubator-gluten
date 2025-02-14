@@ -290,9 +290,32 @@ static void BM_OptCheckDecimalOverflowSparkOrNull2(benchmark::State & state)
     }
 }
 
+
+static void BM_OptCheckDecimalOverflowSparkOrNull3(benchmark::State & state)
+{
+    using namespace DB;
+    auto & factory = FunctionFactory::instance();
+    auto function = factory.get("checkDecimalOverflowSparkOrNull", local_engine::QueryContext::globalContext());
+    auto type = DataTypeFactory::instance().get("Nullable(Decimal(38, 10))");
+
+    auto input = createColumn(type, 65536);
+    auto precision = ColumnConst::create(ColumnUInt32::create(1, 38), 65536);
+    auto scale = ColumnConst::create(ColumnUInt32::create(1, 10), 65536);
+
+    auto block = Block(
+        {ColumnWithTypeAndName(std::move(input), type, "input"),
+         ColumnWithTypeAndName(std::move(precision), std::make_shared<DataTypeUInt32>(), "precision"),
+         ColumnWithTypeAndName(std::move(scale), std::make_shared<DataTypeUInt32>(), "scale")});
+    auto executable = function->build(block.getColumnsWithTypeAndName());
+    for (auto _ : state)
+    {
+        auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows(), false);
+        benchmark::DoNotOptimize(result);
+    }
+}
+
 BENCHMARK(BM_OptCheckDecimalOverflowSparkOrNull1);
 BENCHMARK(BM_OptCheckDecimalOverflowSparkOrNull2);
-
 
 static void nanInfToNullAutoOpt(float * data, uint8_t * null_map, size_t size)
 {

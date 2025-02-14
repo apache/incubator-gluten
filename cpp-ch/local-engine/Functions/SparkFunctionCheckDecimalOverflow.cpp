@@ -125,6 +125,19 @@ public:
             if constexpr (IsDataTypeDecimal<FromDataType> || IsDataTypeNumber<FromDataType>)
             {
                 using FromFieldType = typename FromDataType::FieldType;
+
+                /// Fast path
+                if constexpr (IsDataTypeDecimal<FromDataType>)
+                {
+                    auto from_precision = getDecimalPrecision(*src_col.type);
+                    auto from_scale = getDecimalScale(*src_col.type);
+                    if (from_precision == to_precision && from_scale == to_scale)
+                    {
+                        dst_col = src_col.column;
+                        return true;
+                    }
+                }
+
                 if (const ColumnVectorOrDecimal<FromFieldType> * col_vec = checkAndGetColumn<ColumnVectorOrDecimal<FromFieldType>>(src_col.column.get()))
                 {
                     executeInternal<FromDataType, ToDataType>(*col_vec, dst_col, input_rows_count, to_precision, to_scale);
@@ -153,7 +166,7 @@ public:
 private:
     template <typename FromDataType, typename ToDataType>
     requires(IsDataTypeDecimal<ToDataType> && (IsDataTypeDecimal<FromDataType> || IsDataTypeNumber<FromDataType>))
-    static void
+    static NO_INLINE void
     executeInternal(const FromDataType::ColumnType & src_col, ColumnPtr & dst_col, size_t rows, UInt32 to_precision, UInt32 to_scale)
     {
         using ToFieldType = typename ToDataType::FieldType;
@@ -239,7 +252,7 @@ private:
 
     template <typename FromDataType, typename ToDataType>
     requires(IsDataTypeNumber<FromDataType> && IsDataTypeDecimal<ToDataType>)
-    static bool convertNumberToDecimalImpl(
+    static ALWAYS_INLINE bool convertNumberToDecimalImpl(
         const typename FromDataType::FieldType & from,
         UInt32 to_scale,
         typename ToDataType::FieldType::NativeType whole_part_max,
@@ -283,7 +296,7 @@ private:
             ok = converted <= pow10_to_precision && converted >= -pow10_to_precision;
         }
 
-        to = static_cast<ToNativeType>(converted);
+        to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
         return ok;
     }
 };
