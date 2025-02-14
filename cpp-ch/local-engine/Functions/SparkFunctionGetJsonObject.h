@@ -739,27 +739,41 @@ private:
     {
         if (generator_json_paths.size() > 1)
         {
+            /// If json_paths vector size is greator than 1, means it should has a nested calls, and the paths in the vector
+            /// represents the nested paths in order, so we will pass the path in order and recursively retrieve the result
+            /// from the parsed json.
+            bool result_finished = false;
             size_t json_path_pos = 0;
             typename JSONParser::Element root = document;
-            if (!impl.insertResultToColumn(*res[column_index], root, generator_json_paths, json_path_pos))
+            while (!result_finished)
             {
-                if (root.isString())
+                result_finished = impl.insertResultToColumn(*res[column_index], root, generator_json_paths, json_path_pos);
+                if (!result_finished)
                 {
-                    typename JSONParser::Element t;
-                    bool parsed = safeParseJson(root.getString(), parser, t);
-                    if (!parsed)
-                        res[column_index]->insertDefault();
-                    else if(!impl.insertResultToColumn(*res[column_index], t, generator_json_paths, json_path_pos))
+                    if (root.isString())
+                    {
+                        typename JSONParser::Element t;
+                        bool parsed = safeParseJson(root.getString(), parser, t);
+                        if (!parsed)
+                        {
+                            res[column_index]->insertDefault();
+                            result_finished = true;
+                        }
+                        else
+                            root = t;
+                    }
+                    else
                     {
                         res[column_index]->insertDefault();
+                        result_finished = true;
                     }
                 }
-                else
-                    res[column_index]->insertDefault();
             }
         }
-        else 
+        else
         {
+            /// If json_paths vector size is 1, means it should has no nested calls, and the extactly one path in the vector
+            /// represents the get_json_object function's path, so we can simply get the result from the parsed json by the path.
             generator_json_paths[0]->reinitialize();
             if (!impl.insertResultToColumn(*res[column_index], document, *generator_json_paths[0], path_has_asterisk))
             {
@@ -797,10 +811,9 @@ private:
                 std::vector<DB::ASTPtr> sub_json_path_asts;
                 for (const auto & sub_field : sub_tokenizer)
                 {
-                    auto normalized_sub_field = JSONPathNormalizer::normalize(sub_field);
-                    sub_required_fields.push_back(normalized_sub_field);
-                    const char * query_begin = reinterpret_cast<const char *>(normalized_sub_field.c_str());
-                    const char * query_end = normalized_sub_field.c_str() + normalized_sub_field.size();
+                    sub_required_fields.push_back(sub_field);
+                    const char * query_begin = reinterpret_cast<const char *>(sub_field.c_str());
+                    const char * query_end = sub_field.c_str() + sub_field.size();
                     DB::Tokens tokens(query_begin, query_end);
                     UInt32 max_parser_depth = static_cast<UInt32>(context->getSettingsRef()[DB::Setting::max_parser_depth]);
                     UInt32 max_parser_backtracks = static_cast<UInt32>(context->getSettingsRef()[DB::Setting::max_parser_backtracks]);
@@ -863,6 +876,10 @@ private:
         }
 
         size_t tuple_size = tuple_columns.size();
+        /// Json_paths has 2 layer vectors. The first layer is used for optimization of mutiple get_json_object calls, and the second layer is used for optimization
+        /// of nested get_json_object calls.
+        /// Consider about `get_json_object(d, '$.a'), get_json_object(get_json_object(d, '$.b'), '$.c')`, which is mixed of the two optimization suitations above.
+        /// Here the json_paths will be set to ($.a, ($.b, $.c)).
         std::vector<std::vector<std::shared_ptr<DB::GeneratorJSONPath<JSONParser>>>> generator_json_paths;
         for (const auto & sub_json_path_asts : json_path_asts)
         {
