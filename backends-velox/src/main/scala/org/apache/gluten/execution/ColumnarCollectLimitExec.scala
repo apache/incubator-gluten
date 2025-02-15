@@ -85,7 +85,7 @@ case class ColumnarCollectLimitExec(
           rowsCollected += currentBatchRowCount
           nextBatch = Some(currentBatch)
         } else {
-          val prunedBatch = VeloxColumnarBatches.sliceBatch(currentBatch, remaining)
+          val prunedBatch = VeloxColumnarBatches.slice(currentBatch, remaining)
           rowsCollected += remaining
           nextBatch = Some(prunedBatch)
         }
