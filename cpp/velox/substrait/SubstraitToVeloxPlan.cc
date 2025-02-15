@@ -675,8 +675,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
   }
 
-  // Do not hard-code connector ID and allow for connectors other than Hive.
-  static const std::string kHiveConnectorId = "test-hive";
   // Currently only support parquet format.
   dwio::common::FileFormat fileFormat = dwio::common::FileFormat::PARQUET;
 
@@ -1280,9 +1278,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema, asLowerCase);
     SubstraitParser::parseColumnTypes(baseSchema, columnTypes);
   }
-
-  // Do not hard-code connector ID and allow for connectors other than Hive.
-  static const std::string kHiveConnectorId = "test-hive";
 
   // Velox requires Filter Pushdown must being enabled.
   bool filterPushdownEnabled = true;
