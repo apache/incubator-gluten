@@ -64,8 +64,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
     super.afterAll()
   }
 
-  // FIXME: Iceberg should be upgraded to 1.7.2
-  ignore("iceberg transformer exists") {
+  test("iceberg transformer exists") {
     runQueryAndCompare("""
                          |SELECT
                          |  l_orderkey,
