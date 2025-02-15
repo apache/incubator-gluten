@@ -169,23 +169,34 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   }
 
   def validateJoinTypeAndBuildSide(): ValidationResult = {
+    logInfo(s"Validating joinType: $joinType, buildSide: $buildSide")
     val result = joinType match {
-      case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
-      case ExistenceJoin(_) => ValidationResult.succeeded
+      case _: InnerLike | LeftOuter | RightOuter =>
+        val backendValidation = backendSpecificJoinValidation()
+        logInfo(s"Backend-specific validation result: ${backendValidation.getOrElse("Succeeded")}")
+        backendValidation.getOrElse(ValidationResult.succeeded)
       case _ =>
+        logInfo(s"Validation failed: $joinType join is not supported with BroadcastNestedLoopJoin")
         ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
 
     if (!result.ok()) {
+      logInfo(s"Validation failed: 104")
       return result
     }
 
+    logInfo("validation passed, checking joinType and buildSide compatibility.")
     (joinType, buildSide) match {
-      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) =>
+      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) | (ExistenceJoin(_), BuildLeft) =>
+        logInfo(s"Validation failed: $joinType join is not supported with $buildSide")
         ValidationResult.failed(s"$joinType join is not supported with $buildSide")
-      case _ => ValidationResult.succeeded // continue
+      case _ =>
+        logInfo("Validation succeeded")
+        ValidationResult.succeeded // continue
     }
   }
+
+  protected def backendSpecificJoinValidation(): Option[ValidationResult] = None
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!GlutenConfig.get.broadcastNestedLoopJoinTransformerTransformerEnabled) {
