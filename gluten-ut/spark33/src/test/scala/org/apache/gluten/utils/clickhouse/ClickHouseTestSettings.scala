@@ -243,7 +243,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .exclude("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
     .exclude("describe")
-    .exclude("SPARK-34165: Add count_distinct to summary")
     .exclude("getRows: array")
     .exclude("showString: array")
     .exclude("showString: array, vertical = true")
@@ -264,11 +263,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-24165: CaseWhen/If - nullability of nested types")
     .exclude("SPARK-27671: Fix analysis exception when casting null in nested field in struct")
     .exclude("summary")
+    .exclude(
+      "SPARK-27439: Explain result should match collected result after view change - re-write")
     .excludeGlutenTest("distributeBy and localSort")
     .excludeGlutenTest("describe")
     .excludeGlutenTest("Allow leading/trailing whitespace in string before casting")
-    .excludeGlutenTest(
-      "SPARK-27439: Explain result should match collected result after view change - re-write")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
     .exclude("simple tumbling window with record at window start")
     .exclude("SPARK-21590: tumbling window using negative start time")
