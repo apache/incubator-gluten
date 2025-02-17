@@ -38,7 +38,6 @@ class GlutenSQLRangeExecSuite extends GlutenQueryTest with SharedSparkSession {
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
         .set("spark.gluten.sql.enable.native.validation", "false")
-        .set(GlutenConfig.GLUTEN_LIB_PATH.key, "/usr/local/clickhouse/lib/libch.so")
     }
     conf
   }
