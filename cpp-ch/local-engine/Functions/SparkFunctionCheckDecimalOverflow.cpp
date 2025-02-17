@@ -266,7 +266,7 @@ private:
             /// float to decimal
             auto converted = from * static_cast<FromFieldType>(scale_multiplier);
             auto float_pow10_to_precision = static_cast<FromFieldType>(pow10_to_precision);
-            ok = !isFinite(from) && converted < float_pow10_to_precision && converted > -float_pow10_to_precision;
+            ok = isFinite(from) && converted < float_pow10_to_precision && converted > -float_pow10_to_precision;
             to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
         }
         else
