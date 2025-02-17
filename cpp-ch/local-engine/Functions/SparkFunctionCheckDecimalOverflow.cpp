@@ -16,7 +16,6 @@
  */
 #include "SparkFunctionCheckDecimalOverflow.h"
 
-#include <typeinfo>
 #include <Columns/ColumnDecimal.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
@@ -28,6 +27,7 @@
 #include <Functions/FunctionHelpers.h>
 #include <Functions/IFunction.h>
 #include "Columns/ColumnsCommon.h"
+#include <iostream>
 
 namespace DB
 {
@@ -274,8 +274,9 @@ private:
             /// signed integer to decimal
             using MaxNativeType = std::conditional_t<(sizeof(FromFieldType) > sizeof(ToNativeType)), FromFieldType, ToNativeType>;
 
-            auto converted = static_cast<MaxNativeType>(from) * static_cast<MaxNativeType>(scale_multiplier);
-            ok = converted < pow10_to_precision && converted > -pow10_to_precision;
+            MaxNativeType converted = 0;
+            ok = !common::mulOverflow(static_cast<MaxNativeType>(from), static_cast<MaxNativeType>(scale_multiplier), converted) && converted < pow10_to_precision
+                && converted > -pow10_to_precision;
             to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
         }
         return ok;
