@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.ColumnarPartialProjectExec
-import org.apache.gluten.test.udf.CustomerUDF
+import org.apache.gluten.udf.CustomerUDF
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
