@@ -1023,4 +1023,25 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       compareResultsAgainstVanillaSpark(sql, true, { _ => })
     }
   }
+
+  test("Test approx_count_distinct") {
+    val sql = "select approx_count_distinct(id, 0.001), approx_count_distinct(id, 0.01), " +
+      "approx_count_distinct(id, 0.1) from range(1000)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-8723 fix slice unexpected exception") {
+    val create_sql = "create table t_8723 (full_user_agent string) using orc"
+    val insert_sql = "insert into t_8723 values(NULL)"
+    val select1_sql = "select " +
+      "slice(split(full_user_agent, ';'), 2, size(split(full_user_agent, ';'))) from t_8723"
+    val select2_sql = "select slice(split(full_user_agent, ';'), 0, 2) from t_8723"
+    val drop_sql = "drop table t_8723"
+
+    spark.sql(create_sql)
+    spark.sql(insert_sql)
+    compareResultsAgainstVanillaSpark(select1_sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(select2_sql, true, { _ => })
+    spark.sql(drop_sql)
+  }
 }
