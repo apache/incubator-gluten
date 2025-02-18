@@ -28,6 +28,7 @@ import org.apache.spark.sql.types.StringType;
 class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
+      .set("spark.memory.offHeap.size", "200M")
       .set("spark.memory.offHeap.enabled", "true")
   }
 
