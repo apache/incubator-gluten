@@ -702,4 +702,5 @@ trait SparkPlanExecApi {
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec
+  def collapsedExpressionSupported(expr: ScalaUDF): Boolean = false
 }

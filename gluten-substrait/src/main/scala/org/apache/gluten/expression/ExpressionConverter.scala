@@ -160,7 +160,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     expr match {
       case p: PythonUDF =>
         return replacePythonUDFWithExpressionTransformer(p, attributeSeq, expressionsMap)
-      case s: ScalaUDF if CollapsedExpressionMappings.supported(s.udfName.getOrElse("")) =>
+      case s: ScalaUDF
+          if BackendsApiManager.getSparkPlanExecApiInstance.collapsedExpressionSupported(s) =>
         return replaceCollapsedExpressionWithExpressionTransformer(s, attributeSeq, expressionsMap)
       case s: ScalaUDF =>
         return replaceScalaUDFWithExpressionTransformer(s, attributeSeq, expressionsMap)
