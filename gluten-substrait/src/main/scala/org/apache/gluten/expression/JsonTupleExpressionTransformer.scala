@@ -18,6 +18,7 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.substrait.`type`.ListNode
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -30,19 +31,18 @@ case class JsonTupleExpressionTransformer(
     original: Expression)
   extends ExpressionTransformer {
 
-  override def doTransform(args: Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     val jsonExpr = children.head
     val fields = children.tail
-    val jsonExprNode = jsonExpr.doTransform(args)
+    val jsonExprNode = jsonExpr.doTransform(context)
     val expressNodes = Lists.newArrayList(jsonExprNode)
-    fields.foreach(f => expressNodes.add(f.doTransform(args)))
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    fields.foreach(f => expressNodes.add(f.doTransform(context)))
     val functionName =
       ConverterUtils.makeFuncName(
         substraitExprName,
         original.children.map(_.dataType),
         FunctionConfig.REQ)
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val functionId = context.registerFunction(functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     typeNode match {
       case node: ListNode =>
