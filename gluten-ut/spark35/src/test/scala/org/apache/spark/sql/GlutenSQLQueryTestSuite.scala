@@ -160,10 +160,13 @@ class GlutenSQLQueryTestSuite
   protected val goldenFilePath = new File(baseResourcePath, "results").getAbsolutePath
   protected val testDataPath = new File(resourcesPath, "test-data").getAbsolutePath
 
-  protected val overwriteResourcePath =
-    getClass.getResource("/").getPath + "../../../src/test/resources/sql-tests"
-  protected val overwriteInputFilePath = new File(overwriteResourcePath, "inputs").getAbsolutePath
-  protected val overwriteGoldenFilePath = new File(overwriteResourcePath, "results").getAbsolutePath
+  protected val overwriteInputFilePath = new File(
+    BackendTestSettings.instance.getSQLQueryTestSettings.getResourceFilePath,
+    "inputs").getAbsolutePath
+
+  protected val overwriteGoldenFilePath = new File(
+    BackendTestSettings.instance.getSQLQueryTestSettings.getResourceFilePath,
+    "results").getAbsolutePath
 
   /** Test if a command is available. */
   def testCommandAvailable(command: String): Boolean = {
