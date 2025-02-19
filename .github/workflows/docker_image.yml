@@ -16,9 +16,18 @@
 name: Build and Push Docker Image
 
 on:
-  push:
+  pull_request:
     branches:
       - main
+    paths:
+      - '.github/workflows/docker_image.yml'
+      - 'dev/docker/Dockerfile.centos7-static-build'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk11'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk17'
+  push:
+    branches:
+      - image-build-test
     paths:
       - '.github/workflows/docker_image.yml'
       - 'dev/docker/Dockerfile.centos7-static-build'
@@ -30,7 +39,7 @@ on:
 
 jobs:
   build-vcpkg-centos-7:
-    if: ${{ startsWith(github.repository, 'apache/') }}
+    #if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -51,11 +60,11 @@ jobs:
         with:
           context: .
           file: dev/docker/Dockerfile.centos7-static-build
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: apache/gluten:vcpkg-centos-7
 
   build-centos-8:
-    if: ${{ startsWith(github.repository, 'apache/') }}
+    #if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -76,7 +85,7 @@ jobs:
         with:
           context: .
           file: dev/docker/Dockerfile.centos8-dynamic-build
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: apache/gluten:centos-8 # JDK8 based
 
       - name: Build and push Docker image Centos8 + JDK11
@@ -84,7 +93,7 @@ jobs:
         with:
           context: .
           file: dev/docker/Dockerfile.centos8-dynamic-build-jdk11
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: apache/gluten:centos-8-jdk11
 
       - name: Build and push Docker image Centos8 + JDK17
@@ -92,6 +101,6 @@ jobs:
         with:
           context: .
           file: dev/docker/Dockerfile.centos8-dynamic-build-jdk17
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: apache/gluten:centos-8-jdk17
 
