@@ -150,6 +150,16 @@ case class CollapseNestedExpressions(spark: SparkSession) extends Rule[SparkPlan
     }
     f(expr)
     if ((nestedFunctions > 1 && name.isDefined) || collapsedExpressionExists(children)) {
+
+      /**
+       * To offload the collapsed nested functions to clickhouse backend, we should convert it to
+       * ScalaUDF at first, and then pass the ScalaUDF to clickhouse backend. e.g. And(And(a=1,
+       * b=2),c=3) can be optimized to And(a=1, b=2, c=3)，but And(a=1, b=2, c=3) can not be
+       * supported by spark `And` function, so we need to convert it to ScalaUDF, with name is
+       * `And`, and have 3 arguments, when pass the `ScalaUDF(#and(a=1,b=2,c=3))` to clickhouse
+       * backend, it will automatic match the `And` function of clickhouse, and pass the 3 arguments
+       * to it.
+       */
       val func: Null = null
       ScalaUDF(func, dataType, children, udfName = name, nullable = expr.nullable)
     } else {
