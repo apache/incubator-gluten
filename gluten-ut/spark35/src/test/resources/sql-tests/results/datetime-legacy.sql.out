@@ -1417,7 +1417,7 @@ select TIMESTAMP_MILLIS(92233720368547758)
 struct<>
 -- !query output
 org.apache.gluten.exception.GlutenException
-Could not convert Timestamp(92233720368547, 758000000) to microseconds, Exception: VeloxUserError
+Could not convert Timestamp(92233720368547, 758000000) to microseconds
 
 
 -- !query
@@ -1426,7 +1426,7 @@ select TIMESTAMP_MILLIS(-92233720368547758)
 struct<>
 -- !query output
 org.apache.gluten.exception.GlutenException
-Could not convert Timestamp(-92233720368548, 242000000) to microseconds, Exception: VeloxUserError
+Could not convert Timestamp(-92233720368548, 242000000) to microseconds
 
 
 -- !query

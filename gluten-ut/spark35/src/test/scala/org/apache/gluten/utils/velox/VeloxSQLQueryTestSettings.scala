@@ -292,7 +292,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "try_element_at.sql",
     // Overwrite exception message.
     "url-functions.sql",
-    // Removed failed query.
+    // Removed failed query. Adjust the output order for some queries.
     "window.sql"
   )
 }
