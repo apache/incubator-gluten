@@ -84,7 +84,7 @@ object SubstraitUtil {
       context: SubstraitContext): ExpressionNode = {
     ExpressionConverter
       .replaceWithExpressionTransformer(expr, attributeSeq)
-      .doTransform(context.registeredFunction)
+      .doTransform(context)
   }
 
   def createNameStructBuilder(

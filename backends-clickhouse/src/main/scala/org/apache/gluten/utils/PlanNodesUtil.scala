@@ -42,13 +42,12 @@ object PlanNodesUtil {
 
     // project
     operatorId = context.nextOperatorId("ClickHouseBuildSideRelationProjection")
-    val args = context.registeredFunction
 
     val columnarProjExpr = ExpressionConverter
       .replaceWithExpressionTransformer(key, attributeSeq = output)
 
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
-    columnarProjExpr.foreach(e => projExprNodeList.add(e.doTransform(args)))
+    columnarProjExpr.foreach(e => projExprNodeList.add(e.doTransform(context)))
 
     PlanBuilder.makePlan(
       context,
