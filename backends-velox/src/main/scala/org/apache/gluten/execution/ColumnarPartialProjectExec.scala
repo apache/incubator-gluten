@@ -147,9 +147,6 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (!GlutenConfig.get.enableColumnarPartialProject) {
-      return ValidationResult.failed("Config disable this feature")
-    }
     if (UDFAttrNotExists) {
       return ValidationResult.failed("Attribute in the UDF does not exists in its child")
     }
