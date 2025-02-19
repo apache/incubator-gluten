@@ -26,6 +26,10 @@ on:
       - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk11'
       - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk17'
 
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   build-vcpkg-centos-7:
     #if: ${{ startsWith(github.repository, 'apache/') }}
