@@ -103,26 +103,9 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   }
 
   private def validateDataType(dataType: DataType): Boolean = {
-    dataType match {
-      case _: BooleanType => true
-      case _: ByteType => true
-      case _: ShortType => true
-      case _: IntegerType => true
-      case _: LongType => true
-      case _: FloatType => true
-      case _: DoubleType => true
-      case _: StringType => true
-      case _: TimestampType => true
-      case _: DateType => true
-      case _: BinaryType => true
-      case _: DecimalType => true
-      case YearMonthIntervalType.DEFAULT => true
-      case _: NullType => true
-      case _: ArrayType => true
-      case _: MapType => true
-      case _: StructType => true
-      case _ => false
-    }
+    BackendsApiManager.getValidatorApiInstance
+      .doSchemaValidate(dataType)
+      .isEmpty
   }
 
   private def getProjectIndexInChildOutput(exprs: Seq[Expression]): Unit = {

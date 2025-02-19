@@ -24,6 +24,7 @@ import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.BinaryType;
 import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.ByteType;
+import org.apache.spark.sql.types.CalendarIntervalType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.Decimal;
@@ -42,6 +43,8 @@ import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.sql.vectorized.ColumnarRow;
 import org.apache.spark.unsafe.types.CalendarInterval;
 import org.apache.spark.unsafe.types.UTF8String;
+
+import java.math.BigDecimal;
 
 // Copy from Spark MutableColumnarRow mostly but class member columns`type is
 // ArrowWritableColumnVector. And support string and binary type to write, Arrow writer does not
@@ -226,7 +229,36 @@ public final class ArrowColumnarRow extends InternalRow {
 
   @Override
   public void update(int ordinal, Object value) {
-    throw new UnsupportedOperationException();
+    if (value == null) {
+      setNullAt(ordinal);
+    } else {
+      DataType dt = columns[ordinal].dataType();
+      if (dt instanceof BooleanType) {
+        setBoolean(ordinal, (boolean) value);
+      } else if (dt instanceof IntegerType) {
+        setInt(ordinal, (int) value);
+      } else if (dt instanceof ShortType) {
+        setShort(ordinal, (short) value);
+      } else if (dt instanceof LongType) {
+        setLong(ordinal, (long) value);
+      } else if (dt instanceof FloatType) {
+        setFloat(ordinal, (float) value);
+      } else if (dt instanceof DoubleType) {
+        setDouble(ordinal, (double) value);
+      } else if (dt instanceof DecimalType) {
+        DecimalType t = (DecimalType) dt;
+        Decimal d = Decimal.apply((BigDecimal) value, t.precision(), t.scale());
+        setDecimal(ordinal, d, t.precision());
+      } else if (dt instanceof CalendarIntervalType) {
+        setInterval(ordinal, (CalendarInterval) value);
+      } else if (dt instanceof StringType) {
+        setUTF8String(ordinal, (UTF8String) value);
+      } else if (dt instanceof BinaryType) {
+        setBinary(ordinal, (byte[]) value);
+      } else {
+        throw new UnsupportedOperationException("Datatype not supported " + dt);
+      }
+    }
   }
 
   @Override
