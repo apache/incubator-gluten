@@ -204,6 +204,7 @@ object CHExpressionUtil {
     STACK -> DefaultValidator(),
     RAISE_ERROR -> DefaultValidator(),
     WIDTH_BUCKET -> DefaultValidator(),
-    MAKE_DATE -> DefaultValidator()
+    MAKE_DATE -> DefaultValidator(),
+    MAP_CONCAT -> DefaultValidator()
   )
 }
