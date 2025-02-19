@@ -27,7 +27,7 @@ on:
       - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk17'
   push:
     branches:
-      - image-build-test
+      - main
     paths:
       - '.github/workflows/docker_image.yml'
       - 'dev/docker/Dockerfile.centos7-static-build'
