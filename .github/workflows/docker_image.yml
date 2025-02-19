@@ -50,7 +50,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Login to Docker Hub
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name != 'pull_request' }}
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
@@ -61,7 +61,7 @@ jobs:
         with:
           context: .
           file: dev/docker/Dockerfile.centos7-static-build
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: apache/gluten:vcpkg-centos-7
 
   build-centos-8:
@@ -76,7 +76,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Login to Docker Hub
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name != 'pull_request' }}
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
@@ -87,7 +87,7 @@ jobs:
         with:
           context: .
           file: dev/docker/Dockerfile.centos8-dynamic-build
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: apache/gluten:centos-8 # JDK8 based
 
       - name: Build and push Docker image Centos8 + JDK11
@@ -95,7 +95,7 @@ jobs:
         with:
           context: .
           file: dev/docker/Dockerfile.centos8-dynamic-build-jdk11
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: apache/gluten:centos-8-jdk11
 
       - name: Build and push Docker image Centos8 + JDK17
@@ -103,6 +103,6 @@ jobs:
         with:
           context: .
           file: dev/docker/Dockerfile.centos8-dynamic-build-jdk17
-          push: ${{ github.event_name == 'push' }}
+          push: ${{ github.event_name != 'pull_request' }}
           tags: apache/gluten:centos-8-jdk17
 
