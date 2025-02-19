@@ -263,6 +263,11 @@ object ClickHouseSQLQueryTestSettings extends SQLQueryTestSettings {
     // CH excludes following
     "typeCoercion/native/windowFrameCoercion.sql",
     "typeCoercion/native/promoteStrings.sql",
-    "typeCoercion/native/concat.sql"
+    "typeCoercion/native/concat.sql",
+    // Moved from GlutenSQLQueryTestSuite.ignoreList
+    "window.sql",
+    "udf/udf-window.sql",
+    "group-by.sql",
+    "udf/udf-group-by.sql - Scala UDF",
   )
 }
