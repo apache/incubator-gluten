@@ -78,7 +78,7 @@ case class SampleExecTransformer(
     assert(condExpr != null)
     val condExprNode = ExpressionConverter
       .replaceWithExpressionTransformer(condExpr, originalInputAttributes)
-      .doTransform(context.registeredFunction)
+      .doTransform(context)
     RelBuilder.makeFilterRel(
       context,
       condExprNode,

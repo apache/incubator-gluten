@@ -20,6 +20,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -45,8 +46,7 @@ import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.types.{DecimalType, LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import java.lang.{Long => JLong}
-import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -467,7 +467,7 @@ trait SparkPlanExecApi {
       windowExpression: Seq[NamedExpression],
       windowExpressionNodes: JList[WindowFunctionNode],
       originalInputAttributes: Seq[Attribute],
-      args: JMap[String, JLong]): Unit = {
+      context: SubstraitContext): Unit = {
     windowExpression.map {
       windowExpr =>
         val aliasExpr = windowExpr.asInstanceOf[Alias]
@@ -478,7 +478,7 @@ trait SparkPlanExecApi {
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
+              WindowFunctionsBuilder.create(context, aggWindowFunc).toInt,
               new JArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
@@ -500,11 +500,11 @@ trait SparkPlanExecApi {
               .map(
                 ExpressionConverter
                   .replaceWithExpressionTransformer(_, originalInputAttributes)
-                  .doTransform(args))
+                  .doTransform(context))
               .asJava
 
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
+              AggregateFunctionsBuilder.create(context, aggExpression.aggregateFunction).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
@@ -523,7 +523,7 @@ trait SparkPlanExecApi {
                 .replaceWithExpressionTransformer(
                   offsetWf.input,
                   attributeSeq = originalInputAttributes)
-                .doTransform(args))
+                .doTransform(context))
             // Spark only accepts foldable offset. Converts it to LongType literal.
             val offset = offsetWf.offset.eval(EmptyRow).asInstanceOf[Int]
             // Velox only allows negative offset. WindowFunctionsBuilder#create converts
@@ -538,10 +538,10 @@ trait SparkPlanExecApi {
                   .replaceWithExpressionTransformer(
                     offsetWf.default,
                     attributeSeq = originalInputAttributes)
-                  .doTransform(args))
+                  .doTransform(context))
             }
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, offsetWf).toInt,
+              WindowFunctionsBuilder.create(context, offsetWf).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
@@ -558,10 +558,10 @@ trait SparkPlanExecApi {
             childrenNodeList.add(
               ExpressionConverter
                 .replaceWithExpressionTransformer(input, attributeSeq = originalInputAttributes)
-                .doTransform(args))
-            childrenNodeList.add(LiteralTransformer(offset).doTransform(args))
+                .doTransform(context))
+            childrenNodeList.add(LiteralTransformer(offset).doTransform(context))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, wf).toInt,
+              WindowFunctionsBuilder.create(context, wf).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
@@ -576,9 +576,9 @@ trait SparkPlanExecApi {
             val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
             val childrenNodeList = new JArrayList[ExpressionNode]()
             val literal = buckets.asInstanceOf[Literal]
-            childrenNodeList.add(LiteralTransformer(literal).doTransform(args))
+            childrenNodeList.add(LiteralTransformer(literal).doTransform(context))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, wf).toInt,
+              WindowFunctionsBuilder.create(context, wf).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),

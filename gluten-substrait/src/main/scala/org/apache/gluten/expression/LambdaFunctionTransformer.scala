@@ -17,6 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.ExpressionNode
 
 import org.apache.spark.sql.catalyst.expressions.LambdaFunction
@@ -29,11 +30,11 @@ case class LambdaFunctionTransformer(
   extends ExpressionTransformer {
   override def children: Seq[ExpressionTransformer] = function +: arguments
 
-  override def doTransform(args: Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     // Need to fallback when hidden be true as it's not supported in Velox
     if (original.hidden) {
       throw new GlutenNotSupportException(s"Unsupported LambdaFunction with hidden be true.")
     }
-    super.doTransform(args)
+    super.doTransform(context)
   }
 }
