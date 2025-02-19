@@ -59,10 +59,8 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   private val projectAttributes: ListBuffer[Attribute] = ListBuffer()
   private val projectIndexInChild: ListBuffer[Int] = ListBuffer()
   private var UDFAttrNotExists = false
-  private var hasUnsupportedDataType = replacedAliasUdf.exists(a => !validateDataType(a.dataType))
-  if (!hasUnsupportedDataType) {
-    getProjectIndexInChildOutput(replacedAliasUdf)
-  }
+  private var hasUnsupportedDataType = false
+  getProjectIndexInChildOutput(replacedAliasUdf)
 
   @transient override lazy val metrics = Map(
     "time" -> SQLMetrics.createTimingMetric(sparkContext, "total time of partial project"),
@@ -102,12 +100,6 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
       .forall(validateExpression)
   }
 
-  private def validateDataType(dataType: DataType): Boolean = {
-    BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(dataType)
-      .isEmpty
-  }
-
   private def getProjectIndexInChildOutput(exprs: Seq[Expression]): Unit = {
     exprs.forall {
       case a: AttributeReference =>
@@ -117,7 +109,9 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
           UDFAttrNotExists = true
           log.debug(s"Expression $a should exist in child output ${child.output}")
           false
-        } else if (!validateDataType(a.dataType)) {
+        } else if (
+          BackendsApiManager.getValidatorApiInstance.doSchemaValidate(a.dataType).isDefined
+        ) {
           hasUnsupportedDataType = true
           log.debug(s"Expression $a contains unsupported data type ${a.dataType}")
           false
