@@ -567,6 +567,25 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const SparkConf
         BackendFinalizerUtil::paths_need_to_clean.insert(
             BackendFinalizerUtil::paths_need_to_clean.end(), path_need_clean.begin(), path_need_clean.end());
     }
+
+    // FIXMEX: workaround for https://github.com/ClickHouse/ClickHouse/pull/75452#pullrequestreview-2625467710
+    // entry in DiskSelector::initialize
+    // Bug in FileCacheSettings::loadFromConfig
+    auto updateCacheDiskType = [](Poco::Util::AbstractConfiguration & config) {
+        const std::string config_prefix = "storage_configuration.disks";
+        Poco::Util::AbstractConfiguration::Keys keys;
+        config.keys(config_prefix, keys);
+        for (const auto & disk_name : keys)
+        {
+            const auto disk_config_prefix = config_prefix + "." + disk_name;
+            const auto disk_type = config.getString(disk_config_prefix + ".type", "local");
+            if (disk_type == "cache")
+                config.setString(disk_config_prefix, "workaround");
+        }
+    };
+
+    updateCacheDiskType(*config);
+
     return config;
 }
 
