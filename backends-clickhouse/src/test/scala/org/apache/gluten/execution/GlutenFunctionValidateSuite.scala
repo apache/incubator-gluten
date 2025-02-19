@@ -1111,13 +1111,13 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       val sql2 =
         """
           |select * from test_8715
-          |order by c2 asc
+          |order by c2 asc, c1 asc
           |""".stripMargin
       compareResultsAgainstVanillaSpark(sql2, true, { _ => })
       val sql3 =
         """
           |select * from test_8715
-          |order by c2 desc
+          |order by c2 desc, c1 desc
           |""".stripMargin
       compareResultsAgainstVanillaSpark(sql3, true, { _ => })
       val sql4 =
