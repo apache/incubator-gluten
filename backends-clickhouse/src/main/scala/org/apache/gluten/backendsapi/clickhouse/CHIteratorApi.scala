@@ -73,6 +73,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       splitInfoByteArray: Array[Array[Byte]],
       wsPlan: Array[Byte],
       materializeInput: Boolean,
+      partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]]): BatchIterator = {
 
     /** Generate closeable ColumnBatch iterator. */
@@ -88,7 +89,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       wsPlan,
       splitInfoByteArray,
       listIterator,
-      materializeInput
+      materializeInput,
+      partitionIndex
     )
 
   }
@@ -290,7 +292,13 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         pipelineTime,
         updateNativeMetrics,
         Some(updateInputMetrics),
-        createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
+        createNativeIterator(
+          splitInfoByteArray,
+          wsPlan,
+          materializeInput,
+          partitionIndex,
+          inputIterators)
+      )
     )
   }
 
@@ -318,7 +326,13 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       pipelineTime,
       updateNativeMetrics,
       None,
-      createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
+      createNativeIterator(
+        splitInfoByteArray,
+        wsPlan,
+        materializeInput,
+        partitionIndex,
+        inputIterators)
+    )
   }
 
 }
