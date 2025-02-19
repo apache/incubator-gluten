@@ -14,12 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.execution
 
-trait SQLQueryTestSettings {
-  def getSupportedSQLQueryTests: Set[String]
+import org.apache.gluten.substrait.plan.PlanBuilder
 
-  def getOverwriteSQLQueryTests: Set[String]
-
-  def getIgnoredSQLQueryTests: List[String] = List.empty
-}
+case class GlutenRangeExecPartition(
+    start: Long,
+    end: Long,
+    step: Long,
+    numSlices: Int,
+    index: Int,
+    plan: Array[Byte] = PlanBuilder.EMPTY_PLAN)
+  extends BaseGlutenPartition {}

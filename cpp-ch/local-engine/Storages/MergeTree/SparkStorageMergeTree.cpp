@@ -18,6 +18,7 @@
 
 #include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
 #include <Disks/SingleDiskVolume.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
@@ -288,7 +289,7 @@ MergeTreeData::LoadPartResult SparkStorageMergeTree::loadDataPart(
         has_lightweight_delete_parts.store(true);
 
     // without it "test mergetree optimize partitioned by one low card column" will log ERROR
-    calculateColumnAndSecondaryIndexSizesImpl();
+    calculateColumnAndSecondaryIndexSizesIfNeeded();
 
     LOG_TRACE(log, "Finished loading {} part {} on disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
     return res;
