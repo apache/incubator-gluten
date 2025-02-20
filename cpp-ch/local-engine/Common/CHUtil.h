@@ -171,6 +171,7 @@ public:
     inline static const std::string HADOOP_S3_SECRET_KEY = "fs.s3a.secret.key";
     inline static const std::string HADOOP_S3_ENDPOINT = "fs.s3a.endpoint";
     inline static const std::string HADOOP_S3_ASSUMED_ROLE = "fs.s3a.assumed.role.arn";
+    inline static const std::string HADOOP_S3_USE_VIRTUAL_ADDRESSING = "fs.s3a.path.style.access";
     inline static const std::string HADOOP_S3_ASSUMED_SESSION_NAME = "fs.s3a.assumed.role.session.name";
     // not hadoop official
     inline static const std::string HADOOP_S3_ASSUMED_EXTERNAL_ID = "fs.s3a.assumed.role.externalId";

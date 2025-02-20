@@ -561,12 +561,17 @@ private:
 
         std::string ak;
         std::string sk;
+        std::string use_virtual_addressing;
+        bool addressing_type = false;
         tryGetString(settings, BackendInitializerUtil::HADOOP_S3_ACCESS_KEY, ak);
         tryGetString(settings, BackendInitializerUtil::HADOOP_S3_SECRET_KEY, sk);
+        tryGetString(settings, BackendInitializerUtil::HADOOP_S3_USE_VIRTUAL_ADDRESSING, use_virtual_addressing);
         const DB::Settings & global_settings = context->getGlobalContext()->getSettingsRef();
         const DB::Settings & local_settings = context->getSettingsRef();
+        std::transform(use_virtual_addressing.begin(), use_virtual_addressing.end(), use_virtual_addressing.begin(), ::tolower);
+        addressing_type = (use_virtual_addressing == "false");
         DB::S3::ClientSettings client_settings{
-            .use_virtual_addressing = false,
+            .use_virtual_addressing = addressing_type,
             .disable_checksum = local_settings[DB::Setting::s3_disable_checksum],
             .gcs_issue_compose_request = context->getConfigRef().getBool("s3.gcs_issue_compose_request", false),
         };
