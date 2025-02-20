@@ -37,7 +37,6 @@ class GlutenClickHouseHDFSSuite
     rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
-  private val hdfsCachePath = "/tmp/gluten_hdfs_cache/"
   private val cache_name = "gluten_cache"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
@@ -52,12 +51,11 @@ class GlutenClickHouseHDFSSuite
       .set(prefixOf("shuffle.hash.algorithm"), "sparkMurmurHash3_32")
       .set(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key, "true")
       .setCHConfig("gluten_cache.local.name", cache_name)
-      .setCHConfig("gluten_cache.local.path", hdfsCachePath)
+      .setCHConfig("gluten_cache.local.path", LOCAL_CACHE_PATH)
       .setCHConfig("gluten_cache.local.max_size", "10Gi")
       // If reuse_disk_cache is set to false,the cache will be deleted in JNI_OnUnload
       // but CacheManager and JobScheduler of backend are static global variables
-      // and is destroyed at the end of the program.
-      // It causes backed reports logical errors.
+      // and is destroyed at the end of the program which causes backend reporting logical errors.
       // TODO: fix reuse_disk_cache
       .setCHConfig("reuse_disk_cache", "true")
       .set("spark.sql.adaptive.enabled", "false")
