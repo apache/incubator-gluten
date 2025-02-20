@@ -1563,8 +1563,7 @@ object GlutenConfig {
   val INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN =
     buildConf("spark.gluten.sql.injectNativePlanStringToExplain")
       .internal()
-      .doc("When true, Gluten will inject native plan tree to explain string inside " +
-        "`WholeStageTransformerContext`.")
+      .doc("When true, Gluten will inject native plan tree to Spark's explain output.")
       .booleanConf
       .createWithDefault(false)
 
