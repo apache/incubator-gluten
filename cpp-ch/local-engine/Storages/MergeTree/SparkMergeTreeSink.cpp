@@ -175,9 +175,9 @@ void SinkHelper::doMergePartsAsync(const std::vector<PartWithStats> & merge_part
     thread_pool.scheduleOrThrow(
         [this, merge_parts_with_stats, thread_group = CurrentThread::getGroup()]() -> void
         {
+            ThreadGroupSwitcher switcher(thread_group, "AsyncMerge");
+
             Stopwatch watch;
-            CurrentThread::detachFromGroupIfNotDetached();
-            CurrentThread::attachToGroup(thread_group);
             size_t before_size = 0;
 
             std::vector<DB::DataPartPtr> prepare_merge_parts_;

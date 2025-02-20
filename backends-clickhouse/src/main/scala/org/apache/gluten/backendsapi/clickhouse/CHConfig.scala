@@ -97,6 +97,13 @@ object CHConfig {
           + " will be rewritten to `to_date(stringType)`")
       .booleanConf
       .createWithDefault(true)
+
+  val ENABLE_GLUTEN_LOCAL_FILE_CACHE =
+    buildConf(runtimeConfig("gluten_cache.local.enabled"))
+      .internal()
+      .doc("Enable local cache for CH backend.")
+      .booleanConf
+      .createWithDefault(false)
 }
 
 class CHConfig(conf: SQLConf) extends GlutenConfig(conf) {
@@ -121,4 +128,6 @@ class CHConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def enableCHRewriteDateConversion: Boolean =
     getConf(ENABLE_CH_REWRITE_DATE_CONVERSION)
+
+  def enableGlutenLocalFileCache: Boolean = getConf(ENABLE_GLUTEN_LOCAL_FILE_CACHE)
 }

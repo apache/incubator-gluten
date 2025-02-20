@@ -595,7 +595,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
   }
 
   test("test disable cache files return") {
-    withSQLConf(CHConfig.runtimeConfig("gluten_cache.local.enabled") -> "false") {
+    withSQLConf(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key -> "false") {
       runSql(
         s"CACHE FILES select * from '$HDFS_URL_ENDPOINT/tpch-data/lineitem'",
         noFallBack = false) {
