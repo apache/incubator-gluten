@@ -512,7 +512,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
         });
 
     change_func("path");
-    change_func("gluten_cache.local.path");
+    change_func(GlutenCacheConfig::PREFIX + ".path");
 
     return changed_paths;
 }
@@ -582,6 +582,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const SparkConf
             if (disk_type == "cache")
                 config.setString(disk_config_prefix, "workaround");
         }
+        config.setString(GlutenCacheConfig::PREFIX, "workaround");
     };
 
     updateCacheDiskType(*config);

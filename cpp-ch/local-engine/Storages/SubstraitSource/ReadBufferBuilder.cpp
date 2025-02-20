@@ -690,7 +690,7 @@ DB::ReadSettings ReadBufferBuilder::getReadSettings() const
     const auto & config = context->getConfigRef();
 
     /// Override enable_filesystem_cache with gluten config
-    read_settings.enable_filesystem_cache = config.getBool("gluten_cache.local.enabled", false);
+    read_settings.enable_filesystem_cache = config.getBool(GlutenCacheConfig::ENABLED, false);
 
     /// Override remote_fs_prefetch with gluten config
     read_settings.remote_fs_prefetch = config.getBool("hdfs.enable_async_io", false);
@@ -804,14 +804,14 @@ ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     size_t file_size)
 {
     const auto & config = context->getConfigRef();
-    if (!config.getBool("gluten_cache.local.enabled", false))
+    if (!config.getBool(GlutenCacheConfig::ENABLED, false))
         return read_buffer_creator;
 
     read_settings.enable_filesystem_cache = true;
     if (!file_cache)
     {
         DB::FileCacheSettings file_cache_settings;
-        file_cache_settings.loadFromConfig(config, "gluten_cache.local");
+        file_cache_settings.loadFromConfig(config, GlutenCacheConfig::PREFIX);
 
         auto & base_path = file_cache_settings[FileCacheSetting::path].value;
         if (std::filesystem::path(base_path).is_relative())
@@ -820,8 +820,8 @@ ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
         if (!std::filesystem::exists(base_path))
             std::filesystem::create_directories(base_path);
 
-        const auto name = config.getString("gluten_cache.local.name");
-        const auto * config_prefix = "";
+        const auto name = config.getString(GlutenCacheConfig::PREFIX + ".name");
+        std::string config_prefix;
         file_cache = DB::FileCacheFactory::instance().getOrCreate(name, file_cache_settings, config_prefix);
         file_cache->initialize();
     }
