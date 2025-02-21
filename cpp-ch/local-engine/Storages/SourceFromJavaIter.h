@@ -24,9 +24,8 @@ namespace local_engine
 class SourceFromJavaIter : public DB::ISource
 {
 public:
-    static jclass serialized_record_batch_iterator_class;
-    static jmethodID serialized_record_batch_iterator_hasNext;
-    static jmethodID serialized_record_batch_iterator_next;
+    jmethodID serialized_record_batch_iterator_hasNext;
+    jmethodID serialized_record_batch_iterator_next;
 
     static Int64 byteArrayToLong(JNIEnv * env, jbyteArray arr);
     static std::optional<DB::Block> peekBlock(JNIEnv * env, jobject java_iter);
