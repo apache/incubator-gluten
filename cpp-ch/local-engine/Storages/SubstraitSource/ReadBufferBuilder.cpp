@@ -42,6 +42,7 @@
 #include <Storages/ObjectStorage/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/compute/detail/lru_cache.hpp>
 #include <sys/stat.h>
 #include <Poco/Logger.h>
@@ -561,15 +562,15 @@ private:
 
         std::string ak;
         std::string sk;
-        std::string use_virtual_addressing;
+        std::string path_style_access;
         bool addressing_type = false;
         tryGetString(settings, BackendInitializerUtil::HADOOP_S3_ACCESS_KEY, ak);
         tryGetString(settings, BackendInitializerUtil::HADOOP_S3_SECRET_KEY, sk);
-        tryGetString(settings, BackendInitializerUtil::HADOOP_S3_USE_VIRTUAL_ADDRESSING, use_virtual_addressing);
+        tryGetString(settings, BackendInitializerUtil::HADOOP_S3_PATH_STYLE_ACCESS, path_style_access);
         const DB::Settings & global_settings = context->getGlobalContext()->getSettingsRef();
         const DB::Settings & local_settings = context->getSettingsRef();
-        std::transform(use_virtual_addressing.begin(), use_virtual_addressing.end(), use_virtual_addressing.begin(), ::tolower);
-        addressing_type = (use_virtual_addressing == "false");
+        boost::algorithm::to_lower(path_style_access);
+        addressing_type = (path_style_access == "false");
         DB::S3::ClientSettings client_settings{
             .use_virtual_addressing = addressing_type,
             .disable_checksum = local_settings[DB::Setting::s3_disable_checksum],
