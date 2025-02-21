@@ -28,9 +28,9 @@ on:
       - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk17'
   schedule:
     - cron: '0 20 * * 0'
+
 env:
   DOCKERHUB_REPO: apache/gluten
-
 
 jobs:
   build-vcpkg-centos-7:
