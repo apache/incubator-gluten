@@ -49,8 +49,8 @@ class VeloxValidatorApi extends ValidatorApi {
     }
     ValidationResult.failed(
       String.format(
-        "Native validation failed: %n%s",
-        info.fallbackInfo.asScala.reduce[String] { case (l, r) => l + "\n" + r }))
+        "Native validation failed: %n   |- %s",
+        info.fallbackInfo.asScala.reduce[String] { case (l, r) => l + "\n   |- " + r }))
   }
 
   private def isPrimitiveType(dataType: DataType): Boolean = {

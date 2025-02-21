@@ -303,6 +303,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def printStackOnValidationFailure: Boolean =
     getConf(VALIDATION_PRINT_FAILURE_STACK_)
 
+  def validationFailFast: Boolean = getConf(VALIDATION_FAIL_FAST)
+
   def enableFallbackReport: Boolean = getConf(FALLBACK_REPORTER_ENABLED)
 
   def debug: Boolean = getConf(DEBUG_ENABLED)
@@ -1309,6 +1311,12 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(false)
+
+  val VALIDATION_FAIL_FAST =
+    buildConf("spark.gluten.sql.validation.failFast")
+      .internal()
+      .booleanConf
+      .createWithDefault(true)
 
   val SOFT_AFFINITY_LOG_LEVEL =
     buildConf("spark.gluten.soft-affinity.logLevel")
