@@ -58,6 +58,10 @@
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
+#include <Resource/ResourceManager.h>
+#include <Resource/JVMClassReference.h>
+
+#include <iostream>
 
 #ifdef __cplusplus
 namespace DB
@@ -93,67 +97,16 @@ namespace dbms
 class LocalExecutor;
 }
 
-static jclass block_stripes_class;
-static jmethodID block_stripes_constructor;
-
-static jclass split_result_class;
-static jmethodID split_result_constructor;
-
-static jclass block_stats_class;
-static jmethodID block_stats_constructor;
-
 JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 {
     JNIEnv * env;
     if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8) != JNI_OK)
         return JNI_ERR;
 
+    local_engine::JNIEnvResourceManager::instance().initialize(env);
+    std::cout << "xxx \n" << local_engine::JNIEnvResourceManager::instance().dumpInitializeDependencyDAG() << std::endl;
+
     local_engine::JniErrorsGlobalState::instance().initialize(env);
-
-    block_stripes_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-    block_stripes_constructor = local_engine::GetMethodID(env, block_stripes_class, "<init>", "(J[J[II)V");
-
-    split_result_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/CHSplitResult;");
-    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJJJJ)V");
-
-    block_stats_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/BlockStats;");
-    block_stats_constructor = local_engine::GetMethodID(env, block_stats_class, "<init>", "(JZ)V");
-
-    local_engine::ShuffleReader::input_stream_class
-        = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/ShuffleInputStream;");
-    local_engine::NativeSplitter::iterator_class
-        = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/IteratorWrapper;");
-    local_engine::WriteBufferFromJavaOutputStream::output_stream_class
-        = local_engine::CreateGlobalClassReference(env, "Ljava/io/OutputStream;");
-    local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class
-        = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/execution/ColumnarNativeIterator;");
-    local_engine::SourceFromJavaIter::serialized_record_batch_iterator_hasNext
-        = local_engine::GetMethodID(env, local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class, "hasNext", "()Z");
-    local_engine::SourceFromJavaIter::serialized_record_batch_iterator_next
-        = local_engine::GetMethodID(env, local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class, "next", "()[B");
-
-    local_engine::ShuffleReader::input_stream_read
-        = local_engine::GetMethodID(env, local_engine::ShuffleReader::input_stream_class, "read", "(JJ)J");
-
-    local_engine::NativeSplitter::iterator_has_next
-        = local_engine::GetMethodID(env, local_engine::NativeSplitter::iterator_class, "hasNext", "()Z");
-    local_engine::NativeSplitter::iterator_next
-        = local_engine::GetMethodID(env, local_engine::NativeSplitter::iterator_class, "next", "()J");
-
-    local_engine::WriteBufferFromJavaOutputStream::output_stream_write
-        = local_engine::GetMethodID(env, local_engine::WriteBufferFromJavaOutputStream::output_stream_class, "write", "([BII)V");
-    local_engine::WriteBufferFromJavaOutputStream::output_stream_flush
-        = local_engine::GetMethodID(env, local_engine::WriteBufferFromJavaOutputStream::output_stream_class, "flush", "()V");
-
-
-    local_engine::SparkRowToCHColumn::spark_row_interator_class
-        = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/execution/SparkRowIterator;");
-    local_engine::SparkRowToCHColumn::spark_row_interator_hasNext
-        = local_engine::GetMethodID(env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "hasNext", "()Z");
-    local_engine::SparkRowToCHColumn::spark_row_interator_next
-        = local_engine::GetMethodID(env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "next", "()[B");
-    local_engine::SparkRowToCHColumn::spark_row_iterator_nextBatch = local_engine::GetMethodID(
-        env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "nextBatch", "()Ljava/nio/ByteBuffer;");
 
     local_engine::BroadCastJoinBuilder::init(env);
     local_engine::CacheManager::initJNI(env);
@@ -172,19 +125,12 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     JNIEnv * env;
     vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
 
+    local_engine::JNIEnvResourceManager::instance().destroy(env);
+
     local_engine::JniErrorsGlobalState::instance().destroy(env);
     local_engine::BroadCastJoinBuilder::destroy(env);
     local_engine::SparkMergeTreeWriterJNI::destroy(env);
     local_engine::SparkRowInfoJNI::destroy(env);
-
-    env->DeleteGlobalRef(block_stripes_class);
-    env->DeleteGlobalRef(split_result_class);
-    env->DeleteGlobalRef(block_stats_class);
-    env->DeleteGlobalRef(local_engine::ShuffleReader::input_stream_class);
-    env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
-    env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
-    env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
-    env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
@@ -514,9 +460,10 @@ Java_org_apache_gluten_vectorized_CHNativeBlock_nativeBlockStats(JNIEnv * env, j
     LOCAL_ENGINE_JNI_METHOD_START
     DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
+    auto & block_stats_class_ref = JVM_CLASS_REFERENCE(block_stats_class);
     if (!col.column->isNullable())
     {
-        jobject block_stats = env->NewObject(block_stats_class, block_stats_constructor, block->rows(), false);
+        jobject block_stats = env->NewObject(block_stats_class_ref(), block_stats_class_ref["<init>"], block->rows(), false);
         return block_stats;
     }
     else
@@ -525,7 +472,7 @@ Java_org_apache_gluten_vectorized_CHNativeBlock_nativeBlockStats(JNIEnv * env, j
         const auto & null_map_data = nullable->getNullMapData();
 
         jobject block_stats = env->NewObject(
-            block_stats_class, block_stats_constructor, block->rows(), !DB::memoryIsZero(null_map_data.data(), 0, null_map_data.size()));
+            block_stats_class_ref(), block_stats_class_ref["<init>"], block->rows(), !DB::memoryIsZero(null_map_data.data(), 0, null_map_data.size()));
         return block_stats;
     }
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
@@ -745,9 +692,10 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
     if (result.total_rows && !result.total_bytes_written)
         LOG_WARNING(getLogger("CHShuffleSplitterJniWrapper"), "total_bytes_written is 0, something may be wrong");
 
+    auto & split_result_class_ref = JVM_CLASS_REFERENCE(split_result_class);
     jobject split_result = env->NewObject(
-        split_result_class,
-        split_result_constructor,
+        split_result_class_ref(),
+        split_result_class_ref["<init>"],
         result.total_compute_pid_time,
         result.total_write_time,
         result.total_spill_time,
@@ -1044,8 +992,9 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     auto * indices = env->NewIntArray(bs.heading_row_indice.size());
     env->SetIntArrayRegion(indices, 0, bs.heading_row_indice.size(), bs.heading_row_indice.data());
 
+    auto & block_stripes_class_ref = JVM_CLASS_REFERENCE(block_stripes_class);
     jobject block_stripes = env->NewObject(
-        block_stripes_class, block_stripes_constructor, bs.origin_block_address, addresses, indices, bs.origin_block_num_columns);
+        block_stripes_class_ref(), block_stripes_class_ref["<init>"], bs.origin_block_address, addresses, indices, bs.origin_block_num_columns);
     return block_stripes;
 
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
