@@ -599,7 +599,11 @@ std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConne
   configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
       std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
   configs[velox::connector::hive::HiveConfig::kParquetUseColumnNamesSession] = "true";
-  configs[velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] = "true";
+  if (veloxCfg_->get<bool>(kOrcForcePositionalEvolution, false)) {
+    configs[velox::connector::hive::HiveConfig::kOrcUseNestedColumnNamesSession] = "true";
+  } else {
+    configs[velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] = "true";
+  }
   return std::make_shared<velox::config::ConfigBase>(std::move(configs));
 }
 

@@ -36,6 +36,8 @@ import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.SparkResourceUtil
 
+import org.apache.orc.OrcConf
+
 import java.util
 import java.util.Collections
 
@@ -259,6 +261,10 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       conf.set(SQLConf.ORC_VECTORIZED_READER_ENABLED.key, "false")
       conf.set(SQLConf.CACHE_VECTORIZED_READER_ENABLED.key, "false")
     }
+
+    conf.set(
+      GlutenConfig.ORC_FORCE_POSITIONAL_EVOLUTION,
+      conf.get(OrcConf.FORCE_POSITIONAL_EVOLUTION.getAttribute, "false"))
   }
 }
 
