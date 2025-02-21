@@ -123,6 +123,10 @@ static void topologySortResource(
 
 void IDependencyResourceManager::sortResources()
 {
+    if (has_sorted_resources)
+        return;
+    has_sorted_resources = true;
+
     for (auto & metadata : resource_creators)
         resources[metadata.first] = metadata.second.creator();
     

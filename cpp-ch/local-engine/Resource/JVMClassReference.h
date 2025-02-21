@@ -24,10 +24,18 @@
 
 namespace local_engine
 {
+
+struct JVMClassDescription
+{
+    std::string class_signature;
+    std::vector<std::pair<std::string, std::string>> methods;
+    std::vector<std::pair<std::string, std::string>> static_methods;
+};
+
 class JVMClassReference : public JNIEnvResource, public boost::noncopyable
 {
 public:
-    JVMClassReference(const std::string & class_name_, const std::vector<std::pair<std::string, std::string>> & methods_);
+    JVMClassReference(const JVMClassDescription & description_);
 
     ~JVMClassReference() override = default;
 
@@ -41,8 +49,7 @@ public:
     void destroy(JNIEnv * env) override;
 
 private:
-    std::string class_name;
-    std::vector<std::pair<std::string, std::string>> methods;
+    JVMClassDescription description;
     jclass jvm_class;
     std::unordered_map<std::string, jmethodID> method_ids;
 };
