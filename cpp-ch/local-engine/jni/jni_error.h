@@ -36,29 +36,18 @@ protected:
 public:
     ~JniErrorsGlobalState() = default;
 
-    static JniErrorsGlobalState & instance();
     static void throwException(JNIEnv * env, jclass exception_class, const std::string & message, const std::string & stack_trace = "");
 
-    void initialize(JNIEnv * env_);
-    void destroy(JNIEnv * env);
+    static jclass getIOExceptionClass();
+    static jclass getRuntimeExceptionClass();
+    static jclass getUnsupportedOperationExceptionClass();
+    static jclass getIllegalAccessExceptionClass();
+    static jclass getIllegalArgumentExceptionClass();
 
-    inline jclass getIOExceptionClass() { return io_exception_class; }
-    inline jclass getRuntimeExceptionClass() { return runtime_exception_class; }
-    inline jclass getUnsupportedOperationExceptionClass() { return unsupportedoperation_exception_class; }
-    inline jclass getIllegalAccessExceptionClass() { return illegal_access_exception_class; }
-    inline jclass getIllegalArgumentExceptionClass() { return illegal_argument_exception_class; }
+    static void throwException(JNIEnv * env, const DB::Exception & e);
+    static void throwException(JNIEnv * env, const std::exception & e);
+    static void throwRuntimeException(JNIEnv * env, const std::string & message, const std::string & stack_trace = "");
 
-    void throwException(JNIEnv * env, const DB::Exception & e);
-    void throwException(JNIEnv * env, const std::exception & e);
-    void throwRuntimeException(JNIEnv * env, const std::string & message, const std::string & stack_trace = "");
-
-
-private:
-    jclass io_exception_class = nullptr;
-    jclass runtime_exception_class = nullptr;
-    jclass unsupportedoperation_exception_class = nullptr;
-    jclass illegal_access_exception_class = nullptr;
-    jclass illegal_argument_exception_class = nullptr;
 };
 //
 
@@ -69,12 +58,12 @@ private:
     } \
     catch (DB::Exception & e) \
     { \
-        local_engine::JniErrorsGlobalState::instance().throwException(env, e); \
+        local_engine::JniErrorsGlobalState::throwException(env, e); \
         return ret; \
     } \
     catch (std::exception & e) \
     { \
-        local_engine::JniErrorsGlobalState::instance().throwException(env, e); \
+        local_engine::JniErrorsGlobalState::throwException(env, e); \
         return ret; \
     } \
     catch (...) \
@@ -82,7 +71,7 @@ private:
         DB::WriteBufferFromOwnString ostr; \
         auto trace = boost::stacktrace::stacktrace(); \
         boost::stacktrace::detail::to_string(&trace.as_vector()[0], trace.size()); \
-        local_engine::JniErrorsGlobalState::instance().throwRuntimeException(env, "Unknown Exception", ostr.str().c_str()); \
+        local_engine::JniErrorsGlobalState::throwRuntimeException(env, "Unknown Exception", ostr.str().c_str()); \
         return ret; \
     }
 }
