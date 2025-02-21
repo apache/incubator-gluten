@@ -145,4 +145,7 @@ REGISTER_JVM_CLASS_REFERENCE(illegal_argument_exception_class, "Ljava/lang/Illeg
  */
 REGISTER_JVM_CLASS_REFERENCE(
     broadcast_join_builder_side_cache_class, "Lorg/apache/gluten/execution/CHBroadcastBuildSideCache;", "get", "(Ljava/lang/String;)J")
+
+// Used in CacheManager
+REGISTER_JVM_CLASS_REFERENCE(cache_manager_result_class, "Lorg/apache/gluten/execution/CacheResult;", "<init>", "(ILjava/lang/String;)V")
 }
