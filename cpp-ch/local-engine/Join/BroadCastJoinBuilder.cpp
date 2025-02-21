@@ -29,6 +29,7 @@
 #include <Common/CHUtil.h>
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
+#include <Resource/JVMClassReference.h>
 
 namespace DB
 {
@@ -43,13 +44,13 @@ namespace local_engine
 namespace BroadCastJoinBuilder
 {
 using namespace DB;
-static jclass Java_CHBroadcastBuildSideCache = nullptr;
-static jmethodID Java_get = nullptr;
+
 jlong callJavaGet(const std::string & id)
 {
     GET_JNIENV(env)
     const jstring s = charTojstring(env, id.c_str());
-    const auto result = safeCallStaticLongMethod(env, Java_CHBroadcastBuildSideCache, Java_get, s);
+    auto & cache_class_ref = JVM_CLASS_REFERENCE(broadcast_join_builder_side_cache_class);
+    const auto result = safeCallStaticLongMethod(env, cache_class_ref(), cache_class_ref["get"], s);
     CLEAN_JNIENV
 
     return result;
@@ -190,25 +191,6 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         true,
         is_null_aware_anti_join,
         has_null_key_values);
-}
-
-void init(JNIEnv * env)
-{
-    /**
-     * Scala object will be compiled into two classes, one is with '$' suffix which is normal class,
-     * and one is utility class which only has static method.
-     *
-     * Here, we use utility class.
-     */
-
-    const char * classSig = "Lorg/apache/gluten/execution/CHBroadcastBuildSideCache;";
-    Java_CHBroadcastBuildSideCache = CreateGlobalClassReference(env, classSig);
-    Java_get = GetStaticMethodID(env, Java_CHBroadcastBuildSideCache, "get", "(Ljava/lang/String;)J");
-}
-
-void destroy(JNIEnv * env)
-{
-    env->DeleteGlobalRef(Java_CHBroadcastBuildSideCache);
 }
 
 }

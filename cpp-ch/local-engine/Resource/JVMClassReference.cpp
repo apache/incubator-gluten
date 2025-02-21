@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 #include "JVMClassReference.h"
+#include <iostream>
 #include <Common/ErrorCodes.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
-#include <iostream>
 
 namespace DB::ErrorCodes
 {
@@ -64,8 +64,7 @@ void JVMClassReference::destroy(JNIEnv * env)
 class JVMClassReferenceCreator
 {
 public:
-    JVMClassReferenceCreator(
-        const std::string id_, const std::string & class_name_, const std::vector<std::string> & methods_)
+    JVMClassReferenceCreator(const std::string id_, const std::string & class_name_, const std::vector<std::string> & methods_)
     {
         std::vector<std::pair<std::string, std::string>> sig_methods;
         for (size_t i = 0; i + 1 < methods_.size(); i += 2)
@@ -79,17 +78,20 @@ public:
     }
 };
 
-void buildVector(std::vector<std::string>& vec) {
+void buildVector(std::vector<std::string> & vec)
+{
 }
 
-template<typename T, typename... Args>
-void buildVector(std::vector<std::string>& vec, T&& first, Args&&... args) {
+template <typename T, typename... Args>
+void buildVector(std::vector<std::string> & vec, T && first, Args &&... args)
+{
     vec.push_back(std::forward<T>(first));
     buildVector(vec, std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-std::vector<std::string> createVector(Args&&... args) {
+template <typename... Args>
+std::vector<std::string> createVector(Args &&... args)
+{
     std::vector<std::string> vec;
     buildVector(vec, std::forward<Args>(args)...);
     return vec;
@@ -98,10 +100,11 @@ std::vector<std::string> createVector(Args&&... args) {
 #define STRING_VECTOR(...) createVector(__VA_ARGS__)
 
 // Third part arguments are pairs of method name and method signature
-#define REGISTER_JVM_CLASS_REFERENCE(id, class_name, ...) static JVMClassReferenceCreator id##_creator(#id, class_name, createVector(__VA_ARGS__));
+#define REGISTER_JVM_CLASS_REFERENCE(id, class_name, ...) \
+    static JVMClassReferenceCreator id##_creator(#id, class_name, createVector(__VA_ARGS__));
 
 REGISTER_JVM_CLASS_REFERENCE(block_stripes_class, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;", "<init>", "(J[J[II)V")
-REGISTER_JVM_CLASS_REFERENCE(split_result_class, "Lorg/apache/gluten/vectorized/CHSplitResult;",  "<init>", "(JJJJJJ[J[JJJJJJJ)V")
+REGISTER_JVM_CLASS_REFERENCE(split_result_class, "Lorg/apache/gluten/vectorized/CHSplitResult;", "<init>", "(JJJJJJ[J[JJJJJJJ)V")
 REGISTER_JVM_CLASS_REFERENCE(block_stats_class, "Lorg/apache/gluten/vectorized/BlockStats;", "<init>", "(JZ)V")
 REGISTER_JVM_CLASS_REFERENCE(shuffle_input_stream, "Lorg/apache/gluten/vectorized/ShuffleInputStream;", "read", "(JJ)J")
 
@@ -112,10 +115,19 @@ REGISTER_JVM_CLASS_REFERENCE(splitter_iterator_class, "Lorg/apache/gluten/vector
 REGISTER_JVM_CLASS_REFERENCE(write_buffer_from_java_output_stream_class, "Ljava/io/OutputStream;", "write", "([BII)V", "flush", "()V")
 
 // Used in SourceFromJavaIter
-REGISTER_JVM_CLASS_REFERENCE(source_from_java_iterator_class, "Lorg/apache/gluten/execution/ColumnarNativeIterator;", "hasNext", "()Z", "next", "()[B")
+REGISTER_JVM_CLASS_REFERENCE(
+    source_from_java_iterator_class, "Lorg/apache/gluten/execution/ColumnarNativeIterator;", "hasNext", "()Z", "next", "()[B")
 
 // Used in SparkRowToCHColumn
-REGISTER_JVM_CLASS_REFERENCE(row_to_column_iterator_class, "Lorg/apache/gluten/execution/SparkRowIterator;", "hasNext", "()Z", "next", "()[B", "nextBatch", "()Ljava/nio/ByteBuffer;")
+REGISTER_JVM_CLASS_REFERENCE(
+    row_to_column_iterator_class,
+    "Lorg/apache/gluten/execution/SparkRowIterator;",
+    "hasNext",
+    "()Z",
+    "next",
+    "()[B",
+    "nextBatch",
+    "()Ljava/nio/ByteBuffer;")
 
 // Reference to exception classes
 REGISTER_JVM_CLASS_REFERENCE(io_exception_class, "Ljava/io/IOException;")
@@ -123,4 +135,14 @@ REGISTER_JVM_CLASS_REFERENCE(runtime_exception_class, "Lorg/apache/gluten/except
 REGISTER_JVM_CLASS_REFERENCE(unsupportedoperation_exception_class, "Ljava/lang/UnsupportedOperationException;")
 REGISTER_JVM_CLASS_REFERENCE(illegal_access_exception_class, "Ljava/lang/IllegalAccessException;")
 REGISTER_JVM_CLASS_REFERENCE(illegal_argument_exception_class, "Ljava/lang/IllegalArgumentException;")
+
+// Used in BroadCastJoinBuilder
+/**
+ * Scala object will be compiled into two classes, one is with '$' suffix which is normal class,
+ * and one is utility class which only has static method.
+ *
+ * Here, we use utility class.
+ */
+REGISTER_JVM_CLASS_REFERENCE(
+    broadcast_join_builder_side_cache_class, "Lorg/apache/gluten/execution/CHBroadcastBuildSideCache;", "get", "(Ljava/lang/String;)J")
 }
