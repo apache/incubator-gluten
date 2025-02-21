@@ -148,4 +148,7 @@ REGISTER_JVM_CLASS_REFERENCE(
 
 // Used in CacheManager
 REGISTER_JVM_CLASS_REFERENCE(cache_manager_result_class, "Lorg/apache/gluten/execution/CacheResult;", "<init>", "(ILjava/lang/String;)V")
+
+// Used in SparkMergeTreeWriterJNI
+REGISTER_JVM_CLASS_REFERENCE(merge_tree_committer_helper, "Lorg/apache/spark/sql/execution/datasources/v1/clickhouse/MergeTreeCommiterHelper;", "setCurrentTaskWriteInfo", "(Ljava/lang/String;Ljava/lang/String;)V")
 }
