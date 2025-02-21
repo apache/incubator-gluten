@@ -23,6 +23,7 @@ import org.apache.spark.{SparkConf, SparkException, SparkThrowable}
 import org.apache.spark.ErrorMessageFormat.MINIMAL
 import org.apache.spark.SparkThrowableHelper.getMessage
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.catalyst.plans.SQLHelper
 import org.apache.spark.sql.catalyst.rules.RuleExecutor
 import org.apache.spark.sql.catalyst.util.{fileToString, stringToFile}
@@ -159,10 +160,13 @@ class GlutenSQLQueryTestSuite
   protected val goldenFilePath = new File(baseResourcePath, "results").getAbsolutePath
   protected val testDataPath = new File(resourcesPath, "test-data").getAbsolutePath
 
-  protected val overwriteResourcePath =
-    getClass.getResource("/").getPath + "../../../src/test/resources/sql-tests"
-  protected val overwriteInputFilePath = new File(overwriteResourcePath, "inputs").getAbsolutePath
-  protected val overwriteGoldenFilePath = new File(overwriteResourcePath, "results").getAbsolutePath
+  protected val overwriteInputFilePath = new File(
+    BackendTestSettings.instance.getSQLQueryTestSettings.getResourceFilePath,
+    "inputs").getAbsolutePath
+
+  protected val overwriteGoldenFilePath = new File(
+    BackendTestSettings.instance.getSQLQueryTestSettings.getResourceFilePath,
+    "results").getAbsolutePath
 
   /** Test if a command is available. */
   def testCommandAvailable(command: String): Boolean = {
@@ -199,7 +203,13 @@ class GlutenSQLQueryTestSuite
         .set("spark.sql.files.openCostInBytes", "134217728")
         .set("spark.unsafe.exceptionOnMemoryLeak", "true")
     } else {
-      conf.set("spark.unsafe.exceptionOnMemoryLeak", "true")
+      conf
+        .set("spark.unsafe.exceptionOnMemoryLeak", "true")
+        // Avoid static evaluation for literal input by spark catalyst.
+        .set(
+          SQLConf.OPTIMIZER_EXCLUDED_RULES.key,
+          ConvertToLocalRelation.ruleName +
+            "," + ConstantFolding.ruleName + "," + NullPropagation.ruleName)
     }
     conf
   }
@@ -221,12 +231,7 @@ class GlutenSQLQueryTestSuite
     "ignored.sql", // Do NOT remove this one. It is here to test the ignore functionality.
     "explain-aqe.sql", // explain plan is different
     "explain-cbo.sql", // explain
-    "explain.sql", // explain
-    "udf/udf-window.sql", // Local window fixes are not added.
-    "window.sql", // Local window fixes are not added.
-    // Disable for Spark 3.
-    "group-by.sql",
-    "udf/udf-group-by.sql - Scala UDF"
+    "explain.sql" // explain
   ) ++ otherIgnoreList ++ udafIgnoreList ++
     BackendTestSettings.instance.getSQLQueryTestSettings.getIgnoredSQLQueryTests
 
@@ -315,9 +320,8 @@ class GlutenSQLQueryTestSuite
     // If a test case is not in the test list, or it is in the ignore list, ignore this test case.
     if (
       !supportedList.exists(
-        t => testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT))) ||
-      ignoreList.exists(
-        t => testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT)))
+        t => testCase.name.toLowerCase(Locale.ROOT) == t.toLowerCase(Locale.ROOT)) ||
+      ignoreList.exists(t => testCase.name.toLowerCase(Locale.ROOT) == t.toLowerCase(Locale.ROOT))
     ) {
       // Create a test case to ignore this case.
       ignore(testCase.name) { /* Do nothing */ }
