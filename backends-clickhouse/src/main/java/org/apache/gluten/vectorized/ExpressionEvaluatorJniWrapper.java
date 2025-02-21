@@ -41,7 +41,8 @@ public class ExpressionEvaluatorJniWrapper {
       byte[][] splitInfo,
       ColumnarNativeIterator[] batchItr,
       byte[] confArray,
-      boolean materializeInput);
+      boolean materializeInput,
+      int partitionIndex);
 
   public static native void updateQueryRuntimeSettings(byte[] settings);
 }

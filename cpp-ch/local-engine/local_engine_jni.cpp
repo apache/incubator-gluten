@@ -229,7 +229,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     jobjectArray split_infos,
     jobjectArray iter_arr,
     jbyteArray conf_plan,
-    jboolean materialize_input)
+    jboolean materialize_input,
+    jint partition_index)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::QueryContext::instance().currentQueryContext();
@@ -243,7 +244,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     const std::string::size_type plan_size = plan_a.length();
     auto plan_pb = local_engine::BinaryToMessage<substrait::Plan>({reinterpret_cast<const char *>(plan_a.elems()), plan_size});
 
-    auto parser_context = local_engine::ParserContext::build(query_context, plan_pb);
+    auto parser_context = local_engine::ParserContext::build(query_context, plan_pb, partition_index);
     local_engine::SerializedPlanParser parser(parser_context);
 
     jsize iter_num = env->GetArrayLength(iter_arr);

@@ -54,7 +54,8 @@ class NativeFileScanColumnarRDD(
           inputPartition.plan,
           splitInfoByteArray,
           inBatchIters,
-          false
+          false,
+          split.index
         )
     }
     TaskContext
