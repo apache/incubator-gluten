@@ -106,7 +106,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::JNIEnvResourceManager::instance().initialize(env);
     std::cout << "xxx \n" << local_engine::JNIEnvResourceManager::instance().dumpInitializeDependencyDAG() << std::endl;
 
-    local_engine::JniErrorsGlobalState::instance().initialize(env);
 
     local_engine::BroadCastJoinBuilder::init(env);
     local_engine::CacheManager::initJNI(env);
@@ -127,7 +126,6 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 
     local_engine::JNIEnvResourceManager::instance().destroy(env);
 
-    local_engine::JniErrorsGlobalState::instance().destroy(env);
     local_engine::BroadCastJoinBuilder::destroy(env);
     local_engine::SparkMergeTreeWriterJNI::destroy(env);
     local_engine::SparkRowInfoJNI::destroy(env);

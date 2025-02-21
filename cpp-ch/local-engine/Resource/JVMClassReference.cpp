@@ -117,4 +117,10 @@ REGISTER_JVM_CLASS_REFERENCE(source_from_java_iterator_class, "Lorg/apache/glute
 // Used in SparkRowToCHColumn
 REGISTER_JVM_CLASS_REFERENCE(row_to_column_iterator_class, "Lorg/apache/gluten/execution/SparkRowIterator;", "hasNext", "()Z", "next", "()[B", "nextBatch", "()Ljava/nio/ByteBuffer;")
 
+// Reference to exception classes
+REGISTER_JVM_CLASS_REFERENCE(io_exception_class, "Ljava/io/IOException;")
+REGISTER_JVM_CLASS_REFERENCE(runtime_exception_class, "Lorg/apache/gluten/exception/GlutenException;")
+REGISTER_JVM_CLASS_REFERENCE(unsupportedoperation_exception_class, "Ljava/lang/UnsupportedOperationException;")
+REGISTER_JVM_CLASS_REFERENCE(illegal_access_exception_class, "Ljava/lang/IllegalAccessException;")
+REGISTER_JVM_CLASS_REFERENCE(illegal_argument_exception_class, "Ljava/lang/IllegalArgumentException;")
 }
