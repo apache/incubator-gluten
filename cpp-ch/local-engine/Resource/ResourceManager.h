@@ -84,6 +84,7 @@ protected:
     std::vector<ResourcePtr> initialize_ordered_resources;
     // Resources will be destroyed in the order of the following vectors.
     std::vector<ResourcePtr> destroy_ordered_resources;
+    bool has_sorted_resources = false;
 
 };
 
@@ -98,7 +99,7 @@ public:
 using JNIEnvResourcePtr = std::shared_ptr<JNIEnvResource>;
 
 
-// A manager to manage the life cycle of the process resource.
+// A global manager to manage the life cycle of the process resource.
 // - init: call at JNI_Onload
 // - destroy: call at JNI_OnUnload
 // - get: get the resource by id

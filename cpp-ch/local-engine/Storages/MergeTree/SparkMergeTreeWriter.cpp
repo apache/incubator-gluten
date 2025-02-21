@@ -58,7 +58,7 @@ void setCurrentTaskWriteInfo(const std::string & jobTaskTempID, const std::strin
     GET_JNIENV(env)
     const jstring Java_jobTaskTempID = charTojstring(env, jobTaskTempID.c_str());
     const jstring Java_commitInfos = charTojstring(env, commitInfos.c_str());
-    auto & commiter_helper_class_ref = JVM_CLASS_REFERENCE(merge_tree_commiter_helper);
+    auto & commiter_helper_class_ref = JVM_CLASS_REFERENCE(merge_tree_committer_helper);
     safeCallVoidMethod(env, commiter_helper_class_ref(), commiter_helper_class_ref["setCurrentTaskWriteInfo"], Java_jobTaskTempID, Java_commitInfos);
     CLEAN_JNIENV
 }
