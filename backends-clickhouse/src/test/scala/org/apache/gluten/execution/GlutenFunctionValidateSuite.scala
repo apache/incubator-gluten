@@ -1029,4 +1029,106 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       "approx_count_distinct(id, 0.1) from range(1000)"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("GLUTEN-8723 fix slice unexpected exception") {
+    val create_sql = "create table t_8723 (full_user_agent string) using orc"
+    val insert_sql = "insert into t_8723 values(NULL)"
+    val select1_sql = "select " +
+      "slice(split(full_user_agent, ';'), 2, size(split(full_user_agent, ';'))) from t_8723"
+    val select2_sql = "select slice(split(full_user_agent, ';'), 0, 2) from t_8723"
+    val drop_sql = "drop table t_8723"
+
+    spark.sql(create_sql)
+    spark.sql(insert_sql)
+    compareResultsAgainstVanillaSpark(select1_sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(select2_sql, true, { _ => })
+    spark.sql(drop_sql)
+  }
+
+  test("GLUTEN-8715 nan semantics") {
+    withTable("test_8715") {
+      spark.sql("create table test_8715(c1 int, c2 double) using parquet")
+      val insert_sql =
+        """
+          |insert into test_8715 values
+          |(1, double('infinity'))
+          |,(2, double('infinity'))
+          |,(3, double('inf'))
+          |,(4, double('-inf'))
+          |,(5, double('NaN'))
+          |,(6, double('NaN'))
+          |,(7, double('-infinity'))
+          |""".stripMargin
+      spark.sql(insert_sql)
+      val sql =
+        """
+          |select c2 = cast('nan' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+      val sql5 =
+        """
+          |select c2 <= cast('nan' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql5, true, { _ => })
+      val sql6 =
+        """
+          |select c2 >= cast('nan' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql6, true, { _ => })
+      val sql7 =
+        """
+          |select c2 > cast('1.1' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql7, true, { _ => })
+      val sql9 =
+        """
+          |select c2 >= cast('1.1' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql9, true, { _ => })
+      val sql8 =
+        """
+          |select cast('1.1' as double) < c2 from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql8, true, { _ => })
+      val sql10 =
+        """
+          |select cast('1.1' as double) <= c2 from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql10, true, { _ => })
+      val sql1 =
+        """
+          |select sum(c1) from test_8715
+          |group by c2 order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+      val sql2 =
+        """
+          |select * from test_8715
+          |order by c2 asc, c1 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+      val sql3 =
+        """
+          |select * from test_8715
+          |order by c2 desc, c1 desc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+      val sql4 =
+        """
+          |select a.c1 as a_c1, a.c2 as a_c2,
+          |b.c1 as b_c1, b.c2 as b_c2
+          |from test_8715 a
+          |join test_8715 b on a.c2 = b.c2
+          |order by a.c1, b.c1 desc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql4, true, { _ => })
+    }
+  }
 }

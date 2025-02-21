@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_02_14
+VELOX_BRANCH=2025_02_19
 VELOX_HOME=""
 
 OS=`uname -s`
@@ -199,6 +199,14 @@ function setup_linux {
       7) ;;
       *)
         echo "Unsupported centos version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
+  elif [[ "$LINUX_DISTRIBUTION" == "openEuler" ]]; then
+    case "$LINUX_VERSION_ID" in
+      24.03) ;;
+      *)
+        echo "Unsupported openEuler version: $LINUX_VERSION_ID"
         exit 1
       ;;
     esac
