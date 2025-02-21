@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -31,14 +32,14 @@ case class AttributeReferenceTransformer(
     original: AttributeReference,
     bound: BoundReference)
   extends LeafExpressionTransformer {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     ExpressionBuilder.makeSelection(bound.ordinal.asInstanceOf[java.lang.Integer])
   }
 }
 
 case class BoundReferenceTransformer(substraitExprName: String, original: BoundReference)
   extends LeafExpressionTransformer {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     ExpressionBuilder.makeSelection(original.ordinal.asInstanceOf[java.lang.Integer])
   }
 }
