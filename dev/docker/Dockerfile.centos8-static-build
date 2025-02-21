@@ -15,9 +15,9 @@ RUN wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8
     mv apache-maven-3.8.8 /usr/lib/maven
 ENV PATH=${PATH}:/usr/lib/maven/bin
 
-RUN git clone https://github.com/kevinw66/incubator-gluten /opt/gluten
+RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
 
-RUN cd /opt/gluten && git checkout origin/arm-ci && bash ./dev/vcpkg/setup-build-depends.sh
+RUN cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh
 
 # An actual path used for vcpkg cache.
 RUN mkdir -p /var/cache/vcpkg

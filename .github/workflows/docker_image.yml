@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO need to rollback some variables after done testing in personal repository
 name: Build and Push Docker Image
 
 on:
   push:
     branches:
-      - arm-ci
+      - main
     paths:
       - '.github/workflows/docker_image.yml'
       - 'dev/docker/Dockerfile.centos7-static-build'
@@ -27,13 +26,15 @@ on:
       - 'dev/docker/Dockerfile.centos8-dynamic-build'
       - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk11'
       - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk17'
-
+  schedule:
+    - cron: '0 20 * * 0'
 env:
-  DOCKERHUB_REPO: wzg547228197/gluten
+  DOCKERHUB_REPO: apache/gluten
 
 
 jobs:
   build-vcpkg-centos-7:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -58,6 +59,7 @@ jobs:
           tags: ${{ env.DOCKERHUB_REPO }}:vcpkg-centos-7
 
   build-vcpkg-centos-8:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -156,6 +158,7 @@ jobs:
           retention-days: 1
 
   build-centos-8-jdk11:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -205,6 +208,7 @@ jobs:
           retention-days: 1
 
   build-centos-8-jdk17:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -254,6 +258,7 @@ jobs:
           retention-days: 1
 
   merge:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

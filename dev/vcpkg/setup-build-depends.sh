@@ -51,7 +51,18 @@ install_gcc11_from_source() {
 install_centos_7() {
     export PATH=/usr/local/bin:$PATH
 
-    cat /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+    sed -i \
+        -e 's/^mirrorlist/#mirrorlist/' \
+        -e 's/^# *baseurl *=/baseurl=/' \
+        -e 's/mirror\.centos\.org/vault.centos.org/' \
+        /etc/yum.repos.d/*.repo
+
+    yum -y install epel-release centos-release-scl
+    sed -i \
+        -e 's/^mirrorlist/#mirrorlist/' \
+        -e 's/^# *baseurl *=/baseurl=/' \
+        -e 's/mirror\.centos\.org/vault.centos.org/' \
+        /etc/yum.repos.d/*.repo
 
     yum -y install \
         wget curl tar zip unzip which patch sudo \
