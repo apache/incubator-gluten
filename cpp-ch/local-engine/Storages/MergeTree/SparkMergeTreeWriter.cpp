@@ -26,6 +26,7 @@
 #include <rapidjson/prettywriter.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/JNIUtils.h>
+#include <Resource/JVMClassReference.h>
 
 using namespace DB;
 namespace
@@ -51,29 +52,14 @@ namespace local_engine
 
 namespace SparkMergeTreeWriterJNI
 {
-static jclass Java_MergeTreeCommiterHelper = nullptr;
-static jmethodID Java_set = nullptr;
-void init(JNIEnv * env)
-{
-    const char * classSig = "Lorg/apache/spark/sql/execution/datasources/v1/clickhouse/MergeTreeCommiterHelper;";
-    Java_MergeTreeCommiterHelper = CreateGlobalClassReference(env, classSig);
-    assert(Java_MergeTreeCommiterHelper != nullptr);
-
-    const char * methodName = "setCurrentTaskWriteInfo";
-    const char * methodSig = "(Ljava/lang/String;Ljava/lang/String;)V";
-    Java_set = GetStaticMethodID(env, Java_MergeTreeCommiterHelper, methodName, methodSig);
-}
-void destroy(JNIEnv * env)
-{
-    env->DeleteGlobalRef(Java_MergeTreeCommiterHelper);
-}
 
 void setCurrentTaskWriteInfo(const std::string & jobTaskTempID, const std::string & commitInfos)
 {
     GET_JNIENV(env)
     const jstring Java_jobTaskTempID = charTojstring(env, jobTaskTempID.c_str());
     const jstring Java_commitInfos = charTojstring(env, commitInfos.c_str());
-    safeCallVoidMethod(env, Java_MergeTreeCommiterHelper, Java_set, Java_jobTaskTempID, Java_commitInfos);
+    auto & commiter_helper_class_ref = JVM_CLASS_REFERENCE(merge_tree_commiter_helper);
+    safeCallVoidMethod(env, commiter_helper_class_ref(), commiter_helper_class_ref["setCurrentTaskWriteInfo"], Java_jobTaskTempID, Java_commitInfos);
     CLEAN_JNIENV
 }
 }
