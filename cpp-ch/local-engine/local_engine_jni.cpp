@@ -61,8 +61,6 @@
 #include <Resource/ResourceManager.h>
 #include <Resource/JVMClassReference.h>
 
-#include <iostream>
-
 #ifdef __cplusplus
 namespace DB
 {
@@ -104,10 +102,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
         return JNI_ERR;
 
     local_engine::JNIEnvResourceManager::instance().initialize(env);
-    std::cout << "xxx \n" << local_engine::JNIEnvResourceManager::instance().dumpInitializeDependencyDAG() << std::endl;
-
-    local_engine::SparkRowInfoJNI::init(env);
-
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
 }
@@ -121,8 +115,6 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
 
     local_engine::JNIEnvResourceManager::instance().destroy(env);
-
-    local_engine::SparkRowInfoJNI::destroy(env);
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)

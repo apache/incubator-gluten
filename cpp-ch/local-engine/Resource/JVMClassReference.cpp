@@ -15,10 +15,8 @@
  * limitations under the License.
  */
 #include "JVMClassReference.h"
-#include <iostream>
 #include <Common/ErrorCodes.h>
 #include <Common/Exception.h>
-#include <Common/logger_useful.h>
 
 namespace DB::ErrorCodes
 {
@@ -151,4 +149,6 @@ REGISTER_JVM_CLASS_REFERENCE(cache_manager_result_class, "Lorg/apache/gluten/exe
 
 // Used in SparkMergeTreeWriterJNI
 REGISTER_JVM_CLASS_REFERENCE(merge_tree_committer_helper, "Lorg/apache/spark/sql/execution/datasources/v1/clickhouse/MergeTreeCommiterHelper;", "setCurrentTaskWriteInfo", "(Ljava/lang/String;Ljava/lang/String;)V")
+
+REGISTER_JVM_CLASS_REFERENCE(spark_row_info_class, "Lorg/apache/gluten/row/SparkRowInfo;", "<init>", "([J[JJJJ)V")
 }
