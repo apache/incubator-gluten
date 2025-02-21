@@ -68,6 +68,29 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
 
   protected lazy val validationFailFast = glutenConf.validationFailFast
 
+  // Wraps a validation function f that can also throw a GlutenNotSupportException.
+  // Returns ValidationResult.failed if f throws a GlutenNotSupportException, otherwise returns the result of f.
+  protected def failValidationWithException(f: => ValidationResult)(
+      finallyBlock: => Unit = () => ()): ValidationResult = {
+    try {
+      f
+    } catch {
+      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
+        if (!e.isInstanceOf[GlutenNotSupportException]) {
+          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
+        }
+        val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
+        if (glutenConf.printStackOnValidationFailure) {
+          logOnLevel(glutenConf.validationLogLevel, message, e)
+        }
+        ValidationResult.failed(message)
+      case t: Throwable =>
+        throw t
+    } finally {
+      finallyBlock
+    }
+  }
+
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
@@ -85,30 +108,16 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
         return schemaValidationResult
       }
     }
-    try {
+    val validationResult = failValidationWithException {
       TransformerState.enterValidation
-      val res = doValidateInternal()
-      if (!res.ok()) {
-        TestStats.addFallBackClassName(this.getClass.toString)
-      }
-      if (validationFailFast) res else schemaValidationResult.merge(res)
-    } catch {
-      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
-        }
-        // FIXME: Use a validation-specific method to catch validation failures
-        TestStats.addFallBackClassName(this.getClass.toString)
-
-        val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
-        if (glutenConf.printStackOnValidationFailure) {
-          logOnLevel(glutenConf.validationLogLevel, message, e)
-        }
-        val res = ValidationResult.failed(message)
-        if (validationFailFast) res else schemaValidationResult.merge(res)
-    } finally {
+      doValidateInternal()
+    } {
       TransformerState.finishValidation
     }
+    if (!validationResult.ok()) {
+      TestStats.addFallBackClassName(this.getClass.toString)
+    }
+    if (validationFailFast) validationResult else schemaValidationResult.merge(validationResult)
   }
 
   protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
@@ -147,7 +156,7 @@ trait TransformSupport extends ValidatablePlan {
 
   // Since https://github.com/apache/incubator-gluten/pull/2185.
   protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
-    if (node != null && glutenConf.enableNativeValidation) {
+    if (node != null && enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
       BackendsApiManager.getValidatorApiInstance
         .doNativeValidateWithFailureReason(planNode)
