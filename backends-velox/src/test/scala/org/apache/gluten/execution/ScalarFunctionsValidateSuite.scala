@@ -1528,6 +1528,12 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         runQueryAndCompare("SELECT date_format(c0, 'yyyy') FROM t") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
+        runQueryAndCompare("SELECT date_format(c0, 'u') FROM t") {
+          checkSparkOperatorMatch[ProjectExec]
+        }
+        runQueryAndCompare("SELECT date_format(c0, 'yyyyu') FROM t") {
+          checkSparkOperatorMatch[ProjectExec]
+        }
     }
   }
 

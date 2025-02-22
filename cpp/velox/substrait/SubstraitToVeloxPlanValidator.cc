@@ -194,6 +194,73 @@ bool SubstraitToVeloxPlanValidator::validateRegexExpr(
   return true;
 }
 
+inline int64_t numLiteralChars(
+    // Counts the number of literal characters until the next closing literal
+    // sequence single quote.
+    const char* cur,
+    const char* end) {
+  int64_t count = 0;
+  while (cur < end) {
+    if (*cur == '\'') {
+      if (cur + 1 < end && *(cur + 1) == '\'') {
+        count += 2;
+        cur += 2;
+      } else {
+        return count;
+      }
+    } else {
+      ++count;
+      ++cur;
+      // No end literal single quote found
+      if (cur == end) {
+        return -1;
+      }
+    }
+  }
+  return count;
+}
+
+bool ValidateDateTimeFormatterPattern(const std::string& format) {
+  if (format.empty()) {
+    return false;
+  }
+
+  const char* cur = format.data();
+  const char* end = cur + format.size();
+
+  while (cur < end) {
+    const char* startTokenPtr = cur;
+
+    if (*startTokenPtr == '\'') {
+      if (cur + 1 < end && *(cur + 1) == '\'') {
+        cur += 2;
+      } else {
+        int64_t count = numLiteralChars(startTokenPtr + 1, end);
+        if (count == -1) {
+          return false;
+        }
+        cur += count + 2;
+      }
+    } else {
+      while (cur < end && *startTokenPtr == *cur) {
+        ++cur;
+      }
+      switch (*startTokenPtr) {
+        case 'G': case 'C': case 'Y': case 'x': case 'w': case 'e': case 'E':
+        case 'y': case 'D': case 'M': case 'd': case 'a': case 'K': case 'h':
+        case 'H': case 'k': case 'm': case 's': case 'S': case 'z': case 'Z':
+          break;
+        default:
+          if (isalpha(*startTokenPtr)) {
+            return false;
+          }
+          break;
+      }
+    }
+  }
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     const ::substrait::Expression::ScalarFunction& scalarFunction,
     const RowTypePtr& inputType) {
@@ -226,10 +293,15 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
       }
     }
   }
-
-  // Validate regex functions.
-  if (kRegexFunctions.find(name) != kRegexFunctions.end()) {
-    return validateRegexExpr(name, scalarFunction);
+  if (name == "date_format") {
+    const auto& pattern = scalarFunction.arguments()[1].value();
+    if (pattern.has_literal()
+        && pattern.literal().has_string()
+        && !ValidateDateTimeFormatterPattern(pattern.literal().string())) {
+      LOG_VALIDATION_MSG(pattern.literal().string() +
+        "pattern is not supported in date_format.");
+      return false;
+    }
   }
 
   if (kBlackList.find(name) != kBlackList.end()) {
