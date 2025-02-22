@@ -204,4 +204,50 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
       checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
+
+  test("udf in filter") {
+    runQueryAndCompare("""
+                         |SELECT
+                         | l_orderkey,
+                         | hash(l_partkey)
+                         |from lineitem
+                         |where plus_one(cast(l_orderkey as long)) = 100
+                         |""".stripMargin) {
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+    }
+  }
+
+  test("udf in filter with and/or") {
+    runQueryAndCompare(
+      """
+        |SELECT
+        | l_orderkey,
+        | l_partkey,
+        | l_extendedprice
+        |from lineitem
+        |where plus_one(cast(l_orderkey as long)) = 100
+        |and (concat_concat(l_partkey) = '1238_concat' or concat_concat(l_partkey) = '1341_concat')
+        |""".stripMargin) {
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+    }
+  }
+
+  test("udf both in project and filter") {
+    runQueryAndCompare("""
+                         |SELECT
+                         | plus_one(cast(l_orderkey as long)),
+                         | no_argument(),
+                         | l_orderkey,
+                         | hash(l_partkey)
+                         |from lineitem
+                         |where plus_one(cast(l_orderkey as long)) = 100
+                         |""".stripMargin) {
+      df =>
+        val partialProjectCount = getExecutedPlan(df).count {
+          case _: ColumnarPartialProjectExec => true
+          case _ => false
+        }
+        assert(partialProjectCount == 2)
+    }
+  }
 }
