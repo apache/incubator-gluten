@@ -392,4 +392,88 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
     compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
   }
 
+  test("coalesce project union. case 1") {
+
+    val sql =
+      """
+        |select a, x, y from (
+        | select a, x, y from coalesce_union_t1 where b % 2 = 0
+        | union all
+        | select a, x, y from coalesce_union_t1 where b % 3 = 1
+        |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
+  test("coalesce project union. case 2") {
+    val sql =
+      """
+        |select a, x, y from (
+        | select concat(a, 'x') as a , x, y from coalesce_union_t1 where b % 2 = 0
+        | union all
+        | select a, x, y + 2 as y from coalesce_union_t1 where b % 3 = 1
+        |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
+  test("coalesce project union. case 3") {
+    val sql =
+      """
+        |select a, x, y from (
+        | select concat(a, 'x') as a , x, y, 1 as t from coalesce_union_t1 where b % 2 = 0
+        | union all
+        | select a, x, y + 2 as y, 2 as t from coalesce_union_t1 where b % 3 = 1
+        |) order by a, x, y, t
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
+  test("coalesce project union. case 4") {
+    val sql =
+      """
+        |select a, x, y from (
+        | select concat(a, 'x') as a , x, 1 as y from coalesce_union_t1 where b % 2 = 0
+        | union all
+        | select a, x, y + 2 as y from coalesce_union_t1 where b % 3 = 1
+        |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
+  test("coalesce project union. case 5") {
+    val sql =
+      """
+        |select a, x, y from (
+        | select a, x, y from (select a, x, y, b + 4 as b from coalesce_union_t1) where b % 2 = 0
+        | union all
+        | select a, x, y + 2 as y from coalesce_union_t1 where b % 3 = 1
+        |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
+  test("no coalesce project union. case 1") {
+    val sql =
+      """
+        |select a, x, y from (
+        | select a, x, y from coalesce_union_t1
+        | union all
+        | select a, x, y from coalesce_union_t1 where b % 3 = 1
+        |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
+  }
+
+  test("no coalesce project union. case 2") {
+    val sql =
+      """
+        |select a, x, y from (
+        | select a , x, y from coalesce_union_t2 where b % 2 = 0
+        | union all
+        | select a, x, y from coalesce_union_t1 where b % 3 = 1
+        |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
+  }
 }
