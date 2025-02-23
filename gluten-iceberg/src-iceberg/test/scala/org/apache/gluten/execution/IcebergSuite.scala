@@ -58,7 +58,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg bucketed join", Some("3.4")) {
+  test("iceberg bucketed join") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -77,7 +77,8 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(1, 'a1', 'p1'),
              |(2, 'a3', 'p2'),
              |(1, 'a2', 'p1'),
-             |(3, 'a4', 'p3');
+             |(3, 'a4', 'p3'),
+             |(10, 'a4', 'p3');
              |""".stripMargin
         )
       }
