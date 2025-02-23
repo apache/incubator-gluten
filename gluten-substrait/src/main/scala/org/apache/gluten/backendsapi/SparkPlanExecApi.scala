@@ -199,7 +199,7 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       original: TryEval): ExpressionTransformer = {
-    throw new GlutenNotSupportException("try_eval is not supported")
+    throw new GlutenNotSupportException(s"try_eval(${original.child.prettyName}) is not supported")
   }
 
   def genArithmeticTransformer(
