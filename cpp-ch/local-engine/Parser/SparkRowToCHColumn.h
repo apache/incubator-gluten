@@ -29,6 +29,7 @@
 #include <jni/jni_common.h>
 #include <substrait/type.pb.h>
 #include <Common/JNIUtils.h>
+#include <Resource/JVMClassReference.h>
 
 namespace DB
 {
@@ -84,11 +85,6 @@ struct SparkRowToCHColumnHelper
 class SparkRowToCHColumn
 {
 public:
-    static jclass spark_row_interator_class;
-    static jmethodID spark_row_interator_hasNext;
-    static jmethodID spark_row_interator_next;
-    static jmethodID spark_row_iterator_nextBatch;
-
     // case 1: rows are batched (this is often directly converted from Block)
     static std::unique_ptr<DB::Block> convertSparkRowInfoToCHColumn(const SparkRowInfo & spark_row_info, const DB::Block & header);
 
@@ -98,6 +94,8 @@ public:
         SparkRowToCHColumnHelper helper(names, types);
 
         GET_JNIENV(env)
+        auto spark_row_interator_hasNext = JVM_CLASS_REFERENCE(row_to_column_iterator_class)["hasNext"];
+        auto spark_row_iterator_nextBatch = JVM_CLASS_REFERENCE(row_to_column_iterator_class)["nextBatch"];
         while (safeCallBooleanMethod(env, java_iter, spark_row_interator_hasNext))
         {
             jobject rows_buf = safeCallObjectMethod(env, java_iter, spark_row_iterator_nextBatch);

@@ -28,6 +28,7 @@
 #include <Functions/FunctionHelpers.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Resource/JVMClassReference.h>
 
 namespace DB
 {
@@ -42,10 +43,6 @@ using namespace DB;
 
 namespace local_engine
 {
-jclass SparkRowToCHColumn::spark_row_interator_class = nullptr;
-jmethodID SparkRowToCHColumn::spark_row_interator_hasNext = nullptr;
-jmethodID SparkRowToCHColumn::spark_row_interator_next = nullptr;
-jmethodID SparkRowToCHColumn::spark_row_iterator_nextBatch = nullptr;
 
 ALWAYS_INLINE static void writeRowToColumns(const std::vector<MutableColumnPtr> & columns, const SparkRowReader & spark_row_reader)
 {

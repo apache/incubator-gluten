@@ -43,7 +43,7 @@ jclass CreateGlobalClassReference(JNIEnv * env, const char * class_name)
     if (global_class == nullptr)
     {
         std::string error_message = "Unable to createGlobalClassReference for" + std::string(class_name);
-        env->ThrowNew(JniErrorsGlobalState::instance().getIllegalAccessExceptionClass(), error_message.c_str());
+        env->ThrowNew(JniErrorsGlobalState::getIllegalAccessExceptionClass(), error_message.c_str());
     }
     return global_class;
 }
@@ -54,7 +54,7 @@ jmethodID GetMethodID(JNIEnv * env, jclass this_class, const char * name, const 
     if (ret == nullptr)
     {
         std::string error_message = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
-        env->ThrowNew(JniErrorsGlobalState::instance().getIllegalAccessExceptionClass(), error_message.c_str());
+        env->ThrowNew(JniErrorsGlobalState::getIllegalAccessExceptionClass(), error_message.c_str());
     }
 
     return ret;
@@ -66,7 +66,7 @@ jmethodID GetStaticMethodID(JNIEnv * env, jclass this_class, const char * name, 
     if (ret == nullptr)
     {
         std::string error_message = "Unable to find static method " + std::string(name) + " within signature" + std::string(sig);
-        env->ThrowNew(JniErrorsGlobalState::instance().getIllegalAccessExceptionClass(), error_message.c_str());
+        env->ThrowNew(JniErrorsGlobalState::getIllegalAccessExceptionClass(), error_message.c_str());
     }
     return ret;
 }

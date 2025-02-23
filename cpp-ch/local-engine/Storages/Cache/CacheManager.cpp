@@ -32,6 +32,7 @@
 #include <Common/Logger.h>
 #include <Common/ThreadPool.h>
 #include <Common/logger_useful.h>
+#include <Resource/JVMClassReference.h>
 
 namespace DB
 {
@@ -55,14 +56,6 @@ extern const Metric LocalThreadScheduled;
 namespace local_engine
 {
 using namespace DB;
-jclass CacheManager::cache_result_class = nullptr;
-jmethodID CacheManager::cache_result_constructor = nullptr;
-
-void CacheManager::initJNI(JNIEnv * env)
-{
-    cache_result_class = CreateGlobalClassReference(env, "Lorg/apache/gluten/execution/CacheResult;");
-    cache_result_constructor = GetMethodID(env, cache_result_class, "<init>", "(ILjava/lang/String;)V");
-}
 
 CacheManager & CacheManager::instance()
 {
@@ -198,7 +191,8 @@ jobject CacheManager::getCacheStatus(JNIEnv * env, const String & jobId)
         status = 2;
         message = fmt::format("job {} not found", jobId);
     }
-    return env->NewObject(cache_result_class, cache_result_constructor, status, charTojstring(env, message.c_str()));
+    auto & cache_result_class_ref = JVM_CLASS_REFERENCE(cache_manager_result_class);
+    return env->NewObject(cache_result_class_ref(), cache_result_class_ref["<init>"], status, charTojstring(env, message.c_str()));
 }
 
 Task CacheManager::cacheFile(const substrait::ReadRel::LocalFiles::FileOrFiles & file, ReadBufferBuilderPtr read_buffer_builder)
