@@ -33,7 +33,6 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.HiveFileFormat
-import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types._
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.collection.BitSet
