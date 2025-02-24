@@ -31,6 +31,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "operators/writer/VeloxDataSource.h"
 
+#include "velox/common/compression/Compression.h"
 #include "velox/common/file/FileSystems.h"
 #ifdef ENABLE_S3
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
@@ -88,6 +89,9 @@ class VeloxParquetDataSource : public VeloxDataSource {
       std::shared_ptr<arrow::Schema> schema)
       : VeloxDataSource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
 
+  static std::unique_ptr<facebook::velox::parquet::WriterOptions> makeParquetWriteOption(
+      const std::unordered_map<std::string, std::string>& sparkConfs);
+
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
   virtual void initSink(const std::unordered_map<std::string, std::string>& sparkConfs);
   void inspectSchema(struct ArrowSchema* out) override;
@@ -103,9 +107,6 @@ class VeloxParquetDataSource : public VeloxDataSource {
   std::unique_ptr<facebook::velox::dwio::common::FileSink> sink_;
 
  private:
-  int64_t maxRowGroupBytes_ = 134217728; // 128MB
-  int64_t maxRowGroupRows_ = 100000000; // 100M
-
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<facebook::velox::parquet::Writer> parquetWriter_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
