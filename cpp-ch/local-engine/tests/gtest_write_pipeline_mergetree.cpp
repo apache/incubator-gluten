@@ -108,7 +108,6 @@ TEST(MergeTree, ClickhouseMergeTree)
     ThreadStatus thread_status;
 
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
-    context->setPath("./");
     const Settings & settings = context->getSettingsRef();
 
     const std::string query
@@ -198,7 +197,6 @@ TEST(MergeTree, SparkMergeTree)
     ThreadStatus thread_status;
 
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
-    context->setPath("./");
     const Settings & settings = context->getSettingsRef();
 
     const auto extension_table = local_engine::JsonStringToMessage<substrait::ReadRel::ExtensionTable>(EMBEDDED_PLAN(_1_mergetree_));
