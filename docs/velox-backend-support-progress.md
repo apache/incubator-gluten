@@ -88,8 +88,7 @@ Gluten supports 30+ operators (Drag to right to see all data types)
 
 #### Scalar Functions Support Status
 
-Out of 352 scalar functions in Spark 3.5, Gluten currently fully supports 233 functions and partially supports 9
-functions.
+Out of 352 scalar functions in Spark 3.5, Gluten currently fully supports 229 functions and partially supports 13 functions.
 
 ##### URL Functions
 
@@ -217,28 +216,28 @@ functions.
 
 ##### Predicate Functions
 
-| Spark Functions | Spark Expressions  | Status | Restrictions |
-|-----------------|--------------------|--------|--------------|
-| !               | Not                | S      |              |
-| <               | LessThan           | S      |              |
-| <=              | LessThanOrEqual    | S      |              |
-| <=>             | EqualNullSafe      | S      |              |
-| =               | EqualTo            | S      |              |
-| ==              | EqualTo            | S      |              |
-| >               | GreaterThan        | S      |              |
-| >=              | GreaterThanOrEqual | S      |              |
-| and             | And                | S      |              |
-| ilike           | ILike              |        |              |
-| in              | In                 | PS     |              |
-| isnan           | IsNaN              | S      |              |
-| isnotnull       | IsNotNull          | S      |              |
-| isnull          | IsNull             | S      |              |
-| like            | Like               | S      |              |
-| not             | Not                | S      |              |
-| or              | Or                 | S      |              |
-| regexp          | RLike              | S      |              |
-| regexp_like     | RLike              | S      |              |
-| rlike           | RLike              | S      |              |
+| Spark Functions | Spark Expressions  | Status | Restrictions           |
+|-----------------|--------------------|--------|------------------------|
+| !               | Not                | S      |                        |
+| <               | LessThan           | S      |                        |
+| <=              | LessThanOrEqual    | S      |                        |
+| <=>             | EqualNullSafe      | S      |                        |
+| =               | EqualTo            | S      |                        |
+| ==              | EqualTo            | S      |                        |
+| >               | GreaterThan        | S      |                        |
+| >=              | GreaterThanOrEqual | S      |                        |
+| and             | And                | S      |                        |
+| ilike           | ILike              |        |                        |
+| in              | In                 | PS     |                        |
+| isnan           | IsNaN              | S      |                        |
+| isnotnull       | IsNotNull          | S      |                        |
+| isnull          | IsNull             | S      |                        |
+| like            | Like               | S      |                        |
+| not             | Not                | S      |                        |
+| or              | Or                 | S      |                        |
+| regexp          | RLike              | PS     | Lookaround unsupported |
+| regexp_like     | RLike              | PS     | Lookaround unsupported |
+| rlike           | RLike              | PS     | Lookaround unsupported |
 
 ##### Date and Timestamp Functions
 
@@ -325,73 +324,73 @@ functions.
 
 ##### String Functions
 
-| Spark Functions    | Spark Expressions           | Status | Restrictions |
-|--------------------|-----------------------------|--------|--------------|
-| ascii              | Ascii                       | S      |              |
-| base64             | Base64                      | S      |              |
-| bit_length         | BitLength                   | S      |              |
-| btrim              | StringTrimBoth              |        |              |
-| char               | Chr                         | S      |              |
-| char_length        | Length                      | S      |              |
-| character_length   | Length                      | S      |              |
-| chr                | Chr                         | S      |              |
-| concat_ws          | ConcatWs                    | S      |              |
-| contains           | ContainsExpressionBuilder   | S      |              |
-| decode             | Decode                      |        |              |
-| elt                | Elt                         |        |              |
-| encode             | Encode                      |        |              |
-| endswith           | EndsWithExpressionBuilder   |        |              |
-| find_in_set        | FindInSet                   | S      |              |
-| format_number      | FormatNumber                |        |              |
-| format_string      | FormatString                | S      |              |
-| initcap            | InitCap                     | S      |              |
-| instr              | StringInstr                 | S      |              |
-| lcase              | Lower                       | S      |              |
-| left               | Left                        | S      |              |
-| len                | Length                      | S      |              |
-| length             | Length                      | S      |              |
-| levenshtein        | Levenshtein                 | S      |              |
-| locate             | StringLocate                | S      |              |
-| lower              | Lower                       | S      |              |
-| lpad               | LPadExpressionBuilder       | S      |              |
-| ltrim              | StringTrimLeft              | S      |              |
-| luhn_check         | Luhncheck                   |        |              |
-| mask               | MaskExpressionBuilder       | S      |              |
-| octet_length       | OctetLength                 |        |              |
-| overlay            | Overlay                     | S      |              |
-| position           | StringLocate                | S      |              |
-| printf             | FormatString                | S      |              |
-| regexp_count       | RegExpCount                 |        |              |
-| regexp_extract     | RegExpExtract               | PS     |              |
-| regexp_extract_all | RegExpExtractAll            | PS     |              |
-| regexp_instr       | RegExpInStr                 |        |              |
-| regexp_replace     | RegExpReplace               | S      |              |
-| regexp_substr      | RegExpSubStr                |        |              |
-| repeat             | StringRepeat                | S      |              |
-| replace            | StringReplace               | S      |              |
-| right              | Right                       |        |              |
-| rpad               | RPadExpressionBuilder       | S      |              |
-| rtrim              | StringTrimRight             | S      |              |
-| sentences          | Sentences                   |        |              |
-| soundex            | SoundEx                     | S      |              |
-| space              | StringSpace                 | S      |              |
-| split              | StringSplit                 | S      |              |
-| split_part         | SplitPart                   | S      |              |
-| startswith         | StartsWithExpressionBuilder |        |              |
-| substr             | Substring                   | S      |              |
-| substring          | Substring                   | S      |              |
-| substring_index    | SubstringIndex              | S      |              |
-| to_binary          | ToBinary                    |        |              |
-| to_char            | ToCharacter                 |        |              |
-| to_number          | ToNumber                    |        |              |
-| to_varchar         | ToCharacter                 |        |              |
-| translate          | StringTranslate             | S      |              |
-| trim               | StringTrim                  | S      |              |
-| try_to_binary      | TryToBinary                 |        |              |
-| try_to_number      | TryToNumber                 |        |              |
-| ucase              | Upper                       | S      |              |
-| unbase64           | UnBase64                    |        |              |
-| upper              | Upper                       | S      |              |
+| Spark Functions    | Spark Expressions           | Status | Restrictions           |
+|--------------------|-----------------------------|--------|------------------------|
+| ascii              | Ascii                       | S      |                        |
+| base64             | Base64                      | S      |                        |
+| bit_length         | BitLength                   | S      |                        |
+| btrim              | StringTrimBoth              |        |                        |
+| char               | Chr                         | S      |                        |
+| char_length        | Length                      | S      |                        |
+| character_length   | Length                      | S      |                        |
+| chr                | Chr                         | S      |                        |
+| concat_ws          | ConcatWs                    | S      |                        |
+| contains           | ContainsExpressionBuilder   | S      |                        |
+| decode             | Decode                      |        |                        |
+| elt                | Elt                         |        |                        |
+| encode             | Encode                      |        |                        |
+| endswith           | EndsWithExpressionBuilder   |        |                        |
+| find_in_set        | FindInSet                   | S      |                        |
+| format_number      | FormatNumber                |        |                        |
+| format_string      | FormatString                | S      |                        |
+| initcap            | InitCap                     | S      |                        |
+| instr              | StringInstr                 | S      |                        |
+| lcase              | Lower                       | S      |                        |
+| left               | Left                        | S      |                        |
+| len                | Length                      | S      |                        |
+| length             | Length                      | S      |                        |
+| levenshtein        | Levenshtein                 | S      |                        |
+| locate             | StringLocate                | S      |                        |
+| lower              | Lower                       | S      |                        |
+| lpad               | LPadExpressionBuilder       | S      |                        |
+| ltrim              | StringTrimLeft              | S      |                        |
+| luhn_check         | Luhncheck                   |        |                        |
+| mask               | MaskExpressionBuilder       | S      |                        |
+| octet_length       | OctetLength                 |        |                        |
+| overlay            | Overlay                     | S      |                        |
+| position           | StringLocate                | S      |                        |
+| printf             | FormatString                | S      |                        |
+| regexp_count       | RegExpCount                 |        |                        |
+| regexp_extract     | RegExpExtract               | PS     | Lookaround unsupported |
+| regexp_extract_all | RegExpExtractAll            | PS     | Lookaround unsupported |
+| regexp_instr       | RegExpInStr                 |        |                        |
+| regexp_replace     | RegExpReplace               | PS     | Lookaround unsupported |
+| regexp_substr      | RegExpSubStr                |        |                        |
+| repeat             | StringRepeat                | S      |                        |
+| replace            | StringReplace               | S      |                        |
+| right              | Right                       |        |                        |
+| rpad               | RPadExpressionBuilder       | S      |                        |
+| rtrim              | StringTrimRight             | S      |                        |
+| sentences          | Sentences                   |        |                        |
+| soundex            | SoundEx                     | S      |                        |
+| space              | StringSpace                 | S      |                        |
+| split              | StringSplit                 | S      |                        |
+| split_part         | SplitPart                   | S      |                        |
+| startswith         | StartsWithExpressionBuilder |        |                        |
+| substr             | Substring                   | S      |                        |
+| substring          | Substring                   | S      |                        |
+| substring_index    | SubstringIndex              | S      |                        |
+| to_binary          | ToBinary                    |        |                        |
+| to_char            | ToCharacter                 |        |                        |
+| to_number          | ToNumber                    |        |                        |
+| to_varchar         | ToCharacter                 |        |                        |
+| translate          | StringTranslate             | S      |                        |
+| trim               | StringTrim                  | S      |                        |
+| try_to_binary      | TryToBinary                 |        |                        |
+| try_to_number      | TryToNumber                 |        |                        |
+| ucase              | Upper                       | S      |                        |
+| unbase64           | UnBase64                    |        |                        |
+| upper              | Upper                       | S      |                        |
 
 ##### Csv Functions
 
