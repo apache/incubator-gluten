@@ -26,6 +26,7 @@
 #include <Storages/MemorySettings.h>
 #include <Storages/Output/NormalFileWriter.h>
 #include <Storages/StorageMemory.h>
+#include <Storages/SubstraitSource/FileReader.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <base/demangle.h>
 #include <Poco/URI.h>
@@ -71,7 +72,8 @@ void ReaderTestBase::createMemoryTableIfNotExists(
     ConstraintsDescription constraints;
     MemorySettings memory_settings;
 
-    auto storage_memory = std::make_shared<DB::StorageMemory>(table_id, columns_description, constraints, "My in-memory table", memory_settings);
+    auto storage_memory
+        = std::make_shared<DB::StorageMemory>(table_id, columns_description, constraints, "My in-memory table", memory_settings);
     auto metadata_snapshot = storage_memory->getInMemoryMetadataPtr();
     DB::SinkToStoragePtr sink = storage_memory->write(nullptr, metadata_snapshot, context_, false);
     auto pipeline = std::make_unique<DB::QueryPipeline>(std::move(sink));
@@ -101,7 +103,8 @@ void ReaderTestBase::TearDown()
     context_ = nullptr;
 }
 
-template <typename T> requires couldbe_collected<T>
+template <typename T>
+requires couldbe_collected<T>
 Block ReaderTestBase::collectResult(T & input) const
 {
     const Block & header = input.getHeader();
@@ -122,7 +125,6 @@ template Block ReaderTestBase::collectResult<NormalFileReader>(NormalFileReader 
 
 Block ReaderTestBase::runClickhouseSQL(const std::string & query) const
 {
-
     BlockIO io = executeQuery(query, context_).second;
 
     if (io.pipeline.pulling())
@@ -148,7 +150,6 @@ void ReaderTestBase::headBlock(const DB::Block & block, size_t count, size_t tru
 void ReaderTestBase::headColumn(const DB::ColumnPtr & column, size_t count, size_t truncate) const
 {
     LOG_INFO(test_logger, "\n{}", debug::showString(column, count, truncate));
-
 }
 
 }

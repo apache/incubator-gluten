@@ -19,10 +19,12 @@
 
 #include <Core/Block.h>
 #include <Core/Settings.h>
+#include <Formats/FormatFactory.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Interpreters/executeQuery.h>
 #include <Processors/Executors/PullingAsyncPipelineExecutor.h>
 #include <Storages/Output/NormalFileWriter.h>
+#include <Storages/SubstraitSource/FileReader.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/ParquetFormatFile.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
@@ -34,14 +36,11 @@
 #include <utils/QueryAssertions.h>
 #include <utils/gluten_test_util.h>
 #include <Common/QueryContext.h>
-#include <Formats/FormatFactory.h>
 
 namespace local_engine
 {
 class ParquetFormatFile;
 }
-
-class ConnectorSplit {};
 
 namespace DB::Setting
 {
@@ -136,6 +135,7 @@ private:
         auto msg = fmt::format("\nExpected result from running Clickhouse sql: {}", duckDbSql);
         EXPECT_TRUE(assertEqualResults(collectResult( reader), runClickhouseSQL(duckDbSql), msg));
     }
+
 protected:
     std::unique_ptr<NormalFileReader> makeIcebergSplit(
         const std::string& dataFilePath,
@@ -301,7 +301,7 @@ public:
         DB::ColumnsWithTypeAndName columns;
 
         for (int i = 0; i < equalityDeleteVector.size(); i++)
-            columns.emplace_back(makeColumn(equalityDeleteVector[i], fmt::format("c{}", i)));
+            columns.emplace_back(createColumn(equalityDeleteVector[i], fmt::format("c{}", i)));
 
 
         auto deleteFilePath = TempFilePath::tmp("parquet");
@@ -363,14 +363,13 @@ public:
 };
 
 
-
 TEST_F(IcebergTest, tmp2)
 {
     std::shared_ptr<TempFilePath> dataFilePath =
         writeDataFiles(rowCount, 4)[0];
 
     DB::Block block = runClickhouseSQL("select count(*) from IcebergTest.tmp");
-    EXPECT_TRUE(assertEqualResults(block, DB::Block{makeColumn<UInt64>({rowCount}, "count()")}));
+    EXPECT_TRUE(assertEqualResults(block, DB::Block{createColumn<UInt64>({rowCount}, "count()")}));
 
 
     auto read = makeIcebergSplit(dataFilePath->string());
@@ -404,7 +403,6 @@ TEST_F(IcebergTest, tmp)
 
 TEST_F(IcebergTest, equalityDeletesSingleFileMultipleColumns)
 {
-
     std::unordered_map<int8_t, std::vector<int32_t>> equalityFieldIdsMap;
     std::unordered_map<int8_t, std::vector<std::vector<int64_t>>>
         equalityDeleteVectorMap;
@@ -414,7 +412,6 @@ TEST_F(IcebergTest, equalityDeletesSingleFileMultipleColumns)
     equalityDeleteVectorMap.insert({0, {{0, 1}, {0, 0}}});
 
     assertEqualityDeletes(equalityDeleteVectorMap, equalityFieldIdsMap);
-
 }
 
 }
