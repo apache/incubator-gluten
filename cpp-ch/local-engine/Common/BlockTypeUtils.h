@@ -84,6 +84,12 @@ inline DB::Block makeBlockHeader(const DB::ColumnsWithTypeAndName & data)
     return DB::Block(data);
 }
 
+inline DB::ColumnWithTypeAndName toColumnType(const DB::NameAndTypePair & type)
+{
+    return DB::ColumnWithTypeAndName(type.type, type.name);
+}
+
+DB::Block toSampleBlock(const DB::NamesAndTypesList & type);
 DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
 DB::DataTypePtr wrapNullableType(bool nullable, DB::DataTypePtr nested_type);
 

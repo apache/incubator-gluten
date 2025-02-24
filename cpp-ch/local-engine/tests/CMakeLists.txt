@@ -95,7 +95,7 @@ if(ENABLE_BENCHMARKS)
                       ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine)
   add_executable(
     benchmark_local_engine
-    ${gtest_utils_sources}
+    utils/gluten_test_util.cpp
     benchmark_local_engine.cpp
     benchmark_parquet_read.cpp
     benchmark_spark_row.cpp

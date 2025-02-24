@@ -43,7 +43,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
 
     std::string file = local_engine::test::third_party_data(
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-    Block header{toBlockRowType(local_engine::test::readParquetSchema(file))};
+    Block header{local_engine::toSampleBlock(local_engine::test::readParquetSchema(file))};
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
@@ -72,7 +72,7 @@ void BM_ColumnIndexRead_Old(benchmark::State & state)
 
     std::string file = local_engine::test::third_party_data(
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-    Block header{toBlockRowType(local_engine::test::readParquetSchema(file))};
+    Block header{local_engine::toSampleBlock(local_engine::test::readParquetSchema(file))};
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
@@ -221,7 +221,7 @@ void BM_ColumnIndexRead_Filter_ReturnAllResult(benchmark::State & state)
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
     const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
     auto pushDown = local_engine::test::parseFilter(filter1, schema);
-    const Block header = {toBlockRowType(schema)};
+    const Block header = {local_engine::toSampleBlock(schema)};
 
     for (auto _ : state)
         doRead(files, pushDown, header);
@@ -238,7 +238,7 @@ void BM_ColumnIndexRead_Filter_ReturnHalfResult(benchmark::State & state)
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
     const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
     auto pushDown = local_engine::test::parseFilter(filter1, schema);
-    const Block header = {toBlockRowType(schema)};
+    const Block header = {local_engine::toSampleBlock(schema)};
 
     for (auto _ : state)
         doRead(files, pushDown, header);

@@ -21,11 +21,11 @@
 #include <Core/Block.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
-#include <tests/testConfig.h>
-
 #include <Interpreters/ActionsDAG.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <parquet/schema.h>
+#include <tests/testConfig.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace substrait
 {
@@ -98,11 +98,6 @@ inline std::string replaceLocalFilesWithTPCH(const std::string_view haystack)
     return boost::replace_all_copy(std::string{haystack}, wildcard, replaced);
 }
 
-inline BlockFieldType toBlockFieldType(const AnotherFieldType & type)
-{
-    return BlockFieldType(type.type, type.name);
-}
-
 inline AnotherFieldType toAnotherFieldType(const parquet::ColumnDescriptor & type)
 {
     return {type.name(), local_engine::test::toDataType(type)};
@@ -119,19 +114,6 @@ inline AnotherRowType toAnotherRowType(const DB::Block & header)
     return types;
 }
 
-inline BlockRowType toBlockRowType(const AnotherRowType & type, const bool reverse = false)
-{
-    BlockRowType result;
-    result.reserve(type.size());
-    if (reverse)
-        for (auto it = type.rbegin(); it != type.rend(); ++it)
-            result.emplace_back(toBlockFieldType(*it));
-    else
-        for (const auto & field : type)
-            result.emplace_back(toBlockFieldType(field));
-    return result;
-}
-
 template <class Predicate>
 BlockRowType toBlockRowType(const AnotherRowType & type, Predicate predicate)
 {
@@ -139,7 +121,7 @@ BlockRowType toBlockRowType(const AnotherRowType & type, Predicate predicate)
     result.reserve(type.size());
     for (const auto & field : type)
         if (predicate(field))
-            result.emplace_back(toBlockFieldType(field));
+            result.emplace_back(local_engine::toColumnType(field));
     return result;
 }
 

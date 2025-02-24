@@ -63,7 +63,6 @@ public:
     static DB::Chunk buildRowCountChunk(UInt64 rows);
     static DB::Block buildRowCountBlock(UInt64 rows);
 
-    static DB::Block buildHeader(const DB::NamesAndTypesList & names_types_list);
 
     static constexpr UInt64 FLAT_STRUCT = 1;
     static constexpr UInt64 FLAT_NESTED_TABLE = 2;

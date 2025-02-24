@@ -149,17 +149,6 @@ DB::Block BlockUtil::buildRowCountBlock(UInt64 rows)
     return block;
 }
 
-DB::Block BlockUtil::buildHeader(const DB::NamesAndTypesList & names_types_list)
-{
-    DB::ColumnsWithTypeAndName cols;
-    for (const auto & name_type : names_types_list)
-    {
-        DB::ColumnWithTypeAndName col(name_type.type->createColumn(), name_type.type, name_type.name);
-        cols.emplace_back(col);
-    }
-    return DB::Block(cols);
-}
-
 /// The column names may be different in two blocks.
 /// and the nullability also could be different, with TPCDS-Q1 as an example.
 DB::ColumnWithTypeAndName
