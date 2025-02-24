@@ -118,6 +118,7 @@ function cmake_install {
 }
 
 function setup_macos {
+  ARCH=`uname -m`
   if [ $ARCH == 'x86_64' ]; then
     ./scripts/setup-macos.sh
   elif [ $ARCH == 'arm64' ]; then
