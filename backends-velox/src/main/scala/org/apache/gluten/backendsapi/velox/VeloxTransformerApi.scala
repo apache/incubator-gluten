@@ -26,7 +26,6 @@ import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.InputPartitionsUtil
 import org.apache.gluten.vectorized.PlanEvaluatorJniWrapper
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
@@ -35,8 +34,9 @@ import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types._
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.collection.BitSet
-
 import com.google.protobuf.{Any, Message}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.hive.execution.HiveFileFormat
 
 import java.util.{Map => JMap}
 
@@ -101,11 +101,12 @@ class VeloxTransformerApi extends TransformerApi with Logging {
 
   override def genWriteParameters(write: WriteFilesExecTransformer): Any = {
     write.fileFormat match {
-      case register: DataSourceRegister =>
-        register.shortName
-        val shortFileFormatName = register.shortName()
+      case _ @ (_ : ParquetFileFormat | _: HiveFileFormat) =>
+        // Only Parquet is supported. It's safe to set a fixed "parquet" here
+        // because others already fell back by WriteFilesExecTransformer's validation.
+        val shortName = "parquet"
         val nativeConf =
-          GlutenFormatFactory(shortFileFormatName)
+          GlutenFormatFactory(shortName)
             .nativeConf(
               write.caseInsensitiveOptions,
               WriteFilesExecTransformer.getCompressionCodec(write.caseInsensitiveOptions))
@@ -113,7 +114,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
           ConfigMap
             .newBuilder()
             .putAllConfigs(nativeConf)
-            .putConfigs("format", shortFileFormatName)
+            .putConfigs("format", shortName)
             .build())
       case _ =>
         throw new GlutenException("Unsupported file write format: " + write.fileFormat)
