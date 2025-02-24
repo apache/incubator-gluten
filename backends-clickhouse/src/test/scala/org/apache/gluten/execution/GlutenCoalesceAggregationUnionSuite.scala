@@ -453,6 +453,23 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
     compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
   }
 
+  test("coalesce project union. case 1") {
+
+    val sql =
+      """
+        |select a, x, y, t from (
+        | select a, x, y, 1 as t from coalesce_union_t1 where b % 2 = 0
+        | union all
+        | select a, x, y, 2 as t from coalesce_union_t1 where b % 3 = 1
+        | union all
+        | select a, x, y, 3 as t from coalesce_union_t1 where b % 4 = 1
+        | union all
+        | select a, x, y, 4 as t from coalesce_union_t1 where b % 5 = 1
+        |) order by a, x, y, t
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
+  }
+
   test("no coalesce project union. case 1") {
     val sql =
       """
