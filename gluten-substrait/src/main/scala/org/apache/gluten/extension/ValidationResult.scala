@@ -49,7 +49,16 @@ object ValidationResult {
   }
 
   def succeeded: ValidationResult = Succeeded
-  def failed(reason: String): ValidationResult = Failed(reason)
+  def failed(reason: String, prefix: String = "\n - "): ValidationResult = Failed(prefix + reason)
+  def merge(left: ValidationResult, right: ValidationResult): ValidationResult =
+    (left.ok(), right.ok()) match {
+      case (_, true) =>
+        left
+      case (true, false) =>
+        right
+      case (false, false) =>
+        failed(left.reason() + right.reason(), prefix = "")
+    }
 
   implicit class EncodeFallbackTagImplicits(result: ValidationResult) {
     def tagOnFallback(plan: TreeNode[_]): Unit = {
