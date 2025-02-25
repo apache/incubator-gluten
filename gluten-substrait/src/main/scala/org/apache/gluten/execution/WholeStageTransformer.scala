@@ -118,7 +118,8 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
     if (!validationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
     }
-    if (validationFailFast) validationResult else schemaValidationResult.merge(validationResult)
+    if (validationFailFast) validationResult
+    else ValidationResult.merge(schemaValidationResult, validationResult)
   }
 
   protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded

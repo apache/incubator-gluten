@@ -26,7 +26,6 @@ import org.apache.spark.sql.catalyst.trees.TreeNode
 sealed trait ValidationResult {
   def ok(): Boolean
   def reason(): String
-  def merge(other: ValidationResult): ValidationResult
 }
 
 object ValidationResult {
@@ -43,28 +42,23 @@ object ValidationResult {
     override def ok(): Boolean = true
     override def reason(): String = throw new UnsupportedOperationException(
       "Succeeded validation doesn't have failure details")
-
-    override def merge(other: ValidationResult): ValidationResult = {
-      if (!other.ok()) {
-        return other
-      }
-      this
-    }
   }
 
   private case class Failed(override val reason: String) extends ValidationResult {
     override def ok(): Boolean = false
-
-    override def merge(other: ValidationResult): ValidationResult = {
-      if (!other.ok()) {
-        return ValidationResult.failed(reason + other.reason(), prefix = "")
-      }
-      this
-    }
   }
 
   def succeeded: ValidationResult = Succeeded
   def failed(reason: String, prefix: String = "\n - "): ValidationResult = Failed(prefix + reason)
+  def merge(left: ValidationResult, right: ValidationResult): ValidationResult =
+    (left.ok(), right.ok()) match {
+      case (_, true) =>
+        left
+      case (true, false) =>
+        right
+      case (false, false) =>
+        failed(left.reason() + right.reason(), prefix = "")
+    }
 
   implicit class EncodeFallbackTagImplicits(result: ValidationResult) {
     def tagOnFallback(plan: TreeNode[_]): Unit = {
