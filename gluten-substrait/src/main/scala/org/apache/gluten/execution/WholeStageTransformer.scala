@@ -71,8 +71,8 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
   // Wraps a validation function f that can also throw a GlutenNotSupportException.
   // Returns ValidationResult.failed if f throws a GlutenNotSupportException,
   // otherwise returns the result of f.
-  protected def failValidationWithException(f: => ValidationResult)(finallyBlock: => Unit = () =>
-    ()): ValidationResult = {
+  protected def failValidationWithException(f: => ValidationResult)(
+      finallyBlock: => Unit = ()): ValidationResult = {
     try {
       f
     } catch {
