@@ -25,13 +25,6 @@
 namespace local_engine
 {
 
-/// When run query "select count(*) from t", there is no any column to be read. The only necessary information is the number of rows.
-/// To handle these cases, we build blocks with a const virtual column to indicate how many rows are in it.
-static DB::Block getRealHeader(const DB::Block & header)
-{
-    return header ? header : BlockUtil::buildRowCountHeader();
-}
-
 static std::vector<FormatFilePtr> initializeFiles(const substrait::ReadRel::LocalFiles & file_infos, const DB::ContextPtr & context)
 {
     if (file_infos.items().empty())
@@ -61,7 +54,7 @@ static DB::Block initReadHeader(const DB::Block & block, const FormatFiles & fil
 
 SubstraitFileSource::SubstraitFileSource(
     const DB::ContextPtr & context_, const DB::Block & outputHeader_, const substrait::ReadRel::LocalFiles & file_infos)
-    : DB::SourceWithKeyCondition(getRealHeader(outputHeader_), false)
+    : DB::SourceWithKeyCondition(BaseReader::buildRowCountHeader(outputHeader_), false)
     , files(initializeFiles(file_infos, context_))
     , outputHeader(outputHeader_)
     , readHeader(initReadHeader(outputHeader, files))
@@ -112,19 +105,7 @@ bool SubstraitFileSource::tryPrepareReader()
         if (!current_file->supportSplit() && current_file->getStartOffset())
             continue;
 
-        if (!readHeader)
-        {
-            if (auto totalRows = current_file->getTotalRows())
-                file_reader = std::make_unique<ConstColumnsFileReader>(current_file, outputHeader, *totalRows);
-            else
-            {
-                /// If we can't get total rows from file metadata (i.e. text/json format file), adding a dummy column to
-                /// indicate the number of rows.
-                file_reader = NormalFileReader::create(current_file, getRealHeader(readHeader), getRealHeader(outputHeader));
-            }
-        }
-        else
-            file_reader = NormalFileReader::create(current_file, readHeader, outputHeader, key_condition, column_index_filter);
+        file_reader = BaseReader::create(current_file, readHeader, outputHeader, key_condition, column_index_filter);
         if (file_reader)
             return true;
     }

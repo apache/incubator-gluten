@@ -28,6 +28,7 @@ class VectorizedParquetRecordReader;
 
 using substraitInputFile = substrait::ReadRel::LocalFiles::FileOrFiles;
 using substraitIcebergDeleteFile = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions::DeleteFile;
+using IcebergReadOptions = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions;
 
 // TODO: move to other cpp ?
 
@@ -48,15 +49,15 @@ public:
 
 namespace iceberg
 {
-class IcebergDeleteFile;
 
 class EqualityDeleteFileReader
 {
     SimpleParquetReader reader_;
+
 public:
     explicit EqualityDeleteFileReader(const DB::ContextPtr & context, const substraitIcebergDeleteFile & deleteFile);
     ~EqualityDeleteFileReader() = default;
-    DB::ASTPtr readDeleteValues() const;
+    void readDeleteValues(DB::ASTs & expressionInputs) const;
 };
 
 }

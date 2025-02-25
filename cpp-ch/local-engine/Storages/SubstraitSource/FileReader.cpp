@@ -22,11 +22,11 @@
 #include <DataTypes/DataTypesDecimal.h>
 #include <IO/ReadBufferFromString.h>
 #include <Storages/SubstraitSource/ParquetFormatFile.h>
+#include <Storages/SubstraitSource/iceberg/IcebergReader.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/GlutenStringUtils.h>
-
 
 namespace DB
 {
@@ -232,30 +232,6 @@ bool ConstColumnsFileReader::pull(DB::Chunk & chunk)
     return true;
 }
 
-std::unique_ptr<NormalFileReader> NormalFileReader::create(
-    const FormatFilePtr & file,
-    const DB::Block & to_read_header_,
-    const DB::Block & output_header_,
-    const std::shared_ptr<const DB::KeyCondition> & key_condition,
-    const ColumnIndexFilterPtr & column_index_filter)
-{
-    FormatFile::InputFormatPtr input_format;
-    if (auto * parquetFile = dynamic_cast<ParquetFormatFile *>(file.get()))
-    {
-        /// Apply key condition to the reader.
-        /// If use_local_format is true, column_index_filter will be used  otherwise it will be ignored
-        input_format = parquetFile->createInputFormat(to_read_header_, key_condition, column_index_filter);
-    }
-    else
-    {
-        input_format = file->createInputFormat(to_read_header_);
-        if (key_condition)
-            input_format->inputFormat().setKeyCondition(key_condition);
-    }
-    if (!input_format)
-        return nullptr;
-    return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
-}
 
 NormalFileReader::NormalFileReader(
     const FormatFilePtr & file_,
@@ -272,11 +248,74 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
         return false;
 
     /// read read real data chunk from input.
-    DB::Chunk dataChunk = input_format->generate();
+    DB::Chunk dataChunk = doPull();
     const size_t rows = dataChunk.getNumRows();
     if (!rows)
         return false;
+
     chunk = DB::Chunk(addVirtualColumn(std::move(dataChunk)), rows);
     return true;
 }
+
+DB::Block BaseReader::buildRowCountHeader(const DB::Block & header)
+{
+    return header ? header : BlockUtil::buildRowCountHeader();
+}
+
+namespace
+{
+/// Factory method to create a reader for normal file, iceberg file or delta file
+///
+std::unique_ptr<NormalFileReader> createNormalFileReader(
+    const FormatFilePtr & file,
+    const DB::Block & to_read_header_,
+    const DB::Block & output_header_,
+    const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
+    const ColumnIndexFilterPtr & column_index_filter = nullptr)
+{
+    FormatFile::InputFormatPtr input_format;
+    if (auto * parquetFile = dynamic_cast<ParquetFormatFile *>(file.get()))
+    {
+        /// Apply key condition to the reader.
+        /// If use_local_format is true, column_index_filter will be used  otherwise it will be ignored
+        input_format = parquetFile->createInputFormat(to_read_header_, key_condition, column_index_filter);
+    }
+    else
+    {
+        input_format = file->createInputFormat(to_read_header_);
+        if (key_condition)
+            input_format->inputFormat().setKeyCondition(key_condition);
+    }
+    if (!input_format)
+        return nullptr;
+
+    if (file->getFileInfo().has_iceberg())
+        return iceberg::IcebergReader::create(file, to_read_header_, output_header_, input_format);
+
+    return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
+}
+}
+std::unique_ptr<BaseReader> BaseReader::create(
+    const FormatFilePtr & current_file,
+    const DB::Block & readHeader,
+    const DB::Block & outputHeader,
+    const std::shared_ptr<const DB::KeyCondition> & key_condition,
+    const ColumnIndexFilterPtr & column_index_filter)
+{
+    if (!readHeader)
+    {
+        if (auto totalRows = current_file->getTotalRows())
+            return std::make_unique<ConstColumnsFileReader>(current_file, outputHeader, *totalRows);
+        else
+        {
+            /// If we can't get total rows from file metadata (i.e. text/json format file), adding a dummy column to
+            /// indicate the number of rows.
+            return createNormalFileReader(current_file, buildRowCountHeader(readHeader), buildRowCountHeader(outputHeader));
+        }
+    }
+
+    return createNormalFileReader(current_file, readHeader, outputHeader, key_condition, column_index_filter);
+}
+
+
 }

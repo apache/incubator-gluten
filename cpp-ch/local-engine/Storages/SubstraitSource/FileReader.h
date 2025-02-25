@@ -65,17 +65,25 @@ protected:
     static DB::ColumnPtr createConstColumn(DB::DataTypePtr type, const DB::Field & field, size_t rows);
     static DB::ColumnPtr createPartitionColumn(const String & value, const DB::DataTypePtr & type, size_t rows);
     static DB::Field buildFieldFromString(const String & value, DB::DataTypePtr type);
+
+public:
+    /// When run query "select count(*) from t", there is no any column to be read.
+    /// The only necessary information is the number of rows.
+    /// To handle these cases, we build blocks with a const virtual column to indicate how many rows are in it.
+    static DB::Block buildRowCountHeader(const DB::Block & header);
+
+    /// Factory
+    static std::unique_ptr<BaseReader> create(
+        const FormatFilePtr & current_file,
+        const DB::Block & readHeader,
+        const DB::Block & outputHeader,
+        const std::shared_ptr<const DB::KeyCondition> & key_condition,
+        const ColumnIndexFilterPtr & column_index_filter);
 };
 
 class NormalFileReader : public BaseReader
 {
 public:
-    static std::unique_ptr<NormalFileReader> create(
-        const FormatFilePtr & file,
-        const DB::Block & to_read_header_,
-        const DB::Block & output_header_,
-        const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
-        const ColumnIndexFilterPtr & column_index_filter = nullptr);
     NormalFileReader(
         const FormatFilePtr & file_,
         const DB::Block & to_read_header_,
@@ -84,6 +92,9 @@ public:
     ~NormalFileReader() override = default;
 
     bool pull(DB::Chunk & chunk) override;
+
+protected:
+    virtual DB::Chunk doPull() { return input_format->generate(); }
 
 private:
     void onCancel() override { input_format->cancel(); }

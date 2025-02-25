@@ -35,6 +35,7 @@
 #include <tests/utils/TempFilePath.h>
 #include <utils/QueryAssertions.h>
 #include <utils/gluten_test_util.h>
+#include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 
 namespace local_engine
@@ -130,14 +131,14 @@ private:
         return predicates;
     }
 
-    void assertEqualityDeletes(NormalFileReader & reader, const std::string& duckDbSql) const
+    void assertEqualityDeletes(BaseReader & reader, const std::string& duckDbSql) const
     {
         auto msg = fmt::format("\nExpected result from running Clickhouse sql: {}", duckDbSql);
         EXPECT_TRUE(assertEqualResults(collectResult( reader), runClickhouseSQL(duckDbSql), msg));
     }
 
 protected:
-    std::unique_ptr<NormalFileReader> makeIcebergSplit(
+    std::unique_ptr<BaseReader> makeIcebergSplit(
         const std::string& dataFilePath,
         const DB::Block & sampleBlock,
         const std::vector<substraitIcebergDeleteFile>& deleteFiles = {})
@@ -148,10 +149,10 @@ protected:
         ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context_);
         auto format_file = FormatFileUtil::createFile(context_, read_buffer_builder, file_info);
 
-        return NormalFileReader::create(format_file, sampleBlock, sampleBlock);
+        return BaseReader::create(format_file, sampleBlock, sampleBlock, nullptr, nullptr);
     }
 
-    std::unique_ptr<NormalFileReader> makeIcebergSplit(
+    std::unique_ptr<BaseReader> makeIcebergSplit(
         const std::string& dataFilePath,
         const std::vector<substraitIcebergDeleteFile>& deleteFiles = {})
     {
@@ -293,6 +294,21 @@ public:
         }
 
         assertEqualityDeletes(*icebergSplit, duckDbSql);
+
+        // Select a column that's not in the filter columns
+        if (numDataColumns > 1 &&
+            equalityDeleteVectorMap.at(0).size() < numDataColumns) {
+            std::string duckDbSql1 = "SELECT c0 FROM IcebergTest.tmp";
+            if (numDeletedValues > 0) {
+                duckDbSql += fmt::format(" WHERE {}", predicates);
+            }
+
+            auto icebergSplit1 = makeIcebergSplit(dataFilePath->string(),
+                DB::Block{DB::ColumnWithTypeAndName(BIGINT(),"c0")},
+                deleteFiles);
+
+            assertEqualityDeletes(*icebergSplit1, duckDbSql1);
+        }
     }
 
     std::shared_ptr<TempFilePath> writeEqualityDeleteFile(
@@ -309,24 +325,20 @@ public:
         return deleteFilePath;
     }
 
-    DB::ColumnPtr makeSequenceValues(int32_t numRows, int8_t repeat = 1)
+    std::vector<int64_t> makeSequenceValues(int32_t numRows, int8_t repeat = 1)
     {
         EXPECT_GT(repeat, 0);
-        auto maxValue = std::ceil(static_cast<double>(numRows) / repeat);
-        auto column = DB::ColumnInt64::create();
-        column->reserve(numRows);
 
-        DB::ColumnInt64::Container & values = column->getData();
-        EXPECT_EQ(values.size(), 0);
-
-        int32_t inserted = 0;
-        for (int32_t i = 0; i < maxValue && inserted < numRows; i++) {
-            for (int8_t j = 0; j < repeat && inserted < numRows; j++, inserted++)
+        auto maxValue = std::ceil((double)numRows / repeat);
+        std::vector<int64_t> values;
+        values.reserve(numRows);
+        for (int32_t i = 0; i < maxValue; i++) {
+            for (int8_t j = 0; j < repeat; j++) {
                 values.push_back(i);
+            }
         }
-
-        EXPECT_EQ(column->size(), numRows);
-        return column;
+        values.resize(numRows);
+        return values;
     }
 
     std::vector<DB::Block> makeVectors(int32_t count, int32_t rowsPerBlock, int32_t numColumns = 1)
@@ -354,7 +366,7 @@ public:
                 // repeating. In the second column c1, the values are continuously
                 // increasing and each value repeats once. And so on.
                 auto data = makeSequenceValues(rowsPerBlock, j + 1);
-                columns.emplace_back(DB::ColumnWithTypeAndName(data->getPtr(), BIGINT(), name));
+                columns.emplace_back(createColumn(data, name));
             }
             rowVectors.push_back(DB::Block(columns));
         }
@@ -389,18 +401,43 @@ TEST_F(IcebergTest, tmp)
     iceberg::EqualityDeleteFileReader reader(context, deletedFile);
 
     std::vector<DB::Block> dataBlock {makeVectors(1, rowCount, 2)};
-    DB::ASTPtr result = reader.readDeleteValues();
 
+    DB::ASTs expressionInputs;
+    reader.readDeleteValues(expressionInputs);
+
+    //TODO: remove createASTPtr
+    auto createASTPtr = [&expressionInputs]() -> DB::ASTPtr {
+        if (expressionInputs.empty())
+            return nullptr;
+        if (expressionInputs.size() == 1)
+            return expressionInputs[0];
+        return makeASTFunction("and", expressionInputs);
+    };
+
+    DB::ASTPtr result = createASTPtr();
 
     auto syntax_result = DB::TreeRewriter(context).analyze(result, dataBlock[0].getNamesAndTypesList());
     auto partition_by_expr = DB::ExpressionAnalyzer(result, syntax_result, context).getActions(false);
     auto partition_by_column_name = result->getColumnName();
+
+
+    LOG_INFO(test_logger, "\n{}", debug::dumpActionsDAG(partition_by_expr->getActionsDAG()));
 
     auto resultBlock{dataBlock[0]};
     partition_by_expr->execute(resultBlock);
     headBlock(resultBlock, 20 ,100);
 }
 
+// Delete values from 2 columns with the following data:
+//
+//    c1    c2
+//    0     0
+//    1     0
+//    2     1
+//    3     1
+//    4     2
+//  ...    ...
+//  19999 9999
 TEST_F(IcebergTest, equalityDeletesSingleFileMultipleColumns)
 {
     std::unordered_map<int8_t, std::vector<int32_t>> equalityFieldIdsMap;
@@ -410,8 +447,40 @@ TEST_F(IcebergTest, equalityDeletesSingleFileMultipleColumns)
 
     // Delete rows 0, 1
     equalityDeleteVectorMap.insert({0, {{0, 1}, {0, 0}}});
-
     assertEqualityDeletes(equalityDeleteVectorMap, equalityFieldIdsMap);
+
+    // Delete rows 0, 2, 4, 6
+    equalityDeleteVectorMap.clear();
+    equalityDeleteVectorMap.insert({0, {{0, 2, 4, 6}, {0, 1, 2, 3}}});
+    assertEqualityDeletes(equalityDeleteVectorMap, equalityFieldIdsMap);
+
+    //   Delete the last row
+    equalityDeleteVectorMap.clear();
+    equalityDeleteVectorMap.insert({0, {{19999}, {9999}}});
+    assertEqualityDeletes(equalityDeleteVectorMap, equalityFieldIdsMap);
+
+    // Delete non-existent values
+    equalityDeleteVectorMap.clear();
+    equalityDeleteVectorMap.insert({0, {{20000, 30000}, {10000, 1500}}});
+    assertEqualityDeletes(equalityDeleteVectorMap, equalityFieldIdsMap);
+
+    // Delete 0 values
+    equalityDeleteVectorMap.clear();
+    equalityDeleteVectorMap.insert({0, {{}, {}}});
+    assertEqualityDeletes(equalityDeleteVectorMap, equalityFieldIdsMap);
+
+
+#ifdef NDEBUG
+    // Delete all values
+    // very slow in debug build
+    equalityDeleteVectorMap.clear();
+    equalityDeleteVectorMap.insert(
+        {0, {makeSequenceValues(rowCount), makeSequenceValues(rowCount, 2)}});
+    assertEqualityDeletes(
+        equalityDeleteVectorMap,
+        equalityFieldIdsMap,
+        "SELECT * FROM IcebergTest.tmp WHERE 1 = 0");
+#endif
 }
 
 }

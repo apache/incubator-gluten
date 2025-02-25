@@ -69,7 +69,7 @@ namespace
 {
 substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
 {
-    assert(deleteFile.filecontent() == substrait::ReadRel_LocalFiles_FileOrFiles_IcebergReadOptions_FileContent_EQUALITY_DELETES);
+    assert(deleteFile.filecontent() == IcebergReadOptions::EQUALITY_DELETES);
     assert(deleteFile.has_parquet());
     substraitInputFile file;
     file.set_uri_file(deleteFile.filepath());
@@ -85,13 +85,12 @@ EqualityDeleteFileReader::EqualityDeleteFileReader(const ContextPtr & context, c
 {
     assert(deleteFile.recordcount() > 0);
 }
-DB::ASTPtr EqualityDeleteFileReader::readDeleteValues() const
+void EqualityDeleteFileReader::readDeleteValues(DB::ASTs & expressionInputs) const
 {
     Block deleteBlock = reader_.next();
     assert(deleteBlock.rows() > 0 && "Iceberg equality delete file should have at least one row.");
     auto numDeleteFields = deleteBlock.columns();
     assert(numDeleteFields > 0 && "Iceberg equality delete file should have at least one field.");
-    ASTs expressionInputs;
 
     while (deleteBlock.rows() > 0)
     {
@@ -114,11 +113,6 @@ DB::ASTPtr EqualityDeleteFileReader::readDeleteValues() const
         }
         deleteBlock = reader_.next();
     }
-
-    if (expressionInputs.size() > 1)
-           return makeASTFunction("and", expressionInputs);
-
-    return expressionInputs[0];
 }
 }
 

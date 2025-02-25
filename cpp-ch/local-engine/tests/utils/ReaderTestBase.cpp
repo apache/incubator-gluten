@@ -121,7 +121,7 @@ Block ReaderTestBase::collectResult(T & input) const
 }
 
 template Block ReaderTestBase::collectResult<PullingPipelineExecutor>(PullingPipelineExecutor & input) const;
-template Block ReaderTestBase::collectResult<NormalFileReader>(NormalFileReader & input) const;
+template Block ReaderTestBase::collectResult<BaseReader>(BaseReader & input) const;
 
 Block ReaderTestBase::runClickhouseSQL(const std::string & query) const
 {

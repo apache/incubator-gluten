@@ -17,10 +17,14 @@
 #include "DebugUtils.h"
 #include <iostream>
 #include <sstream>
+#include <AggregateFunctions/AggregateFunctionCount.h>
+#include <AggregateFunctions/IAggregateFunction.h>
+#include <Columns/ColumnAggregateFunction.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <Functions/FunctionHelpers.h>
+#include <Functions/IFunction.h>
 #include <IO/WriteBufferFromString.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Processors/QueryPlan/QueryPlan.h>
@@ -33,10 +37,6 @@
 #include <Common/QueryContext.h>
 #include <Common/formatReadable.h>
 #include <Common/logger_useful.h>
-#include <AggregateFunctions/IAggregateFunction.h>
-#include <Columns/ColumnAggregateFunction.h>
-#include <Functions/IFunction.h>
-#include <AggregateFunctions/AggregateFunctionCount.h>
 
 namespace pb_util = google::protobuf::util;
 
@@ -122,10 +122,10 @@ static std::string truncate(const std::string & str, size_t width)
 using NameAndColumn = std::pair<std::string, DB::ColumnPtr>;
 using NameAndColumns = std::vector<NameAndColumn>;
 
-template<typename T>
-const T& toAggType(DB::ConstAggregateDataPtr data)
+template <typename T>
+const T & toAggType(DB::ConstAggregateDataPtr data)
 {
-    return *reinterpret_cast<const T*>(data);
+    return *reinterpret_cast<const T *>(data);
 }
 
 std::string get(const DB::ColumnAggregateFunction & agg, size_t row)
@@ -450,7 +450,7 @@ std::string dumpActionsDAG(const DB::ActionsDAG & dag)
         switch (node.type)
         {
             case DB::ActionsDAG::ActionType::COLUMN:
-                ss << "column:"
+                ss << "Literal = "
                    << (node.column && DB::isColumnConst(*node.column)
                            ? toString(assert_cast<const DB::ColumnConst &>(*node.column).getField())
                            : "null")
@@ -462,14 +462,14 @@ std::string dumpActionsDAG(const DB::ActionsDAG & dag)
             case DB::ActionsDAG::ActionType::FUNCTION:
                 ss << "function: " << (node.function_base ? node.function_base->getName() : "null");
                 if (node.is_function_compiled)
-                   ss << " [compiled]";
+                    ss << " [compiled]";
                 ss << "\\l";
                 break;
             case DB::ActionsDAG::ActionType::ARRAY_JOIN:
                 ss << "array join" << "\\l";
                 break;
             case DB::ActionsDAG::ActionType::INPUT:
-                ss << "input" << "\\l";
+                ss << "Column:" << node.result_name << "\\l";
                 break;
         }
 
