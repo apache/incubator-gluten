@@ -729,7 +729,6 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("input_format_parquet_import_nested", true);
     settings.set("input_format_json_read_numbers_as_strings", true);
     settings.set("input_format_json_read_bools_as_numbers", false);
-    settings.set("input_format_csv_trim_whitespaces", false);
     settings.set("input_format_csv_allow_cr_end_of_line", true);
     settings.set("output_format_orc_string_as_string", true);
     settings.set("output_format_parquet_version", "1.0");

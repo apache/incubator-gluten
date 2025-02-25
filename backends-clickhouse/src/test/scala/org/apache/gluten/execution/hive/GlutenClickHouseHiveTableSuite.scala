@@ -978,8 +978,8 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
-  test("GLUTEN-3552: Bug fix csv field whitespaces") {
-    val data_path = rootPath + "/text-data/field_whitespaces"
+  test("GLUTEN-3552: Bug fix csv field whitespaces I") {
+    val data_path = rootPath + "/text-data/field_whitespaces/1"
     spark.sql(s"""
                  | CREATE TABLE test_tbl_3552(
                  | a string,
@@ -997,8 +997,41 @@ class GlutenClickHouseHiveTableSuite
                  |LOCATION '$data_path'
                  |""".stripMargin)
     val select_sql = "select * from test_tbl_3552"
-    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_csv_trim_whitespaces",
+        "false")) {
+      compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    }
     spark.sql("DROP TABLE test_tbl_3552")
+  }
+
+  test("GLUTEN-8825: Bug fix csv field whitespaces II") {
+    val data_path = rootPath + "/text-data/field_whitespaces/2"
+    spark.sql(s"""
+                 | CREATE TABLE test_tbl_8825(
+                 | a string,
+                 | b int,
+                 | c int)
+                 | ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+                 |WITH SERDEPROPERTIES (
+                 |   'field.delim'='\t'
+                 | )
+                 | STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+                 |LOCATION '$data_path'
+                 |""".stripMargin)
+    val select_sql = "select * from test_tbl_8825"
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_csv_trim_whitespaces",
+        "true")) {
+      compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    }
+    spark.sql("DROP TABLE test_tbl_8825")
   }
 
   test("GLUTEN-3548: Bug fix csv allow cr end of line") {
