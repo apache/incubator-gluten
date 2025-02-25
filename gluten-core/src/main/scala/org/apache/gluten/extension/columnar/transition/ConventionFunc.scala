@@ -51,6 +51,9 @@ object ConventionFunc {
     // Components should override Backend's convention function. Hence, reversed injection order
     // is applied.
     val overrides = Component.sorted().reverse.map(_.convFuncOverride())
+    if (overrides.isEmpty) {
+      return Override.Empty
+    }
     new Override {
       override val rowTypeOf: PartialFunction[SparkPlan, Convention.RowType] = {
         overrides.map(_.rowTypeOf).reduce((l, r) => l.orElse(r))
