@@ -622,6 +622,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("ordering and partitioning reporting")
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
+    // Disable this since coalesece union clauses rule will rewrite the query.
+    .exclude("SPARK-44653: non-trivial DataFrame unions should not break caching")
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
