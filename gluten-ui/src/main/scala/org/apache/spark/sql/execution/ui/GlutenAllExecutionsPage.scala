@@ -90,7 +90,7 @@ private[ui] class GlutenAllExecutionsPage(parent: GlutenSQLTab) extends WebUIPag
         </div>
       </div>
 
-    UIUtils.headerSparkPage(request, "Gluten SQL / DataFrame", summary ++ content, parent)
+    UIUtils.headerSparkPage(request, "Gluten SQL", summary ++ content, parent)
   }
 
   private def propertyHeader = Seq("Name", "Value")

@@ -85,7 +85,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       _sc.foreach {
         sc =>
           GlutenEventUtils.attachUI(sc)
-          logInfo("Gluten SQL Tab has attached.")
+          logInfo("Gluten SQL Tab has been attached.")
       }
     }
   }
