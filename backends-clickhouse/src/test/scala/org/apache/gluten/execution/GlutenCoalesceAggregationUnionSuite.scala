@@ -47,6 +47,8 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.project.union", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.aggregation.union", "true")
   }
 
   def createTestTable(tableName: String, data: DataFrame): Unit = {
