@@ -455,7 +455,7 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
     compareResultsAgainstVanillaSpark(sql, true, checkNoUnion, true)
   }
 
-  test("coalesce project union. case 1") {
+  test("coalesce project union. case 6") {
 
     val sql =
       """
