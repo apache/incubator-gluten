@@ -38,6 +38,27 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
   override protected def sparkConf: SparkConf = super.sparkConf
     .set("spark.unsafe.exceptionOnMemoryLeak", "true")
 
+  test("reuse lazy vector in hash probe") {
+    withTable("t1", "t2") {
+      Seq((1, "a"), (2, "b")).toDF("c1", "c2").write.saveAsTable("t1")
+      Seq(1, 2, 3).toDF("c1").write.saveAsTable("t2")
+      val query =
+        """
+          |select t3.* from
+          |(select c1, c2 as a,c2 as b from t1) t3
+          |left join t2
+          |on t3.c1 = t2.c1
+          |""".stripMargin
+      runQueryAndCompare(query) {
+        df => {
+          val executedPlan = getExecutedPlan(df)
+          val broadcastJoins = executedPlan.collect { case b: BroadcastHashJoinExecTransformer => b }
+          assert(broadcastJoins.size == 1)
+        }
+      }
+    }
+  }
+
   test("generate hash join plan - v1") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
