@@ -40,7 +40,7 @@ import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, Spar
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 import org.apache.spark.sql.internal.SQLConf
@@ -223,15 +223,20 @@ trait SparkShims {
   // For compatibility with Spark-3.5.
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan]
 
-  def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]]
+  def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = Option(Seq())
 
-  def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]]
+  def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
+    Option(Seq())
 
   def orderPartitions(
+      batchScan: DataSourceV2ScanExecBase,
       scan: Scan,
       keyGroupedPartitioning: Option[Seq[Expression]],
       filteredPartitions: Seq[Seq[InputPartition]],
-      outputPartitioning: Partitioning): Seq[InputPartition] = filteredPartitions.flatten
+      outputPartitioning: Partitioning,
+      commonPartitionValues: Option[Seq[(InternalRow, Int)]],
+      applyPartialClustering: Boolean,
+      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = filteredPartitions
 
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
     Option.empty
