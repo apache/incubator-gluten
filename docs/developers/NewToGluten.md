@@ -87,10 +87,6 @@ Install the Linux IntelliJ version, and debug code locally.
 - Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server
 - Start Idea, `bash <idea_dir>/idea.sh`
 
-## Windows/macOS IntelliJ remote debug
-
-If you have IntelliJ Ultimate Edition, you can debug Gluten code remotely.
-
 ## Set up gluten project
 
 - Make sure you have compiled gluten.
