@@ -50,11 +50,13 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
           |on t3.c1 = t2.c1
           |""".stripMargin
       runQueryAndCompare(query) {
-        df => {
-          val executedPlan = getExecutedPlan(df)
-          val broadcastJoins = executedPlan.collect { case b: BroadcastHashJoinExecTransformer => b }
-          assert(broadcastJoins.size == 1)
-        }
+        df =>
+          {
+            val executedPlan = getExecutedPlan(df)
+            val broadcastJoins =
+              executedPlan.collect { case b: BroadcastHashJoinExecTransformer => b }
+            assert(broadcastJoins.size == 1)
+          }
       }
     }
   }
