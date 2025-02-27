@@ -421,6 +421,11 @@ std::string showString(const DB::Block & block, size_t numRows, size_t truncate,
     return Utils::showString(name_and_columns, numRows, truncate, vertical);
 }
 
+std::string showString(const DB::ColumnPtr & column, size_t numRows, size_t truncate, bool vertical)
+{
+    return Utils::showString({{"Column", column}}, numRows, truncate, vertical);
+}
+
 std::string dumpActionsDAG(const DB::ActionsDAG & dag)
 {
     std::stringstream ss;
