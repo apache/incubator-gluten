@@ -264,6 +264,7 @@ object ExpressionMappings {
     Sig[MapEntries](MAP_ENTRIES),
     Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
+    Sig[MapFilter](MAP_FILTER),
     Sig[TransformKeys](TRANSFORM_KEYS),
     Sig[TransformValues](TRANSFORM_VALUES),
     // Struct functions
