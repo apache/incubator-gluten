@@ -74,10 +74,8 @@ if(ENABLE_TESTS)
 
   add_executable(
     unit_tests_local_engine
-    ${local_engine_gtest_sources}
-    ${local_engine_udf_sources}
-    ${local_engine_function_parser_sources}
-    ${gtest_utils_sources})
+    ${local_engine_gtest_sources} ${local_engine_udf_sources}
+    ${local_engine_function_parser_sources} ${gtest_utils_sources})
   target_include_directories(
     unit_tests_local_engine
     PRIVATE ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
@@ -86,17 +84,16 @@ if(ENABLE_TESTS)
   target_compile_options(unit_tests_local_engine PRIVATE -Wno-unreachable-code)
   target_link_libraries(
     unit_tests_local_engine
-          PRIVATE
-          gluten_clickhouse_backend_libs
-          clickhouse_common_config
-          clickhouse_common_io
-          clickhouse_parsers
-          clickhouse_storages_system
-          clickhouse_table_functions
-          loggers
-          ch_contrib::gmock_all
-          ch_contrib::gtest
-          ch_parquet)
+    PRIVATE gluten_clickhouse_backend_libs
+            clickhouse_common_config
+            clickhouse_common_io
+            clickhouse_parsers
+            clickhouse_storages_system
+            clickhouse_table_functions
+            loggers
+            ch_contrib::gmock_all
+            ch_contrib::gtest
+            ch_parquet)
 endif()
 
 if(ENABLE_BENCHMARKS)
