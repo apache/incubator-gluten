@@ -19,22 +19,33 @@
 
   <parent>
     <groupId>org.apache.gluten</groupId>
-    <artifactId>gluten-parent</artifactId>
+    <artifactId>gluten-flink</artifactId>
     <version>1.4.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>gluten-flink</artifactId>
-  <name>Gluten Flink</name>
-  <packaging>pom</packaging>
+  <artifactId>gluten-flink-runtime</artifactId>
+  <name>Gluten Flink Runtime</name>
+  <packaging>jar</packaging>
 
-  <modules>
-    <module>planner</module>
-    <module>loader</module>
-    <module>runtime</module>
-  </modules>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-streaming-java</artifactId>
+      <version>${flink.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-table-runtime</artifactId>
+      <version>${flink.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 
-  <properties>
-    <flink.version>1.20.0</flink.version>
-  </properties>
+  <build>
+    <plugins>
+            
+    </plugins>
+  </build>
 </project>
