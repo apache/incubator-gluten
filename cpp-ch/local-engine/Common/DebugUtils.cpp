@@ -145,6 +145,7 @@ std::string get(const DB::ColumnAggregateFunction & agg, size_t row)
 
 static std::string toString(const DB::IColumn * const col, size_t row, size_t width)
 {
+    assert(col != nullptr);
     auto getDataType = [](const DB::IColumn * col)
     {
         if (const auto * column_nullable = DB::checkAndGetColumn<DB::ColumnNullable>(col))

@@ -108,7 +108,7 @@ void IcebergReader::deleteRows(Chunk & chunk) const
     size_t num_rows_before_filtration = chunk.getNumRows();
     auto columns = chunk.detachColumns();
     DataTypes types;
-    size_t filter_column_position = -1;
+    size_t filter_column_position;
     {
         Block block = readHeader.cloneWithColumns(columns);
         columns.clear();

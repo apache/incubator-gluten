@@ -123,10 +123,10 @@ void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names &
     auto notEqualBuilder = FunctionFactory::instance().get(notEqual, context);
 
     auto numDeletedValues = deleteBlock.rows();
-    for (int i = 0; i < numDeletedValues; i++)
+    for (size_t i = 0; i < numDeletedValues; i++)
     {
         ActionsDAG::NodeRawConstPtrs orArgs = {};
-        for (int j = 0; j < numDeleteFields; j++)
+        for (size_t j = 0; j < numDeleteFields; j++)
         {
             ActionsDAG::NodeRawConstPtrs args;
             const auto & column = deleteBlock.getByPosition(j);
