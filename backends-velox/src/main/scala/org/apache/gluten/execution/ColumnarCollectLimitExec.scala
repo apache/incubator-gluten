@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
+import org.apache.gluten.columnarbatch.VeloxColumnarBatches
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
@@ -80,7 +80,6 @@ case class ColumnarCollectLimitExec(
         val currentBatchRowCount = currentBatch.numRows()
         val remaining = limit - rowsCollected
 
-        ColumnarBatches.retain(currentBatch)
         if (currentBatchRowCount <= remaining) {
           rowsCollected += currentBatchRowCount
           nextBatch = Some(currentBatch)

@@ -1071,8 +1071,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_unix_timestamp")
     // Unsupported datetime format: specifier X is not supported by velox.
     .exclude("to_timestamp with microseconds precision")
-    // Replaced by another test.
-    .exclude("to_timestamp")
     // Legacy mode is not supported, assuming this mode is not commonly used.
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
     // Legacy mode is not supported and velox getTimestamp function does not throw
@@ -1178,7 +1176,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenImplicitsTest]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenSparkSessionExtensionSuite]
-  enableSuite[GlutenSQLRangeExecSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

@@ -337,11 +337,12 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             }
             else if ((isDecimal(denull_input_type) || isNativeNumber(denull_input_type)) && substrait_type.has_decimal())
             {
-                int decimal_precision = substrait_type.decimal().precision();
-                if (decimal_precision)
+                int precision = substrait_type.decimal().precision();
+                int scale = substrait_type.decimal().scale();
+                if (precision)
                 {
-                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), decimal_precision));
-                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().scale()));
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision));
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale));
                     result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
                 }
             }
@@ -368,8 +369,9 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             else if (isString(denull_input_type) && isInt(denull_output_type))
             {
                 /// Spark cast(x as INT) if x is String -> CH cast(trim(x) as INT)
-                /// Refer to https://github.com/apache/incubator-gluten/issues/4956
-                args[0] = toFunctionNode(actions_dag, "trim", {args[0]});
+                /// Refer to https://github.com/apache/incubator-gluten/issues/4956 and https://github.com/apache/incubator-gluten/issues/8598
+                auto trim_str_arg = addConstColumn(actions_dag, std::make_shared<DataTypeString>(), " \t\n\r\f");
+                args[0] = toFunctionNode(actions_dag, "trimBothSpark", {args[0], trim_str_arg});
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
                 result_node = toFunctionNode(actions_dag, "CAST", args);
             }

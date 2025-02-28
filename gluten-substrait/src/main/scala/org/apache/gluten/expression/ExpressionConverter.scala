@@ -736,21 +736,26 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
-  private def getAndCheckSubstraitName(expr: Expression, expressionsMap: Map[Class[_], String]) = {
+  private def getAndCheckSubstraitName(
+      expr: Expression,
+      expressionsMap: Map[Class[_], String]): String = {
     TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
-    val substraitExprNameOpt = expressionsMap.get(expr.getClass)
-    if (substraitExprNameOpt.isEmpty) {
-      throw new GlutenNotSupportException(
-        s"Not supported to map spark function name" +
-          s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
-    }
-    val substraitExprName = substraitExprNameOpt.get
-    // Check whether each backend supports this expression
-    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
-      throw new GlutenNotSupportException(s"Not supported: $expr.")
-    }
-    substraitExprName
+    expressionsMap
+      .get(expr.getClass)
+      .flatMap {
+        name =>
+          if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(name, expr)) {
+            None
+          } else {
+            Some(name)
+          }
+      }
+      .getOrElse {
+        throw new GlutenNotSupportException(
+          s"Not supported to map spark function name" +
+            s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
+      }
   }
 
   private def bindGetStructField(

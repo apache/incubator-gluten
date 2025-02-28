@@ -126,8 +126,12 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         LOG_DEBUG(getLogger("SerializedPlanParser"), "Try to read ({}) instead of empty header", one_column_name_type.front().dump());
     }
 
+    std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
+        storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
+
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
+
     auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
     auto names_and_types_list = input.getNamesAndTypesList();
 
@@ -140,9 +144,6 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         non_nullable_columns = non_nullable_columns_resolver.resolve();
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), input);
     }
-
-    std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
-        storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
     auto read_step = storage->reader.readFromParts(
         selected_parts,

@@ -47,15 +47,6 @@ public final class VeloxColumnarBatches {
             COMPREHENSIVE_TYPE_VELOX, ColumnarBatches.getComprehensiveLightBatchType(batch)));
   }
 
-  public static void checkNonVeloxBatch(ColumnarBatch batch) {
-    if (ColumnarBatches.isZeroColumnBatch(batch)) {
-      return;
-    }
-    Preconditions.checkArgument(
-        !isVeloxBatch(batch),
-        String.format("Comprehensive batch type is already %s", COMPREHENSIVE_TYPE_VELOX));
-  }
-
   public static ColumnarBatch toVeloxBatch(ColumnarBatch input) {
     ColumnarBatches.checkOffloaded(input);
     if (ColumnarBatches.isZeroColumnBatch(input)) {

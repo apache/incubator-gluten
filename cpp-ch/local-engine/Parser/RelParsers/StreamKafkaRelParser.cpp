@@ -20,6 +20,7 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Storages/Kafka/ReadFromGlutenStorageKafka.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -77,6 +78,9 @@ DB::QueryPlanPtr StreamKafkaRelParser::parseRelImpl(DB::QueryPlanPtr query_plan,
         partition,
         start_offset,
         end_offset);
+
+    if (group_id.empty())
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Kafka group.id is not set");
 
     Names topics;
     topics.emplace_back(topic);

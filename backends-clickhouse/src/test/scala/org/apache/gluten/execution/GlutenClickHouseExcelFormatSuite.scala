@@ -16,11 +16,10 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConf, RuntimeSettings}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.exception.GlutenException
 
-import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{functions, DataFrame, Row}
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -68,7 +67,7 @@ class GlutenClickHouseExcelFormatSuite
   override protected def createTPCHNotNullTables(): Unit = {}
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     super.sparkConf
       .set("spark.sql.adaptive.enabled", "true")
@@ -882,7 +881,7 @@ class GlutenClickHouseExcelFormatSuite
       .toDF()
       .createTempView("no_quote_table")
 
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.quote_strict"), "true")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.quote_strict"), "true")) {
       compareResultsAgainstVanillaSpark(
         "select * from no_quote_table",
         compareResult = true,
@@ -1188,7 +1187,7 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   test("issue-2881 null string test") {
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.empty_as_null"), "true")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.empty_as_null"), "true")) {
       val file_path = csvDataPath + "/null_string.csv"
       val schema = StructType.apply(
         Seq(
@@ -1221,7 +1220,7 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   test("issue-3542 null string test") {
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.empty_as_null"), "false")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.empty_as_null"), "false")) {
       val file_path = csvDataPath + "/null_string.csv"
       val schema = StructType.apply(
         Seq(
@@ -1359,7 +1358,7 @@ class GlutenClickHouseExcelFormatSuite
       .createTempView("TEST_MEASURE1")
 
     withSQLConf(
-      (CHConf.runtimeSettings("use_excel_serialization"), "false"),
+      (CHConfig.runtimeSettings("use_excel_serialization"), "false"),
       ("spark.gluten.sql.text.input.empty.as.default", "true")) {
       compareResultsAgainstVanillaSpark(
         """
@@ -1395,7 +1394,7 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   test("issues-3609 int read test") {
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.number_force"), "false")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.number_force"), "false")) {
       val csv_path = csvDataPath + "/int_special.csv"
       val options = new util.HashMap[String, String]()
       options.put("delimiter", ",")
@@ -1424,7 +1423,7 @@ class GlutenClickHouseExcelFormatSuite
       checkAnswer(df, expectedAnswer)
     }
 
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.number_force"), "true")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.number_force"), "true")) {
       val csv_path = csvDataPath + "/int_special.csv"
       val options = new util.HashMap[String, String]()
       options.put("delimiter", ",")
@@ -1487,7 +1486,7 @@ class GlutenClickHouseExcelFormatSuite
 
   // TODO: pass spark configuration to FileFormatWriter in Spark 3.3 and 3.2
   testWithSpecifiedSparkVersion(
-    "write failed if set wrong snappy compression codec level",
+    "write succeed even if set wrong snappy compression codec level",
     Some("3.5")) {
     // TODO: remove duplicated test codes
     val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/failed_test/"
@@ -1513,22 +1512,7 @@ class GlutenClickHouseExcelFormatSuite
       (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
       (RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.key, "3")
     ) {
-      val sparkError = intercept[SparkException] {
-        testFileFormatBase(tablePath, format, sql, df => {})
-      }
-
-      // throw at org.apache.spark.sql.execution.CHColumnarWriteFilesRDD
-      val causeOuter = sparkError.getCause
-      assert(causeOuter.isInstanceOf[SparkException])
-      assert(causeOuter.getMessage.contains("Task failed while writing rows to output path: hdfs"))
-
-      // throw at the writing file
-      val causeInner = causeOuter.getCause
-      assert(causeInner.isInstanceOf[GlutenException])
-      assert(
-        causeInner.getMessage.contains(
-          "Invalid: Codec 'snappy' doesn't support setting a compression level"))
+      testFileFormatBase(tablePath, format, sql, df => {})
     }
-
   }
 }

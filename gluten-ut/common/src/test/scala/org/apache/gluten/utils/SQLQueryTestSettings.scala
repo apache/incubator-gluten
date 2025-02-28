@@ -17,7 +17,11 @@
 package org.apache.gluten.utils
 
 trait SQLQueryTestSettings {
+  def getResourceFilePath: String
+
   def getSupportedSQLQueryTests: Set[String]
 
   def getOverwriteSQLQueryTests: Set[String]
+
+  def getIgnoredSQLQueryTests: List[String] = List.empty
 }
