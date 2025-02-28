@@ -26,9 +26,9 @@
 #include <substrait/algebra.pb.h>
 #include <Poco/URI.h>
 #include <Common/BlockTypeUtils.h>
-#include "Parsers/ASTFunction.h"
-#include "Parsers/ASTIdentifier.h"
-#include "Parsers/ASTLiteral.h"
+#include <DataTypes/DataTypeSet.h>
+#include <Functions/FunctionFactory.h>
+
 
 using namespace DB;
 
@@ -65,6 +65,95 @@ Block SimpleParquetReader::next() const
 
 namespace iceberg
 {
+
+const ActionsDAG::Node & EqualityDeleteActionBuilder::lastMerge()
+{
+    assert(!andArgs.empty());
+
+    if (andArgs.size() == 1)
+        return actions.addAlias(*andArgs[0], COLUMN_NAME);
+
+    const std::string And_{"and"};
+    auto andBuilder = FunctionFactory::instance().get(And_, context);
+    return actions.addFunction(andBuilder, andArgs, COLUMN_NAME);
+}
+
+const ActionsDAG::Node * EqualityDeleteActionBuilder::Or(const ActionsDAG::NodeRawConstPtrs & orArgs)
+{
+    if (orArgs.size() == 1)
+        return orArgs[0];
+
+    const std::string Or_{"or"};
+    auto OrBuilder = FunctionFactory::instance().get(Or_, context);
+    return &addFunction(OrBuilder, orArgs);
+}
+
+const ActionsDAG::Node &
+EqualityDeleteActionBuilder::addFunction(const FunctionOverloadResolverPtr & function, ActionsDAG::NodeRawConstPtrs args)
+{
+    return actions.addFunction(function, std::move(args), getUniqueName(function->getName()));
+}
+
+void EqualityDeleteActionBuilder::notIn(Block deleteBlock, const std::string & column_name)
+{
+    assert(deleteBlock.columns() == 1);
+    const auto & elem_block = deleteBlock.getByPosition(0);
+
+    const std::string notIn{"notIn"};
+
+    ActionsDAG::NodeRawConstPtrs args;
+    const auto & colName = column_name.empty() ? elem_block.name : column_name;
+    args.push_back(&actions.findInOutputs(colName));
+    PreparedSets prepared_sets;
+    FutureSet::Hash emptyKey;
+    auto future_set = prepared_sets.addFromTuple(emptyKey, nullptr, {elem_block}, context->getSettingsRef());
+    auto arg = ColumnSet::create(1, std::move(future_set));
+    args.emplace_back(&actions.addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), "__set")));
+
+    auto function_builder = FunctionFactory::instance().get(notIn, context);
+    andArgs.push_back(&addFunction(function_builder, std::move(args)));
+}
+
+void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names& column_names)
+{
+    auto numDeleteFields = deleteBlock.columns();
+    assert(deleteBlock.columns() > 1);
+
+    const std::string notEqual{"notEquals"};
+    auto notEqualBuilder = FunctionFactory::instance().get(notEqual, context);
+
+    auto numDeletedValues = deleteBlock.rows();
+    for (int i = 0; i < numDeletedValues; i++)
+    {
+        ActionsDAG::NodeRawConstPtrs orArgs = {};
+        for (int j = 0; j < numDeleteFields; j++)
+        {
+            ActionsDAG::NodeRawConstPtrs args;
+            const auto & column = deleteBlock.getByPosition(j);
+            auto u_column = column.type->createColumn();
+            u_column->reserve(1);
+            u_column->insertFrom(*column.column, i);
+
+            const auto & colName = column_names.empty() ? column.name : column_names[j];
+            args.push_back(&actions.findInOutputs(colName));
+            args.push_back(
+                &actions.addColumn(ColumnWithTypeAndName(ColumnConst::create(std::move(u_column), 1), column.type, getUniqueName("c"))));
+            orArgs.push_back(&addFunction(notEqualBuilder, std::move(args)));
+        }
+        assert(!orArgs.empty());
+        andArgs.push_back(Or(orArgs));
+    }
+}
+
+ExpressionActionsPtr EqualityDeleteActionBuilder::finish()
+{
+    if (andArgs.size() == 0)
+        return  nullptr;
+
+    actions.addOrReplaceInOutputs(lastMerge());
+    return std::make_shared<ExpressionActions>(std::move(actions), ExpressionActionsSettings(context, CompileExpressions::no));
+}
+
 namespace
 {
 substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
@@ -80,37 +169,33 @@ substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
 
 }
 
-EqualityDeleteFileReader::EqualityDeleteFileReader(const ContextPtr & context, const substraitIcebergDeleteFile & deleteFile)
-    : reader_(context, fromDeleteFile(deleteFile))
+EqualityDeleteFileReader::EqualityDeleteFileReader(const ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile)
+    : reader_(context, fromDeleteFile(deleteFile)), read_header_(read_header), deleteFile_(deleteFile)
 {
-    assert(deleteFile.recordcount() > 0);
+    assert(deleteFile_.recordcount() > 0);
 }
-void EqualityDeleteFileReader::readDeleteValues(DB::ASTs & expressionInputs) const
+
+void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & expressionInputs) const
 {
     Block deleteBlock = reader_.next();
     assert(deleteBlock.rows() > 0 && "Iceberg equality delete file should have at least one row.");
     auto numDeleteFields = deleteBlock.columns();
     assert(numDeleteFields > 0 && "Iceberg equality delete file should have at least one field.");
 
+    assert(deleteFile_.equalityfieldids_size() == deleteBlock.columns());
+    Names names;
+    //TODO: deleteFile_.equalityfieldids(i) - 1 ? why
+    for (int i = 0; i < deleteFile_.equalityfieldids_size(); i++)
+        names.push_back(read_header_.getByPosition(deleteFile_.equalityfieldids(i) - 1).name);
+
+
     while (deleteBlock.rows() > 0)
     {
-        auto numDeletedValues = deleteBlock.rows();
+        if (deleteBlock.columns() == 1)
+            expressionInputs.notIn(std::move(deleteBlock), names[0]);
+        else
+            expressionInputs.notEquals(std::move(deleteBlock), names);
 
-        for (int i = 0; i < numDeletedValues; i++)
-        {
-            ASTs arguments;
-            for (int j = 0; j < numDeleteFields; j++)
-            {
-                auto name = std::make_shared<ASTIdentifier>(deleteBlock.getByPosition(j).name);
-                auto value = std::make_shared<ASTLiteral>(deleteBlock.getByPosition(j).column->operator[](i));
-                auto isNotEqualExpr = makeASTFunction("notEquals", DB::ASTs{name, value});
-                arguments.emplace_back(isNotEqualExpr);
-            }
-            if (arguments.size() > 1)
-                expressionInputs.emplace_back(makeASTFunction("or", arguments));
-            else
-                expressionInputs.emplace_back(arguments[0]);
-        }
         deleteBlock = reader_.next();
     }
 }

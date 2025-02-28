@@ -16,6 +16,11 @@
  */
 #pragma once
 
+#include "Functions/FunctionFactory.h"
+
+#include <Interpreters/ExpressionActions.h>
+#include <Columns/ColumnConst.h>
+#include <Columns/ColumnSet.h>
 #include <Core/Block.h>
 #include <Interpreters/Context_fwd.h>
 #include <Parsers/IAST_fwd.h>
@@ -50,14 +55,41 @@ public:
 namespace iceberg
 {
 
+class EqualityDeleteActionBuilder
+{
+public:
+    static constexpr auto COLUMN_NAME = "__kept__";
+
+private:
+    DB::ActionsDAG actions;
+    const DB::ContextPtr context;
+    DB::ActionsDAG::NodeRawConstPtrs andArgs = {};
+    UInt64 unique_name_counter = 0;
+
+    const DB::ActionsDAG::Node & lastMerge();
+    const DB::ActionsDAG::Node * Or(const DB::ActionsDAG::NodeRawConstPtrs & orArgs);
+
+    std::string getUniqueName(const String & name = "_") { return name + "_" + std::to_string(unique_name_counter++); }
+    const DB::ActionsDAG::Node & addFunction(const DB::FunctionOverloadResolverPtr & function, DB::ActionsDAG::NodeRawConstPtrs args);
+
+public:
+    explicit EqualityDeleteActionBuilder(const DB::ContextPtr & context_, const DB::NamesAndTypesList & inputs_)
+        : actions(inputs_), context(context_){}
+
+    void notIn(DB::Block deleteBlock, const std::string & column_name = "");
+    void notEquals(DB::Block deleteBlock, const DB::Names& column_names = {});
+    DB::ExpressionActionsPtr finish();
+};
+
 class EqualityDeleteFileReader
 {
     SimpleParquetReader reader_;
-
+    const DB::Block & read_header_;
+    const substraitIcebergDeleteFile & deleteFile_;
 public:
-    explicit EqualityDeleteFileReader(const DB::ContextPtr & context, const substraitIcebergDeleteFile & deleteFile);
+    explicit EqualityDeleteFileReader(const DB::ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile);
     ~EqualityDeleteFileReader() = default;
-    void readDeleteValues(DB::ASTs & expressionInputs) const;
+    void readDeleteValues(EqualityDeleteActionBuilder & expressionInputs) const;
 };
 
 }

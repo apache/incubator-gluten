@@ -37,8 +37,7 @@ public:
         const DB::Block & to_read_header_,
         const DB::Block & output_header_,
         const FormatFile::InputFormatPtr & input_format_,
-        const DB::ExpressionActionsPtr & delete_expr_ = nullptr,
-        const std::string & delete_expr_column_name_ = "");
+        const DB::ExpressionActionsPtr & delete_expr_ = nullptr);
 
 protected:
     DB::Chunk doPull() override;

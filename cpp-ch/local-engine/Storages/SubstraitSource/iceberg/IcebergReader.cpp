@@ -18,9 +18,8 @@
 
 #include <Interpreters/ExpressionActions.h>
 #include <Interpreters/ExpressionAnalyzer.h>
-#include <Parsers/ASTFunction.h>
 #include <Storages/SubstraitSource/iceberg/EqualityDeleteFileReader.h>
-#include "DataTypes/DataTypeNullable.h"
+#include <DataTypes/DataTypeNullable.h>
 
 using namespace DB;
 
@@ -29,8 +28,8 @@ namespace local_engine::iceberg
 
 std::unique_ptr<IcebergReader> IcebergReader::create(
     const FormatFilePtr & file_,
-    const DB::Block & to_read_header_,
-    const DB::Block & output_header_,
+    const Block & to_read_header_,
+    const Block & output_header_,
     const FormatFile::InputFormatPtr & input_format_)
 {
     const auto & delete_files = file_->getFileInfo().iceberg().delete_files();
@@ -44,58 +43,38 @@ std::unique_ptr<IcebergReader> IcebergReader::create(
 
     const auto & context = file_->getContext();
 
-    ASTs expressionInputs;
-
+    ExpressionActionsPtr delete_expr;
     if (it != partitions.end())
     {
         const auto & equality_delete_files = it->second;
         assert(!equality_delete_files.empty());
 
+        EqualityDeleteActionBuilder expressionInputs{context, to_read_header_.getNamesAndTypesList()};
         for (auto deleteIndex : equality_delete_files)
         {
             const auto & delete_file = delete_files[deleteIndex];
             if (delete_file.recordcount() > 0)
-            {
-                EqualityDeleteFileReader reader(context, delete_file);
-                reader.readDeleteValues(expressionInputs);
-            }
+                EqualityDeleteFileReader{context, to_read_header_, delete_file}.readDeleteValues(expressionInputs);
+
         }
+        delete_expr = expressionInputs.finish();
     }
-
-    ASTPtr result;
-
-    if (expressionInputs.size() == 1)
-        result = expressionInputs[0];
-    else if (expressionInputs.size() > 1)
-        result = makeASTFunction("and", expressionInputs);
-
-
-    ExpressionActionsPtr delete_expr;
-    std::string delete_expr_column_name;
-    if (result)
-    {
-        auto syntax_result = DB::TreeRewriter(context).analyze(result, to_read_header_.getNamesAndTypesList());
-        delete_expr = DB::ExpressionAnalyzer(result, syntax_result, context).getActions(false);
-        delete_expr_column_name = result->getColumnName();
-    }
-
-    return std::make_unique<IcebergReader>(file_, to_read_header_, output_header_, input_format_, delete_expr, delete_expr_column_name);
+    return std::make_unique<IcebergReader>(file_, to_read_header_, output_header_, input_format_, delete_expr);
 }
 
 IcebergReader::IcebergReader(
     const FormatFilePtr & file_,
-    const DB::Block & to_read_header_,
-    const DB::Block & output_header_,
+    const Block & to_read_header_,
+    const Block & output_header_,
     const FormatFile::InputFormatPtr & input_format_,
-    const DB::ExpressionActionsPtr & delete_expr_,
-    const std::string & delete_expr_column_name_)
+    const ExpressionActionsPtr & delete_expr_)
     : NormalFileReader(file_, to_read_header_, output_header_, input_format_)
     , delete_expr(delete_expr_)
-    , delete_expr_column_name(delete_expr_column_name_)
+    , delete_expr_column_name(EqualityDeleteActionBuilder::COLUMN_NAME)
 {
 }
 
-DB::Chunk IcebergReader::doPull()
+Chunk IcebergReader::doPull()
 {
     if (!delete_expr)
         return NormalFileReader::doPull();
@@ -115,7 +94,7 @@ DB::Chunk IcebergReader::doPull()
 
 namespace
 {
-void removeFilterIfNeed(DB::Columns & columns, size_t filter_column_position)
+void removeFilterIfNeed(Columns & columns, size_t filter_column_position)
 {
     columns.erase(columns.begin() + filter_column_position);
 }

@@ -28,6 +28,8 @@
 #include <IO/WriteBufferFromString.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Processors/QueryPlan/QueryPlan.h>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/join.hpp>
 #include <google/protobuf/json/json.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
@@ -140,6 +142,28 @@ std::string get(const DB::ColumnAggregateFunction & agg, size_t row)
     return "Nan";
 }
 
+
+static std::string toString(const DB::IColumn * const col, size_t row, size_t width)
+{
+    auto getDataType = [](const DB::IColumn * col)
+    {
+        if (const auto * column_nullable = DB::checkAndGetColumn<DB::ColumnNullable>(col))
+            return column_nullable->getNestedColumn().getDataType();
+        return col->getDataType();
+    };
+    DB::WhichDataType which(getDataType(col));
+    if (which.isAggregateFunction())
+        return get(static_cast<const DB::ColumnAggregateFunction &>(*col), row);
+
+    if (col->isNullAt(row))
+        return "null";
+
+    std::string str = DB::toString((*col)[row]);
+    if (str.size() <= width)
+        return str;
+    return str.substr(0, width - 3) + "...";
+}
+
 /**
  * Get rows represented in Sequence by specific truncate and vertical requirement.
  *
@@ -161,13 +185,6 @@ static std::vector<std::vector<std::string>> getRows(const NameAndColumns & bloc
         headRow.emplace_back(debug::Utils::truncate(name, truncate));
     }
 
-    auto getDataType = [](const DB::IColumn * col)
-    {
-        if (const auto * column_nullable = DB::checkAndGetColumn<DB::ColumnNullable>(col))
-            return column_nullable->getNestedColumn().getDataType();
-        return col->getDataType();
-    };
-
     for (size_t row = 0; row < numRows - 1; ++row)
     {
         results.emplace_back(std::vector<std::string>());
@@ -175,22 +192,8 @@ static std::vector<std::vector<std::string>> getRows(const NameAndColumns & bloc
         currentRow.reserve(block.size());
 
         for (const auto & column : block)
-        {
-            const auto * const col = column.second.get();
-            DB::WhichDataType which(getDataType(col));
-            if (which.isAggregateFunction())
-                currentRow.emplace_back(get(static_cast<const DB::ColumnAggregateFunction &>(*col), row));
-            else
-            {
-                if (col->isNullAt(row))
-                    currentRow.emplace_back("null");
-                else
-                {
-                    std::string str = DB::toString((*col)[row]);
-                    currentRow.emplace_back(Utils::truncate(str, truncate));
-                }
-            }
-        }
+            currentRow.emplace_back(toString(column.second.get(), row, truncate));
+
     }
     return results;
 }
@@ -426,6 +429,21 @@ std::string showString(const DB::ColumnPtr & column, size_t numRows, size_t trun
     return Utils::showString({{"Column", column}}, numRows, truncate, vertical);
 }
 
+std::string dumpColumn(const std::string & name,const DB::ColumnPtr & column)
+{
+    //TODO: ColumnSet
+
+    if (isColumnConst(*column))
+        return toString(assert_cast<const DB::ColumnConst &>(*column).getField());
+
+    size_t size =  std::min(static_cast<size_t>(10), column->size());
+    std::vector<std::string> results;
+    results.reserve(size);
+    for (int row = 0; row < size; ++row)
+        results.push_back(Utils::toString(column.get(), row, 20));
+    return fmt::format("{}:[{}]", name, boost::algorithm::join(results, ", "));
+}
+
 std::string dumpActionsDAG(const DB::ActionsDAG & dag)
 {
     std::stringstream ss;
@@ -444,16 +462,14 @@ std::string dumpActionsDAG(const DB::ActionsDAG & dag)
 
     for (const auto & node : dag.getNodes())
     {
-        ss << "  n" << node_to_id[&node] << " [label=\"";
 
+        ss << "  n" << node_to_id[&node] << " [label=\"";
         ss << "id:" << node_to_id[&node] << "\\l";
         switch (node.type)
         {
             case DB::ActionsDAG::ActionType::COLUMN:
                 ss << "Literal = "
-                   << (node.column && DB::isColumnConst(*node.column)
-                           ? toString(assert_cast<const DB::ColumnConst &>(*node.column).getField())
-                           : "null")
+                   << (node.column ? dumpColumn(node.result_name, node.column):"null")
                    << "\\l";
                 break;
             case DB::ActionsDAG::ActionType::ALIAS:
@@ -469,7 +485,7 @@ std::string dumpActionsDAG(const DB::ActionsDAG & dag)
                 ss << "array join" << "\\l";
                 break;
             case DB::ActionsDAG::ActionType::INPUT:
-                ss << "Column:" << node.result_name << "\\l";
+                ss << "Input Column:" << node.result_name << "\\l";
                 break;
         }
 
