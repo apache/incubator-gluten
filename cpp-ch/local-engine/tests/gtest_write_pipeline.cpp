@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include <gluten_test_util.h>
 #include <incbin.h>
 
 #include "Interpreters/ExpressionActions.h"
@@ -36,6 +35,7 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>

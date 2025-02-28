@@ -36,7 +36,7 @@
 #include <parquet/page_index.h>
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
-#include <tests/gluten_test_util.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/QueryContext.h>
 
@@ -1133,7 +1133,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     ReadBufferFromFilePRead in(filename);
 
     ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
-    metaBuilder.build(&in, &blockHeader, column_index_filter.get(), [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+    metaBuilder.build(in, blockHeader, column_index_filter.get());
     ColumnIndexRowRangesProvider provider{metaBuilder};
 
     VectorizedParquetRecordReader recordReader(blockHeader, format_settings);

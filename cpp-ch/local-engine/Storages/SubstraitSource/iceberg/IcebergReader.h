@@ -15,21 +15,34 @@
  * limitations under the License.
  */
 #pragma once
-#include <string>
 
-namespace DB
+#include <Storages/SubstraitSource/FileReader.h>
+
+namespace local_engine::iceberg
 {
-class Block;
-}
-namespace local_engine
+class IcebergReader final : public NormalFileReader
 {
-class NativeOutputWriter
-{
+    DB::ExpressionActionsPtr delete_expr;
+    const std::string delete_expr_column_name;
+
 public:
-    NativeOutputWriter() = default;
-    virtual ~NativeOutputWriter() = default;
+    static std::unique_ptr<IcebergReader> create(
+        const FormatFilePtr & file_,
+        const DB::Block & to_read_header_,
+        const DB::Block & output_header_,
+        const FormatFile::InputFormatPtr & input_format_);
 
-    virtual void write(const DB::Block & block) = 0;
-    virtual void close() = 0;
+    IcebergReader(
+        const FormatFilePtr & file_,
+        const DB::Block & to_read_header_,
+        const DB::Block & output_header_,
+        const FormatFile::InputFormatPtr & input_format_,
+        const DB::ExpressionActionsPtr & delete_expr_ = nullptr);
+
+protected:
+    DB::Chunk doPull() override;
+
+    void deleteRows(DB::Chunk & chunk) const;
 };
+
 }
