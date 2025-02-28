@@ -348,6 +348,12 @@ object ExpressionMappings {
     filtered
   }
 
+  // This is needed when generating function support status documentation for Spark built-in functions.
+  // Used by gluten/tools/scripts/gen-function-support-docs.py
+  def listExpressionMappings(): Array[(String, String)] = {
+    expressionsMap.map(kv => (kv._1.getSimpleName, kv._2)).toArray
+  }
+
   private lazy val defaultExpressionsMap: Map[Class[_], String] = {
     toMap(SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS)
   }
