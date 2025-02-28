@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 352 scalar functions in Spark 3.5, Gluten currently fully supports 229 functions and partially supports 13 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 229 functions and partially supports 13 functions.**
 
 ## Array Functions
 
