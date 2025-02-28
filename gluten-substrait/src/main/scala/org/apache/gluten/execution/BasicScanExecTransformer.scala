@@ -74,8 +74,9 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
           _,
           getPartitionSchema,
           fileFormat,
-          getMetadataColumns().map(_.name),
-          getProperties))
+          getMetadataColumns.map(_.name),
+          getProperties,
+          getDataSchema))
   }
 
   val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
@@ -92,6 +93,14 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       case transformer: BatchScanExecTransformer =>
         fields = appendStringFields(transformer.getDataSchema, fields)
       case _ =>
+    }
+
+    val dataSchemaValidateResult = BackendsApiManager.getValidatorApiInstance
+      .doSchemaValidate(this.getDataSchema)
+      .map(ValidationResult.failed(_))
+      .getOrElse(ValidationResult.succeeded)
+    if (!dataSchemaValidateResult.ok()) {
+      return dataSchemaValidateResult
     }
 
     val validationResult = BackendsApiManager.getSettings

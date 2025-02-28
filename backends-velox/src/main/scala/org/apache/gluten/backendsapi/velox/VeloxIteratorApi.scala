@@ -55,7 +55,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = {
+      properties: Map[String, String],
+      dataSchema: StructType): SplitInfo = {
     partition match {
       case f: FilePartition =>
         val (
@@ -69,7 +70,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
         val preferredLocations =
           SoftAffinity.getFilePartitionLocations(f)
-        LocalFilesBuilder.makeLocalFiles(
+        val localFile = LocalFilesBuilder.makeLocalFiles(
           f.index,
           paths,
           starts,
@@ -82,6 +83,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           preferredLocations.toList.asJava,
           mapAsJavaMap(properties)
         )
+        localFile.setFileSchema(dataSchema)
+        localFile
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition.")
     }
@@ -168,26 +171,28 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
         metadataColumns.add(metadataColumn)
         val partitionColumn = new JHashMap[String, String]()
-        for (i <- 0 until file.partitionValues.numFields) {
-          val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
-            ExternalCatalogUtils.DEFAULT_PARTITION_NAME
-          } else {
-            val pn = file.partitionValues.get(i, schema.fields(i).dataType)
-            schema.fields(i).dataType match {
-              case _: BinaryType =>
-                new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
-              case _: DateType =>
-                DateFormatter.apply().format(pn.asInstanceOf[Integer])
-              case _: DecimalType =>
-                pn.asInstanceOf[Decimal].toJavaBigInteger.toString
-              case _: TimestampType =>
-                TimestampFormatter
-                  .getFractionFormatter(ZoneOffset.UTC)
-                  .format(pn.asInstanceOf[java.lang.Long])
-              case _ => pn.toString
+        if (file.partitionValues != null) {
+          for (i <- 0 until file.partitionValues.numFields) {
+            val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
+              ExternalCatalogUtils.DEFAULT_PARTITION_NAME
+            } else {
+              val pn = file.partitionValues.get(i, schema.fields(i).dataType)
+              schema.fields(i).dataType match {
+                case _: BinaryType =>
+                  new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
+                case _: DateType =>
+                  DateFormatter.apply().format(pn.asInstanceOf[Integer])
+                case _: DecimalType =>
+                  pn.asInstanceOf[Decimal].toJavaBigInteger.toString
+                case _: TimestampType =>
+                  TimestampFormatter
+                    .getFractionFormatter(ZoneOffset.UTC)
+                    .format(pn.asInstanceOf[java.lang.Long])
+                case _ => pn.toString
+              }
             }
+            partitionColumn.put(schema.names(i), partitionColumnValue)
           }
-          partitionColumn.put(schema.names(i), partitionColumnValue)
         }
         partitionColumns.add(partitionColumn)
     }
