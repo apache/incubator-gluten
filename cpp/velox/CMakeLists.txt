@@ -167,7 +167,8 @@ set(VELOX_SRCS
     utils/Common.cc
     utils/ConfigExtractor.cc
     utils/VeloxArrowUtils.cc
-    utils/VeloxBatchResizer.cc)
+    utils/VeloxBatchResizer.cc
+        shuffle/BaseMap.h)
 
 if(ENABLE_S3)
   find_package(ZLIB)
