@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/ccat3z/velox.git
-VELOX_BRANCH=feat/old-orc-oap
+VELOX_BRANCH=feat/orc-positional-oap
 VELOX_HOME=""
 
 OS=`uname -s`
