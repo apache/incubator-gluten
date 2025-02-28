@@ -40,8 +40,9 @@ if("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
       COMMAND git reset --hard ${CH_COMMIT}
       WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
     execute_process(
-      COMMAND git submodule update --init --force --depth 1
-      WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+      COMMAND git submodule update --init --recursive --force --depth 1 --jobs
+              32 --single-branch WORKING_DIRECTORY ${CH_SOURCE_DIR}
+                                                   COMMAND_ERROR_IS_FATAL ANY)
   else()
     execute_process(
       COMMAND git fetch origin ${CH_BRANCH} --depth 3
@@ -53,8 +54,9 @@ if("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
       COMMAND git reset --hard ${CH_COMMIT}
       WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
     execute_process(
-      COMMAND git submodule update --init --recursive --force --depth 1
-      WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+      COMMAND git submodule update --init --recursive --force --depth 1 --jobs
+              32 --single-branch WORKING_DIRECTORY ${CH_SOURCE_DIR}
+                                                   COMMAND_ERROR_IS_FATAL ANY)
   endif()
 else()
   if(NOT clickhouse_files)

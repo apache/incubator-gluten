@@ -186,7 +186,6 @@ object CHExpressionUtil {
     DECODE -> EncodeDecodeValidator(),
     ENCODE -> EncodeDecodeValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
-    MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
     SPARK_PARTITION_ID -> DefaultValidator(),
     AT_LEAST_N_NON_NULLS -> DefaultValidator(),
     URL_DECODE -> DefaultValidator(),
@@ -204,6 +203,7 @@ object CHExpressionUtil {
     FROM_UTC_TIMESTAMP -> UtcTimestampValidator(),
     STACK -> DefaultValidator(),
     RAISE_ERROR -> DefaultValidator(),
-    WIDTH_BUCKET -> DefaultValidator()
+    WIDTH_BUCKET -> DefaultValidator(),
+    MAKE_DATE -> DefaultValidator()
   )
 }

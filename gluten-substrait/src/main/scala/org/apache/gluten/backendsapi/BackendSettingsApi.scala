@@ -57,9 +57,9 @@ trait BackendSettingsApi {
 
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
 
-  def supportNativeMetadataColumns(): Boolean = false
+  def supportNativeMetadataColumns(): Boolean = true
 
-  def supportNativeRowIndexColumn(): Boolean = false
+  def supportNativeRowIndexColumn(): Boolean = true
 
   def supportExpandExec(): Boolean = false
 
@@ -152,7 +152,4 @@ trait BackendSettingsApi {
   def supportColumnarArrowUdf(): Boolean = false
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
-
-  def supportRangeExec(): Boolean = false
-
 }

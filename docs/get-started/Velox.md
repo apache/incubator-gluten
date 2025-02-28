@@ -286,7 +286,7 @@ spark.dynamicAllocation.enabled false
 
 ## Uniffle support
 
-Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.1`.
+Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.9.2`.
 
 First refer to this URL(https://uniffle.apache.org/docs/intro) to get start with uniffle.
 
@@ -502,8 +502,9 @@ Both Parquet and ORC datasets are sf1024.
 
 Please refer [Gluten UI](VeloxGlutenUI.md)
 
-# Gluten Implicits
+# Gluten Native Plan Summary
 
+## Gluten Implicits
 Gluten provides a helper class to get the fallback summary from a Spark Dataset.
 
 ```
@@ -515,6 +516,34 @@ df.fallbackSummary
 Note that, if AQE is enabled, but the query is not materialized, then it will re-plan
 the query execution with disabled AQE. It is a workaround to get the final plan, and it may
 cause the inconsistent results with a materialized query. However, we have no choice.
+
+## Native Plan in Spark's Explain Output
+
+Gluten supports inject native plan string into Spark explain with formatted mode by setting `--conf spark.gluten.sql.injectNativePlanStringToExplain=true`.
+Here is an example, how Gluten shows the native plan string.
+
+```
+(9) WholeStageCodegenTransformer (2)
+Input [6]: [c1#0L, c2#1L, c3#2L, c1#3L, c2#4L, c3#5L]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n3_6:BIGINT, "n0_0"), (n3_7:BIGINT, "n0_1"), (n3_8:BIGINT, "n0_2"), (n3_9:BIGINT, "n1_0"), (n3_10:BIGINT, "n1_1"), (n3_11:BIGINT, "n1_2")] -> n3_6:BIGINT, n3_7:BIGINT, n3_8:BIGINT, n3_9:BIGINT, n3_10:BIGINT, n3_11:BIGINT
+  -- HashJoin[INNER n1_1=n0_1] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT, n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
+    -- TableScan[table: hive_table, range filters: [(c2, Filter(IsNotNull, deterministic, null not allowed))]] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT
+    -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
+```
+
+## Native Plan with Stats
+
+Gluten supports print native plan with stats to executor system output stream by setting `--conf spark.gluten.sql.debug=true`.
+Note that, the plan string with stats is task level which may cause executor log size big. Here is an example, how Gluten show the native plan string with stats.
+
+```
+I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan with stats for: [Stage: 1 TID: 16]
+-- Project[expressions: (n3_6:BIGINT, "n0_0"), (n3_7:BIGINT, "n0_1"), (n3_8:BIGINT, "n0_2"), (n3_9:BIGINT, "n1_0"), (n3_10:BIGINT, "n1_1"), (n3_11:BIGINT, "n1_2")] -> n3_6:BIGINT, n3_7:BIGINT, n3_8:BIGINT, n3_9:BIGINT, n3_10:BIGINT, n3_11:BIGINT
+   Output: 27 rows (3.56KB, 3 batches), Cpu time: 10.58us, Blocked wall time: 0ns, Peak memory: 0B, Memory allocations: 0, Threads: 1
+      queuedWallNanos              sum: 2.00us, count: 1, min: 2.00us, max: 2.00us
+```
 
 # Accelerators
 

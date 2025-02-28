@@ -83,6 +83,9 @@ extern const ServerSettingsString skipping_index_cache_policy;
 extern const ServerSettingsUInt64 skipping_index_cache_size;
 extern const ServerSettingsUInt64 skipping_index_cache_max_entries;
 extern const ServerSettingsDouble skipping_index_cache_size_ratio;
+extern const ServerSettingsUInt64 max_prefixes_deserialization_thread_pool_size;
+extern const ServerSettingsUInt64 max_prefixes_deserialization_thread_pool_free_size;
+extern const ServerSettingsUInt64 prefixes_deserialization_thread_pool_thread_pool_queue_size;
 }
 namespace Setting
 {
@@ -109,6 +112,8 @@ extern const ServerSettingsUInt64 thread_pool_queue_size;
 extern const ServerSettingsUInt64 max_io_thread_pool_size;
 extern const ServerSettingsUInt64 io_thread_pool_queue_size;
 }
+
+extern void registerAggregateFunctionUniqHyperLogLogPlusPlus(AggregateFunctionFactory &);
 }
 
 namespace local_engine
@@ -507,7 +512,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
         });
 
     change_func("path");
-    change_func("gluten_cache.local.path");
+    change_func(GlutenCacheConfig::PREFIX + ".path");
 
     return changed_paths;
 }
@@ -562,6 +567,26 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const SparkConf
         BackendFinalizerUtil::paths_need_to_clean.insert(
             BackendFinalizerUtil::paths_need_to_clean.end(), path_need_clean.begin(), path_need_clean.end());
     }
+
+    // FIXMEX: workaround for https://github.com/ClickHouse/ClickHouse/pull/75452#pullrequestreview-2625467710
+    // entry in DiskSelector::initialize
+    // Bug in FileCacheSettings::loadFromConfig
+    auto updateCacheDiskType = [](Poco::Util::AbstractConfiguration & config) {
+        const std::string config_prefix = "storage_configuration.disks";
+        Poco::Util::AbstractConfiguration::Keys keys;
+        config.keys(config_prefix, keys);
+        for (const auto & disk_name : keys)
+        {
+            const auto disk_config_prefix = config_prefix + "." + disk_name;
+            const auto disk_type = config.getString(disk_config_prefix + ".type", "local");
+            if (disk_type == "cache")
+                config.setString(disk_config_prefix, "workaround");
+        }
+        config.setString(GlutenCacheConfig::PREFIX, "workaround");
+    };
+
+    updateCacheDiskType(*config);
+
     return config;
 }
 
@@ -828,6 +853,11 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         global_context->setSkippingIndexCache(
             skipping_index_cache_policy, skipping_index_cache_size, skipping_index_cache_max_entries, skipping_index_cache_size_ratio);
 
+        getMergeTreePrefixesDeserializationThreadPool().initialize(
+            server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_size],
+            server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_free_size],
+            server_settings[ServerSetting::prefixes_deserialization_thread_pool_thread_pool_queue_size]);
+
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);
 
@@ -855,22 +885,24 @@ extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCom
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
 extern void registerAggregateFunctionRowNumGroup(AggregateFunctionFactory &);
+
+
 extern void registerFunctions(FunctionFactory &);
 
 void registerAllFunctions()
 {
     DB::registerFunctions();
-
     DB::registerAggregateFunctions();
+
     auto & agg_factory = AggregateFunctionFactory::instance();
     registerAggregateFunctionsBloomFilter(agg_factory);
     registerAggregateFunctionSparkAvg(agg_factory);
     registerAggregateFunctionRowNumGroup(agg_factory);
-    {
-        /// register aggregate function combinators from local_engine
-        auto & factory = AggregateFunctionCombinatorFactory::instance();
-        registerAggregateFunctionCombinatorPartialMerge(factory);
-    }
+    DB::registerAggregateFunctionUniqHyperLogLogPlusPlus(agg_factory);
+
+    /// register aggregate function combinators from local_engine
+    auto & combinator_factory = AggregateFunctionCombinatorFactory::instance();
+    registerAggregateFunctionCombinatorPartialMerge(combinator_factory);
 }
 
 void registerGlutenDisks()

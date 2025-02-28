@@ -42,25 +42,18 @@ namespace {
 const int32_t kGzipWindowBits4k = 12;
 }
 
-void VeloxParquetDataSource::initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) {
-  if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
-  } else {
-    throw std::runtime_error("The file path is not local when writing data with parquet format in velox runtime!");
-  }
-}
-
-void VeloxParquetDataSource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  initSink(sparkConfs);
-
+std::unique_ptr<facebook::velox::parquet::WriterOptions> VeloxParquetDataSource::makeParquetWriteOption(
+    const std::unordered_map<std::string, std::string>& sparkConfs) {
+  int64_t maxRowGroupBytes = 134217728; // 128MB
+  int64_t maxRowGroupRows = 100000000; // 100M
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
-    maxRowGroupBytes_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
+    maxRowGroupBytes = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
   }
   if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
-    maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
+    maxRowGroupRows = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
-  velox::parquet::WriterOptions writeOption;
-  writeOption.parquetWriteTimestampUnit = TimestampPrecision::kMicroseconds /*micro*/;
+  auto writeOption = std::make_unique<facebook::velox::parquet::WriterOptions>();
+  writeOption->parquetWriteTimestampUnit = TimestampPrecision::kMicroseconds /*micro*/;
   auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
@@ -74,7 +67,7 @@ void VeloxParquetDataSource::init(const std::unordered_map<std::string, std::str
         if (parquetGzipWindowSizeStr == kGzipWindowSize4k) {
           auto codecOptions = std::make_shared<facebook::velox::parquet::arrow::util::GZipCodecOptions>();
           codecOptions->window_bits = kGzipWindowBits4k;
-          writeOption.codecOptions = std::move(codecOptions);
+          writeOption->codecOptions = std::move(codecOptions);
         }
       }
     } else if (boost::iequals(compressionCodecStr, "lzo")) {
@@ -92,14 +85,28 @@ void VeloxParquetDataSource::init(const std::unordered_map<std::string, std::str
       compressionCodec = CompressionKind::CompressionKind_NONE;
     }
   }
-  writeOption.compressionKind = compressionCodec;
-  writeOption.flushPolicyFactory = [&]() {
+  writeOption->compressionKind = compressionCodec;
+  writeOption->flushPolicyFactory = [maxRowGroupRows, maxRowGroupBytes]() {
     return std::make_unique<velox::parquet::LambdaFlushPolicy>(
-        maxRowGroupRows_, maxRowGroupBytes_, [&]() { return false; });
+        maxRowGroupRows, maxRowGroupBytes, [&]() { return false; });
   };
-  auto schema = gluten::fromArrowSchema(schema_);
+  writeOption->parquetWriteTimestampTimeZone = getConfigValue(sparkConfs, kSessionTimezone, std::nullopt);
+  return writeOption;
+}
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_, asRowType(schema));
+void VeloxParquetDataSource::initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) {
+  if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
+    sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
+  } else {
+    throw std::runtime_error("The file path is not local when writing data with parquet format in velox runtime!");
+  }
+}
+
+void VeloxParquetDataSource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
+  initSink(sparkConfs);
+  auto schema = gluten::fromArrowSchema(schema_);
+  const auto writeOption = makeParquetWriteOption(sparkConfs);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), *writeOption, pool_, asRowType(schema));
 }
 
 void VeloxParquetDataSource::inspectSchema(struct ArrowSchema* out) {
