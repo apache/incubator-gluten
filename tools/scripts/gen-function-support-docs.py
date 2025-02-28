@@ -552,13 +552,18 @@ SCALAR_FUNCTION_GROUPS = {'array_funcs': "Array Functions",
                           'url_funcs': "URL Functions",
                           'xml_funcs': "XML Functions"}
 
+FUNCTION_GROUPS = {'scalar': SCALAR_FUNCTION_GROUPS,
+                   'agg': {'agg_funcs': 'Aggregate Functions'},
+                   'window': {'window_funcs': 'Window Functions'},
+                   'generator': {'generator_funcs': "Generator Functions"}}
+
 
 def create_spark_function_map():
     exprs = list(map(lambda x: x if x[-1] != ',' else x[:-1],
                      map(lambda x: x.strip(),
                          filter(lambda x: 'expression' in x, SPARK35_EXPRESSION_MAPPINGS.split('\n')))))
 
-    spark_expression_map = {}
+    func_map = {}
     expression_pattern = 'expression[GeneratorOuter]*\[([\w0-9]+)\]\("([^\s]+)".*'
     expression_builder_pattern = 'expression[Generator]*Builder[Outer]*\("([^\s]+)", ([\w0-9]+).*'
     for r in exprs:
@@ -567,18 +572,18 @@ def create_spark_function_map():
         if match:
             class_name = match.group(1)
             function_name = match.group(2)
-            spark_expression_map[function_name] = class_name
+            func_map[function_name] = class_name
         else:
             match = re.search(expression_builder_pattern, r)
 
             if match:
                 class_name = match.group(2)
                 function_name = match.group(1)
-                spark_expression_map[function_name] = class_name
+                func_map[function_name] = class_name
             else:
                 logging.log(logging.WARNING, f'Could not parse expression: {r}')
 
-    return spark_expression_map
+    return func_map
 
 
 def generate_function_list():
@@ -658,7 +663,7 @@ def parse_logs(log_file):
             function_name, None if function_name not in function_to_classname else function_to_classname[function_name])
 
     def notFound(r):
-        logging.log(logging.INFO, f"No function name found in: {r}")
+        logging.log(logging.WARNING, f"No function name or class name found in: {r}")
         unresolved.append(r)
 
     java_import(jvm, "org.apache.gluten.expression.ExpressionMappings")
@@ -686,7 +691,7 @@ def parse_logs(log_file):
                 if class_name in classname_to_function:
                     scalar_support_list['unsupported'].add((classname_to_function[class_name], class_name))
                 else:
-                    print(f"No function name for class: {class_name}. Adding class name")
+                    logging.log(logging.INFO, f"No function name for class: {class_name}. Adding class name")
                     scalar_support_list['unsupported'].add((None, class_name))
             else:
                 notFound(r)
@@ -702,7 +707,7 @@ def parse_logs(log_file):
                 if class_name in classname_to_function:
                     scalar_support_list['unsupported'].add((classname_to_function[class_name], class_name))
                 else:
-                    print(f"No function name for class: {class_name}. Adding class name")
+                    logging.log(logging.INFO, f"No function name for class: {class_name}. Adding class name")
                     scalar_support_list['unsupported'].add((None, class_name))
             else:
                 notFound(r)
@@ -809,42 +814,40 @@ def parse_logs(log_file):
     return scalar_support_list, agg_support_list, window_support_list, generator_support_list, unresolved
 
 
-def generate_scalar_function_doc(scalar_support_list, output):
-    num_unsupported_scalar = len(list(filter(lambda x: x[0] is not None, scalar_support_list['unsupported'])))
-    num_unsupported_scalar_expression = len(
-        list(filter(lambda x: x[0] is None and x[1] is not None, scalar_support_list['unsupported'])))
-    num_partially_supported_scalar = len(list(filter(lambda x: x[0] is not None, scalar_support_list['partial'])))
-    num_supported_scalar = len(scalar_functions) - num_unsupported_scalar - num_partially_supported_scalar
+def generate_function_doc(category, function_support_list, output):
+    num_unsupported = len(list(filter(lambda x: x[0] is not None, function_support_list['unsupported'])))
+    num_unsupported_expression = len(
+        list(filter(lambda x: x[0] is None and x[1] is not None, function_support_list['unsupported'])))
+    num_partially_supported = len(list(filter(lambda x: x[0] is not None, function_support_list['partial'])))
+    num_supported = len(scalar_functions) - num_unsupported - num_partially_supported
 
-    print(f'Number of scalar functions: {len(scalar_functions)}')
-    print(f'Number of unsupported scalar functions: {num_unsupported_scalar}')
-    print(f'Number of unsupported scalar expressions: {num_unsupported_scalar_expression}')
-    print(f'Number of partially supported scalar function: {num_partially_supported_scalar}')
-    print(f'Number of fully supported scalar function: {num_supported_scalar}')
+    logging.log(logging.WARNING, f'Number of {category} functions: {len(scalar_functions)}')
+    logging.log(logging.WARNING, f'Number of unsupported {category} functions: {num_unsupported}')
+    logging.log(logging.WARNING, f'Number of unsupported {category} expressions: {num_unsupported_expression}')
+    logging.log(logging.WARNING, f'Number of partially supported {category} function: {num_partially_supported}')
+    logging.log(logging.WARNING, f'Number of fully supported {category} function: {num_supported}')
 
     headers = ['Spark Functions', 'Spark Expressions', 'Status', 'Restrictions']
 
-    lines = f'''# Scalar Functions Support Status
+    lines = f'''# {category.capitalize()} Functions Support Status
 
-**Out of 352 scalar functions in Spark 3.5, Gluten currently fully supports {num_supported_scalar} functions and partially supports {num_partially_supported_scalar} functions.**
+**Out of {len(scalar_functions)} {category} functions in Spark 3.5, Gluten currently fully supports {num_supported} functions and partially supports {num_partially_supported} functions.**
 
 '''
 
-    spark_expression_map = create_spark_function_map()
-
     for g in sorted(SPARK_FUNCTION_GROUPS):
-        if g in SCALAR_FUNCTION_GROUPS:
-            lines += '## ' + SCALAR_FUNCTION_GROUPS[g] + '\n\n'
+        if g in FUNCTION_GROUPS[category]:
+            lines += '## ' + FUNCTION_GROUPS[category][g] + '\n\n'
             data = []
             for f in sorted(group_functions[g]):
-                classname = '' if f not in spark_expression_map else spark_expression_map[f]
+                classname = '' if f not in spark_function_map else spark_function_map[f]
                 support = None
-                for item in scalar_support_list['partial']:
+                for item in function_support_list['partial']:
                     if item[0] and item[0] == f or item[1] and item[1] == classname:
                         support = 'PS'
                         break
                 if support is None:
-                    for item in scalar_support_list['unsupported']:
+                    for item in function_support_list['unsupported']:
                         if item[0] and item[0] == f or item[1] and item[1] == classname:
                             support = ''
                             break
@@ -862,13 +865,13 @@ def generate_scalar_function_doc(scalar_support_list, output):
         fd.write(lines)
 
 
-def run_GlutenSQLQueryTestSuite(spark_test_home, gluten_home):
+def run_GlutenSQLQueryTestSuite():
     log4j_properties_file = os.path.abspath(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log4j2.properties'))
     command = [
         "mvn", "test",
         "-Pspark-3.5", "-Pspark-ut", "-Pbackends-velox",
-        f"-DargLine=-Dspark.test.home={spark_test_home} -Dlog4j2.configurationFile=file:{log4j_properties_file}",
+        f"-DargLine=-Dspark.test.home={spark_home} -Dlog4j2.configurationFile=file:{log4j_properties_file}",
         "-DwildcardSuites=org.apache.spark.sql.GlutenSQLQueryTestSuite",
         "-Dtest=none",
         "-Dsurefire.failIfNoSpecifiedTests=false"
@@ -879,25 +882,29 @@ def run_GlutenSQLQueryTestSuite(spark_test_home, gluten_home):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--spark_test_home", type=str, required=True,
+    parser.add_argument("--spark_home", type=str, required=True,
                         help="Directory to spark source code for the newest supported spark version in Gluten. "
                              "It's required the spark project has been built from source.")
-    parser.add_argument("--run_test_suite", type=bool, required=False, default=True,
+    parser.add_argument("--skip_run_test_suite", action='store_true',
                         help="Whether to run test suite. Set to False to skip running the test suite.")
     args = parser.parse_args()
 
-    spark_home = args.spark_test_home
+    spark_home = args.spark_home
     findspark.init(spark_home)
 
+    gluten_home = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../'))
+    if not args.skip_run_test_suite:
+        run_GlutenSQLQueryTestSuite()
+
+    gluten_jar = os.path.join(gluten_home, 'package', 'target', 'gluten-package-1.4.0-SNAPSHOT.jar')
+    if not os.path.exists(gluten_jar):
+        raise Exception(f"Gluten jar not found at {gluten_jar}")
+
+    # Importing the required modules after findspark.
     from py4j.java_gateway import java_import
     from pyspark.java_gateway import launch_gateway
     from pyspark.conf import SparkConf
 
-    gluten_home = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../'))
-    if args.run_test_suite:
-        run_GlutenSQLQueryTestSuite(spark_home, gluten_home)
-
-    gluten_jar = os.path.join(gluten_home, 'package', 'target', 'gluten-package-1.4.0-SNAPSHOT.jar')
     conf = SparkConf().set("spark.jars", gluten_jar)
     jvm = launch_gateway(conf=conf).jvm
 
@@ -912,8 +919,10 @@ if __name__ == '__main__':
     group_functions = {}
     generate_function_list()
 
+    spark_function_map = create_spark_function_map()
+
     scalar_support_list, agg_support_list, window_support_list, generator_support_list, unresolved = parse_logs(
         os.path.join(gluten_home, 'gluten-ut', 'spark35', 'target', 'gen-function-support-docs-tests.log'))
 
-    generate_scalar_function_doc(scalar_support_list,
-                                 os.path.join(gluten_home, 'docs', 'velox-backend-scalar-function-support.md'))
+    generate_function_doc('scalar', scalar_support_list,
+                          os.path.join(gluten_home, 'docs', 'velox-backend-scalar-function-support.md'))
