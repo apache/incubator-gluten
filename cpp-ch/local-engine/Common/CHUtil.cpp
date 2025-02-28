@@ -123,7 +123,7 @@ namespace fs = std::filesystem;
 
 DB::Block BlockUtil::buildRowCountHeader()
 {
-    return DB::Block{createColumn<UInt8>({},VIRTUAL_ROW_COUNT_COLUMN)};
+    return DB::Block{createColumn<UInt8>({}, VIRTUAL_ROW_COUNT_COLUMN)};
 }
 
 DB::Chunk BlockUtil::buildRowCountChunk(UInt64 rows)

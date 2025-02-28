@@ -16,10 +16,10 @@
  */
 #include "IcebergReader.h"
 
+#include <DataTypes/DataTypeNullable.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Interpreters/ExpressionAnalyzer.h>
 #include <Storages/SubstraitSource/iceberg/EqualityDeleteFileReader.h>
-#include <DataTypes/DataTypeNullable.h>
 
 using namespace DB;
 
@@ -55,7 +55,6 @@ std::unique_ptr<IcebergReader> IcebergReader::create(
             const auto & delete_file = delete_files[deleteIndex];
             if (delete_file.recordcount() > 0)
                 EqualityDeleteFileReader{context, to_read_header_, delete_file}.readDeleteValues(expressionInputs);
-
         }
         delete_expr = expressionInputs.finish();
     }

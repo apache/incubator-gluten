@@ -18,11 +18,11 @@
 
 #include "Functions/FunctionFactory.h"
 
-#include <Interpreters/ExpressionActions.h>
 #include <Columns/ColumnConst.h>
 #include <Columns/ColumnSet.h>
 #include <Core/Block.h>
 #include <Interpreters/Context_fwd.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Parsers/IAST_fwd.h>
 #include <substrait/plan.pb.h>
 
@@ -74,10 +74,12 @@ private:
 
 public:
     explicit EqualityDeleteActionBuilder(const DB::ContextPtr & context_, const DB::NamesAndTypesList & inputs_)
-        : actions(inputs_), context(context_){}
+        : actions(inputs_), context(context_)
+    {
+    }
 
     void notIn(DB::Block deleteBlock, const std::string & column_name = "");
-    void notEquals(DB::Block deleteBlock, const DB::Names& column_names = {});
+    void notEquals(DB::Block deleteBlock, const DB::Names & column_names = {});
     DB::ExpressionActionsPtr finish();
 };
 
@@ -86,8 +88,10 @@ class EqualityDeleteFileReader
     SimpleParquetReader reader_;
     const DB::Block & read_header_;
     const substraitIcebergDeleteFile & deleteFile_;
+
 public:
-    explicit EqualityDeleteFileReader(const DB::ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile);
+    explicit EqualityDeleteFileReader(
+        const DB::ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile);
     ~EqualityDeleteFileReader() = default;
     void readDeleteValues(EqualityDeleteActionBuilder & expressionInputs) const;
 };

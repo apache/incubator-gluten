@@ -128,7 +128,8 @@ inline DB::NamesWithAliases buildNamesWithAliases(const DB::Block & input, const
 }
 
 // begion of CppToDataType
-template <typename T> struct CppToDataType;
+template <typename T>
+struct CppToDataType;
 
 template <>
 struct CppToDataType<UInt8>
@@ -154,9 +155,9 @@ struct CppToDataType<UInt64>
     static auto create() { return std::make_shared<Type>(); }
 };
 
-template <typename T >
-DB::ColumnPtr createColumn(const std::vector<T>& data)
-requires (std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::ColumnType>)
+template <typename T>
+DB::ColumnPtr createColumn(const std::vector<T> & data)
+requires(std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::ColumnType>)
 {
     static_assert(!DB::is_decimal<T>);
 
@@ -167,8 +168,8 @@ requires (std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::Colu
 }
 
 template <typename T>
-DB::ColumnWithTypeAndName createColumn(const std::vector<T>& data, const std::string & col_name)
-requires (std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::ColumnType>)
+DB::ColumnWithTypeAndName createColumn(const std::vector<T> & data, const std::string & col_name)
+requires(std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::ColumnType>)
 {
     return {createColumn(data), CppToDataType<T>::create(), col_name};
 }

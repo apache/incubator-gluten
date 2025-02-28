@@ -42,10 +42,9 @@ namespace local_engine::test
 {
 
 template <typename T>
-concept couldbe_collected = requires(T t)
-{
-    { t.pull(std::declval<DB::Chunk&>()) } -> std::same_as<bool>;
-    { t.getHeader() } -> std::same_as<const DB::Block&>;
+concept couldbe_collected = requires(T t) {
+    { t.pull(std::declval<DB::Chunk &>()) } -> std::same_as<bool>;
+    { t.getHeader() } -> std::same_as<const DB::Block &>;
 };
 
 class ReaderTestBase : public testing::Test
@@ -54,15 +53,17 @@ class ReaderTestBase : public testing::Test
 
 protected:
     LoggerPtr test_logger = getLogger("ReaderTestBase");
-    DB:: ContextMutablePtr context_ = nullptr;
+    DB::ContextMutablePtr context_ = nullptr;
 
     void writeToFile(const std::string & filePath, const DB::Block & block) const;
 
     DB::DatabasePtr createMemoryDatabaseIfNotExists(const String & database_name);
     void createMemoryTableIfNotExists(const String & database_name, const String & table_name, const std::vector<DB::Block> & blocks);
 
-    template <typename T> requires couldbe_collected<T>
+    template <typename T>
+    requires couldbe_collected<T>
     DB::Block collectResult(T & input) const;
+
 public:
     ReaderTestBase() = default;
 

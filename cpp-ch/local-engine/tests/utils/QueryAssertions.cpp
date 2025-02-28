@@ -27,15 +27,15 @@ namespace local_engine::test
 
 bool assertEqualResults(const DB::Block & actual, const DB::Block & expected, const std::string & message)
 {
-    if (!(expected.rows() == actual.rows() &&
-        expected.columns() == actual.columns() &&
-        sameType(expected, actual) &&
-        sameName(expected, actual)))
+    if (!(expected.rows() == actual.rows() && expected.columns() == actual.columns() && sameType(expected, actual)
+          && sameName(expected, actual)))
     {
-
         auto error = fmt::format(
             "Types of actual[{} column(s)] and expected[{} column(s)] results do not match: \n  Actual: {}\nExpected: {}",
-                    actual.columns(), expected.columns(), actual.dumpStructure(), expected.dumpStructure());
+            actual.columns(),
+            expected.columns(),
+            actual.dumpStructure(),
+            expected.dumpStructure());
         ADD_FAILURE() << error << message;
 
         return false;
@@ -46,23 +46,28 @@ bool assertEqualResults(const DB::Block & actual, const DB::Block & expected, co
         return true;
 
 
-    for (size_t colIndex = 0; colIndex < expected.columns(); ++colIndex) {
+    for (size_t colIndex = 0; colIndex < expected.columns(); ++colIndex)
+    {
         const auto & expectedCol = *expected.getByPosition(colIndex).column;
         const auto & actualCol = *actual.getByPosition(colIndex).column;
 
-        for (size_t rowIndex = 0; rowIndex < expectedCol.size(); ++rowIndex) {
-            if (expectedCol.compareAt(rowIndex, rowIndex, actualCol, 1) != 0) {
+        for (size_t rowIndex = 0; rowIndex < expectedCol.size(); ++rowIndex)
+        {
+            if (expectedCol.compareAt(rowIndex, rowIndex, actualCol, 1) != 0)
+            {
                 auto error = fmt::format(
                     "Column \"{}\"'s value at position ({}) do not match: \n  Actual: {}\nExpected: {}",
-                    expected.getByPosition(colIndex).name, rowIndex, toString(actualCol[rowIndex]), toString(expectedCol[rowIndex]));
+                    expected.getByPosition(colIndex).name,
+                    rowIndex,
+                    toString(actualCol[rowIndex]),
+                    toString(expectedCol[rowIndex]));
                 ADD_FAILURE() << error << message;
                 return false;
             }
         }
     }
-    
+
     return true;
 }
 
 }
-

@@ -193,7 +193,6 @@ static std::vector<std::vector<std::string>> getRows(const NameAndColumns & bloc
 
         for (const auto & column : block)
             currentRow.emplace_back(toString(column.second.get(), row, truncate));
-
     }
     return results;
 }
@@ -429,14 +428,14 @@ std::string showString(const DB::ColumnPtr & column, size_t numRows, size_t trun
     return Utils::showString({{"Column", column}}, numRows, truncate, vertical);
 }
 
-std::string dumpColumn(const std::string & name,const DB::ColumnPtr & column)
+std::string dumpColumn(const std::string & name, const DB::ColumnPtr & column)
 {
     //TODO: ColumnSet
 
     if (isColumnConst(*column))
         return toString(assert_cast<const DB::ColumnConst &>(*column).getField());
 
-    size_t size =  std::min(static_cast<size_t>(10), column->size());
+    size_t size = std::min(static_cast<size_t>(10), column->size());
     std::vector<std::string> results;
     results.reserve(size);
     for (int row = 0; row < size; ++row)
@@ -462,15 +461,12 @@ std::string dumpActionsDAG(const DB::ActionsDAG & dag)
 
     for (const auto & node : dag.getNodes())
     {
-
         ss << "  n" << node_to_id[&node] << " [label=\"";
         ss << "id:" << node_to_id[&node] << "\\l";
         switch (node.type)
         {
             case DB::ActionsDAG::ActionType::COLUMN:
-                ss << "Literal = "
-                   << (node.column ? dumpColumn(node.result_name, node.column):"null")
-                   << "\\l";
+                ss << "Literal = " << (node.column ? dumpColumn(node.result_name, node.column) : "null") << "\\l";
                 break;
             case DB::ActionsDAG::ActionType::ALIAS:
                 ss << "alias" << "\\l";

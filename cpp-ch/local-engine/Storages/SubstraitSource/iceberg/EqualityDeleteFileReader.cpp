@@ -17,7 +17,9 @@
 
 #include "EqualityDeleteFileReader.h"
 
+#include <DataTypes/DataTypeSet.h>
 #include <Formats/FormatFactory.h>
+#include <Functions/FunctionFactory.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/Parquet/ParquetMeta.h>
@@ -26,8 +28,6 @@
 #include <substrait/algebra.pb.h>
 #include <Poco/URI.h>
 #include <Common/BlockTypeUtils.h>
-#include <DataTypes/DataTypeSet.h>
-#include <Functions/FunctionFactory.h>
 
 
 using namespace DB;
@@ -114,7 +114,7 @@ void EqualityDeleteActionBuilder::notIn(Block deleteBlock, const std::string & c
     andArgs.push_back(&addFunction(function_builder, std::move(args)));
 }
 
-void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names& column_names)
+void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names & column_names)
 {
     auto numDeleteFields = deleteBlock.columns();
     assert(deleteBlock.columns() > 1);
@@ -148,7 +148,7 @@ void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names& 
 ExpressionActionsPtr EqualityDeleteActionBuilder::finish()
 {
     if (andArgs.size() == 0)
-        return  nullptr;
+        return nullptr;
 
     actions.addOrReplaceInOutputs(lastMerge());
     return std::make_shared<ExpressionActions>(std::move(actions), ExpressionActionsSettings(context, CompileExpressions::no));
@@ -169,7 +169,8 @@ substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
 
 }
 
-EqualityDeleteFileReader::EqualityDeleteFileReader(const ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile)
+EqualityDeleteFileReader::EqualityDeleteFileReader(
+    const ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile)
     : reader_(context, fromDeleteFile(deleteFile)), read_header_(read_header), deleteFile_(deleteFile)
 {
     assert(deleteFile_.recordcount() > 0);

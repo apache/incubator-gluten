@@ -21,12 +21,12 @@
 #include <Core/Block.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
+#include <Formats/FormatSettings.h>
 #include <Interpreters/ActionsDAG.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <parquet/schema.h>
 #include <tests/testConfig.h>
 #include <Common/BlockTypeUtils.h>
-#include <Formats/FormatSettings.h>
 
 namespace substrait
 {

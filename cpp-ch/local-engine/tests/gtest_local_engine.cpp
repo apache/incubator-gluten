@@ -29,13 +29,13 @@
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
+#include <TableFunctions/TableFunctionFactory.h>
 #include <TableFunctions/registerTableFunctions.h>
 #include <gtest/gtest.h>
 #include <tests/utils/gluten_test_util.h>
 #include <config.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
-#include <TableFunctions/TableFunctionFactory.h>
 
 using namespace local_engine;
 using namespace DB;
