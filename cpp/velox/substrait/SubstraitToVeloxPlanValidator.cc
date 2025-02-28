@@ -240,9 +240,7 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   return true;
 }
 
-bool SubstraitToVeloxPlanValidator::isAllowedCast(
-    const TypePtr& fromType,
-    const TypePtr& toType) {
+bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const TypePtr& toType) {
   // Currently cast is not allowed for various categories, code has a bunch of rules
   // which define the cast categories and if we should offload to velox. Currently
   // the following categories are denied.
