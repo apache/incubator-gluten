@@ -37,7 +37,8 @@ trait IteratorApi {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo
+      properties: Map[String, String],
+      dataSchema: StructType): SplitInfo
 
   def genSplitInfoForPartitions(
       partitionIndex: Int,

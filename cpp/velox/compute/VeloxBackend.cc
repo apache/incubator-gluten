@@ -272,6 +272,11 @@ void VeloxBackend::initConnector() {
   connectorConfMap[velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
       backendConf_->get<std::string>(kFilePreloadThreshold, "1048576"); // 1M
 
+  // Map table schema to file schema using name
+  connectorConfMap[velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
+  connectorConfMap[velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
+  connectorConfMap[velox::connector::hive::HiveConfig::kOrcUseNestedColumnNames] = "true";
+
   // read as UTC
   connectorConfMap[velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
 

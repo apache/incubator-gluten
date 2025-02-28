@@ -74,8 +74,9 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
           _,
           getPartitionSchema,
           fileFormat,
-          getMetadataColumns().map(_.name),
-          getProperties))
+          getMetadataColumns.map(_.name),
+          getProperties,
+          getDataSchema))
   }
 
   val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
