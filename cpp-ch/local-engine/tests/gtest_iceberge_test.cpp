@@ -16,31 +16,48 @@
  */
 
 #include <filesystem>
-#include <Storages/SubstraitSource/icerberg/IcebergDeleteFile.h>
+
 #include <Core/Block.h>
+#include <Core/Settings.h>
+#include <Interpreters/ExpressionActions.h>
+#include <Interpreters/executeQuery.h>
+#include <Processors/Executors/PullingAsyncPipelineExecutor.h>
 #include <Storages/Output/NormalFileWriter.h>
+#include <Storages/SubstraitSource/FormatFile.h>
+#include <Storages/SubstraitSource/ParquetFormatFile.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <Storages/SubstraitSource/iceberg/EqualityDeleteFileReader.h>
 #include <gtest/gtest.h>
 #include <tests/utils/ReaderTestBase.h>
 #include <tests/utils/TempFilePath.h>
-#include <Poco/URI.h>
+#include <utils/QueryAssertions.h>
+#include <utils/gluten_test_util.h>
 #include <Common/QueryContext.h>
-#include <Interpreters/ExpressionActions.h>
+#include <Formats/FormatFactory.h>
 
+namespace local_engine
+{
+class ParquetFormatFile;
+}
 
 class ConnectorSplit {};
+
+namespace DB::Setting
+{
+extern const SettingsUInt64 interactive_delay;
+}
+
 namespace local_engine::test
 {
+
 class IcebergTest : public ReaderTestBase
 {
 public:
+    using substraitIcebergDeleteFile = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions::DeleteFile;
+
     static constexpr int rowCount = 20000;
 private:
-    std::shared_ptr<ConnectorSplit> makeIcebergSplit(
-      const std::string& dataFilePath,
-      const std::vector<iceberg::IcebergDeleteFile>& deleteFiles = {})
-    {
-        return nullptr;
-    }
 
     std::string makeNotInList(const std::vector<int64_t>& deletePositionVector) {
         if (deletePositionVector.empty()) {
@@ -114,9 +131,80 @@ private:
         return predicates;
     }
 
-    void assertEqualityDeletes(std::shared_ptr<ConnectorSplit> split, const std::string& duckDbSql) {}
+    void assertEqualityDeletes(NormalFileReader & reader, const std::string& duckDbSql) const
+    {
+        auto msg = fmt::format("\nExpected result from running Clickhouse sql: {}", duckDbSql);
+        EXPECT_TRUE(assertEqualResults(collectResult( reader), runClickhouseSQL(duckDbSql), msg));
+    }
+protected:
+    std::unique_ptr<NormalFileReader> makeIcebergSplit(
+        const std::string& dataFilePath,
+        const DB::Block & sampleBlock,
+        const std::vector<substraitIcebergDeleteFile>& deleteFiles = {})
+    {
+        substraitInputFile file_info = makeInputFile(dataFilePath, deleteFiles);
+        const Poco::URI file_uri{file_info.uri_file()};
 
+        ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context_);
+        auto format_file = FormatFileUtil::createFile(context_, read_buffer_builder, file_info);
+
+        return NormalFileReader::create(format_file, sampleBlock, sampleBlock);
+    }
+
+    std::unique_ptr<NormalFileReader> makeIcebergSplit(
+        const std::string& dataFilePath,
+        const std::vector<substraitIcebergDeleteFile>& deleteFiles = {})
+    {
+        return makeIcebergSplit(dataFilePath, toSampleBlock(readParquetSchema(dataFilePath, getFormatSettings(context_))), deleteFiles);
+    }
+
+    substraitIcebergDeleteFile makeDeleteFile(const std::string & _path, uint64_t _recordCount, uint64_t _fileSizeInBytes)
+    {
+        substraitIcebergDeleteFile deleteFile;
+        deleteFile.set_filecontent(substrait::ReadRel_LocalFiles_FileOrFiles_IcebergReadOptions_FileContent_EQUALITY_DELETES);
+        deleteFile.set_filepath("file://" + _path);
+        deleteFile.set_recordcount(_recordCount);
+        deleteFile.set_filesize(_fileSizeInBytes);
+
+        substrait::ReadRel::LocalFiles::FileOrFiles::ParquetReadOptions parquet_format;
+        deleteFile.mutable_parquet()->CopyFrom(parquet_format);
+
+        return deleteFile;
+    }
+
+    substraitInputFile makeInputFile(const std::string & _path, const std::vector<substraitIcebergDeleteFile> & _deleteFiles)
+    {
+        substraitInputFile file;
+        file.set_uri_file("file://" + _path);
+        file.set_start(0);
+        file.set_length(std::filesystem::file_size(_path));
+
+        substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions iceberg_read_options;
+
+        substrait::ReadRel::LocalFiles::FileOrFiles::ParquetReadOptions parquet_format;
+        iceberg_read_options.mutable_parquet()->CopyFrom(parquet_format);
+
+        iceberg_read_options.mutable_delete_files()->Reserve(_deleteFiles.size());
+
+        for (const auto& del_file : _deleteFiles)
+            iceberg_read_options.add_delete_files()->CopyFrom(del_file);
+
+        file.mutable_iceberg()->CopyFrom(iceberg_read_options);
+
+        return file;
+    }
+    void createDuckDbTable(const std::vector<DB::Block> & blocks)
+    {
+        createMemoryTableIfNotExists("IcebergTest", "tmp", blocks);
+    }
 public:
+
+    void SetUp() override
+    {
+        ReaderTestBase::SetUp();
+        /// we know all datas are not nullable
+        context_->setSetting("schema_inference_make_columns_nullable", DB::Field("0"));
+    }
     std::vector<std::shared_ptr<TempFilePath>> writeDataFiles(
       uint64_t numRows,
       int32_t numColumns = 1,
@@ -133,10 +221,11 @@ public:
             writeToFile(dataFilePaths.back()->string(), dataVectors[i]);
         }
 
-        // TODO: createDuckDbTable(dataVectors);
+        createDuckDbTable(dataVectors);
         return dataFilePaths;
     }
 
+    // TODO: rename duckDbSql => chDbSql
     void assertEqualityDeletes(
       const std::unordered_map<int8_t, std::vector<std::vector<int64_t>>>&
           equalityDeleteVectorMap,
@@ -166,7 +255,7 @@ public:
         std::shared_ptr<TempFilePath> dataFilePath =
             writeDataFiles(rowCount, numDataColumns)[0];
 
-        std::vector<iceberg::IcebergDeleteFile> deleteFiles;
+        std::vector<substraitIcebergDeleteFile> deleteFiles;
         std::string predicates = "";
         unsigned long numDeletedValues = 0;
 
@@ -181,14 +270,10 @@ public:
                 std::max(numDeletedValues, equalityDeleteVector[0].size());
 
             deleteFilePaths.push_back(writeEqualityDeleteFile(equalityDeleteVector));
-            iceberg::IcebergDeleteFile deleteFile(
-                iceberg::FileContent::kEqualityDeletes,
-                deleteFilePaths.back()->string(),
-                equalityDeleteVector[0].size(),
-                testing::internal::GetFileSize(
-                    std::fopen(deleteFilePaths.back()->string().c_str(), "r")),
-                equalityFieldIds);
-            deleteFiles.push_back(deleteFile);
+            deleteFiles.push_back(
+                makeDeleteFile(deleteFilePaths.back()->string(),
+                    equalityDeleteVector[0].size(),
+                    testing::internal::GetFileSize(std::fopen(deleteFilePaths.back()->string().c_str(), "r"))));
             predicates += makePredicates(equalityDeleteVector, equalityFieldIds);
             ++it;
             if (it != equalityFieldIdsMap.end()) {
@@ -201,13 +286,13 @@ public:
         // If the caller passed in a query, use that.
         if (duckDbSql == "") {
             // Select all columns
-            duckDbSql = "SELECT * FROM tmp ";
+            duckDbSql = "SELECT * FROM IcebergTest.tmp ";
             if (numDeletedValues > 0) {
                 duckDbSql += fmt::format("WHERE {}", predicates);
             }
         }
 
-        assertEqualityDeletes(icebergSplit, duckDbSql);
+        assertEqualityDeletes(*icebergSplit, duckDbSql);
     }
 
     std::shared_ptr<TempFilePath> writeEqualityDeleteFile(
@@ -215,12 +300,9 @@ public:
     {
         DB::ColumnsWithTypeAndName columns;
 
-        for (int i = 0; i < equalityDeleteVector.size(); i++) {
-            const auto column = DB::ColumnInt64::create(equalityDeleteVector[i].size());
-            DB::ColumnInt64::Container & vec = column->getData();
-            memcpy(vec.data(), equalityDeleteVector[i].data(), equalityDeleteVector[i].size() * sizeof(int64_t));
-            columns.emplace_back(DB::ColumnWithTypeAndName(column->getPtr(), BIGINT(), fmt::format("c{}", i)));
-        }
+        for (int i = 0; i < equalityDeleteVector.size(); i++)
+            columns.emplace_back(makeColumn(equalityDeleteVector[i], fmt::format("c{}", i)));
+
 
         auto deleteFilePath = TempFilePath::tmp("parquet");
         writeToFile(deleteFilePath->string(), DB::Block(columns));
@@ -231,14 +313,19 @@ public:
     {
         EXPECT_GT(repeat, 0);
         auto maxValue = std::ceil(static_cast<double>(numRows) / repeat);
-        auto column = DB::ColumnInt64::create(numRows);
+        auto column = DB::ColumnInt64::create();
+        column->reserve(numRows);
+
         DB::ColumnInt64::Container & values = column->getData();
-        Int64 * pos = values.data();
-        for (int32_t i = 0; i < maxValue; i++) {
-            for (int8_t j = 0; j < repeat; j++) {
-                *pos++ = i;
-            }
+        EXPECT_EQ(values.size(), 0);
+
+        int32_t inserted = 0;
+        for (int32_t i = 0; i < maxValue && inserted < numRows; i++) {
+            for (int8_t j = 0; j < repeat && inserted < numRows; j++, inserted++)
+                values.push_back(i);
         }
+
+        EXPECT_EQ(column->size(), numRows);
         return column;
     }
 
@@ -275,74 +362,44 @@ public:
     }
 };
 
+
+
+TEST_F(IcebergTest, tmp2)
+{
+    std::shared_ptr<TempFilePath> dataFilePath =
+        writeDataFiles(rowCount, 4)[0];
+
+    DB::Block block = runClickhouseSQL("select count(*) from IcebergTest.tmp");
+    EXPECT_TRUE(assertEqualResults(block, DB::Block{makeColumn<UInt64>({rowCount}, "count()")}));
+
+
+    auto read = makeIcebergSplit(dataFilePath->string());
+    DB::Block actual = collectResult( *read);
+    EXPECT_TRUE(assertEqualResults( actual, runClickhouseSQL("select * from IcebergTest.tmp")));
+}
+
 TEST_F(IcebergTest, tmp)
 {
-    auto createDeleteBlock = []() -> DB::Block
-    {
-        std::vector<std::vector<int64_t>> equalityDeleteVector = {{0, 1}, {0, 0}};
-        DB::ColumnsWithTypeAndName columns;
-
-        for (int i = 0; i < equalityDeleteVector.size(); i++) {
-            const auto column = DB::ColumnInt64::create(equalityDeleteVector[i].size());
-            DB::ColumnInt64::Container & vec = column->getData();
-            memcpy(vec.data(), equalityDeleteVector[i].data(), equalityDeleteVector[i].size() * sizeof(int64_t));
-            columns.emplace_back(DB::ColumnWithTypeAndName(column->getPtr(), BIGINT(), fmt::format("c{}", i)));
-        }
-        return DB::Block(columns);
-    };
-    DB::Block deleteBlock{createDeleteBlock()};
-    std::vector<DB::Block> dataBlock {makeVectors(1, rowCount, 2)};
-
-    // headBlock(deleteBlock);
-    // headBlock(dataBlock[0]);
-
-    // readMultipleColumnDeleteValues
-
-    auto numDeleteFields = deleteBlock.columns();
-    assert(numDeleteFields > 0 && "Iceberg equality delete file should have at least one field.");
-
-    auto numDeletedValues = deleteBlock.rows();
-    DB::ASTs expressionInputs;
-
-    for (int i = 0; i < numDeletedValues; i++)
-    {
-        DB::ASTs arguments;
-        for (int j = 0; j < numDeleteFields; j++)
-        {
-            auto name = std::make_shared<DB::ASTIdentifier>(deleteBlock.getByPosition(j).name);
-            auto value = std::make_shared<DB::ASTLiteral>(deleteBlock.getByPosition(j).column->operator[](i));
-            auto isNotEqualExpr = makeASTFunction("notEquals", DB::ASTs{name, value});
-            arguments.emplace_back(isNotEqualExpr);
-        }
-        if (arguments.size() > 1)
-            expressionInputs.emplace_back(makeASTFunction("or", arguments));
-        else
-            expressionInputs.emplace_back(arguments[0]);
-    }
-
-    DB::ASTPtr result;
-    if (expressionInputs.size() > 1)
-    {
-        result = DB::makeASTFunction("and", expressionInputs);
-
-    }
-    else
-    {
-        result = expressionInputs[0];
-    }
-
+    std::vector<std::vector<int64_t>> equalityDeleteVector = {{0, 1}, {0, 0}};
+    auto tmpFile = writeEqualityDeleteFile(equalityDeleteVector);
+    auto deletedFile = makeDeleteFile(tmpFile->string(),
+        equalityDeleteVector[0].size(),
+        testing::internal::GetFileSize(std::fopen(tmpFile->string().c_str(), "r")));
 
     auto context = QueryContext::instance().currentQueryContext();
+    iceberg::EqualityDeleteFileReader reader(context, deletedFile);
+
+    std::vector<DB::Block> dataBlock {makeVectors(1, rowCount, 2)};
+    DB::ASTPtr result = reader.readDeleteValues();
+
+
     auto syntax_result = DB::TreeRewriter(context).analyze(result, dataBlock[0].getNamesAndTypesList());
     auto partition_by_expr = DB::ExpressionAnalyzer(result, syntax_result, context).getActions(false);
     auto partition_by_column_name = result->getColumnName();
 
     auto resultBlock{dataBlock[0]};
-
     partition_by_expr->execute(resultBlock);
-
     headBlock(resultBlock, 20 ,100);
-
 }
 
 TEST_F(IcebergTest, equalityDeletesSingleFileMultipleColumns)

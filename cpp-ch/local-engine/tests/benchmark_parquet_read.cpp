@@ -54,7 +54,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
             .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
             .allow_missing_columns = format_settings.parquet.allow_missing_columns};
         ReadBufferFromFilePRead fileReader(file);
-        metaBuilder.build(&fileReader, &header, nullptr, [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+        metaBuilder.build(fileReader, header);
         local_engine::ColumnIndexRowRangesProvider provider{metaBuilder};
         auto format = std::make_shared<local_engine ::VectorizedParquetBlockInputFormat>(fileReader, header, provider, format_settings);
         auto pipeline = QueryPipeline(std::move(format));

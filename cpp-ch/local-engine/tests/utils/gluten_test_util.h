@@ -26,6 +26,7 @@
 #include <parquet/schema.h>
 #include <tests/testConfig.h>
 #include <Common/BlockTypeUtils.h>
+#include <Formats/FormatSettings.h>
 
 namespace substrait
 {
@@ -68,7 +69,7 @@ std::shared_ptr<arrow::io::RandomAccessFile> asArrowFileForParquet(DB::ReadBuffe
 
 DB::DataTypePtr toDataType(const parquet::ColumnDescriptor & type);
 
-AnotherRowType readParquetSchema(const std::string & file);
+AnotherRowType readParquetSchema(const std::string & file, const DB::FormatSettings & settings = DB::FormatSettings{});
 
 std::optional<DB::ActionsDAG> parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
 

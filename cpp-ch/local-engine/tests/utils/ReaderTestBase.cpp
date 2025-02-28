@@ -16,12 +16,22 @@
  */
 
 #include "ReaderTestBase.h"
+
+#include <Databases/DatabaseMemory.h>
+#include <Interpreters/Squashing.h>
+#include <Interpreters/executeQuery.h>
+#include <Processors/Executors/PullingPipelineExecutor.h>
+#include <QueryPipeline/BlockIO.h>
+#include <Storages/ConstraintsDescription.h>
+#include <Storages/MemorySettings.h>
 #include <Storages/Output/NormalFileWriter.h>
+#include <Storages/StorageMemory.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <base/demangle.h>
 #include <Poco/URI.h>
+#include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
-#include <Common/DebugUtils.h>
 
 using namespace DB;
 
@@ -29,27 +39,105 @@ namespace local_engine::test
 {
 
 
-void ReaderTestBase::writeToFile(const std::string & filePath, const DB::Block & block)
+void ReaderTestBase::writeToFile(const std::string & filePath, const DB::Block & block) const
 {
-    const auto context = QueryContext::instance().currentQueryContext();
     const Poco::Path file{filePath};
     const Poco::URI fileUri{file};
-    const auto writer = NormalFileWriter::create(context, fileUri.toString(), block, file.getExtension());
+    const auto writer = NormalFileWriter::create(context_, fileUri.toString(), block, file.getExtension());
     writer->write(block);
     writer->close();
+}
+
+DatabasePtr ReaderTestBase::createMemoryDatabaseIfNotExists(const String & database_name)
+{
+    DB::DatabasePtr system_database = DB::DatabaseCatalog::instance().tryGetDatabase(database_name);
+    if (!system_database)
+    {
+        system_database = std::make_shared<DB::DatabaseMemory>(database_name, context_);
+        DB::DatabaseCatalog::instance().attachDatabase(database_name, system_database);
+    }
+    return system_database;
+}
+
+void ReaderTestBase::createMemoryTableIfNotExists(
+    const String & database_name, const String & table_name, const std::vector<DB::Block> & blocks)
+{
+    EXPECT_FALSE(blocks.empty()) << "Blocks should not be empty";
+
+    runClickhouseSQL(fmt::format("DROP TABLE IF EXISTS {}.{}", database_name, table_name));
+
+    StorageID table_id(database_name, table_name);
+    ColumnsDescription columns_description{blocks[0].getNamesAndTypesList()};
+    ConstraintsDescription constraints;
+    MemorySettings memory_settings;
+
+    auto storage_memory = std::make_shared<DB::StorageMemory>(table_id, columns_description, constraints, "My in-memory table", memory_settings);
+    auto metadata_snapshot = storage_memory->getInMemoryMetadataPtr();
+    DB::SinkToStoragePtr sink = storage_memory->write(nullptr, metadata_snapshot, context_, false);
+    auto pipeline = std::make_unique<DB::QueryPipeline>(std::move(sink));
+    auto writer = std::make_unique<DB::PushingPipelineExecutor>(*pipeline);
+    for (auto & block : blocks)
+        writer->push(block);
+    writer->finish();
+
+    auto database = createMemoryDatabaseIfNotExists(database_name);
+    database->attachTable(context_, table_name, storage_memory, {});
 }
 
 void ReaderTestBase::SetUp()
 {
     EXPECT_EQ(query_id_, 0) << "query_id_ should be 0 at the beginning of the test";
+    EXPECT_EQ(context_, nullptr) << "context_ should be null at the beginning of the test";
     query_id_ = QueryContext::instance().initializeQuery(demangle(typeid(*this).name()));
+    context_ = QueryContext::instance().currentQueryContext();
 }
 
 void ReaderTestBase::TearDown()
 {
     EXPECT_NE(query_id_, 0) << "query_id_ should not be 0 at the end of the test";
+    EXPECT_NE(context_, nullptr) << "context_ should not be null at the end of the test";
     QueryContext::instance().finalizeQuery(query_id_);
     query_id_ = 0;
+    context_ = nullptr;
+}
+
+template <typename T> requires couldbe_collected<T>
+Block ReaderTestBase::collectResult(T & input) const
+{
+    const Block & header = input.getHeader();
+    Squashing squashing(header, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
+
+    Chunk chunk;
+    while (input.pull(chunk))
+    {
+        auto result = squashing.add(std::move(chunk));
+        EXPECT_TRUE(!result.hasRows());
+    }
+    chunk = Squashing::squash(squashing.flush());
+    return chunk.hasRows() ? header.cloneWithColumns(chunk.detachColumns()) : header.cloneEmpty();
+}
+
+template Block ReaderTestBase::collectResult<PullingPipelineExecutor>(PullingPipelineExecutor & input) const;
+template Block ReaderTestBase::collectResult<NormalFileReader>(NormalFileReader & input) const;
+
+Block ReaderTestBase::runClickhouseSQL(const std::string & query) const
+{
+
+    BlockIO io = executeQuery(query, context_).second;
+
+    if (io.pipeline.pulling())
+    {
+        auto executor = std::make_unique<DB::PullingPipelineExecutor>(io.pipeline);
+        return collectResult(*executor);
+    }
+
+    if (io.pipeline.pushing() || io.pipeline.completed())
+    {
+        EXPECT_TRUE(false) << " Not Implemented";
+        return {};
+    }
+
+    return {};
 }
 
 void ReaderTestBase::headBlock(const DB::Block & block, size_t count, size_t truncate) const

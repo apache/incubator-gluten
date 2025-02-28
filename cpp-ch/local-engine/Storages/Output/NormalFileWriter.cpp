@@ -228,6 +228,7 @@ OutputFormatFilePtr createOutputFormatFile(
 std::unique_ptr<NativeOutputWriter> NormalFileWriter::create(
     const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint)
 {
+    assert(context);
     return std::make_unique<NormalFileWriter>(createOutputFormatFile(context, file_uri, preferred_schema, format_hint), context);
 }
 

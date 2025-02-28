@@ -16,19 +16,77 @@
  */
 
 #pragma once
-#include "Columns/IColumn_fwd.h"
 
-
+#include <concepts>
+#include <Columns/ColumnsNumber.h>
+#include <Columns/IColumn_fwd.h>
+#include <Core/ColumnWithTypeAndName.h>
+#include <DataTypes/DataTypesNumber.h>
+#include <Interpreters/Context_fwd.h>
+#include <Interpreters/DatabaseCatalog.h>
+#include <Storages/SubstraitSource/FormatFile.h>
 #include <gtest/gtest.h>
 #include <Common/Logger.h>
 
+namespace local_engine
+{
+class NormalFileReader;
+}
 namespace DB
 {
+class PullingPipelineExecutor;
 class Block;
 }
 
 namespace local_engine::test
 {
+
+
+// TODO: CppToDataType move to other cpp files
+template <typename T> struct CppToDataType;
+
+template <>
+struct CppToDataType<Int64>
+{
+    using Type = DB::DataTypeInt64;
+    using ColumnType = DB::ColumnInt64;
+    static auto create() { return std::make_shared<Type>(); }
+};
+
+template <>
+struct CppToDataType<UInt64>
+{
+    using Type = DB::DataTypeUInt64;
+    using ColumnType = DB::ColumnUInt64;
+    static auto create() { return std::make_shared<Type>(); }
+};
+
+template <typename T >
+DB::ColumnPtr makeColumn(const std::vector<T>& data)
+requires (std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::ColumnType>)
+{
+    static_assert(!DB::is_decimal<T>);
+
+    auto column = CppToDataType<T>::ColumnType::create(data.size());
+    typename DB::ColumnVector<T>::Container & vec = column->getData();
+    memcpy(vec.data(), data.data(), data.size() * sizeof(T));
+    return column;
+}
+
+template <typename T>
+DB::ColumnWithTypeAndName makeColumn(const std::vector<T>& data, const std::string & col_name)
+requires (std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::ColumnType>)
+{
+    return {makeColumn(data), CppToDataType<T>::create(), col_name};
+}
+// end of CppToDataType
+
+template <typename T>
+concept couldbe_collected = requires(T t)
+{
+    { t.pull(std::declval<DB::Chunk&>()) } -> std::same_as<bool>;
+    { t.getHeader() } -> std::same_as<const DB::Block&>;
+};
 
 class ReaderTestBase : public testing::Test
 {
@@ -36,14 +94,22 @@ class ReaderTestBase : public testing::Test
 
 protected:
     LoggerPtr test_logger = getLogger("ReaderTestBase");
+    DB:: ContextMutablePtr context_ = nullptr;
 
-    void writeToFile(const std::string & filePath, const DB::Block & block);
+    void writeToFile(const std::string & filePath, const DB::Block & block) const;
 
+    DB::DatabasePtr createMemoryDatabaseIfNotExists(const String & database_name);
+    void createMemoryTableIfNotExists(const String & database_name, const String & table_name, const std::vector<DB::Block> & blocks);
+
+    template <typename T> requires couldbe_collected<T>
+    DB::Block collectResult(T & input) const;
 public:
     ReaderTestBase() = default;
 
     void SetUp() override;
     void TearDown() override;
+
+    DB::Block runClickhouseSQL(const std::string & query) const;
 
     // debug aid
     void headBlock(const DB::Block & block, size_t count = 10, size_t truncate = 20) const;

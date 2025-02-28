@@ -79,10 +79,6 @@ inline DB::DataTypePtr TIMESTAMP()
     return std::make_shared<DB::DataTypeDateTime64>(6);
 }
 
-inline DB::Block makeBlockHeader(const DB::ColumnsWithTypeAndName & data)
-{
-    return DB::Block(data);
-}
 
 inline DB::ColumnWithTypeAndName toColumnType(const DB::NameAndTypePair & type)
 {

@@ -103,7 +103,7 @@ struct DeltaStats
             if (!partition_index.contains(column.name))
                 statsHeaderBase.emplace_back(BIGINT(), "null_count_" + column.name);
 
-        return makeBlockHeader(statsHeaderBase);
+        return DB::Block{statsHeaderBase};
     }
 
     explicit DeltaStats(size_t size, const std::set<size_t> & partition_index_ = {})

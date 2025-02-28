@@ -425,7 +425,7 @@ TEST(ParquetRead, VectorizedColumnReader)
     ReadBufferFromFile in(sample);
 
     ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
-    metaBuilder.build(&in, &blockHeader, nullptr, [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+    metaBuilder.build(in, blockHeader);
     ColumnIndexRowRangesProvider provider{metaBuilder};
     VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
 

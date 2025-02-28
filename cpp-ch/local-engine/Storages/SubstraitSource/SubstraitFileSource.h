@@ -47,6 +47,7 @@ public:
     virtual bool pull(DB::Chunk & chunk) = 0;
     bool isCancelled() const { return is_cancelled.load(std::memory_order_acquire); }
 
+    const DB::Block & getHeader() const {return outputHeader;}
 protected:
     virtual void onCancel() { };
 

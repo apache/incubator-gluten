@@ -86,8 +86,17 @@ if(ENABLE_TESTS)
   target_compile_options(unit_tests_local_engine PRIVATE -Wno-unreachable-code)
   target_link_libraries(
     unit_tests_local_engine
-    PRIVATE gluten_clickhouse_backend_libs clickhouse_parsers loggers
-            ch_contrib::gmock_all ch_contrib::gtest ch_parquet)
+          PRIVATE
+          gluten_clickhouse_backend_libs
+          clickhouse_common_config
+          clickhouse_common_io
+          clickhouse_parsers
+          clickhouse_storages_system
+          clickhouse_table_functions
+          loggers
+          ch_contrib::gmock_all
+          ch_contrib::gtest
+          ch_parquet)
 endif()
 
 if(ENABLE_BENCHMARKS)

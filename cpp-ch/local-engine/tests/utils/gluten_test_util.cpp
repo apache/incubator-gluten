@@ -211,9 +211,8 @@ DB::DataTypePtr toDataType(const parquet::ColumnDescriptor & type)
     assert(false);
 }
 
-AnotherRowType readParquetSchema(const std::string & file)
+AnotherRowType readParquetSchema(const std::string & file, const FormatSettings & settings)
 {
-    DB::FormatSettings settings;
     const auto in = std::make_shared<DB::ReadBufferFromFile>(file);
     DB::ParquetSchemaReader schema_reader(*in, settings);
     return schema_reader.readSchema();
