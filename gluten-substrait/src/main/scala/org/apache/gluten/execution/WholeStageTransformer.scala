@@ -372,6 +372,153 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     allLeafTransformers.toSeq
   }
 
+  private def generateWholeStageRDD(
+      leafTransformers: Seq[LeafTransformSupport],
+      wsCtx: WholeStageTransformContext,
+      inputRDDs: ColumnarInputRDDsWrapper,
+      pipelineTime: SQLMetric): RDD[ColumnarBatch] = {
+
+    /**
+     * If containing leaf exec transformer this "whole stage" generates a RDD which itself takes
+     * care of [[LeafTransformSupport]] there won't be any other RDD for leaf operator. As a result,
+     * genFirstStageIterator rather than genFinalStageIterator will be invoked
+     */
+    val allInputPartitions = leafTransformers.map(_.getPartitions.toIndexedSeq)
+    val allSplitInfos = getSplitInfosFromPartitions(leafTransformers)
+
+    if (GlutenConfig.get.enableHdfsViewfs) {
+      val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
+      allSplitInfos.foreach {
+        splitInfos =>
+          splitInfos.foreach {
+            case splitInfo: LocalFilesNode =>
+              val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
+                splitInfo.getPaths.asScala.toSeq,
+                viewfsToHdfsCache,
+                serializableHadoopConf.value)
+              splitInfo.setPaths(newPaths.asJava)
+          }
+      }
+    }
+
+    val inputPartitions =
+      BackendsApiManager.getIteratorApiInstance.genPartitions(
+        wsCtx,
+        allSplitInfos,
+        leafTransformers)
+
+    val rdd = new GlutenWholeStageColumnarRDD(
+      sparkContext,
+      inputPartitions,
+      inputRDDs,
+      pipelineTime,
+      leafInputMetricsUpdater(),
+      BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
+        child,
+        wsCtx.substraitContext.registeredRelMap,
+        wsCtx.substraitContext.registeredJoinParams,
+        wsCtx.substraitContext.registeredAggregationParams
+      )
+    )
+
+    allInputPartitions.head.indices.foreach(
+      i => {
+        val currentPartitions = allInputPartitions.map(_(i))
+        currentPartitions.indices.foreach(
+          i =>
+            currentPartitions(i) match {
+              case f: FilePartition =>
+                SoftAffinity.updateFilePartitionLocations(f, rdd.id)
+              case _ =>
+            })
+      })
+
+    rdd
+  }
+
+  private def getSplitInfosFromPartitionSeqs(
+      leafTransformers: Seq[BatchScanExecTransformerBase]): Seq[Seq[SplitInfo]] = {
+    // If these are two batch scan transformer with keyGroupPartitioning,
+    // they have same partitionValues,
+    // but some partitions maybe empty for those partition values that are not present,
+    // otherwise, exchange will be inserted. We should combine the two leaf
+    // transformers' partitions with same index, and set them together in
+    // the substraitContext. We use transpose to do that, You can refer to
+    // the diagram below.
+    // leaf1  Seq(p11) Seq(p12, p13) Seq(p14) ... Seq(p1n)
+    // leaf2  Seq(p21) Seq(p22)      Seq()    ... Seq(p2n)
+    // transpose =>
+    // leaf1 | leaf2
+    //  Seq(p11)       |  Seq(p21)    => substraitContext.setSplitInfo([Seq(p11), Seq(p21)])
+    //  Seq(p12, p13)  |  Seq(p22)    => substraitContext.setSplitInfo([Seq(p12, p13), Seq(p22)])
+    //  Seq(p14)       |  Seq()    ...
+    //                ...
+    //  Seq(p1n)       |  Seq(p2n)    => substraitContext.setSplitInfo([Seq(p1n), Seq(p2n)])
+
+    val allSplitInfos = leafTransformers.map(_.getSplitInfosWithIndex)
+    val partitionLength = allSplitInfos.head.size
+    if (allSplitInfos.exists(_.size != partitionLength)) {
+      throw new GlutenException(
+        "The partition length of all the leaf transformer are not the same.")
+    }
+    if (GlutenConfig.get.enableHdfsViewfs) {
+      val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
+      allSplitInfos.foreach {
+        case splitInfo: LocalFilesNode =>
+          val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
+            splitInfo.getPaths.asScala.toSeq,
+            viewfsToHdfsCache,
+            serializableHadoopConf.value)
+          splitInfo.setPaths(newPaths.asJava)
+      }
+    }
+
+    allSplitInfos.transpose
+  }
+
+  private def generateWholeStageDatasourceRDD(
+      leafTransformers: Seq[BatchScanExecTransformerBase],
+      wsCtx: WholeStageTransformContext,
+      inputRDDs: ColumnarInputRDDsWrapper,
+      pipelineTime: SQLMetric): RDD[ColumnarBatch] = {
+
+    /**
+     * If containing leaf exec transformer this "whole stage" generates a RDD which itself takes
+     * care of [[LeafTransformSupport]] there won't be any other RDD for leaf operator. As a result,
+     * genFirstStageIterator rather than genFinalStageIterator will be invoked
+     */
+    val allInputPartitions = leafTransformers.map(_.getPartitionsWithIndex)
+    val allSplitInfos = getSplitInfosFromPartitionSeqs(leafTransformers)
+
+    val inputPartitions =
+      BackendsApiManager.getIteratorApiInstance.genPartitions(
+        wsCtx,
+        allSplitInfos,
+        leafTransformers)
+
+    val rdd = new GlutenWholeStageColumnarRDD(
+      sparkContext,
+      inputPartitions,
+      inputRDDs,
+      pipelineTime,
+      leafInputMetricsUpdater(),
+      BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
+        child,
+        wsCtx.substraitContext.registeredRelMap,
+        wsCtx.substraitContext.registeredJoinParams,
+        wsCtx.substraitContext.registeredAggregationParams
+      )
+    )
+
+    allInputPartitions.foreach(_.foreach(_.foreach {
+      case f: FilePartition =>
+        SoftAffinity.updateFilePartitionLocations(f, rdd.id)
+      case _ =>
+    }))
+
+    rdd
+  }
+
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     assert(child.isInstanceOf[TransformSupport])
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
@@ -387,63 +534,20 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
     val leafTransformers = findAllLeafTransformers()
     if (leafTransformers.nonEmpty) {
-
-      /**
-       * If containing leaf exec transformer this "whole stage" generates a RDD which itself takes
-       * care of [[LeafTransformSupport]] there won't be any other RDD for leaf operator. As a
-       * result, genFirstStageIterator rather than genFinalStageIterator will be invoked
-       */
-      val allInputPartitions = leafTransformers.map(_.getPartitions.toIndexedSeq)
-      val allSplitInfos = getSplitInfosFromPartitions(leafTransformers)
-
-      if (GlutenConfig.get.enableHdfsViewfs) {
-        val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
-        allSplitInfos.foreach {
-          splitInfos =>
-            splitInfos.foreach {
-              case splitInfo: LocalFilesNode =>
-                val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
-                  splitInfo.getPaths.asScala.toSeq,
-                  viewfsToHdfsCache,
-                  serializableHadoopConf.value)
-                splitInfo.setPaths(newPaths.asJava)
-            }
-        }
+      val isKeyGroupPartition: Boolean = leafTransformers.exists {
+        // TODO: May can apply to BatchScanExecTransformer without key group partitioning
+        case b: BatchScanExecTransformerBase if b.keyGroupedPartitioning.isDefined => true
+        case _ => false
       }
-
-      val inputPartitions =
-        BackendsApiManager.getIteratorApiInstance.genPartitions(
+      if (!isKeyGroupPartition) {
+        generateWholeStageRDD(leafTransformers, wsCtx, inputRDDs, pipelineTime)
+      } else {
+        generateWholeStageDatasourceRDD(
+          leafTransformers.map(_.asInstanceOf[BatchScanExecTransformerBase]),
           wsCtx,
-          allSplitInfos,
-          leafTransformers)
-
-      val rdd = new GlutenWholeStageColumnarRDD(
-        sparkContext,
-        inputPartitions,
-        inputRDDs,
-        pipelineTime,
-        leafInputMetricsUpdater(),
-        BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
-          child,
-          wsCtx.substraitContext.registeredRelMap,
-          wsCtx.substraitContext.registeredJoinParams,
-          wsCtx.substraitContext.registeredAggregationParams
-        )
-      )
-
-      allInputPartitions.head.indices.foreach(
-        i => {
-          val currentPartitions = allInputPartitions.map(_(i))
-          currentPartitions.indices.foreach(
-            i =>
-              currentPartitions(i) match {
-                case f: FilePartition =>
-                  SoftAffinity.updateFilePartitionLocations(f, rdd.id)
-                case _ =>
-              })
-        })
-
-      rdd
+          inputRDDs,
+          pipelineTime)
+      }
     } else {
 
       /**

@@ -19,7 +19,6 @@ package org.apache.gluten.execution
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -27,7 +26,6 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
-
 import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
 
 case class IcebergScanTransformer(
@@ -60,14 +58,22 @@ case class IcebergScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
+  override def getSplitInfosWithIndex: Seq[SplitInfo] = {
+    getPartitionsWithIndex.zipWithIndex.map {
+      case (partitions, index) =>
+        GlutenIcebergSourceUtil.genSplitInfo(partitions, index, getPartitionSchema)
+    }
+  }
+
   override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
     val groupedPartitions = SparkShimLoader.getSparkShims.orderPartitions(
+      this,
       scan,
       keyGroupedPartitioning,
       filteredPartitions,
-      outputPartitioning)
+      outputPartitioning, commonPartitionValues, applyPartialClustering, replicatePartitions).flatten
     groupedPartitions.zipWithIndex.map {
-      case (p, index) => GlutenIcebergSourceUtil.genSplitInfo(p, index, getPartitionSchema)
+      case (p, index) => GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
     }
   }
 

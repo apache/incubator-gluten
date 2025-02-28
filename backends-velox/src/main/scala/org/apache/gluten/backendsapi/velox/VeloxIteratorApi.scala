@@ -87,6 +87,40 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     }
   }
 
+  override def genSplitInfoForPartitions(
+      partitionIndex: Int,
+      partitions: Seq[InputPartition],
+      partitionSchema: StructType,
+      fileFormat: ReadFileFormat,
+      metadataColumnNames: Seq[String],
+      properties: Map[String, String]): SplitInfo = {
+    val partitionFiles = partitions.flatMap {
+      p =>
+        if (!p.isInstanceOf[FilePartition]) {
+          throw new UnsupportedOperationException(
+            s"Unsupported input partition ${p.getClass.getName}.")
+        }
+        p.asInstanceOf[FilePartition].files
+    }.toArray
+    val locations =
+      partitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p.asInstanceOf[FilePartition]))
+    val (paths, starts, lengths, fileSizes, modificationTimes, partitionColumns, metadataColumns) =
+      constructSplitInfo(partitionSchema, partitionFiles, metadataColumnNames)
+    LocalFilesBuilder.makeLocalFiles(
+      partitionIndex,
+      paths,
+      starts,
+      lengths,
+      fileSizes,
+      modificationTimes,
+      partitionColumns,
+      metadataColumns,
+      fileFormat,
+      locations.toList.asJava,
+      mapAsJavaMap(properties)
+    )
+  }
+
   /** Generate native row partition. */
   override def genPartitions(
       wsCtx: WholeStageTransformContext,

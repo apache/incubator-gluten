@@ -15,14 +15,9 @@
 
 set(ARROW_INCLUDE_DIR "${ClickHouse_SOURCE_DIR}/contrib/arrow/cpp/src")
 
-macro(add_headers_and_sources_including_cc prefix common_path)
-  add_glob(${prefix}_headers ${CMAKE_CURRENT_SOURCE_DIR} ${common_path}/*.h)
-  add_glob(${prefix}_sources ${common_path}/*.cpp ${common_path}/*.c
-           ${common_path}/*.cc ${common_path}/*.h)
-endmacro()
-
 add_headers_and_sources(substrait_source .)
-add_headers_and_sources_including_cc(ch_parquet arrow)
+add_headers_and_sources(substrait_source iceberg)
+
 add_library(substrait_source ${substrait_source_sources})
 target_compile_options(
   substrait_source PRIVATE -Wno-suggest-destructor-override

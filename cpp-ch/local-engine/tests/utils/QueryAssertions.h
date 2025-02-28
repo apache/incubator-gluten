@@ -14,22 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
-#include <string>
 
-namespace DB
-{
-class Block;
-}
-namespace local_engine
-{
-class NativeOutputWriter
-{
-public:
-    NativeOutputWriter() = default;
-    virtual ~NativeOutputWriter() = default;
+#include <Core/Block_fwd.h>
 
-    virtual void write(const DB::Block & block) = 0;
-    virtual void close() = 0;
-};
+namespace local_engine::test
+{
+
+bool assertEqualResults(const DB::Block & actual, const DB::Block & expected, const std::string & message = "");
+
 }
