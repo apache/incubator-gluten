@@ -290,4 +290,5 @@ trait SparkShims {
 
   def isParquetFileEncrypted(fileStatus: LocatedFileStatus, conf: Configuration): Boolean
 
+  def v2BucketingPartiallyClusteredDistributionEnabled(p: BatchScanExec): Boolean = false
 }

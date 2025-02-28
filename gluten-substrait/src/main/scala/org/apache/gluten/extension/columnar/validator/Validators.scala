@@ -145,7 +145,10 @@ object Validators {
       case p: SortExec if !glutenConf.enableColumnarSort => fail(p)
       case p: WindowExec if !glutenConf.enableColumnarWindow => fail(p)
       case p: SortMergeJoinExec if !glutenConf.enableColumnarSortMergeJoin => fail(p)
-      case p: BatchScanExec if !glutenConf.enableColumnarBatchScan => fail(p)
+      case p: BatchScanExec
+          if !glutenConf.enableColumnarBatchScan ||
+            SparkShimLoader.getSparkShims.v2BucketingPartiallyClusteredDistributionEnabled(p) =>
+        fail(p)
       case p: FileSourceScanExec if !glutenConf.enableColumnarFileScan => fail(p)
       case p: ProjectExec if !glutenConf.enableColumnarProject => fail(p)
       case p: FilterExec if !glutenConf.enableColumnarFilter => fail(p)

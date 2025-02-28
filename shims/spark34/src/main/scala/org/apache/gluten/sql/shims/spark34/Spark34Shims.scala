@@ -530,4 +530,9 @@ class Spark34Shims extends SparkShims {
         false
     }
   }
+
+  override def v2BucketingPartiallyClusteredDistributionEnabled(p: BatchScanExec): Boolean = {
+    p.keyGroupedPartitioning.isDefined &&
+    SQLConf.get.v2BucketingPartiallyClusteredDistributionEnabled
+  }
 }

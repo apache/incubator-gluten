@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.config.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
 abstract class IcebergSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -213,6 +214,76 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
               }
               checkLengthAndPlan(df, 7)
             }
+        }
+      }
+    }
+  }
+
+  testWithSpecifiedSparkVersion("iceberg bucketed join fallback by partial cluster", Some("3.4")) {
+    val leftTable = "p_str_tb"
+    val rightTable = "p_int_tb"
+    withTable(leftTable, rightTable) {
+        spark.sql(s"""
+                     |create table $leftTable(id int, name string, p int)
+                     |using iceberg
+                     |partitioned by (bucket(4, id), p);
+                     |""".stripMargin)
+        spark.sql(
+          s"""
+             |insert into table $leftTable values
+             |(4, 'a5', 2),
+             |(1, 'a1', 1),
+             |(1, 'a1', 1),
+             |(1, 'a1', 1),
+             |(1, 'a1', 1),
+             |(1, 'a1', 1),
+             |(1, 'a1', 1),
+             |(1, 'a1', 1),
+             |(2, 'a3', 1),
+             |(1, 'a2', 1),
+             |(3, 'a4', 2);
+             |""".stripMargin
+        )
+        spark.sql(s"""
+                     |create table $rightTable(id int, name string, p int)
+                     |using iceberg
+                     |partitioned by (bucket(4, id), p);
+                     |""".stripMargin)
+        spark.sql(
+          s"""
+             |insert into table $rightTable values
+             |(3, 'b4', 2),
+             |(1, 'b2', 1),
+             |(4, 'b5', 2),
+             |(2, 'b3', 1),
+             |(1, 'b1', 1);
+             |""".stripMargin
+        )
+
+        for (i <- 0 until 4) {spark.sql(s"insert into table $leftTable select * from $leftTable")}
+
+      withSQLConf(
+        "spark.sql.sources.v2.bucketing.enabled" -> "true",
+        "spark.sql.requireAllClusterKeysForCoPartition" -> "false",
+        "spark.sql.adaptive.enabled" -> "false",
+        "spark.sql.iceberg.planning.preserve-data-grouping" -> "true",
+        "spark.sql.autoBroadcastJoinThreshold" -> "-1",
+        "spark.sql.sources.v2.bucketing.pushPartValues.enabled" -> "true",
+        "spark.sql.sources.v2.bucketing.partiallyClusteredDistribution.enabled" -> "true"
+      ) {
+        runQueryAndCompare(s"""
+                              |select s.id, s.name, i.name, i.p
+                              | from $leftTable s inner join $rightTable i
+                              | on s.id = i.id and s.p = i.p;
+                              |""".stripMargin, noFallBack = false) {
+          df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[BatchScanExec]
+                }) == 2)
+          }
         }
       }
     }
