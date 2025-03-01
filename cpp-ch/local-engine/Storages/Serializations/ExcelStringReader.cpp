@@ -16,20 +16,24 @@
  */
 #include "ExcelStringReader.h"
 
-#include <bit>
-#include <IO/Operators.h>
 #include <IO/PeekableReadBuffer.h>
+#include <IO/ReadHelpers.h>
 #include <Common/PODArray.h>
 
 #ifdef __SSE2__
-#    include <emmintrin.h>
+#include <emmintrin.h>
 #endif
 
 #if defined(__aarch64__) && defined(__ARM_NEON)
-#    include <arm_neon.h>
-#    pragma clang diagnostic ignored "-Wreserved-identifier"
+#include <arm_neon.h>
+#pragma clang diagnostic ignored "-Wreserved-identifier"
 #endif
 
+
+namespace DB::ErrorCodes
+{
+extern const int INCORRECT_DATA;
+}
 
 namespace local_engine
 {

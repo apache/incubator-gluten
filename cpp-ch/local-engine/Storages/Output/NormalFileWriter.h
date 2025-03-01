@@ -34,7 +34,7 @@
 #include <Common/ArenaUtils.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
-#include <Common/FieldVisitorsAccurateComparison.h>
+#include <Common/FieldAccurateComparison.h>
 
 namespace local_engine
 {
@@ -149,8 +149,8 @@ struct DeltaStats
             }
             else
             {
-                min[i] = applyVisitor(DB::FieldVisitorAccurateLess(), min[i], min_value) ? min[i] : min_value;
-                max[i] = applyVisitor(DB::FieldVisitorAccurateLess(), max[i], max_value) ? max_value : max[i];
+                min[i] = accurateLess(min[i], min_value) ? min[i] : min_value;
+                max[i] = accurateLess(max[i], max_value) ? max_value : max[i];
             }
             ++i;
         }

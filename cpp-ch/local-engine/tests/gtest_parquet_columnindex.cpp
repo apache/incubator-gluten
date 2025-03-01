@@ -17,13 +17,13 @@
 #include "config.h"
 #if USE_PARQUET
 #include <charconv>
+#include <future>
 #include <ranges>
 #include <string>
 #include <Columns/ColumnString.h>
 #include <IO/ReadBufferFromFile.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/ExpressionActions.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>

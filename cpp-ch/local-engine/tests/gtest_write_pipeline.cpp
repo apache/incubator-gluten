@@ -16,16 +16,15 @@
  */
 
 #include <incbin.h>
-
-#include "Interpreters/ExpressionActions.h"
-
 #include <testConfig.h>
 #include <Core/Settings.h>
 #include <Disks/ObjectStorages/HDFS/HDFSObjectStorage.h>
 #include <Interpreters/Context.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Parser/LocalExecutor.h>
 #include <Parser/RelParsers/WriteRelParser.h>
 #include <Parser/TypeParser.h>
+#include <Parsers/ASTCreateQuery.h>
 #include <Parsers/ParserCreateQuery.h>
 #include <Parsers/parseQuery.h>
 #include <Processors/Chunk.h>
