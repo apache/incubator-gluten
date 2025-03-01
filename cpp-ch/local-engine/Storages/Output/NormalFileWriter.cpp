@@ -25,6 +25,7 @@
 #include <QueryPipeline/QueryPipeline.h>
 #include <Poco/URI.h>
 #include <Common/DebugUtils.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {

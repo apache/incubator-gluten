@@ -29,6 +29,7 @@
 #include <Storages/SubstraitSource/FileReader.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <base/demangle.h>
+#include <Poco/Path.h>
 #include <Poco/URI.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>

@@ -21,6 +21,7 @@
 #include <IO/ReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <Interpreters/ActionsVisitor.h>
+#include <Interpreters/PreparedSets.h>
 #include <Parser/LocalExecutor.h>
 #include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
