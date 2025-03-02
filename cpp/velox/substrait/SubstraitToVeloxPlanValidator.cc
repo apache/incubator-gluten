@@ -269,7 +269,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
       LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
       return false;
     }
-  } else if (input->type()->isIntervalYearMonth()) {
+  } else if (input->type()->isIntervalYearMonth() && toType->kind() != TypeKind::INTEGER) {
     LOG_VALIDATION_MSG("Casting from INTERVAL_YEAR_MONTH is not supported.");
     return false;
   }
