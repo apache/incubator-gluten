@@ -71,7 +71,7 @@ macro(find_protobuf)
     endif()
   endif()
 
-  find_package(Protobuf PATH /usr/local/lib)
+  find_package(Protobuf)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
   if("${Protobuf_LIBRARY}" STREQUAL "Protobuf_LIBRARY-NOTFOUND")
     message(FATAL_ERROR "Protobuf Library Not Found")
