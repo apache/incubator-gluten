@@ -900,6 +900,59 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("Test make_dt_interval function") {
+    runQueryAndCompare("select make_dt_interval(1, 12, 30, 45)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select make_dt_interval(1, 12, 30)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select make_dt_interval(1, 12)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select make_dt_interval(1)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("select make_dt_interval()") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath { path =>
+      Seq[(Integer, Integer, Integer, Integer)](
+        (1, 12, 0, 0),
+        (-1, 6, 15, 0),
+        (null, 8, 30, 45),
+        (2, null, 10, 20),
+        (3, 14, null, 5),
+        (4, 18, 25, null)
+      ).toDF("day", "hour", "minute", "second")
+        .write
+        .parquet(path.getCanonicalPath)
+
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_dt_interval_tbl")
+
+      runQueryAndCompare("select make_dt_interval(day, hour, minute, second) from make_dt_interval_tbl") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+
+      runQueryAndCompare("select make_dt_interval(day, hour, minute) from make_dt_interval_tbl") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+
+      runQueryAndCompare("select make_dt_interval(day, hour) from make_dt_interval_tbl") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+
+      runQueryAndCompare("select make_dt_interval(day) from make_dt_interval_tbl") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
   test("Test uuid function") {
     runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
       checkGlutenOperatorMatch[ProjectExecTransformer]

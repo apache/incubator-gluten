@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.substrait.type;
 
+import org.apache.hadoop.hive.ql.exec.vector.expressions.gen.IntervalDayTimeColAddDateColumn;
+
 import java.util.List;
 
 public class TypeBuilder {
@@ -71,6 +73,10 @@ public class TypeBuilder {
 
   public static TypeNode makeIntervalYear(Boolean nullable) {
     return new IntervalYearTypeNode(nullable);
+  }
+
+  public static TypeNode makeIntervalDay(Boolean nullable) {
+    return new IntervalDayTypeNode(nullable);
   }
 
   public static TypeNode makeDecimal(Boolean nullable, Integer precision, Integer scale) {

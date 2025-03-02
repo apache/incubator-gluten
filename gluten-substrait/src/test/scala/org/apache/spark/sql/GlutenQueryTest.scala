@@ -386,6 +386,8 @@ abstract class GlutenQueryTest extends PlanTest {
    */
   def checkGlutenOperatorMatch[T <: GlutenPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
+    println("Plan was: ")
+    println(executedPlan)
     assert(
       executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)),
       s"Expect ${tag.runtimeClass.getSimpleName} exists " +

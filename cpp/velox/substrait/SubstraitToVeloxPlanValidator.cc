@@ -262,6 +262,11 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     return false;
   }
 
+  if (toType->isIntervalDayTime()) {
+    LOG_VALIDATION_MSG("Casting to " + toType->toString() + " is not supported.");
+    return false;
+  }
+
   // Casting from some types is not supported. See CastExpr::applyPeeled.
   if (input->type()->isDate()) {
     // Only support cast date to varchar & timestamp
@@ -269,7 +274,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
       LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
       return false;
     }
-  } else if (input->type()->isIntervalYearMonth()) {
+  } else if (input->type()->isIntervalYearMonth() || input->type()->isIntervalDayTime()) {
     LOG_VALIDATION_MSG("Casting from INTERVAL_YEAR_MONTH is not supported.");
     return false;
   }

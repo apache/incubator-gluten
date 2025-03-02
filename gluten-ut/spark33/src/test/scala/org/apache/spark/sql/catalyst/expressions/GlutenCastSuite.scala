@@ -17,8 +17,8 @@
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.GlutenTestsTrait
-import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{withDefaultTimeZone, ALL_TIMEZONES, UTC, UTC_OPT}
-import org.apache.spark.sql.catalyst.util.DateTimeUtils.{fromJavaTimestamp, millisToMicros, TimeZoneUTC}
+import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{ALL_TIMEZONES, UTC, UTC_OPT, withDefaultTimeZone}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils.{TimeZoneUTC, fromJavaTimestamp, millisToMicros}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -151,5 +151,34 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     checkEvaluation(cast(123, IntegerType), 123)
 
     checkEvaluation(cast(Literal.create(null, IntegerType), ShortType), null)
+  }
+
+  test("casting from day-time interval to integer (expecting hours)") {
+    val dtType = DayTimeIntervalType(DayTimeIntervalType.DAY, DayTimeIntervalType.HOUR)
+
+    checkEvaluation(
+      cast(Literal.create(2 * 86400000000L, dtType), IntegerType),
+      48
+    )
+
+    checkEvaluation(
+      cast(Literal.create(-5 * 86400000000L, dtType), IntegerType),
+      -120
+    )
+
+    checkEvaluation(
+      cast(Literal.create(10 * 86400000000L, dtType), IntegerType),
+      240
+    )
+
+    checkEvaluation(
+      cast(Literal.create(0L, dtType), IntegerType),
+      0
+    )
+
+    checkEvaluation(
+      cast(Literal.create(1 * 86400000000L + 12 * 3600000000L, dtType), IntegerType),
+      36
+    )
   }
 }

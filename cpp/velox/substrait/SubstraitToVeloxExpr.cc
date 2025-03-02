@@ -141,6 +141,8 @@ TypePtr getScalarType(const ::substrait::Expression::Literal& literal) {
       return VARBINARY();
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalYearToMonth:
       return INTERVAL_YEAR_MONTH();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:
+      return INTERVAL_DAY_TIME();
     default:
       return nullptr;
   }

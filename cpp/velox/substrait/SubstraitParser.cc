@@ -86,6 +86,9 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
     case ::substrait::Type::KindCase::kIntervalYear: {
       return INTERVAL_YEAR_MONTH();
     }
+    case ::substrait::Type::KindCase::kIntervalDay: {
+      return INTERVAL_DAY_TIME();
+    }
     case ::substrait::Type::KindCase::kNothing:
       return UNKNOWN();
     default:

@@ -306,6 +306,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
                 case _: ArrayType => Some("ArrayType")
                 case _: MapType => Some("MapType")
                 case _: YearMonthIntervalType => Some("YearMonthIntervalType")
+                case _: DayTimeIntervalType => Some("DayTimeIntervalType")
                 case _ => None
               }
           }

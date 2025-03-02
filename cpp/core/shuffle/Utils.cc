@@ -401,6 +401,9 @@ arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleTy
       case arrow::MonthIntervalType::type_id:
         shuffleTypeId.push_back(field->type());
         break;
+      case arrow::TimeIntervalType::type_id:
+        shuffleTypeId.push_back(field->type());
+        break;
       default:
         RETURN_NOT_OK(arrow::Status::NotImplemented(
             "Field type not implemented in ColumnarShuffle, type is ", field->type()->ToString()));
