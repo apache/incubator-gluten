@@ -37,7 +37,7 @@ inline static const std::string kVeloxBackendKind{"velox"};
 class VeloxBackend {
  public:
   ~VeloxBackend() {
-    if (ssdCleanup &&
+    if (!ssdResue_ &&
         dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
       LOG(INFO) << asyncDataCache_->toString();
       for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
@@ -80,7 +80,7 @@ class VeloxBackend {
   void initJolFilesystem();
 
   std::string getCacheFilePrefix() {
-    if (!ssdCleanup) {
+    if (ssdResue_) {
         return "cache.";
     }
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
@@ -95,7 +95,7 @@ class VeloxBackend {
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
   std::shared_ptr<facebook::velox::memory::MmapAllocator> cacheAllocator_;
 
-  bool ssdCleanup;
+  bool ssdResue_;
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
 

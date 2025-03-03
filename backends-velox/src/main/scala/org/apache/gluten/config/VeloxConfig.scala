@@ -148,11 +148,11 @@ object VeloxConfig {
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_SSD_CACHE_CLEANUP =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCleanup")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdResue")
       .internal()
-      .doc("The flag for cache cleanup")
+      .doc("The flag for cache resue")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
 
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
