@@ -87,7 +87,7 @@ void DeltaDVRoaringBitmapArray::rb_read(const String & file_path, const Int32 of
     int expected_checksum;
     readBinaryBigEndian(expected_checksum, in);
     if (expected_checksum != checksum_value)
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The magic num is mismatch.");
+        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Checksum mismatch.");
 }
 
 UInt64 DeltaDVRoaringBitmapArray::rb_size() const
