@@ -406,10 +406,10 @@ object VeloxConfig {
   val LOAD_QUANTUM =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.loadQuantum")
       .internal()
-      .doc("Set the load quantum for velox file scan, recommend to use the default value (256MB) " +
+      .doc("Set the load quantum for velox file scan, recommend to use the default value (8MB) " +
         "for performance consideration. If Velox cache is enabled, it can be 8MB at most.")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("256MB")
+      .createWithDefaultString("8MB")
 
   val MAX_COALESCED_DISTANCE_BYTES =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance")
