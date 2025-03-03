@@ -1289,8 +1289,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         filterPushdownEnabled,
         common::SubfieldFilters{},
         nullptr,
-        splitInfo->fileSchema,
-        splitInfo->properties);
+        splitInfo->fileSchema);
   } else {
     common::SubfieldFilters subfieldFilters;
     auto names = colNameList;
@@ -1303,8 +1302,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         filterPushdownEnabled,
         std::move(subfieldFilters),
         remainingFilter,
-        splitInfo->fileSchema,
-        splitInfo->properties);
+        splitInfo->fileSchema);
   }
 
   // Get assignments and out names.
