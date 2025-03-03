@@ -16,6 +16,8 @@
 set(ARROW_INCLUDE_DIR "${ClickHouse_SOURCE_DIR}/contrib/arrow/cpp/src")
 
 add_headers_and_sources(substrait_source .)
+add_headers_and_sources(substrait_source Delta)
+add_headers_and_sources(substrait_source Delta/Bitmap)
 add_headers_and_sources(substrait_source iceberg)
 
 add_library(substrait_source ${substrait_source_sources})
@@ -25,11 +27,11 @@ target_compile_options(
 if(ENABLE_HDFS)
   target_link_libraries(
     substrait_source PUBLIC boost::headers_only ch_contrib::protobuf
-                            clickhouse_common_io ch_contrib::hdfs substrait)
+                            clickhouse_common_io ch_contrib::hdfs substrait ch_contrib::roaring)
 else()
   target_link_libraries(
     substrait_source PUBLIC boost::headers_only ch_contrib::protobuf
-                            clickhouse_common_io substrait)
+                            clickhouse_common_io substrait ch_contrib::roaring)
 endif()
 target_include_directories(
   substrait_source SYSTEM BEFORE
