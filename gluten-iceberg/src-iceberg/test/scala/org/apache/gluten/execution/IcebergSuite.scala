@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 
@@ -218,7 +219,8 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg bucketed join partition value not exists",
+  testWithSpecifiedSparkVersion(
+    "iceberg bucketed join partition value not exists",
     Array("3.4", "3.5")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
@@ -278,25 +280,26 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
                               | on s.id = i.id;
                               |""".stripMargin) {
           df =>
-          {
-            assert(
-              getExecutedPlan(df).count(
-                plan => {
-                  plan.isInstanceOf[IcebergScanTransformer]
-                }) == 2)
-            getExecutedPlan(df).map {
-              case plan : IcebergScanTransformer =>
-                assert(plan.getKeyGroupPartitioning.isDefined)
-                assert(plan.getSplitInfosWithIndex.length == 3)
-              case _ => // do nothing
+            {
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[IcebergScanTransformer]
+                  }) == 2)
+              getExecutedPlan(df).map {
+                case plan: IcebergScanTransformer =>
+                  assert(plan.getKeyGroupPartitioning.isDefined)
+                  assert(plan.getSplitInfosWithIndex.length == 3)
+                case _ => // do nothing
+              }
             }
-          }
         }
       }
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg bucketed join partition value not exists partial cluster",
+  testWithSpecifiedSparkVersion(
+    "iceberg bucketed join partition value not exists partial cluster",
     Array("3.4", "3.5")) {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
@@ -356,19 +359,19 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
                               | on s.id = i.id;
                               |""".stripMargin) {
           df =>
-          {
-            assert(
-              getExecutedPlan(df).count(
-                plan => {
-                  plan.isInstanceOf[IcebergScanTransformer]
-                }) == 2)
-            getExecutedPlan(df).map {
-              case plan : IcebergScanTransformer =>
-                assert(plan.getKeyGroupPartitioning.isDefined)
-                assert(plan.getSplitInfosWithIndex.length == 3)
-              case _ => // do nothing
+            {
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[IcebergScanTransformer]
+                  }) == 2)
+              getExecutedPlan(df).map {
+                case plan: IcebergScanTransformer =>
+                  assert(plan.getKeyGroupPartitioning.isDefined)
+                  assert(plan.getSplitInfosWithIndex.length == 3)
+                case _ => // do nothing
+              }
             }
-          }
         }
       }
     }

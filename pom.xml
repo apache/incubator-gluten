@@ -1525,6 +1525,10 @@
                 <content>${spotless.license.header}</content>
                 <delimiter>${spotless.delimiter}</delimiter>
               </licenseHeader>
+              <includes>
+                <include>src*/main/java/**/*.java</include>
+                <include>src*/test/java/**/*.java</include>
+              </includes>
             </java>
             <scala>
               <!--  make it works `// spotless:off `  -->
@@ -1538,6 +1542,10 @@
                 <content>${spotless.license.header}</content>
                 <delimiter>${spotless.delimiter}</delimiter>
               </licenseHeader>
+              <includes>
+                <include>src*/main/scala/**/*.scala</include>
+                <include>src*/test/scala/**/*.scala</include>
+              </includes>
             </scala>
           </configuration>
           <executions>

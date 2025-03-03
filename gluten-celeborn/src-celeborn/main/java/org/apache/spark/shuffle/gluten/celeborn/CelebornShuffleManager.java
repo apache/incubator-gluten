@@ -16,8 +16,8 @@
  */
 package org.apache.spark.shuffle.gluten.celeborn;
 
-import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.exception.GlutenException;
 
 import com.google.common.base.Preconditions;
@@ -313,11 +313,11 @@ public class CelebornShuffleManager implements ShuffleManager {
           boolean throwsFetchFailure = (boolean) field.get(handle);
           if (throwsFetchFailure) {
             Method addFailureListenerMethod =
-                    SparkUtils.class.getMethod(
-                            "addFailureListenerIfBarrierTask",
-                            ShuffleClient.class,
-                            TaskContext.class,
-                            CelebornShuffleHandle.class);
+                SparkUtils.class.getMethod(
+                    "addFailureListenerIfBarrierTask",
+                    ShuffleClient.class,
+                    TaskContext.class,
+                    CelebornShuffleHandle.class);
             addFailureListenerMethod.invoke(null, shuffleClient, context, h);
           }
         } catch (NoSuchFieldException | NoSuchMethodException ignored) {
