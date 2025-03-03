@@ -62,6 +62,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
   }
 
   override def beforeAll(): Unit = {
@@ -1129,6 +1130,42 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           |order by a.c1, b.c1 desc
           |""".stripMargin
       compareResultsAgainstVanillaSpark(sql4, true, { _ => })
+    }
+  }
+
+  test("GLUTEN-8859 replace substrings comparison") {
+    withTable("test_8859") {
+      spark.sql("create table test_8859(c1 string, c2 string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_8859 values
+          |('abcd', '1234'),
+          |('bcde', '2345'),
+          |('abcd', 'abcd')
+          |""".stripMargin
+      spark.sql(insert_sql)
+
+      val sql1 =
+        """
+          |select substr(c1, 1, 2) = 'ab', substr(c1, 1, 3) < 'abc', substr(c1, 1, 4) > 'abcd'
+          |from test_8859
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+      val sql2 =
+        """
+          |select substr(c1, 1, 2) = substr(c2, 1, 2), substr(c1, 1, 3) < substr(c2, 1, 3),
+          |substr(c1, 1, 4) > substr(c2, 1, 4)
+          |from test_8859
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+      val sql3 =
+        """
+          |select substr(c1, 1, 2) < 'abc'
+          |from test_8859
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql3, true, { _ => })
     }
   }
 }
