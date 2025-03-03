@@ -152,7 +152,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             starts[idx],
             lengths[idx],
             partitionKeys,
-            std::nullopt /*tableBucketNmae*/,
+            std::nullopt /*tableBucketName*/,
             std::unordered_map<std::string, std::string>(),
             nullptr,
             std::unordered_map<std::string, std::string>(),
