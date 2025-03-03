@@ -26,8 +26,9 @@ target_compile_options(
                            -Wno-inconsistent-missing-destructor-override)
 if(ENABLE_HDFS)
   target_link_libraries(
-    substrait_source PUBLIC boost::headers_only ch_contrib::protobuf
-                            clickhouse_common_io ch_contrib::hdfs substrait ch_contrib::roaring)
+    substrait_source
+    PUBLIC boost::headers_only ch_contrib::protobuf clickhouse_common_io
+           ch_contrib::hdfs substrait ch_contrib::roaring)
 else()
   target_link_libraries(
     substrait_source PUBLIC boost::headers_only ch_contrib::protobuf
