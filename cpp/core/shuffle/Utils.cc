@@ -401,7 +401,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleTy
       case arrow::MonthIntervalType::type_id:
         shuffleTypeId.push_back(field->type());
         break;
-      case arrow::TimeIntervalType::type_id:
+      case arrow::DayTimeIntervalType::type_id:
         shuffleTypeId.push_back(field->type());
         break;
       default:

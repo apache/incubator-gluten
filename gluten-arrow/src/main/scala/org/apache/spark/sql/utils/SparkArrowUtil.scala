@@ -76,10 +76,10 @@ object SparkArrowUtil {
     case date: ArrowType.Date if date.getUnit == DateUnit.DAY => DateType
     // TODO: Time unit is not handled.
     case _: ArrowType.Timestamp => TimestampType
-    case interval: ArrowType.Interval => interval.getUnit match {
-      case IntervalUnit.YEAR_MONTH => YearMonthIntervalType.DEFAULT
-      case IntervalUnit.DAY_TIME   => DayTimeIntervalType.DEFAULT
-    }
+    case interval: ArrowType.Interval if interval.getUnit == IntervalUnit.YEAR_MONTH =>
+      YearMonthIntervalType.DEFAULT
+    case interval: ArrowType.Interval if interval.getUnit == IntervalUnit.DAY_TIME =>
+      DayTimeIntervalType.DEFAULT
     case ArrowType.Null.INSTANCE => NullType
     case _ => throw new UnsupportedOperationException(s"Unsupported data type: $dt")
   }

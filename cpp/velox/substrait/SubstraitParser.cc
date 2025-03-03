@@ -20,10 +20,12 @@
 #include "velox/common/base/Exceptions.h"
 
 #include "VeloxSubstraitSignature.h"
+#include <iostream>
 
 namespace gluten {
 
 TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool asLowerCase) {
+
   switch (substraitType.kind_case()) {
     case ::substrait::Type::KindCase::kBool:
       return BOOLEAN();
