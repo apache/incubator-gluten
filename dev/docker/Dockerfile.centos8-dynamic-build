@@ -42,4 +42,7 @@ RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
 RUN cd /opt/gluten/.github/workflows/util/ && ./install_spark_resources.sh 3.2 && ./install_spark_resources.sh 3.3 \
     && ./install_spark_resources.sh 3.4 && ./install_spark_resources.sh 3.5 && ./install_spark_resources.sh 3.5-scala2.13
 
-RUN cd /opt/gluten && source /opt/rh/gcc-toolset-11/enable && ./dev/builddeps-veloxbe.sh --run_setup_script=ON build_arrow && rm -rf /opt/gluten
+RUN if [ "$(uname -m)" = "aarch64" ]; then \
+        export CPU_TARGET="aarch64"; \
+    fi && \
+    cd /opt/gluten && source /opt/rh/gcc-toolset-11/enable && ./dev/builddeps-veloxbe.sh --run_setup_script=ON build_arrow && rm -rf /opt/gluten

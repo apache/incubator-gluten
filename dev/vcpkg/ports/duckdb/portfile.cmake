@@ -27,6 +27,6 @@ vcpkg_fixup_cmake_targets(CONFIG_PATH lib/cmake/DuckDB)
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/lib/cmake")
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/lib/cmake")
 
-vcpkg_cmake_config_fixup(PACKAGE_NAME DuckDB)
+vcpkg_cmake_config_fixup(PACKAGE_NAME duckdb)
 
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")
