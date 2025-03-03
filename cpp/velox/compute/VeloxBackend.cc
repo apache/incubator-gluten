@@ -212,6 +212,7 @@ void VeloxBackend::initCache() {
     int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
     std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
 
+    ssdCleanup = backendConf_->get<bool>(kVeloxSsdCleanup, true);
     cachePathPrefix_ = ssdCachePathPrefix;
     cacheFilePrefix_ = getCacheFilePrefix();
     std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
