@@ -55,7 +55,7 @@ class GlutenByteInputStream : public ByteInputStream {
   virtual ~GlutenByteInputStream() = default;
 
   std::vector<ByteRange> ranges_;
-  
+
   /// Returns total number of bytes available in the stream.
   size_t size() const {
     size_t total = 0;
