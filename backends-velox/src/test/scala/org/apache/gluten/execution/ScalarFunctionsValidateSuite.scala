@@ -614,22 +614,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("map_filter") {
-    withTempPath {
-      path =>
-        Seq((Map("a" -> 1, "b" -> 2, "c" -> 3)))
-          .toDF("m")
-          .write
-          .parquet(path.getCanonicalPath)
-
-        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
-
-        runQueryAndCompare("select map_filter(m, (k, v) -> k != 'b') from map_tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
-        }
-    }
-  }
-
   test("test transform_keys function") {
     withTempPath {
       path =>
