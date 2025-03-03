@@ -921,35 +921,37 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
 
-    withTempPath { path =>
-      Seq[(Integer, Integer, Integer, Integer)](
-        (1, 12, 0, 0),
-        (-1, 6, 15, 0),
-        (null, 8, 30, 45),
-        (2, null, 10, 20),
-        (3, 14, null, 5),
-        (4, 18, 25, null)
-      ).toDF("day", "hour", "minute", "second")
-        .write
-        .parquet(path.getCanonicalPath)
+    withTempPath {
+      path =>
+        Seq[(Integer, Integer, Integer, Integer)](
+          (1, 12, 0, 0),
+          (-1, 6, 15, 0),
+          (null, 8, 30, 45),
+          (2, null, 10, 20),
+          (3, 14, null, 5),
+          (4, 18, 25, null)
+        ).toDF("day", "hour", "minute", "second")
+          .write
+          .parquet(path.getCanonicalPath)
 
-      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_dt_interval_tbl")
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("make_dt_interval_tbl")
 
-      runQueryAndCompare("select make_dt_interval(day, hour, minute, second) from make_dt_interval_tbl") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+        runQueryAndCompare(
+          "select make_dt_interval(day, hour, minute, second) from make_dt_interval_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
 
-      runQueryAndCompare("select make_dt_interval(day, hour, minute) from make_dt_interval_tbl") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+        runQueryAndCompare("select make_dt_interval(day, hour, minute) from make_dt_interval_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
 
-      runQueryAndCompare("select make_dt_interval(day, hour) from make_dt_interval_tbl") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+        runQueryAndCompare("select make_dt_interval(day, hour) from make_dt_interval_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
 
-      runQueryAndCompare("select make_dt_interval(day) from make_dt_interval_tbl") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+        runQueryAndCompare("select make_dt_interval(day) from make_dt_interval_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 

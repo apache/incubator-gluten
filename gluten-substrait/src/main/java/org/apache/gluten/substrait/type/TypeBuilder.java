@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.substrait.type;
 
-import org.apache.hadoop.hive.ql.exec.vector.expressions.gen.IntervalDayTimeColAddDateColumn;
-
 import java.util.List;
 
 public class TypeBuilder {
