@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Gluten with Velox Backend
+title: Gluten UI
 nav_order: 1
 parent: Getting-Started
 ---
