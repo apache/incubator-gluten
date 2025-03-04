@@ -300,14 +300,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   const auto& toType = SubstraitParser::parseType(castExpr.type());
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
-  auto fromKind = input->type()->kind();
-  auto toKind = toType->kind();
-
-  if (SubstraitToVeloxPlanValidator::isAllowedCast(input->type(), toType)) {
-    return true;
-  }
-
-  return false;
+  return isAllowedCast(input->type(), toType)
 }
 
 bool SubstraitToVeloxPlanValidator::validateIfThen(
