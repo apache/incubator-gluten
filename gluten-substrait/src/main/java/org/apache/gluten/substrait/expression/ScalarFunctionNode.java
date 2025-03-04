@@ -36,6 +36,18 @@ public class ScalarFunctionNode implements ExpressionNode, Serializable {
     this.typeNode = typeNode;
   }
 
+  public Long getFunctionId() {
+    return functionId;
+  }
+
+  public List<ExpressionNode> getExpressionNodes() {
+    return expressionNodes;
+  }
+
+  public TypeNode getTypeNode() {
+    return typeNode;
+  }
+
   @Override
   public Expression toProtobuf() {
     Expression.ScalarFunction.Builder scalarBuilder = Expression.ScalarFunction.newBuilder();
