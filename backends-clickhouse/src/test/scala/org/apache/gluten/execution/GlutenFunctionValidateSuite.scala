@@ -18,9 +18,10 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
-import org.apache.spark.sql.catalyst.expressions.{Expression, GetJsonObject, Literal}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -1135,6 +1136,21 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   test("GLUTEN-8859 replace substrings comparison") {
     withTable("test_8859") {
+      def isRewriteSubstringCompareProject(plan: SparkPlan): Boolean = {
+
+        def hasSubstringComparison(e: Expression): Boolean = e match {
+          case udf: ScalaUDF if udf.udfName.isDefined =>
+            udf.udfName.get.equals("compare_substrings")
+          case _ => e.children.exists(hasSubstringComparison)
+        }
+
+        plan match {
+          case project: ProjectExecTransformer =>
+            project.projectList.exists(e => hasSubstringComparison(e))
+          case _ => false
+        }
+      }
+
       spark.sql("create table test_8859(c1 string, c2 string) using parquet")
       val insert_sql =
         """
@@ -1150,7 +1166,18 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           |select substr(c1, 1, 2) = 'ab', substr(c1, 1, 3) < 'abc', substr(c1, 1, 4) > 'abcd'
           |from test_8859
           |""".stripMargin
-      compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+      compareResultsAgainstVanillaSpark(
+        sql1,
+        true,
+        {
+          df =>
+            val projects = df.queryExecution.executedPlan.collect {
+              case project: ProjectExecTransformer if isRewriteSubstringCompareProject(project) =>
+                project
+            }
+            assert(projects.length == 1)
+        }
+      )
 
       val sql2 =
         """
@@ -1158,14 +1185,37 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           |substr(c1, 1, 4) > substr(c2, 1, 4)
           |from test_8859
           |""".stripMargin
-      compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+      compareResultsAgainstVanillaSpark(
+        sql2,
+        true,
+        {
+          df =>
+            val projects = df.queryExecution.executedPlan.collect {
+              case project: ProjectExecTransformer if isRewriteSubstringCompareProject(project) =>
+                project
+            }
+            assert(projects.length == 1)
+        }
+      )
 
       val sql3 =
         """
           |select substr(c1, 1, 2) < 'abc'
           |from test_8859
           |""".stripMargin
-      compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+      compareResultsAgainstVanillaSpark(
+        sql3,
+        true,
+        {
+          df =>
+            val projects = df.queryExecution.executedPlan.collect {
+              case project: ProjectExecTransformer if isRewriteSubstringCompareProject(project) =>
+                project
+            }
+            assert(projects.length == 0)
+        }
+      )
     }
   }
+
 }
