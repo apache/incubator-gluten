@@ -14,30 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.columnarbatch;
+#pragma once
 
-import org.apache.gluten.runtime.Runtime;
-import org.apache.gluten.runtime.RuntimeAware;
+#include <Core/Block.h>
 
-public class VeloxColumnarBatchJniWrapper implements RuntimeAware {
-  private final Runtime runtime;
+namespace local_engine
+{
+namespace DeltaParquetVirtualMeta
+{
+inline constexpr auto DELTA_INTERNAL_IS_ROW_DELETED = "__delta_internal_is_row_deleted";
+inline bool hasMetaColumns(const DB::Block & header)
+{
+    return header.findByName(DELTA_INTERNAL_IS_ROW_DELETED) != nullptr;
+}
+inline DB::DataTypePtr getMetaColumnType(const DB::Block & header)
+{
+    return header.findByName(DELTA_INTERNAL_IS_ROW_DELETED)->type;
+}
+inline DB::Block removeMetaColumns(const DB::Block & header)
+{
+    DB::Block new_header;
+    for (const auto & col : header)
+        if (col.name != DELTA_INTERNAL_IS_ROW_DELETED)
+            new_header.insert(col);
+    return new_header;
+}
+}
 
-  private VeloxColumnarBatchJniWrapper(Runtime runtime) {
-    this.runtime = runtime;
-  }
-
-  public static VeloxColumnarBatchJniWrapper create(Runtime runtime) {
-    return new VeloxColumnarBatchJniWrapper(runtime);
-  }
-
-  public native long from(long batch);
-
-  public native long compose(long[] batches);
-
-  public native long slice(long veloxBatchHandle, int offset, int limit);
-
-  @Override
-  public long rtHandle() {
-    return runtime.getHandle();
-  }
 }
