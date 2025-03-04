@@ -10,6 +10,10 @@ vcpkg_extract_source_archive(
     PATCHES install.patch
 )
 
+# Update config.guess and config.sub
+file(DOWNLOAD "https://git.savannah.gnu.org/cgit/config.git/plain/config.guess" "${SOURCE_PATH}/config.guess")
+file(DOWNLOAD "https://git.savannah.gnu.org/cgit/config.git/plain/config.sub" "${SOURCE_PATH}/config.sub")
+
 vcpkg_configure_make(SOURCE_PATH ${SOURCE_PATH} AUTOCONFIG)
 vcpkg_install_make()
 vcpkg_fixup_pkgconfig()
