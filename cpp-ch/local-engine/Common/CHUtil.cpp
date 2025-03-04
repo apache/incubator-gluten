@@ -65,6 +65,7 @@
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/BitHelpers.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/Config/ConfigProcessor.h>
 #include <Common/GlutenSignalHandler.h>
 #include <Common/LoggerExtend.h>
@@ -122,42 +123,17 @@ namespace fs = std::filesystem;
 
 DB::Block BlockUtil::buildRowCountHeader()
 {
-    DB::Block header;
-    auto type = std::make_shared<DB::DataTypeUInt8>();
-    auto col = type->createColumn();
-    DB::ColumnWithTypeAndName named_col(std::move(col), type, VIRTUAL_ROW_COUNT_COLUMN);
-    header.insert(std::move(named_col));
-    return header.cloneEmpty();
+    return DB::Block{createColumn<UInt8>({}, VIRTUAL_ROW_COUNT_COLUMN)};
 }
 
 DB::Chunk BlockUtil::buildRowCountChunk(UInt64 rows)
 {
-    auto data_type = std::make_shared<DB::DataTypeUInt8>();
-    auto col = data_type->createColumnConst(rows, 0);
-    DB::Columns res_columns;
-    res_columns.emplace_back(std::move(col));
-    return DB::Chunk(std::move(res_columns), rows);
+    return DB::Chunk{{createColumnConst<UInt8>(rows, 0)}, rows};
 }
 
 DB::Block BlockUtil::buildRowCountBlock(UInt64 rows)
 {
-    DB::Block block;
-    auto uint8_ty = std::make_shared<DB::DataTypeUInt8>();
-    auto col = uint8_ty->createColumnConst(rows, 0);
-    DB::ColumnWithTypeAndName named_col(col, uint8_ty, VIRTUAL_ROW_COUNT_COLUMN);
-    block.insert(named_col);
-    return block;
-}
-
-DB::Block BlockUtil::buildHeader(const DB::NamesAndTypesList & names_types_list)
-{
-    DB::ColumnsWithTypeAndName cols;
-    for (const auto & name_type : names_types_list)
-    {
-        DB::ColumnWithTypeAndName col(name_type.type->createColumn(), name_type.type, name_type.name);
-        cols.emplace_back(col);
-    }
-    return DB::Block(cols);
+    return DB::Block{createColumnConst<UInt8>(rows, 0, VIRTUAL_ROW_COUNT_COLUMN)};
 }
 
 /// The column names may be different in two blocks.

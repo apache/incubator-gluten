@@ -152,4 +152,7 @@ trait BackendSettingsApi {
   def supportColumnarArrowUdf(): Boolean = false
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
+
+  def supportCollectLimitExec(): Boolean = false
+
 }

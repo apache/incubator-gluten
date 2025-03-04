@@ -381,8 +381,8 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
         auto years = substraitLit.interval_year_to_month().years();
         auto months = substraitLit.interval_year_to_month().months();
         int32_t totalMonths = years * 12 + months;
-        auto constantVector = BaseVector::wrapInConstant(1, 0,
-          BaseVector::createConstant(INTEGER(), totalMonths, 1, pool_));
+        auto constantVector = BaseVector::createConstant(
+          INTERVAL_YEAR_MONTH(), totalMonths, 1, pool_));
         return std::make_shared<const core::ConstantTypedExpr>(constantVector);
       }
     }

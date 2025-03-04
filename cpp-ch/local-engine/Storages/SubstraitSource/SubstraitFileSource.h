@@ -16,95 +16,24 @@
  */
 #pragma once
 
-#include <Columns/IColumn.h>
-#include <Core/Block.h>
-#include <Core/Field.h>
-#include <Processors/Chunk.h>
-#include <Storages/SubstraitSource/FormatFile.h>
-#include <base/types.h>
+#include <memory>
+#include <Processors/SourceWithKeyCondition.h>
+#include <substrait/algebra.pb.h>
 
 namespace local_engine
 {
 class ColumnIndexFilter;
 using ColumnIndexFilterPtr = std::shared_ptr<ColumnIndexFilter>;
-
-class BaseReader
-{
-public:
-    explicit BaseReader(const FormatFilePtr & file_, const DB::Block & to_read_header_, const DB::Block & header_)
-        : file(file_), readHeader(to_read_header_), outputHeader(header_)
-    {
-    }
-    virtual ~BaseReader() = default;
-
-    void cancel()
-    {
-        bool already_cancelled = is_cancelled.exchange(true, std::memory_order_acq_rel);
-        if (!already_cancelled)
-            onCancel();
-    }
-
-    virtual bool pull(DB::Chunk & chunk) = 0;
-    bool isCancelled() const { return is_cancelled.load(std::memory_order_acquire); }
-
-protected:
-    virtual void onCancel() { };
-
-    DB::Columns addVirtualColumn(DB::Chunk dataChunk, size_t rowNum = 0) const;
-
-    FormatFilePtr file;
-    DB::Block readHeader;
-    DB::Block outputHeader;
-
-    std::atomic<bool> is_cancelled{false};
-
-
-    static DB::ColumnPtr createConstColumn(DB::DataTypePtr type, const DB::Field & field, size_t rows);
-    static DB::ColumnPtr createPartitionColumn(const String & value, const DB::DataTypePtr & type, size_t rows);
-    static DB::Field buildFieldFromString(const String & value, DB::DataTypePtr type);
-};
-
-class NormalFileReader : public BaseReader
-{
-public:
-    static std::unique_ptr<NormalFileReader> create(
-        const FormatFilePtr & file,
-        const DB::Block & to_read_header_,
-        const DB::Block & output_header_,
-        const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
-        const ColumnIndexFilterPtr & column_index_filter = nullptr);
-    NormalFileReader(
-        const FormatFilePtr & file_,
-        const DB::Block & to_read_header_,
-        const DB::Block & output_header_,
-        const FormatFile::InputFormatPtr & input_format_);
-    ~NormalFileReader() override = default;
-
-    bool pull(DB::Chunk & chunk) override;
-
-private:
-    void onCancel() override { input_format->cancel(); }
-    FormatFile::InputFormatPtr input_format;
-};
-
-class ConstColumnsFileReader : public BaseReader
-{
-public:
-    ConstColumnsFileReader(const FormatFilePtr & file_, const DB::Block & header_, size_t blockSize = DB::DEFAULT_BLOCK_SIZE);
-    ~ConstColumnsFileReader() override = default;
-
-    bool pull(DB::Chunk & chunk) override;
-
-private:
-    size_t remained_rows;
-    const size_t block_size;
-};
+class BaseReader;
+class FormatFile;
+using FormatFilePtr = std::shared_ptr<FormatFile>;
+using FormatFiles = std::vector<FormatFilePtr>;
 
 class SubstraitFileSource : public DB::SourceWithKeyCondition
 {
 public:
     SubstraitFileSource(const DB::ContextPtr & context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos);
-    ~SubstraitFileSource() override = default;
+    ~SubstraitFileSource() override;
 
     String getName() const override { return "SubstraitFileSource"; }
 
