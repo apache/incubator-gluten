@@ -63,8 +63,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
       case ParquetReadFormat:
         ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
             ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
-                .setEnableRowGroupMaxminIndex(
-                    GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
+                .setEnableRowGroupMaxminIndex(GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
                 .build();
         icebergBuilder.setParquet(parquetReadOptions);
         break;
