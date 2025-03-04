@@ -510,7 +510,7 @@ jobs:
         uniffle: [ "0.9.2" ]
         hadoop: [ "2.8.5" ]
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Native Artifacts
@@ -560,7 +560,7 @@ jobs:
         spark: [ "spark-3.2" ]
         celeborn: [ "celeborn-0.5.3", "celeborn-0.4.3", "celeborn-0.3.2-incubating" ]
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Native Artifacts
@@ -605,7 +605,7 @@ jobs:
   run-spark-test-spark32:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v4
@@ -646,7 +646,7 @@ jobs:
   run-spark-test-spark32-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -674,7 +674,7 @@ jobs:
   run-spark-test-spark33:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -718,7 +718,7 @@ jobs:
   run-spark-test-spark33-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -794,7 +794,7 @@ jobs:
   run-spark-test-spark34-jdk8:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -871,7 +871,7 @@ jobs:
   run-spark-test-spark34-slow-jdk8:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -903,7 +903,7 @@ jobs:
   run-spark-test-spark35:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -990,7 +990,7 @@ jobs:
   run-spark-test-spark35-scala213:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -1027,7 +1027,7 @@ jobs:
   run-spark-test-spark35-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -1056,7 +1056,7 @@ jobs:
   run-spark-test-spark35-ras:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -1092,7 +1092,7 @@ jobs:
   run-spark-test-spark35-slow-ras:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -1120,7 +1120,7 @@ jobs:
   run-spark-test-spark35-smj:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -1156,7 +1156,7 @@ jobs:
   run-spark-test-spark35-slow-smj:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -1183,7 +1183,7 @@ jobs:
 
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
