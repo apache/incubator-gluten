@@ -152,4 +152,38 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
 
     checkEvaluation(cast(Literal.create(null, IntegerType), ShortType), null)
   }
+
+  test("casting from year-month interval to integer (Spark 3.2 / 3.3)") {
+    val ymType = YearMonthIntervalType(YearMonthIntervalType.YEAR, YearMonthIntervalType.MONTH)
+
+    checkEvaluation(
+      cast(Literal.create(27, ymType), IntegerType),
+      27
+    )
+
+    checkEvaluation(
+      cast(Literal.create(-6, ymType), IntegerType),
+      -6
+    )
+
+    checkEvaluation(
+      cast(Literal.create(10, ymType), IntegerType),
+      10
+    )
+
+    checkEvaluation(
+      cast(Literal.create(60, ymType), IntegerType),
+      60
+    )
+
+    checkEvaluation(
+      cast(Literal.create(-38, ymType), IntegerType),
+      -38
+    )
+
+    checkEvaluation(
+      cast(Literal.create(0, ymType), IntegerType),
+      0
+    )
+  }
 }

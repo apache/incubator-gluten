@@ -376,6 +376,16 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToRowVector(substraitLit));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
     }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalYearToMonth: {
+      if (substraitLit.has_interval_year_to_month()) {
+        auto years = substraitLit.interval_year_to_month().years();
+        auto months = substraitLit.interval_year_to_month().months();
+        int32_t totalMonths = years * 12 + months;
+        auto constantVector = BaseVector::wrapInConstant(1, 0,
+          BaseVector::createConstant(INTEGER(), totalMonths, 1, pool_));
+        return std::make_shared<const core::ConstantTypedExpr>(constantVector);
+      }
+    }
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
       auto veloxType = SubstraitParser::parseType(substraitLit.null());
       if (veloxType->isShortDecimal()) {
