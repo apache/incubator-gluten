@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi
 
 import org.apache.gluten.execution.WriteFilesExecTransformer
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.ExpressionNode
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -61,7 +62,7 @@ trait TransformerApi {
   }
 
   def createCheckOverflowExprNode(
-      args: java.lang.Object,
+      context: SubstraitContext,
       substraitExprName: String,
       childNode: ExpressionNode,
       childResultType: DataType,

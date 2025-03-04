@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
@@ -32,13 +33,12 @@ trait ExpressionTransformer {
   def dataType: DataType = original.dataType
   def nullable: Boolean = original.nullable
 
-  def doTransform(args: java.lang.Object): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+  def doTransform(context: SubstraitContext): ExpressionNode = {
     // TODO: the funcName seems can be simplified to `substraitExprName`
     val funcName: String =
       ConverterUtils.makeFuncName(substraitExprName, original.children.map(_.dataType))
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, funcName)
-    val childNodes = children.map(_.doTransform(args)).asJava
+    val functionId = context.registerFunction(funcName)
+    val childNodes = children.map(_.doTransform(context)).asJava
     val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
     ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
   }
@@ -78,7 +78,7 @@ object GenericExpressionTransformer {
 
 case class LiteralTransformer(original: Literal) extends LeafExpressionTransformer {
   override def substraitExprName: String = "literal"
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     ExpressionBuilder.makeLiteral(original.value, original.dataType, original.nullable)
   }
 }
