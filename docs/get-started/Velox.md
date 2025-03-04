@@ -564,24 +564,6 @@ Set the following configuration in your Spark session to enable the feature:
 |-------------------------------------------------------------|---------|-------------------------------------------------------------------|
 | `spark.gluten.velox.offHeapBroadcastBuildRelation.enabled`  | `false` | Enable/disable off-heap storage for broadcast build relations.    |
 
-**Example** (In `spark-defaults.conf`):
-```properties
-spark.gluten.velox.offHeapBroadcastBuildRelation.enabled=true
-```
-
-#### 1. Enable via Spark Session
-```scala
-val spark = SparkSession.builder()
-  .appName("GlutenOffHeapBroadcastDemo")
-  .config("spark.gluten.velox.offHeapBroadcastBuildRelation.enabled", "true")
-  .getOrCreate()
-```
-
-#### 2. Enable via Spark SQL
-```sql
-SET spark.gluten.velox.offHeapBroadcastBuildRelation.enabled=true;
-```
-
 **Note**: This feature will become the default behavior once stabilized. Stay tuned for updates!
 
 
