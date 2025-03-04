@@ -558,7 +558,7 @@ can be found [here](https://docs.google.com/document/d/1eZNWPUEdiz2JPJfhyVn9hrk6
 ### Configuration
 
 ### Enable Off-Heap Broadcast
-Set the following configuration in your Spark session to enable the feature:
+To enable this feature, you can set the following Spark configuration:
 
 | Property                                                    | Default | Description                                                       |
 |-------------------------------------------------------------|---------|-------------------------------------------------------------------|
