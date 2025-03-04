@@ -39,6 +39,8 @@
 #include <arm_neon.h>
 #endif
 
+using namespace facebook::velox;
+
 namespace gluten {
 
 #define VELOX_SHUFFLE_WRITER_LOG_FLAG 0
@@ -68,6 +70,25 @@ bool vectorHasNull(const facebook::velox::VectorPtr& vp) {
     return false;
   }
   return vp->countNulls(vp->nulls(), vp->size()) != 0;
+}
+
+RowVectorPtr getVectorWithDictionaryOrFlat(RowVectorPtr vector, const std::vector<bool>& isSupportDictionary) {
+  for (auto idx = 0; idx < vector->childrenSize(); ++idx) {
+    if (isSupportDictionary[idx]) {
+      continue;
+    }
+    auto& child = vector->childAt(idx);
+    BaseVector::flattenVector(child);
+    if (child->isLazy()) {
+      child = child->as<LazyVector>()->loadedVectorShared();
+      VELOX_DCHECK_NOT_NULL(child);
+    }
+    // In case of output from Limit, RowVector size can be smaller than its children size.
+    // TODO: If dictionary column also have to slice.
+    if (child->size() > vector->size()) {
+      child = child->slice(0, vector->size());
+    }
+  }
 }
 
 class BinaryArrayResizeGuard {
@@ -203,6 +224,13 @@ arrow::Status VeloxHashShuffleWriter::initPartitions() {
     v.resize(numPartitions_);
   });
 
+  dictionaryValues_.resize(fixedWidthColumnCount_);
+  std::for_each(dictionaryValues_.begin(), dictionaryValues_.end(), [this](auto& v) {
+    if (v.size() < numPartitions()) {
+      v.resize(numPartitions_);
+    }
+  });
+
   return arrow::Status::OK();
 }
 
@@ -286,10 +314,7 @@ arrow::Status VeloxHashShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, i
   } else {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
-    facebook::velox::RowVectorPtr rv;
-    START_TIMING(cpuWallTimingList_[CpuWallTimingFlattenRV]);
-    rv = veloxColumnBatch->getFlattenedRowVector();
-    END_TIMING();
+    auto rv = veloxColumnBatch->getRowVector();
     if (isExtremelyLargeBatch(rv)) {
       auto numRows = rv->size();
       int32_t offset = 0;
@@ -318,8 +343,13 @@ arrow::Status VeloxHashShuffleWriter::partitioningAndDoSplit(facebook::velox::Ro
     }
     END_TIMING();
     auto strippedRv = getStrippedRowVector(*rv);
-    RETURN_NOT_OK(initFromRowVector(*strippedRv));
-    RETURN_NOT_OK(doSplit(*strippedRv, memLimit));
+    initDictionary(*strippedRv);
+    RowVectorPtr dictRv;
+    START_TIMING(cpuWallTimingList_[CpuWallTimingFlattenRV]);
+    dictRv = getVectorWithDictionaryOrFlat(strippedRv, isSupportsDictionary_);
+    END_TIMING();
+    RETURN_NOT_OK(initFromRowVector(*dictRv));
+    RETURN_NOT_OK(doSplit(*dictRv, memLimit));
   } else {
     RETURN_NOT_OK(initFromRowVector(*rv));
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
@@ -428,6 +458,63 @@ arrow::Status VeloxHashShuffleWriter::doSplit(const facebook::velox::RowVector& 
   printPartitionBuffer();
 
   setSplitState(SplitState::kInit);
+  return arrow::Status::OK();
+}
+
+namespace {
+template <TypeKind Kind>
+void splitDictionary(const VectorPtr& column, const std::vector<uint32_t>& partitionsUsed,
+  std::vector<uint8_t*>& dictionaryIndices, std::vector<BaseMapPtr>& dictionaryValues) {
+  using T = TypeTraits<Kind>::NativeType;
+  DictionaryVector<T> dict = column->asUnchecked<DictionaryVector<T>>();
+  for (const auto& pid: partitionsUsed) {
+    auto& indexMap = dictionaryValues[pid]->asFlatMap<T>();
+    auto* indices = reinterpret_cast<int32_t*>(dictionaryIndices[pid]);
+
+    if (!dict->mayHaveNulls()) {
+      for (auto row = 0; row < dict->numRows(); ++row) {
+        auto val = dict->valueAt(row);
+        // inserted true means this is a new key.
+        const auto& [it, inserted] = indexMap.emplace(*val, indexMap.size());
+        indices[row] = it->second;
+      }
+    } else {
+      for (auto row = 0; row < dict->numRows(); ++row) {
+        if (dict->isNullAt(row)) {
+          continue;
+        }
+        auto val = dict->valueAt(row);
+        // inserted true means this is a new key.
+        const auto& [it, inserted] = indexMap.emplace(*val, indexMap.size());
+        indices[row] = it->second;
+      }
+    }
+  }
+}
+}
+
+void VeloxHashShuffleWriter::splitDictionaryValues(const RowVector& rv) {
+  for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
+    if (!isSupportsDictionary_[simpleColumnIndices_[i]]) {
+      continue;
+    }
+    auto colIdx = simpleColumnIndices_[i];
+    auto& column = rv.childAt(colIdx);
+    VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(splitDictionary, column->typeKind(), column,
+      partitionUsed_, partitionFixedWidthValueAddrs_[i], dictionaryValues_[i]);
+  }
+}
+
+arrow::Status VeloxHashShuffleWriter::splitRowVectorDictionary(const RowVector& rv) {
+  SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingSplitRV]);
+  RETURN_NOT_OK(splitValidityBuffer(rv));
+  splitDictionaryValues(rv);
+
+  // update partition buffer base after split
+  for (auto pid = 0; pid < numPartitions_; ++pid) {
+    partitionBufferBase_[pid] += partition2RowCount_[pid];
+  }
+
   return arrow::Status::OK();
 }
 
@@ -736,8 +823,8 @@ arrow::Status VeloxHashShuffleWriter::splitComplexType(const facebook::velox::Ro
 
 arrow::Status VeloxHashShuffleWriter::initColumnTypes(const facebook::velox::RowVector& rv) {
   schema_ = toArrowSchema(rv.type(), veloxPool_.get());
-  for (size_t i = 0; i < rv.childrenSize(); ++i) {
-    veloxColumnTypes_.push_back(rv.childAt(i)->type());
+  for (const auto& child : rv.children()) {
+    veloxColumnTypes_.push_back(child->type());
   }
 
   VsPrintSplitLF("schema_", schema_->ToString());
@@ -800,6 +887,22 @@ arrow::Status VeloxHashShuffleWriter::initColumnTypes(const facebook::velox::Row
   complexWriteType_ = std::make_shared<facebook::velox::RowType>(std::move(complexNames), std::move(complexChildrens));
 
   return arrow::Status::OK();
+}
+
+void VeloxHashShuffleWriter::initDictionary(const RowVector& rv) {
+  if (columnEncodings_.empty()) {
+    columnEncodings_.resize(rv.childrenSize());
+    isSupportsDictionary_.resize(rv.childrenSize());
+  }
+  for (auto i = 0; i < rv.childrenSize(); ++i) {
+    const auto& child = rv.childAt(i);
+    columnEncodings_[i] = static_cast<int32_t>(child->encoding());
+    isSupportsDictionary_[i] = child->isScalar() && child->isFlatEncoding();
+    if (isSupportsDictionary_[i]) {
+      dictionaryColumnIndices_.push_back(i);
+    }
+  }
+  const auto dictionaryColumns = dictionaryColumnIndices_.size();
 }
 
 arrow::Status VeloxHashShuffleWriter::initFromRowVector(const facebook::velox::RowVector& rv) {
@@ -942,16 +1045,19 @@ arrow::Status VeloxHashShuffleWriter::allocatePartitionBuffer(uint32_t partition
         break;
       }
       default: { // fixed-width types
-        std::shared_ptr<arrow::ResizableBuffer> valueBuffer{};
-        ARROW_ASSIGN_OR_RAISE(
-            valueBuffer,
-            arrow::AllocateResizableBuffer(valueBufferSizeForFixedWidthArray(i, newSize), partitionBufferPool_.get()));
-        partitionFixedWidthValueAddrs_[i][partitionId] = valueBuffer->mutable_data();
-        buffers = {std::move(validityBuffer), std::move(valueBuffer)};
+        const auto bufferSize = isSupportsDictionary_[simpleColumnIndices_[i]] ?
+          sizeof(int32_t) * newSize : valueBufferSizeForFixedWidthArray(i, newSize);
+          std::shared_ptr<arrow::ResizableBuffer> valueBuffer{};
+          ARROW_ASSIGN_OR_RAISE(
+              valueBuffer,
+              arrow::AllocateResizableBuffer(bufferSize, partitionBufferPool_.get()));
+          partitionFixedWidthValueAddrs_[i][partitionId] = valueBuffer->mutable_data();
+          buffers = {std::move(validityBuffer), std::move(valueBuffer)};
         break;
       }
     }
   }
+
   partitionBufferSize_[partitionId] = newSize;
   return arrow::Status::OK();
 }
@@ -1232,9 +1338,11 @@ arrow::Status VeloxHashShuffleWriter::resizePartitionBuffer(uint32_t partitionId
       case arrow::NullType::type_id:
         break;
       default: { // fixed-width types
+        const auto bufferSize = isSupportsDictionary_[simpleColumnIndices_[i]] ?
+          sizeof(int32_t) * newSize : valueBufferSizeForFixedWidthArray(i, newSize);
         auto& valueBuffer = buffers[kFixedWidthValueBufferIndex];
         ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of fixed-width array is null."));
-        RETURN_NOT_OK(valueBuffer->Resize(valueBufferSizeForFixedWidthArray(i, newSize)));
+        RETURN_NOT_OK(valueBuffer->Resize(bufferSize));
         partitionFixedWidthValueAddrs_[i][partitionId] = valueBuffer->mutable_data();
         break;
       }
