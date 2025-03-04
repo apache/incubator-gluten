@@ -17,36 +17,35 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import io.github.zhztheplayer.velox4j.plan.ValuesNode;
+import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.table.runtime.operators.GlutenCalOperator;
+
+import io.github.zhztheplayer.velox4j.plan.FilterNode;
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.ProjectNode;
+import org.apache.calcite.rex.RexNode;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.calcite.shaded.com.google.common.collect.Lists;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.*;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-
-import org.apache.calcite.rex.RexNode;
-import org.apache.gluten.rexnode.RexNodeConverter;
-import org.apache.gluten.substrait.SubstraitContext;
-import org.apache.gluten.substrait.plan.PlanBuilder;
-import org.apache.gluten.substrait.plan.PlanNode;
-import org.apache.gluten.substrait.rel.RelBuilder;
-import org.apache.gluten.substrait.rel.RelNode;
-import org.apache.gluten.table.runtime.operators.GlutenCalOperator;
-
 import javax.annotation.Nullable;
 
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.List;
 
@@ -107,20 +106,22 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        // TODO: whether need to generate substrait plan?
-        SubstraitContext context = new SubstraitContext();
-        RelNode filter = RelBuilder.makeFilterRel(
-                null, 
-                RexNodeConverter.toExpressionNode(context, condition),
-                context,
-                (long) getId());
-        RelNode project = RelBuilder.makeProjectRel(
-                filter, 
-                RexNodeConverter.toExpressionNode(context, projection),
-                context,
-                (long) ExecNodeContext.newNodeId());
-        PlanNode plan = PlanBuilder.makePlan(context, Lists.newArrayList(project), Lists.newArrayList());
-        final GlutenCalOperator calOperator = new GlutenCalOperator(plan.toProtobuf().toByteArray());
+        // add a mock input as velox not allow the source is empty.
+        PlanNode mockInput = new ValuesNode(
+                String.valueOf(ExecNodeContext.newNodeId()),
+                "",
+                false,
+                1);
+        PlanNode filter = new FilterNode(
+                String.valueOf(getId()),
+                List.of(mockInput),
+                RexNodeConverter.toTypedExpr(condition));
+        PlanNode project = new ProjectNode(
+                String.valueOf(ExecNodeContext.newNodeId()),
+                List.of(filter),
+                List.of("0"), // TODO: add project names
+                RexNodeConverter.toTypedExpr(projection));
+        final GlutenCalOperator calOperator = new GlutenCalOperator(project);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 new TransformationMetadata("gluten-calc", "Gluten cal operator"),

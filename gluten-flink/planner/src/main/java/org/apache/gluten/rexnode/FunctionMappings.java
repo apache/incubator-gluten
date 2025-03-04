@@ -14,30 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.substrait.type;
+package org.apache.gluten.rexnode;
 
-import io.substrait.proto.Type;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.io.Serializable;
+/** Mapping of flink function and substrait function. */
+public class FunctionMappings {
+    // A map stores the relationship between flink function name and substrait function.
+    private static Map<String, String> functionMappings = new HashMap() {
+        {
+            put(">", "gt");
+            put("<", "lt");
+        }
+    };
 
-public class I64TypeNode implements TypeNode, Serializable {
-  private final Boolean nullable;
-
-  public I64TypeNode(Boolean nullable) {
-    this.nullable = nullable;
-  }
-
-  @Override
-  public Type toProtobuf() {
-    Type.I64.Builder i64Builder = Type.I64.newBuilder();
-    if (nullable) {
-      i64Builder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
-    } else {
-      i64Builder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
+    public static String toVeloxFunction(String funcName) {
+        if (functionMappings.containsKey(funcName)) {
+            return functionMappings.get(funcName);
+        } else {
+            throw new RuntimeException("Function not supported: " + funcName);
+        }
     }
-
-    Type.Builder builder = Type.newBuilder();
-    builder.setI64(i64Builder.build());
-    return builder.build();
-  }
 }

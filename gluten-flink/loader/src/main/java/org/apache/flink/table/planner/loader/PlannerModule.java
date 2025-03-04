@@ -65,7 +65,6 @@ class PlannerModule {
                                     "org.codehaus.commons",
                                     "org.apache.commons.lang3",
                                     "org.apache.commons.math3",
-                                    "com.google.protobuf",
                                     // with hive dialect, hadoop jar should be in classpath,
                                     // also, we should make it loaded by owner classloader,
                                     // otherwise, it'll throw class not found exception
@@ -73,12 +72,17 @@ class PlannerModule {
                                     "org.apache.hadoop"))
                     .toArray(String[]::new);
 
-    private static final String[] COMPONENT_CLASSPATH = new String[] {"org.apache.flink", "org.apache.gluten"};
+    private static final String[] COMPONENT_CLASSPATH = new String[] {
+            "org.apache.flink",
+            "org.apache.gluten",
+            "io.github",
+            "com.google"
+    };
 
     private static final Map<String, String> KNOWN_MODULE_ASSOCIATIONS = new HashMap<>();
 
     static {
-        KNOWN_MODULE_ASSOCIATIONS.put("org.apache.gluten.table.runtime", "flink-table-runtime");
+        KNOWN_MODULE_ASSOCIATIONS.put("org.apache.gluten.table.runtime", "gluten-flink-runtime");
         KNOWN_MODULE_ASSOCIATIONS.put("org.apache.flink.table.runtime", "flink-table-runtime");
         KNOWN_MODULE_ASSOCIATIONS.put("org.apache.flink.formats.raw", "flink-table-runtime");
 
@@ -120,7 +124,6 @@ class PlannerModule {
                                     "gluten-flink-planner_" + UUID.randomUUID() + ".jar"));
 
             IOUtils.copyBytes(resourceStream, Files.newOutputStream(tempFile));
-            //IOUtils.copyBytes(protobufStream, Files.newOutputStream(protobufFile));
             IOUtils.copyBytes(glutenStream, Files.newOutputStream(glutenFile));
             tempFile.toFile().deleteOnExit();
             glutenFile.toFile().deleteOnExit();
@@ -166,7 +169,7 @@ class PlannerModule {
 
     public PlannerFactory loadPlannerFactory() {
         return FactoryUtil.discoverFactory(
-                this.submoduleClassLoader, PlannerFactory.class, "default");
+                this.submoduleClassLoader, PlannerFactory.class, PlannerFactory.DEFAULT_IDENTIFIER);
     }
 
     /**

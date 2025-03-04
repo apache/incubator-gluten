@@ -83,7 +83,7 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
-import org.apache.gluten.backendsapi.FlinkBackend;
+import io.github.zhztheplayer.velox4j.Velox4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -524,7 +524,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         FileSystem.initialize(configuration, pluginManager);
 
         StateChangelogStorageLoader.initialize(pluginManager);
-        FlinkBackend.initialize();
+        Velox4j.initialize();
 
         int exitCode;
         Throwable throwable = null;
