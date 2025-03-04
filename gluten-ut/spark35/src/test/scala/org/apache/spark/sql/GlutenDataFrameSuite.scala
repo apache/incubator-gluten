@@ -372,7 +372,7 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
     }
   }
 
-  test("SPARK-27439: Explain result should match collected result after view change - re-write") {
+  testGluten("SPARK-27439: Explain result should match collected result after view change") {
     withTempView("test", "test2", "tmp") {
       spark.range(10).createOrReplaceTempView("test")
       spark.range(5).createOrReplaceTempView("test2")
@@ -391,7 +391,7 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
                                |+- 'UnresolvedRelation [tmp]""".stripMargin))
       assert(output.contains("""== Physical Plan ==
                                |*(1) ColumnarToRow
-                               |+- ColumnarRange 0, 10, 1, 2, 10, [id#0L]""".stripMargin))
+                               |+- ColumnarRange 0, 10, 1, 2, 10""".stripMargin))
     }
   }
 
