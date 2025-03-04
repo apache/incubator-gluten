@@ -54,6 +54,8 @@ class GlutenByteInputStream : public ByteInputStream {
   /// TODO Remove after refactoring SpillInput.
   virtual ~GlutenByteInputStream() = default;
 
+  std::vector<ByteRange> ranges_;
+
   /// Returns total number of bytes available in the stream.
   size_t size() const {
     size_t total = 0;
