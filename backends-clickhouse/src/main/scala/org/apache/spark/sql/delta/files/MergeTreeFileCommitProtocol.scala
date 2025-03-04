@@ -52,7 +52,7 @@ trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
       dir: Option[String],
       ext: String): String = {
 
-    val partitionStr = dir.map(p => new Path(p).toUri.toString)
+    val partitionStr = dir.map(p => new Path(p).toString)
     val bucketIdStr = ext.split("\\.").headOption.filter(_.startsWith("_")).map(_.substring(1))
     val split = taskContext.getTaskAttemptID.getTaskID.getId
 

@@ -152,7 +152,7 @@ object AddFileTags {
     rootNode.put("nullCount", "")
     // Add the `stats` into delta meta log
     val metricsStats = mapper.writeValueAsString(rootNode)
-    AddFile(name, partitionValues, bytesOnDisk, modificationTime, dataChange, metricsStats, tags)
+    AddFile(new Path(name).toUri.toString, partitionValues, bytesOnDisk, modificationTime, dataChange, metricsStats, tags)
   }
 
   def addFileToAddMergeTreeParts(addFile: AddFile): AddMergeTreeParts = {

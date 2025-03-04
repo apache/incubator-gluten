@@ -107,6 +107,7 @@ if(ENABLE_BENCHMARKS)
     benchmark_spark_row.cpp
     benchmark_unix_timestamp_function.cpp
     benchmark_spark_functions.cpp
+    benchmark_spark_partition_escape_function.cpp
     benchmark_cast_float_function.cpp
     benchmark_to_datetime_function.cpp
     benchmark_spark_divide_function.cpp

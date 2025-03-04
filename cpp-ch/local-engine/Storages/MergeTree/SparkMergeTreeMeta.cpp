@@ -212,9 +212,7 @@ MergeTreeTableInstance::MergeTreeTableInstance(const std::string & info) : Merge
     while (!in.eof())
     {
         MergeTreePart part;
-        std::string encoded_name;
-        readString(encoded_name, in);
-        Poco::URI::decode(encoded_name, part.name);
+        readString(part.name, in);
         assertChar('\n', in);
         readIntText(part.begin, in);
         assertChar('\n', in);
