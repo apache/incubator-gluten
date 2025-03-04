@@ -564,6 +564,8 @@ To enable this feature, you can set the following Spark configuration:
 |-------------------------------------------------------------|---------|-------------------------------------------------------------------|
 | `spark.gluten.velox.offHeapBroadcastBuildRelation.enabled`  | `false` | Enable/disable off-heap storage for broadcast build relations.    |
 
+This feature has been tested through a series of tests, and we are collecting more feedback from users. If you have memory problem on broadcast build relations, please try this feature and give more feedbacks.
+
 **Note**: This feature will become the default behavior once stabilized. Stay tuned for updates!
 
 
