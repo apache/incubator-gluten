@@ -16,92 +16,98 @@
  */
 package org.apache.gluten.rexnode;
 
+import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
+import io.github.zhztheplayer.velox4j.expression.ConstantTypedExpr;
+import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
+import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.BooleanType;
+import io.github.zhztheplayer.velox4j.type.IntegerType;
+import io.github.zhztheplayer.velox4j.type.Type;
+import io.github.zhztheplayer.velox4j.variant.BigIntValue;
+import io.github.zhztheplayer.velox4j.variant.BooleanValue;
+import io.github.zhztheplayer.velox4j.variant.DoubleValue;
+import io.github.zhztheplayer.velox4j.variant.IntegerValue;
+import io.github.zhztheplayer.velox4j.variant.SmallIntValue;
+import io.github.zhztheplayer.velox4j.variant.TimestampValue;
+import io.github.zhztheplayer.velox4j.variant.TinyIntValue;
+import io.github.zhztheplayer.velox4j.variant.VarBinaryValue;
+import io.github.zhztheplayer.velox4j.variant.VarCharValue;
+import io.github.zhztheplayer.velox4j.variant.Variant;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
-import org.apache.gluten.substrait.SubstraitContext;
-import org.apache.gluten.substrait.expression.ExpressionBuilder;
-import org.apache.gluten.substrait.expression.ExpressionNode;
-import org.apache.gluten.substrait.type.TypeBuilder;
-import org.apache.gluten.substrait.type.TypeNode;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Convertor to convert RexNode to ExpressionNode */
+/** Convertor to convert RexNode to velox TypedExpr */
 public class RexNodeConverter {
 
-    public static ExpressionNode toExpressionNode(SubstraitContext context, RexNode rexNode) {
+    public static TypedExpr toTypedExpr(RexNode rexNode) {
         if (rexNode instanceof RexLiteral) {
             RexLiteral literal = (RexLiteral) rexNode;
-            return ExpressionBuilder.makeLiteral(
-                    literal.getValue(),
-                    toTypeNode(literal.getType()));
+            return new ConstantTypedExpr(
+                    toType(literal.getType()),
+                    toVariant(literal),
+                    null);
         } else if (rexNode instanceof RexCall) {
             RexCall rexCall = (RexCall) rexNode;
-            Long functionId =
-                    ExpressionBuilder.newScalarFunction(
-                            context.registeredFunction(),
-                            rexCall.getOperator().getName());
-            List<ExpressionNode> params = toExpressionNode(context, rexCall.getOperands());
-            TypeNode typeNode = toTypeNode(rexCall.getType());
-            return ExpressionBuilder.makeScalarFunction(functionId, params, typeNode);
+            List<TypedExpr> params = toTypedExpr(rexCall.getOperands());
+            Type nodeType = toType(rexCall.getType());
+            return new CallTypedExpr(
+                    nodeType,
+                    params,
+                    FunctionMappings.toVeloxFunction(rexCall.getOperator().getName()));
         } else if (rexNode instanceof RexInputRef) {
             RexInputRef inputRef = (RexInputRef) rexNode;
-            return ExpressionBuilder.makeSelection(inputRef.getIndex());
+            return FieldAccessTypedExpr.create(
+                    toType(inputRef.getType()),
+                    String.valueOf(inputRef.getIndex()));
         } else {
             throw new RuntimeException("Unrecognized RexNode: " + rexNode);
         }
     }
 
-    public static List<ExpressionNode> toExpressionNode(
-            SubstraitContext context,
-            List<RexNode> rexNodes) {
+    public static List<TypedExpr> toTypedExpr(List<RexNode> rexNodes) {
         return rexNodes.stream()
-                .map(rexNode -> toExpressionNode(context, rexNode))
+                .map(rexNode -> toTypedExpr(rexNode))
                 .collect(Collectors.toList());
     }
 
-    public static TypeNode toTypeNode(RelDataType dataType) {
-        switch (dataType.getSqlTypeName()) {
+    public static Type toType(RelDataType relDataType) {
+        switch (relDataType.getSqlTypeName()) {
             case BOOLEAN:
-                return TypeBuilder.makeBoolean(dataType.isNullable());
-            case TINYINT:
-                return TypeBuilder.makeI8(dataType.isNullable());
-            case SMALLINT:
-                return TypeBuilder.makeI16(dataType.isNullable());
+                return new BooleanType();
             case INTEGER:
-                return TypeBuilder.makeI32(dataType.isNullable());
-            case BIGINT:
-                return TypeBuilder.makeI64(dataType.isNullable());
-            case FLOAT:
-                return TypeBuilder.makeFP32(dataType.isNullable());
-            case DOUBLE:
-                return TypeBuilder.makeFP64(dataType.isNullable());
-            case CHAR:
-                return TypeBuilder.makeFixedChar(dataType.isNullable(), 1);
-            case VARCHAR:
-                return TypeBuilder.makeString(dataType.isNullable());
-            case BINARY:
-                return TypeBuilder.makeBinary(dataType.isNullable());
-            case DECIMAL:
-                return TypeBuilder.makeDecimal(
-                        dataType.isNullable(),
-                        dataType.getPrecision(),
-                        dataType.getScale());
-            case DATE:
-                return TypeBuilder.makeDate(dataType.isNullable());
-            case TIME:
-                return TypeBuilder.makeTimestamp(dataType.isNullable());
-            case MAP:
-                return TypeBuilder.makeMap(
-                        dataType.isNullable(),
-                        toTypeNode(dataType.getKeyType()),
-                        toTypeNode(dataType.getValueType()));
+                return new IntegerType();
             default:
-                throw new RuntimeException("Unsupported rex node type: " + dataType);
+                throw new RuntimeException("Unsupported type: " + relDataType.getSqlTypeName());
+        }
+    }
+
+    public static Variant toVariant(RexLiteral literal) {
+        switch (literal.getType().getSqlTypeName()) {
+            case BOOLEAN:
+                return new BooleanValue((boolean) literal.getValue());
+            case TINYINT:
+                return new TinyIntValue(Integer.valueOf(literal.getValue().toString()));
+            case SMALLINT:
+                return new SmallIntValue(Integer.valueOf(literal.getValue().toString()));
+            case INTEGER:
+                return new IntegerValue(Integer.valueOf(literal.getValue().toString()));
+            case BIGINT:
+                return new BigIntValue(Long.valueOf(literal.getValue().toString()));
+            case DOUBLE:
+                return new DoubleValue(Double.valueOf(literal.getValue().toString()));
+            case VARCHAR:
+                return new VarCharValue(literal.getValue().toString());
+            case BINARY:
+                return new VarBinaryValue(literal.getValue().toString());
+            default:
+                throw new RuntimeException(
+                        "Unsupported rex node type: " + literal.getType().getSqlTypeName());
         }
     }
 

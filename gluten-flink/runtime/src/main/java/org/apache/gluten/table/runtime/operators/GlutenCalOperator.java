@@ -17,26 +17,45 @@
 
 package org.apache.gluten.table.runtime.operators;
 
-import org.apache.gluten.backendsapi.FlinkBackend;
-import org.apache.gluten.table.runtime.operators.GlutenOperator;
-import org.apache.gluten.vectorized.VLNativeRowVector;
+import io.github.zhztheplayer.velox4j.connector.ExternalStream;
+import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
+import io.github.zhztheplayer.velox4j.data.RowVector;
+import io.github.zhztheplayer.velox4j.iterator.DownIterator;
+import io.github.zhztheplayer.velox4j.query.BoundSplit;
+import org.apache.gluten.vectorized.FlinkRowToVLVectorIterator;
+import org.apache.gluten.vectorized.FlinkRowToVLRowConvertor;
 
+import io.github.zhztheplayer.velox4j.Velox4j;
+import io.github.zhztheplayer.velox4j.config.Config;
+import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
+import io.github.zhztheplayer.velox4j.memory.AllocationListener;
+import io.github.zhztheplayer.velox4j.memory.MemoryManager;
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.query.Query;
+import io.github.zhztheplayer.velox4j.session.Session;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 
+import java.util.List;
+
 /** Calculate operator in gluten, which will call Velox to run. */
 public class GlutenCalOperator extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData>, GlutenOperator {
 
-    private final byte[] glutenPlan;
+    private final PlanNode glutenPlan;
 
     private StreamRecord outElement = null;
 
-    private int nativeExecutor;
+    private Session session;
+    private Query query;
+    private FlinkRowToVLVectorIterator inputIterator;
+    BufferAllocator allocator;
 
-    public GlutenCalOperator(byte[] plan) {
+    public GlutenCalOperator(PlanNode plan) {
         this.glutenPlan = plan;
     }
 
@@ -44,20 +63,36 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
     public void open() throws Exception {
         super.open();
         outElement = new StreamRecord(null);
+        session = Velox4j.newSession(MemoryManager.create(AllocationListener.NOOP));
 
-        nativeExecutor = FlinkBackend.flinkPlanExecApi().generateOperator(glutenPlan);
+        inputIterator = new FlinkRowToVLVectorIterator();
+        ExternalStream es = session.externalStreamOps().bind(new DownIterator(inputIterator));
+        List<BoundSplit> splits = List.of(
+                new BoundSplit(
+                        "5",
+                        -1,
+                        new ExternalStreamConnectorSplit("escs1", es.id())));
+        query = new Query(glutenPlan, splits, Config.empty(), ConnectorConfig.empty());
+        allocator = new RootAllocator(Long.MAX_VALUE);
+
     }
 
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
-        // TODO: use velox jni methods to run?
-        long res = nativeProcessElement(
-            nativeExecutor,
-            VLNativeRowVector.fromRowData(element.getValue()).rowAddress());
-        if (res > 0) {
-            output.collect(outElement.replace(new VLNativeRowVector(res).toRowData()));
+        inputIterator.addRow(
+                FlinkRowToVLRowConvertor.fromRowData(
+                        element.getValue(),
+                        allocator,
+                        session));
+        RowVector result = session.queryOps().execute(query).next();
+        if (result != null) {
+            output.collect(
+                    outElement.replace(
+                            FlinkRowToVLRowConvertor.toRowData(
+                                    result,
+                                    allocator,
+                                    session)));
         }
     }
 
-    private native long nativeProcessElement(int executor, long data);
 }
