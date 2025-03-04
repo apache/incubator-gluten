@@ -265,7 +265,7 @@ void VeloxBackend::initConnector() {
   connectorConfMap[velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
       backendConf_->get<std::string>(kPrefetchRowGroups, "1");
   connectorConfMap[velox::connector::hive::HiveConfig::kLoadQuantum] =
-      backendConf_->get<std::string>(kLoadQuantum, "268435456"); // 256M
+      backendConf_->get<std::string>(kLoadQuantum, "8388608"); // 8M
   connectorConfMap[velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
       backendConf_->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
   connectorConfMap[velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
