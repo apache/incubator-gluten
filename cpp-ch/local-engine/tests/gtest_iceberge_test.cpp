@@ -29,6 +29,7 @@
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/iceberg/EqualityDeleteFileReader.h>
+#include <Storages/SubstraitSource/iceberg/IcebergMetadataColumn.h>
 #include <gtest/gtest.h>
 #include <tests/utils/ReaderTestBase.h>
 #include <tests/utils/TempFilePath.h>
@@ -54,9 +55,178 @@ class IcebergTest : public ReaderTestBase
 {
 public:
     using substraitIcebergDeleteFile = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions::DeleteFile;
+    using IcebergReadOptions = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions;
+    using FileContent = IcebergReadOptions::FileContent;
 
     static constexpr int rowCount = 20000;
+
+    std::shared_ptr<iceberg::IcebergMetadataColumn> pathColumn_ =
+    iceberg::IcebergMetadataColumn::icebergDeleteFilePathColumn();
+    std::shared_ptr<iceberg::IcebergMetadataColumn> posColumn_ =
+        iceberg::IcebergMetadataColumn::icebergDeletePosColumn();
+
 private:
+    /// Input is like <"deleteFile1", <"dataFile1", {pos_RG1, pos_RG2,..}>,
+    /// <"dataFile2", {pos_RG1, pos_RG2,..}>
+    std::unordered_map<std::string, std::pair<int64_t, std::shared_ptr<TempFilePath>>>
+    writePositionDeleteFiles(
+      const std::unordered_map<
+          std::string, // delete file name
+          std::multimap<
+              std::string,
+              std::vector<int64_t>>>&
+          deleteFilesForBaseDatafiles, // <base file name, delete position
+                                       // vector for all RowGroups>
+      std::map<std::string, std::shared_ptr<TempFilePath>> baseFilePaths)
+    {
+        std::unordered_map<std::string, std::pair<int64_t, std::shared_ptr<TempFilePath>>> deleteFilePaths;
+        deleteFilePaths.reserve(deleteFilesForBaseDatafiles.size());
+
+        for (const auto& deleteFile : deleteFilesForBaseDatafiles)
+        {
+            auto deleteFileName = deleteFile.first;
+            auto deleteFileContent = deleteFile.second;
+            auto deleteFilePath = TempFilePath::tmp("parquet");
+
+            std::vector<DB::Block> deleteFileVectors;
+            int64_t totalPositionsInDeleteFile = 0;
+            for (auto& deleteFileRowGroup : deleteFileContent)
+            {
+                auto baseFileName = deleteFileRowGroup.first;
+                auto baseFilePath = baseFilePaths[baseFileName]->string();
+                auto positionsInRowGroup = deleteFileRowGroup.second;
+
+                auto filePathVector = createColumn<std::string>(positionsInRowGroup.size(),
+                    [&](size_t row) { return baseFilePath; });
+                auto deletePosVector = createColumn<int64_t>(positionsInRowGroup);
+
+                DB::Block deleteFileVector {
+                    {filePathVector, pathColumn_->type, pathColumn_->name},
+                    {deletePosVector, posColumn_->type, posColumn_->name}
+                };
+
+                deleteFileVectors.push_back(deleteFileVector);
+                totalPositionsInDeleteFile += positionsInRowGroup.size();
+            }
+
+            writeToFile(deleteFilePath->string(),deleteFileVectors);
+
+            deleteFilePaths[deleteFileName] = std::make_pair(totalPositionsInDeleteFile, deleteFilePath);
+        }
+        return deleteFilePaths;
+    }
+
+    std::string getDuckDBQuery(
+      const std::map<std::string, std::vector<int64_t>>& rowGroupSizesForFiles,
+      const std::unordered_map<
+          std::string,
+          std::multimap<std::string, std::vector<int64_t>>>&
+          deleteFilesForBaseDatafiles)
+    {
+        int64_t totalNumRowsInAllBaseFiles = 0;
+        std::map<std::string, int64_t> baseFileSizes;
+        for (auto rowGroupSizesInFile : rowGroupSizesForFiles)
+        {
+            // Sum up the row counts in all RowGroups in each base file
+            baseFileSizes[rowGroupSizesInFile.first] += std::accumulate(
+                rowGroupSizesInFile.second.begin(),
+                rowGroupSizesInFile.second.end(),
+                0LL);
+            totalNumRowsInAllBaseFiles += baseFileSizes[rowGroupSizesInFile.first];
+        }
+
+        // Group the delete vectors by baseFileName
+        std::map<std::string, std::vector<std::vector<int64_t>>> deletePosVectorsForAllBaseFiles;
+
+        for (auto deleteFile : deleteFilesForBaseDatafiles)
+        {
+            auto deleteFileContent = deleteFile.second;
+            for (auto rowGroup : deleteFileContent)
+            {
+                auto baseFileName = rowGroup.first;
+                deletePosVectorsForAllBaseFiles[baseFileName].push_back(rowGroup.second);
+            }
+        }
+
+        // Flatten and deduplicate the delete position vectors in
+        // deletePosVectorsForAllBaseFiles from previous step, and count the total
+        // number of distinct delete positions for all base files
+        std::map<std::string, std::vector<int64_t>>
+            flattenedDeletePosVectorsForAllBaseFiles;
+        int64_t totalNumDeletePositions = 0;
+        for (auto deleteVectorsForBaseFile : deletePosVectorsForAllBaseFiles)
+        {
+            auto baseFileName = deleteVectorsForBaseFile.first;
+            auto deletePositionVectors = deleteVectorsForBaseFile.second;
+            std::vector<int64_t> deletePositionVector =
+                flattenAndDedup(deletePositionVectors, baseFileSizes[baseFileName]);
+            flattenedDeletePosVectorsForAllBaseFiles[baseFileName] =
+                deletePositionVector;
+            totalNumDeletePositions += deletePositionVector.size();
+        }
+
+        // Now build the DuckDB queries
+        if (totalNumDeletePositions == 0)
+        {
+            return "SELECT * FROM IcebergTest.tmp";
+        }
+        else if (totalNumDeletePositions >= totalNumRowsInAllBaseFiles)
+        {
+            return "SELECT * FROM IcebergTest.tmp WHERE 1 = 0";
+        }
+        else
+        {
+            // Convert the delete positions in all base files into column values
+            std::vector<int64_t> allDeleteValues;
+
+            int64_t numRowsInPreviousBaseFiles = 0;
+            for (auto baseFileSize : baseFileSizes)
+            {
+                auto deletePositions =
+                    flattenedDeletePosVectorsForAllBaseFiles[baseFileSize.first];
+
+                if (numRowsInPreviousBaseFiles > 0)
+                {
+                    for (int64_t& deleteValue : deletePositions)
+                    {
+                        deleteValue += numRowsInPreviousBaseFiles;
+                    }
+                }
+
+                allDeleteValues.insert(
+                    allDeleteValues.end(),
+                    deletePositions.begin(),
+                    deletePositions.end());
+
+                numRowsInPreviousBaseFiles += baseFileSize.second;
+            }
+
+            return fmt::format(
+                "SELECT * FROM IcebergTest.tmp WHERE c0 NOT IN ({})",
+                makeNotInList(allDeleteValues));
+        }
+    }
+
+
+    std::vector<int64_t> flattenAndDedup(
+        const std::vector<std::vector<int64_t>>& deletePositionVectors,
+        int64_t baseFileSize) {
+        std::vector<int64_t> deletePositionVector;
+        for (auto vec : deletePositionVectors) {
+            for (auto pos : vec) {
+                if (pos >= 0 && pos < baseFileSize) {
+                    deletePositionVector.push_back(pos);
+                }
+            }
+        }
+
+        std::sort(deletePositionVector.begin(), deletePositionVector.end());
+        auto last =
+            std::unique(deletePositionVector.begin(), deletePositionVector.end());
+        deletePositionVector.erase(last, deletePositionVector.end());
+
+        return deletePositionVector;
+    }
 
     std::string makeNotInList(const std::vector<int64_t>& deletePositionVector) {
         if (deletePositionVector.empty()) {
@@ -136,6 +306,17 @@ private:
         EXPECT_TRUE(assertEqualResults(collectResult( reader), runClickhouseSQL(duckDbSql), msg));
     }
 
+    void assertQuery(std::vector<std::unique_ptr<BaseReader>> readers, const std::string& duckDbSql) const
+    {
+        BaseReaders base_readers {
+            .readers = readers,
+        };
+
+        auto msg = fmt::format("\nExpected result from running Clickhouse sql: {}", duckDbSql);
+        EXPECT_TRUE(assertEqualResults(collectResult( base_readers), runClickhouseSQL(duckDbSql), msg));
+    }
+
+
 protected:
     std::unique_ptr<BaseReader> makeIcebergSplit(
         const std::string& dataFilePath,
@@ -159,6 +340,7 @@ protected:
     }
 
     substraitIcebergDeleteFile makeDeleteFile(
+        FileContent file_content,
         const std::string & _path,
         uint64_t _recordCount,
         uint64_t _fileSizeInBytes,
@@ -167,7 +349,7 @@ protected:
         std::unordered_map<int32_t, std::string> _upperBounds = {} )
     {
         substraitIcebergDeleteFile deleteFile;
-        deleteFile.set_filecontent(substrait::ReadRel_LocalFiles_FileOrFiles_IcebergReadOptions_FileContent_EQUALITY_DELETES);
+        deleteFile.set_filecontent(file_content);
         deleteFile.set_filepath("file://" + _path);
         deleteFile.set_recordcount(_recordCount);
         deleteFile.set_filesize(_fileSizeInBytes);
@@ -233,6 +415,122 @@ public:
         return dataFilePaths;
     }
 
+    //TODO: write multiple groups
+    std::map<std::string, std::shared_ptr<TempFilePath>>
+    writeDataFiles(const std::map<std::string, std::vector<int64_t>> & rowGroupSizesForFiles)
+    {
+        std::map<std::string, std::shared_ptr<TempFilePath>> dataFilePaths;
+
+        std::vector<DB::Block> dataVectorsJoined;
+        dataVectorsJoined.reserve(rowGroupSizesForFiles.size());
+
+        int64_t startingValue = 0;
+        for (auto& dataFile : rowGroupSizesForFiles) {
+            dataFilePaths[dataFile.first] = TempFilePath::tmp("parquet");
+
+            // We make the values are continuously increasing even across base data
+            // files. This is to make constructing DuckDB queries easier
+            std::vector<DB::Block> dataVectors =
+                makeVectors(dataFile.second, startingValue);
+            writeToFile(
+                dataFilePaths[dataFile.first]->string(),
+                dataVectors);
+
+            for (int i = 0; i < dataVectors.size(); i++) {
+                dataVectorsJoined.push_back(dataVectors[i]);
+            }
+        }
+        createDuckDbTable(dataVectorsJoined);
+        return dataFilePaths;
+    }
+
+    /// @rowGroupSizesForFiles The key is the file name, and the value is a vector
+    /// of RowGroup sizes
+    /// @deleteFilesForBaseDatafiles The key is the delete file name, and the
+    /// value contains the information about the content of this delete file.
+    /// e.g. {
+    ///         "delete_file_1",
+    ///         {
+    ///             {"data_file_1", {1, 2, 3}},
+    ///             {"data_file_1", {4, 5, 6}},
+    ///             {"data_file_2", {0, 2, 4}}
+    ///         }
+    ///     }
+    /// represents one delete file called delete_file_1, which contains delete
+    /// positions for data_file_1 and data_file_2. THere are 3 RowGroups in this
+    /// delete file, the first two contain positions for data_file_1, and the last
+    /// contain positions for data_file_2
+    void assertPositionalDeletes(
+        const std::map<std::string, std::vector<int64_t>>& rowGroupSizesForFiles,
+        const std::unordered_map<
+            std::string,
+            std::multimap<std::string, std::vector<int64_t>>>&
+            deleteFilesForBaseDatafiles,
+        int32_t numPrefetchSplits = 0)
+    {
+        // Keep the reference to the deleteFilePath, otherwise the corresponding
+        // file will be deleted.
+        std::map<std::string, std::shared_ptr<TempFilePath>> dataFilePaths =
+            writeDataFiles(rowGroupSizesForFiles);
+        std::unordered_map<std::string, std::pair<int64_t, std::shared_ptr<TempFilePath>>>
+        deleteFilePaths = writePositionDeleteFiles(
+            deleteFilesForBaseDatafiles, dataFilePaths);
+
+        std::vector<std::unique_ptr<BaseReader>> splits;
+
+        for (const auto& dataFile : dataFilePaths) {
+            std::string baseFileName = dataFile.first;
+            std::string baseFilePath = dataFile.second->string();
+
+            std::vector<substraitIcebergDeleteFile> deleteFiles;
+
+            for (auto const& deleteFile : deleteFilesForBaseDatafiles) {
+                std::string deleteFileName = deleteFile.first;
+                std::multimap<std::string, std::vector<int64_t>> deleteFileContent =
+                    deleteFile.second;
+
+                if (deleteFileContent.count(baseFileName) != 0) {
+                    // If this delete file contains rows for the target base file, then
+                    // add it to the split
+                    auto deleteFilePath =
+                        deleteFilePaths[deleteFileName].second->string();
+
+                    substraitIcebergDeleteFile icebergDeleteFile = makeDeleteFile(
+                        IcebergReadOptions::POSITION_DELETES,
+                        deleteFilePath,
+                        deleteFilePaths[deleteFileName].first,
+                        testing::internal::GetFileSize(
+                            std::fopen(deleteFilePath.c_str(), "r")));
+                    deleteFiles.push_back(icebergDeleteFile);
+                }
+            }
+
+            splits.emplace_back(makeIcebergSplit(baseFilePath, deleteFiles));
+        }
+
+        std::string duckdbSql =
+            getDuckDBQuery(rowGroupSizesForFiles, deleteFilesForBaseDatafiles);
+
+        assertQuery(std::move(splits), duckdbSql);
+    }
+
+    /// Create 1 base data file data_file_1 with 2 RowGroups of 10000 rows each.
+    /// Also create 1 delete file delete_file_1 which contains delete positions
+    /// for data_file_1.
+    void assertSingleBaseFileSingleDeleteFile(
+        const std::vector<int64_t>& deletePositionsVec) {
+        std::map<std::string, std::vector<int64_t>> rowGroupSizesForFiles = {
+            {"data_file_1", {10000, 10000}}};
+        std::unordered_map<
+            std::string,
+            std::multimap<std::string, std::vector<int64_t>>>
+            deleteFilesForBaseDatafiles = {
+            {"delete_file_1", {{"data_file_1", deletePositionsVec}}}};
+
+        assertPositionalDeletes(
+            rowGroupSizesForFiles, deleteFilesForBaseDatafiles, 0);
+    }
+
     // TODO: rename duckDbSql => chDbSql
     void assertEqualityDeletes(
       const std::unordered_map<int8_t, std::vector<std::vector<int64_t>>>&
@@ -279,7 +577,8 @@ public:
 
             deleteFilePaths.push_back(writeEqualityDeleteFile(equalityDeleteVector));
             deleteFiles.push_back(
-                makeDeleteFile(deleteFilePaths.back()->string(),
+                makeDeleteFile(IcebergReadOptions::EQUALITY_DELETES,
+                    deleteFilePaths.back()->string(),
                     equalityDeleteVector[0].size(),
                     testing::internal::GetFileSize(std::fopen(deleteFilePaths.back()->string().c_str(), "r")),
                     equalityFieldIds));
@@ -331,6 +630,16 @@ public:
         auto deleteFilePath = TempFilePath::tmp("parquet");
         writeToFile(deleteFilePath->string(), DB::Block(columns));
         return deleteFilePath;
+    }
+
+    std::vector<int64_t> makeContinuousIncreasingValues(
+        int64_t begin,
+        int64_t end)
+    {
+        std::vector<int64_t> values;
+        values.resize(end - begin);
+        std::iota(values.begin(), values.end(), begin);
+        return values;
     }
 
     std::vector<int64_t> makeSequenceValues(int32_t numRows, int8_t repeat = 1)
@@ -391,8 +700,29 @@ public:
         }
         return rowVectors;
     }
+
+    std::vector<DB::Block> makeVectors(const std::vector<int64_t> & vectorSizes, int64_t& startingValue)
+    {
+        std::vector<DB::Block> vectors;
+        vectors.reserve(vectorSizes.size());
+
+        for (int j = 0; j < vectorSizes.size(); j++) {
+            auto data = makeContinuousIncreasingValues(
+                startingValue, startingValue + vectorSizes[j]);
+            vectors.emplace_back(DB::Block{createColumn(data, "c0")});
+            startingValue += vectorSizes[j];
+        }
+
+        return vectors;
+    }
 };
 
+/// This test creates one single data file and one delete file. The parameter
+/// passed to assertSingleBaseFileSingleDeleteFile is the delete positions.
+TEST_F(IcebergTest, singleBaseFileSinglePositionalDeleteFile)
+{
+    assertSingleBaseFileSingleDeleteFile({{0, 1, 2, 3}});
+}
 
 TEST_F(IcebergTest, tmp2)
 {
