@@ -240,6 +240,56 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   return true;
 }
 
+bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const TypePtr& toType) {
+  // Currently cast is not allowed for various categories, code has a bunch of rules
+  // which define the cast categories and if we should offload to velox. Currently
+  // the following categories are denied.
+  //
+  // 1. from/to isIntervalYearMonth is not allowed.
+  // 2. Date to most categories except few supported types is not allowed.
+  // 3. Timestamp to most categories except few supported types is not allowed.
+  // 4. Certain complex types are not allowed.
+
+  TypeKind fromKind = fromType->kind();
+  TypeKind toKind = toType->kind();
+
+  static const std::unordered_set<TypeKind> complexTypeList = {
+      TypeKind::ARRAY, TypeKind::MAP, TypeKind::ROW, TypeKind::VARBINARY};
+
+  // Don't support isIntervalYearMonth.
+  if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
+    LOG_VALIDATION_MSG("Casting involving INTERVAL_YEAR_MONTH is not supported.");
+    return false;
+  }
+
+  // Limited support for DATE to X.
+  if (fromType->isDate() && toKind != TypeKind::TIMESTAMP && toKind != TypeKind::VARCHAR) {
+    LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
+    return false;
+  }
+
+  // Limited support for Timestamp to X.
+  if (fromKind == TypeKind::TIMESTAMP && !(toType->isDate() || toKind == TypeKind::VARCHAR)) {
+    LOG_VALIDATION_MSG(
+        "Casting from TIMESTAMP to " + toType->toString() + " is not supported or has incorrect result.");
+    return false;
+  }
+
+  // Limited support for X to Timestamp.
+  if (toKind == TypeKind::TIMESTAMP && !fromType->isDate()) {
+    LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
+    return false;
+  }
+
+  // Limited support for Complex types.
+  if (complexTypeList.find(fromKind) != complexTypeList.end()) {
+    LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " is not currently supported.");
+    return false;
+  }
+
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validateCast(
     const ::substrait::Expression::Cast& castExpr,
     const RowTypePtr& inputType) {
@@ -250,47 +300,11 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   const auto& toType = SubstraitParser::parseType(castExpr.type());
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
-  // Only support cast from date to timestamp
-  if (toType->kind() == TypeKind::TIMESTAMP && !input->type()->isDate()) {
-    LOG_VALIDATION_MSG(
-        "Casting from " + input->type()->toString() + " to " + toType->toString() + " is not supported.");
-    return false;
+  if (SubstraitToVeloxPlanValidator::isAllowedCast(input->type(), toType)) {
+    return true;
   }
 
-  if (toType->isIntervalYearMonth()) {
-    LOG_VALIDATION_MSG("Casting to " + toType->toString() + " is not supported.");
-    return false;
-  }
-
-  // Casting from some types is not supported. See CastExpr::applyPeeled.
-  if (input->type()->isDate()) {
-    // Only support cast date to varchar & timestamp
-    if (toType->kind() != TypeKind::VARCHAR && toType->kind() != TypeKind::TIMESTAMP) {
-      LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
-      return false;
-    }
-  } else if (input->type()->isIntervalYearMonth()) {
-    LOG_VALIDATION_MSG("Casting from INTERVAL_YEAR_MONTH is not supported.");
-    return false;
-  }
-  switch (input->type()->kind()) {
-    case TypeKind::ARRAY:
-    case TypeKind::MAP:
-    case TypeKind::ROW:
-    case TypeKind::VARBINARY:
-      LOG_VALIDATION_MSG("Invalid input type in casting: ARRAY/MAP/ROW/VARBINARY.");
-      return false;
-    case TypeKind::TIMESTAMP:
-      // Only support casting timestamp to date or varchar.
-      if (!toType->isDate() && toType->kind() != TypeKind::VARCHAR) {
-        LOG_VALIDATION_MSG(
-            "Casting from TIMESTAMP to " + toType->toString() + " is not supported or has incorrect result.");
-        return false;
-      }
-    default: {
-    }
-  }
-  return true;
+  return false;
 }
 
 bool SubstraitToVeloxPlanValidator::validateIfThen(
