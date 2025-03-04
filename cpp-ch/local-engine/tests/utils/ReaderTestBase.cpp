@@ -40,13 +40,35 @@ using namespace DB;
 namespace local_engine::test
 {
 
+bool BaseReaders::pull(DB::Chunk & chunk)
+{
+    assert(readers.size() > 0 );
+
+    while (index < readers.size())
+    {
+        if (readers[index]->pull(chunk))
+        {
+            return true;
+        }
+        ++index;
+    }
+    return false;
+}
 
 void ReaderTestBase::writeToFile(const std::string & filePath, const DB::Block & block) const
 {
+    writeToFile(filePath, DB::Blocks{block});
+}
+
+void ReaderTestBase::writeToFile(const std::string & filePath, const std::vector<DB::Block> & blocks) const
+{
+    assert(!blocks.empty());
     const Poco::Path file{filePath};
     const Poco::URI fileUri{file};
-    const auto writer = NormalFileWriter::create(context_, fileUri.toString(), block, file.getExtension());
-    writer->write(block);
+    const auto writer =
+        NormalFileWriter::create(context_, fileUri.toString(), blocks[0], file.getExtension());
+    for (auto & block : blocks)
+        writer->write(block);
     writer->close();
 }
 
@@ -123,6 +145,7 @@ Block ReaderTestBase::collectResult(T & input) const
 
 template Block ReaderTestBase::collectResult<PullingPipelineExecutor>(PullingPipelineExecutor & input) const;
 template Block ReaderTestBase::collectResult<BaseReader>(BaseReader & input) const;
+template Block ReaderTestBase::collectResult<BaseReaders>(BaseReaders & input) const;
 
 Block ReaderTestBase::runClickhouseSQL(const std::string & query) const
 {

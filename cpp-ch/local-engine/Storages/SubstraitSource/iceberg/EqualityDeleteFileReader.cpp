@@ -147,7 +147,7 @@ void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names &
 
 ExpressionActionsPtr EqualityDeleteActionBuilder::finish()
 {
-    if (andArgs.size() == 0)
+    if (andArgs.empty())
         return nullptr;
 
     actions.addOrReplaceInOutputs(lastMerge());
