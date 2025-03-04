@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <Columns/ColumnsNumber.h>
 #include <Columns/ColumnString.h>
+#include <Columns/ColumnsNumber.h>
 #include <Core/Block.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime64.h>

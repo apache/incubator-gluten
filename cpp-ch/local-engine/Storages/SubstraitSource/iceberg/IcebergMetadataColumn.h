@@ -21,33 +21,27 @@
 
 namespace local_engine::iceberg
 {
-struct IcebergMetadataColumn {
+struct IcebergMetadataColumn
+{
     int id;
     std::string name;
     DB::DataTypePtr type;
     std::string doc;
 
-    IcebergMetadataColumn(
-        int _id,
-        const std::string& _name,
-        DB::DataTypePtr _type,
-        const std::string& _doc)
-        : id(_id), name(_name), type(_type), doc(_doc) {}
-
-    static std::shared_ptr<IcebergMetadataColumn> icebergDeleteFilePathColumn() {
-        return std::make_shared<IcebergMetadataColumn>(
-            2147483546,
-            "file_path",
-            STRING(),
-            "Path of a file in which a deleted row is stored");
+    IcebergMetadataColumn(int _id, const std::string & _name, DB::DataTypePtr _type, const std::string & _doc)
+        : id(_id), name(_name), type(_type), doc(_doc)
+    {
     }
 
-    static std::shared_ptr<IcebergMetadataColumn> icebergDeletePosColumn() {
+    static std::shared_ptr<IcebergMetadataColumn> icebergDeleteFilePathColumn()
+    {
         return std::make_shared<IcebergMetadataColumn>(
-            2147483545,
-            "pos",
-            BIGINT(),
-            "Ordinal position of a deleted row in the data file");
+            2147483546, "file_path", STRING(), "Path of a file in which a deleted row is stored");
+    }
+
+    static std::shared_ptr<IcebergMetadataColumn> icebergDeletePosColumn()
+    {
+        return std::make_shared<IcebergMetadataColumn>(2147483545, "pos", BIGINT(), "Ordinal position of a deleted row in the data file");
     }
 };
 }

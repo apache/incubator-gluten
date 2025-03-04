@@ -51,7 +51,7 @@ struct BaseReaders
     int index = 0;
 
     bool pull(DB::Chunk & chunk);
-    const DB::Block & getHeader() const { return readers.front()->getHeader();}
+    const DB::Block & getHeader() const { return readers.front()->getHeader(); }
 };
 
 class ReaderTestBase : public testing::Test
