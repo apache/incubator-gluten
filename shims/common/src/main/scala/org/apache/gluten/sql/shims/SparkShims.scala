@@ -297,4 +297,5 @@ trait SparkShims {
 
   def isColumnarLimitExecSupported(): Boolean
 
+  def fromJsonSupportPartialResults: Boolean = false
 }

@@ -599,6 +599,7 @@ class Spark34Shims extends SparkShims {
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
+
   override def isParquetFileEncrypted(
       fileStatus: LocatedFileStatus,
       conf: Configuration): Boolean = {
@@ -616,4 +617,8 @@ class Spark34Shims extends SparkShims {
 
   override def isColumnarLimitExecSupported(): Boolean = false
 
+  override def fromJsonSupportPartialResults: Boolean = {
+    // 'jsonEnablePartialResults' is introduced after spark 3.4.
+    SQLConf.get.jsonEnablePartialResults
+  }
 }
