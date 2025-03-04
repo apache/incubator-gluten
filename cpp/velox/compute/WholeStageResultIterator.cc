@@ -598,6 +598,8 @@ std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConne
       std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
   configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
       std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
+  configs[velox::connector::hive::HiveConfig::kParquetUseColumnNamesSession] = "true";
+  configs[velox::connector::hive::HiveConfig::kOrcUseColumnNamesSession] = "true";
   return std::make_shared<velox::config::ConfigBase>(std::move(configs));
 }
 

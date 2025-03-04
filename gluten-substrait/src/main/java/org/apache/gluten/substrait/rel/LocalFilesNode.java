@@ -151,15 +151,17 @@ public class LocalFilesNode implements SplitInfo {
       if (index != null) {
         fileBuilder.setPartitionIndex(index);
       }
-      Map<String, String> partitionColumn = partitionColumns.get(i);
-      if (!partitionColumn.isEmpty()) {
-        partitionColumn.forEach(
-            (key, value) -> {
-              ReadRel.LocalFiles.FileOrFiles.partitionColumn.Builder pcBuilder =
-                  ReadRel.LocalFiles.FileOrFiles.partitionColumn.newBuilder();
-              pcBuilder.setKey(key).setValue(value);
-              fileBuilder.addPartitionColumns(pcBuilder.build());
-            });
+      if (partitionColumns != null && partitionColumns.size() == paths.size()) {
+        Map<String, String> partitionColumn = partitionColumns.get(i);
+        if (!partitionColumn.isEmpty()) {
+          partitionColumn.forEach(
+              (key, value) -> {
+                ReadRel.LocalFiles.FileOrFiles.partitionColumn.Builder pcBuilder =
+                    ReadRel.LocalFiles.FileOrFiles.partitionColumn.newBuilder();
+                pcBuilder.setKey(key).setValue(value);
+                fileBuilder.addPartitionColumns(pcBuilder.build());
+              });
+        }
       }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
