@@ -22,6 +22,15 @@
 
 namespace local_engine
 {
+DB::Block toSampleBlock(const DB::NamesAndTypesList & type)
+{
+    DB::ColumnsWithTypeAndName result;
+    result.reserve(type.size());
+    for (const auto & field : type)
+        result.emplace_back(toColumnType(field));
+    return result;
+}
+
 DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header)
 {
     DB::NamesAndTypesList types;

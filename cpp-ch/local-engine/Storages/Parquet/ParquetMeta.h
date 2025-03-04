@@ -45,6 +45,7 @@ struct ParquetMetaBuilder
     bool allow_missing_columns = false;
     bool collectSkipRowGroup = false;
     bool collectPageIndex = false;
+    bool collectSchema = false;
 
     //
     std::vector<RowGroupInformation> readRowGroups;
@@ -55,18 +56,25 @@ struct ParquetMetaBuilder
     // collectPageIndex
     std::vector<Int32> readColumns;
 
-    ParquetMetaBuilder & build(
-        DB::ReadBuffer * read_buffer,
-        const DB::Block * readBlock,
-        const ColumnIndexFilter * column_index_filter,
-        const std::function<bool(UInt64)> & should_include_row_group);
+    // collectSchema
+    DB::Block fileHeader;
 
-    static std::unique_ptr<parquet::ParquetFileReader> openInputParquetFile(DB::ReadBuffer * read_buffer);
+    ParquetMetaBuilder & build(
+        DB::ReadBuffer & read_buffer,
+        const DB::Block & readBlock,
+        const ColumnIndexFilter * column_index_filter = nullptr,
+        const std::function<bool(UInt64)> & should_include_row_group = [](UInt64) { return true; });
+
+    ParquetMetaBuilder &
+    build(DB::ReadBuffer & read_buffer, const std::function<bool(UInt64)> & should_include_row_group = [](UInt64) { return true; });
+
+    static std::unique_ptr<parquet::ParquetFileReader> openInputParquetFile(DB::ReadBuffer & read_buffer);
 
 private:
     ParquetMetaBuilder &
     buildRequiredRowGroups(const parquet::FileMetaData & file_meta, const std::function<bool(UInt64)> & should_include_row_group);
     ParquetMetaBuilder & buildSkipRowGroup(const parquet::FileMetaData & file_meta);
+    ParquetMetaBuilder & buildAllRowRange(const parquet::FileMetaData & file_meta);
     ParquetMetaBuilder & buildRowRange(
         parquet::ParquetFileReader & reader,
         const parquet::FileMetaData & file_meta,
@@ -80,6 +88,8 @@ private:
         parquet::RowGroupPageIndexReader & rowGroupPageIndex,
         const std::vector<Int32> & column_indices,
         bool case_insensitive = false);
+
+    ParquetMetaBuilder & buildSchema(const parquet::FileMetaData & file_meta);
 };
 
 namespace ParquetVirtualMeta

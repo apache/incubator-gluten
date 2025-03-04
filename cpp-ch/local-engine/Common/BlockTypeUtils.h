@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <Columns/ColumnsNumber.h>
 #include <Core/Block.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime64.h>
@@ -79,11 +80,13 @@ inline DB::DataTypePtr TIMESTAMP()
     return std::make_shared<DB::DataTypeDateTime64>(6);
 }
 
-inline DB::Block makeBlockHeader(const DB::ColumnsWithTypeAndName & data)
+
+inline DB::ColumnWithTypeAndName toColumnType(const DB::NameAndTypePair & type)
 {
-    return DB::Block(data);
+    return DB::ColumnWithTypeAndName(type.type, type.name);
 }
 
+DB::Block toSampleBlock(const DB::NamesAndTypesList & type);
 DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
 DB::DataTypePtr wrapNullableType(bool nullable, DB::DataTypePtr nested_type);
 
@@ -123,4 +126,66 @@ inline DB::NamesWithAliases buildNamesWithAliases(const DB::Block & input, const
         aliases.emplace_back(DB::NameWithAlias(input_iter->name, output_name->name));
     return aliases;
 }
+
+// begion of CppToDataType
+template <typename T>
+struct CppToDataType;
+
+template <>
+struct CppToDataType<UInt8>
+{
+    using Type = DB::DataTypeUInt8;
+    using ColumnType = DB::ColumnUInt8;
+    static auto create() { return std::make_shared<Type>(); }
+};
+
+template <>
+struct CppToDataType<Int64>
+{
+    using Type = DB::DataTypeInt64;
+    using ColumnType = DB::ColumnInt64;
+    static auto create() { return std::make_shared<Type>(); }
+};
+
+template <>
+struct CppToDataType<UInt64>
+{
+    using Type = DB::DataTypeUInt64;
+    using ColumnType = DB::ColumnUInt64;
+    static auto create() { return std::make_shared<Type>(); }
+};
+
+template <typename T>
+DB::ColumnPtr createColumn(const std::vector<T> & data)
+requires(std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::ColumnType>)
+{
+    static_assert(!DB::is_decimal<T>);
+
+    auto column = CppToDataType<T>::ColumnType::create(data.size());
+    typename DB::ColumnVector<T>::Container & vec = column->getData();
+    memcpy(vec.data(), data.data(), data.size() * sizeof(T));
+    return column;
+}
+
+template <typename T>
+DB::ColumnWithTypeAndName createColumn(const std::vector<T> & data, const std::string & col_name)
+requires(std::is_base_of_v<DB::ColumnVector<T>, typename CppToDataType<T>::ColumnType>)
+{
+    return {createColumn(data), CppToDataType<T>::create(), col_name};
+}
+
+template <typename T>
+DB::ColumnPtr createColumnConst(size_t size, T value)
+{
+    return CppToDataType<T>::create()->createColumnConst(size, value);
+}
+
+template <typename T>
+DB::ColumnWithTypeAndName createColumnConst(size_t size, T value, const std::string & col_name)
+{
+    return {createColumnConst(size, value), CppToDataType<T>::create(), col_name};
+}
+
+// end of CppToDataType
+
 }

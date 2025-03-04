@@ -22,6 +22,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.gluten.substrait.rel.SplitInfo
 import org.apache.gluten.utils.FileIndexUtil
 
 import org.apache.spark.sql.catalyst.InternalRow
@@ -124,6 +125,24 @@ abstract class BatchScanExecTransformerBase(
 
   override def outputAttributes(): Seq[Attribute] = output
 
+  // With storage partition join, the return partition type is changed, so as SplitInfo
+  def getPartitionsWithIndex: Seq[Seq[InputPartition]] = finalPartitions
+
+  def getSplitInfosWithIndex: Seq[SplitInfo] = {
+    getPartitionsWithIndex.zipWithIndex.map {
+      case (partitions, index) =>
+        BackendsApiManager.getIteratorApiInstance
+          .genSplitInfoForPartitions(
+            index,
+            partitions,
+            getPartitionSchema,
+            fileFormat,
+            getMetadataColumns().map(_.name),
+            getProperties)
+    }
+  }
+
+  // May cannot call for bucket scan
   override def getPartitions: Seq[InputPartition] = filteredFlattenPartitions
 
   override def getPartitionSchema: StructType = scan match {
@@ -174,6 +193,17 @@ abstract class BatchScanExecTransformerBase(
 
   @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten
+
+  @transient protected lazy val finalPartitions: Seq[Seq[InputPartition]] =
+    SparkShimLoader.getSparkShims.orderPartitions(
+      this,
+      scan,
+      keyGroupedPartitioning,
+      filteredPartitions,
+      outputPartitioning,
+      commonPartitionValues,
+      applyPartialClustering,
+      replicatePartitions)
 
   @transient override lazy val fileFormat: ReadFileFormat =
     BackendsApiManager.getSettings.getSubstraitReadFileFormatV2(scan)

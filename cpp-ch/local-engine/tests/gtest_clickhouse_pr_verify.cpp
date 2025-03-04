@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <gluten_test_util.h>
 #include <incbin.h>
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
@@ -23,6 +22,7 @@
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <gtest/gtest.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 

@@ -220,7 +220,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "typeCoercion/native/promoteStrings.sql",
     "typeCoercion/native/widenSetOperationTypes.sql",
     "typeCoercion/native/windowFrameCoercion.sql",
-    "udaf/udaf.sql",
+    "udaf/udaf.sql - Grouped Aggregate Pandas UDF",
     "udf/udf-union.sql - Scala UDF",
     "udf/udf-intersect-all.sql - Scala UDF",
     "udf/udf-except-all.sql - Scala UDF",

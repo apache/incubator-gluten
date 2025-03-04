@@ -17,13 +17,13 @@
 #include "config.h"
 #if USE_PARQUET
 #include <charconv>
+#include <future>
 #include <ranges>
 #include <string>
 #include <Columns/ColumnString.h>
 #include <IO/ReadBufferFromFile.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/ExpressionActions.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
@@ -36,7 +36,7 @@
 #include <parquet/page_index.h>
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
-#include <tests/gluten_test_util.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/QueryContext.h>
 
@@ -1133,7 +1133,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     ReadBufferFromFilePRead in(filename);
 
     ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
-    metaBuilder.build(&in, &blockHeader, column_index_filter.get(), [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+    metaBuilder.build(in, blockHeader, column_index_filter.get());
     ColumnIndexRowRangesProvider provider{metaBuilder};
 
     VectorizedParquetRecordReader recordReader(blockHeader, format_settings);

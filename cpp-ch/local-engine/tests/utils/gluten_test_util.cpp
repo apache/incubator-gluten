@@ -21,6 +21,7 @@
 #include <IO/ReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <Interpreters/ActionsVisitor.h>
+#include <Interpreters/PreparedSets.h>
 #include <Parser/LocalExecutor.h>
 #include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
@@ -52,7 +53,7 @@ std::optional<ActionsDAG> parseFilter(const std::string & filter, const AnotherR
     std::ranges::transform(
         name_and_types,
         std::inserter(node_name_to_input_column, node_name_to_input_column.end()),
-        [](const auto & name_and_type) { return std::make_pair(name_and_type.name, toBlockFieldType(name_and_type)); });
+        [](const auto & name_and_type) { return std::make_pair(name_and_type.name, toColumnType(name_and_type)); });
 
     NamesAndTypesList aggregation_keys;
     ColumnNumbersList aggregation_keys_indexes_list;
@@ -211,9 +212,8 @@ DB::DataTypePtr toDataType(const parquet::ColumnDescriptor & type)
     assert(false);
 }
 
-AnotherRowType readParquetSchema(const std::string & file)
+AnotherRowType readParquetSchema(const std::string & file, const FormatSettings & settings)
 {
-    DB::FormatSettings settings;
     const auto in = std::make_shared<DB::ReadBufferFromFile>(file);
     DB::ParquetSchemaReader schema_reader(*in, settings);
     return schema_reader.readSchema();
