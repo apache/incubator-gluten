@@ -192,6 +192,7 @@ abstract class BatchScanExecTransformerBase(
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
 
   @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
+//    groupedPartitions.map(_.map(_._2)).getOrElse(inputPartitions.map(Seq(_)))
     filteredPartitions.flatten
 
   @transient protected lazy val finalPartitions: Seq[Seq[InputPartition]] =

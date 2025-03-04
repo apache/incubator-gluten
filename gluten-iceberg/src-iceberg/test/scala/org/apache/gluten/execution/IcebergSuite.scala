@@ -58,7 +58,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg bucketed join", Some("3.4")) {
+  test("iceberg bucketed join") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -77,7 +77,8 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(1, 'a1', 'p1'),
              |(2, 'a3', 'p2'),
              |(1, 'a2', 'p1'),
-             |(3, 'a4', 'p3');
+             |(3, 'a4', 'p3'),
+             |(10, 'a4', 'p3');
              |""".stripMargin
         )
       }
@@ -133,6 +134,96 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
               }
               checkLengthAndPlan(df, 7)
             }
+        }
+      }
+    }
+  }
+
+  test("iceberg bucketed join skew join") {
+    val leftTable = "p_str_tb"
+    val rightTable = "p_int_tb"
+    withTable(leftTable, rightTable) {
+      // Partition key of string type.
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+        // Gluten does not support write iceberg table.
+        spark.sql(s"""
+                     |create table $leftTable(id int, name string, p string)
+                     |using iceberg
+                     |partitioned by (bucket(4, id));
+                     |""".stripMargin)
+        spark.sql(
+          s"""
+             |insert into table $leftTable values
+             |(4, 'a5', 'p4'),
+             |(1, 'a1', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(2, 'a3', 'p2'),
+             |(1, 'a2', 'p1'),
+             |(3, 'a4', 'p3'),
+             |(10, 'a4', 'p3');
+             |""".stripMargin
+        )
+        for (n <- 0 to 4) {
+          spark.sql(s"insert into table $leftTable select * from $leftTable")
+        }
+      }
+
+      // Partition key of integer type.
+      withSQLConf(
+        GlutenConfig.GLUTEN_ENABLED.key -> "false"
+      ) {
+        // Gluten does not support write iceberg table.
+        spark.sql(s"""
+                     |create table $rightTable(id int, name string, p int)
+                     |using iceberg
+                     |partitioned by (bucket(4, id));
+                     |""".stripMargin)
+        spark.sql(
+          s"""
+             |insert into table $rightTable values
+             |(3, 'b4', 23),
+             |(1, 'b1', 21);
+             |""".stripMargin
+        )
+      }
+
+      withSQLConf(
+        "spark.sql.sources.v2.bucketing.enabled" -> "true",
+        "spark.sql.requireAllClusterKeysForCoPartition" -> "false",
+        "spark.sql.adaptive.enabled" -> "false",
+        "spark.sql.iceberg.planning.preserve-data-grouping" -> "true",
+        "spark.sql.autoBroadcastJoinThreshold" -> "-1",
+        "spark.sql.sources.v2.bucketing.pushPartValues.enabled" -> "true",
+        "spark.sql.sources.v2.bucketing.partiallyClusteredDistribution.enabled" -> "true"
+      ) {
+        runQueryAndCompare(s"""
+                              |select s.id, s.name, i.name, i.p
+                              | from $leftTable s inner join $rightTable i
+                              | on s.id = i.id;
+                              |""".stripMargin) {
+          df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[IcebergScanTransformer]
+                }) == 2)
+            getExecutedPlan(df).map {
+              case plan if plan.isInstanceOf[IcebergScanTransformer] =>
+                assert(
+                  plan.asInstanceOf[IcebergScanTransformer].getKeyGroupPartitioning.isDefined)
+                assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos.length == 3)
+              case _ => // do nothing
+            }
+//            checkLengthAndPlan(df, 7)
+          }
         }
       }
     }

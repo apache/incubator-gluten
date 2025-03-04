@@ -103,7 +103,7 @@ class GlutenKeyGroupedPartitioningSuite
       "SELECT customer_name, customer_age, order_amount " +
         s"FROM testcat.ns.$customers c JOIN testcat.ns.$orders o " +
         "ON c.customer_id = o.customer_id ORDER BY c.customer_id, order_amount")
-
+    print(df.queryExecution.executedPlan)
     val shuffles = collectColumnarShuffleExchangeExec(df.queryExecution.executedPlan)
     assert(shuffles.length == expectedNumOfShuffleExecs)
 
@@ -118,7 +118,7 @@ class GlutenKeyGroupedPartitioningSuite
         Row("ccc", 30, 400.50)))
   }
 
-  testGluten("partitioned join: only one side reports partitioning") {
+  test("G-partitioned join: only one side reports partitioning") {
     val customers_partitions = Array(bucket(4, "customer_id"))
     val orders_partitions = Array(bucket(2, "customer_id"))
 
@@ -143,8 +143,8 @@ class GlutenKeyGroupedPartitioningSuite
     .add("price", FloatType)
     .add("time", TimestampType)
 
-  testGluten(
-    "SPARK-41413: partitioned join: partition values" +
+  test(
+    "G-SPARK-41413: partitioned join: partition values" +
       " from one side are subset of those from the other side") {
     val items_partitions = Array(bucket(4, "id"))
     createTable(items, items_schema, items_partitions)
@@ -451,8 +451,8 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  testGluten(
-    "SPARK-42038: partially clustered: with different" +
+  test(
+    "G_SPARK-42038: partially clustered: with different" +
       " partition keys and missing keys on left-hand side") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
