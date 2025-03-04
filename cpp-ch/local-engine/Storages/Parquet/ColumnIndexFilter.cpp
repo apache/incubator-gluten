@@ -18,6 +18,7 @@
 
 #if USE_PARQUET
 #include <ranges>
+#include <Interpreters/PreparedSets.h>
 #include <Interpreters/Set.h>
 #include <Interpreters/misc.h>
 #include <Storages/MergeTree/KeyCondition.h>

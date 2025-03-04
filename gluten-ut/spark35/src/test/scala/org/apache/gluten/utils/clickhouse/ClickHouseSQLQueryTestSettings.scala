@@ -268,6 +268,9 @@ object ClickHouseSQLQueryTestSettings extends SQLQueryTestSettings {
     "window.sql",
     "udf/udf-window.sql",
     "group-by.sql",
-    "udf/udf-group-by.sql - Scala UDF"
+    "udf/udf-group-by.sql - Scala UDF",
+    "udaf/udaf-group-analytics.sql",
+    "udaf/udaf-group-by-ordinal.sql",
+    "udaf/udaf-group-by.sql"
   )
 }

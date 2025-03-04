@@ -58,7 +58,7 @@ public:
     SparkMergeTreeWriter(
         const DB::Block & header_, const SinkHelper & sink_helper_, DB::QueryPipeline && pipeline_, const std::string & spark_job_id_);
 
-    void write(DB::Block & block) override;
+    void write(const DB::Block & block) override;
     void close() override;
 
     /// visible for UTs

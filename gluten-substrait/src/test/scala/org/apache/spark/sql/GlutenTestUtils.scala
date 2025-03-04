@@ -18,12 +18,12 @@ package org.apache.spark.sql
 
 import org.apache.gluten.exception.GlutenException
 
-import org.apache.spark.{TestUtils => SparkTestUtils}
 import org.apache.spark.SparkContext
+import org.apache.spark.TestUtils
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.sql.test.SQLTestUtils
 
-object TestUtils {
+object GlutenTestUtils {
   def compareAnswers(actual: Seq[Row], expected: Seq[Row], sort: Boolean = false): Unit = {
     val result = SQLTestUtils.compareAnswers(actual, expected, sort)
     if (result.isDefined) {
@@ -32,6 +32,6 @@ object TestUtils {
   }
 
   def withListener[L <: SparkListener](sc: SparkContext, listener: L)(body: L => Unit): Unit = {
-    SparkTestUtils.withListener(sc, listener)(body)
+    TestUtils.withListener(sc, listener)(body)
   }
 }

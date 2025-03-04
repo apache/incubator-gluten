@@ -332,8 +332,6 @@ class Spark33Shims extends SparkShims {
   override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = {
     batchScan.keyGroupedPartitioning
   }
-  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
-    null
 
   override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
     exp match {
@@ -395,5 +393,7 @@ class Spark33Shims extends SparkShims {
         false
     }
   }
+
+  override def isColumnarLimitExecSupported(): Boolean = true
 
 }

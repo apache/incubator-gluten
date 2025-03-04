@@ -140,6 +140,9 @@ public:
     size_t getStartOffset() const { return file_info.start(); }
     const FileMetaColumns & fileMetaColumns() const { return meta_columns; }
 
+    const substraitInputFile & getFileInfo() const { return file_info; }
+    const DB::ContextPtr & getContext() const { return context; }
+
 protected:
     DB::ContextPtr context;
     const substraitInputFile file_info;

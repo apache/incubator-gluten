@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{Row, TestUtils}
+import org.apache.spark.sql.{GlutenTestUtils, Row}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.types.{DecimalType, StructType}
 
@@ -342,7 +342,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result.size == 7)
     val expected =
       Seq(Row(465.0), Row(67.0), Row(160.0), Row(371.0), Row(732.0), Row(138.0), Row(785.0))
-    TestUtils.compareAnswers(result, expected)
+    GlutenTestUtils.compareAnswers(result, expected)
   }
 
   test("test 'order by' two keys") {
@@ -358,7 +358,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         val result = df.take(3)
         val expected =
           Seq(Row(0, "ALGERIA", 0), Row(1, "ARGENTINA", 1), Row(2, "BRAZIL", 1))
-        TestUtils.compareAnswers(result, expected)
+        GlutenTestUtils.compareAnswers(result, expected)
     }
   }
 
@@ -373,7 +373,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         assert(sortExec.size == 1)
         val result = df.collect()
         val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
-        TestUtils.compareAnswers(result, expectedResult)
+        GlutenTestUtils.compareAnswers(result, expectedResult)
     }
   }
 
@@ -416,7 +416,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         new java.math.BigDecimal("123456789.223456789012345678901234567"),
         Seq(new java.math.BigDecimal("123456789.123456789012345678901234567"))
       ))
-    TestUtils.compareAnswers(result, expectedResult)
+    GlutenTestUtils.compareAnswers(result, expectedResult)
   }
 
   test("test decimal128") {
@@ -434,8 +434,8 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
           .add("b1", DecimalType(38, 27)))
 
     val df2 = spark.createDataFrame(data, schema)
-    TestUtils.compareAnswers(df2.select("b").collect(), Seq(Row(struct)))
-    TestUtils.compareAnswers(
+    GlutenTestUtils.compareAnswers(df2.select("b").collect(), Seq(Row(struct)))
+    GlutenTestUtils.compareAnswers(
       df2.select("a").collect(),
       Seq(Row(new java.math.BigDecimal("123456789.123456789012345678901234566"))))
   }

@@ -157,13 +157,13 @@ function compile {
         sudo cmake --install xsimd-build/
       fi
     fi
-    if [ -d gtest-build ]; then
+    if [ -d googletest-build ]; then
       echo "INSTALL gtest."
       if [ $OS == 'Linux' ]; then
-        cd gtest-src; cmake . ; sudo make install -j
-        #sudo cmake --install gtest-build/
+        cd googletest-src; cmake . ; sudo make install -j
+        #sudo cmake --install googletest-build/
       elif [ $OS == 'Darwin' ]; then
-        sudo cmake --install gtest-build/
+        sudo cmake --install googletest-build/
       fi
     fi
   fi

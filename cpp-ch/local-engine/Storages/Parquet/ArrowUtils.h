@@ -22,7 +22,8 @@ namespace DB
 {
 namespace ErrorCodes
 {
-extern const int BAD_ARGUMENTS;
+extern const int INCORRECT_DATA;
+extern const int CANNOT_ALLOCATE_MEMORY;
 }
 }
 
@@ -37,8 +38,12 @@ T throwORReturnResult(::arrow::Result<T> && result)
 {
     if (result.ok())
         return std::move(result).ValueUnsafe();
-    throw DB::Exception::createRuntime(DB::ErrorCodes::BAD_ARGUMENTS, result.status().ToString());
+
+    throw DB::Exception::createDeprecated(
+        result.status().ToString(),
+        result.status().IsOutOfMemory() ? DB::ErrorCodes::CANNOT_ALLOCATE_MEMORY : DB::ErrorCodes::INCORRECT_DATA);
 }
+
 #define THROW_ARROW_NOT_OK_OR_ASSIGN(lhs, rexpr) \
     lhs \
     { \
@@ -49,7 +54,10 @@ T throwORReturnResult(::arrow::Result<T> && result)
     do \
     { \
         if (::arrow::Status _s = (status); !_s.ok()) \
-            throw DB::Exception::createRuntime(DB::ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
+        { \
+            throw DB::Exception::createDeprecated( \
+                _s.ToString(), _s.IsOutOfMemory() ? DB::ErrorCodes::CANNOT_ALLOCATE_MEMORY : DB::ErrorCodes::INCORRECT_DATA); \
+        } \
     } while (false)
 
 parquet::internal::LevelInfo computeLevelInfo(const parquet::ColumnDescriptor * descr);
