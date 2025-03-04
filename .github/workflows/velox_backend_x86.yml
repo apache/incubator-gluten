@@ -928,9 +928,9 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -984,9 +984,9 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
+      - name: Build and Run unit test for Spark 3.5.5 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
@@ -1029,7 +1029,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
@@ -1038,7 +1038,8 @@ jobs:
           java -version
           $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
-          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
+          -DargLine="-Dspark.test.home=$SPARK_HOME ${EXTRA_FLAGS}"
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
@@ -1076,9 +1077,9 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -1120,7 +1121,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
@@ -1129,7 +1130,8 @@ jobs:
           java -version
           $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
-          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
+          -DargLine="-Dspark.test.home=$SPARK_HOME ${EXTRA_FLAGS}"
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
@@ -1166,9 +1168,9 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas==2.2.3 pyarrow==20.0.0
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -1210,7 +1212,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Build and Run unit test for Spark 3.5.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
@@ -1219,7 +1221,8 @@ jobs:
           java -version
           $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.sql.columnar.forceShuffledHashJoin=false" \
-          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
+          -DargLine="-Dspark.test.home=$SPARK_HOME ${EXTRA_FLAGS}"
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
