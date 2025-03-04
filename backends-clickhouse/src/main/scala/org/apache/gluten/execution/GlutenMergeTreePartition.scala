@@ -19,6 +19,10 @@ package org.apache.gluten.execution
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.types.StructType
 
+import org.apache.hadoop.fs.Path
+
+import java.net.URI
+
 case class MergeTreePartRange(
     name: String,
     dirName: String,
@@ -32,7 +36,7 @@ case class MergeTreePartRange(
   }
 }
 
-case class MergeTreePartSplit(
+case class MergeTreePartSplit private (
     name: String,
     dirName: String,
     targetNode: String,
@@ -41,6 +45,22 @@ case class MergeTreePartSplit(
     bytesOnDisk: Long) {
   override def toString: String = {
     s"part name: $name, range: $start-${start + length}"
+  }
+}
+
+object MergeTreePartSplit {
+  def apply(
+      name: String,
+      dirName: String,
+      targetNode: String,
+      start: Long,
+      length: Long,
+      bytesOnDisk: Long
+  ): MergeTreePartSplit = {
+    // Ref to org.apache.spark.sql.delta.files.TahoeFileIndex.absolutePath
+    val uriDecodeName = new Path(new URI(name)).toString
+    val uriDecodeDirName = new Path(new URI(dirName)).toString
+    new MergeTreePartSplit(uriDecodeName, uriDecodeDirName, targetNode, start, length, bytesOnDisk)
   }
 }
 
