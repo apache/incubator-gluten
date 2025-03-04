@@ -51,6 +51,10 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
   splitInfo->partitionColumns.reserve(fileList.size());
   splitInfo->properties.reserve(fileList.size());
   splitInfo->metadataColumns.reserve(fileList.size());
+
+  std::vector<std::string> colNames;
+  std::vector<TypePtr> veloxTypes;
+
   for (const auto& file : fileList) {
     // Expect all Partitions share the same index.
     splitInfo->partitionIndex = file.partition_index();
@@ -70,6 +74,16 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
     splitInfo->paths.emplace_back(file.uri_file());
     splitInfo->starts.emplace_back(file.start());
     splitInfo->lengths.emplace_back(file.length());
+
+    if (colNames.empty() && file.has_schema()) {
+      const auto& tableSchema = file.schema();
+      colNames.reserve(tableSchema.names().size());
+      for (const auto& name : tableSchema.names()) {
+        colNames.emplace_back(name);
+      }
+      veloxTypes = SubstraitParser::parseNamedStruct(tableSchema);
+    }
+    splitInfo->fileSchema = ROW(std::move(colNames), std::move(veloxTypes));
 
     facebook::velox::FileProperties fileProps;
     if (file.has_properties()) {

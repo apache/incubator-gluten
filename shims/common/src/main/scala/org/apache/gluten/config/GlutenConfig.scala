@@ -375,6 +375,7 @@ object GlutenConfig {
   val PARQUET_GZIP_WINDOW_SIZE: String = "parquet.gzip.windowSize"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
+  val ORC_FORCE_POSITIONAL_EVOLUTION = HADOOP_PREFIX + "orc.force.positional.evolution"
 
   // S3 config
   val S3A_PREFIX = "fs.s3a."
@@ -466,6 +467,7 @@ object GlutenConfig {
       "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
       "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits",
       "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits",
+      ORC_FORCE_POSITIONAL_EVOLUTION,
       // s3 config
       SPARK_S3_ACCESS_KEY,
       SPARK_S3_SECRET_KEY,

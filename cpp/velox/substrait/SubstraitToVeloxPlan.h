@@ -55,6 +55,9 @@ struct SplitInfo {
   /// The file sizes and modification times of the files to be scanned.
   std::vector<std::optional<facebook::velox::FileProperties>> properties;
 
+  /// The file schema
+  RowTypePtr fileSchema;
+
   /// Make SplitInfo polymorphic
   virtual ~SplitInfo() = default;
 };

@@ -130,7 +130,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = {
+      properties: Map[String, String],
+      dataSchema: StructType): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
         ExtensionTableBuilder
