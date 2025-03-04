@@ -61,6 +61,7 @@ object CHRuleApi {
     injector.injectParser(
       (spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
     injector.injectResolutionRule(spark => new CoalesceAggregationUnion(spark))
+    injector.injectResolutionRule(spark => new CoalesceProjectionUnion(spark))
     injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
     injector.injectResolutionRule(spark => new RewriteDateTimestampComparisonRule(spark))
     injector.injectResolutionRule(spark => new CollapseGetJsonObjectExpressionRule(spark))

@@ -154,6 +154,7 @@ class SubstraitToVeloxPlanValidator {
     validateLog_.emplace_back(log);
   }
 
+  bool isAllowedCast(const TypePtr& fromType, const TypePtr& toType);
 };
 
 } // namespace gluten

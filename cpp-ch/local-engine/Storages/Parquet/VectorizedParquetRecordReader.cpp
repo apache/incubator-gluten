@@ -328,7 +328,7 @@ DB::Chunk VectorizedParquetBlockInputFormat::read()
 
     if (!record_reader_.initialized())
     {
-        const auto arrow_file = DB::asArrowFile(*in, record_reader_.format_settings_, is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
+        const auto arrow_file = DB::asArrowFile(*in, record_reader_.formatSettings(), is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
         if (is_stopped != 0)
             return {};
         if (!record_reader_.initialize(arrow_file, row_ranges_provider_))

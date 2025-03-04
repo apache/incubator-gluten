@@ -183,10 +183,12 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
-    val relNode =
-      getRelNode(substraitContext, list, child.output, operatorId, null, validation = true)
-    // Then, validate the generated plan in native engine.
-    doNativeValidation(substraitContext, relNode)
+    failValidationWithException {
+      val relNode =
+        getRelNode(substraitContext, list, child.output, operatorId, null, validation = true)
+      // Then, validate the generated plan in native engine.
+      doNativeValidation(substraitContext, relNode)
+    }()
   }
 
   override def isNullIntolerant(expr: Expression): Boolean = expr match {

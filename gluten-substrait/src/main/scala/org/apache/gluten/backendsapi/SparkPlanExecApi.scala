@@ -199,7 +199,7 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       original: TryEval): ExpressionTransformer = {
-    throw new GlutenNotSupportException("try_eval is not supported")
+    throw new GlutenNotSupportException(s"try_eval(${original.child.prettyName}) is not supported")
   }
 
   def genArithmeticTransformer(
@@ -693,6 +693,8 @@ trait SparkPlanExecApi {
       limitExpr: ExpressionTransformer,
       original: StringSplit): ExpressionTransformer =
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
+
+  def genColumnarCollectLimitExec(limit: Int, plan: SparkPlan): ColumnarCollectLimitBaseExec
 
   def genColumnarRangeExec(
       start: Long,

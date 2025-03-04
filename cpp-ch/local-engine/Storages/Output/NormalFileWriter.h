@@ -34,7 +34,7 @@
 #include <Common/ArenaUtils.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
-#include <Common/FieldVisitorsAccurateComparison.h>
+#include <Common/FieldAccurateComparison.h>
 
 namespace local_engine
 {
@@ -48,10 +48,12 @@ public:
     NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_);
     ~NormalFileWriter() override = default;
 
-    void write(DB::Block & block) override;
+    void write(const DB::Block & block) override;
     void close() override;
 
 private:
+    DB::Block castBlock(const DB::Block & block) const;
+
     OutputFormatFilePtr file;
     DB::ContextPtr context;
 
@@ -101,7 +103,7 @@ struct DeltaStats
             if (!partition_index.contains(column.name))
                 statsHeaderBase.emplace_back(BIGINT(), "null_count_" + column.name);
 
-        return makeBlockHeader(statsHeaderBase);
+        return DB::Block{statsHeaderBase};
     }
 
     explicit DeltaStats(size_t size, const std::set<size_t> & partition_index_ = {})
@@ -147,8 +149,8 @@ struct DeltaStats
             }
             else
             {
-                min[i] = applyVisitor(DB::FieldVisitorAccurateLess(), min[i], min_value) ? min[i] : min_value;
-                max[i] = applyVisitor(DB::FieldVisitorAccurateLess(), max[i], max_value) ? max_value : max[i];
+                min[i] = accurateLess(min[i], min_value) ? min[i] : min_value;
+                max[i] = accurateLess(max[i], max_value) ? max_value : max[i];
             }
             ++i;
         }
@@ -385,7 +387,8 @@ protected:
     }
     void onCancel() noexcept override
     {
-        if (output_format_) {
+        if (output_format_)
+        {
             output_format_->cancel();
             output_format_.reset();
         }
