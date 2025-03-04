@@ -162,10 +162,7 @@ case class ReplaceSubStringComparison(spark: SparkSession) extends Rule[SparkPla
     if (leftLen != rightLen) {
       return None;
     }
-    val compareLen = Math.max(leftLen, rightLen) match {
-      case Integer.MAX_VALUE => Literal(Integer.MAX_VALUE, IntegerType)
-      case len => len
-    }
+
     val udf = ScalaUDF(
       null,
       IntegerType,
