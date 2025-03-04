@@ -22,6 +22,7 @@
 #include <Common/DebugUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/Stopwatch.h>
+#include <Resource/JVMClassReference.h>
 
 using namespace DB;
 
@@ -62,9 +63,6 @@ ShuffleReader::~ShuffleReader()
     input_stream.reset();
 }
 
-jclass ShuffleReader::input_stream_class = nullptr;
-jmethodID ShuffleReader::input_stream_read = nullptr;
-
 bool ReadBufferFromJavaInputStream::nextImpl()
 {
     int count = readFromJava();
@@ -76,8 +74,9 @@ bool ReadBufferFromJavaInputStream::nextImpl()
 int ReadBufferFromJavaInputStream::readFromJava() const
 {
     GET_JNIENV(env)
+    auto & input_stream_read_ref = JVM_CLASS_REFERENCE(shuffle_input_stream);
     jint count = safeCallIntMethod(
-        env, java_in, ShuffleReader::input_stream_read, reinterpret_cast<jlong>(internal_buffer.begin()), internal_buffer.size());
+        env, java_in, input_stream_read_ref["read"], reinterpret_cast<jlong>(internal_buffer.begin()), internal_buffer.size());
     CLEAN_JNIENV
     return count;
 }

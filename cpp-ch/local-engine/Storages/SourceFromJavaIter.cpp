@@ -21,6 +21,7 @@
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
+#include <Resource/JVMClassReference.h>
 
 namespace DB
 {
@@ -32,9 +33,6 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-jclass SourceFromJavaIter::serialized_record_batch_iterator_class = nullptr;
-jmethodID SourceFromJavaIter::serialized_record_batch_iterator_hasNext = nullptr;
-jmethodID SourceFromJavaIter::serialized_record_batch_iterator_next = nullptr;
 
 static DB::Block getRealHeader(const DB::Block & header, const std::optional<DB::Block> & first_block)
 {
@@ -71,11 +69,13 @@ static DB::Block getRealHeader(const DB::Block & header, const std::optional<DB:
 
 std::optional<DB::Block> SourceFromJavaIter::peekBlock(JNIEnv * env, jobject java_iter)
 {
-    jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
+    auto has_next_method_id = JVM_CLASS_REFERENCE(source_from_java_iterator_class)["hasNext"];
+    auto next_method_id = JVM_CLASS_REFERENCE(source_from_java_iterator_class)["next"];
+    jboolean has_next = safeCallBooleanMethod(env, java_iter, has_next_method_id);
     if (!has_next)
         return std::nullopt;
 
-    jbyteArray block_addr = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
+    jbyteArray block_addr = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, next_method_id));
     auto * block = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block_addr));
     if (block->columns())
         return std::optional(DB::Block(block->getColumnsWithTypeAndName()));
@@ -94,6 +94,8 @@ SourceFromJavaIter::SourceFromJavaIter(
     , materialize_input(materialize_input_)
     , first_block(first_block_)
 {
+    serialized_record_batch_iterator_hasNext = JVM_CLASS_REFERENCE(source_from_java_iterator_class)["hasNext"];
+    serialized_record_batch_iterator_next = JVM_CLASS_REFERENCE(source_from_java_iterator_class)["next"];
 }
 
 DB::Chunk SourceFromJavaIter::generate()

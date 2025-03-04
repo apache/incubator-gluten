@@ -29,6 +29,7 @@
 #include <DataTypes/ObjectUtils.h>
 #include <jni/jni_common.h>
 #include <Common/Exception.h>
+#include <Resource/JVMClassReference.h>
 
 namespace DB
 {
@@ -948,17 +949,7 @@ void FixedLengthDataWriter::unsafeWrite(const char * __restrict src, char * __re
 
 namespace SparkRowInfoJNI
 {
-static jclass spark_row_info_class;
-static jmethodID spark_row_info_constructor;
-void init(JNIEnv * env)
-{
-    spark_row_info_class = CreateGlobalClassReference(env, "Lorg/apache/gluten/row/SparkRowInfo;");
-    spark_row_info_constructor = GetMethodID(env, spark_row_info_class, "<init>", "([J[JJJJ)V");
-}
-void destroy(JNIEnv * env)
-{
-    env->DeleteGlobalRef(spark_row_info_class);
-}
+
 jobject create(JNIEnv * env, const SparkRowInfo & spark_row_info)
 {
     auto * offsets_arr = env->NewLongArray(spark_row_info.getNumRows());
@@ -971,8 +962,9 @@ jobject create(JNIEnv * env, const SparkRowInfo & spark_row_info)
     int64_t column_number = spark_row_info.getNumCols();
     int64_t total_size = spark_row_info.getTotalBytes();
 
+    auto & spark_row_info_class_ref = JVM_CLASS_REFERENCE(spark_row_info_class);
     return env->NewObject(
-        spark_row_info_class, spark_row_info_constructor, offsets_arr, lengths_arr, address, column_number, total_size);
+        spark_row_info_class_ref(), spark_row_info_class_ref["<init>"], offsets_arr, lengths_arr, address, column_number, total_size);
 }
 }
 

@@ -74,10 +74,4 @@ private:
     std::vector<PartInfo> getAllPartInfo() const;
 };
 
-namespace SparkMergeTreeWriterJNI
-{
-void init(JNIEnv *);
-void destroy(JNIEnv *);
-}
-
 }

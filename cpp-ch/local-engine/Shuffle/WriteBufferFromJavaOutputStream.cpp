@@ -17,12 +17,10 @@
 #include "WriteBufferFromJavaOutputStream.h"
 #include <jni/jni_common.h>
 #include <Common/JNIUtils.h>
+#include <Resource/JVMClassReference.h>
 
 namespace local_engine
 {
-jclass WriteBufferFromJavaOutputStream::output_stream_class = nullptr;
-jmethodID WriteBufferFromJavaOutputStream::output_stream_write = nullptr;
-jmethodID WriteBufferFromJavaOutputStream::output_stream_flush = nullptr;
 
 void WriteBufferFromJavaOutputStream::nextImpl()
 {
@@ -30,9 +28,10 @@ void WriteBufferFromJavaOutputStream::nextImpl()
     size_t bytes_write = 0;
     while (offset() - bytes_write > 0)
     {
+        auto & output_stream_class_ref = JVM_CLASS_REFERENCE(write_buffer_from_java_output_stream_class);
         jint copy_num = static_cast<jint>(std::min(offset() - bytes_write, buffer_size));
         env->SetByteArrayRegion(buffer, 0, copy_num, reinterpret_cast<const jbyte *>(this->working_buffer.begin() + bytes_write));
-        safeCallVoidMethod(env, output_stream, output_stream_write, buffer, 0, copy_num);
+        safeCallVoidMethod(env, output_stream, output_stream_class_ref["write"], buffer, 0, copy_num);
         bytes_write += copy_num;
     }
     CLEAN_JNIENV
@@ -49,7 +48,8 @@ void WriteBufferFromJavaOutputStream::finalizeImpl()
 {
     next();
     GET_JNIENV(env)
-    safeCallVoidMethod(env, output_stream, output_stream_flush);
+    auto & output_stream_class_ref = JVM_CLASS_REFERENCE(write_buffer_from_java_output_stream_class);
+    safeCallVoidMethod(env, output_stream, output_stream_class_ref["flush"]);
     CLEAN_JNIENV
 }
 WriteBufferFromJavaOutputStream::~WriteBufferFromJavaOutputStream()

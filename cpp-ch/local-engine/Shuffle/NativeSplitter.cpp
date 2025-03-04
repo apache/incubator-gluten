@@ -25,13 +25,10 @@
 #include <jni/jni_common.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/JNIUtils.h>
+#include <Resource/JVMClassReference.h>
 
 namespace local_engine
 {
-jclass NativeSplitter::iterator_class = nullptr;
-jmethodID NativeSplitter::iterator_has_next = nullptr;
-jmethodID NativeSplitter::iterator_next = nullptr;
-
 void NativeSplitter::split(DB::Block & block)
 {
     if (block.rows() == 0)
@@ -94,6 +91,8 @@ NativeSplitter::NativeSplitter(Options options_, jobject input_) : options(optio
     {
         partition_buffer.emplace_back(std::make_shared<ColumnsBuffer>(options.buffer_size));
     }
+    iterator_has_next = JVM_CLASS_REFERENCE(splitter_iterator_class)["hasNext"];
+    iterator_next = JVM_CLASS_REFERENCE(splitter_iterator_class)["next"];
     CLEAN_JNIENV
 }
 
