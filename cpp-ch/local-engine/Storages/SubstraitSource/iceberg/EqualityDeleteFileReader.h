@@ -16,45 +16,14 @@
  */
 #pragma once
 
-#include "Functions/FunctionFactory.h"
-
-#include <Columns/ColumnConst.h>
-#include <Columns/ColumnSet.h>
+#include <Functions/FunctionFactory.h>
 #include <Core/Block.h>
 #include <Interpreters/Context_fwd.h>
 #include <Interpreters/ExpressionActions.h>
-#include <Parsers/IAST_fwd.h>
-#include <substrait/plan.pb.h>
+#include <Storages/SubstraitSource/substrait_fwd.h>
 
-namespace local_engine
+namespace local_engine::iceberg
 {
-class ColumnIndexRowRangesProvider;
-class VectorizedParquetRecordReader;
-
-using substraitInputFile = substrait::ReadRel::LocalFiles::FileOrFiles;
-using substraitIcebergDeleteFile = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions::DeleteFile;
-using IcebergReadOptions = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions;
-
-// TODO: move to other cpp ?
-
-/// we currently use this class to read parquet files.
-class SimpleParquetReader
-{
-    std::unique_ptr<DB::ReadBuffer> read_buffer_;
-    DB::Block fileHeader_;
-    std::unique_ptr<ColumnIndexRowRangesProvider> provider_;
-    std::unique_ptr<VectorizedParquetRecordReader> reader_;
-
-public:
-    explicit SimpleParquetReader(const DB::ContextPtr & context, const substraitInputFile & file_info);
-    ~SimpleParquetReader();
-
-    DB::Block next() const;
-};
-
-namespace iceberg
-{
-
 class EqualityDeleteActionBuilder
 {
 public:
@@ -85,7 +54,7 @@ public:
 
 class EqualityDeleteFileReader
 {
-    SimpleParquetReader reader_;
+    const DB::ContextPtr & context_;
     const DB::Block & read_header_;
     const substraitIcebergDeleteFile & deleteFile_;
 
@@ -96,5 +65,4 @@ public:
     void readDeleteValues(EqualityDeleteActionBuilder & expressionInputs) const;
 };
 
-}
 }

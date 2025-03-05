@@ -54,10 +54,6 @@ namespace local_engine::test
 class IcebergTest : public ReaderTestBase
 {
 public:
-    using substraitIcebergDeleteFile = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions::DeleteFile;
-    using IcebergReadOptions = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions;
-    using FileContent = IcebergReadOptions::FileContent;
-
     static constexpr int rowCount = 20000;
 
     std::shared_ptr<iceberg::IcebergMetadataColumn> pathColumn_ =
