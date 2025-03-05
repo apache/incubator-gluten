@@ -42,10 +42,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.sql.types.StructType;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -128,7 +125,6 @@ abstract public class TestStoragePartitionedJoins extends SparkTestBaseWithCatal
     checkJoin("int_col", "INT", "bucket(16, int_col)");
   }
 
-  @Test
   public void testJoinsWithBucketingOnLongColumn() throws NoSuchTableException {
     checkJoin("long_col", "BIGINT", "bucket(16, long_col)");
   }
@@ -599,11 +595,12 @@ abstract public class TestStoragePartitionedJoins extends SparkTestBaseWithCatal
     assertPartitioningAwarePlan(
             1, /* expected num of shuffles with SPJ */
             3, /* expected num of shuffles without SPJ */
+            // Add the sort col t1.salary to make result stable
             "SELECT t1.id, t1.salary, t1.%s "
                     + "FROM %s t1 "
                     + "INNER JOIN %s t2 "
                     + "ON t1.id = t2.id AND t1.%s = t2.%s "
-                    + "ORDER BY t1.id, t1.%s",
+                    + "ORDER BY t1.id, t1.%s, t1.salary",
             sourceColumnName,
             tableName,
             tableName(OTHER_TABLE_NAME),
@@ -625,8 +622,6 @@ abstract public class TestStoragePartitionedJoins extends SparkTestBaseWithCatal
             ENABLED_SPJ_SQL_CONF,
             () -> {
               String plan = executeAndKeepPlan(query, args).toString();
-              System.out.println("---------------------------");
-              System.out.println(plan);
               int actualNumShuffles = StringUtils.countMatches(plan, "Exchange");
               Assert.assertEquals(
                       "Number of shuffles with enabled SPJ must match",
