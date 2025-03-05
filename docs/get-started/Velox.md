@@ -106,13 +106,13 @@ Notes： Building Velox may fail caused by OOM. You can prevent this failure by 
 
 After the above build process, the Jar file will be generated under `package/target/`.
 
-Alternatively you may refer to [build in docker](docs/developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
+Alternatively you may refer to [build in docker](../developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
 
 ## Dependency library deployment
 
 With build option `enable_vcpkg=ON`, all dependency libraries will be statically linked to `libvelox.so` and `libgluten.so` which are packed into the gluten-jar.
 In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build
-the static version using a clean docker image without any extra libraries installed ( [build in docker](docs/developers/velox-backend-build-in-docker.md) ). On host with
+the static version using a clean docker image without any extra libraries installed ( [build in docker](../developers/velox-backend-build-in-docker.md) ). On host with
 some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host. We **strongly recommend** user to build Gluten in this way to avoid dependency lacking issue.
 
 With build option `enable_vcpkg=OFF`, not all dependency libraries will be dynamically linked. After building, you need to separately execute `./dev/build-thirdparty.sh` to 
@@ -544,6 +544,30 @@ I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan 
    Output: 27 rows (3.56KB, 3 batches), Cpu time: 10.58us, Blocked wall time: 0ns, Peak memory: 0B, Memory allocations: 0, Threads: 1
       queuedWallNanos              sum: 2.00us, count: 1, min: 2.00us, max: 2.00us
 ```
+
+
+## Broadcast Build Relations to Off-Heap(Experimental)
+
+The experimental feature **Off-Heap Broadcast Build Relations** aims to mitigate out-of-memory (OOM) issues caused by heap memory consumption during broadcast operations. Detailed design
+can be found [here](https://docs.google.com/document/d/1eZNWPUEdiz2JPJfhyVn9hrk6SqJFRNzOMZm6u5Yredk/edit?tab=t.0)
+
+### Purpose & how it works
+- **Avoid OOM**: Prevent OOM errors when broadcasting large datasets.
+- **Reduce Heap Memory Usage**: Store broadcast build relations in Spark off-heap memory instead of on-heap memory
+
+### Configuration
+
+### Enable Off-Heap Broadcast
+To enable this feature, you can set the following Spark configuration:
+
+| Property                                                    | Default | Description                                                       |
+|-------------------------------------------------------------|---------|-------------------------------------------------------------------|
+| `spark.gluten.velox.offHeapBroadcastBuildRelation.enabled`  | `false` | Enable/disable off-heap storage for broadcast build relations.    |
+
+This feature has been tested through a series of tests, and we are collecting more feedback from users. If you have memory problem on broadcast build relations, please try this feature and give more feedbacks.
+
+**Note**: This feature will become the default behavior once stabilized. Stay tuned for updates!
+
 
 # Accelerators
 
