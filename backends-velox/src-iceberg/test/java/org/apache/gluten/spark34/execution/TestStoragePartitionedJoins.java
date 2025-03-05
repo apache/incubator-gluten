@@ -17,7 +17,6 @@
 package org.apache.gluten.spark34.execution;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gluten.spark34.SparkTestBaseWithCatalog;
 import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -27,6 +26,7 @@ import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.spark.SparkSQLProperties;
 import org.apache.iceberg.spark.SparkSchemaUtil;
+import org.apache.iceberg.spark.SparkTestBaseWithCatalog;
 import org.apache.iceberg.spark.SparkWriteOptions;
 import org.apache.iceberg.spark.data.RandomData;
 import org.apache.spark.api.java.JavaRDD;
