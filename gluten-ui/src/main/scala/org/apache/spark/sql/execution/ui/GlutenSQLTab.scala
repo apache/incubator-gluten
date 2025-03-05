@@ -26,7 +26,7 @@ class GlutenSQLTab(val sqlStore: GlutenSQLAppStatusStore, sparkUI: SparkUI)
 
   def conf: SparkConf = sparkUI.conf
 
-  override val name = "Gluten SQL"
+  override val name = "Gluten SQL / DataFrame"
 
   val parent = sparkUI
 
