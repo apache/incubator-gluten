@@ -16,12 +16,6 @@
  */
 package org.apache.gluten.spark34.execution;
 
-import static org.apache.iceberg.PlanningMode.DISTRIBUTED;
-import static org.apache.iceberg.PlanningMode.LOCAL;
-
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.gluten.spark34.SparkTestBaseWithCatalog;
 import org.apache.iceberg.PlanningMode;
@@ -42,12 +36,22 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.sql.types.StructType;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.iceberg.PlanningMode.DISTRIBUTED;
+import static org.apache.iceberg.PlanningMode.LOCAL;
+
 @RunWith(Parameterized.class)
-abstract public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
+public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
 
   @Parameterized.Parameters(name = "planningMode = {0}")
   public static Object[] parameters() {

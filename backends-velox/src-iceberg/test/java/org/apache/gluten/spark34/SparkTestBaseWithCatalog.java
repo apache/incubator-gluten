@@ -16,9 +16,6 @@
  */
 package org.apache.gluten.spark34;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Map;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogProperties;
@@ -36,6 +33,10 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
 
 public abstract class SparkTestBaseWithCatalog extends SparkTestBase {
   protected static File warehouse = null;
