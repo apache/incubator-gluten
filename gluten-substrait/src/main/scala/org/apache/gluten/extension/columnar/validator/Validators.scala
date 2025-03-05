@@ -136,7 +136,7 @@ object Validators {
         fail(p)
       case p: CartesianProductExec if !settings.supportCartesianProductExec() => fail(p)
       case p: TakeOrderedAndProjectExec if !settings.supportColumnarShuffleExec() => fail(p)
-      case p: RangeExec if !settings.supportRangeExec() => fail(p)
+      case p: CollectLimitExec if !settings.supportCollectLimitExec() => fail(p)
       case _ => pass()
     }
   }
@@ -186,10 +186,7 @@ object Validators {
           if !(glutenConf.enableColumnarSample && BackendsApiManager.getSettings
             .supportSampleExec()) =>
         fail(p)
-      case p: RangeExec
-          if !glutenConf.enableColumnarRange && BackendsApiManager.getSettings
-            .supportRangeExec() =>
-        fail(p)
+      case p: ExpandExec if !glutenConf.enableColumnarRange => fail(p)
       case _ => pass()
     }
   }

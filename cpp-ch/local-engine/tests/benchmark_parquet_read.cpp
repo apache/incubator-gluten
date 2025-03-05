@@ -29,7 +29,7 @@
 #include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
 #include <substrait/plan.pb.h>
-#include <tests/gluten_test_util.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
@@ -43,7 +43,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
 
     std::string file = local_engine::test::third_party_data(
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-    Block header{toBlockRowType(local_engine::test::readParquetSchema(file))};
+    Block header{local_engine::toSampleBlock(local_engine::test::readParquetSchema(file))};
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
@@ -54,7 +54,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
             .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
             .allow_missing_columns = format_settings.parquet.allow_missing_columns};
         ReadBufferFromFilePRead fileReader(file);
-        metaBuilder.build(&fileReader, &header, nullptr, [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+        metaBuilder.build(fileReader, header);
         local_engine::ColumnIndexRowRangesProvider provider{metaBuilder};
         auto format = std::make_shared<local_engine ::VectorizedParquetBlockInputFormat>(fileReader, header, provider, format_settings);
         auto pipeline = QueryPipeline(std::move(format));
@@ -72,7 +72,7 @@ void BM_ColumnIndexRead_Old(benchmark::State & state)
 
     std::string file = local_engine::test::third_party_data(
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-    Block header{toBlockRowType(local_engine::test::readParquetSchema(file))};
+    Block header{local_engine::toSampleBlock(local_engine::test::readParquetSchema(file))};
     FormatSettings format_settings;
     Block res;
     for (auto _ : state)
@@ -221,7 +221,7 @@ void BM_ColumnIndexRead_Filter_ReturnAllResult(benchmark::State & state)
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
     const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
     auto pushDown = local_engine::test::parseFilter(filter1, schema);
-    const Block header = {toBlockRowType(schema)};
+    const Block header = {local_engine::toSampleBlock(schema)};
 
     for (auto _ : state)
         doRead(files, pushDown, header);
@@ -238,7 +238,7 @@ void BM_ColumnIndexRead_Filter_ReturnHalfResult(benchmark::State & state)
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
     const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
     auto pushDown = local_engine::test::parseFilter(filter1, schema);
-    const Block header = {toBlockRowType(schema)};
+    const Block header = {local_engine::toSampleBlock(schema)};
 
     for (auto _ : state)
         doRead(files, pushDown, header);

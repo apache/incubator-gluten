@@ -213,9 +213,11 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
 
   if (name == "round") {
     return validateRound(scalarFunction, inputType);
-  } else if (name == "extract") {
+  }
+  if (name == "extract") {
     return validateExtractExpr(params);
-  } else if (name == "concat") {
+  }
+  if (name == "concat") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
           type.find("list") != std::string::npos) {
@@ -238,24 +240,53 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   return true;
 }
 
-bool SubstraitToVeloxPlanValidator::validateLiteral(
-    const ::substrait::Expression_Literal& literal,
-    const RowTypePtr& inputType) {
-  if (literal.has_list()) {
-    for (auto child : literal.list().values()) {
-      if (!validateLiteral(child, inputType)) {
-        // the error msg has been set, so do not need to set it again.
-        return false;
-      }
-    }
-  } else if (literal.has_map()) {
-    for (auto child : literal.map().key_values()) {
-      if (!validateLiteral(child.key(), inputType) || !validateLiteral(child.value(), inputType)) {
-        // the error msg has been set, so do not need to set it again.
-        return false;
-      }
-    }
+bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const TypePtr& toType) {
+  // Currently cast is not allowed for various categories, code has a bunch of rules
+  // which define the cast categories and if we should offload to velox. Currently
+  // the following categories are denied.
+  //
+  // 1. from/to isIntervalYearMonth is not allowed.
+  // 2. Date to most categories except few supported types is not allowed.
+  // 3. Timestamp to most categories except few supported types is not allowed.
+  // 4. Certain complex types are not allowed.
+
+  TypeKind fromKind = fromType->kind();
+  TypeKind toKind = toType->kind();
+
+  static const std::unordered_set<TypeKind> complexTypeList = {
+      TypeKind::ARRAY, TypeKind::MAP, TypeKind::ROW, TypeKind::VARBINARY};
+
+  // Don't support isIntervalYearMonth.
+  if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
+    LOG_VALIDATION_MSG("Casting involving INTERVAL_YEAR_MONTH is not supported.");
+    return false;
   }
+
+  // Limited support for DATE to X.
+  if (fromType->isDate() && toKind != TypeKind::TIMESTAMP && toKind != TypeKind::VARCHAR) {
+    LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
+    return false;
+  }
+
+  // Limited support for Timestamp to X.
+  if (fromKind == TypeKind::TIMESTAMP && !(toType->isDate() || toKind == TypeKind::VARCHAR)) {
+    LOG_VALIDATION_MSG(
+        "Casting from TIMESTAMP to " + toType->toString() + " is not supported or has incorrect result.");
+    return false;
+  }
+
+  // Limited support for X to Timestamp.
+  if (toKind == TypeKind::TIMESTAMP && !fromType->isDate()) {
+    LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
+    return false;
+  }
+
+  // Limited support for Complex types.
+  if (complexTypeList.find(fromKind) != complexTypeList.end()) {
+    LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " is not currently supported.");
+    return false;
+  }
+
   return true;
 }
 
@@ -269,47 +300,11 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   const auto& toType = SubstraitParser::parseType(castExpr.type());
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
-  // Only support cast from date to timestamp
-  if (toType->kind() == TypeKind::TIMESTAMP && !input->type()->isDate()) {
-    LOG_VALIDATION_MSG(
-        "Casting from " + input->type()->toString() + " to " + toType->toString() + " is not supported.");
-    return false;
+  if (SubstraitToVeloxPlanValidator::isAllowedCast(input->type(), toType)) {
+    return true;
   }
 
-  if (toType->isIntervalYearMonth()) {
-    LOG_VALIDATION_MSG("Casting to " + toType->toString() + " is not supported.");
-    return false;
-  }
-
-  // Casting from some types is not supported. See CastExpr::applyPeeled.
-  if (input->type()->isDate()) {
-    // Only support cast date to varchar & timestamp
-    if (toType->kind() != TypeKind::VARCHAR && toType->kind() != TypeKind::TIMESTAMP) {
-      LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
-      return false;
-    }
-  } else if (input->type()->isIntervalYearMonth()) {
-    LOG_VALIDATION_MSG("Casting from INTERVAL_YEAR_MONTH is not supported.");
-    return false;
-  }
-  switch (input->type()->kind()) {
-    case TypeKind::ARRAY:
-    case TypeKind::MAP:
-    case TypeKind::ROW:
-    case TypeKind::VARBINARY:
-      LOG_VALIDATION_MSG("Invalid input type in casting: ARRAY/MAP/ROW/VARBINARY.");
-      return false;
-    case TypeKind::TIMESTAMP:
-      // Only support casting timestamp to date or varchar.
-      if (!toType->isDate() && toType->kind() != TypeKind::VARCHAR) {
-        LOG_VALIDATION_MSG(
-            "Casting from TIMESTAMP to " + toType->toString() + " is not supported or has incorrect result.");
-        return false;
-      }
-    default: {
-    }
-  }
-  return true;
+  return false;
 }
 
 bool SubstraitToVeloxPlanValidator::validateIfThen(
@@ -334,9 +329,6 @@ bool SubstraitToVeloxPlanValidator::validateSingularOrList(
       LOG_VALIDATION_MSG("Option is expected as Literal.");
       return false;
     }
-    if (!validateLiteral(option.literal(), inputType)) {
-      return false;
-    }
   }
 
   return validateExpression(singularOrList.value(), inputType);
@@ -349,8 +341,6 @@ bool SubstraitToVeloxPlanValidator::validateExpression(
   switch (typeCase) {
     case ::substrait::Expression::RexTypeCase::kScalarFunction:
       return validateScalarFunction(expression.scalar_function(), inputType);
-    case ::substrait::Expression::RexTypeCase::kLiteral:
-      return validateLiteral(expression.literal(), inputType);
     case ::substrait::Expression::RexTypeCase::kCast:
       return validateCast(expression.cast(), inputType);
     case ::substrait::Expression::RexTypeCase::kIfThen:
@@ -745,9 +735,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimit
     if (exprField == nullptr) {
       LOG_VALIDATION_MSG("Only field is supported for partition key in Window Group Limit Operator!");
       return false;
-    } else {
-      expressions.emplace_back(expression);
     }
+    expressions.emplace_back(expression);
   }
   // Try to compile the expressions. If there is any unregistered function or
   // mismatched type, exception will be thrown.
@@ -1319,46 +1308,58 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
   if (rel.has_aggregate()) {
     return validate(rel.aggregate());
-  } else if (rel.has_project()) {
-    return validate(rel.project());
-  } else if (rel.has_filter()) {
-    return validate(rel.filter());
-  } else if (rel.has_join()) {
-    return validate(rel.join());
-  } else if (rel.has_cross()) {
-    return validate(rel.cross());
-  } else if (rel.has_read()) {
-    return validate(rel.read());
-  } else if (rel.has_sort()) {
-    return validate(rel.sort());
-  } else if (rel.has_expand()) {
-    return validate(rel.expand());
-  } else if (rel.has_generate()) {
-    return validate(rel.generate());
-  } else if (rel.has_fetch()) {
-    return validate(rel.fetch());
-  } else if (rel.has_top_n()) {
-    return validate(rel.top_n());
-  } else if (rel.has_window()) {
-    return validate(rel.window());
-  } else if (rel.has_write()) {
-    return validate(rel.write());
-  } else if (rel.has_windowgrouplimit()) {
-    return validate(rel.windowgrouplimit());
-  } else if (rel.has_set()) {
-    return validate(rel.set());
-  } else {
-    LOG_VALIDATION_MSG("Unsupported relation type: " + rel.GetTypeName());
-    return false;
   }
+  if (rel.has_project()) {
+    return validate(rel.project());
+  }
+  if (rel.has_filter()) {
+    return validate(rel.filter());
+  }
+  if (rel.has_join()) {
+    return validate(rel.join());
+  }
+  if (rel.has_cross()) {
+    return validate(rel.cross());
+  }
+  if (rel.has_read()) {
+    return validate(rel.read());
+  }
+  if (rel.has_sort()) {
+    return validate(rel.sort());
+  }
+  if (rel.has_expand()) {
+    return validate(rel.expand());
+  }
+  if (rel.has_generate()) {
+    return validate(rel.generate());
+  }
+  if (rel.has_fetch()) {
+    return validate(rel.fetch());
+  }
+  if (rel.has_top_n()) {
+    return validate(rel.top_n());
+  }
+  if (rel.has_window()) {
+    return validate(rel.window());
+  }
+  if (rel.has_write()) {
+    return validate(rel.write());
+  }
+  if (rel.has_windowgrouplimit()) {
+    return validate(rel.windowgrouplimit());
+  }
+  if (rel.has_set()) {
+    return validate(rel.set());
+  }
+  LOG_VALIDATION_MSG("Unsupported relation type: " + rel.GetTypeName());
+  return false;
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::RelRoot& relRoot) {
   if (relRoot.has_input()) {
     return validate(relRoot.input());
-  } else {
-    return false;
   }
+  return false;
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
@@ -1370,7 +1371,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
     for (const auto& rel : plan.relations()) {
       if (rel.has_root()) {
         return validate(rel.root());
-      } else if (rel.has_rel()) {
+      }
+      if (rel.has_rel()) {
         return validate(rel.rel());
       }
     }

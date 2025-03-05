@@ -48,7 +48,7 @@ case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
     val executionIdInfo = Option(spark.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY))
       .map(id => s"[QueryId=$id]")
       .getOrElse("")
-    logOnLevel(logLevel, s"Validation failed for plan: $nodeName$executionIdInfo, due to: $reason.")
+    logOnLevel(logLevel, s"Validation failed for plan: $nodeName$executionIdInfo, due to: $reason")
   }
 
   private def printFallbackReason(plan: SparkPlan): Unit = {

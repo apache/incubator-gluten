@@ -452,6 +452,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val numOutputRows = metrics("numOutputRows")
     val dataSize = metrics("dataSize")
+    val deserializationTime = metrics("deserializeTime")
     if (GlutenConfig.get.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CHCelebornColumnarBatchSerializer")
       val constructor =
@@ -460,7 +461,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     } else if (GlutenConfig.get.isUseUniffleShuffleManager) {
       throw new UnsupportedOperationException("temporarily uniffle not support ch ")
     } else {
-      new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize)
+      new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize, deserializationTime)
     }
   }
 
@@ -932,6 +933,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       original: StringSplit): ExpressionTransformer =
     CHStringSplitTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
 
+  override def genColumnarCollectLimitExec(
+      limit: Int,
+      child: SparkPlan): ColumnarCollectLimitBaseExec =
+    throw new GlutenNotSupportException("ColumnarCollectLimit is not supported in ch backend.")
+
   override def genColumnarRangeExec(
       start: Long,
       end: Long,
@@ -940,6 +946,5 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec =
-    throw new GlutenNotSupportException("ColumnarRange is not supported in ch backend.")
-
+    CHRangeExecTransformer(start, end, step, numSlices, numElements, outputAttributes, child)
 }
