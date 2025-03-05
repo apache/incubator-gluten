@@ -17,6 +17,8 @@
 #pragma once
 
 #include <memory>
+#include <Core/Block.h>
+#include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context_fwd.h>
 #include <Storages/SubstraitSource/substrait_fwd.h>
 
@@ -39,15 +41,24 @@ class VectorizedParquetRecordReader;
 /// we currently use VectorizedParquetRecordReader to read parquet files.
 class SimpleParquetReader
 {
-  std::unique_ptr<DB::ReadBuffer> read_buffer_;
-  std::shared_ptr<DB::ParquetReader> reader_;
+    std::unique_ptr<DB::ReadBuffer> read_buffer_arrow_;
+    std::unique_ptr<DB::ReadBuffer> read_buffer_reader_;
+    std::shared_ptr<DB::ParquetReader> reader_;
 
 public:
-  explicit SimpleParquetReader(const DB::ContextPtr & context, const substraitInputFile & file_info);
-  explicit SimpleParquetReader(const DB::ContextPtr & context, const substraitIcebergDeleteFile & file_info);
-  ~SimpleParquetReader();
+    SimpleParquetReader(
+        const DB::ContextPtr & context,
+        const substraitInputFile & file_info,
+        DB::Block header = {},
+        const std::optional<DB::ActionsDAG> & filter = std::nullopt);
+    SimpleParquetReader(
+        const DB::ContextPtr & context,
+        const substraitIcebergDeleteFile & file_info,
+        DB::Block header = {},
+        const std::optional<DB::ActionsDAG> & filter = std::nullopt);
+    ~SimpleParquetReader();
 
-  DB::Block next() const;
+    DB::Block next() const;
 };
 
 }

@@ -17,14 +17,14 @@
 
 #include "EqualityDeleteFileReader.h"
 
-#include <DataTypes/DataTypeSet.h>
-#include <Functions/FunctionFactory.h>
-#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
-#include <Common/BlockTypeUtils.h>
 #include <Columns/ColumnConst.h>
 #include <Columns/ColumnSet.h>
+#include <DataTypes/DataTypeSet.h>
+#include <Functions/FunctionFactory.h>
+#include <Interpreters/ExpressionActions.h>
+#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/SubstraitSource/iceberg/SimpleParquetReader.h>
-
+#include <Common/BlockTypeUtils.h>
 using namespace DB;
 
 namespace local_engine
@@ -32,6 +32,7 @@ namespace local_engine
 
 namespace iceberg
 {
+
 const ActionsDAG::Node & EqualityDeleteActionBuilder::lastMerge()
 {
     assert(!andArgs.empty());
@@ -80,7 +81,7 @@ void EqualityDeleteActionBuilder::notIn(Block deleteBlock, const std::string & c
     andArgs.push_back(&addFunction(function_builder, std::move(args)));
 }
 
-void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names & column_names)
+void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const Names & column_names)
 {
     auto numDeleteFields = deleteBlock.columns();
     assert(deleteBlock.columns() > 1);
@@ -121,7 +122,7 @@ ExpressionActionsPtr EqualityDeleteActionBuilder::finish()
 }
 
 EqualityDeleteFileReader::EqualityDeleteFileReader(
-    const ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile)
+    const ContextPtr & context, const Block & read_header, const substraitIcebergDeleteFile & deleteFile)
     : context_(context), read_header_(read_header), deleteFile_(deleteFile)
 {
     assert(deleteFile_.recordcount() > 0);
@@ -153,6 +154,26 @@ void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & ex
         deleteBlock = reader.next();
     }
 }
+
+ExpressionActionsPtr EqualityDeleteFileReader::createDeleteExpr(
+    const ContextPtr & context,
+    const Block & to_read_header,
+    const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+    const std::vector<int> & equality_delete_files)
+{
+    assert(!equality_delete_files.empty());
+
+    EqualityDeleteActionBuilder expressionInputs{context, to_read_header.getNamesAndTypesList()};
+    for (auto deleteIndex : equality_delete_files)
+    {
+        const auto & delete_file = delete_files[deleteIndex];
+        assert(delete_file.filecontent() == IcebergReadOptions::EQUALITY_DELETES);
+        if (delete_file.recordcount() > 0)
+            EqualityDeleteFileReader{context, to_read_header, delete_file}.readDeleteValues(expressionInputs);
+    }
+    return expressionInputs.finish();
+}
+
 }
 
 }
