@@ -67,7 +67,9 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - with filter", Array("3.2", "3.3", "3.4", "3.5")) {
+  testWithSpecifiedSparkVersion(
+    "ColumnarCollectLimitExec - with filter",
+    Array("3.2", "3.3", "3.4", "3.5")) {
     val df = spark
       .range(0, 20, 1)
       .toDF("id")

@@ -64,7 +64,7 @@ object ColumnarCollectLimitBaseExec {
       .genColumnarCollectLimitExec(
         collectLimitExec.limit,
         collectLimitExec.child,
-        collectLimitExec.offset,
+        collectLimitExec.offset
       )
   }
 }

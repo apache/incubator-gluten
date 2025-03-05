@@ -47,9 +47,9 @@ case class ColumnarCollectLimitExec(
    * partially exceeds the remaining limit.
    */
   private def collectLimitedRows(
-                                  partitionIter: Iterator[ColumnarBatch],
-                                  limit: Int
-                                ): Iterator[ColumnarBatch] = {
+      partitionIter: Iterator[ColumnarBatch],
+      limit: Int
+  ): Iterator[ColumnarBatch] = {
 
     if (partitionIter.isEmpty) {
       return Iterator.empty
@@ -72,6 +72,10 @@ case class ColumnarCollectLimitExec(
         batch
       }
 
+      /**
+       * Attempt to fetch the next batch from the underlying iterator if we haven't yet hit the
+       * limit. Returns true if we found a new batch, false otherwise.
+       */
       private def fetchNext(): Boolean = {
         if (rowsCollected >= limit || !partitionIter.hasNext) {
           return false
@@ -95,10 +99,15 @@ case class ColumnarCollectLimitExec(
     }
   }
 
+  /**
+   * Drop offset rows from the beginning of the partition iterator. If a batch is completely within
+   * the offset, skip it. If offset lands inside a batch, prune that batch partially and return the
+   * remainder. Then return all subsequent batches unmodified.
+   */
   private def dropLimitedRows(
-                               partitionIter: Iterator[ColumnarBatch],
-                               offset: Int
-                             ): Iterator[ColumnarBatch] = {
+      partitionIter: Iterator[ColumnarBatch],
+      offset: Int
+  ): Iterator[ColumnarBatch] = {
 
     if (partitionIter.isEmpty) {
       return Iterator.empty
@@ -121,6 +130,12 @@ case class ColumnarCollectLimitExec(
         batch
       }
 
+      /**
+       * Fetch next batch from the iterator, skipping batches until we've satisfied the `offset`.
+       *
+       * @return
+       *   true if we found a new batch to return, false otherwise
+       */
       private def fetchNext(): Boolean = {
         while (rowsDropped < offset && partitionIter.hasNext) {
           val currentBatch = partitionIter.next()
