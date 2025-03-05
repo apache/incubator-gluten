@@ -98,6 +98,7 @@ The following configurations are related to Velox settings.
 | spark.gluten.velox.fs.s3a.connect.timeout                            | Timeout for AWS s3 connection.                                                                                                                     | 1s                |
 | spark.gluten.sql.columnar.backend.velox.orc.scan.enabled             | Enable velox orc scan. If disabled, vanilla spark orc scan will be used.                                                                           | true              |
 | spark.gluten.sql.complexType.scan.fallback.enabled                   | Force fallback for complex type scan, including struct, map, array.                                                                                | true              |
+| spark.gluten.velox.offHeapBroadcastBuildRelation.enabled             | Experimental: If enabled, broadcast build relation will use offheap memory. Otherwise, broadcast build relation will use onheap memory, default value is false |                   |
 
 Additionally, you can control the configurations of gluten at thread level by local property.
 

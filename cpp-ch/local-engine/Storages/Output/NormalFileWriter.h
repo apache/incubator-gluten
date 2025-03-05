@@ -416,17 +416,23 @@ public:
         for (const auto & column : partition_columns)
         {
             // partition_column=
-            std::string key = add_slash ? fmt::format("/{}=", column) : fmt::format("{}=", column);
+            auto column_name = std::make_shared<DB::ASTLiteral>(column);
+            auto escaped_name = makeASTFunction("sparkPartitionEscape", DB::ASTs{column_name});
+            if (add_slash)
+                arguments.emplace_back(std::make_shared<DB::ASTLiteral>("/"));
             add_slash = true;
-            arguments.emplace_back(std::make_shared<DB::ASTLiteral>(key));
+            arguments.emplace_back(escaped_name);
+            arguments.emplace_back(std::make_shared<DB::ASTLiteral>("="));
 
             // ifNull(toString(partition_column), DEFAULT_PARTITION_NAME)
             // FIXME if toString(partition_column) is empty
-            auto column_ast = std::make_shared<DB::ASTIdentifier>(column);
+            auto column_ast = makeASTFunction("toString", DB::ASTs{std::make_shared<DB::ASTIdentifier>(column)});
+            auto escaped_value = makeASTFunction("sparkPartitionEscape", DB::ASTs{column_ast});
             DB::ASTs if_null_args{
-                makeASTFunction("toString", DB::ASTs{column_ast}), std::make_shared<DB::ASTLiteral>(DEFAULT_PARTITION_NAME)};
+                makeASTFunction("toString", DB::ASTs{escaped_value}), std::make_shared<DB::ASTLiteral>(DEFAULT_PARTITION_NAME)};
             arguments.emplace_back(makeASTFunction("ifNull", std::move(if_null_args)));
         }
+
         if (isBucketedWrite(input_header))
         {
             DB::ASTs args{std::make_shared<DB::ASTLiteral>("%05d"), std::make_shared<DB::ASTIdentifier>(BUCKET_COLUMN_NAME)};

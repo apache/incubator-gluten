@@ -774,6 +774,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       Sig[CollectSet](ExpressionNames.COLLECT_SET),
       Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
       Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG),
+      Sig[MapFilter](ExpressionNames.MAP_FILTER),
       // For test purpose.
       Sig[VeloxDummyExpression](VeloxDummyExpression.VELOX_DUMMY_EXPRESSION)
     )

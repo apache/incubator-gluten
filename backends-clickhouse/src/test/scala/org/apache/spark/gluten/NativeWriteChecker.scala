@@ -25,11 +25,20 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 import org.apache.spark.sql.util.QueryExecutionListener
 
+import java.io.File
+
+import scala.reflect.runtime.universe.TypeTag
+
 trait NativeWriteChecker
   extends GlutenClickHouseWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper {
 
   private val formats: Seq[String] = Seq("orc", "parquet")
+
+  // test non-ascii path, by the way
+  // scalastyle:off nonascii
+  protected def getWarehouseDir: String = basePath + "/中文/spark-warehouse"
+  // scalastyle:on nonascii
 
   def withNativeWriteCheck(checkNative: Boolean)(block: => Unit): Unit = {
     var nativeUsed = false
@@ -82,6 +91,22 @@ trait NativeWriteChecker
     }
   }
 
+  def nativeWrite2(
+      f: String => (String, String, String),
+      extraCheck: (String, String) => Unit = null,
+      checkNative: Boolean = true): Unit = nativeWrite {
+    format =>
+      val (table_name, table_create_sql, insert_sql) = f(format)
+      withDestinationTable(table_name, Option(table_create_sql)) {
+        checkInsertQuery(insert_sql, checkNative)
+        Option(extraCheck).foreach(_(table_name, format))
+      }
+  }
+
+  def withSource[A <: Product: TypeTag](data: Seq[A], viewName: String, pairs: (String, String)*)(
+      block: => Unit): Unit =
+    withSource(spark.createDataFrame(data), viewName, pairs: _*)(block)
+
   def withSource(df: Dataset[Row], viewName: String, pairs: (String, String)*)(
       block: => Unit): Unit = {
     withSQLConf(pairs: _*) {
@@ -90,5 +115,65 @@ trait NativeWriteChecker
         block
       }
     }
+  }
+
+  def getColumnName(col: String): String = {
+    col.replaceAll("\\(", "_").replaceAll("\\)", "_")
+  }
+
+  def compareSource(originTable: String, table: String, fields: Seq[String]): Unit = {
+    def query(table: String, selectFields: Seq[String]): String = {
+      s"select ${selectFields.mkString(",")} from $table"
+    }
+    val expectedRows = spark.sql(query(originTable, fields)).collect()
+    val actual = spark.sql(query(table, fields.map(getColumnName)))
+    checkAnswer(actual, expectedRows)
+  }
+
+  def writeAndCheckRead(
+      original_table: String,
+      table_name: String,
+      fields: Seq[String],
+      checkNative: Boolean = true)(write: Seq[String] => Unit): Unit = {
+    withDestinationTable(table_name) {
+      withNativeWriteCheck(checkNative) {
+        write(fields)
+      }
+      compareSource(original_table, table_name, fields)
+    }
+  }
+
+  def compareWriteFilesSignature(
+      format: String,
+      table: String,
+      vanillaTable: String,
+      sigExpr: String): Unit = {
+    val tableFiles = recursiveListFiles(new File(getWarehouseDir + "/" + table))
+      .filter(_.getName.endsWith(s".$format"))
+    val sigsOfNativeWriter = getSignature(format, tableFiles, sigExpr).sorted
+    val vanillaTableFiles = recursiveListFiles(new File(getWarehouseDir + "/" + vanillaTable))
+      .filter(_.getName.endsWith(s".$format"))
+    val sigsOfVanillaWriter = getSignature(format, vanillaTableFiles, sigExpr).sorted
+    assertResult(sigsOfVanillaWriter)(sigsOfNativeWriter)
+  }
+
+  def recursiveListFiles(f: File): Array[File] = {
+    val these = f.listFiles
+    these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
+  }
+
+  def getSignature(
+      format: String,
+      writeFiles: Array[File],
+      sigExpr: String): Array[(Long, Long)] = {
+    writeFiles.map(
+      f => {
+        val df = if (format.equals("parquet")) {
+          spark.read.parquet(f.getAbsolutePath)
+        } else {
+          spark.read.orc(f.getAbsolutePath)
+        }
+        (df.count(), df.selectExpr(sigExpr).collect().apply(0).apply(0).asInstanceOf[Long])
+      })
   }
 }
