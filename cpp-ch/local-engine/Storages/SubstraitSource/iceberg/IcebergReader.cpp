@@ -18,9 +18,11 @@
 
 #include <Columns/FilterDescription.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <Storages/Parquet/ParquetMeta.h>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
 #include <Storages/SubstraitSource/iceberg/EqualityDeleteFileReader.h>
 #include <Storages/SubstraitSource/iceberg/PositionalDeleteFileReader.h>
+#include <Common/BlockTypeUtils.h>
 
 using namespace DB;
 
@@ -32,7 +34,7 @@ std::unique_ptr<IcebergReader> IcebergReader::create(
     const FormatFilePtr & file_,
     const Block & to_read_header_,
     const Block & output_header_,
-    const FormatFile::InputFormatPtr & input_format_)
+    const std::function<FormatFile::InputFormatPtr(const DB::Block &)> & input_format_callback)
 {
     const auto & delete_files = file_->getFileInfo().iceberg().delete_files();
     std::map<IcebergReadOptions::FileContent, std::vector<int>> partitions;
@@ -42,20 +44,27 @@ std::unique_ptr<IcebergReader> IcebergReader::create(
     assert(!partitions.contains(IcebergReadOptions::DATA));
     const auto & context = file_->getContext();
 
+    DB::Block new_header = to_read_header_.cloneEmpty();
+
     /// Load POSITION_DELETES
     const auto it_pos = partitions.find(IcebergReadOptions::POSITION_DELETES);
-    std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array = it_pos == partitions.end()
-        ? nullptr
-        : createBitmapExpr(context, to_read_header_, file_->getFileInfo(), delete_files, it_pos->second);
+    std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array;
+    if (it_pos != partitions.end())
+    {
+        assert(!ParquetVirtualMeta::hasMetaColumns(to_read_header_));
+        new_header.insert({BIGINT(), ParquetVirtualMeta::TMP_ROWINDEX});
+        delete_bitmap_array = createBitmapExpr(context, new_header, file_->getFileInfo(), delete_files, it_pos->second);
+    }
 
     /// Load EQUALITY_DELETES
     const auto it_equal = partitions.find(IcebergReadOptions::EQUALITY_DELETES);
     ExpressionActionsPtr delete_expr = it_equal == partitions.end()
         ? nullptr
-        : EqualityDeleteFileReader::createDeleteExpr(context, to_read_header_, delete_files, it_equal->second);
+        : EqualityDeleteFileReader::createDeleteExpr(context, new_header, delete_files, it_equal->second);
 
+    assert(!ParquetVirtualMeta::hasMetaColumns(output_header_));
     return std::make_unique<IcebergReader>(
-        file_, to_read_header_, output_header_, input_format_, delete_expr, std::move(delete_bitmap_array));
+        file_, new_header, output_header_, input_format_callback(new_header), delete_expr, std::move(delete_bitmap_array));
 }
 
 IcebergReader::IcebergReader(
@@ -77,7 +86,7 @@ IcebergReader::~IcebergReader() = default;
 
 Chunk IcebergReader::doPull()
 {
-    if (!delete_expr)
+    if (!delete_expr && !delete_bitmap_array)
         return NormalFileReader::doPull();
 
     while (true)
@@ -86,12 +95,68 @@ Chunk IcebergReader::doPull()
         if (chunk.getNumRows() == 0)
             return chunk;
 
-        deleteRows(chunk);
+        Block deleted_block;
+        if (delete_expr)
+            deleted_block = applyDeleteExpr(chunk);
+
+        if (delete_bitmap_array)
+        {
+            if (!delete_expr)
+            {
+                auto delete_mask = ColumnUInt8::create(chunk.getNumRows(), 1);
+                deleted_block = readHeader.cloneWithColumns(chunk.detachColumns());
+                deleted_block.insert({delete_mask->getPtr(), UINT8(), delete_expr_column_name});
+            }
+            deleted_block = applyDeleteBitmap(std::move(deleted_block));
+        }
+
+        chunk = deleteRows(std::move(deleted_block));
 
         if (chunk.getNumRows() != 0)
+        {
+            if (ParquetVirtualMeta::hasMetaColumns(readHeader))
+            {
+                auto rows = chunk.getNumRows();
+                auto columns = chunk.detachColumns();
+                columns.pop_back();
+                chunk.setColumns(std::move(columns), rows);
+            }
             return chunk;
+        }
     }
 }
+
+Block IcebergReader::applyDeleteExpr(Chunk & chunk) const
+{
+    assert(delete_expr);
+    assert(!delete_expr_column_name.empty());
+    size_t num_rows_before_filtration = chunk.getNumRows();
+    auto columns = chunk.detachColumns();
+    Block block = readHeader.cloneWithColumns(columns);
+    delete_expr->execute(block, num_rows_before_filtration);
+    return block;
+}
+
+DB::Block IcebergReader::applyDeleteBitmap(DB::Block block) const
+{
+    assert(delete_bitmap_array);
+    size_t num_of_rows = block.rows();
+    size_t filter_column_position = block.getPositionByName(delete_expr_column_name);
+    size_t pos_column_position = block.getPositionByName(ParquetVirtualMeta::TMP_ROWINDEX);
+    MutableColumns mutation = block.mutateColumns();
+    auto & filter_column = assert_cast<ColumnUInt8 &>(*mutation[filter_column_position]);
+    auto & pos_column = assert_cast<ColumnInt64 &>(*mutation[pos_column_position]);
+
+    DB::ColumnInt64::Container & pos = pos_column.getData();
+    DB::ColumnUInt8::Container & filter = filter_column.getData();
+
+    for (int i = 0; i < num_of_rows; i++)
+        if (delete_bitmap_array->rb_contains(pos[i]))
+            filter[i] = 0;
+    block.setColumns(std::move(mutation));
+    return block;
+}
+
 
 namespace
 {
@@ -101,25 +166,15 @@ void removeFilterIfNeed(Columns & columns, size_t filter_column_position)
 }
 }
 
-void IcebergReader::deleteRows(Chunk & chunk) const
+DB::Chunk IcebergReader::deleteRows(Block block) const
 {
+    size_t num_rows_before_filtration = block.rows();
+    auto columns = block.getColumns();
+    DataTypes types = block.getDataTypes();
+    size_t filter_column_position = block.getPositionByName(delete_expr_column_name);
+    block.clear();
+
     // filter out rows that are deleted
-    assert(delete_expr);
-    assert(!delete_expr_column_name.empty());
-
-    size_t num_rows_before_filtration = chunk.getNumRows();
-    auto columns = chunk.detachColumns();
-    DataTypes types;
-    size_t filter_column_position;
-    {
-        Block block = readHeader.cloneWithColumns(columns);
-        columns.clear();
-        delete_expr->execute(block, num_rows_before_filtration);
-        filter_column_position = block.getPositionByName(delete_expr_column_name);
-        columns = block.getColumns();
-        types = block.getDataTypes();
-    }
-
     size_t num_columns = columns.size();
     ColumnPtr filter_column = columns[filter_column_position];
 
@@ -157,15 +212,16 @@ void IcebergReader::deleteRows(Chunk & chunk) const
 
     /// If the current block is completely filtered out, let's move on to the next one.
     if (num_filtered_rows == 0)
-        return;
+        return {};
 
+    Chunk chunk;
     /// If all the rows pass through the filter.
     if (num_filtered_rows == num_rows_before_filtration)
     {
         /// No need to touch the rest of the columns.
         removeFilterIfNeed(columns, filter_column_position);
         chunk.setColumns(std::move(columns), num_rows_before_filtration);
-        return;
+        return chunk;
     }
 
     /// Filter the rest of the columns.
@@ -187,6 +243,7 @@ void IcebergReader::deleteRows(Chunk & chunk) const
 
     removeFilterIfNeed(columns, filter_column_position);
     chunk.setColumns(std::move(columns), num_filtered_rows);
+    return chunk;
 }
 
 }

@@ -36,7 +36,7 @@ public:
         const FormatFilePtr & file_,
         const DB::Block & to_read_header_,
         const DB::Block & output_header_,
-        const FormatFile::InputFormatPtr & input_format_);
+        const std::function<FormatFile::InputFormatPtr(const DB::Block &)> & input_format_callback);
 
     IcebergReader(
         const FormatFilePtr & file_,
@@ -51,7 +51,9 @@ public:
 protected:
     DB::Chunk doPull() override;
 
-    void deleteRows(DB::Chunk & chunk) const;
+    DB::Block applyDeleteExpr(DB::Chunk & chunk) const;
+    DB::Block applyDeleteBitmap(DB::Block block) const;
+    DB::Chunk deleteRows(DB::Block block) const;
 };
 
 }
