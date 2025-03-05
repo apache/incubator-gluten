@@ -18,10 +18,19 @@ package org.apache.gluten.initializer
 
 import java.lang.reflect.Field
 
-object Initializer {
+/**
+ * Pre-load the class instance for CodedInputStream and modify its defaultRecursionLimit to avoid
+ * the limit is hit for deeply nested plans. This is based on the fact that the same class loader is
+ * used to load this class in the program, then this modification will really take effect.
+ */
+object CodedInputStreamClassInitializer {
   {
     try {
-      val clazz: Class[_] = Class.forName("com.google.protobuf.CodedInputStream")
+      // scalastyle:off classforname
+      // Use the shaded class name.
+      val clazz: Class[_] =
+        Class.forName("org.apache.gluten.shaded.com.google.protobuf.CodedInputStream")
+      // scalastyle:on classforname
       val field: Field = clazz.getDeclaredField("defaultRecursionLimit")
       field.setAccessible(true)
       // Enlarge defaultRecursionLimit whose original value is 100.
