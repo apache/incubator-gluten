@@ -26,7 +26,8 @@ import org.apache.spark.sql.execution.{CollectLimitExec, LimitExec, SparkPlan}
 
 abstract class ColumnarCollectLimitBaseExec(
     limit: Int,
-    childPlan: SparkPlan
+    childPlan: SparkPlan,
+    offset: Int = 0
 ) extends LimitExec
   with ValidatablePlan {
 
@@ -62,7 +63,8 @@ object ColumnarCollectLimitBaseExec {
     BackendsApiManager.getSparkPlanExecApiInstance
       .genColumnarCollectLimitExec(
         collectLimitExec.limit,
-        collectLimitExec.child
+        collectLimitExec.child,
+        collectLimitExec.offset,
       )
   }
 }

@@ -841,8 +841,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   override def genColumnarCollectLimitExec(
       limit: Int,
-      child: SparkPlan): ColumnarCollectLimitBaseExec =
-    ColumnarCollectLimitExec(limit, child)
+      child: SparkPlan,
+      offset: Int): ColumnarCollectLimitBaseExec =
+    ColumnarCollectLimitExec(limit, child, offset)
 
   override def genColumnarRangeExec(
       start: Long,

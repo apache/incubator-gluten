@@ -32,8 +32,11 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarCollectLimitExec(
     limit: Int,
-    child: SparkPlan
+    child: SparkPlan,
+    offset: Int = 0
 ) extends ColumnarCollectLimitBaseExec(limit, child) {
+
+  assert(limit >= 0 || (limit == -1 && offset > 0))
 
   override def batchType(): Convention.BatchType =
     BackendsApiManager.getSettings.primaryBatchType
@@ -44,14 +47,15 @@ case class ColumnarCollectLimitExec(
    * partially exceeds the remaining limit.
    */
   private def collectLimitedRows(
-      partitionIter: Iterator[ColumnarBatch],
-      limit: Int
-  ): Iterator[ColumnarBatch] = {
+                                  partitionIter: Iterator[ColumnarBatch],
+                                  limit: Int
+                                ): Iterator[ColumnarBatch] = {
+
     if (partitionIter.isEmpty) {
       return Iterator.empty
     }
-    new Iterator[ColumnarBatch] {
 
+    new Iterator[ColumnarBatch] {
       private var rowsCollected = 0
       private var nextBatch: Option[ColumnarBatch] = None
 
@@ -68,10 +72,6 @@ case class ColumnarCollectLimitExec(
         batch
       }
 
-      /**
-       * Attempt to fetch the next batch from the underlying iterator if we haven't yet hit the
-       * limit. Returns true if we found a new batch, false otherwise.
-       */
       private def fetchNext(): Boolean = {
         if (rowsCollected >= limit || !partitionIter.hasNext) {
           return false
@@ -90,6 +90,65 @@ case class ColumnarCollectLimitExec(
           rowsCollected += remaining
           nextBatch = Some(prunedBatch)
         }
+        true
+      }
+    }
+  }
+
+  private def dropLimitedRows(
+                               partitionIter: Iterator[ColumnarBatch],
+                               offset: Int
+                             ): Iterator[ColumnarBatch] = {
+
+    if (partitionIter.isEmpty) {
+      return Iterator.empty
+    }
+
+    new Iterator[ColumnarBatch] {
+      private var rowsDropped = 0
+      private var nextBatch: Option[ColumnarBatch] = None
+
+      override def hasNext: Boolean = {
+        nextBatch.isDefined || fetchNext()
+      }
+
+      override def next(): ColumnarBatch = {
+        if (!hasNext) {
+          throw new NoSuchElementException("No batches available.")
+        }
+        val batch = nextBatch.get
+        nextBatch = None
+        batch
+      }
+
+      private def fetchNext(): Boolean = {
+        while (rowsDropped < offset && partitionIter.hasNext) {
+          val currentBatch = partitionIter.next()
+          val rowCount = currentBatch.numRows()
+          val remain = offset - rowsDropped
+
+          if (rowCount <= remain) {
+            rowsDropped += rowCount
+          } else {
+            ColumnarBatches.retain(currentBatch)
+            val prunedBatch = VeloxColumnarBatches.slice(currentBatch, remain, rowCount - remain)
+            rowsDropped += remain
+            nextBatch = Some(prunedBatch)
+            return true
+          }
+        }
+
+        if (rowsDropped < offset) {
+          return false
+        }
+
+        if (!partitionIter.hasNext) {
+          return false
+        }
+
+        val nextOne = partitionIter.next()
+        ColumnarBatches.retain(nextOne)
+        nextBatch = Some(nextOne)
         true
       }
     }
@@ -125,11 +184,20 @@ case class ColumnarCollectLimitExec(
       if (childRDD.getNumPartitions == 1) childRDD
       else shuffleLimitedPartitions(childRDD)
 
-    processedRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
+    processedRDD.mapPartitions(
+      partition => {
+        val droppedRows = dropLimitedRows(partition, offset)
+        val adjustedLimit = Math.max(0, limit - offset)
+        collectLimitedRows(droppedRows, adjustedLimit)
+      })
   }
 
   private def shuffleLimitedPartitions(childRDD: RDD[ColumnarBatch]): RDD[ColumnarBatch] = {
-    val locallyLimited = childRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
+    val locallyLimited = if (limit >= 0) {
+      childRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
+    } else {
+      childRDD
+    }
     new ShuffledColumnarBatchRDD(
       BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
         locallyLimited,

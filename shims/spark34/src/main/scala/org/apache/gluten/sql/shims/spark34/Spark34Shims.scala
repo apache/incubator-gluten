@@ -614,6 +614,6 @@ class Spark34Shims extends SparkShims {
     }
   }
 
-  override def isColumnarLimitExecSupported(): Boolean = false
+  override def isColumnarLimitExecSupported(): Boolean = true
 
 }
