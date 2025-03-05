@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gluten.execution;
+package org.apache.gluten.spark34.execution;
 
 import org.apache.iceberg.PlanningMode;
 
