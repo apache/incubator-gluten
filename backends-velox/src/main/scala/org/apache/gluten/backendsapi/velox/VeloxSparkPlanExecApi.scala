@@ -707,8 +707,20 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       substraitExprName: String,
       children: Seq[ExpressionTransformer],
       expr: JsonToStructs): ExpressionTransformer = {
-    if (!SparkShimLoader.getSparkShims.fromJsonSupportPartialResults) {
-      throw new GlutenNotSupportException("'from_json' is not supported in Velox")
+    val enablePartialResults =
+      try {
+        SQLConf.get.getConfString(s"spark.sql.json.enablePartialResults").toBoolean
+      } catch {
+        case _: NoSuchElementException =>
+          // Before spark 3.4, this config is not defined, and partial result parsing is not
+          // supported. Therefore we need to return false.
+          false
+      }
+    if (!enablePartialResults) {
+      // Velox only supports partial results mode. We need to fall back this when
+      // 'spark.sql.json.enablePartialResults' is set to false or not defined.
+      throw new GlutenNotSupportException(
+        s"'from_json' with 'spark.sql.json.enablePartialResults = false' is not supported in Velox")
     }
     if (!expr.options.isEmpty) {
       throw new GlutenNotSupportException("'from_json' with options is not supported in Velox")
