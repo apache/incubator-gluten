@@ -1036,6 +1036,13 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
       break;
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
+      if (crossRel.has_expression()) {
+        LOG_VALIDATION_MSG("Full outer join type with condition is not supported in CrossRel");
+        return false;
+      } else {
+        break;
+      }
     default:
       LOG_VALIDATION_MSG("Unsupported Join type in CrossRel");
       return false;
