@@ -1660,7 +1660,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
-    buildStaticConf("spark.gluten.auto.adjustStageResource.enabled")
+    buildConf("spark.gluten.auto.adjustStageResource.enabled")
       .internal()
       .doc("Experimental: If enabled, gluten will try to set the stage resource according " +
         "to stage execution plan. Only worked when aqe is enabled at the same time!!")
