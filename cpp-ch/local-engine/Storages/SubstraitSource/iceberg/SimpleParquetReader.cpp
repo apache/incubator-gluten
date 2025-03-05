@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 #include "SimpleParquetReader.h"
-#include <Poco/URI.h>
-#include <Storages/Parquet/VectorizedParquetRecordReader.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Formats/FormatFactory.h>
-#include <Storages/Parquet/ParquetMeta.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Processors/Formats/Impl/Parquet/ColumnFilterHelper.h>
 #include <Processors/Formats/Impl/Parquet/ParquetReader.h>
+#include <Storages/Parquet/ParquetMeta.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Poco/URI.h>
 
 using namespace DB;
 namespace local_engine
@@ -31,8 +31,9 @@ namespace iceberg
 {
 substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
 {
-    assert(deleteFile.filecontent() == IcebergReadOptions::EQUALITY_DELETES ||
-           deleteFile.filecontent() == IcebergReadOptions::POSITION_DELETES);
+    assert(
+        deleteFile.filecontent() == IcebergReadOptions::EQUALITY_DELETES
+        || deleteFile.filecontent() == IcebergReadOptions::POSITION_DELETES);
     assert(deleteFile.has_parquet());
     substraitInputFile file;
     file.set_uri_file(deleteFile.filepath());
@@ -42,20 +43,33 @@ substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
 }
 }
 
-SimpleParquetReader::SimpleParquetReader(const ContextPtr & context, const substraitInputFile & file_info)
+SimpleParquetReader::SimpleParquetReader(
+    const ContextPtr & context, const substraitInputFile & file_info, Block header, const std::optional<ActionsDAG> & filter)
 {
     const Poco::URI file_uri{file_info.uri_file()};
     ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
-    read_buffer_ = read_buffer_builder->build(file_info);
+
+    read_buffer_arrow_ = read_buffer_builder->build(file_info);
     FormatSettings format_settings = getFormatSettings(context);
-    ParquetMetaBuilder metaBuilder{
-        .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
-        .allow_missing_columns = false,
-        .collectPageIndex = true,
-        .collectSchema = true};
-    metaBuilder.build(*read_buffer_);
-    std::atomic<int> is_stopped{0};
-    auto arrow_file = asArrowFile(*read_buffer_, format_settings, is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
+
+    if (!header.columns())
+    {
+        ParquetMetaBuilder metaBuilder{
+            .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
+            .allow_missing_columns = false,
+            .collectPageIndex = false,
+            .collectSchema = true};
+        metaBuilder.build(*read_buffer_arrow_);
+        auto * seekable = dynamic_cast<SeekableReadBuffer *>(read_buffer_arrow_.get());
+        assert(seekable != nullptr);
+        header = std::move(metaBuilder.fileHeader);
+    }
+
+    std::shared_ptr<arrow::io::RandomAccessFile> arrow_file;
+    {
+        std::atomic<int> is_stopped{0};
+        arrow_file = asArrowFile(*read_buffer_arrow_, format_settings, is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
+    }
 
     // TODO: set min_bytes_for_seek
     ParquetReader::Settings settings{
@@ -63,20 +77,21 @@ SimpleParquetReader::SimpleParquetReader(const ContextPtr & context, const subst
         .reader_properties = parquet::ReaderProperties(ArrowMemoryPool::instance()),
         .format_settings = format_settings};
 
-    auto * seekable = dynamic_cast<SeekableReadBuffer *>(read_buffer_.get());
+    read_buffer_reader_ = read_buffer_builder->build(file_info);
+
+    auto * seekable = dynamic_cast<SeekableReadBuffer *>(read_buffer_reader_.get());
     assert(seekable != nullptr);
-    seekable->seek(0, SEEK_SET);
-    reader_ = std::make_shared<ParquetReader>(
-        std::move(metaBuilder.fileHeader),
-        *seekable,
-        nullptr,
-        settings,
-        std::vector<int>{},
-        metaBuilder.fileMetaData);
+    assert(header.columns());
+
+    reader_ = std::make_shared<ParquetReader>(std::move(header), *seekable, arrow_file, settings);
+    reader_->setSourceArrowFile(arrow_file);
+    if (filter.has_value())
+        pushFilterToParquetReader(*filter, *reader_);
 }
 
-SimpleParquetReader::SimpleParquetReader(const DB::ContextPtr & context,
-    const substraitIcebergDeleteFile & file_info): SimpleParquetReader(context, iceberg::fromDeleteFile(file_info))
+SimpleParquetReader::SimpleParquetReader(
+    const ContextPtr & context, const substraitIcebergDeleteFile & file_info, Block header, const std::optional<ActionsDAG> & filter)
+    : SimpleParquetReader(context, iceberg::fromDeleteFile(file_info), std::move(header), filter)
 {
 }
 

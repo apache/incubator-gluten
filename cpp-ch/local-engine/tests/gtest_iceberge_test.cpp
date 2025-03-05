@@ -89,11 +89,12 @@ private:
             for (auto& deleteFileRowGroup : deleteFileContent)
             {
                 auto baseFileName = deleteFileRowGroup.first;
-                auto baseFilePath = baseFilePaths[baseFileName]->string();
+                // TODO: check baseFilePath using URI format
+                auto baseFilePath = "file://" + baseFilePaths[baseFileName]->string();
                 auto positionsInRowGroup = deleteFileRowGroup.second;
 
                 auto filePathVector = createColumn<std::string>(positionsInRowGroup.size(),
-                    [&](size_t row) { return baseFilePath; });
+                    [&](size_t /*row*/) { return baseFilePath; });
                 auto deletePosVector = createColumn<int64_t>(positionsInRowGroup);
 
                 DB::Block deleteFileVector {

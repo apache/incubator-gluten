@@ -34,13 +34,24 @@ struct IcebergMetadataColumn
 
     static std::shared_ptr<IcebergMetadataColumn> icebergDeleteFilePathColumn()
     {
-        return std::make_shared<IcebergMetadataColumn>(
-            2147483546, "file_path", STRING(), "Path of a file in which a deleted row is stored");
+        static auto file_path
+            = std::make_shared<IcebergMetadataColumn>(2147483546, "file_path", STRING(), "Path of a file in which a deleted row is stored");
+        return file_path;
     }
 
     static std::shared_ptr<IcebergMetadataColumn> icebergDeletePosColumn()
     {
-        return std::make_shared<IcebergMetadataColumn>(2147483545, "pos", BIGINT(), "Ordinal position of a deleted row in the data file");
+        static auto pos
+            = std::make_shared<IcebergMetadataColumn>(2147483545, "pos", BIGINT(), "Ordinal position of a deleted row in the data file");
+        return pos;
+    }
+
+    static DB::NamesAndTypesList & getNamesAndTypesList()
+    {
+        static DB::NamesAndTypesList names_and_types_list{
+            {icebergDeleteFilePathColumn()->name, icebergDeleteFilePathColumn()->type},
+            {icebergDeletePosColumn()->name, icebergDeletePosColumn()->type}};
+        return names_and_types_list;
     }
 };
 }

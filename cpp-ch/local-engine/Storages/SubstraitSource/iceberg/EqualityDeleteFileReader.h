@@ -16,14 +16,17 @@
  */
 #pragma once
 
-#include <Functions/FunctionFactory.h>
 #include <Core/Block.h>
+#include <Functions/FunctionFactory.h>
 #include <Interpreters/Context_fwd.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Storages/SubstraitSource/substrait_fwd.h>
 
 namespace local_engine::iceberg
 {
+
+/// Visible for UT
+///
 class EqualityDeleteActionBuilder
 {
 public:
@@ -59,6 +62,12 @@ class EqualityDeleteFileReader
     const substraitIcebergDeleteFile & deleteFile_;
 
 public:
+    static DB::ExpressionActionsPtr createDeleteExpr(
+        const DB::ContextPtr & context,
+        const DB::Block & to_read_header,
+        const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+        const std::vector<int> & equality_delete_files);
+
     explicit EqualityDeleteFileReader(
         const DB::ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile);
     ~EqualityDeleteFileReader() = default;
