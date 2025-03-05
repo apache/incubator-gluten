@@ -162,6 +162,15 @@ class CHTransformerApi extends TransformerApi with Logging {
         nativeConfMap.put(orcCompressionKey, "snappy")
       }
     }
+
+    if (nativeConfMap.containsKey(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key)) {
+      // We can't use gluten_cache.local.enabled
+      // because FileCacheSettings doesn't contain this field.
+      nativeConfMap.put(
+        CHConfig.runtimeConfig("enable.gluten_cache.local"),
+        nativeConfMap.get(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key))
+      nativeConfMap.remove(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key)
+    }
   }
 
   override def getSupportExpressionClassName: util.Set[String] = {

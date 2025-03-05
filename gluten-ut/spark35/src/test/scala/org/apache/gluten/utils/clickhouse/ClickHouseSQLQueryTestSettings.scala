@@ -19,6 +19,9 @@ package org.apache.gluten.utils.clickhouse
 import org.apache.gluten.utils.SQLQueryTestSettings
 
 object ClickHouseSQLQueryTestSettings extends SQLQueryTestSettings {
+  override def getResourceFilePath: String =
+    getClass.getResource("/").getPath + "../../../src/test/resources/backends-clickhouse/sql-tests"
+
   override def getSupportedSQLQueryTests: Set[String] = SUPPORTED_SQL_QUERY_LIST
 
   override def getOverwriteSQLQueryTests: Set[String] = OVERWRITE_SQL_QUERY_LIST
@@ -260,6 +263,14 @@ object ClickHouseSQLQueryTestSettings extends SQLQueryTestSettings {
     // CH excludes following
     "typeCoercion/native/windowFrameCoercion.sql",
     "typeCoercion/native/promoteStrings.sql",
-    "typeCoercion/native/concat.sql"
+    "typeCoercion/native/concat.sql",
+    // Moved from GlutenSQLQueryTestSuite.ignoreList
+    "window.sql",
+    "udf/udf-window.sql",
+    "group-by.sql",
+    "udf/udf-group-by.sql - Scala UDF",
+    "udaf/udaf-group-analytics.sql",
+    "udaf/udaf-group-by-ordinal.sql",
+    "udaf/udaf-group-by.sql"
   )
 }

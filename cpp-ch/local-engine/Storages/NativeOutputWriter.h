@@ -29,8 +29,7 @@ public:
     NativeOutputWriter() = default;
     virtual ~NativeOutputWriter() = default;
 
-    //TODO: change to write(const DB::Block & block)
-    virtual void write(DB::Block & block) = 0;
+    virtual void write(const DB::Block & block) = 0;
     virtual void close() = 0;
 };
 }

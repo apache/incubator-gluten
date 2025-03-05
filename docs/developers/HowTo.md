@@ -110,7 +110,23 @@ Gluten will validate generated plan before execute it, and validation usually ha
 3. Run or debug with `./plan_validator_util <path>/plan.json`
 
 ## 3 How to debug Java/Scala
-wait to add
+
+To debug some runtime issues in Scala/Java, we recommend developers to use Intellij remote debug, see [tutorial link](https://www.jetbrains.com/help/idea/tutorial-remote-debug.html).
+
+According to your setting for Intellij remote debug, please set `SPARK_SUBMIT_OPTS` in the environment where spark-submit is executed. See the below example.
+
+```
+export SPARK_SUBMIT_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=8008
+```
+
+To run a Scala/Java test class, you can use the below mvn command (take Velox backend as example), which is helpful to debug some unit test failure reported by Gluten CI. 
+```
+mvn test -Pspark-3.5 -Pspark-ut -Pbackends-velox -DargLine="-Dspark.test.home=/path/to/spark/source/code/home/" -DwildcardSuites=xxx
+```
+
+Please set `wildcardSuites` with a fully qualified class name. `spark.test.home` is optional to set. It is only required for some test suites to use Spark resources.
+
+For most cases, please make sure Gluten native build is done before running a Scala/Java test.
 
 ## 4 How to debug with core-dump
 wait to complete

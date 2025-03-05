@@ -18,6 +18,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <Core/Field.h>
 #include <Interpreters/Context.h>
 #include <base/unit.h>
 #include <Common/ConcurrentMap.h>

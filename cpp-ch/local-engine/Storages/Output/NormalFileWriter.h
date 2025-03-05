@@ -34,7 +34,7 @@
 #include <Common/ArenaUtils.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
-#include <Common/FieldVisitorsAccurateComparison.h>
+#include <Common/FieldAccurateComparison.h>
 
 namespace local_engine
 {
@@ -48,10 +48,12 @@ public:
     NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_);
     ~NormalFileWriter() override = default;
 
-    void write(DB::Block & block) override;
+    void write(const DB::Block & block) override;
     void close() override;
 
 private:
+    DB::Block castBlock(const DB::Block & block) const;
+
     OutputFormatFilePtr file;
     DB::ContextPtr context;
 
@@ -101,7 +103,7 @@ struct DeltaStats
             if (!partition_index.contains(column.name))
                 statsHeaderBase.emplace_back(BIGINT(), "null_count_" + column.name);
 
-        return makeBlockHeader(statsHeaderBase);
+        return DB::Block{statsHeaderBase};
     }
 
     explicit DeltaStats(size_t size, const std::set<size_t> & partition_index_ = {})
@@ -147,8 +149,8 @@ struct DeltaStats
             }
             else
             {
-                min[i] = applyVisitor(DB::FieldVisitorAccurateLess(), min[i], min_value) ? min[i] : min_value;
-                max[i] = applyVisitor(DB::FieldVisitorAccurateLess(), max[i], max_value) ? max_value : max[i];
+                min[i] = accurateLess(min[i], min_value) ? min[i] : min_value;
+                max[i] = accurateLess(max[i], max_value) ? max_value : max[i];
             }
             ++i;
         }
@@ -385,7 +387,8 @@ protected:
     }
     void onCancel() noexcept override
     {
-        if (output_format_) {
+        if (output_format_)
+        {
             output_format_->cancel();
             output_format_.reset();
         }
@@ -413,17 +416,23 @@ public:
         for (const auto & column : partition_columns)
         {
             // partition_column=
-            std::string key = add_slash ? fmt::format("/{}=", column) : fmt::format("{}=", column);
+            auto column_name = std::make_shared<DB::ASTLiteral>(column);
+            auto escaped_name = makeASTFunction("sparkPartitionEscape", DB::ASTs{column_name});
+            if (add_slash)
+                arguments.emplace_back(std::make_shared<DB::ASTLiteral>("/"));
             add_slash = true;
-            arguments.emplace_back(std::make_shared<DB::ASTLiteral>(key));
+            arguments.emplace_back(escaped_name);
+            arguments.emplace_back(std::make_shared<DB::ASTLiteral>("="));
 
             // ifNull(toString(partition_column), DEFAULT_PARTITION_NAME)
             // FIXME if toString(partition_column) is empty
-            auto column_ast = std::make_shared<DB::ASTIdentifier>(column);
+            auto column_ast = makeASTFunction("toString", DB::ASTs{std::make_shared<DB::ASTIdentifier>(column)});
+            auto escaped_value = makeASTFunction("sparkPartitionEscape", DB::ASTs{column_ast});
             DB::ASTs if_null_args{
-                makeASTFunction("toString", DB::ASTs{column_ast}), std::make_shared<DB::ASTLiteral>(DEFAULT_PARTITION_NAME)};
+                makeASTFunction("toString", DB::ASTs{escaped_value}), std::make_shared<DB::ASTLiteral>(DEFAULT_PARTITION_NAME)};
             arguments.emplace_back(makeASTFunction("ifNull", std::move(if_null_args)));
         }
+
         if (isBucketedWrite(input_header))
         {
             DB::ASTs args{std::make_shared<DB::ASTLiteral>("%05d"), std::make_shared<DB::ASTIdentifier>(BUCKET_COLUMN_NAME)};

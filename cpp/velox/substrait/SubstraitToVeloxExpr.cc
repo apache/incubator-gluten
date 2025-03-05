@@ -298,13 +298,14 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
 
   if (veloxFunction == "lambdafunction") {
     return toLambdaExpr(substraitFunc, inputType);
-  } else if (veloxFunction == "namedlambdavariable") {
-    return makeFieldAccessExpr(substraitFunc.arguments(0).value().literal().string(), outputType, nullptr);
-  } else if (veloxFunction == "extract") {
-    return toExtractExpr(std::move(params), outputType);
-  } else {
-    return std::make_shared<const core::CallTypedExpr>(outputType, std::move(params), veloxFunction);
   }
+  if (veloxFunction == "namedlambdavariable") {
+    return makeFieldAccessExpr(substraitFunc.arguments(0).value().literal().string(), outputType, nullptr);
+  }
+  if (veloxFunction == "extract") {
+    return toExtractExpr(std::move(params), outputType);
+  }
+  return std::make_shared<const core::CallTypedExpr>(outputType, std::move(params), veloxFunction);
 }
 
 std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::literalsToConstantExpr(
@@ -379,11 +380,11 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       auto veloxType = SubstraitParser::parseType(substraitLit.null());
       if (veloxType->isShortDecimal()) {
         return std::make_shared<core::ConstantTypedExpr>(veloxType, variant::null(TypeKind::BIGINT));
-      } else if (veloxType->isLongDecimal()) {
-        return std::make_shared<core::ConstantTypedExpr>(veloxType, variant::null(TypeKind::HUGEINT));
-      } else {
-        return std::make_shared<core::ConstantTypedExpr>(veloxType, variant::null(veloxType->kind()));
       }
+      if (veloxType->isLongDecimal()) {
+        return std::make_shared<core::ConstantTypedExpr>(veloxType, variant::null(TypeKind::HUGEINT));
+      }
+      return std::make_shared<core::ConstantTypedExpr>(veloxType, variant::null(veloxType->kind()));
     }
     default:
       auto veloxType = getScalarType(substraitLit);

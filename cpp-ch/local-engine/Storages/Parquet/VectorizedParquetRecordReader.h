@@ -180,8 +180,6 @@ class VectorizedParquetRecordReader
     /// columns to read from Parquet file.
     std::vector<VectorizedColumnReader> column_readers_;
 
-    friend class VectorizedParquetBlockInputFormat;
-
     static parquet::arrow::SchemaManifest createSchemaManifest(const parquet::FileMetaData & metadata);
 
 public:
@@ -201,6 +199,8 @@ public:
         column_readers_.clear();
         file_reader_.reset();
     }
+
+    const DB::FormatSettings & formatSettings() const { return format_settings_; }
 };
 
 /// InputFormat

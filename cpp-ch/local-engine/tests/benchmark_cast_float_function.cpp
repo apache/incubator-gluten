@@ -17,6 +17,7 @@
 
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
+#include <Core/Field.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/IDataType.h>

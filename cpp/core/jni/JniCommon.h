@@ -39,7 +39,7 @@ static inline std::string jStringToCString(JNIEnv* env, jstring string) {
   int32_t jlen, clen;
   clen = env->GetStringUTFLength(string);
   jlen = env->GetStringLength(string);
-  char buffer[clen];
+  char buffer[clen + 1];
   env->GetStringUTFRegion(string, 0, jlen, buffer);
   return std::string(buffer, clen);
 }

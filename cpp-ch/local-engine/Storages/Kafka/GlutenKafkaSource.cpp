@@ -17,6 +17,7 @@
 
 #include "GlutenKafkaSource.h"
 
+#include <Columns/IColumn.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Formats/FormatFactory.h>

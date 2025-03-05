@@ -65,11 +65,11 @@ struct ShouldIncludeRowGroup
 
 namespace
 {
-ParquetMetaBuilder collectRequiredRowGroups(DB::ReadBuffer * read_buffer, const substraitInputFile & file_info)
+ParquetMetaBuilder collectRequiredRowGroups(DB::ReadBuffer & read_buffer, const substraitInputFile & file_info)
 {
     ParquetMetaBuilder result;
     ShouldIncludeRowGroup should_include_row_group{file_info};
-    result.build(read_buffer, nullptr, nullptr, should_include_row_group);
+    result.build(read_buffer, should_include_row_group);
     return result;
 }
 }
@@ -160,13 +160,13 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
     {
         // reuse the read_buffer to avoid opening the file twice.
         // especially，the cost of opening a hdfs file is large.
-        metaBuilder.build(seekable_in, &read_header, column_index_filter.get(), should_include_row_group);
+        metaBuilder.build(*seekable_in, read_header, column_index_filter.get(), should_include_row_group);
         seekable_in->seek(0, SEEK_SET);
     }
     else
     {
         const auto in = read_buffer_builder->build(file_info);
-        metaBuilder.build(in.get(), &read_header, column_index_filter.get(), should_include_row_group);
+        metaBuilder.build(*in, read_header, column_index_filter.get(), should_include_row_group);
     }
 
     if (metaBuilder.readRowGroups.empty())
@@ -215,7 +215,7 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
     }
 
     auto in = read_buffer_builder->build(file_info);
-    auto result = collectRequiredRowGroups(in.get(), file_info);
+    auto result = collectRequiredRowGroups(*in, file_info);
 
     size_t rows = 0;
     for (const auto & rowgroup : result.readRowGroups)

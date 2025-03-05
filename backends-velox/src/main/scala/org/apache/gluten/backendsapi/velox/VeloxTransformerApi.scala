@@ -17,8 +17,11 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.{BackendsApiManager, TransformerApi}
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.WriteFilesExecTransformer
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.proto.ConfigMap
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.InputPartitionsUtil
@@ -28,12 +31,13 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.sources.DataSourceRegister
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.types._
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.collection.BitSet
 
-import com.google.protobuf.{Any, Message, StringValue}
+import com.google.protobuf.{Any, Message}
 
 import java.util.{Map => JMap}
 
@@ -97,21 +101,24 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   override def packPBMessage(message: Message): Any = Any.pack(message, "")
 
   override def genWriteParameters(write: WriteFilesExecTransformer): Any = {
-    val fileFormatStr = write.fileFormat match {
-      case register: DataSourceRegister =>
-        register.shortName
-      case _ => "UnknownFileFormat"
+    write.fileFormat match {
+      case _ @(_: ParquetFileFormat | _: HiveFileFormat) =>
+        // Only Parquet is supported. It's safe to set a fixed "parquet" here
+        // because others already fell back by WriteFilesExecTransformer's validation.
+        val shortName = "parquet"
+        val nativeConf =
+          GlutenFormatFactory(shortName)
+            .nativeConf(
+              write.caseInsensitiveOptions,
+              WriteFilesExecTransformer.getCompressionCodec(write.caseInsensitiveOptions))
+        packPBMessage(
+          ConfigMap
+            .newBuilder()
+            .putAllConfigs(nativeConf)
+            .putConfigs("format", shortName)
+            .build())
+      case _ =>
+        throw new GlutenException("Unsupported file write format: " + write.fileFormat)
     }
-    val compressionCodec =
-      WriteFilesExecTransformer.getCompressionCodec(write.caseInsensitiveOptions).capitalize
-    val writeParametersStr = new StringBuffer("WriteParameters:")
-    writeParametersStr.append("is").append(compressionCodec).append("=1")
-    writeParametersStr.append(";format=").append(fileFormatStr).append("\n")
-
-    packPBMessage(
-      StringValue
-        .newBuilder()
-        .setValue(writeParametersStr.toString)
-        .build())
   }
 }

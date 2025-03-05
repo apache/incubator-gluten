@@ -106,13 +106,13 @@ Notes： Building Velox may fail caused by OOM. You can prevent this failure by 
 
 After the above build process, the Jar file will be generated under `package/target/`.
 
-Alternatively you may refer to [build in docker](docs/developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
+Alternatively you may refer to [build in docker](../developers/velox-backend-build-in-docker.md) to build the gluten jar in docker.
 
 ## Dependency library deployment
 
 With build option `enable_vcpkg=ON`, all dependency libraries will be statically linked to `libvelox.so` and `libgluten.so` which are packed into the gluten-jar.
 In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build
-the static version using a clean docker image without any extra libraries installed ( [build in docker](docs/developers/velox-backend-build-in-docker.md) ). On host with
+the static version using a clean docker image without any extra libraries installed ( [build in docker](../developers/velox-backend-build-in-docker.md) ). On host with
 some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host. We **strongly recommend** user to build Gluten in this way to avoid dependency lacking issue.
 
 With build option `enable_vcpkg=OFF`, not all dependency libraries will be dynamically linked. After building, you need to separately execute `./dev/build-thirdparty.sh` to 
@@ -502,8 +502,9 @@ Both Parquet and ORC datasets are sf1024.
 
 Please refer [Gluten UI](VeloxGlutenUI.md)
 
-# Gluten Implicits
+# Gluten Native Plan Summary
 
+## Gluten Implicits
 Gluten provides a helper class to get the fallback summary from a Spark Dataset.
 
 ```
@@ -515,6 +516,58 @@ df.fallbackSummary
 Note that, if AQE is enabled, but the query is not materialized, then it will re-plan
 the query execution with disabled AQE. It is a workaround to get the final plan, and it may
 cause the inconsistent results with a materialized query. However, we have no choice.
+
+## Native Plan in Spark's Explain Output
+
+Gluten supports inject native plan string into Spark explain with formatted mode by setting `--conf spark.gluten.sql.injectNativePlanStringToExplain=true`.
+Here is an example, how Gluten shows the native plan string.
+
+```
+(9) WholeStageCodegenTransformer (2)
+Input [6]: [c1#0L, c2#1L, c3#2L, c1#3L, c2#4L, c3#5L]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n3_6:BIGINT, "n0_0"), (n3_7:BIGINT, "n0_1"), (n3_8:BIGINT, "n0_2"), (n3_9:BIGINT, "n1_0"), (n3_10:BIGINT, "n1_1"), (n3_11:BIGINT, "n1_2")] -> n3_6:BIGINT, n3_7:BIGINT, n3_8:BIGINT, n3_9:BIGINT, n3_10:BIGINT, n3_11:BIGINT
+  -- HashJoin[INNER n1_1=n0_1] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT, n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
+    -- TableScan[table: hive_table, range filters: [(c2, Filter(IsNotNull, deterministic, null not allowed))]] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT
+    -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
+```
+
+## Native Plan with Stats
+
+Gluten supports print native plan with stats to executor system output stream by setting `--conf spark.gluten.sql.debug=true`.
+Note that, the plan string with stats is task level which may cause executor log size big. Here is an example, how Gluten show the native plan string with stats.
+
+```
+I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan with stats for: [Stage: 1 TID: 16]
+-- Project[expressions: (n3_6:BIGINT, "n0_0"), (n3_7:BIGINT, "n0_1"), (n3_8:BIGINT, "n0_2"), (n3_9:BIGINT, "n1_0"), (n3_10:BIGINT, "n1_1"), (n3_11:BIGINT, "n1_2")] -> n3_6:BIGINT, n3_7:BIGINT, n3_8:BIGINT, n3_9:BIGINT, n3_10:BIGINT, n3_11:BIGINT
+   Output: 27 rows (3.56KB, 3 batches), Cpu time: 10.58us, Blocked wall time: 0ns, Peak memory: 0B, Memory allocations: 0, Threads: 1
+      queuedWallNanos              sum: 2.00us, count: 1, min: 2.00us, max: 2.00us
+```
+
+
+## Broadcast Build Relations to Off-Heap(Experimental)
+
+The experimental feature **Off-Heap Broadcast Build Relations** aims to mitigate out-of-memory (OOM) issues caused by heap memory consumption during broadcast operations. Detailed design
+can be found [here](https://docs.google.com/document/d/1eZNWPUEdiz2JPJfhyVn9hrk6SqJFRNzOMZm6u5Yredk/edit?tab=t.0)
+
+### Purpose & how it works
+- **Avoid OOM**: Prevent OOM errors when broadcasting large datasets.
+- **Reduce Heap Memory Usage**: Store broadcast build relations in Spark off-heap memory instead of on-heap memory
+
+### Configuration
+
+### Enable Off-Heap Broadcast
+To enable this feature, you can set the following Spark configuration:
+
+| Property                                                    | Default | Description                                                       |
+|-------------------------------------------------------------|---------|-------------------------------------------------------------------|
+| `spark.gluten.velox.offHeapBroadcastBuildRelation.enabled`  | `false` | Enable/disable off-heap storage for broadcast build relations.    |
+
+This feature has been tested through a series of tests, and we are collecting more feedback from users. If you have memory problem on broadcast build relations, please try this feature and give more feedbacks.
+
+**Note**: This feature will become the default behavior once stabilized. Stay tuned for updates!
+
 
 # Accelerators
 

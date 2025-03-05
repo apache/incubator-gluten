@@ -51,9 +51,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.util.SerializableConfiguration
 
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
-import scala.collection.mutable
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends SubstraitBackend {
@@ -109,25 +107,12 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     def validateScheme(): Option[String] = {
       val filteredRootPaths = distinctRootPaths(rootPaths)
-      if (filteredRootPaths.nonEmpty) {
-        val resolvedPaths =
-          if (GlutenConfig.get.enableHdfsViewfs) {
-            ViewFileSystemUtils.convertViewfsToHdfs(
-              filteredRootPaths,
-              mutable.Map.empty[String, String],
-              serializableHadoopConf.get.value)
-          } else {
-            filteredRootPaths
-          }
-
-        if (
-          !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
-            resolvedPaths.toArray)
-        ) {
-          Some(s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
-        } else {
-          None
-        }
+      if (
+        filteredRootPaths.nonEmpty &&
+        !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
+          filteredRootPaths.toArray)
+      ) {
+        Some(s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
       } else {
         None
       }
@@ -579,6 +564,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def needPreComputeRangeFrameBoundary(): Boolean = true
 
-  override def supportRangeExec(): Boolean = true
+  override def supportCollectLimitExec(): Boolean = true
 
 }

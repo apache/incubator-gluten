@@ -141,9 +141,6 @@ class SubstraitToVeloxPlanValidator {
   /// Validate Substrait expression.
   bool validateExpression(const ::substrait::Expression& expression, const RowTypePtr& inputType);
 
-  /// Validate Substrait literal.
-  bool validateLiteral(const ::substrait::Expression_Literal& literal, const RowTypePtr& inputType);
-
   /// Validate Substrait if-then expression.
   bool validateIfThen(const ::substrait::Expression_IfThen& ifThen, const RowTypePtr& inputType);
 
@@ -156,6 +153,8 @@ class SubstraitToVeloxPlanValidator {
   void logValidateMsg(const std::string& log) {
     validateLog_.emplace_back(log);
   }
+
+  bool isAllowedCast(const TypePtr& fromType, const TypePtr& toType);
 };
 
 } // namespace gluten

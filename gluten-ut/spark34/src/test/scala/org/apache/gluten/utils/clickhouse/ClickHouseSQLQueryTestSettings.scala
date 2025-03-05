@@ -19,6 +19,9 @@ package org.apache.gluten.utils.clickhouse
 import org.apache.gluten.utils.SQLQueryTestSettings
 
 object ClickHouseSQLQueryTestSettings extends SQLQueryTestSettings {
+  override def getResourceFilePath: String =
+    getClass.getResource("/").getPath + "../../../src/test/resources/sql-tests"
+
   override def getSupportedSQLQueryTests: Set[String] = Set()
 
   override def getOverwriteSQLQueryTests: Set[String] = Set()

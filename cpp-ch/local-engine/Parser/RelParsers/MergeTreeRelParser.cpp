@@ -24,10 +24,10 @@
 #include <Parser/TypeParser.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/BlockTypeUtils.h>
-#include <Common/CHUtil.h>
 #include <Common/GlutenSettings.h>
 #include <Common/PlanUtil.h>
 
@@ -122,12 +122,16 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     {
         NamesAndTypesList one_column_name_type;
         one_column_name_type.push_back(storage->getInMemoryMetadataPtr()->getColumns().getAll().front());
-        input = BlockUtil::buildHeader(one_column_name_type);
+        input = toSampleBlock(one_column_name_type);
         LOG_DEBUG(getLogger("SerializedPlanParser"), "Try to read ({}) instead of empty header", one_column_name_type.front().dump());
     }
 
+    std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
+        storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
+
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
+
     auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
     auto names_and_types_list = input.getNamesAndTypesList();
 
@@ -140,9 +144,6 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         non_nullable_columns = non_nullable_columns_resolver.resolve();
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), input);
     }
-
-    std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
-        storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
     auto read_step = storage->reader.readFromParts(
         selected_parts,

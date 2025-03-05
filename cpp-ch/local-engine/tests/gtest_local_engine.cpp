@@ -16,11 +16,12 @@
  */
 #include <fstream>
 #include <iostream>
-#include <gluten_test_util.h>
 #include <incbin.h>
+
 #include <Disks/DiskLocal.h>
 #include <Formats/FormatFactory.h>
 #include <Interpreters/Context.h>
+#include <Interpreters/registerInterpreters.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
@@ -28,7 +29,10 @@
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
+#include <TableFunctions/TableFunctionFactory.h>
+#include <TableFunctions/registerTableFunctions.h>
 #include <gtest/gtest.h>
+#include <tests/utils/gluten_test_util.h>
 #include <config.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
@@ -100,6 +104,9 @@ int main(int argc, char ** argv)
         true);
 
     SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
+
+    DB::registerInterpreters();
+    DB::registerTableFunctions(false);
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

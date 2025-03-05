@@ -39,11 +39,13 @@ void ParserContext::addSelfDefinedFunctionMapping()
     legacy_function_mapping[std::to_string(SelfDefinedFunctionReference::GET_JSON_OBJECT)] = sig.signature;
 }
 
-ParserContextPtr ParserContext::build(DB::ContextPtr context_, const std::unordered_map<String, String> & function_mapping_)
+ParserContextPtr
+ParserContext::build(DB::ContextPtr context_, const std::unordered_map<String, String> & function_mapping_, const size_t & partition_index_)
 {
     auto res = std::make_shared<ParserContext>();
     res->query_context = context_;
     res->legacy_function_mapping = function_mapping_;
+    res->partition_index = partition_index_;
     auto & function_mapping = res->function_mapping;
     for (const auto & fm : function_mapping_)
     {
@@ -66,7 +68,7 @@ ParserContextPtr ParserContext::build(DB::ContextPtr context_)
     return res;
 }
 
-ParserContextPtr ParserContext::build(DB::ContextPtr context_, const substrait::Plan & plan_)
+ParserContextPtr ParserContext::build(DB::ContextPtr context_, const substrait::Plan & plan_, const size_t & partition_index_)
 {
     std::unordered_map<String, String> function_mapping;
     for (const auto & extension : plan_.extensions())
@@ -77,7 +79,7 @@ ParserContextPtr ParserContext::build(DB::ContextPtr context_, const substrait::
                 std::to_string(extension.extension_function().function_anchor()), extension.extension_function().name());
         }
     }
-    return build(context_, function_mapping);
+    return build(context_, function_mapping, partition_index_);
 }
 
 DB::ContextPtr ParserContext::queryContext() const

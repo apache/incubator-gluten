@@ -46,6 +46,8 @@ namespace Setting
 extern const SettingsJoinAlgorithm join_algorithm;
 extern const SettingsUInt64 max_block_size;
 extern const SettingsUInt64 min_joined_block_size_bytes;
+extern const SettingsNonZeroUInt64 grace_hash_join_initial_buckets;
+extern const SettingsNonZeroUInt64 grace_hash_join_max_buckets;
 }
 namespace ErrorCodes
 {
@@ -782,7 +784,9 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
     if (join_algorithm.isSet(DB::JoinAlgorithm::GRACE_HASH))
     {
         hash_join = std::make_shared<GraceHashJoin>(
-            context, table_join, left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), context->getTempDataOnDisk());
+            context->getSettingsRef()[Setting::grace_hash_join_initial_buckets],
+            context->getSettingsRef()[Setting::grace_hash_join_max_buckets],
+            table_join, left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), context->getTempDataOnDisk());
     }
     else
     {

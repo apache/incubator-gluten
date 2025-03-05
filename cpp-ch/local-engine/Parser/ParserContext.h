@@ -38,9 +38,10 @@ public:
     ParserContext() = default;
 
     using Ptr = std::shared_ptr<const ParserContext>;
-    static Ptr build(DB::ContextPtr context_, const std::unordered_map<String, String> & function_mapping_);
+    static Ptr
+    build(DB::ContextPtr context_, const std::unordered_map<String, String> & function_mapping_, const size_t & partition_index_ = 0);
     static Ptr build(DB::ContextPtr context_);
-    static Ptr build(DB::ContextPtr context_, const substrait::Plan & plan_);
+    static Ptr build(DB::ContextPtr context_, const substrait::Plan & plan_, const size_t & partition_index_ = 0);
 
     DB::ContextPtr queryContext() const;
 
@@ -49,11 +50,13 @@ public:
     std::optional<String> getFunctionNameInSignature(Int32 ref) const;
     std::optional<String> getFunctionNameInSignature(const substrait::Expression_ScalarFunction & func) const;
     const std::unordered_map<String, String> & getLegacyFunctionMapping() const;
+    size_t getPartitionIndex() const { return partition_index; }
 
 private:
     DB::ContextPtr query_context;
     std::unordered_map<String, String> legacy_function_mapping;
     std::unordered_map<Int32, FunctionSignature> function_mapping;
+    size_t partition_index = 0;
 
     void addSelfDefinedFunctionMapping();
 };

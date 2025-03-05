@@ -81,7 +81,7 @@ public:
         bool is_cache = object_storage->supportsCache();
         if (is_cache)
         {
-            auto cache_os = reinterpret_cast<DB::CachedObjectStorage*>(object_storage.get());
+            std::shared_ptr<DB::CachedObjectStorage> cache_os = typeid_cast<std::shared_ptr<DB::CachedObjectStorage>>(object_storage);
             object_storage = hdfs_object_storage;
             auto cache = DB::FileCacheFactory::instance().getOrCreate(cache_os->getCacheName(), cache_os->getCacheSettings(), "storage_configuration.disks.hdfs_cache");
             wrapWithCache(cache, cache_os->getCacheSettings(), cache_os->getCacheConfigName());

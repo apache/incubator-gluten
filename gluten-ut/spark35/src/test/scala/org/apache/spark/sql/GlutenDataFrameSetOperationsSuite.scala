@@ -16,6 +16,14 @@
  */
 package org.apache.spark.sql
 
+import org.apache.spark.SparkConf
+
 class GlutenDataFrameSetOperationsSuite
   extends DataFrameSetOperationsSuite
-  with GlutenSQLTestsTrait {}
+  with GlutenSQLTestsTrait {
+  override def sparkConf: SparkConf =
+    super.sparkConf
+      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.project.union", "false")
+      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.aggregation.union", "false")
+
+}

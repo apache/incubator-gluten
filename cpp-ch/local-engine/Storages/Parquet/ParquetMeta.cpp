@@ -16,6 +16,7 @@
  */
 
 #include "ParquetMeta.h"
+
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ArrowFieldIndexUtil.h>
@@ -23,6 +24,7 @@
 #include <parquet/arrow/reader.h>
 #include <parquet/arrow/schema.h>
 #include <parquet/metadata.h>
+#include "Processors/Formats/Impl/ArrowColumnToCHColumn.h"
 
 namespace DB
 {
@@ -35,13 +37,14 @@ extern const int BAD_ARGUMENTS;
 
 namespace local_engine
 {
-std::unique_ptr<parquet::ParquetFileReader> ParquetMetaBuilder::openInputParquetFile(DB::ReadBuffer * read_buffer)
+
+std::unique_ptr<parquet::ParquetFileReader> ParquetMetaBuilder::openInputParquetFile(DB::ReadBuffer & read_buffer)
 {
     const DB::FormatSettings format_settings{
         .seekable_read = true,
     };
     std::atomic<int> is_stopped{0};
-    auto arrow_file = asArrowFile(*read_buffer, format_settings, is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
+    auto arrow_file = asArrowFile(read_buffer, format_settings, is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
 
     return parquet::ParquetFileReader::Open(arrow_file, parquet::default_reader_properties(), nullptr);
 }
@@ -81,6 +84,18 @@ std::unique_ptr<ColumnIndexStore> ParquetMetaBuilder::collectColumnIndex(
         column_index_store[columnName] = ColumnIndex::create(col_desc, col_index, offset_index);
     }
     return result;
+}
+
+ParquetMetaBuilder & ParquetMetaBuilder::buildSchema(const parquet::FileMetaData & file_meta)
+{
+    if (collectSchema)
+    {
+        std::shared_ptr<arrow::Schema> schema;
+        THROW_ARROW_NOT_OK(parquet::arrow::FromParquetSchema(file_meta.schema(), &schema));
+
+        fileHeader = DB::ArrowColumnToCHColumn::arrowSchemaToCHHeader(*schema, "Parquet", false, true);
+    }
+    return *this;
 }
 
 
@@ -145,6 +160,17 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildSkipRowGroup(const parquet::FileMe
     }
     return *this;
 }
+ParquetMetaBuilder & ParquetMetaBuilder::buildAllRowRange(const parquet::FileMetaData & file_meta)
+{
+    if (collectPageIndex)
+    {
+        assert(collectSchema && fileHeader.columns() > 0 && "collectSchema must be true when collectPageIndex is true");
+        readColumns = pruneColumn(fileHeader, file_meta, case_insensitive, allow_missing_columns);
+        for (auto & row_group : readRowGroups)
+            row_group.rowRanges = RowRanges::createSingle(row_group.num_rows);
+    }
+    return *this;
+}
 
 ParquetMetaBuilder & ParquetMetaBuilder::buildRowRange(
     parquet::ParquetFileReader & reader,
@@ -174,8 +200,8 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildRowRange(
 }
 
 ParquetMetaBuilder & ParquetMetaBuilder::build(
-    DB::ReadBuffer * read_buffer,
-    const DB::Block * readBlock,
+    DB::ReadBuffer & read_buffer,
+    const DB::Block & readBlock,
     const ColumnIndexFilter * column_index_filter,
     const std::function<bool(UInt64)> & should_include_row_group)
 {
@@ -183,7 +209,19 @@ ParquetMetaBuilder & ParquetMetaBuilder::build(
     const auto file_meta = reader->metadata();
     return buildRequiredRowGroups(*file_meta, should_include_row_group)
         .buildSkipRowGroup(*file_meta)
-        .buildRowRange(*reader, *file_meta, *readBlock, column_index_filter);
+        .buildSchema(*file_meta)
+        .buildRowRange(*reader, *file_meta, readBlock, column_index_filter);
 }
+
+ParquetMetaBuilder & ParquetMetaBuilder::build(DB::ReadBuffer & read_buffer, const std::function<bool(UInt64)> & should_include_row_group)
+{
+    auto reader = openInputParquetFile(read_buffer);
+    const auto file_meta = reader->metadata();
+    return buildRequiredRowGroups(*file_meta, should_include_row_group)
+        .buildSkipRowGroup(*file_meta)
+        .buildSchema(*file_meta)
+        .buildAllRowRange(*file_meta);
+}
+
 
 }
