@@ -29,11 +29,12 @@ function install_spark() {
   local scala_version="$3"
   local spark_version_short=$(echo "${spark_version}" | cut -d '.' -f 1,2 | tr -d '.')
   local scala_suffix=$([ "${scala_version}" == '2.13' ] && echo '-scala-2.13' || echo '')
+  local scala_suffix_short=$([ "${scala_version}" == '2.13' ] && echo '-scala2.13' || echo '')
   local mirror_host='https://www.apache.org/dyn/closer.lua/'
   local url_query='?action=download'
   local checksum_suffix='sha512'
   local url_path="spark/spark-${spark_version}/"
-  local local_binary="spark-${spark_version}-bin-hadoop${hadoop_version}${scala_suffix}.tgz"
+  local local_binary="spark-${spark_version}-bin-hadoop${hadoop_version}${scala_suffix_short}.tgz"
   local local_binary_checksum="${local_binary}.${checksum_suffix}"
   local local_source="spark-${spark_version}.tgz"
   local local_source_checksum="${local_source}.${checksum_suffix}"
