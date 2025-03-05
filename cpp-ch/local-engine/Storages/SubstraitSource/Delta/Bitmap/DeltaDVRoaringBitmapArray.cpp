@@ -146,7 +146,7 @@ void DeltaDVRoaringBitmapArray::rb_shrink_bitmaps(Int32 new_length)
 
 void DeltaDVRoaringBitmapArray::rb_merge(const DeltaDVRoaringBitmapArray & that)
 {
-    return rb_or(that);
+    rb_or(that);
 }
 void DeltaDVRoaringBitmapArray::rb_or(const DeltaDVRoaringBitmapArray & that)
 {

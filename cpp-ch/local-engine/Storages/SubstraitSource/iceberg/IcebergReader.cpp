@@ -20,11 +20,52 @@
 #include <Interpreters/ExpressionActions.h>
 #include <Interpreters/ExpressionAnalyzer.h>
 #include <Storages/SubstraitSource/iceberg/EqualityDeleteFileReader.h>
+#include <Processors/Formats/Impl/Parquet/ParquetReader.h>
 
 using namespace DB;
 
 namespace local_engine::iceberg
 {
+using namespace google::protobuf;
+
+ExpressionActionsPtr createDeleteExpr(
+    const ContextPtr & context,
+    const Block & to_read_header,
+    const RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+    const std::vector<int> & equality_delete_files)
+{
+    assert(!equality_delete_files.empty());
+
+    EqualityDeleteActionBuilder expressionInputs{context, to_read_header.getNamesAndTypesList()};
+    for (auto deleteIndex : equality_delete_files)
+    {
+        const auto & delete_file = delete_files[deleteIndex];
+        assert(delete_file.filecontent() == IcebergReadOptions::EQUALITY_DELETES);
+        if (delete_file.recordcount() > 0)
+            EqualityDeleteFileReader{context, to_read_header, delete_file}.readDeleteValues(expressionInputs);
+    }
+    return expressionInputs.finish();
+}
+
+void createBitmapExpr(
+    const ContextPtr & context,
+    const Block & /*to_read_header*/,
+    const RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+    const std::vector<int> & position_delete_files)
+{
+    assert(!position_delete_files.empty());
+
+    for (auto deleteIndex : position_delete_files)
+    {
+        const auto & delete_file = delete_files[deleteIndex];
+        assert(delete_file.filecontent() == IcebergReadOptions::POSITION_DELETES);
+        if (delete_file.recordcount() == 0)
+            continue;
+        // SimpleParquetReader reader{context, delete_file};
+
+    }
+}
+
 
 std::unique_ptr<IcebergReader> IcebergReader::create(
     const FormatFilePtr & file_,
@@ -37,27 +78,19 @@ std::unique_ptr<IcebergReader> IcebergReader::create(
     for (size_t i = 0; i < delete_files.size(); ++i)
         partitions[delete_files[i].filecontent()].push_back(i);
 
-    // TODO: constexpr auto position_delete = IcebergReadOptions::POSITION_DELETES;
     assert(!partitions.contains(IcebergReadOptions::DATA));
-    const auto it = partitions.find(IcebergReadOptions::EQUALITY_DELETES);
-
     const auto & context = file_->getContext();
 
-    ExpressionActionsPtr delete_expr;
-    if (it != partitions.end())
-    {
-        const auto & equality_delete_files = it->second;
-        assert(!equality_delete_files.empty());
+    /// Load POSITION_DELETES
+    const auto it_pos = partitions.find(IcebergReadOptions::POSITION_DELETES);
+    if (it_pos != partitions.end())
+        createBitmapExpr(context, to_read_header_, delete_files, it_pos->second);
 
-        EqualityDeleteActionBuilder expressionInputs{context, to_read_header_.getNamesAndTypesList()};
-        for (auto deleteIndex : equality_delete_files)
-        {
-            const auto & delete_file = delete_files[deleteIndex];
-            if (delete_file.recordcount() > 0)
-                EqualityDeleteFileReader{context, to_read_header_, delete_file}.readDeleteValues(expressionInputs);
-        }
-        delete_expr = expressionInputs.finish();
-    }
+    /// Load EQUALITY_DELETES
+    const auto it_equal = partitions.find(IcebergReadOptions::EQUALITY_DELETES);
+    ExpressionActionsPtr delete_expr =
+        it_equal == partitions.end() ? nullptr : createDeleteExpr(context, to_read_header_, delete_files, it_equal->second);
+
     return std::make_unique<IcebergReader>(file_, to_read_header_, output_header_, input_format_, delete_expr);
 }
 

@@ -16,7 +16,6 @@
  */
 #pragma once
 #include <string>
-#include <DataTypes/IDataType.h>
 #include <Common/BlockTypeUtils.h>
 
 namespace local_engine::iceberg
@@ -28,7 +27,7 @@ struct IcebergMetadataColumn
     DB::DataTypePtr type;
     std::string doc;
 
-    IcebergMetadataColumn(int _id, const std::string & _name, DB::DataTypePtr _type, const std::string & _doc)
+    IcebergMetadataColumn(int _id, const std::string & _name, const DB::DataTypePtr & _type, const std::string & _doc)
         : id(_id), name(_name), type(_type), doc(_doc)
     {
     }

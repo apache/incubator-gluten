@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 #include <IO/ReadHelpers.h>
-#include <IO/WriteHelpers.h>
-#include <Common/PODArray.h>
 #include <roaring.hh>
 
 namespace local_engine
@@ -39,7 +38,7 @@ private:
     void rb_shrink_bitmaps(Int32 new_length);
 public:
 
-    DeltaDVRoaringBitmapArray(const DB::ContextPtr & context_);
+    explicit DeltaDVRoaringBitmapArray(const DB::ContextPtr & context_);
     ~DeltaDVRoaringBitmapArray() = default;
     bool operator==(const DeltaDVRoaringBitmapArray& other) const;
     UInt64 rb_size() const;
