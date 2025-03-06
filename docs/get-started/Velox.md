@@ -547,7 +547,7 @@ I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan 
 
 
 ## Using Stage-Level Resource Adjustment to Avoid OOM(Experimental)
- see more [here](../VeloxFeature.md)
+ see more [here](../VeloxStageResourceAdj.md)
 
 ## Broadcast Build Relations to Off-Heap(Experimental)
 

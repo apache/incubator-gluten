@@ -8,9 +8,9 @@ parent: Getting-Started
 ---
 
 ### **Overview**
-Apache Gluten introduces a stage-level resource auto-adjustment framework to mitigate heap Out-of-Memory (OOM) issues caused by varying memory demands across stages in Spark applications. This feature dynamically adjusts task and executor resource profiles (e.g., heap/off-heap memory allocation) based on stage characteristics, such as the presence of fallback operators or heavy shuffle workloads(to be supported).
+One major advantage of Apache Gluten is its ability to significantly reduce memory requirements per executor—potentially by up to half—when entire stages are offloaded to the native engine. This engine primarily relies on off-heap memory with minimal on-heap usage. However, when stages contain fallback operators that utilize the JVM engine, the on-heap memory size must be increased, leading to even higher memory demands per executor. This challenge has posed significant barriers during the adoption of Apache Gluten.
 
-This document explains how to configure and use this feature to avoid OOM errors.
+To address this issue, Apache Gluten introduces a stage-level resource auto-adjustment framework. This feature dynamically optimizes task and executor resource profiles, such as heap and off-heap memory allocation, based on the specific characteristics of each stage, including the presence of fallback operators. Additionally, this framework is designed with future enhancements in mind, allowing for adjustments to accommodate other requirements, such as heavy shuffle workloads(to be supported in the future).
 
 ---
 
@@ -32,11 +32,11 @@ This document explains how to configure and use this feature to avoid OOM errors
 Add the following configurations to your Spark application:
 
 
-| Parameters                                                        | Description                                                                                                                                               | Default |
-|-------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
-| spark.gluten.auto.adjustStageResource.enabled                     | Experimental: If enabled, gluten will try to set the stage resource according to stage execution plan. Only worked when aqe is enabled at the same time!! | false   |
-| spark.gluten.auto.adjustStageResources.heap.ratio                 | Experimental: Increase executor heap memory when match adjust stage resource rule.                                                                        | 2.0d    |
-| spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold | Experimental: Increase executor heap memory when stage contains fallen node count exceeds the total node count ratio.                                     | 0.5d    |
+| Parameters                                                        | Description                                                                                                                                                   | Default |
+|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| spark.gluten.auto.adjustStageResource.enabled                     | Experimental: If enabled, gluten will try to set the stage resource according to stage execution plan. NOTE: Only works when aqe is enabled at the same time. | false   |
+| spark.gluten.auto.adjustStageResources.heap.ratio                 | Experimental: Increase executor heap memory when match adjust stage resource rule.                                                                            | 2.0d    |
+| spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold | Experimental: Increase executor heap memory when stage contains fallen node count exceeds the total node count ratio.                                         | 0.5d    |
 #### **1. Enable Auto-Adjustment**
 ```properties  
 spark.gluten.auto.AdjustStageResource.enabled=true  
