@@ -99,7 +99,7 @@ The following configurations are related to Velox settings.
 | spark.gluten.sql.columnar.backend.velox.orc.scan.enabled             | Enable velox orc scan. If disabled, vanilla spark orc scan will be used.                                                                           | true              |
 | spark.gluten.sql.complexType.scan.fallback.enabled                   | Force fallback for complex type scan, including struct, map, array.                                                                                | true              |
 | spark.gluten.velox.offHeapBroadcastBuildRelation.enabled             | Experimental: If enabled, broadcast build relation will use offheap memory. Otherwise, broadcast build relation will use onheap memory, default value is false |                   |
-| spark.gluten.auto.adjustStageResource.enabled                        | Experimental: If enabled, gluten will try to set the stage resource according to stage execution plan. Only worked when aqe is enabled at the same time!! | false   |
+| spark.gluten.auto.adjustStageResource.enabled                        | Experimental: If enabled, gluten will try to set the stage resource according to stage execution plan. NOTE: Only workes when aqe is enabled at the same time. | false   |
 | spark.gluten.auto.adjustStageResources.heap.ratio                    | Experimental: Increase executor heap memory when match adjust stage resource rule.                                                                        | 2.0d    |****
 | spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold    | Experimental: Increase executor heap memory when stage contains fallen node count exceeds the total node count ratio.                                     | 0.5d    |
 
