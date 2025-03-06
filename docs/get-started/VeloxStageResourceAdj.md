@@ -5,7 +5,6 @@ nav_order: 3
 parent: Getting-Started
 ---
 ## Using Stage-Level Resource Adjustment to Avoid OOM(Experimental)
----
 
 ### **Overview**
 One major advantage of Apache Gluten is its ability to significantly reduce memory requirements per executor—potentially by up to half—when entire stages are offloaded to the native engine. This engine primarily relies on off-heap memory with minimal on-heap usage. However, when stages contain fallback operators that utilize the JVM engine, the on-heap memory size must be increased, leading to even higher memory demands per executor. This challenge has posed significant barriers during the adoption of Apache Gluten.
