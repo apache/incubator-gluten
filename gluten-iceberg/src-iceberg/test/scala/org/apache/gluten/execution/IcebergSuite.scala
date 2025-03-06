@@ -546,7 +546,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
 
   test("iceberg read mor table - merge into") {
     withTable("iceberg_mor_tb", "merge_into_source_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "true") {
         spark.sql("""
                     |create table iceberg_mor_tb (
                     |  id int,

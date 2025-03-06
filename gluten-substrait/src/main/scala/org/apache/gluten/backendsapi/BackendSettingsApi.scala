@@ -76,6 +76,7 @@ trait BackendSettingsApi {
   }
 
   def supportColumnarShuffleExec(): Boolean = {
+    print("Run backend setting api supportColumnarShuffleExec")
     GlutenConfig.get.enableColumnarShuffle
   }
 
