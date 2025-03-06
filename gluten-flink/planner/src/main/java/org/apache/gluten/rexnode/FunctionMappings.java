@@ -19,13 +19,14 @@ package org.apache.gluten.rexnode;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Mapping of flink function and substrait function. */
+/** Mapping of flink function and velox function. */
 public class FunctionMappings {
-    // A map stores the relationship between flink function name and substrait function.
+    // A map stores the relationship between flink function name and velox function.
     private static Map<String, String> functionMappings = new HashMap() {
         {
-            put(">", "gt");
-            put("<", "lt");
+            // TODO: support more functions.
+            put(">", "greaterthan");
+            put("<", "lessthan");
         }
     };
 

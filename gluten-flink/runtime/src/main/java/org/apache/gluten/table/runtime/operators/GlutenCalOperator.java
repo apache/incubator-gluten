@@ -19,10 +19,12 @@ package org.apache.gluten.table.runtime.operators;
 
 import io.github.zhztheplayer.velox4j.connector.ExternalStream;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
-import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.iterator.DownIterator;
+import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
-import org.apache.gluten.vectorized.FlinkRowToVLVectorIterator;
+import io.github.zhztheplayer.velox4j.serde.Serde;
+import io.github.zhztheplayer.velox4j.type.RowType;
+import org.apache.gluten.vectorized.VLVectorIterator;
 import org.apache.gluten.vectorized.FlinkRowToVLRowConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
@@ -46,17 +48,23 @@ import java.util.List;
 public class GlutenCalOperator extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData>, GlutenOperator {
 
-    private final PlanNode glutenPlan;
+    private final String glutenPlan;
+    private final String id;
+    private final String inputType;
+    private final String outputType;
 
     private StreamRecord outElement = null;
 
     private Session session;
     private Query query;
-    private FlinkRowToVLVectorIterator inputIterator;
+    private VLVectorIterator inputIterator;
     BufferAllocator allocator;
 
-    public GlutenCalOperator(PlanNode plan) {
+    public GlutenCalOperator(String plan, String id, String inputType, String outputType) {
         this.glutenPlan = plan;
+        this.id = id;
+        this.inputType = inputType;
+        this.outputType = outputType;
     }
 
     @Override
@@ -65,33 +73,36 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
         outElement = new StreamRecord(null);
         session = Velox4j.newSession(MemoryManager.create(AllocationListener.NOOP));
 
-        inputIterator = new FlinkRowToVLVectorIterator();
+        inputIterator = new VLVectorIterator();
         ExternalStream es = session.externalStreamOps().bind(new DownIterator(inputIterator));
         List<BoundSplit> splits = List.of(
                 new BoundSplit(
-                        "5",
+                        id,
                         -1,
-                        new ExternalStreamConnectorSplit("escs1", es.id())));
-        query = new Query(glutenPlan, splits, Config.empty(), ConnectorConfig.empty());
+                        new ExternalStreamConnectorSplit("connector-external-stream", es.id())));
+        PlanNode filter = Serde.fromJson(glutenPlan, PlanNode.class);
+        query = new Query(filter, splits, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
 
     }
 
     @Override
-    public void processElement(StreamRecord<RowData> element) throws Exception {
+    public void processElement(StreamRecord<RowData> element) {
         inputIterator.addRow(
                 FlinkRowToVLRowConvertor.fromRowData(
                         element.getValue(),
                         allocator,
-                        session));
-        RowVector result = session.queryOps().execute(query).next();
-        if (result != null) {
+                        session,
+                        Serde.fromJson(inputType, RowType.class)));
+        UpIterator result = session.queryOps().execute(query);
+        if (result.hasNext()) {
             output.collect(
                     outElement.replace(
                             FlinkRowToVLRowConvertor.toRowData(
-                                    result,
+                                    result.next(),
                                     allocator,
-                                    session)));
+                                    session,
+                                    Serde.fromJson(outputType, RowType.class))));
         }
     }
 

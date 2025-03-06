@@ -17,13 +17,19 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import io.github.zhztheplayer.velox4j.plan.ValuesNode;
+import org.apache.gluten.rexnode.Utils;
+import org.apache.gluten.rexnode.LogicalTypeConverter;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.table.runtime.operators.GlutenCalOperator;
 
+import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
+import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.plan.FilterNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.ProjectNode;
+import io.github.zhztheplayer.velox4j.plan.TableScanNode;
+import io.github.zhztheplayer.velox4j.serde.Serde;
+import io.github.zhztheplayer.velox4j.type.Type;
 import org.apache.calcite.rex.RexNode;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
@@ -107,21 +113,31 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         // add a mock input as velox not allow the source is empty.
-        PlanNode mockInput = new ValuesNode(
+        // TODO: remove it.
+        Type inputType = LogicalTypeConverter.toVLType(inputEdge.getOutputType());
+        List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
+        PlanNode mockInput = new TableScanNode(
                 String.valueOf(ExecNodeContext.newNodeId()),
-                "",
-                false,
-                1);
+                inputType,
+                new ExternalStreamTableHandle("connector-external-stream"),
+                List.of());
         PlanNode filter = new FilterNode(
                 String.valueOf(getId()),
                 List.of(mockInput),
-                RexNodeConverter.toTypedExpr(condition));
+                RexNodeConverter.toTypedExpr(condition, inNames));
+        List<TypedExpr> projectExprs = RexNodeConverter.toTypedExpr(projection, inNames);
         PlanNode project = new ProjectNode(
                 String.valueOf(ExecNodeContext.newNodeId()),
                 List.of(filter),
-                List.of("0"), // TODO: add project names
-                RexNodeConverter.toTypedExpr(projection));
-        final GlutenCalOperator calOperator = new GlutenCalOperator(project);
+                Utils.getNamesFromRowType(getOutputType()),
+                projectExprs);
+        // TODO: velo4j not support serializable now.
+        Utils.registerRegistry();
+        String plan = Serde.toJson(project);
+        String inputStr = Serde.toJson(inputType);
+        Type outputType = LogicalTypeConverter.toVLType(getOutputType());
+        String outputStr = Serde.toJson(outputType);
+        final GlutenCalOperator calOperator = new GlutenCalOperator(plan, mockInput.getId(), inputStr, outputStr);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 new TransformationMetadata("gluten-calc", "Gluten cal operator"),
