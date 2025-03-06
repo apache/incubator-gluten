@@ -236,7 +236,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     LOG_VALIDATION_MSG("Function is not supported: " + name);
     return false;
   }
-
   return true;
 }
 
