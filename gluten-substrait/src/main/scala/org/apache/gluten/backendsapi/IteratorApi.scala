@@ -39,6 +39,14 @@ trait IteratorApi {
       metadataColumnNames: Seq[String],
       properties: Map[String, String]): SplitInfo
 
+  def genSplitInfoForPartitions(
+      partitionIndex: Int,
+      partition: Seq[InputPartition],
+      partitionSchema: StructType,
+      fileFormat: ReadFileFormat,
+      metadataColumnNames: Seq[String],
+      properties: Map[String, String]): SplitInfo = throw new UnsupportedOperationException()
+
   /** Generate native row partition. */
   def genPartitions(
       wsCtx: WholeStageTransformContext,

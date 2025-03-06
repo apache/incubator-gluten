@@ -153,6 +153,8 @@ class SubstraitToVeloxPlanValidator {
   void logValidateMsg(const std::string& log) {
     validateLog_.emplace_back(log);
   }
+
+  bool isAllowedCast(const TypePtr& fromType, const TypePtr& toType);
 };
 
 } // namespace gluten
