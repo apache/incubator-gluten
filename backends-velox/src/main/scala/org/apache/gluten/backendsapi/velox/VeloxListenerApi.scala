@@ -19,8 +19,8 @@ package org.apache.gluten.backendsapi.velox
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
 import org.apache.gluten.columnarbatch.VeloxBatch
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.VeloxConfig._
+import org.apache.gluten.config.{GlutenConfig, GlutenStaticConfig, VeloxConfig}
+import org.apache.gluten.config.VeloxStaticConfig._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -149,6 +149,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
+    // Initialize the configurations.
+    VeloxConfig.init()
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
     ArrowJavaBatch.ensureRegistered()
@@ -169,8 +171,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
       )
 
     // Sets this configuration only once, since not undoable.
-    if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
-      val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
+    if (conf.getBoolean(GlutenStaticConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
+      val debugDir = conf.get(GlutenStaticConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
       JniWorkspace.enableDebug(debugDir)
     }
 

@@ -47,7 +47,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableGluten: Boolean = getConf(GLUTEN_ENABLED)
 
-  def glutenUiEnabled: Boolean = getConf(GLUTEN_UI_ENABLED)
+  def glutenUiEnabled: Boolean = getConf(GlutenStaticConfig.GLUTEN_UI_ENABLED)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = getConf(NATIVE_VALIDATION_ENABLED)
@@ -311,7 +311,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def debug: Boolean = getConf(DEBUG_ENABLED)
 
-  def collectUtStats: Boolean = getConf(UT_STATISTIC)
+  def collectUtStats: Boolean = getConf(GlutenStaticConfig.UT_STATISTIC)
 
   def benchmarkStageId: Int = getConf(BENCHMARK_TASK_STAGEID)
 
@@ -344,9 +344,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
-  def enableCelebornFallback: Boolean = getConf(CELEBORN_FALLBACK_ENABLED)
+  def enableCelebornFallback: Boolean = getConf(GlutenStaticConfig.CELEBORN_FALLBACK_ENABLED)
 
-  def enableHdfsViewfs: Boolean = getConf(HDFS_VIEWFS_ENABLED)
+  def enableHdfsViewfs: Boolean = getConf(GlutenStaticConfig.HDFS_VIEWFS_ENABLED)
 
   def parquetEncryptionValidationEnabled: Boolean = getConf(ENCRYPTED_PARQUET_FALLBACK_ENABLED)
 
@@ -637,13 +637,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val GLUTEN_UI_ENABLED = buildStaticConf("spark.gluten.ui.enabled")
-    .doc(
-      "Whether to enable the gluten web UI, If true, attach the gluten UI page " +
-        "to the Spark web UI.")
-    .booleanConf
-    .createWithDefault(true)
-
   val GLUTEN_DEFAULT_SESSION_TIMEZONE = buildConf("spark.gluten.sql.session.timeZone.default")
     .doc(
       "used to hold default session timezone and will be really used by Gluten only if " +
@@ -777,13 +770,6 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.enableNestedColumnPruningInHiveTableScan")
       .internal()
       .doc("Enable or disable nested column pruning in hivetablescan.")
-      .booleanConf
-      .createWithDefault(true)
-
-  val VANILLA_VECTORIZED_READERS_ENABLED =
-    buildStaticConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
-      .internal()
-      .doc("Enable or disable vanilla vectorized scan.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1337,24 +1323,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-  val DEBUG_KEEP_JNI_WORKSPACE =
-    buildStaticConf("spark.gluten.sql.debug.keepJniWorkspace")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
-
-  val DEBUG_KEEP_JNI_WORKSPACE_DIR =
-    buildStaticConf("spark.gluten.sql.debug.keepJniWorkspaceDir")
-      .internal()
-      .stringConf
-      .createWithDefault("/tmp")
-
-  val UT_STATISTIC =
-    buildStaticConf("spark.gluten.sql.ut.statistic")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
-
   val BENCHMARK_TASK_STAGEID =
     buildConf("spark.gluten.sql.benchmark_task.stageId")
       .internal()
@@ -1601,17 +1569,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COST_EVALUATOR_ENABLED =
-    buildStaticConf("spark.gluten.sql.adaptive.costEvaluator.enabled")
-      .internal()
-      .doc(
-        "If true, use " +
-          "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator as custom cost " +
-          "evaluator class, else follow the configuration " +
-          "spark.sql.adaptive.customCostEvaluatorClass.")
-      .booleanConf
-      .createWithDefault(true)
-
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
       .internal()
@@ -1639,21 +1596,6 @@ object GlutenConfig {
       .doubleConf
       .checkValue(v => v >= 0 && v <= 1, "offheap sizing memory fraction must between [0, 1]")
       .createWithDefault(0.6)
-
-  val CELEBORN_FALLBACK_ENABLED =
-    buildStaticConf("spark.gluten.sql.columnar.shuffle.celeborn.fallback.enabled")
-      .internal()
-      .doc("If enabled, fall back to ColumnarShuffleManager when celeborn service is unavailable." +
-        "Otherwise, throw an exception.")
-      .booleanConf
-      .createWithDefault(true)
-
-  val HDFS_VIEWFS_ENABLED =
-    buildStaticConf("spark.gluten.storage.hdfsViewfs.enabled")
-      .internal()
-      .doc("If enabled, gluten will convert the viewfs path to hdfs path in scala side")
-      .booleanConf
-      .createWithDefault(false)
 
   val ENCRYPTED_PARQUET_FALLBACK_ENABLED =
     buildConf("spark.gluten.sql.fallbackEncryptedParquet")
