@@ -65,15 +65,21 @@ std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
 
         auto filter = ActionsDAG::buildFilterActionsDAG(filter_node);
 
-        DB::Block header{{{IcebergMetadataColumn::icebergDeletePosColumn()->type, IcebergMetadataColumn::icebergDeletePosColumn()->name}}};
+        // Block header{{{IcebergMetadataColumn::icebergDeletePosColumn()->type, IcebergMetadataColumn::icebergDeletePosColumn()->name}}};
+        Block header{
+            {
+                {IcebergMetadataColumn::icebergDeleteFilePathColumn()->type, IcebergMetadataColumn::icebergDeleteFilePathColumn()->name},
+                {IcebergMetadataColumn::icebergDeletePosColumn()->type, IcebergMetadataColumn::icebergDeletePosColumn()->name}
+            }
+        };
 
         SimpleParquetReader reader{context, delete_file, std::move(header), filter};
         Block deleteBlock = reader.next();
 
         while (deleteBlock.rows() > 0)
         {
-            assert(deleteBlock.columns() == 1);
-            const auto * pos_column = typeid_cast<const ColumnInt64 *>(deleteBlock.getByPosition(0).column.get());
+            assert(deleteBlock.columns() == 2);
+            const auto * pos_column = typeid_cast<const ColumnInt64 *>(deleteBlock.getByPosition(1).column.get());
             if (pos_column == nullptr)
                 throw Exception(ErrorCodes::LOGICAL_ERROR, "Expected ColumnInt64 for position deletes");
 

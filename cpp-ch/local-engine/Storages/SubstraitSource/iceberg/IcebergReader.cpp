@@ -97,7 +97,7 @@ Chunk IcebergReader::doPull()
 
         Block deleted_block;
         if (delete_expr)
-            deleted_block = applyDeleteExpr(chunk);
+            deleted_block = applyEqualityDelete(chunk);
 
         if (delete_bitmap_array)
         {
@@ -107,10 +107,10 @@ Chunk IcebergReader::doPull()
                 deleted_block = readHeader.cloneWithColumns(chunk.detachColumns());
                 deleted_block.insert({delete_mask->getPtr(), UINT8(), delete_expr_column_name});
             }
-            deleted_block = applyDeleteBitmap(std::move(deleted_block));
+            deleted_block = applyPositionDelete(std::move(deleted_block));
         }
 
-        chunk = deleteRows(std::move(deleted_block));
+        chunk = filterRows(std::move(deleted_block));
 
         if (chunk.getNumRows() != 0)
         {
@@ -126,7 +126,7 @@ Chunk IcebergReader::doPull()
     }
 }
 
-Block IcebergReader::applyDeleteExpr(Chunk & chunk) const
+Block IcebergReader::applyEqualityDelete(Chunk & chunk) const
 {
     assert(delete_expr);
     assert(!delete_expr_column_name.empty());
@@ -137,7 +137,7 @@ Block IcebergReader::applyDeleteExpr(Chunk & chunk) const
     return block;
 }
 
-DB::Block IcebergReader::applyDeleteBitmap(DB::Block block) const
+DB::Block IcebergReader::applyPositionDelete(DB::Block block) const
 {
     assert(delete_bitmap_array);
     size_t num_of_rows = block.rows();
@@ -166,7 +166,7 @@ void removeFilterIfNeed(Columns & columns, size_t filter_column_position)
 }
 }
 
-DB::Chunk IcebergReader::deleteRows(Block block) const
+DB::Chunk IcebergReader::filterRows(Block block) const
 {
     size_t num_rows_before_filtration = block.rows();
     auto columns = block.getColumns();
