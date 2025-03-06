@@ -20,15 +20,16 @@ import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.ConstantTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.BooleanType;
 import io.github.zhztheplayer.velox4j.type.IntegerType;
 import io.github.zhztheplayer.velox4j.type.Type;
+import io.github.zhztheplayer.velox4j.type.VarCharType;
 import io.github.zhztheplayer.velox4j.variant.BigIntValue;
 import io.github.zhztheplayer.velox4j.variant.BooleanValue;
 import io.github.zhztheplayer.velox4j.variant.DoubleValue;
 import io.github.zhztheplayer.velox4j.variant.IntegerValue;
 import io.github.zhztheplayer.velox4j.variant.SmallIntValue;
-import io.github.zhztheplayer.velox4j.variant.TimestampValue;
 import io.github.zhztheplayer.velox4j.variant.TinyIntValue;
 import io.github.zhztheplayer.velox4j.variant.VarBinaryValue;
 import io.github.zhztheplayer.velox4j.variant.VarCharValue;
@@ -45,7 +46,7 @@ import java.util.stream.Collectors;
 /** Convertor to convert RexNode to velox TypedExpr */
 public class RexNodeConverter {
 
-    public static TypedExpr toTypedExpr(RexNode rexNode) {
+    public static TypedExpr toTypedExpr(RexNode rexNode, List<String> inNames) {
         if (rexNode instanceof RexLiteral) {
             RexLiteral literal = (RexLiteral) rexNode;
             return new ConstantTypedExpr(
@@ -54,7 +55,7 @@ public class RexNodeConverter {
                     null);
         } else if (rexNode instanceof RexCall) {
             RexCall rexCall = (RexCall) rexNode;
-            List<TypedExpr> params = toTypedExpr(rexCall.getOperands());
+            List<TypedExpr> params = toTypedExpr(rexCall.getOperands(), inNames);
             Type nodeType = toType(rexCall.getType());
             return new CallTypedExpr(
                     nodeType,
@@ -64,15 +65,15 @@ public class RexNodeConverter {
             RexInputRef inputRef = (RexInputRef) rexNode;
             return FieldAccessTypedExpr.create(
                     toType(inputRef.getType()),
-                    String.valueOf(inputRef.getIndex()));
+                    inNames.get(inputRef.getIndex()));
         } else {
             throw new RuntimeException("Unrecognized RexNode: " + rexNode);
         }
     }
 
-    public static List<TypedExpr> toTypedExpr(List<RexNode> rexNodes) {
+    public static List<TypedExpr> toTypedExpr(List<RexNode> rexNodes, List<String> inNames) {
         return rexNodes.stream()
-                .map(rexNode -> toTypedExpr(rexNode))
+                .map(rexNode -> toTypedExpr(rexNode, inNames))
                 .collect(Collectors.toList());
     }
 
@@ -82,6 +83,10 @@ public class RexNodeConverter {
                 return new BooleanType();
             case INTEGER:
                 return new IntegerType();
+            case BIGINT:
+                return new BigIntType();
+            case VARCHAR:
+                return new VarCharType();
             default:
                 throw new RuntimeException("Unsupported type: " + relDataType.getSqlTypeName());
         }

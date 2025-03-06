@@ -22,12 +22,12 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-/** Converter between velox RowVector and Flink RowData. */
-public class FlinkRowToVLVectorIterator implements Iterator<RowVector> {
+/** Iterator for velox RowVector. */
+public class VLVectorIterator implements Iterator<RowVector> {
 
     private final List<RowVector> rows;
 
-    public FlinkRowToVLVectorIterator() {
+    public VLVectorIterator() {
         this.rows = new LinkedList<>();
     }
 
@@ -42,7 +42,7 @@ public class FlinkRowToVLVectorIterator implements Iterator<RowVector> {
         return rows.remove(0);
     }
 
-    public boolean addRow(RowVector row) {
-        return rows.add(row);
+    public void addRow(RowVector row) {
+        rows.add(row);
     }
 }
