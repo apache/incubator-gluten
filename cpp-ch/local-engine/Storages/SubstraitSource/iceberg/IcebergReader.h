@@ -51,9 +51,9 @@ public:
 protected:
     DB::Chunk doPull() override;
 
-    DB::Block applyDeleteExpr(DB::Chunk & chunk) const;
-    DB::Block applyDeleteBitmap(DB::Block block) const;
-    DB::Chunk deleteRows(DB::Block block) const;
+    DB::Block applyEqualityDelete(DB::Chunk & chunk) const;
+    DB::Block applyPositionDelete(DB::Block block) const;
+    DB::Chunk filterRows(DB::Block block) const;
 };
 
 }
