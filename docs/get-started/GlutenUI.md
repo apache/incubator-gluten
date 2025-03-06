@@ -4,8 +4,6 @@ title: Gluten UI
 nav_order: 1
 parent: Getting-Started
 ---
-
-
 # Gluten UI
 
 ## Gluten event
