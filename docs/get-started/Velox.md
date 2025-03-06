@@ -500,7 +500,7 @@ Both Parquet and ORC datasets are sf1024.
 
 # Gluten UI
 
-Please refer [Gluten UI](VeloxGlutenUI.md)
+Please refer [Gluten UI](GlutenUI.md)
 
 # Gluten Native Plan Summary
 

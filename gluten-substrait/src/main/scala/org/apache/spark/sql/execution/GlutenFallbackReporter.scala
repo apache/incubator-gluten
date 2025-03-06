@@ -40,7 +40,9 @@ case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
       return plan
     }
     printFallbackReason(plan)
-    postFallbackReason(plan)
+    if (glutenConf.glutenUiEnabled) {
+      postFallbackReason(plan)
+    }
     plan
   }
 
