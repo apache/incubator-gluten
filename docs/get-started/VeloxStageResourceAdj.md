@@ -12,8 +12,6 @@ One major advantage of Apache Gluten is its ability to significantly reduce memo
 
 To address this issue, Apache Gluten introduces a stage-level resource auto-adjustment framework. This feature dynamically optimizes task and executor resource profiles, such as heap and off-heap memory allocation, based on the specific characteristics of each stage, including the presence of fallback operators. Additionally, this framework is designed with future enhancements in mind, allowing for adjustments to accommodate other requirements, such as heavy shuffle workloads(to be supported in the future).
 
----
-
 ### **Prerequisites**
 1. **Enable Adaptive Query Execution (AQE)**:
    ```properties  
@@ -25,8 +23,6 @@ To address this issue, Apache Gluten introduces a stage-level resource auto-adju
    ```  
 3. **Resource Scheduler Compatibility**:  
    Ensure the underlying cluster resource manager (e.g., YARN, Kubernetes) supports dynamic resource allocation.
-
----
 
 ### **Key Configurations**
 Add the following configurations to your Spark application:
@@ -46,7 +42,7 @@ The framework analyzes each stage during query planning and adjusts resource pro
 
 #### **Scenario 1: Fallback Operators Exist**
 If a stage all operator fallback to vanilla Spark operator or  fallback operators (e.g., unsupported UDAFs) ratio exceed specified threshold, Gluten will automic increases heap memory allocation to handle the extra load.
----
+
 
 ### **Verification**
 1. **Check Logs**:  
