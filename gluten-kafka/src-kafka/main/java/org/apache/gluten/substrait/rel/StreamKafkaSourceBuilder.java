@@ -19,23 +19,23 @@ package org.apache.gluten.substrait.rel;
 import java.util.Map;
 
 public class StreamKafkaSourceBuilder {
-    public static StreamKafkaSourceNode makeStreamKafkaBatch(
-            String topic,
-            Integer partition,
-            Long startOffset,
-            Long endOffset,
-            Long pollTimeoutMs,
-            Boolean failOnDataLoss,
-            Boolean includeHeaders,
-            Map<String, Object> kafkaParams) {
-        return new StreamKafkaSourceNode(
-                topic,
-                partition,
-                startOffset,
-                endOffset,
-                pollTimeoutMs,
-                failOnDataLoss,
-                includeHeaders,
-                kafkaParams);
-    }
+  public static StreamKafkaSourceNode makeStreamKafkaBatch(
+      String topic,
+      Integer partition,
+      Long startOffset,
+      Long endOffset,
+      Long pollTimeoutMs,
+      Boolean failOnDataLoss,
+      Boolean includeHeaders,
+      Map<String, Object> kafkaParams) {
+    return new StreamKafkaSourceNode(
+        topic,
+        partition,
+        startOffset,
+        endOffset,
+        pollTimeoutMs,
+        failOnDataLoss,
+        includeHeaders,
+        kafkaParams);
+  }
 }

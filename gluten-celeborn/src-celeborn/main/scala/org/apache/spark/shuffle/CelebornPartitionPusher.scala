@@ -16,9 +16,10 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.celeborn.client.ShuffleClient
 import org.apache.spark._
 import org.apache.spark.internal.Logging
+
+import org.apache.celeborn.client.ShuffleClient
 
 import java.io.IOException
 
