@@ -61,6 +61,7 @@ object CHRuleApi {
     injector.injectParser(
       (spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
     injector.injectResolutionRule(spark => new CoalesceAggregationUnion(spark))
+    injector.injectResolutionRule(spark => new CoalesceProjectionUnion(spark))
     injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
     injector.injectResolutionRule(spark => new RewriteDateTimestampComparisonRule(spark))
     injector.injectResolutionRule(spark => new CollapseGetJsonObjectExpressionRule(spark))
@@ -120,6 +121,7 @@ object CHRuleApi {
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatch))
     injector.injectPostTransform(c => RemoveDuplicatedColumns.apply(c.session))
     injector.injectPostTransform(c => AddPreProjectionForHashJoin.apply(c.session))
+    injector.injectPostTransform(c => ReplaceSubStringComparison.apply(c.session))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(c => p => ExpandFallbackPolicy(c.caller.isAqe(), p))

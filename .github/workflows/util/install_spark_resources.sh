@@ -19,72 +19,93 @@
 
 set -e
 
+# Installs Spark binary and source releases with:
+# 1 - spark version
+# 2 - hadoop version
+# 3 - scala version
+function install_spark() {
+  local spark_version="$1"
+  local hadoop_version="$2"
+  local scala_version="$3"
+  local spark_version_short=$(echo "${spark_version}" | cut -d '.' -f 1,2 | tr -d '.')
+  local scala_suffix=$([ "${scala_version}" == '2.13' ] && echo '-scala-2.13' || echo '')
+  local scala_suffix_short=$([ "${scala_version}" == '2.13' ] && echo '-scala2.13' || echo '')
+  local mirror_host='https://www.apache.org/dyn/closer.lua/'
+  local url_query='?action=download'
+  local checksum_suffix='sha512'
+  local url_path="spark/spark-${spark_version}/"
+  local local_binary="spark-${spark_version}-bin-hadoop${hadoop_version}${scala_suffix_short}.tgz"
+  local local_binary_checksum="${local_binary}.${checksum_suffix}"
+  local local_source="spark-${spark_version}.tgz"
+  local local_source_checksum="${local_source}.${checksum_suffix}"
+  local remote_binary="${mirror_host}${url_path}${local_binary}${url_query}"
+  local remote_binary_checksum="${mirror_host}${url_path}${local_binary_checksum}${url_query}"
+  local remote_source="${mirror_host}${url_path}${local_source}${url_query}"
+  local remote_source_checksum="${mirror_host}${url_path}${local_source_checksum}${url_query}"
+  local wget_opts="--no-verbose"
+
+  wget ${wget_opts} -O "${local_binary}" "${remote_binary}"
+  wget ${wget_opts} -O "${local_source}" "${remote_source}"
+
+  # Checksum may not have been specified; don't check if doesn't exist
+  if [ "$(command -v shasum)" ]; then
+    wget ${wget_opts} -O "${local_binary_checksum}" "${remote_binary_checksum}"
+    if ! shasum -a 512 -c "${local_binary_checksum}" > /dev/null ; then
+      echo "Bad checksum from ${remote_binary_checksum}"
+      rm -f "${local_binary_checksum}"
+      exit 2
+    fi
+    rm -f "${local_binary_checksum}"
+
+    wget ${wget_opts} -O "${local_source_checksum}" "${remote_source_checksum}"
+    if ! shasum -a 512 -c "${local_source_checksum}" > /dev/null ; then
+      echo "Bad checksum from ${remote_source_checksum}"
+      rm -f "${local_source_checksum}"
+      exit 2
+    fi
+    rm -f "${local_source_checksum}"
+  else
+    echo "Skipping checksum because shasum is not installed." 1>&2
+  fi
+
+  tar --strip-components=1 -xf "${local_binary}" spark-"${spark_version}"-bin-hadoop"${hadoop_version}""${scala_suffix_short}"/jars/
+  mkdir -p ${INSTALL_DIR}/shims/spark"${spark_version_short}"/spark_home/assembly/target/scala-"${scala_version}"
+  mv jars ${INSTALL_DIR}/shims/spark"${spark_version_short}"/spark_home/assembly/target/scala-"${scala_version}"
+
+  tar --strip-components=1 -xf "${local_source}" spark-"${spark_version}"/sql/core/src/test/resources/
+  mkdir -p shims/spark"${spark_version_short}${scala_suffix}"/spark_home/
+  mv sql shims/spark"${spark_version_short}${scala_suffix}"/spark_home/
+
+  rm -rf "${local_binary}"
+  rm -rf "${local_source}"
+}
+
 INSTALL_DIR=/opt/
 case "$1" in
 3.2)
     # Spark-3.2
     cd ${INSTALL_DIR} && \
-    wget -nv https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz && \
-    tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.2.tgz spark-3.2.2-bin-hadoop3.2/jars/ && \
-    rm -rf spark-3.2.2-bin-hadoop3.2.tgz && \
-    mkdir -p ${INSTALL_DIR}/shims/spark32/spark_home/assembly/target/scala-2.12 && \
-    mv jars ${INSTALL_DIR}/shims/spark32/spark_home/assembly/target/scala-2.12 && \
-    wget -nv https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
-    tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
-    mkdir -p shims/spark32/spark_home/ && \
-    mv sql shims/spark32/spark_home/
+    install_spark "3.2.2" "3.2" "2.12"
     ;;
 3.3)
     # Spark-3.3
     cd ${INSTALL_DIR} && \
-    wget -nv https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz && \
-    tar --strip-components=1 -xf spark-3.3.1-bin-hadoop3.tgz spark-3.3.1-bin-hadoop3/jars/ && \
-    rm -rf spark-3.3.1-bin-hadoop3.tgz && \
-    mkdir -p ${INSTALL_DIR}/shims/spark33/spark_home/assembly/target/scala-2.12 && \
-    mv jars ${INSTALL_DIR}/shims/spark33/spark_home/assembly/target/scala-2.12 && \
-    wget -nv https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
-    tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
-    mkdir -p shims/spark33/spark_home/ && \
-    mv sql shims/spark33/spark_home/
+    install_spark "3.3.1" "3" "2.12"
     ;;
 3.4)
     # Spark-3.4
     cd ${INSTALL_DIR} && \
-    wget -nv https://archive.apache.org/dist/spark/spark-3.4.4/spark-3.4.4-bin-hadoop3.tgz && \
-    tar --strip-components=1 -xf spark-3.4.4-bin-hadoop3.tgz spark-3.4.4-bin-hadoop3/jars/ && \
-    rm -rf spark-3.4.4-bin-hadoop3.tgz && \
-    mkdir -p ${INSTALL_DIR}/shims/spark34/spark_home/assembly/target/scala-2.12 && \
-    mv jars ${INSTALL_DIR}/shims/spark34/spark_home/assembly/target/scala-2.12 && \
-    wget -nv https://github.com/apache/spark/archive/refs/tags/v3.4.4.tar.gz && \
-    tar --strip-components=1 -xf v3.4.4.tar.gz spark-3.4.4/sql/core/src/test/resources/  && \
-    mkdir -p shims/spark34/spark_home/ && \
-    mv sql shims/spark34/spark_home/
+    install_spark "3.4.4" "3" "2.12"
     ;;
 3.5)
     # Spark-3.5
     cd ${INSTALL_DIR} && \
-    wget -nv https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz && \
-    tar --strip-components=1 -xf spark-3.5.2-bin-hadoop3.tgz spark-3.5.2-bin-hadoop3/jars/ && \
-    rm -rf spark-3.5.2-bin-hadoop3.tgz && \
-    mkdir -p ${INSTALL_DIR}/shims/spark35/spark_home/assembly/target/scala-2.12 && \
-    mv jars ${INSTALL_DIR}/shims/spark35/spark_home/assembly/target/scala-2.12 && \
-    wget -nv https://github.com/apache/spark/archive/refs/tags/v3.5.2.tar.gz && \
-    tar --strip-components=1 -xf v3.5.2.tar.gz spark-3.5.2/sql/core/src/test/resources/  && \
-    mkdir -p shims/spark35/spark_home/ && \
-    mv sql shims/spark35/spark_home/
+    install_spark "3.5.2" "3" "2.12"
     ;;
 3.5-scala2.13)
     # Spark-3.5, scala 2.13
     cd ${INSTALL_DIR} && \
-    wget -nv https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz && \
-    tar --strip-components=1 -xf spark-3.5.2-bin-hadoop3.tgz spark-3.5.2-bin-hadoop3/jars/ && \
-    rm -rf spark-3.5.2-bin-hadoop3.tgz && \
-    mkdir -p ${INSTALL_DIR}/shims/spark35-scala2.13/spark_home/assembly/target/scala-2.13 && \
-    mv jars ${INSTALL_DIR}/shims/spark35-scala2.13/spark_home/assembly/target/scala-2.13 && \
-    wget -nv https://github.com/apache/spark/archive/refs/tags/v3.5.2.tar.gz && \
-    tar --strip-components=1 -xf v3.5.2.tar.gz spark-3.5.2/sql/core/src/test/resources/  && \
-    mkdir -p shims/spark35-scala2.13/spark_home/ && \
-    mv sql shims/spark35-scala2.13/spark_home/
+    install_spark "3.5.2" "3" "2.13"
     ;;
 *)
     echo "Spark version is expected to be specified."

@@ -33,5 +33,5 @@ class GlutenSQLHistoryServerPlugin extends AppHistoryServerPlugin {
     }
   }
 
-  override def displayOrder: Int = 0
+  override def displayOrder: Int = 1
 }

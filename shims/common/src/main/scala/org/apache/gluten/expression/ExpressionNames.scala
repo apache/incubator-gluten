@@ -107,6 +107,7 @@ object ExpressionNames {
   final val LTRIM = "ltrim"
   final val RTRIM = "rtrim"
   final val TRIM = "trim"
+  final val BTRIM = "btrim"
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
@@ -289,6 +290,7 @@ object ExpressionNames {
   final val TRANSFORM_KEYS = "transform_keys"
   final val TRANSFORM_VALUES = "transform_values"
   final val STR_TO_MAP = "str_to_map"
+  final val MAP_FILTER = "map_filter"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"

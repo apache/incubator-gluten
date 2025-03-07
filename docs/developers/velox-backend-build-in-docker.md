@@ -48,7 +48,7 @@ The dynamic link approach needs to install the dependencies libraries. It then d
 The 'dockerfile' to build Gluten jar:
 
 ```
-FROM apache/gluten:centos-8
+FROM apache/gluten:centos-8-jdk8
 
 # Build Gluten Jar
 RUN source /opt/rh/devtoolset-11/enable && \

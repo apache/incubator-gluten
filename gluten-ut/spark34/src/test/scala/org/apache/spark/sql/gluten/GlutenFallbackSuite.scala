@@ -37,6 +37,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
   override def sparkConf: SparkConf = {
     super.sparkConf
       .set(GlutenConfig.RAS_ENABLED.key, "false")
+      .set("spark.gluten.ui.enabled", "true")
   }
 
   testGluten("test fallback logging") {
@@ -53,7 +54,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
       val msgRegex =
         """Validation failed for plan: Scan parquet spark_catalog.default\.t\[QueryId=[0-9]+\],""" +
           """ due to: \[FallbackByUserOptions\] Validation failed on node Scan parquet""" +
-          """ spark_catalog\.default\.t\.""".stripMargin
+          """ spark_catalog\.default\.t""".stripMargin
       assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.matches(msgRegex)))
     }
   }
