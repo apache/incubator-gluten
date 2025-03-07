@@ -39,10 +39,12 @@ class VeloxBackend {
   ~VeloxBackend() {
     if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
       LOG(INFO) << asyncDataCache_->toString();
-      for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
-        if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
-          LOG(INFO) << "Removing cache file " << entry.path().filename().string();
-          std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
+      if (!ssdReuse_) {
+        for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
+          if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
+            LOG(INFO) << "Removing cache file " << entry.path().filename().string();
+            std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
+          }
         }
       }
       asyncDataCache_->shutdown();
@@ -79,6 +81,9 @@ class VeloxBackend {
   void initJolFilesystem();
 
   std::string getCacheFilePrefix() {
+    if (ssdReuse_) {
+      return "cache.";
+    }
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
   }
 
@@ -91,6 +96,7 @@ class VeloxBackend {
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
   std::shared_ptr<facebook::velox::memory::MmapAllocator> cacheAllocator_;
 
+  bool ssdReuse_;
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
 
