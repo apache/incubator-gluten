@@ -639,6 +639,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
+
+    val (buildKeys, isNullAware) = mode match {
+      case mode1: HashedRelationBroadcastMode =>
+        (mode1.key, mode1.isNullAware)
+      case _ =>
+        // IdentityBroadcastMode
+        (Seq.empty, false)
+    }
     if (useOffheapBroadcastBuildRelation) {
       TaskResources.runUnsafe {
         new UnsafeColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
