@@ -434,7 +434,8 @@ public:
                 makeVectors(dataFile.second, startingValue);
             writeToFile(
                 dataFilePaths[dataFile.first]->string(),
-                dataVectors);
+                dataVectors,
+                true);
 
             for (int i = 0; i < dataVectors.size(); i++) {
                 dataVectorsJoined.push_back(dataVectors[i]);

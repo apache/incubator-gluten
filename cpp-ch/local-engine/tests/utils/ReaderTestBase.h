@@ -63,7 +63,7 @@ protected:
     DB::ContextMutablePtr context_ = nullptr;
 
     void writeToFile(const std::string & filePath, const DB::Block & block) const;
-    void writeToFile(const std::string & filePath, const std::vector<DB::Block> & blocks) const;
+    void writeToFile(const std::string & filePath, const std::vector<DB::Block> & blocks, bool rowGroupPerBlock = false) const;
 
     DB::DatabasePtr createMemoryDatabaseIfNotExists(const String & database_name);
     void createMemoryTableIfNotExists(const String & database_name, const String & table_name, const std::vector<DB::Block> & blocks);
