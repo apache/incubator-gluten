@@ -85,7 +85,7 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
           expr =>
             val node = ExpressionConverter
               .replaceWithExpressionTransformer(expr, outputAttributes)
-              .doTransform(substraitContext.registeredFunction)
+              .doTransform(substraitContext)
             node.isInstanceOf[SelectionNode]
         }
         if (allSelectionNodes || supportShuffleWithProject(outputPartitioning, child)) {

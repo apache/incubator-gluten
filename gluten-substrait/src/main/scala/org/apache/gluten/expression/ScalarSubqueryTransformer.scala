@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.InternalRow
@@ -26,7 +27,7 @@ case class ScalarSubqueryTransformer(substraitExprName: String, query: ScalarSub
   extends LeafExpressionTransformer {
   override def original: Expression = query
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     // don't trigger collect when in validation phase
     if (TransformerState.underValidationState) {
       return ExpressionBuilder.makeLiteral(null, query.dataType, true)
