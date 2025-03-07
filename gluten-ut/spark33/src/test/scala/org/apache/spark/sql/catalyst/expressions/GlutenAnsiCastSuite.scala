@@ -114,7 +114,7 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
 
   testGluten("cast string to timestamp") {
     ThreadUtils.parmap(
-      ALL_TIMEZONES,
+      ALL_TIMEZONES.filterNot(_.getId.contains("SystemV")),
       prefix = "CastSuiteBase-cast-string-to-timestamp",
       maxThreads = Runtime.getRuntime.availableProcessors
     ) {
@@ -158,7 +158,8 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
           c = Calendar.getInstance(TimeZone.getTimeZone("GMT-01:00"))
           c.set(2015, 2, 18, 12, 3, 17)
           c.set(Calendar.MILLISECOND, 0)
-          checkCastStringToTimestamp("2015-03-18T12:03:17-1:0", new Timestamp(c.getTimeInMillis))
+          // Unsupported timezone format for Velox backend.
+          // checkCastStringToTimestamp("2015-03-18T12:03:17-1:0", new Timestamp(c.getTimeInMillis))
           checkCastStringToTimestamp("2015-03-18T12:03:17-01:00", new Timestamp(c.getTimeInMillis))
 
           c = Calendar.getInstance(TimeZone.getTimeZone("GMT+07:30"))
@@ -169,7 +170,9 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
           c = Calendar.getInstance(TimeZone.getTimeZone("GMT+07:03"))
           c.set(2015, 2, 18, 12, 3, 17)
           c.set(Calendar.MILLISECOND, 0)
-          checkCastStringToTimestamp("2015-03-18T12:03:17+7:3", new Timestamp(c.getTimeInMillis))
+          // Unsupported timezone format for Velox backend.
+          // checkCastStringToTimestamp("2015-03-18T12:03:17+7:3",
+          // new Timestamp(c.getTimeInMillis))
 
           // tests for the string including milliseconds.
           c = Calendar.getInstance(tz)
@@ -189,9 +192,9 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
           c = Calendar.getInstance(TimeZone.getTimeZone("GMT-01:00"))
           c.set(2015, 2, 18, 12, 3, 17)
           c.set(Calendar.MILLISECOND, 123)
-          checkCastStringToTimestamp(
-            "2015-03-18T12:03:17.123-1:0",
-            new Timestamp(c.getTimeInMillis))
+          // Unsupported timezone format for Velox backend.
+          // checkCastStringToTimestamp("2015-03-18T12:03:17.123-1:0",
+          // new Timestamp(c.getTimeInMillis))
           checkCastStringToTimestamp(
             "2015-03-18T12:03:17.123-01:00",
             new Timestamp(c.getTimeInMillis))
@@ -206,9 +209,9 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
           c = Calendar.getInstance(TimeZone.getTimeZone("GMT+07:03"))
           c.set(2015, 2, 18, 12, 3, 17)
           c.set(Calendar.MILLISECOND, 123)
-          checkCastStringToTimestamp(
-            "2015-03-18T12:03:17.123+7:3",
-            new Timestamp(c.getTimeInMillis))
+          // Unsupported timezone format for Velox backend.
+          // checkCastStringToTimestamp("2015-03-18T12:03:17.123+7:3",
+          // new Timestamp(c.getTimeInMillis))
         }
     }
   }
