@@ -345,7 +345,7 @@ class VeloxTPCHV1BhjOffheapSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
-      .set(VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key, "true")
+      .set(VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key, "false")
   }
 }
 

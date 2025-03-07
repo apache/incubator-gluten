@@ -59,7 +59,10 @@ import scala.collection.JavaConverters.asScalaIteratorConverter
 case class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
     private var batches: UnsafeBytesBufferArray,
-    var mode: BroadcastMode)
+    var mode: BroadcastMode,
+    numOfRows: Long = 0L,
+    newBuildKeys: Seq[Expression] = Seq.empty,
+    hasNullKeyValues: Boolean = false)
   extends BuildSideRelation
   with Externalizable
   with Logging
@@ -158,6 +161,33 @@ case class UnsafeColumnarBuildSideRelation(
       case IdentityBroadcastMode => UnsafeProjection.create(output, output)
     }
   }
+
+//  private var hashTableData: Long = 0L
+//
+//  def buildHashTable(
+//      broadCastContext: BroadCastHashJoinContext): (Long, ColumnarBuildSideRelation) =
+//    synchronized {
+//      if (hashTableData == 0) {
+//        logDebug(
+//          s"BHJ value size: " +
+//            s"${broadCastContext.buildHashTableId} = ${batches.length}")
+//        // Build the hash table
+//        hashTableData = HashJoinBuilder.build(
+//          batches.,
+//          numOfRows,
+//          broadCastContext,
+//          newBuildKeys.asJava,
+//          output.asJava,
+//          hasNullKeyValues)
+//        (hashTableData, this)
+//      } else {
+//        (HashJoinBuilder.nativeCloneBuildHashTable(hashTableData), null)
+//      }
+//    }
+//
+//  def reset(): Unit = synchronized {
+//    hashTableData = 0
+//  }
 
   override def deserialized: Iterator[ColumnarBatch] = {
     val runtime =
