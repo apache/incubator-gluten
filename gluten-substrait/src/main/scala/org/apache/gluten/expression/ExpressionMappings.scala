@@ -188,6 +188,7 @@ object ExpressionMappings {
     Sig[TruncDate](TRUNC),
     Sig[TruncTimestamp](DATE_TRUNC),
     Sig[GetTimestamp](GET_TIMESTAMP),
+    Sig[CurrentDate](CURRENT_DATE),
     Sig[NextDay](NEXT_DAY),
     Sig[LastDay](LAST_DAY),
     Sig[MonthsBetween](MONTHS_BETWEEN),
