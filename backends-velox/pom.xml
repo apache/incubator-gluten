@@ -196,6 +196,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -212,6 +213,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -228,6 +230,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -247,6 +250,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
