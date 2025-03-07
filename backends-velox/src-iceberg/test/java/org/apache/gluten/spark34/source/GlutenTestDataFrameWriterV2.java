@@ -14,18 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.execution;
+package org.apache.gluten.spark34.source;
 
+import org.apache.iceberg.spark.source.TestDataFrameWriterV2;
 
-import com.google.common.collect.ImmutableMap;
-
-import java.util.Map;
-
-public class TestConfUtil {
-    public static Map<String, Object> GLUTEN_CONF = ImmutableMap.of(
-            "spark.plugins", "org.apache.gluten.GlutenPlugin",
-            "spark.memory.offHeap.enabled", "true",
-            "spark.memory.offHeap.size", "1024MB",
-            "spark.ui.enabled", "false",
-            "spark.gluten.ui.enabled", "false");
+public class GlutenTestDataFrameWriterV2 extends TestDataFrameWriterV2 {
 }

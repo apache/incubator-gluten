@@ -30,7 +30,7 @@ import java.util.TimeZone;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.gluten.spark34.execution.TestConfUtil;
+import org.apache.gluten.spark34.TestConfUtil;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.ContentFile;

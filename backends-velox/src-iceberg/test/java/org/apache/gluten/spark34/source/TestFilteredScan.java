@@ -34,7 +34,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.gluten.spark34.execution.TestConfUtil;
+import org.apache.gluten.spark34.TestConfUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
