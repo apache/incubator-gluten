@@ -14,20 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.spark.rpc
 
-import org.apache.spark.{broadcast, SparkContext}
-import org.apache.spark.sql.execution.joins.BuildSideRelation
-import org.apache.spark.sql.vectorized.ColumnarBatch
+object GlutenRpcConstants {
 
-case class VeloxBroadcastBuildSideRDD(
-    @transient private val sc: SparkContext,
-    broadcasted: broadcast.Broadcast[BuildSideRelation],
-    broadcastContext: BroadCastHashJoinContext)
-  extends BroadcastBuildSideRDD(sc, broadcasted) {
+  val GLUTEN_DRIVER_ENDPOINT_NAME = "GlutenDriverEndpoint"
 
-  override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
-    VeloxBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadcastContext)
-    Iterator.empty
-  }
+  val GLUTEN_EXECUTOR_ENDPOINT_NAME = "GlutenExecutorEndpoint"
 }
