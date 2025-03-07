@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.gluten.spark34.execution.TestConfUtil;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.ContentFile;
@@ -75,12 +77,7 @@ public abstract class SparkTestBase extends SparkTestHelperBase {
                         .config(SQLConf.PARTITION_OVERWRITE_MODE().key(), "dynamic")
                         .config("spark.hadoop." + METASTOREURIS.varname, hiveConf.get(METASTOREURIS.varname))
                         .config("spark.sql.legacy.respectNullabilityInTextDatasetConversion", "true")
-                        .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
-                        .config("spark.default.parallelism", "1")
-                        .config("spark.memory.offHeap.enabled", "true")
-                        .config("spark.memory.offHeap.size", "1024MB")
-                        .config("spark.ui.enabled", "false")
-                        .config("spark.gluten.ui.enabled", "false")
+                        .config(TestConfUtil.GLUTEN_CONF)
                         .enableHiveSupport()
                         .getOrCreate();
 
