@@ -19,7 +19,7 @@ package org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.{ALL_TIMEZONES, UTC}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DataType, StringType}
+import org.apache.spark.sql.types.{DataType, StringType, TimestampType}
 import org.apache.spark.util.ThreadUtils
 
 import java.sql.Timestamp
