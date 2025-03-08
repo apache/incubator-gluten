@@ -146,6 +146,12 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
+  test("current_date") {
+    runQueryAndCompare(
+      s"select l_orderkey, l_shipdate, current_date() " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
   test("year") {
     runQueryAndCompare(
       s"select l_orderkey, l_shipdate, year(l_shipdate) " +
