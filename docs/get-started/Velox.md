@@ -546,6 +546,9 @@ I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan 
 ```
 
 
+## Using Stage-Level Resource Adjustment to Avoid OOM(Experimental)
+ see more [here](../VeloxStageResourceAdj.md)
+
 ## Broadcast Build Relations to Off-Heap(Experimental)
 
 The experimental feature **Off-Heap Broadcast Build Relations** aims to mitigate out-of-memory (OOM) issues caused by heap memory consumption during broadcast operations. Detailed design
