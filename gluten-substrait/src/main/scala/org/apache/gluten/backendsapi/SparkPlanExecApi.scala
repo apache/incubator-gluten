@@ -715,7 +715,8 @@ trait SparkPlanExecApi {
   def genCollapseNestedExpressionsTransformer(
       substraitExprName: String,
       children: Seq[ExpressionTransformer],
-      original: Expression): ExpressionTransformer
+      original: Expression): ExpressionTransformer =
+    GenericExpressionTransformer(substraitExprName, children, original)
 
   def expressionCollapseSupported(exprName: String): Boolean = false
 }

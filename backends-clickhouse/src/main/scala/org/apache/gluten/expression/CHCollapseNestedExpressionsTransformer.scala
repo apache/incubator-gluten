@@ -134,6 +134,10 @@ case class CHCollapseNestedExpressionsTransformer(
       }
     }
     f(expr)
-    doTransform0(expr, dataType, children, childTypes, functionMap)
+    if (children.size <= 2) {
+      super.doTransform(functionMap)
+    } else {
+      doTransform0(expr, dataType, children, childTypes, functionMap)
+    }
   }
 }
