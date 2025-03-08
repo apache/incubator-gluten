@@ -69,8 +69,8 @@ function install_spark() {
   fi
 
   tar --strip-components=1 -xf "${local_binary}" spark-"${spark_version}"-bin-hadoop"${hadoop_version}""${scala_suffix_short}"/jars/
-  mkdir -p ${INSTALL_DIR}/shims/spark"${spark_version_short}"/spark_home/assembly/target/scala-"${scala_version}"
-  mv jars ${INSTALL_DIR}/shims/spark"${spark_version_short}"/spark_home/assembly/target/scala-"${scala_version}"
+  mkdir -p ${INSTALL_DIR}/shims/spark"${spark_version_short}""${scala_suffix}"/spark_home/assembly/target/scala-"${scala_version}"
+  mv jars ${INSTALL_DIR}/shims/spark"${spark_version_short}""${scala_suffix}"/spark_home/assembly/target/scala-"${scala_version}"
 
   tar --strip-components=1 -xf "${local_source}" spark-"${spark_version}"/sql/core/src/test/resources/
   mkdir -p shims/spark"${spark_version_short}${scala_suffix}"/spark_home/
