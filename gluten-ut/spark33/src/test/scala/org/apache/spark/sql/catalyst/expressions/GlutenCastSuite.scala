@@ -152,4 +152,5 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
 
     checkEvaluation(cast(Literal.create(null, IntegerType), ShortType), null)
   }
+
 }
