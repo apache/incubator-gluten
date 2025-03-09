@@ -23,6 +23,7 @@ import org.apache.gluten.config.GlutenConfig._
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenSessionExtensions
+import org.apache.gluten.initializer.CodedInputStreamClassInitializer
 import org.apache.gluten.task.TaskListener
 
 import org.apache.spark.{SparkConf, SparkContext, TaskFailedReason}
@@ -85,7 +86,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       _sc.foreach {
         sc =>
           GlutenEventUtils.attachUI(sc)
-          logInfo("Gluten SQL Tab has attached.")
+          logInfo("Gluten SQL Tab has been attached.")
       }
     }
   }
@@ -130,8 +131,10 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         "\n=============================================================="
       )
     logInfo(loggingInfo)
-    val event = GlutenBuildInfoEvent(glutenBuildInfo.toMap)
-    GlutenEventUtils.post(sc, event)
+    if (sc.getConf.getBoolean(GLUTEN_UI_ENABLED.key, GLUTEN_UI_ENABLED.defaultValue.get)) {
+      val event = GlutenBuildInfoEvent(glutenBuildInfo.toMap)
+      GlutenEventUtils.post(sc, event)
+    }
   }
 
   private def setPredefinedConfigs(conf: SparkConf): Unit = {
@@ -267,6 +270,7 @@ private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
 
   /** Initialize the executor plugin. */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    CodedInputStreamClassInitializer
     // Initialize Backend.
     Component.sorted().foreach(_.onExecutorStart(ctx))
   }

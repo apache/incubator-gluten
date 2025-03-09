@@ -907,8 +907,8 @@ std::unique_ptr<DB::ReadBuffer> ReadBufferBuilder::wrapWithParallelIfNeeded(
     LOG_TRACE(
         getLogger("ReadBufferBuilder"),
         "Using ParallelReadBuffer with {} workers with chunks of {} bytes",
-        max_download_threads,
-        max_download_buffer_size);
+        max_download_threads.value,
+        max_download_buffer_size.value);
 
     return wrapInParallelReadBufferIfSupported(
         {std::move(in)},
