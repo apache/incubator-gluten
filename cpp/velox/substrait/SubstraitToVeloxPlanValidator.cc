@@ -250,7 +250,7 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   // 4. Certain complex types are not allowed.
 
   // Don't support isIntervalYearMonth.
-  if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
+  if ((fromType->isIntervalYearMonth() && toType->kind() != TypeKind::INTEGER) || toType->isIntervalYearMonth()) {
     LOG_VALIDATION_MSG("Casting involving INTERVAL_YEAR_MONTH is not supported.");
     return false;
   }

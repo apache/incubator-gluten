@@ -25,6 +25,13 @@
 using namespace facebook::velox;
 
 namespace {
+
+void checkUnsupportedComplexLiteral(const ::substrait::Expression::Literal& literal) {
+  if (literal.has_interval_year_to_month() || literal.has_interval_day_to_second()) {
+      VELOX_NYI("Complex type literal not supported for interval types.");
+  }
+}
+
 ArrayVectorPtr makeArrayVector(const VectorPtr& elements) {
   BufferPtr offsets = allocateOffsets(1, elements->pool());
   BufferPtr sizes = allocateOffsets(1, elements->pool());
@@ -376,6 +383,16 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToRowVector(substraitLit));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
     }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalYearToMonth: {
+      if (substraitLit.has_interval_year_to_month()) {
+        auto years = substraitLit.interval_year_to_month().years();
+        auto months = substraitLit.interval_year_to_month().months();
+        int32_t totalMonths = years * 12 + months;
+        auto constantVector = BaseVector::createConstant(
+          INTERVAL_YEAR_MONTH(), totalMonths, 1, pool_);
+        return std::make_shared<const core::ConstantTypedExpr>(constantVector);
+      }
+    }
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
       auto veloxType = SubstraitParser::parseType(substraitLit.null());
       if (veloxType->isShortDecimal()) {
@@ -492,7 +509,9 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
       return rowVector;
     }
     default:
-      auto veloxType = getScalarType(elementAtFunc(0));
+      auto elementLiteral = elementAtFunc(0);
+      auto veloxType = getScalarType(elementLiteral);
+      checkUnsupportedComplexLiteral(elementLiteral);
       if (veloxType) {
         auto kind = veloxType->kind();
         return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
