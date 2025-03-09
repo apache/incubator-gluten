@@ -16,45 +16,17 @@
  */
 #pragma once
 
-#include "Functions/FunctionFactory.h"
-
-#include <Columns/ColumnConst.h>
-#include <Columns/ColumnSet.h>
 #include <Core/Block.h>
+#include <Functions/FunctionFactory.h>
 #include <Interpreters/Context_fwd.h>
 #include <Interpreters/ExpressionActions.h>
-#include <Parsers/IAST_fwd.h>
-#include <substrait/plan.pb.h>
+#include <Storages/SubstraitSource/substrait_fwd.h>
 
-namespace local_engine
-{
-class ColumnIndexRowRangesProvider;
-class VectorizedParquetRecordReader;
-
-using substraitInputFile = substrait::ReadRel::LocalFiles::FileOrFiles;
-using substraitIcebergDeleteFile = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions::DeleteFile;
-using IcebergReadOptions = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions;
-
-// TODO: move to other cpp ?
-
-/// we currently use this class to read parquet files.
-class SimpleParquetReader
-{
-    std::unique_ptr<DB::ReadBuffer> read_buffer_;
-    DB::Block fileHeader_;
-    std::unique_ptr<ColumnIndexRowRangesProvider> provider_;
-    std::unique_ptr<VectorizedParquetRecordReader> reader_;
-
-public:
-    explicit SimpleParquetReader(const DB::ContextPtr & context, const substraitInputFile & file_info);
-    ~SimpleParquetReader();
-
-    DB::Block next() const;
-};
-
-namespace iceberg
+namespace local_engine::iceberg
 {
 
+/// Visible for UT
+///
 class EqualityDeleteActionBuilder
 {
 public:
@@ -85,16 +57,21 @@ public:
 
 class EqualityDeleteFileReader
 {
-    SimpleParquetReader reader_;
+    const DB::ContextPtr & context_;
     const DB::Block & read_header_;
     const substraitIcebergDeleteFile & deleteFile_;
 
 public:
+    static DB::ExpressionActionsPtr createDeleteExpr(
+        const DB::ContextPtr & context,
+        const DB::Block & to_read_header,
+        const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+        const std::vector<int> & equality_delete_files);
+
     explicit EqualityDeleteFileReader(
         const DB::ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile);
     ~EqualityDeleteFileReader() = default;
     void readDeleteValues(EqualityDeleteActionBuilder & expressionInputs) const;
 };
 
-}
 }
