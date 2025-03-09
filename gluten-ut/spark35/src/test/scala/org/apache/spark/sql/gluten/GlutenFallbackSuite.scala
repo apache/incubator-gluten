@@ -37,6 +37,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
   override def sparkConf: SparkConf = {
     super.sparkConf
       .set(GlutenConfig.RAS_ENABLED.key, "false")
+      .set("spark.gluten.ui.enabled", "true")
   }
 
   testGluten("test fallback logging") {
