@@ -43,7 +43,7 @@ SortRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, st
     size_t limit = parseLimit(rel_stack_);
     const auto & sort_rel = rel.sort();
     auto sort_descr = parseSortFields(query_plan->getCurrentHeader(), sort_rel.sorts());
-    SortingStep::Settings settings(*getContext());
+    SortingStep::Settings settings(getContext()->getSettingsRef());
     auto config = MemoryConfig::loadFromContext(getContext());
     double spill_mem_ratio = config.spill_mem_ratio;
     settings.worth_external_sort = [spill_mem_ratio]() -> bool { return currentThreadGroupMemoryUsageRatio() > spill_mem_ratio; };

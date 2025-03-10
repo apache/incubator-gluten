@@ -33,7 +33,7 @@ LeadParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Act
     /// The 3rd arg is default value
     /// when it is set to null, the 1st arg must be nullable
     const auto & arg2 = func_info.arguments[2].value();
-    const auto * arg0_col = actions_dag.getInputs()[arg0.selection().direct_reference().struct_field().field()];
+    const auto * arg0_col = parseExpression(actions_dag, arg0);
     auto arg0_col_name = arg0_col->result_name;
     auto arg0_col_type= arg0_col->result_type;
     const DB::ActionsDAG::Node * node = nullptr;
@@ -41,7 +41,7 @@ LeadParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Act
     {
         node = ActionsDAGUtil::convertNodeType(
             actions_dag,
-            &actions_dag.findInOutputs(arg0_col_name),
+            arg0_col,
             DB::makeNullable(arg0_col_type),
             arg0_col_name);
         actions_dag.addOrReplaceInOutputs(*node);
@@ -76,7 +76,7 @@ LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Acti
     /// The 3rd arg is default value
     /// when it is set to null, the 1st arg must be nullable
     const auto & arg2 = func_info.arguments[2].value();
-    const auto * arg0_col = actions_dag.getInputs()[arg0.selection().direct_reference().struct_field().field()];
+    const auto * arg0_col = parseExpression(actions_dag, arg0);
     auto arg0_col_name = arg0_col->result_name;
     auto arg0_col_type = arg0_col->result_type;
     const DB::ActionsDAG::Node * node = nullptr;
@@ -84,7 +84,7 @@ LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Acti
     {
         node = ActionsDAGUtil::convertNodeType(
             actions_dag,
-            &actions_dag.findInOutputs(arg0_col_name),
+            arg0_col,
             makeNullable(arg0_col_type),
             arg0_col_name);
         actions_dag.addOrReplaceInOutputs(*node);
