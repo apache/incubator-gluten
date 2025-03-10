@@ -151,6 +151,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val modificationTimes = new JArrayList[JLong]()
     val partitionColumns = new JArrayList[JMap[String, String]]
     val metadataColumns = new JArrayList[JMap[String, String]]
+    val otherMetadataColumns = new JArrayList[JMap[String, Object]]
     files.foreach {
       file =>
         paths.add(unescapePathName(file.filePath.toString))
@@ -190,6 +191,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           partitionColumn.put(schema.names(i), partitionColumnValue)
         }
         partitionColumns.add(partitionColumn)
+        otherMetadataColumns.add(
+          SparkShimLoader.getSparkShims.getOtherConstantMetadataColumnValues(file))
     }
     (paths, starts, lengths, fileSizes, modificationTimes, partitionColumns, metadataColumns)
   }
