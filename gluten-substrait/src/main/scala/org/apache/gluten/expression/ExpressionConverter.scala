@@ -25,7 +25,7 @@ import org.apache.gluten.utils.DecimalArithmeticUtil
 import org.apache.spark.{SPARK_REVISION, SPARK_VERSION_SHORT}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{StringTrimBoth, _}
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
@@ -354,6 +354,16 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
           .toSeq ++
           Seq(replaceWithExpressionTransformer0(srcStr, attributeSeq, expressionsMap))
+        GenericExpressionTransformer(
+          substraitExprName,
+          children,
+          s
+        )
+      case s: StringTrimBoth =>
+        val children = s.trimStr
+          .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+          .toSeq ++
+          Seq(replaceWithExpressionTransformer0(s.srcStr, attributeSeq, expressionsMap))
         GenericExpressionTransformer(
           substraitExprName,
           children,
@@ -727,6 +737,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(ss.limit, attributeSeq, expressionsMap),
           ss
         )
+      case j: JsonToStructs =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genFromJsonTransformer(
+          substraitExprName,
+          expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+          j)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

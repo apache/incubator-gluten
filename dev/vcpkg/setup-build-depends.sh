@@ -144,6 +144,11 @@ install_centos_8() {
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
 
+    pip3 install --upgrade pip
+
+    # Requires cmake >= 3.28.3
+    pip3 install cmake==3.28.3
+
     dnf -y --enablerepo=powertools install autoconf-archive ninja-build
 
     install_maven_from_source

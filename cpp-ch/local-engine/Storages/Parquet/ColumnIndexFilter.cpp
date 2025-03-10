@@ -24,6 +24,7 @@
 #include <Storages/MergeTree/KeyCondition.h>
 #include <Storages/MergeTree/RPNBuilder.h>
 #include <Storages/Parquet/ParquetConverter.h>
+#include <fmt/ranges.h>
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
 #include <Common/logger_useful.h>
@@ -371,7 +372,8 @@ struct ASCENDING : BoundaryOrder
                 [&](const Bounds & b)
                 {
                     return builder.filter(
-                        [&](const Int32 i) {
+                        [&](const Int32 i)
+                        {
                             return i < b.lower || i > b.upper || comparator.compareValueToMin(i) != 0
                                 || comparator.compareValueToMax(i) != 0;
                         });
@@ -524,7 +526,8 @@ struct DESCENDING : BoundaryOrder
                 [&](const Bounds & b)
                 {
                     return builder.filter(
-                        [&](const Int32 i) {
+                        [&](const Int32 i)
+                        {
                             return i < b.lower || i > b.upper || comparator.compareValueToMin(i) != 0
                                 || comparator.compareValueToMin(i) != 0;
                         });

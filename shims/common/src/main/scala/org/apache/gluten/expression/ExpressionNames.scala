@@ -107,6 +107,7 @@ object ExpressionNames {
   final val LTRIM = "ltrim"
   final val RTRIM = "rtrim"
   final val TRIM = "trim"
+  final val BTRIM = "btrim"
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
