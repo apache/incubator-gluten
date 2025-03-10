@@ -17,7 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenStaticConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.BackendTestUtils
@@ -114,7 +114,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
           .config("spark.gluten.sql.enable.native.validation", "false")
           .config("spark.sql.files.openCostInBytes", "134217728")
           .config("spark.unsafe.exceptionOnMemoryLeak", "true")
-          .config(GlutenConfig.UT_STATISTIC.key, "true")
+          .config(GlutenStaticConfig.UT_STATISTIC.key, "true")
           .getOrCreate()
       } else {
         sparkBuilder
