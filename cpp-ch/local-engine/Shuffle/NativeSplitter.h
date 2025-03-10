@@ -49,9 +49,6 @@ public:
         std::unique_ptr<NativeSplitter> splitter = nullptr;
     };
 
-    static jclass iterator_class;
-    static jmethodID iterator_has_next;
-    static jmethodID iterator_next;
     static std::unique_ptr<NativeSplitter> create(const std::string & short_name, Options options, jobject input);
 
     NativeSplitter(Options options, jobject input);
@@ -69,7 +66,11 @@ protected:
     std::vector<size_t> output_columns_indicies;
     DB::Block output_header;
 
+
 private:
+    jmethodID iterator_has_next;
+    jmethodID iterator_next;
+
     void split(DB::Block & block);
     int64_t inputNext();
     bool inputHasNext();

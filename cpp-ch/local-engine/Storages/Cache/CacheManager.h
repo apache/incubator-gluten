@@ -34,10 +34,6 @@ struct MergeTreeTableInstance;
 class CacheManager
 {
 public:
-    static jclass cache_result_class;
-    static jmethodID cache_result_constructor;
-    static void initJNI(JNIEnv * env);
-
     static CacheManager & instance();
     static void initialize(const DB::ContextMutablePtr & context);
     JobId cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String> & columns, bool only_meta_cache);
