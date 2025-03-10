@@ -37,12 +37,8 @@ if(ENABLE_HDFS)
 else()
   target_link_libraries(
     substrait_source
-    PUBLIC boost::headers_only
-           ch_contrib::protobuf
-           clickhouse_common_io
-           substrait
-           ch_contrib::roaring
-           ch_contrib::rapidjson)
+    PUBLIC boost::headers_only ch_contrib::protobuf clickhouse_common_io
+           substrait ch_contrib::roaring ch_contrib::rapidjson)
 endif()
 target_include_directories(
   substrait_source SYSTEM BEFORE
