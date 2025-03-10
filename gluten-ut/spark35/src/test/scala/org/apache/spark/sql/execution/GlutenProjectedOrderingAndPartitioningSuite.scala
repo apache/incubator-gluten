@@ -20,4 +20,4 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenProjectedOrderingAndPartitioningSuite
   extends ProjectedOrderingAndPartitioningSuite
-    with GlutenSQLTestsBaseTrait {}
+  with GlutenSQLTestsBaseTrait {}

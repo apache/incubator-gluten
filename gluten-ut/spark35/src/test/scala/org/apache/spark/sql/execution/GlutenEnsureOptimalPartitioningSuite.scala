@@ -20,4 +20,4 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenEnsureOptimalPartitioningSuite
   extends EnsureOptimalPartitioningSuite
-    with GlutenSQLTestsBaseTrait {}
+  with GlutenSQLTestsBaseTrait {}
