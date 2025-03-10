@@ -414,7 +414,7 @@ void AggregateGroupLimitRelParser::addSortStep(DB::QueryPlan & plan)
     auto sort_descr = parseSortFields(header, win_rel_def->sorts());
     full_sort_descr.insert(full_sort_descr.end(), sort_descr.begin(), sort_descr.end());
 
-    DB::SortingStep::Settings settings(*getContext());
+    DB::SortingStep::Settings settings(getContext()->getSettingsRef());
     auto config = MemoryConfig::loadFromContext(getContext());
     double spill_mem_ratio = config.spill_mem_ratio;
     settings.worth_external_sort = [spill_mem_ratio]() -> bool { return currentThreadGroupMemoryUsageRatio() > spill_mem_ratio; };

@@ -833,8 +833,8 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);
 
-        /// Initialize a dummy query cache.
-        global_context->setQueryCache(0, 0, 0, 0);
+        /// Initialize a dummy query result cache.
+        global_context->setQueryResultCache(0, 0, 0, 0);
 
         /// Initialize a dummy query condition cache.
         global_context->setQueryConditionCache(DEFAULT_QUERY_CONDITION_CACHE_POLICY, 0, 0);
