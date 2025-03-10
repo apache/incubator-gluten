@@ -139,10 +139,13 @@ void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & ex
 
     assert(deleteFile_.equalityfieldids_size() == deleteBlock.columns());
     Names names;
+
     //TODO: deleteFile_.equalityfieldids(i) - 1 ? why
     for (int i = 0; i < deleteFile_.equalityfieldids_size(); i++)
+    {
+        std::cerr << fmt::format("deleteFile_.equalityfieldids({}) = {}", i, deleteFile_.equalityfieldids(i)) << std::endl;
         names.push_back(read_header_.getByPosition(deleteFile_.equalityfieldids(i) - 1).name);
-
+    }
 
     while (deleteBlock.rows() > 0)
     {

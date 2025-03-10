@@ -132,31 +132,34 @@ ParquetFormatFile::ParquetFormatFile(
     const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
     const ReadBufferBuilderPtr & read_buffer_builder_,
     bool use_local_format_)
-    : FormatFile(context_, file_info_, read_buffer_builder_), use_pageindex_reader(use_local_format_)
+    : FormatFile(context_, file_info_, read_buffer_builder_)
+    , use_pageindex_reader(use_local_format_)
+    , meta_builder_{nullptr}
+    , read_buffer_{nullptr}
 {
 }
 
-FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
-    const DB::Block & header,
-    const std::shared_ptr<const DB::KeyCondition> & key_condition,
-    const ColumnIndexFilterPtr & column_index_filter) const
+bool ParquetFormatFile::preparePageIndexReader(const DB::Block & header, const ColumnIndexFilterPtr & column_index_filter)
 {
     bool readRowIndex = hasMetaColumns(header);
     bool usePageIndexReader = (use_pageindex_reader || readRowIndex) && onlyHasFlatType(header);
-    auto read_buffer = read_buffer_builder->build(file_info);
     auto format_settings = DB::getFormatSettings(context);
 
-    DB::Block output_header = header;
+    meta_builder_ = std::make_unique<ParquetMetaBuilder>();
+    ParquetMetaBuilder & metaBuilder = *meta_builder_;
+    metaBuilder.collectPageIndex = usePageIndexReader || readRowIndex;
+
+    // VectorizedParquetBlockInputFormat needn't collect skip rows,
+    // ColumnIndexRowRangesProvider will include such information.
+    metaBuilder.collectSkipRowGroup = !usePageIndexReader;
+
+    metaBuilder.case_insensitive = format_settings.parquet.case_insensitive_column_matching;
+    metaBuilder.allow_missing_columns = format_settings.parquet.allow_missing_columns;
+
     DB::Block read_header = removeMetaColumns(header);
-
-    ParquetMetaBuilder metaBuilder{
-        .collectPageIndex = usePageIndexReader || readRowIndex,
-        .collectSkipRowGroup = !usePageIndexReader,
-        .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
-        .allow_missing_columns = format_settings.parquet.allow_missing_columns};
-
     ShouldIncludeRowGroup should_include_row_group{file_info};
-    if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer.get()))
+    read_buffer_ = read_buffer_builder->build(file_info);
+    if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer_.get()))
     {
         // reuse the read_buffer to avoid opening the file twice.
         // especially，the cost of opening a hdfs file is large.
@@ -169,41 +172,54 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
         metaBuilder.build(*in, read_header, column_index_filter.get(), should_include_row_group);
     }
 
-    if (metaBuilder.readRowGroups.empty())
-        return nullptr;
+    return usePageIndexReader;
+}
 
+FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block & header)
+{
+    bool readRowIndex = hasMetaColumns(header);
+    bool usePageIndexReader = (use_pageindex_reader || readRowIndex) && onlyHasFlatType(header);
+    DB::Block output_header = header;
+    DB::Block read_header = removeMetaColumns(header);
+
+    assert(meta_builder_);
+    assert(read_buffer_);
+    ParquetMetaBuilder & metaBuilder = *meta_builder_;
     auto provider = usePageIndexReader || readRowIndex ? std::make_unique<ColumnIndexRowRangesProvider>(metaBuilder) : nullptr;
+    meta_builder_.reset();
+
+    auto format_settings = DB::getFormatSettings(context);
 
     if (usePageIndexReader)
     {
-        auto input = std::make_shared<VectorizedParquetBlockInputFormat>(*read_buffer, read_header, *provider, format_settings);
+        auto input = std::make_shared<VectorizedParquetBlockInputFormat>(*read_buffer_, read_header, *provider, format_settings);
         return std::make_shared<ParquetInputFormat>(
-            std::move(read_buffer), input, std::move(provider), std::move(read_header), std::move(output_header));
+            std::move(read_buffer_), input, std::move(provider), std::move(read_header), std::move(output_header));
     }
 
     const DB::Settings & settings = context->getSettingsRef();
     format_settings.parquet.skip_row_groups = std::unordered_set<int>(metaBuilder.skipRowGroups.begin(), metaBuilder.skipRowGroups.end());
-
     if (readRowIndex)
     {
         assert(provider);
-        /// In case of readRowIndex, we need to preserve the order of the rows
+
+        // In the case of readRowIndex, we need to preserve the order of the rows
         format_settings.parquet.preserve_order = true;
 
-        /// TODO: enable filter push down again
+        // TODO: enable filter push down again
+        // We need to disable fiter push down and read all row groups, so that we can
+        // get correct row index.
         format_settings.parquet.filter_push_down = false;
     }
-
     auto input = std::make_shared<DB::ParquetBlockInputFormat>(
-        *read_buffer,
+        *read_buffer_,
         read_header,
         format_settings,
         settings[DB::Setting::max_parsing_threads],
         settings[DB::Setting::max_download_threads],
         8192);
-    input->setKeyCondition(key_condition);
     return std::make_shared<ParquetInputFormat>(
-        std::move(read_buffer), input, std::move(provider), std::move(read_header), std::move(output_header));
+        std::move(read_buffer_), input, std::move(provider), std::move(read_header), std::move(output_header));
 }
 
 std::optional<size_t> ParquetFormatFile::getTotalRows()

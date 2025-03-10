@@ -40,6 +40,8 @@ namespace local_engine
 {
 
 class FormatFile;
+class ColumnIndexFilter;
+using ColumnIndexFilterPtr = std::shared_ptr<ColumnIndexFilter>;
 
 class FileMetaColumns
 {
@@ -108,13 +110,15 @@ public:
     public:
         virtual ~InputFormat() = default;
         DB::IInputFormat & inputFormat() const { return *input; }
-        void cancel() const noexcept { return input->cancel(); }
+        void cancel() const noexcept { input->cancel(); }
         virtual DB::Chunk generate() { return input->generate(); }
         InputFormat(std::unique_ptr<DB::ReadBuffer> read_buffer_, const DB::InputFormatPtr & input_)
             : read_buffer(std::move(read_buffer_)), input(input_)
         {
         }
     };
+
+
     using InputFormatPtr = std::shared_ptr<InputFormat>;
 
     FormatFile(DB::ContextPtr context_, const substraitInputFile & file_info_, const ReadBufferBuilderPtr & read_buffer_builder_);
@@ -123,9 +127,15 @@ public:
     /// Create a new input format for reading this file
     virtual InputFormatPtr createInputFormat(const DB::Block & header) = 0;
 
-    /// Spark would split a large file into small segements and read in different tasks
-    /// If this file doesn't support the split feacture, only the task with offset 0 will generate data.
+    /// Spark would split a large file into small segments and read in different tasks
+    /// If this file doesn't support the split feature, only the task with offset 0 will generate data.
     virtual bool supportSplit() const { return false; }
+
+    /// Prepare the page index reader for the file.
+    /// Return true if the page index reader is prepared successfully.
+    ///
+    /// TODO: replace ColumnIndexFilterPtr with KeyCondition
+    virtual bool preparePageIndexReader(const DB::Block &, const ColumnIndexFilterPtr &) { return false; }
 
     /// Try to get rows from file metadata
     virtual std::optional<size_t> getTotalRows() { return {}; }

@@ -36,15 +36,9 @@ public:
         bool use_local_format_);
     ~ParquetFormatFile() override = default;
 
-    InputFormatPtr createInputFormat(const DB::Block & /*header*/) override
-    {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Use createInputFormat with key_condition and column_index_filter");
-    }
+    InputFormatPtr createInputFormat(const DB::Block & /*header*/) override;
+    bool preparePageIndexReader(const DB::Block & header, const ColumnIndexFilterPtr & column_index_filter) override;
 
-    InputFormatPtr createInputFormat(
-        const DB::Block & header,
-        const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
-        const ColumnIndexFilterPtr & column_index_filter = nullptr) const;
 
     std::optional<size_t> getTotalRows() override;
 
@@ -58,6 +52,8 @@ private:
     bool use_pageindex_reader;
     std::mutex mutex;
     std::optional<size_t> total_rows;
+    std::unique_ptr<ParquetMetaBuilder> meta_builder_;
+    std::unique_ptr<DB::ReadBuffer> read_buffer_;
 };
 
 }

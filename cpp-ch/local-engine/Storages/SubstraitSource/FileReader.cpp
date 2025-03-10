@@ -21,7 +21,6 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <IO/ReadBufferFromString.h>
-#include <Storages/SubstraitSource/ParquetFormatFile.h>
 #include <Storages/SubstraitSource/iceberg/IcebergReader.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/CHUtil.h>
@@ -275,13 +274,9 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
 {
     auto createInputFormat = [&](const DB::Block & new_read_header_) -> FormatFile::InputFormatPtr
     {
-        // Apply key condition to the reader.
-        // If use_local_format is true, column_index_filter will be used otherwise it will be ignored
-        if (auto * parquetFile = dynamic_cast<ParquetFormatFile *>(file.get()))
-            return parquetFile->createInputFormat(new_read_header_, key_condition, column_index_filter);
-
+        bool usePageIndexReader = file->preparePageIndexReader(new_read_header_, column_index_filter);
         auto input_format = file->createInputFormat(new_read_header_);
-        if (key_condition)
+        if (!usePageIndexReader && key_condition)
             input_format->inputFormat().setKeyCondition(key_condition);
         return input_format;
     };
