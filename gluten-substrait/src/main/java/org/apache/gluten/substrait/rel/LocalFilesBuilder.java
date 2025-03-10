@@ -33,7 +33,8 @@ public class LocalFilesBuilder {
       List<Map<String, String>> metadataColumns,
       LocalFilesNode.ReadFileFormat fileFormat,
       List<String> preferredLocations,
-      Map<String, String> properties) {
+      Map<String, String> properties,
+      List<Map<String, Object>> otherMetadataColumns) {
     return new LocalFilesNode(
         index,
         paths,
@@ -45,7 +46,8 @@ public class LocalFilesBuilder {
         metadataColumns,
         fileFormat,
         preferredLocations,
-        properties);
+        properties,
+        otherMetadataColumns);
   }
 
   public static LocalFilesNode makeLocalFiles(String iterPath) {

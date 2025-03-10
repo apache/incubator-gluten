@@ -19,6 +19,9 @@ package org.apache.gluten.sql.shims
 import org.apache.gluten.execution.GlutenPlan
 
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.datasources.PartitionedFile
+
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 sealed abstract class ShimDescriptor
 
@@ -29,4 +32,10 @@ trait DeltaShims {
     throw new UnsupportedOperationException(
       s"Can't transform ColumnarDeltaOptimizedWriterExec from ${plan.getClass.getSimpleName}")
   }
+
+  def convertRowIndexFilterIdEncoded(
+      partitionColsCnt: Int,
+      file: PartitionedFile,
+      otherConstantMetadataColumnValues: JMap[String, Object]): JMap[String, Object] =
+    new JHashMap[String, Object]()
 }

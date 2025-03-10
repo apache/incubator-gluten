@@ -27,6 +27,8 @@
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/GlutenStringUtils.h>
+#include <Parser/SubstraitParserUtils.h>
+#include <Storages/SubstraitSource/Delta/DeltaReader.h>
 
 namespace DB
 {
@@ -281,6 +283,21 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
             input_format->inputFormat().setKeyCondition(key_condition);
         return input_format;
     };
+
+    if (file->getFileInfo().other_const_metadata_columns_size())
+    {
+        String row_index_ids_encoded;
+        String row_index_filter_type;
+        for (const auto & column : file->getFileInfo().other_const_metadata_columns())
+        {
+            if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_ID_ENCODED)
+                row_index_ids_encoded = toString(column.value());
+            if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_TYPE)
+                row_index_filter_type = toString(column.value());
+        }
+        if (!row_index_ids_encoded.empty() && !row_index_filter_type.empty())
+            return delta::DeltaReader::create(file, to_read_header_, output_header_, input_format, row_index_ids_encoded, row_index_filter_type);
+    }
 
     if (file->getFileInfo().has_iceberg())
         return iceberg::IcebergReader::create(file, to_read_header_, output_header_, createInputFormat);
