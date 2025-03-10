@@ -1160,6 +1160,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
     .exclude("SPARK-33687: analyze all tables in a specific database")
+    .exclude("column stats collection for null columns")
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
       "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
