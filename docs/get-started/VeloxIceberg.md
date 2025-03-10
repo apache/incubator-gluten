@@ -72,4 +72,23 @@ Not support avro format.
 Only support SELECT.
 
 ## Configuration
-Not support.
+### Catalogs
+Supports all the catalog options, which is not used in native engine.
+
+### SQL Extensions
+Fallback
+
+Supports the option `spark.sql.extensions`, fallback the SQL command `CALL`.
+
+### Runtime configuration
+#### Read options
+
+| Spark option	         | Status      |
+|-----------------------|-------------|
+| snapshot-id           | Support     |
+| as-of-timestamp       | Support     |
+| split-size            | Support     |
+| lookback              | Support     |
+| file-open-cost        | Support     |
+| vectorization-enabled | Not Support |
+| batch-size            | Not Support |
