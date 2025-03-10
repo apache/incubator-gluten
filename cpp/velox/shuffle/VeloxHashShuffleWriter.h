@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "BaseMap.h"
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -206,7 +208,13 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status splitRowVector(const facebook::velox::RowVector& rv);
 
+  arrow::Status splitRowVectorDictionary(const facebook::velox::RowVector& rv);
+
+  void splitDictionaryValues(const facebook::velox::RowVector& rv)
+
   arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
+
+  void initDictionary(const facebook::velox::RowVector& rv);
 
   arrow::Status buildPartition2Row(uint32_t rowNum);
 
@@ -346,6 +354,20 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
   // The column indices of all complex types in the schema, including Struct, Map, List columns.
   std::vector<uint32_t> complexColumnIndices_;
 
+  // The column indices of all columns, specify the dictionary encoding.
+  std::vector<int32_t> columnEncodings_;
+  // The column indices of all columns, only supports the valueVector is scalar and flat vector.
+  std::vector<bool> isSupportsDictionary_;
+
+  std::vector<uint32_t> dictionaryColumnIndices_;
+
+  // columnIndex, partitionId
+  std::vector<std::vector<std::shared_ptr<BaseMap>>> dictionaryValues_;
+
+  // // columnIndex, partitionId, the dictionaryIndexArray field of DictionaryVector.
+  // // The reference of partitionBuffers_.
+  // std::vector<std::vector<int32_t*>> dictionaryIndices_;
+
   // Total bytes of fixed-width buffers of all simple columns. Including validity buffers, value buffers of
   // fixed-width types and length buffers of binary types.
   // Used for estimating pre-allocated partition buffer size. Calculated once.
@@ -409,6 +431,7 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
   // Used by all simple types. Stores raw pointers of partition buffers.
   std::vector<std::vector<uint8_t*>> partitionValidityAddrs_;
   // Used by fixed-width types. Stores raw pointers of partition buffers.
+  // Also saved the dictionary vector indices buffer.
   std::vector<std::vector<uint8_t*>> partitionFixedWidthValueAddrs_;
   // Used by binary types. Stores raw pointers and metadata of partition buffers.
   std::vector<std::vector<BinaryBuf>> partitionBinaryAddrs_;
