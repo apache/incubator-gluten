@@ -97,6 +97,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    .exclude("cast from timestamp II") // Rewrite test for Gluten
     .exclude("ANSI mode: Throw exception on casting out-of-range value to byte type")
     .exclude("ANSI mode: Throw exception on casting out-of-range value to short type")
     .exclude("ANSI mode: Throw exception on casting out-of-range value to int type")

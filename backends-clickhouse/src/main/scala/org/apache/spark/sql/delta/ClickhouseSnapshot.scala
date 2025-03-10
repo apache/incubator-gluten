@@ -84,9 +84,11 @@ case class FilterExprsAsKey(
 }
 
 object ClickhouseSnapshot {
+  protected def sparkSession: SparkSession = SparkSession.active
+
   val deltaScanCache: Cache[FilterExprsAsKey, DeltaScan] = CacheBuilder.newBuilder
     .maximumSize(
-      SparkSession.getActiveSession.get.conf
+      sparkSession.conf
         .get(CHBackendSettings.GLUTEN_CLICKHOUSE_DELTA_SCAN_CACHE_SIZE, "10000")
         .toLong)
     .expireAfterAccess(7200L, TimeUnit.SECONDS)
@@ -95,7 +97,7 @@ object ClickhouseSnapshot {
 
   val addFileToAddMTPCache: LoadingCache[AddFileAsKey, AddMergeTreeParts] = CacheBuilder.newBuilder
     .maximumSize(
-      SparkSession.getActiveSession.get.conf
+      sparkSession.conf
         .get(CHBackendSettings.GLUTEN_CLICKHOUSE_ADDFILES_TO_MTPS_CACHE_SIZE, "1000000")
         .toLong)
     .expireAfterAccess(7200L, TimeUnit.SECONDS)
@@ -109,7 +111,7 @@ object ClickhouseSnapshot {
 
   val pathToAddMTPCache: Cache[String, AddMergeTreeParts] = CacheBuilder.newBuilder
     .maximumSize(
-      SparkSession.getActiveSession.get.conf
+      sparkSession.conf
         .get(CHBackendSettings.GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE, "1000000")
         .toLong)
     .expireAfterAccess(7200L, TimeUnit.SECONDS)

@@ -442,4 +442,38 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-8921: Type mismatch at checkDecimalOverflowSparkOrNull") {
+    compareResultsAgainstVanillaSpark(
+      """
+        |select l_shipdate, avg(l_quantity), count(0) over() COU,
+        |SUM(-1.1) over() SU, AVG(-2) over() AV,
+        |max(-1.1) over() MA, min(-3) over() MI
+        |from lineitem
+        |where l_shipdate <= date'1998-09-02'
+        |group by l_shipdate
+        |order by l_shipdate
+      """.stripMargin,
+      true,
+      { _ => }
+    )
+  }
+
+  test("GLUTEN-8922: Incorrect result in lead function with constant col") {
+    compareResultsAgainstVanillaSpark(
+      """
+        |select l_shipdate,
+        |FIRST_VALUE(-2) over() FI,
+        |LAST_VALUE(-2) over() LA,
+        |lag(-2) over(order by l_shipdate) lag0,
+        |lead(-2) over(order by l_shipdate) lead0
+        |from lineitem
+        |where l_shipdate <= date'1998-09-02'
+        |group by l_shipdate
+        |order by l_shipdate
+      """.stripMargin,
+      true,
+      { _ => }
+    )
+  }
+
 }

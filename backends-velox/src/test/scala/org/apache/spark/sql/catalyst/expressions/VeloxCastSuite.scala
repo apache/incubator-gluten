@@ -16,14 +16,16 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.gluten.execution.VeloxWholeStageTransformerSuite
+
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils.UTC_OPT
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
 import java.util.TimeZone
 
-class VeloxCastSuite extends CastSuite {
-  override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): CastBase = {
+class VeloxCastSuite extends VeloxWholeStageTransformerSuite with ExpressionEvalHelper {
+  def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): Cast = {
     v match {
       case lit: Expression =>
         logDebug(s"Cast from: ${lit.dataType.typeName}, to: ${targetType.typeName}")
@@ -63,4 +65,6 @@ class VeloxCastSuite extends CastSuite {
       TimeZone.setDefault(originalDefaultTz)
     }
   }
+  override protected val resourcePath: String = "N/A"
+  override protected val fileFormat: String = "N/A"
 }
