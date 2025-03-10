@@ -17,10 +17,11 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.BuildSide
-import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.catalyst.optimizer.{BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, JoinType}
+import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -40,8 +41,27 @@ case class VeloxBroadcastNestedLoopJoinExecTransformer(
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val streamedRDD = getColumnarInputRDDs(streamedPlan)
+    val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    if (executionId != null) {
+      GlutenDriverEndpoint.collectResources(executionId, buildBroadcastTableId)
+    } else {
+      logWarning(
+        s"Can't not trace broadcast table data $buildBroadcastTableId" +
+          s" because execution id is null." +
+          s" Will clean up until expire time.")
+    }
+
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
-    val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+    val context =
+      BroadCastHashJoinContext(
+        Seq.empty,
+        joinType,
+        buildSide == BuildRight,
+        false,
+        joinType.isInstanceOf[ExistenceJoin],
+        buildPlan.output,
+        buildBroadcastTableId)
+    val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?
     streamedRDD :+ broadcastRDD
   }
