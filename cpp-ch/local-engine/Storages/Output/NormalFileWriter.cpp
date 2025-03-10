@@ -25,6 +25,7 @@
 #include <QueryPipeline/QueryPipeline.h>
 #include <Poco/URI.h>
 #include <Common/DebugUtils.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {
@@ -156,22 +157,19 @@ NormalFileWriter::NormalFileWriter(const OutputFormatFilePtr & file_, const DB::
 {
 }
 
-void NormalFileWriter::write(DB::Block & block)
+DB::Block NormalFileWriter::castBlock(const DB::Block & block) const
 {
-    if (!writer) [[unlikely]]
-    {
-        // init the writer at first block
-        output_format = file->createOutputFormat(block.cloneEmpty());
-        pipeline = std::make_unique<DB::QueryPipeline>(output_format->output);
-        writer = std::make_unique<DB::PushingPipelineExecutor>(*pipeline);
-    }
+    if (!block)
+        return block;
+
+    Block res = block;
 
     /// In case input block didn't have the same types as the preferred schema, we cast the input block to the preferred schema.
     /// Notice that preferred_schema is the actual file schema, which is also the data schema of current inserted table.
     /// Refer to issue: https://github.com/apache/incubator-gluten/issues/6588
     size_t index = 0;
     const auto & preferred_schema = file->getPreferredSchema();
-    for (auto & column : block)
+    for (auto & column : res)
     {
         if (column.name.starts_with(SparkPartitionedBaseSink::BUCKET_COLUMN_NAME))
             continue;
@@ -183,12 +181,24 @@ void NormalFileWriter::write(DB::Block & block)
         column.name = preferred_column.name;
         column.type = preferred_column.type;
     }
+    return res;
+}
+
+void NormalFileWriter::write(const DB::Block & block)
+{
+    if (!writer) [[unlikely]]
+    {
+        // init the writer at first block
+        output_format = file->createOutputFormat(block.cloneEmpty());
+        pipeline = std::make_unique<DB::QueryPipeline>(output_format->output);
+        writer = std::make_unique<DB::PushingPipelineExecutor>(*pipeline);
+    }
 
     /// Although gluten will append MaterializingTransform to the end of the pipeline before native insert in most cases, there are some cases in which MaterializingTransform won't be appended.
     /// e.g. https://github.com/oap-project/gluten/issues/2900
     /// So we need to do materialize here again to make sure all blocks passed to native writer are all materialized.
     /// Note: duplicate materialization on block doesn't has any side affect.
-    writer->push(materializeBlock(block));
+    writer->push(materializeBlock(castBlock(block)));
 }
 
 void NormalFileWriter::close()
@@ -219,6 +229,7 @@ OutputFormatFilePtr createOutputFormatFile(
 std::unique_ptr<NativeOutputWriter> NormalFileWriter::create(
     const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint)
 {
+    assert(context);
     return std::make_unique<NormalFileWriter>(createOutputFormatFile(context, file_uri, preferred_schema, format_hint), context);
 }
 

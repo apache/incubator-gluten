@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.vectorized;
 
+import org.apache.gluten.exception.GlutenException;
+
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.ArrayType;
@@ -315,5 +317,21 @@ public final class ArrowColumnarRow extends InternalRow {
 
   public void setBinary(int ordinal, byte[] value) {
     columns[ordinal].putBytes(rowId, value.length, value, 0);
+  }
+
+  public void writeRow(GenericInternalRow input) {
+    if (input.numFields() != columns.length) {
+      throw new GlutenException(
+          "The numFields of input row should be equal to the number of column vector!");
+    }
+    for (int i = 0; i < input.numFields(); ++i) {
+      columns[i].write(input, i);
+    }
+  }
+
+  public void finishWriteRow() {
+    for (int i = 0; i < columns.length; ++i) {
+      columns[i].finishWrite();
+    }
   }
 }

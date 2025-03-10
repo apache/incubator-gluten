@@ -47,7 +47,8 @@ object GlutenClickHouseMetricsUTUtils {
     val resIter = CHNativeExpressionEvaluator.createKernelWithBatchIterator(
       substraitPlan.toByteArray,
       new Array[Array[Byte]](0),
-      inBatchIters)
+      inBatchIters,
+      0)
     val iter = new Iterator[Any] {
       private var outputRowCount = 0L
       private var outputVectorCount = 0L

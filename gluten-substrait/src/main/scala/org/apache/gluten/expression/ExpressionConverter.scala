@@ -25,7 +25,7 @@ import org.apache.gluten.utils.DecimalArithmeticUtil
 import org.apache.spark.{SPARK_REVISION, SPARK_VERSION_SHORT}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{StringTrimBoth, _}
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
@@ -354,6 +354,16 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
           .toSeq ++
           Seq(replaceWithExpressionTransformer0(srcStr, attributeSeq, expressionsMap))
+        GenericExpressionTransformer(
+          substraitExprName,
+          children,
+          s
+        )
+      case s: StringTrimBoth =>
+        val children = s.trimStr
+          .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+          .toSeq ++
+          Seq(replaceWithExpressionTransformer0(s.srcStr, attributeSeq, expressionsMap))
         GenericExpressionTransformer(
           substraitExprName,
           children,
@@ -727,6 +737,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(ss.limit, attributeSeq, expressionsMap),
           ss
         )
+      case j: JsonToStructs =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genFromJsonTransformer(
+          substraitExprName,
+          expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+          j)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
@@ -736,21 +751,26 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
-  private def getAndCheckSubstraitName(expr: Expression, expressionsMap: Map[Class[_], String]) = {
+  private def getAndCheckSubstraitName(
+      expr: Expression,
+      expressionsMap: Map[Class[_], String]): String = {
     TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
-    val substraitExprNameOpt = expressionsMap.get(expr.getClass)
-    if (substraitExprNameOpt.isEmpty) {
-      throw new GlutenNotSupportException(
-        s"Not supported to map spark function name" +
-          s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
-    }
-    val substraitExprName = substraitExprNameOpt.get
-    // Check whether each backend supports this expression
-    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
-      throw new GlutenNotSupportException(s"Not supported: $expr.")
-    }
-    substraitExprName
+    expressionsMap
+      .get(expr.getClass)
+      .flatMap {
+        name =>
+          if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(name, expr)) {
+            None
+          } else {
+            Some(name)
+          }
+      }
+      .getOrElse {
+        throw new GlutenNotSupportException(
+          s"Not supported to map spark function name" +
+            s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
+      }
   }
 
   private def bindGetStructField(

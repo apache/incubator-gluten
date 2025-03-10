@@ -30,6 +30,10 @@ class WindowMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsU
       metrics("wallNanos") += operatorMetrics.wallNanos
       metrics("peakMemoryBytes") += operatorMetrics.peakMemoryBytes
       metrics("numMemoryAllocations") += operatorMetrics.numMemoryAllocations
+      metrics("spilledBytes") += operatorMetrics.spilledBytes
+      metrics("spilledRows") += operatorMetrics.spilledRows
+      metrics("spilledPartitions") += operatorMetrics.spilledPartitions
+      metrics("spilledFiles") += operatorMetrics.spilledFiles
     }
   }
 }

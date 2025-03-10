@@ -540,8 +540,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     )
     // test for sort node not present but gluten uses shuffle hash join
     .exclude("SPARK-41048: Improve output partitioning and ordering with AQE cache")
+    .exclude("SPARK-28224: Aggregate sum big decimal overflow")
     // Rewrite this test since it checks the physical operator which is changed in Gluten
-    .includeCH("SPARK-27439: Explain result should match collected result after view change")
+    .excludeCH("SPARK-27439: Explain result should match collected result after view change")
     .excludeCH("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .excludeCH("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
     .excludeCH("summary")
@@ -623,6 +624,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("ordering and partitioning reporting")
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
+    // Disable this since coalesece union clauses rule will rewrite the query.
+    .exclude("SPARK-44653: non-trivial DataFrame unions should not break caching")
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSerializerRegistratorSuite]

@@ -98,7 +98,7 @@ function compile {
   CXX_FLAGS='-Wno-missing-field-initializers'
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
-      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
@@ -109,7 +109,7 @@ function compile {
   # If ENABLE_BENCHMARK == ON, Velox disables tests and connectors
   if [ $ENABLE_BENCHMARK == "OFF" ]; then
     if [ $ENABLE_TESTS == "ON" ]; then
-        COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=ON "
+      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=ON "
     fi
     if [ $ENABLE_ABFS == "ON" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_ABFS=ON"
@@ -157,13 +157,13 @@ function compile {
         sudo cmake --install xsimd-build/
       fi
     fi
-    if [ -d gtest-build ]; then
+    if [ -d googletest-build ]; then
       echo "INSTALL gtest."
       if [ $OS == 'Linux' ]; then
-        cd gtest-src; cmake . ; sudo make install -j
-        #sudo cmake --install gtest-build/
+        cd googletest-src; cmake . ; sudo make install -j
+        #sudo cmake --install googletest-build/
       elif [ $OS == 'Darwin' ]; then
-        sudo cmake --install gtest-build/
+        sudo cmake --install googletest-build/
       fi
     fi
   fi

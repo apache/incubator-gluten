@@ -17,10 +17,11 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, Row, TestUtils}
-import org.apache.spark.sql.catalyst.expressions.{Expression, GetJsonObject, Literal}
+import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -62,6 +63,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
   }
 
   override def beforeAll(): Unit = {
@@ -595,7 +597,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       // check the result
       val result = df.collect()
       assert(result.length === exceptedResult.size)
-      TestUtils.compareAnswers(result, exceptedResult)
+      GlutenTestUtils.compareAnswers(result, exceptedResult)
     }
 
     runSql("select round(0.41875d * id , 4) from range(10);")(
@@ -1029,4 +1031,191 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       "approx_count_distinct(id, 0.1) from range(1000)"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("GLUTEN-8723 fix slice unexpected exception") {
+    val create_sql = "create table t_8723 (full_user_agent string) using orc"
+    val insert_sql = "insert into t_8723 values(NULL)"
+    val select1_sql = "select " +
+      "slice(split(full_user_agent, ';'), 2, size(split(full_user_agent, ';'))) from t_8723"
+    val select2_sql = "select slice(split(full_user_agent, ';'), 0, 2) from t_8723"
+    val drop_sql = "drop table t_8723"
+
+    spark.sql(create_sql)
+    spark.sql(insert_sql)
+    compareResultsAgainstVanillaSpark(select1_sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(select2_sql, true, { _ => })
+    spark.sql(drop_sql)
+  }
+
+  test("GLUTEN-8715 nan semantics") {
+    withTable("test_8715") {
+      spark.sql("create table test_8715(c1 int, c2 double) using parquet")
+      val insert_sql =
+        """
+          |insert into test_8715 values
+          |(1, double('infinity'))
+          |,(2, double('infinity'))
+          |,(3, double('inf'))
+          |,(4, double('-inf'))
+          |,(5, double('NaN'))
+          |,(6, double('NaN'))
+          |,(7, double('-infinity'))
+          |""".stripMargin
+      spark.sql(insert_sql)
+      val sql =
+        """
+          |select c2 = cast('nan' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+      val sql5 =
+        """
+          |select c2 <= cast('nan' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql5, true, { _ => })
+      val sql6 =
+        """
+          |select c2 >= cast('nan' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql6, true, { _ => })
+      val sql7 =
+        """
+          |select c2 > cast('1.1' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql7, true, { _ => })
+      val sql9 =
+        """
+          |select c2 >= cast('1.1' as double) from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql9, true, { _ => })
+      val sql8 =
+        """
+          |select cast('1.1' as double) < c2 from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql8, true, { _ => })
+      val sql10 =
+        """
+          |select cast('1.1' as double) <= c2 from test_8715 where c1=5
+          |order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql10, true, { _ => })
+      val sql1 =
+        """
+          |select sum(c1) from test_8715
+          |group by c2 order by c2 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+      val sql2 =
+        """
+          |select * from test_8715
+          |order by c2 asc, c1 asc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+      val sql3 =
+        """
+          |select * from test_8715
+          |order by c2 desc, c1 desc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+      val sql4 =
+        """
+          |select a.c1 as a_c1, a.c2 as a_c2,
+          |b.c1 as b_c1, b.c2 as b_c2
+          |from test_8715 a
+          |join test_8715 b on a.c2 = b.c2
+          |order by a.c1, b.c1 desc
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql4, true, { _ => })
+    }
+  }
+
+  test("GLUTEN-8859 replace substrings comparison") {
+    withTable("test_8859") {
+      def isRewriteSubstringCompareProject(plan: SparkPlan): Boolean = {
+
+        def hasSubstringComparison(e: Expression): Boolean = e match {
+          case udf: ScalaUDF if udf.udfName.isDefined =>
+            udf.udfName.get.equals("compare_substrings")
+          case _ => e.children.exists(hasSubstringComparison)
+        }
+
+        plan match {
+          case project: ProjectExecTransformer =>
+            project.projectList.exists(e => hasSubstringComparison(e))
+          case _ => false
+        }
+      }
+
+      spark.sql("create table test_8859(c1 string, c2 string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_8859 values
+          |('abcd', '1234'),
+          |('bcde', '2345'),
+          |('abcd', 'abcd')
+          |""".stripMargin
+      spark.sql(insert_sql)
+
+      val sql1 =
+        """
+          |select substr(c1, 1, 2) = 'ab', substr(c1, 1, 3) < 'abc', substr(c1, 1, 4) > 'abcd'
+          |from test_8859
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql1,
+        true,
+        {
+          df =>
+            val projects = df.queryExecution.executedPlan.collect {
+              case project: ProjectExecTransformer if isRewriteSubstringCompareProject(project) =>
+                project
+            }
+            assert(projects.length == 1)
+        }
+      )
+
+      val sql2 =
+        """
+          |select substr(c1, 1, 2) = substr(c2, 1, 2), substr(c1, 1, 3) < substr(c2, 1, 3),
+          |substr(c1, 1, 4) > substr(c2, 1, 4)
+          |from test_8859
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql2,
+        true,
+        {
+          df =>
+            val projects = df.queryExecution.executedPlan.collect {
+              case project: ProjectExecTransformer if isRewriteSubstringCompareProject(project) =>
+                project
+            }
+            assert(projects.length == 1)
+        }
+      )
+
+      val sql3 =
+        """
+          |select substr(c1, 1, 2) < 'abc'
+          |from test_8859
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql3,
+        true,
+        {
+          df =>
+            val projects = df.queryExecution.executedPlan.collect {
+              case project: ProjectExecTransformer if isRewriteSubstringCompareProject(project) =>
+                project
+            }
+            assert(projects.length == 0)
+        }
+      )
+    }
+  }
+
 }

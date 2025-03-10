@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarPartialProjectExec
 
 import org.apache.spark.sql.SparkSession
@@ -24,6 +25,9 @@ import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 
 case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
+    if (!GlutenConfig.get.enableColumnarPartialProject) {
+      return plan
+    }
     plan.transformUp {
       case plan: ProjectExec =>
         val transformer = ColumnarPartialProjectExec.create(plan)

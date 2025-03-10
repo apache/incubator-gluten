@@ -128,7 +128,7 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
 {
 }
 
-void SparkMergeTreeWriter::write(DB::Block & block)
+void SparkMergeTreeWriter::write(const DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
     auto converter = ActionsDAG::makeConvertingActions(
