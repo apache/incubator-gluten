@@ -540,6 +540,7 @@ class Spark34Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.TRY
       case d: Divide => d.evalMode == EvalMode.TRY
       case m: Multiply => m.evalMode == EvalMode.TRY
+      case c: Cast => c.isTryCast
       case _ => false
     }
   }
@@ -550,6 +551,7 @@ class Spark34Shims extends SparkShims {
       case s: Subtract => s.evalMode == EvalMode.ANSI
       case d: Divide => d.evalMode == EvalMode.ANSI
       case m: Multiply => m.evalMode == EvalMode.ANSI
+      case c: Cast => c.ansiEnabled
       case _ => false
     }
   }
