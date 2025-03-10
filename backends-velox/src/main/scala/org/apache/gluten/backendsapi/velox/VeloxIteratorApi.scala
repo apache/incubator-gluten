@@ -205,7 +205,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         otherMetadataColumns.add(
           SparkShimLoader.getSparkShims.getOtherConstantMetadataColumnValues(file))
     }
-    (paths,
+    (
+      paths,
       starts,
       lengths,
       fileSizes,
