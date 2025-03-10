@@ -28,7 +28,7 @@ namespace {
 
 void checkUnsupportedComplexLiteral(const ::substrait::Expression::Literal& literal) {
   if (literal.has_interval_year_to_month() || literal.has_interval_day_to_second()) {
-      VELOX_NYI("Complex type literal not supported for interval types.");
+    VELOX_NYI("Complex type literal not supported for interval types.");
   }
 }
 
@@ -388,8 +388,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
         auto years = substraitLit.interval_year_to_month().years();
         auto months = substraitLit.interval_year_to_month().months();
         int32_t totalMonths = years * 12 + months;
-        auto constantVector = BaseVector::createConstant(
-          INTERVAL_YEAR_MONTH(), totalMonths, 1, pool_);
+        auto constantVector = BaseVector::createConstant(INTERVAL_YEAR_MONTH(), totalMonths, 1, pool_);
         return std::make_shared<const core::ConstantTypedExpr>(constantVector);
       }
     }
