@@ -31,7 +31,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
-import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ExplainUtils, FilterExec, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.hive.HiveUdfUtil
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
@@ -39,18 +39,18 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import scala.collection.mutable.ListBuffer
 
 /**
- * By rule <PartialProjectRule>, the project not offload-able that is changed to
- * ProjectExecTransformer + ColumnarPartialProjectExec e.g. sum(myudf(a) + b + hash(c)), child is
- * (a, b, c) ColumnarPartialProjectExec (a, b, c, myudf(a) as _SparkPartialProject1),
- * ProjectExecTransformer(_SparkPartialProject1 + b + hash(c))
+ * By rule <PartialProjectRule>, the project/filter not offload-able that is changed to
+ * ProjectExecTransformer/FilterExecTransformer + ColumnarPartialProjectExec. e.g. sum(myudf(a) + b
+ * + hash(c)), child is (a, b, c) ColumnarPartialProjectExec (a, b, c, myudf(a) as
+ * _SparkPartialProject1), ProjectExecTransformer(_SparkPartialProject1 + b + hash(c))
  *
  * @param original
- *   extract the ScalaUDF from original project list as Alias in UnsafeProjection and
+ *   extract the ScalaUDF from original project/filter list as Alias in UnsafeProjection and
  *   AttributeReference in ColumnarPartialProjectExec output
  * @param child
  *   child plan
  */
-case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
+case class ColumnarPartialProjectExec(original: SparkPlan, child: SparkPlan)(
     replacedAliasUdf: Seq[Alias])
   extends UnaryExecNode
   with ValidatablePlan {
@@ -74,7 +74,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   override def output: Seq[Attribute] = child.output ++ replacedAliasUdf.map(_.toAttribute)
 
   override def doCanonicalize(): ColumnarPartialProjectExec = {
-    val canonicalized = original.canonicalized.asInstanceOf[ProjectExec]
+    val canonicalized = original.canonicalized
     this.copy(
       original = canonicalized,
       child = child.canonicalized
@@ -145,8 +145,12 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
       // e.g. udf1(col) + udf2(col), it will introduce 2 cols for a2c
       return ValidationResult.failed("Number of RowToColumn columns is more than ProjectExec")
     }
-    if (!original.projectList.forall(validateExpression(_))) {
-      return ValidationResult.failed("Contains expression not supported")
+    original match {
+      case p: ProjectExec if !p.projectList.forall(validateExpression(_)) =>
+        return ValidationResult.failed("Contains expression not supported")
+      case f: FilterExec if !validateExpression(f.condition) =>
+        return ValidationResult.failed("Contains expression not supported")
+      case _ =>
     }
     if (
       ExpressionUtils.hasComplexExpressions(original, GlutenConfig.get.fallbackExpressionsThreshold)
@@ -267,7 +271,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   }
 }
 
-object ColumnarPartialProjectExec {
+object ColumnarPartialProjectExec extends PredicateHelper {
 
   val projectPrefix = "_SparkPartialProject"
 
@@ -332,13 +336,27 @@ object ColumnarPartialProjectExec {
     }
   }
 
-  def create(original: ProjectExec): ProjectExecTransformer = {
-    val replacedAliasUdf: ListBuffer[Alias] = ListBuffer()
-    val newProjectList = original.projectList.map {
-      p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
+  def create(original: SparkPlan): UnaryTransformSupport = {
+    val transformedPlan = original match {
+      case p: ProjectExec =>
+        val replacedAliasUdf: ListBuffer[Alias] = ListBuffer()
+        val newProjectList = p.projectList.map {
+          p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
+        }
+        val partialProject =
+          ColumnarPartialProjectExec(p, p.child)(replacedAliasUdf.toSeq)
+        ProjectExecTransformer(newProjectList, partialProject)
+      case f: FilterExec =>
+        val replacedAliasUdf: ListBuffer[Alias] = ListBuffer()
+        val newCondition = splitConjunctivePredicates(f.condition)
+          .map(p => replaceExpressionUDF(p, replacedAliasUdf))
+          .reduceLeftOption(And)
+          .orNull
+        val partialProject =
+          ColumnarPartialProjectExec(f, f.child)(replacedAliasUdf.toSeq)
+        FilterExecTransformer(newCondition, partialProject)
     }
-    val partialProject =
-      ColumnarPartialProjectExec(original, original.child)(replacedAliasUdf.toSeq)
-    ProjectExecTransformer(newProjectList, partialProject)
+
+    transformedPlan
   }
 }
