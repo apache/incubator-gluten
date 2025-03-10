@@ -546,8 +546,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .excludeCH("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
     .excludeCH("summary")
-    .exclude(
-      "SPARK-27439: Explain result should match collected result after view change - re-write")
+    .excludeGlutenTest(
+      "SPARK-27439: Explain result should match collected result after view change")
     .excludeCH(
       "SPARK-8608: call `show` on local DataFrame with random columns should return same value")
     .excludeCH(
