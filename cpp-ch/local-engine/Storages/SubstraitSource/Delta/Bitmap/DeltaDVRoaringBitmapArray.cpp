@@ -14,14 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <IO/ReadHelpers.h>
-#include <IO/WriteHelpers.h>
+#include "DeltaDVRoaringBitmapArray.h"
+
 #include <zlib.h>
 #include <IO/ReadBufferFromFile.h>
-#include <Common/PODArray.h>
+#include <IO/ReadHelpers.h>
+#include <IO/WriteHelpers.h>
 #include <roaring.hh>
 #include <Poco/URI.h>
-#include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
+#include <Common/PODArray.h>
 
 namespace DB
 {
@@ -37,16 +38,17 @@ namespace local_engine
 {
 using namespace DB;
 
-std::pair<UInt32, UInt32> DeltaDVRoaringBitmapArray::decompose_high_low_bytes(UInt64 value) {
+std::pair<UInt32, UInt32> DeltaDVRoaringBitmapArray::decompose_high_low_bytes(UInt64 value)
+{
     return {static_cast<UInt32>(value >> 32), static_cast<UInt32>(value & 0xFFFFFFFF)};
 }
 
-UInt64 DeltaDVRoaringBitmapArray::compose_from_high_low_bytes(UInt32 high, UInt32 low) {
+UInt64 DeltaDVRoaringBitmapArray::compose_from_high_low_bytes(UInt32 high, UInt32 low)
+{
     return (static_cast<uint64_t>(high) << 32) | low;
 }
 
-DeltaDVRoaringBitmapArray::DeltaDVRoaringBitmapArray(
-    const DB::ContextPtr & context_) : context(context_)
+DeltaDVRoaringBitmapArray::DeltaDVRoaringBitmapArray(const DB::ContextPtr & context_) : context(context_)
 {
 }
 
@@ -64,7 +66,7 @@ void DeltaDVRoaringBitmapArray::rb_read(const String & file_path, const Int32 of
     if (data_size != size)
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The size of the deletion vector is mismatch.");
 
-    int checksum_value = static_cast<Int32>(crc32_z(0L, reinterpret_cast<unsigned char*>(in.position()), size));
+    int checksum_value = static_cast<Int32>(crc32_z(0L, reinterpret_cast<unsigned char *>(in.position()), size));
 
     int magic_num;
     readBinaryLittleEndian(magic_num, in);
@@ -94,9 +96,7 @@ UInt64 DeltaDVRoaringBitmapArray::rb_size() const
 {
     UInt64 sum = 0;
     for (const auto & r : roaring_bitmap_array)
-    {
         sum += r.cardinality();
-    }
     return sum;
 }
 
@@ -116,8 +116,7 @@ void DeltaDVRoaringBitmapArray::rb_clear()
 
 bool DeltaDVRoaringBitmapArray::rb_is_empty() const
 {
-    return std::ranges::all_of(roaring_bitmap_array.begin(), roaring_bitmap_array.end(),
-                [](const auto& rb) { return rb.isEmpty(); });
+    return std::ranges::all_of(roaring_bitmap_array.begin(), roaring_bitmap_array.end(), [](const auto & rb) { return rb.isEmpty(); });
 }
 
 void DeltaDVRoaringBitmapArray::rb_add(Int64 x)
@@ -126,44 +125,40 @@ void DeltaDVRoaringBitmapArray::rb_add(Int64 x)
     assert(value >= 0 && value <= MAX_REPRESENTABLE_VALUE);
     auto [high, low] = decompose_high_low_bytes(value);
     if (high >= roaring_bitmap_array.size())
-    {
         rb_extend_bitmaps(high + 1);
-    }
     roaring_bitmap_array[high].add(low);
 }
 
 void DeltaDVRoaringBitmapArray::rb_extend_bitmaps(Int32 new_length)
 {
-    if (roaring_bitmap_array.size() >= new_length) return;
+    if (roaring_bitmap_array.size() >= new_length)
+        return;
     roaring_bitmap_array.resize(new_length);
 }
 
 void DeltaDVRoaringBitmapArray::rb_shrink_bitmaps(Int32 new_length)
 {
-    if (roaring_bitmap_array.size() <= new_length) return;
+    if (roaring_bitmap_array.size() <= new_length)
+        return;
     roaring_bitmap_array.resize(new_length);
 }
 
 void DeltaDVRoaringBitmapArray::rb_merge(const DeltaDVRoaringBitmapArray & that)
 {
-    return rb_or(that);
+    rb_or(that);
 }
 void DeltaDVRoaringBitmapArray::rb_or(const DeltaDVRoaringBitmapArray & that)
 {
-    if (roaring_bitmap_array.size() < that.roaring_bitmap_array.size()) {
+    if (roaring_bitmap_array.size() < that.roaring_bitmap_array.size())
         rb_extend_bitmaps(that.roaring_bitmap_array.size());
-    }
     const Int32 count = that.roaring_bitmap_array.size();
     for (Int32 i = 0; i < count; ++i)
-    {
         roaring_bitmap_array[i] |= that.roaring_bitmap_array[i];
-    }
 }
 bool DeltaDVRoaringBitmapArray::operator==(const DeltaDVRoaringBitmapArray & other) const
 {
-    if (this == &other) {
+    if (this == &other)
         return true;
-    }
     return roaring_bitmap_array == other.roaring_bitmap_array;
 }
 }
