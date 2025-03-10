@@ -196,6 +196,7 @@ object ExpressionMappings {
     Sig[MakeDate](MAKE_DATE),
     Sig[MakeTimestamp](MAKE_TIMESTAMP),
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
+    Sig[MakeDTInterval](MAKE_DT_INTERVAL),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
     Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
     Sig[UnixSeconds](UNIX_SECONDS),

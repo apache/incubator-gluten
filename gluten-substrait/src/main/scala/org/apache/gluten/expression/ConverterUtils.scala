@@ -225,6 +225,8 @@ object ConverterUtils extends Logging {
         TypeBuilder.makeDate(nullable)
       case YearMonthIntervalType.DEFAULT =>
         TypeBuilder.makeIntervalYear(nullable)
+      case DayTimeIntervalType.DEFAULT =>
+        TypeBuilder.makeIntervalDay(nullable)
       case DecimalType() =>
         val decimalType = datatype.asInstanceOf[DecimalType]
         val precision = decimalType.precision
