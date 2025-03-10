@@ -213,8 +213,8 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
             val executedPlan = getExecutedPlan(df)
             val bhjs = executedPlan.collect { case p: BroadcastHashJoinExecTransformer => p }
             val projects = executedPlan.collect { case p: ProjectExecTransformer => p }
-            // The pulled out project and the outermost project are Collapsed.
             assert(bhjs.size == 1)
+            // The pulled out project and the outermost project are collapsed.
             assert(projects.size == 2)
           }
       }

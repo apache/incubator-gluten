@@ -34,15 +34,15 @@ object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case bhj: BroadcastHashJoinExecTransformerBase =>
       val pullOutAliases = new ArrayBuffer[Alias]()
-      val streamPlan = rewriteStreamPlan(bhj.streamedPlan, bhj.references, pullOutAliases)
+      val streamedPlan = rewriteStreamPlan(bhj.streamedPlan, bhj.references, pullOutAliases)
       if (pullOutAliases.isEmpty) {
         bhj
       } else {
         val aliasMap = AttributeMap(pullOutAliases.map(a => a.toAttribute -> a))
         val newProjectList = bhj.output.map(attr => aliasMap.getOrElse(attr, attr))
         val (newLeft, newRight) = bhj.joinBuildSide match {
-          case BuildLeft => (bhj.left, streamPlan)
-          case BuildRight => (streamPlan, bhj.right)
+          case BuildLeft => (bhj.left, streamedPlan)
+          case BuildRight => (streamedPlan, bhj.right)
         }
 
         val newBhj =
