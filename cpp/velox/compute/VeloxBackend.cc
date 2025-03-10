@@ -211,13 +211,15 @@ void VeloxBackend::initCache() {
     int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
     int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
     std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
+    int32_t ssdCheckpointIntervalSize = backendConf_->get<int32_t>(kVeloxSsdCheckpointIntervalBytes, 0);
 
     ssdReuse_ = backendConf_->get<bool>(kVeloxSsdResue, false);
     cachePathPrefix_ = ssdCachePathPrefix;
     cacheFilePrefix_ = getCacheFilePrefix();
     std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
     ssdCacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ssdCacheIOThreads);
-    const cache::SsdCache::Config config(ssdCachePath, ssdCacheSize, ssdCacheShards, ssdCacheExecutor_.get());
+    const cache::SsdCache::Config config(
+        ssdCachePath, ssdCacheSize, ssdCacheShards, ssdCacheExecutor_.get(), ssdCheckpointIntervalSize);
     auto ssd = std::make_unique<velox::cache::SsdCache>(config);
 
     std::error_code ec;

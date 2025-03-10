@@ -147,6 +147,14 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_INTERVAL_SIZE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCheckpointIntervalBytes")
+      .internal()
+      .doc("Checkpoint after every 'checkpointIntervalBytes' for SSD cache. " +
+        "0 means no checkpointing. If checkpoint is enabled, SSD cache will be resued")
+      .intConf
+      .createWithDefault(0)
+
   val COLUMNAR_VELOX_SSD_REUSE =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdReuse")
       .internal()
