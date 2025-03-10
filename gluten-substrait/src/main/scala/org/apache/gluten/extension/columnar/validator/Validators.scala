@@ -129,6 +129,7 @@ object Validators {
   }
 
   private class FallbackByBackendSettings(settings: BackendSettingsApi) extends Validator {
+    print(s"Backend setting shuffle ${settings.supportColumnarShuffleExec()}")
     override def validate(plan: SparkPlan): Validator.OutCome = plan match {
       case p: ShuffleExchangeExec if !settings.supportColumnarShuffleExec() => fail(p)
       case p: SortMergeJoinExec if !settings.supportSortMergeJoinExec() => fail(p)
