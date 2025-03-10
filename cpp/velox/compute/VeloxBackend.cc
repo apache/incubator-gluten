@@ -213,7 +213,7 @@ void VeloxBackend::initCache() {
     std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
     int32_t ssdCheckpointIntervalSize = backendConf_->get<int32_t>(kVeloxSsdCheckpointIntervalBytes, 0);
 
-    ssdReuse_ = backendConf_->get<bool>(kVeloxSsdResue, false);
+    ssdReuse_ = ssdCheckpointIntervalSize > 0 ? : true : false;
     cachePathPrefix_ = ssdCachePathPrefix;
     cacheFilePrefix_ = getCacheFilePrefix();
     std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
