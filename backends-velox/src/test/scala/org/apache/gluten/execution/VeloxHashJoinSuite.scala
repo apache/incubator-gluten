@@ -195,4 +195,29 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
           }
         })
   }
+
+  test("pull out duplicate projections") {
+    withTable("t1", "t2") {
+      Seq((1, 1), (2, 2)).toDF("c1", "c2").write.saveAsTable("t1")
+      Seq(1, 2, 3).toDF("c1").write.saveAsTable("t2")
+      val query =
+        """
+          |select t3.* from
+          |(select c1, c2 as a,c2 as b from t1) t3
+          |left join t2
+          |on t3.c1 = t2.c1
+          |""".stripMargin
+      runQueryAndCompare(query) {
+        df =>
+          {
+            val executedPlan = getExecutedPlan(df)
+            val bhjs = executedPlan.collect { case p: BroadcastHashJoinExecTransformer => p }
+            val projects = executedPlan.collect { case p: ProjectExecTransformer => p }
+            // The pulled out project and the outermost project are Collapsed.
+            assert(bhjs.size == 1)
+            assert(projects.size == 2)
+          }
+      }
+    }
+  }
 }
