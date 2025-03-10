@@ -52,11 +52,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class VeloxListenerApi extends ListenerApi with Logging {
   import VeloxListenerApi._
+  var apiPc: PluginContext = null
 
   override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
     GlutenDriverEndpoint.glutenDriverEndpointRef = (new GlutenDriverEndpoint).self
     VeloxGlutenSQLAppStatusListener.registerListener(sc)
-
+    apiPc = pc
     val conf = pc.conf()
 
     // When the Velox cache is enabled, the Velox file handle cache should also be enabled.
@@ -130,7 +131,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onDriverShutdown(): Unit = shutdown()
 
   override def onExecutorStart(pc: PluginContext): Unit = {
-    GlutenExecutorEndpoint.executorEndpoint = new GlutenExecutorEndpoint(pc.executorID, pc.conf)
+    apiPc = pc
+    if (!apiPc.toString.contains("MockVeloxBackend")) {
+      GlutenExecutorEndpoint.executorEndpoint = new GlutenExecutorEndpoint(pc.executorID, pc.conf)
+    }
 
     val conf = pc.conf()
 
@@ -226,7 +230,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
   private def shutdown(): Unit = {
     // TODO shutdown implementation in velox to release resources
-    VeloxBroadcastBuildSideCache.cleanAll()
+    if (!apiPc.toString.contains("MockVeloxBackend")) {
+      VeloxBroadcastBuildSideCache.cleanAll()
+    }
+
   }
 }
 
