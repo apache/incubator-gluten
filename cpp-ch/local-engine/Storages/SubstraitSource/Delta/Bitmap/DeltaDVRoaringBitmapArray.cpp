@@ -21,6 +21,8 @@
 #include <Common/PODArray.h>
 #include <roaring.hh>
 #include <Poco/URI.h>
+#include <substrait/plan.pb.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
 
 namespace DB
@@ -52,42 +54,47 @@ DeltaDVRoaringBitmapArray::DeltaDVRoaringBitmapArray(
 
 void DeltaDVRoaringBitmapArray::rb_read(const String & file_path, const Int32 offset, const Int32 data_size)
 {
-    // TODO: use `ReadBufferBuilderFactory::instance().createBuilder` to create hdfs/local/s3 ReadBuffer
+    substrait::ReadRel::LocalFiles::FileOrFiles file_info;
+    file_info.set_uri_file(file_path);
+    file_info.set_start(offset);
+    file_info.set_length(data_size);
     const Poco::URI file_uri(file_path);
-    ReadBufferFromFile in(file_uri.getPath());
+    ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
+    auto * in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer_builder->build(file_info).release());
 
-    in.seek(offset, SEEK_SET);
+    in->seek(offset, SEEK_SET);
 
     int size;
-    readBinaryBigEndian(size, in);
+    readBinaryBigEndian(size, *in);
 
     if (data_size != size)
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The size of the deletion vector is mismatch.");
 
-    int checksum_value = static_cast<Int32>(crc32_z(0L, reinterpret_cast<unsigned char*>(in.position()), size));
+    int checksum_value = static_cast<Int32>(crc32_z(0L, reinterpret_cast<unsigned char*>(in->position()), size));
 
     int magic_num;
-    readBinaryLittleEndian(magic_num, in);
+    readBinaryLittleEndian(magic_num, *in);
     if (magic_num != 1681511377)
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The magic num is mismatch.");
 
     int64_t bitmap_array_size;
-    readBinaryLittleEndian(bitmap_array_size, in);
+    readBinaryLittleEndian(bitmap_array_size, *in);
 
     roaring_bitmap_array.reserve(bitmap_array_size);
     for (size_t i = 0; i < bitmap_array_size; ++i)
     {
         int bitmap_index;
-        readBinaryLittleEndian(bitmap_index, in);
-        roaring::Roaring r = roaring::Roaring::read(in.position());
+        readBinaryLittleEndian(bitmap_index, *in);
+        roaring::Roaring r = roaring::Roaring::read(in->position());
         size_t current_bitmap_size = r.getSizeInBytes();
-        in.ignore(current_bitmap_size);
+        in->ignore(current_bitmap_size);
         roaring_bitmap_array.push_back(r);
     }
     int expected_checksum;
-    readBinaryBigEndian(expected_checksum, in);
+    readBinaryBigEndian(expected_checksum, *in);
     if (expected_checksum != checksum_value)
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Checksum mismatch.");
+
 }
 
 UInt64 DeltaDVRoaringBitmapArray::rb_size() const

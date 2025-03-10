@@ -31,6 +31,7 @@
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
 #include <Storages/Parquet/VirtualColumnRowIndexReader.h>
 #include <Common/Exception.h>
+#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
 
 namespace DB
 {
@@ -116,7 +117,7 @@ public:
         if (row_index_reader && num_rows)
         {
             auto row_index_column = row_index_reader->readBatch(num_rows);
-            assert(outputHeader.columns() == readHeader.columns() + 1);
+            assert(outputHeader.columns() > readHeader.columns());
             size_t column_pos = outputHeader.getPositionByName(TMP_ROWINDEX);
             if (column_pos < chunk.getNumColumns())
                 chunk.addColumn(column_pos, std::move(row_index_column));
@@ -147,7 +148,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(
     auto format_settings = DB::getFormatSettings(context);
 
     DB::Block output_header = header;
-    DB::Block read_header = removeMetaColumns(header);
+    DB::Block read_header = DeltaParquetVirtualMeta::removeMetaColumns(removeMetaColumns(header));
 
     ParquetMetaBuilder metaBuilder{
         .collectPageIndex = usePageIndexReader || readRowIndex,
