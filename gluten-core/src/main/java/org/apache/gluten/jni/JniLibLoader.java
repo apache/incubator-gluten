@@ -45,10 +45,8 @@ import scala.runtime.BoxedUnit;
 public class JniLibLoader {
   private static final Logger LOG = LoggerFactory.getLogger(JniLibLoader.class);
 
-  private static final Set<String> LOADED_LIBRARY_PATHS =
-      Collections.synchronizedSet(new HashSet<>());
-  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS =
-      Collections.synchronizedSet(new LinkedHashSet<>());
+  private static final Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
+  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
 
   static {
     SparkShutdownManagerUtil.addHookForLibUnloading(
@@ -59,7 +57,7 @@ public class JniLibLoader {
   }
 
   private final String workDir;
-  private final Set<String> loadedLibraries = Collections.synchronizedSet(new HashSet<>());
+  private final Set<String> loadedLibraries = new HashSet<>();
 
   JniLibLoader(String workDir) {
     this.workDir = workDir;
@@ -105,7 +103,7 @@ public class JniLibLoader {
     }
   }
 
-  public static synchronized void loadFromPath(String libPath, boolean requireUnload) {
+  public static void loadFromPath(String libPath, boolean requireUnload) {
     final File file = new File(libPath);
     if (!file.isFile() || !file.exists()) {
       throw new GlutenException("library at path: " + libPath + " is not a file or does not exist");
@@ -114,41 +112,37 @@ public class JniLibLoader {
   }
 
   public static void unloadFromPath(String libPath) {
-    synchronized (LOADED_LIBRARY_PATHS) {
+    synchronized (JniLibLoader.class) {
       if (!LOADED_LIBRARY_PATHS.remove(libPath)) {
         LOG.warn("Library {} was not loaded or already unloaded:", libPath);
         return;
       }
     }
     LOG.info("Starting unload library path: {} ", libPath);
-    synchronized (REQUIRE_UNLOAD_LIBRARY_PATHS) {
-      REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
-    }
+    REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
     try {
       ClassLoader classLoader = JniLibLoader.class.getClassLoader();
       Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
       field.setAccessible(true);
       Vector<Object> libs = (Vector<Object>) field.get(classLoader);
-      synchronized (libs) {
-        Iterator<Object> it = libs.iterator();
-        while (it.hasNext()) {
-          Object object = it.next();
-          Field[] fs = object.getClass().getDeclaredFields();
-          for (int k = 0; k < fs.length; k++) {
-            if (fs[k].getName().equals("name")) {
-              fs[k].setAccessible(true);
-              String verbosePath = fs[k].get(object).toString();
-              File verboseFile = new File(verbosePath);
-              String verboseFileName = verboseFile.getName();
-              File libFile = new File(libPath);
-              String libFileName = libFile.getName();
+      Iterator<Object> it = libs.iterator();
+      while (it.hasNext()) {
+        Object object = it.next();
+        Field[] fs = object.getClass().getDeclaredFields();
+        for (int k = 0; k < fs.length; k++) {
+          if (fs[k].getName().equals("name")) {
+            fs[k].setAccessible(true);
+            String verbosePath = fs[k].get(object).toString();
+            File verboseFile = new File(verbosePath);
+            String verboseFileName = verboseFile.getName();
+            File libFile = new File(libPath);
+            String libFileName = libFile.getName();
 
-              if (verboseFileName.equals(libFileName)) {
-                LOG.info("Finalizing library file: {}", libFileName);
-                Method finalize = object.getClass().getDeclaredMethod("finalize");
-                finalize.setAccessible(true);
-                finalize.invoke(object);
-              }
+            if (verboseFileName.equals(libFileName)) {
+              LOG.info("Finalizing library file: {}", libFileName);
+              Method finalize = object.getClass().getDeclaredMethod("finalize");
+              finalize.setAccessible(true);
+              finalize.invoke(object);
             }
           }
         }
@@ -159,19 +153,17 @@ public class JniLibLoader {
   }
 
   public void load(String libPath, boolean requireUnload) {
-    synchronized (loadedLibraries) {
-      try {
-        if (loadedLibraries.contains(libPath)) {
-          LOG.debug("Library {} has already been loaded, skipping", libPath);
-          return;
-        }
-        File file = moveToWorkDir(workDir, libPath);
-        loadWithLink(file.getAbsolutePath(), null, requireUnload);
-        loadedLibraries.add(libPath);
-        LOG.info("Successfully loaded library {}", libPath);
-      } catch (IOException e) {
-        throw new GlutenException(e);
+    try {
+      if (loadedLibraries.contains(libPath)) {
+        LOG.debug("Library {} has already been loaded, skipping", libPath);
+        return;
       }
+      File file = moveToWorkDir(workDir, libPath);
+      loadWithLink(file.getAbsolutePath(), null, requireUnload);
+      loadedLibraries.add(libPath);
+      LOG.info("Successfully loaded library {}", libPath);
+    } catch (IOException e) {
+      throw new GlutenException(e);
     }
   }
 
