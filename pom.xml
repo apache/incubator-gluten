@@ -106,8 +106,6 @@
 
     <!-- The original protobuf version -->
     <protobuf.version>3.23.4</protobuf.version>
-    <!-- The custom protobuf version (based on 3.23.4) with recursion limit enlarged. -->
-    <custom.protobuf.version>3.23.4-0</custom.protobuf.version>
     <guava.version>32.0.1-jre</guava.version>
     <!--spotless-->
     <spotless.version>2.27.2</spotless.version>
