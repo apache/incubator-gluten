@@ -65,7 +65,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           fileSizes,
           modificationTimes,
           partitionColumns,
-          metadataColumns) =
+          metadataColumns,
+          otherMetadataColumns) =
           constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
         val preferredLocations =
           SoftAffinity.getFilePartitionLocations(f)
@@ -80,7 +81,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           metadataColumns,
           fileFormat,
           preferredLocations.toList.asJava,
-          mapAsJavaMap(properties)
+          mapAsJavaMap(properties),
+          otherMetadataColumns
         )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition.")
@@ -104,7 +106,15 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     }.toArray
     val locations =
       partitions.flatMap(p => SoftAffinity.getFilePartitionLocations(p.asInstanceOf[FilePartition]))
-    val (paths, starts, lengths, fileSizes, modificationTimes, partitionColumns, metadataColumns) =
+    val (
+      paths,
+      starts,
+      lengths,
+      fileSizes,
+      modificationTimes,
+      partitionColumns,
+      metadataColumns,
+      otherMetadataColumns) =
       constructSplitInfo(partitionSchema, partitionFiles, metadataColumnNames)
     LocalFilesBuilder.makeLocalFiles(
       partitionIndex,
@@ -117,7 +127,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       metadataColumns,
       fileFormat,
       locations.toList.asJava,
-      mapAsJavaMap(properties)
+      mapAsJavaMap(properties),
+      otherMetadataColumns
     )
   }
 
@@ -194,7 +205,14 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         otherMetadataColumns.add(
           SparkShimLoader.getSparkShims.getOtherConstantMetadataColumnValues(file))
     }
-    (paths, starts, lengths, fileSizes, modificationTimes, partitionColumns, metadataColumns)
+    (paths,
+      starts,
+      lengths,
+      fileSizes,
+      modificationTimes,
+      partitionColumns,
+      metadataColumns,
+      otherMetadataColumns)
   }
 
   override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
