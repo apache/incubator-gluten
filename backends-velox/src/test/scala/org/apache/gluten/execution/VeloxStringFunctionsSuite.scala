@@ -155,6 +155,16 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
+  test("current_timestamp") {
+    // Function current_timestamp() returns a timestamp with seconds in 3 numbers of digits float.
+    // For example, 2025-03-10 14:22:21.876. As executing vanilla spark and native engine in
+    // subsequent order, it can not make the return value the same. Therefore, comparing the
+    // results ignoring the second part.
+    runQueryAndCompare(
+      s"select l_orderkey, l_shipdate, date_format(current_timestamp(), 'yyyy-MM-dd hh:mm') " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
   test("instr") {
     runQueryAndCompare(
       s"select l_orderkey, instr(l_comment, 'h') " +
