@@ -121,6 +121,31 @@
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-data</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.assertj</groupId>
+          <artifactId>assertj-core</artifactId>
+          <version>3.26.3</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.13.2</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter-api</artifactId>
+          <version>5.11.4</version>
+          <scope>test</scope>
+        </dependency>
       </dependencies>
     </profile>
     <profile>
@@ -178,6 +203,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -194,6 +220,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -210,6 +237,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -229,6 +257,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>

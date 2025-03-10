@@ -26,9 +26,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.spark34.TestConfUtil;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.ContentFile;
@@ -41,10 +45,7 @@ import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
 import org.apache.iceberg.relocated.com.google.common.collect.Maps;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Encoders;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException;
 import org.apache.spark.sql.execution.QueryExecution;
 import org.apache.spark.sql.execution.SparkPlan;
@@ -54,6 +55,8 @@ import org.apache.spark.sql.util.QueryExecutionListener;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import scala.Option;
+import scala.collection.JavaConversions;
 
 public abstract class SparkTestBase extends SparkTestHelperBase {
 
@@ -75,12 +78,7 @@ public abstract class SparkTestBase extends SparkTestHelperBase {
                         .config(SQLConf.PARTITION_OVERWRITE_MODE().key(), "dynamic")
                         .config("spark.hadoop." + METASTOREURIS.varname, hiveConf.get(METASTOREURIS.varname))
                         .config("spark.sql.legacy.respectNullabilityInTextDatasetConversion", "true")
-                        .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
-                        .config("spark.default.parallelism", "1")
-                        .config("spark.memory.offHeap.enabled", "true")
-                        .config("spark.memory.offHeap.size", "1024MB")
-                        .config("spark.ui.enabled", "false")
-                        .config("spark.gluten.ui.enabled", "false")
+                        .config(TestConfUtil.GLUTEN_CONF)
                         .enableHiveSupport()
                         .getOrCreate();
 
@@ -282,6 +280,18 @@ public abstract class SparkTestBase extends SparkTestHelperBase {
         } else {
             return executedPlan;
         }
+    }
+
+    protected boolean checkAnswer(Dataset<Row> df) {
+        List<Row> rows = df.collectAsList();
+        withSQLConf(ImmutableMap.of(GlutenConfig.GLUTEN_ENABLED().key(), "false"), () -> {
+            Option<String> msg = QueryTest.getErrorMessageInCheckAnswer(df,
+                    JavaConversions.asScalaBuffer(rows).toSeq(), true);
+            if (msg.isDefined()) {
+                throw new RuntimeException(msg.get());
+            }
+        });
+        return true;
     }
 
     @FunctionalInterface
