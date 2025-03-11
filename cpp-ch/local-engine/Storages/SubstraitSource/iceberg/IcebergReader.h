@@ -30,6 +30,7 @@ class IcebergReader final : public NormalFileReader
     DB::ExpressionActionsPtr delete_expr;
     const std::string delete_expr_column_name;
     std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array;
+    size_t start_remove_index;
 
 public:
     static std::unique_ptr<IcebergReader> create(
@@ -44,7 +45,8 @@ public:
         const DB::Block & output_header_,
         const FormatFile::InputFormatPtr & input_format_,
         const DB::ExpressionActionsPtr & delete_expr_,
-        std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array_);
+        std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array_,
+        size_t start_remove_index_);
 
     ~IcebergReader() override;
 

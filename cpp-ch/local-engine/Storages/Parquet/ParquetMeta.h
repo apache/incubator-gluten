@@ -72,6 +72,8 @@ struct ParquetMetaBuilder
 
     static std::unique_ptr<parquet::ParquetFileReader> openInputParquetFile(DB::ReadBuffer & read_buffer);
 
+    static DB::Block collectFileSchema(const DB::ContextPtr & context, DB::ReadBuffer & read_buffer);
+
 private:
     ParquetMetaBuilder &
     buildRequiredRowGroups(const parquet::FileMetaData & file_meta, const std::function<bool(UInt64)> & should_include_row_group);

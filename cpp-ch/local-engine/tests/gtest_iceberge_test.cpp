@@ -394,6 +394,9 @@ public:
         ReaderTestBase::SetUp();
         /// we know all datas are not nullable
         context_->setSetting("schema_inference_make_columns_nullable", DB::Field("0"));
+
+        /// for big query
+        context_->setSetting("max_query_size", DB::Field(524288));
     }
     std::vector<std::shared_ptr<TempFilePath>> writeDataFiles(
       uint64_t numRows,
@@ -645,19 +648,19 @@ public:
         assertEqualityDeletes(*icebergSplit, duckDbSql);
 
         // TODO: Select a column that's not in the filter columns
-        // if (numDataColumns > 1 &&
-        //     equalityDeleteVectorMap.at(0).size() < numDataColumns) {
-        //     std::string duckDbSql1 = "SELECT c0 FROM IcebergTest.tmp";
-        //     if (numDeletedValues > 0) {
-        //         duckDbSql += fmt::format(" WHERE {}", predicates);
-        //     }
-        //
-        //     auto icebergSplit1 = makeIcebergSplit(dataFilePath->string(),
-        //         DB::Block{DB::ColumnWithTypeAndName(BIGINT(),"c0")},
-        //         deleteFiles);
-        //
-        //     assertEqualityDeletes(*icebergSplit1, duckDbSql1);
-        // }
+        if (numDataColumns > 1 &&
+            equalityDeleteVectorMap.at(0).size() < numDataColumns) {
+            std::string duckDbSql1 = "SELECT c0 FROM IcebergTest.tmp";
+            if (numDeletedValues > 0) {
+                duckDbSql1 += fmt::format(" WHERE {}", predicates);
+            }
+
+            auto icebergSplit1 = makeIcebergSplit(dataFilePath->string(),
+                DB::Block{DB::ColumnWithTypeAndName(BIGINT(),"c0")},
+                deleteFiles);
+
+            assertEqualityDeletes(*icebergSplit1, duckDbSql1);
+        }
     }
 
     void assertMultipleSplits(

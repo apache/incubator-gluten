@@ -50,21 +50,10 @@ SimpleParquetReader::SimpleParquetReader(
     ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
 
     read_buffer_arrow_ = read_buffer_builder->build(file_info);
-    FormatSettings format_settings = getFormatSettings(context);
-
     if (!header.columns())
-    {
-        ParquetMetaBuilder metaBuilder{
-            .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
-            .allow_missing_columns = false,
-            .collectPageIndex = false,
-            .collectSchema = true};
-        metaBuilder.build(*read_buffer_arrow_);
-        auto * seekable = dynamic_cast<SeekableReadBuffer *>(read_buffer_arrow_.get());
-        assert(seekable != nullptr);
-        header = std::move(metaBuilder.fileHeader);
-    }
+        header = ParquetMetaBuilder::collectFileSchema(context, *read_buffer_arrow_);
 
+    FormatSettings format_settings = getFormatSettings(context);
     std::shared_ptr<arrow::io::RandomAccessFile> arrow_file;
     {
         std::atomic<int> is_stopped{0};

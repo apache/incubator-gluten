@@ -29,13 +29,14 @@ using namespace DB;
 namespace local_engine::iceberg
 {
 
-
 std::unique_ptr<IcebergReader> IcebergReader::create(
     const FormatFilePtr & file_,
     const Block & to_read_header_,
     const Block & output_header_,
     const std::function<FormatFile::InputFormatPtr(const DB::Block &)> & input_format_callback)
 {
+    assert(file_->getFileSchema().columns() != 0);
+
     const auto & delete_files = file_->getFileInfo().iceberg().delete_files();
     std::map<IcebergReadOptions::FileContent, std::vector<int>> partitions;
     for (size_t i = 0; i < delete_files.size(); ++i)
@@ -50,21 +51,23 @@ std::unique_ptr<IcebergReader> IcebergReader::create(
     const auto it_pos = partitions.find(IcebergReadOptions::POSITION_DELETES);
     std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array;
     if (it_pos != partitions.end())
-    {
-        assert(!ParquetVirtualMeta::hasMetaColumns(to_read_header_));
-        new_header.insert({BIGINT(), ParquetVirtualMeta::TMP_ROWINDEX});
-        delete_bitmap_array = createBitmapExpr(context, new_header, file_->getFileInfo(), delete_files, it_pos->second);
-    }
+        delete_bitmap_array
+            = createBitmapExpr(context, file_->getFileSchema(), file_->getFileInfo(), delete_files, it_pos->second, new_header);
 
     /// Load EQUALITY_DELETES
     const auto it_equal = partitions.find(IcebergReadOptions::EQUALITY_DELETES);
     ExpressionActionsPtr delete_expr = it_equal == partitions.end()
         ? nullptr
-        : EqualityDeleteFileReader::createDeleteExpr(context, new_header, delete_files, it_equal->second);
+        : EqualityDeleteFileReader::createDeleteExpr(context, file_->getFileSchema(), delete_files, it_equal->second, new_header);
 
-    assert(!ParquetVirtualMeta::hasMetaColumns(output_header_));
     return std::make_unique<IcebergReader>(
-        file_, new_header, output_header_, input_format_callback(new_header), delete_expr, std::move(delete_bitmap_array));
+        file_,
+        new_header,
+        output_header_,
+        input_format_callback(new_header),
+        delete_expr,
+        std::move(delete_bitmap_array),
+        to_read_header_.columns());
 }
 
 IcebergReader::IcebergReader(
@@ -73,12 +76,15 @@ IcebergReader::IcebergReader(
     const Block & output_header_,
     const FormatFile::InputFormatPtr & input_format_,
     const ExpressionActionsPtr & delete_expr_,
-    std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array_)
+    std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array_,
+    size_t start_remove_index_)
     : NormalFileReader(file_, to_read_header_, output_header_, input_format_)
     , delete_expr(delete_expr_)
     , delete_expr_column_name(EqualityDeleteActionBuilder::COLUMN_NAME)
     , delete_bitmap_array(std::move(delete_bitmap_array_))
+    , start_remove_index(start_remove_index_)
 {
+    assert(readHeader.columns() >= start_remove_index);
 }
 
 IcebergReader::~IcebergReader() = default;
@@ -112,17 +118,18 @@ Chunk IcebergReader::doPull()
 
         chunk = filterRows(std::move(deleted_block));
 
-        if (chunk.getNumRows() != 0)
+        if (chunk.getNumRows() == 0)
+            continue;
+
+        /// Remove attached columns for apply delete
+        if (readHeader.columns() > start_remove_index)
         {
-            if (ParquetVirtualMeta::hasMetaColumns(readHeader))
-            {
-                auto rows = chunk.getNumRows();
-                auto columns = chunk.detachColumns();
-                columns.pop_back();
-                chunk.setColumns(std::move(columns), rows);
-            }
-            return chunk;
+            auto rows = chunk.getNumRows();
+            auto columns = chunk.detachColumns();
+            columns.erase(columns.begin() + start_remove_index, columns.end());
+            chunk.setColumns(std::move(columns), rows);
         }
+        return chunk;
     }
 }
 
@@ -156,7 +163,6 @@ DB::Block IcebergReader::applyPositionDelete(DB::Block block) const
     block.setColumns(std::move(mutation));
     return block;
 }
-
 
 namespace
 {

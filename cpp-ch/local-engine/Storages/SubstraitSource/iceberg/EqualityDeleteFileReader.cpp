@@ -123,13 +123,22 @@ ExpressionActionsPtr EqualityDeleteActionBuilder::finish()
 
 EqualityDeleteFileReader::EqualityDeleteFileReader(
     const ContextPtr & context, const Block & read_header, const substraitIcebergDeleteFile & deleteFile)
-    : context_(context), read_header_(read_header), deleteFile_(deleteFile)
+    : context_(context), deleteFile_(deleteFile)
 {
     assert(deleteFile_.recordcount() > 0);
+    assert(data_file_schema_for_delete_.columns() == 0);
+    for (int i = 0; i < deleteFile_.equalityfieldids_size(); i++)
+    {
+        //TODO: deleteFile_.equalityfieldids(i) - 1 ? why
+        auto index = deleteFile_.equalityfieldids(i) - 1;
+        assert(index < read_header.columns());
+        data_file_schema_for_delete_.insert(read_header.getByPosition(index).cloneEmpty());
+    }
 }
 
 void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & expressionInputs) const
 {
+    assert(data_file_schema_for_delete_.columns() != 0);
     SimpleParquetReader reader{context_, deleteFile_};
 
     Block deleteBlock = reader.next();
@@ -137,12 +146,8 @@ void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & ex
     auto numDeleteFields = deleteBlock.columns();
     assert(numDeleteFields > 0 && "Iceberg equality delete file should have at least one field.");
 
-    assert(deleteFile_.equalityfieldids_size() == deleteBlock.columns());
-    Names names;
-    //TODO: deleteFile_.equalityfieldids(i) - 1 ? why
-    for (int i = 0; i < deleteFile_.equalityfieldids_size(); i++)
-        names.push_back(read_header_.getByPosition(deleteFile_.equalityfieldids(i) - 1).name);
-
+    assert(deleteBlock.columns() == data_file_schema_for_delete_.columns());
+    Names names{data_file_schema_for_delete_.getNames()};
 
     while (deleteBlock.rows() > 0)
     {
@@ -157,19 +162,26 @@ void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & ex
 
 ExpressionActionsPtr EqualityDeleteFileReader::createDeleteExpr(
     const ContextPtr & context,
-    const Block & to_read_header,
+    const Block & data_file_header,
     const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
-    const std::vector<int> & equality_delete_files)
+    const std::vector<int> & equality_delete_files,
+    Block & reader_header)
 {
     assert(!equality_delete_files.empty());
 
-    EqualityDeleteActionBuilder expressionInputs{context, to_read_header.getNamesAndTypesList()};
+    EqualityDeleteActionBuilder expressionInputs{context, data_file_header.getNamesAndTypesList()};
     for (auto deleteIndex : equality_delete_files)
     {
         const auto & delete_file = delete_files[deleteIndex];
         assert(delete_file.filecontent() == IcebergReadOptions::EQUALITY_DELETES);
         if (delete_file.recordcount() > 0)
-            EqualityDeleteFileReader{context, to_read_header, delete_file}.readDeleteValues(expressionInputs);
+        {
+            EqualityDeleteFileReader delete_file_reader{context, data_file_header, delete_file};
+            for (const auto & col : delete_file_reader.data_file_schema_for_delete_)
+                if (!reader_header.has(col.name))
+                    reader_header.insert(col.cloneEmpty());
+            delete_file_reader.readDeleteValues(expressionInputs);
+        }
     }
     return expressionInputs.finish();
 }

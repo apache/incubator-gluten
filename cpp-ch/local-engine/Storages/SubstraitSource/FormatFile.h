@@ -40,7 +40,8 @@ namespace local_engine
 {
 
 class FormatFile;
-
+class ColumnIndexFilter;
+using ColumnIndexFilterPtr = std::shared_ptr<ColumnIndexFilter>;
 class FileMetaColumns
 {
 public:
@@ -108,13 +109,14 @@ public:
     public:
         virtual ~InputFormat() = default;
         DB::IInputFormat & inputFormat() const { return *input; }
-        void cancel() const noexcept { return input->cancel(); }
+        void cancel() const noexcept { input->cancel(); }
         virtual DB::Chunk generate() { return input->generate(); }
         InputFormat(std::unique_ptr<DB::ReadBuffer> read_buffer_, const DB::InputFormatPtr & input_)
             : read_buffer(std::move(read_buffer_)), input(input_)
         {
         }
     };
+
     using InputFormatPtr = std::shared_ptr<InputFormat>;
 
     FormatFile(DB::ContextPtr context_, const substraitInputFile & file_info_, const ReadBufferBuilderPtr & read_buffer_builder_);
@@ -126,6 +128,9 @@ public:
     /// Spark would split a large file into small segements and read in different tasks
     /// If this file doesn't support the split feacture, only the task with offset 0 will generate data.
     virtual bool supportSplit() const { return false; }
+
+    /// Initialize the file with column index filter
+    virtual void initialize(const ColumnIndexFilterPtr &) { }
 
     /// Try to get rows from file metadata
     virtual std::optional<size_t> getTotalRows() { return {}; }
@@ -143,6 +148,8 @@ public:
     const substraitInputFile & getFileInfo() const { return file_info; }
     const DB::ContextPtr & getContext() const { return context; }
 
+    const DB::Block & getFileSchema() const { return file_schema; }
+
 protected:
     DB::ContextPtr context;
     const substraitInputFile file_info;
@@ -152,6 +159,9 @@ protected:
     std::map<String, String> normalized_partition_values;
     std::shared_ptr<const DB::KeyCondition> key_condition;
     const FileMetaColumns meta_columns;
+
+    /// Currently, it is used to read an iceberg format, and initialized in the constructor of child class
+    DB::Block file_schema;
 };
 
 using FormatFilePtr = std::shared_ptr<FormatFile>;

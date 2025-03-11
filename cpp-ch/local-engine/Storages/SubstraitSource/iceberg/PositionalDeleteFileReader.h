@@ -25,11 +25,29 @@ class DeltaDVRoaringBitmapArray;
 namespace local_engine::iceberg
 {
 
+
+/**
+ * @brief Creates a bitmap expression for positional delete files.
+ *
+ * This function processes the provided positional delete files and constructs a bitmap
+ * to represent the deleted positions. It reads the delete files, applies a filter, and
+ * adds the positions to a DeltaDVRoaringBitmapArray.
+ *
+ * @param context The execution context.
+ * @param data_file_header The header of the data file (unused).
+ * @param file_ The input file.
+ * @param delete_files A list of delete files.
+ * @param position_delete_files Indices of the delete files that are positional deletes.
+ * @param reader_header The block header for the reader, which may be modified if it doesn't contain row index.
+ * @return A unique pointer to a DeltaDVRoaringBitmapArray containing the deleted positions,
+ *         or nullptr if no positions are deleted.
+ */
 std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
     const DB::ContextPtr & context,
-    const DB::Block & /*to_read_header*/,
+    const DB::Block & data_file_header,
     const substraitInputFile & file_,
     const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
-    const std::vector<int> & position_delete_files);
+    const std::vector<int> & position_delete_files,
+    DB::Block & reader_header);
 
 }

@@ -18,11 +18,11 @@
 #include "PositionalDeleteFileReader.h"
 
 #include <Functions/FunctionFactory.h>
+#include <Storages/Parquet/ParquetMeta.h>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
 #include <Storages/SubstraitSource/iceberg/IcebergMetadataColumn.h>
 #include <Storages/SubstraitSource/iceberg/SimpleParquetReader.h>
 #include <Common/BlockTypeUtils.h>
-
 
 using namespace DB;
 
@@ -31,13 +31,13 @@ namespace local_engine::iceberg
 
 using namespace google::protobuf;
 
-
 std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
     const ContextPtr & context,
-    const Block & /*to_read_header*/,
+    const Block & /*data_file_header*/,
     const substraitInputFile & file_,
     const RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
-    const std::vector<int> & position_delete_files)
+    const std::vector<int> & position_delete_files,
+    Block & reader_header)
 {
     assert(!position_delete_files.empty());
 
@@ -67,11 +67,8 @@ std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
 
         // Block header{{{IcebergMetadataColumn::icebergDeletePosColumn()->type, IcebergMetadataColumn::icebergDeletePosColumn()->name}}};
         Block header{
-            {
-                {IcebergMetadataColumn::icebergDeleteFilePathColumn()->type, IcebergMetadataColumn::icebergDeleteFilePathColumn()->name},
-                {IcebergMetadataColumn::icebergDeletePosColumn()->type, IcebergMetadataColumn::icebergDeletePosColumn()->name}
-            }
-        };
+            {{IcebergMetadataColumn::icebergDeleteFilePathColumn()->type, IcebergMetadataColumn::icebergDeleteFilePathColumn()->name},
+             {IcebergMetadataColumn::icebergDeletePosColumn()->type, IcebergMetadataColumn::icebergDeletePosColumn()->name}}};
 
         SimpleParquetReader reader{context, delete_file, std::move(header), filter};
         Block deleteBlock = reader.next();
@@ -91,7 +88,13 @@ std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
             deleteBlock = reader.next();
         }
     }
-    return result->rb_is_empty() ? nullptr : std::move(result);
+
+    if (result->rb_is_empty())
+        return nullptr;
+
+    if (!ParquetVirtualMeta::hasMetaColumns(reader_header))
+        reader_header.insert({BIGINT(), ParquetVirtualMeta::TMP_ROWINDEX});
+    return std::move(result);
 }
 
 }
