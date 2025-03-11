@@ -19,6 +19,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/velox_nightly.yml'
+      - 'gluten-ut/spark32/**' # monitor on Spark32 unit tests
+      - 'shims/spark32/**' # monitor on Spark32 shim layer
   schedule:
     - cron: '0 0 * * *'
 
