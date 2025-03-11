@@ -1,6 +1,6 @@
 # Aggregate Functions Support Status
 
-**Out of 62 aggregate functions in Spark 3.5, Gluten currently fully supports 54 functions and partially supports 1 functions.**
+**Out of 62 aggregate functions in Spark 3.5, Gluten currently fully supports 54 functions and partially supports 1 function.**
 
 ## Aggregate Functions
 

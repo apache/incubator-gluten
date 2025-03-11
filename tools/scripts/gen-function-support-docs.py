@@ -887,6 +887,8 @@ def parse_logs(log_file):
 
 
 def generate_function_doc(category, output):
+    def support_str(num_functions):
+        return f"{num_functions} functions" if num_functions > 1 else f"{num_functions} function"
     num_unsupported = len(list(filter(lambda x: x[0] is not None, support_list[category]['unsupported'])))
     num_unsupported_expression = len(support_list[category]['unsupported_expr'])
     num_unknown_function = len(support_list[category]['unknown'])
@@ -905,10 +907,10 @@ def generate_function_doc(category, output):
 
     headers = ['Spark Functions', 'Spark Expressions', 'Status', 'Restrictions']
 
-    partially_supports = '.' if not num_partially_supported else f' and partially supports {num_partially_supported} functions.'
+    partially_supports = '.' if not num_partially_supported else f' and partially supports {support_str(num_partially_supported)}.'
     lines = f'''# {category.capitalize()} Functions Support Status
 
-**Out of {len(functions[category])} {category} functions in Spark 3.5, Gluten currently fully supports {num_supported} functions{partially_supports}**
+**Out of {len(functions[category])} {category} functions in Spark 3.5, Gluten currently fully supports {support_str(num_supported)}{partially_supports}**
 
 '''
 
