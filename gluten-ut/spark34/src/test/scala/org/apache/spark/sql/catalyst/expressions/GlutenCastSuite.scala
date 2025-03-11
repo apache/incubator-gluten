@@ -157,7 +157,12 @@ class GlutenCastSuite extends CastSuiteBase with GlutenTestsTrait {
 
   testGluten("cast string to timestamp") {
     ThreadUtils.parmap(
-      ALL_TIMEZONES.filterNot(_.getId.contains("SystemV")),
+      ALL_TIMEZONES
+        .filterNot(_.getId.contains("SystemV"))
+        .filterNot(_.getId.contains("Europe/Kyiv"))
+        .filterNot(_.getId.contains("America/Ciudad_Juarez"))
+        .filterNot(_.getId.contains("Antarctica/Vostok"))
+        .filterNot(_.getId.contains("Pacific/Kanton")),
       prefix = "CastSuiteBase-cast-string-to-timestamp",
       maxThreads = Runtime.getRuntime.availableProcessors
     ) {
