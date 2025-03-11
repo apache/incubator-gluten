@@ -155,4 +155,5 @@ trait BackendSettingsApi {
 
   def supportCollectLimitExec(): Boolean = false
 
+  def supportCollectTailExec(): Boolean = false
 }

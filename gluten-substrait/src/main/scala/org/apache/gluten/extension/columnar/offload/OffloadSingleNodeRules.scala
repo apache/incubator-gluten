@@ -350,6 +350,12 @@ object OffloadOthers {
             plan.limit,
             plan.child
           )
+        case plan: CollectTailExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarTailExec(
+            plan.limit,
+            plan.child
+          )
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
           p

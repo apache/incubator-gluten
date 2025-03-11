@@ -566,4 +566,5 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportCollectLimitExec(): Boolean = true
 
+  override def supportCollectTailExec(): Boolean = true
 }
