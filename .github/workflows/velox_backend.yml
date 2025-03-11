@@ -1016,7 +1016,7 @@ jobs:
           export SPARK_SCALA_VERSION=2.13
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg \
-          -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark35-scala-2.13/spark_home/" \
+          -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark35-scala-2.13/spark_home/  ${EXTRA_FLAGS}" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
         if: always()
