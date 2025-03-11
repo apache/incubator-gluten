@@ -570,7 +570,8 @@ FUNCTION_SUITES = {
     'aggregate': {'GlutenSQLQueryTestSuite', 'GlutenApproxCountDistinctForIntervalsQuerySuite',
                   'GlutenBitmapExpressionsQuerySuite',
                   'GlutenDataFrameAggregateSuite'},
-    'window': {'GlutenSQLQueryTestSuite'},
+    # All window functions are supported.
+    'window': {},
     'generator': {'GlutenGeneratorFunctionSuite'}
 }
 
