@@ -96,6 +96,7 @@ class VeloxBackend {
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
   std::shared_ptr<facebook::velox::memory::MmapAllocator> cacheAllocator_;
 
+
   bool ssdReuse_;
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;

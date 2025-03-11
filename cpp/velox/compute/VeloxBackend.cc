@@ -150,7 +150,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 #endif
 
   initJolFilesystem();
-  initCache();
   initConnector();
 
   velox::dwio::common::registerFileSinks();
@@ -186,6 +185,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
   facebook::velox::memory::MemoryManager::initialize({.allocatorCapacity = memoryManagerCapacity});
+
+  initCache();
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -213,7 +214,7 @@ void VeloxBackend::initCache() {
     std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
     int32_t ssdCheckpointIntervalSize = backendConf_->get<int32_t>(kVeloxSsdCheckpointIntervalBytes, 0);
 
-    ssdReuse_ = ssdCheckpointIntervalSize > 0 ? : true : false;
+    ssdReuse_ = ssdCheckpointIntervalSize > 0 ? true : false;
     cachePathPrefix_ = ssdCachePathPrefix;
     cacheFilePrefix_ = getCacheFilePrefix();
     std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
@@ -230,16 +231,17 @@ void VeloxBackend::initCache() {
           "free space: " + std::to_string(si.available));
     }
 
-    velox::memory::MmapAllocator::Options options;
-    options.capacity = memCacheSize;
-    cacheAllocator_ = std::make_shared<velox::memory::MmapAllocator>(options);
+    // assert memCacheSize > memoryManager.capacity
+    // auto manager_ = facebook::velox::memory::MemoryManager::getInstance();
+    // auto allocator_ = static_cast<memory::MmapAllocator*>(manager_->allocator());
+    auto allocator_ = facebook::velox::memory::memoryManager()->allocator();
     if (ssdCacheSize == 0) {
       LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
       // TODO: this is not tracked by Spark.
-      asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get());
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator_);
     } else {
       // TODO: this is not tracked by Spark.
-      asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get(), std::move(ssd));
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator_, std::move(ssd));
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()));
