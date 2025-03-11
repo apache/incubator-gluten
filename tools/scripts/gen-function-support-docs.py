@@ -502,15 +502,38 @@ SPARK35_EXPRESSION_MAPPINGS = '''
     expression[StructsToCsv]("to_csv")
 '''
 
+FUNCTION_CATEGORIES = ['scalar', 'aggregate', 'window', 'generator']
+
+STATIC_INVOKES = {
+    "luhn_check": ("org.apache.spark.sql.catalyst.expressions.ExpressionImplUtils", "isLuhnNumber"),
+    "base64": ("org.apache.spark.sql.catalyst.expressions.Base64", "encode"),
+    "contains": ("org.apache.spark.unsafe.array.ByteArrayMethods", "contains"),
+    "startsWith": ("org.apache.spark.unsafe.array.ByteArrayMethods", "startsWith"),
+    "endsWith": ("org.apache.spark.unsafe.array.ByteArrayMethods", "endsWith"),
+    "lpad": ("org.apache.spark.unsafe.array.ByteArrayMethods", "lpad"),
+    "rpad": ("org.apache.spark.unsafe.array.ByteArrayMethods", "rpad"),
+}
+
 # Known Restrictions in Gluten.
 LOOKAROUND_UNSUPPORTED = 'Lookaround unsupported'
+BINARY_TYPE_UNSUPPORTED = 'BinaryType unsupported'
 GLUTEN_RESTRICTIONS = {
-    'regexp': LOOKAROUND_UNSUPPORTED,
-    'regexp_like': LOOKAROUND_UNSUPPORTED,
-    'rlike': LOOKAROUND_UNSUPPORTED,
-    'regexp_extract': LOOKAROUND_UNSUPPORTED,
-    'regexp_extract_all': LOOKAROUND_UNSUPPORTED,
-    'regexp_replace': LOOKAROUND_UNSUPPORTED
+    'scalar': {
+        'regexp': LOOKAROUND_UNSUPPORTED,
+        'regexp_like': LOOKAROUND_UNSUPPORTED,
+        'rlike': LOOKAROUND_UNSUPPORTED,
+        'regexp_extract': LOOKAROUND_UNSUPPORTED,
+        'regexp_extract_all': LOOKAROUND_UNSUPPORTED,
+        'regexp_replace': LOOKAROUND_UNSUPPORTED,
+        'contains': BINARY_TYPE_UNSUPPORTED,
+        'startswith': BINARY_TYPE_UNSUPPORTED,
+        'endswith': BINARY_TYPE_UNSUPPORTED,
+        'lpad': BINARY_TYPE_UNSUPPORTED,
+        'rpad': BINARY_TYPE_UNSUPPORTED
+    },
+    'aggregate': {},
+    'window': {},
+    'generator': {}
 }
 
 SPARK_FUNCTION_GROUPS = {
@@ -553,15 +576,27 @@ SCALAR_FUNCTION_GROUPS = {'array_funcs': "Array Functions",
                           'xml_funcs': "XML Functions"}
 
 FUNCTION_GROUPS = {'scalar': SCALAR_FUNCTION_GROUPS,
-                   'agg': {'agg_funcs': 'Aggregate Functions'},
+                   'aggregate': {'agg_funcs': 'Aggregate Functions'},
                    'window': {'window_funcs': 'Window Functions'},
                    'generator': {'generator_funcs': "Generator Functions"}}
+
+FUNCTION_SUITE_PACKAGE = 'org.apache.spark.sql.'
+FUNCTION_SUITES = {
+    'scalar': {'GlutenSQLQueryTestSuite'},
+    'aggregate': {'GlutenSQLQueryTestSuite', 'GlutenApproxCountDistinctForIntervalsQuerySuite',
+                  'GlutenBitmapExpressionsQuerySuite',
+                  'GlutenDataFrameAggregateSuite'},
+    # All window functions are supported.
+    'window': {},
+    'generator': {'GlutenGeneratorFunctionSuite'}
+}
 
 
 def create_spark_function_map():
     exprs = list(map(lambda x: x if x[-1] != ',' else x[:-1],
                      map(lambda x: x.strip(),
-                         filter(lambda x: 'expression' in x, SPARK35_EXPRESSION_MAPPINGS.split('\n')))))
+                         filter(lambda x: 'expression' in x,
+                                SPARK35_EXPRESSION_MAPPINGS.split('\n')))))
 
     func_map = {}
     expression_pattern = 'expression[GeneratorOuter]*\[([\w0-9]+)\]\("([^\s]+)".*'
@@ -589,7 +624,8 @@ def create_spark_function_map():
 def generate_function_list():
     jinfos = jvm.org.apache.spark.sql.api.python.PythonSQLUtils.listBuiltinFunctionInfos()
 
-    infos = [["!=", '', 'predicate_funcs'], ["<>", "", "predicate_funcs"], ['between', '', 'predicate_funcs'],
+    infos = [["!=", '', 'predicate_funcs'], ["<>", "", "predicate_funcs"],
+             ['between', '', 'predicate_funcs'],
              ['case', '', 'predicate_funcs'], ["||", '', 'misc_funcs']]
     for jinfo in filter(lambda x: x.getGroup() in SPARK_FUNCTION_GROUPS, jinfos):
         infos.append([jinfo.getName(), jinfo.getClassName().split('.')[-1], jinfo.getGroup()])
@@ -608,61 +644,65 @@ def generate_function_list():
 
         group_functions[groupname].append(name)
         if groupname in SCALAR_FUNCTION_GROUPS:
-            scalar_functions.append(name)
+            functions['scalar'].add(name)
         elif groupname == 'agg_funcs':
-            agg_functions.append(name)
+            functions['aggregate'].add(name)
         elif groupname == 'window_funcs':
-            window_functions.append(name)
+            functions['window'].add(name)
         elif groupname == 'generator_funcs':
-            generator_functions.append(name)
+            functions['generator'].add(name)
         else:
-            logging.log(logging.WARNING, f"No matching group name for function {name}: " + groupname)
+            logging.log(logging.WARNING,
+                        f"No matching group name for function {name}: " + groupname)
 
 
 def parse_logs(log_file):
-    generator_functions = ['explode', 'explode_outer', 'inline', 'inline_outer', 'posexplode', 'posexplode_outer',
-                           'stack']
+    generator_functions = ['explode', 'explode_outer', 'inline', 'inline_outer', 'posexplode',
+                           'posexplode_outer', 'stack']
 
-    scalar_support_list = {'partial': set(), 'unsupported': set()}
-    agg_support_list = {'partial': set(), 'unsupported': set()}
-    window_support_list = {'partial': set(), 'unsupported': set()}
-    generator_support_list = {'partial': set(), 'unsupported': set()}
-    try_to_binary_funcs = set(['unhex', 'encode', 'unbase64'])
+    # unknown functions are not in the all_function_names list. Perhaps spark implemented this function but did not
+    # expose it to the user for current version.
+    support_list = {'scalar': {'partial': set(), 'unsupported': set(), 'unsupported_expr': set(), 'unknown': set()},
+                    'aggregate': {'partial': set(), 'unsupported': set(), 'unsupported_expr': set(), 'unknown': set()},
+                    'generator': {'partial': set(), 'unsupported': set(), 'unsupported_expr': set(), 'unknown': set()},
+                    'window': {'partial': set(), 'unsupported': set(), 'unsupported_expr': set(), 'unknown': set()}}
+
+    try_to_binary_funcs = {'unhex', 'encode', 'unbase64'}
 
     unresolved = []
 
     def filter_fallback_reasons():
-        f = open(log_file, 'r')
-        lines = f.readlines()
-        lines
-        ll = []
+        with open(log_file, 'r') as f:
+            lines = f.readlines()
+
+        validation_logs = []
 
         # Filter validation logs.
         for l in lines:
-            if (
-                    'Validation failed for plan:' in l or 'Validation failed due to' in l or 'Validation failed at file' in l or l.startswith(
-                ' - ') or l.startswith('   |- ')) and 'Native validation failed:' not in l:
-                ll.append(l)
+            if (l.startswith(' - ') and 'ProjectExecTransformer' in l and 'Native validation failed:' not in l or
+                    l.startswith('   |- ')):
+                validation_logs.append(l)
 
         # Extract fallback reasons.
-        al = []
-        for l in ll:
+        fallback_reasons = set()
+        for l in validation_logs:
             if 'due to:' in l:
-                al.append(l.split('due to:')[-1].strip())
+                fallback_reasons.add(l.split('due to:')[-1].strip())
             elif 'reason:' in l:
-                al.append(l.split('reason:')[-1].strip())
+                fallback_reasons.add(l.split('reason:')[-1].strip())
             else:
-                al.append(l)
-        al = sorted(set(al))
+                fallback_reasons.add(l)
+        fallback_reasons = sorted(fallback_reasons)
 
         # Remove udf.
-        return list(filter(lambda x: 'Not supported python udf' not in x and 'Not supported scala udf' not in x, al))
+        return list(filter(lambda x: 'Not supported python udf' not in x and 'Not supported scala udf' not in x,
+                           fallback_reasons))
 
     def function_name_tuple(function_name):
         return (
             function_name, None if function_name not in function_to_classname else function_to_classname[function_name])
 
-    def notFound(r):
+    def function_not_found(r):
         logging.log(logging.WARNING, f"No function name or class name found in: {r}")
         unresolved.append(r)
 
@@ -672,14 +712,20 @@ def parse_logs(log_file):
     for item in jexpression_mappings:
         gluten_expressions[item._1()] = item._2()
 
-    for f in scalar_functions:
-        if f not in gluten_expressions.values() and function_to_classname[f] not in gluten_expressions.keys():
-            scalar_support_list['unsupported'].add(function_name_tuple(f))
+    for category in FUNCTION_CATEGORIES:
+        if category == 'scalar':
+            for f in functions[category]:
+                # TODO: Remove this filter as it may exclude supported expressions, such as
+                #  RuntimeReplaceable and Builder.
+                if f not in gluten_expressions.values() and function_to_classname[f] not in gluten_expressions.keys():
+                    logging.log(logging.WARNING, f"Function not found in gluten expressions: {f}")
+                    support_list[category]['unsupported'].add(function_name_tuple(f))
 
-    for f in GLUTEN_RESTRICTIONS.keys():
-        scalar_support_list['partial'].add(function_name_tuple(f))
+        for f in GLUTEN_RESTRICTIONS[category].keys():
+            support_list[category]['partial'].add(function_name_tuple(f))
 
     for r in filter_fallback_reasons():
+        ############## Scalar functions ##############
         if 'Not supported to map spark function name to substrait function name' in r:
             pattern = r"class name: ([\w0-9]+)."
 
@@ -689,12 +735,17 @@ def parse_logs(log_file):
             if match:
                 class_name = match.group(1)
                 if class_name in classname_to_function:
-                    scalar_support_list['unsupported'].add((classname_to_function[class_name], class_name))
+                    function_name = classname_to_function[class_name]
+                    if function_name in all_function_names:
+                        support_list['scalar']['unsupported'].add((function_name, class_name))
+                    else:
+                        support_list['scalar']['unknown'].add((function_name, class_name))
                 else:
-                    logging.log(logging.INFO, f"No function name for class: {class_name}. Adding class name")
-                    scalar_support_list['unsupported'].add((None, class_name))
+                    logging.log(logging.INFO,
+                                f"No function name for class: {class_name}. Adding class name")
+                    support_list['scalar']['unsupported_expr'].add(class_name)
             else:
-                notFound(r)
+                function_not_found(r)
 
         elif 'Not support expression' in r:
             pattern = r"Not support expression ([\w0-9]+)"
@@ -705,12 +756,17 @@ def parse_logs(log_file):
             if match:
                 class_name = match.group(1)
                 if class_name in classname_to_function:
-                    scalar_support_list['unsupported'].add((classname_to_function[class_name], class_name))
+                    function_name = classname_to_function[class_name]
+                    if function_name in all_function_names:
+                        support_list['scalar']['unsupported'].add((function_name, class_name))
+                    else:
+                        support_list['scalar']['unknown'].add((function_name, class_name))
                 else:
-                    logging.log(logging.INFO, f"No function name for class: {class_name}. Adding class name")
-                    scalar_support_list['unsupported'].add((None, class_name))
+                    logging.log(logging.INFO,
+                                f"No function name for class: {class_name}. Adding class name")
+                    support_list['scalar']['unsupported_expr'].add(class_name)
             else:
-                notFound(r)
+                function_not_found(r)
 
         elif 'Scalar function name not registered:' in r:
             pattern = r"Scalar function name not registered:\s+([\w0-9]+)"
@@ -720,9 +776,12 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                scalar_support_list['unsupported'].add(function_name_tuple(function_name))
+                if function_name in all_function_names:
+                    support_list['scalar']['unsupported'].add(function_name_tuple(function_name))
+                else:
+                    support_list['scalar']['unknown'].add(function_name_tuple(function_name))
             else:
-                notFound(r)
+                function_not_found(r)
 
         elif 'Function is not supported:' in r:
             pattern = r"Function is not supported:\s+([\w0-9]+)"
@@ -732,9 +791,12 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                scalar_support_list['unsupported'].add(function_name_tuple(function_name))
+                if function_name in all_function_names:
+                    support_list['scalar']['unsupported'].add(function_name_tuple(function_name))
+                else:
+                    support_list['scalar']['unknown'].add(function_name_tuple(function_name))
             else:
-                notFound(r)
+                function_not_found(r)
 
         elif 'not registered with arguments:' in r:
             pattern = r"Scalar function ([\w0-9]+) not registered with arguments:"
@@ -744,10 +806,14 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                scalar_support_list['partial'].add(function_name_tuple(function_name))
+                if function_name in all_function_names:
+                    support_list['scalar']['partial'].add(function_name_tuple(function_name))
+                else:
+                    support_list['scalar']['unknown'].add(function_name_tuple(function_name))
             else:
-                notFound(r)
+                function_not_found(r)
 
+        ############## Aggregate functions ##############
         elif 'Could not find a valid substrait mapping' in r:
             pattern = r"Could not find a valid substrait mapping name for ([\w0-9]+)\("
 
@@ -756,10 +822,29 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                agg_support_list['unsupported'].add(function_name_tuple(function_name))
+                if function_name in all_function_names:
+                    support_list['aggregate']['unsupported'].add(function_name_tuple(function_name))
+                else:
+                    support_list['aggregate']['unknown'].add(function_name_tuple(function_name))
             else:
-                notFound(r)
+                function_not_found(r)
 
+        elif 'Unsupported aggregate mode' in r:
+            pattern = r"Unsupported aggregate mode: [\w]+ for ([\w0-9]+)"
+
+            # Extract the function name
+            match = re.search(pattern, r)
+
+            if match:
+                function_name = match.group(1)
+                if function_name in all_function_names:
+                    support_list['aggregate']['partial'].add(function_name_tuple(function_name))
+                else:
+                    support_list['aggregate']['unknown'].add(function_name_tuple(function_name))
+            else:
+                function_not_found(r)
+
+        ############## Generator functions ##############
         elif 'Velox backend does not support this generator:' in r:
             pattern = r"Velox backend does not support this generator:\s+([\w0-9]+)"
 
@@ -770,14 +855,15 @@ def parse_logs(log_file):
                 class_name = match.group(1)
                 function_name = class_name.lower()
                 if function_name not in generator_functions:
-                    generator_support_list['unsupported'].add((None, class_name))
+                    support_list['generator']['unknown'].add((None, class_name))
                 elif 'outer: true' in r:
-                    generator_support_list['unsupported'].add((function_name + '_outer', None))
+                    support_list['generator']['unsupported'].add((function_name + '_outer', None))
                 else:
-                    generator_support_list['unsupported'].add(function_name_tuple(function_name))
+                    support_list['generator']['unsupported'].add(function_name_tuple(function_name))
             else:
-                notFound(r)
+                function_not_found(r)
 
+        ############## Special judgements ##############
         elif 'try_eval' in r and ' is not supported' in r:
             pattern = r"try_eval\((\w+)\) is not supported"
             match = re.search(pattern, r)
@@ -790,48 +876,56 @@ def parse_logs(log_file):
                     function_name = 'try_to_binary'
                     p = function_name_tuple(function_name)
                     if len(try_to_binary_funcs) == 0:
-                        if p in scalar_support_list['partial']:
-                            scalar_support_list['partial'].remove(p)
-                        scalar_support_list['unsupported'].add(p)
+                        if p in support_list['scalar']['partial']:
+                            support_list['scalar']['partial'].remove(p)
+                        support_list['scalar']['unsupported'].add(p)
 
                 elif 'add' in function_name:
                     function_name = 'try_add'
-                    scalar_support_list['partial'].add(function_name_tuple(function_name))
+                    support_list['scalar']['partial'].add(function_name_tuple(function_name))
             else:
-                notFound(r)
+                function_not_found(r)
 
         elif 'Pattern is not string literal for regexp_extract' == r:
             function_name = 'regexp_extract'
-            scalar_support_list['partial'].add(function_name_tuple(function_name))
+            support_list['scalar']['partial'].add(function_name_tuple(function_name))
 
         elif 'Pattern is not string literal for regexp_extract_all' == r:
             function_name = 'regexp_extract_all'
-            scalar_support_list['partial'].add(function_name_tuple(function_name))
+            support_list['scalar']['partial'].add(function_name_tuple(function_name))
 
         else:
             unresolved.append(r)
 
-    return scalar_support_list, agg_support_list, window_support_list, generator_support_list, unresolved
+    return support_list, unresolved
 
 
-def generate_function_doc(category, function_support_list, output):
-    num_unsupported = len(list(filter(lambda x: x[0] is not None, function_support_list['unsupported'])))
-    num_unsupported_expression = len(
-        list(filter(lambda x: x[0] is None and x[1] is not None, function_support_list['unsupported'])))
-    num_partially_supported = len(list(filter(lambda x: x[0] is not None, function_support_list['partial'])))
-    num_supported = len(scalar_functions) - num_unsupported - num_partially_supported
+def generate_function_doc(category, output):
+    def support_str(num_functions):
+        return f"{num_functions} functions" if num_functions > 1 else f"{num_functions} function"
 
-    logging.log(logging.WARNING, f'Number of {category} functions: {len(scalar_functions)}')
-    logging.log(logging.WARNING, f'Number of unsupported {category} functions: {num_unsupported}')
-    logging.log(logging.WARNING, f'Number of unsupported {category} expressions: {num_unsupported_expression}')
-    logging.log(logging.WARNING, f'Number of partially supported {category} function: {num_partially_supported}')
+    num_unsupported = len(list(filter(lambda x: x[0] is not None, support_list[category]['unsupported'])))
+    num_unsupported_expression = len(support_list[category]['unsupported_expr'])
+    num_unknown_function = len(support_list[category]['unknown'])
+    num_partially_supported = len(list(filter(lambda x: x[0] is not None, support_list[category]['partial'])))
+    num_supported = len(functions[category]) - num_unsupported - num_partially_supported
+
+    logging.log(logging.WARNING, f'Number of {category} functions: {len(functions[category])}')
     logging.log(logging.WARNING, f'Number of fully supported {category} function: {num_supported}')
+    logging.log(logging.WARNING, f'Number of unsupported {category} functions: {num_unsupported}')
+    logging.log(logging.WARNING,
+                f'Number of partially supported {category} function: {num_partially_supported}')
+    logging.log(logging.WARNING,
+                f'Number of unsupported {category} expressions: {num_unsupported_expression}')
+    logging.log(logging.WARNING,
+                f'Number of unknown {category} function: {num_unknown_function}. List: {support_list[category]["unknown"]}')
 
     headers = ['Spark Functions', 'Spark Expressions', 'Status', 'Restrictions']
 
+    partially_supports = '.' if not num_partially_supported else f' and partially supports {support_str(num_partially_supported)}.'
     lines = f'''# {category.capitalize()} Functions Support Status
 
-**Out of {len(scalar_functions)} {category} functions in Spark 3.5, Gluten currently fully supports {num_supported} functions and partially supports {num_partially_supported} functions.**
+**Out of {len(functions[category])} {category} functions in Spark 3.5, Gluten currently fully supports {support_str(num_supported)}{partially_supports}**
 
 '''
 
@@ -842,12 +936,12 @@ def generate_function_doc(category, function_support_list, output):
             for f in sorted(group_functions[g]):
                 classname = '' if f not in spark_function_map else spark_function_map[f]
                 support = None
-                for item in function_support_list['partial']:
+                for item in support_list[category]['partial']:
                     if item[0] and item[0] == f or item[1] and item[1] == classname:
                         support = 'PS'
                         break
                 if support is None:
-                    for item in function_support_list['unsupported']:
+                    for item in support_list[category]['unsupported']:
                         if item[0] and item[0] == f or item[1] and item[1] == classname:
                             support = ''
                             break
@@ -857,7 +951,8 @@ def generate_function_doc(category, function_support_list, output):
                     f = '&#124;'
                 elif f == '||':
                     f = '&#124;&#124;'
-                data.append([f, classname, support, '' if f not in GLUTEN_RESTRICTIONS else GLUTEN_RESTRICTIONS[f]])
+                data.append([f, classname, support,
+                             '' if f not in GLUTEN_RESTRICTIONS[category] else GLUTEN_RESTRICTIONS[category][f]])
             table = tabulate.tabulate(data, headers, tablefmt="github")
             lines += table + '\n\n'
 
@@ -865,14 +960,25 @@ def generate_function_doc(category, function_support_list, output):
         fd.write(lines)
 
 
-def run_GlutenSQLQueryTestSuite():
+def run_test_suites(categories):
     log4j_properties_file = os.path.abspath(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), 'log4j2.properties'))
+
+    suite_list = []
+    for category in categories:
+        if FUNCTION_SUITES[category]:
+            suite_list.append(','.join([FUNCTION_SUITE_PACKAGE + name for name in FUNCTION_SUITES[category]]))
+    suites = ','.join(suite_list)
+
+    if not suites:
+        logging.log(logging.WARNING, "No test suites to run.")
+        return
+
     command = [
         "mvn", "test",
         "-Pspark-3.5", "-Pspark-ut", "-Pbackends-velox",
         f"-DargLine=-Dspark.test.home={spark_home} -Dlog4j2.configurationFile=file:{log4j_properties_file}",
-        "-DwildcardSuites=org.apache.spark.sql.GlutenSQLQueryTestSuite",
+        f"-DwildcardSuites={suites}",
         "-Dtest=none",
         "-Dsurefire.failIfNoSpecifiedTests=false"
     ]
@@ -880,23 +986,41 @@ def run_GlutenSQLQueryTestSuite():
     subprocess.Popen(command, cwd=gluten_home).wait()
 
 
+def get_maven_project_version():
+    result = subprocess.run(
+        ['mvn', 'help:evaluate', '-Dexpression=project.version', '-q', '-DforceStdout'],
+        capture_output=True,
+        text=True,
+        cwd=gluten_home
+    )
+    if result.returncode == 0:
+        version = result.stdout.strip()
+        return version
+    else:
+        raise RuntimeError(f"Error running Maven command: {result.stderr}")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--spark_home", type=str, required=True,
                         help="Directory to spark source code for the newest supported spark version in Gluten. "
                              "It's required the spark project has been built from source.")
-    parser.add_argument("--skip_run_test_suite", action='store_true',
+    parser.add_argument("--skip_test_suite", action='store_true',
                         help="Whether to run test suite. Set to False to skip running the test suite.")
+    parser.add_argument("--categories", type=str, default=','.join(FUNCTION_CATEGORIES),
+                        help="Use comma-separated string to specify the function categories to generate the docs. "
+                             "Default is all categories.")
     args = parser.parse_args()
 
     spark_home = args.spark_home
     findspark.init(spark_home)
 
     gluten_home = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../'))
-    if not args.skip_run_test_suite:
-        run_GlutenSQLQueryTestSuite()
+    if not args.skip_test_suite:
+        run_test_suites(args.categories.split(','))
 
-    gluten_jar = os.path.join(gluten_home, 'package', 'target', 'gluten-package-1.5.0-SNAPSHOT.jar')
+    gluten_version = get_maven_project_version()
+    gluten_jar = os.path.join(gluten_home, 'package', 'target', f'gluten-package-{gluten_version}.jar')
     if not os.path.exists(gluten_jar):
         raise Exception(f"Gluten jar not found at {gluten_jar}")
 
@@ -910,10 +1034,7 @@ if __name__ == '__main__':
 
     # Generate the function list to the global variables.
     all_function_names = []
-    scalar_functions = []
-    agg_functions = []
-    window_functions = []
-    generator_functions = []
+    functions = {'scalar': set(), 'aggregate': set(), 'window': set(), 'generator': set()}
     classname_to_function = {}
     function_to_classname = {}
     group_functions = {}
@@ -921,8 +1042,9 @@ if __name__ == '__main__':
 
     spark_function_map = create_spark_function_map()
 
-    scalar_support_list, agg_support_list, window_support_list, generator_support_list, unresolved = parse_logs(
+    support_list, unresolved = parse_logs(
         os.path.join(gluten_home, 'gluten-ut', 'spark35', 'target', 'gen-function-support-docs-tests.log'))
 
-    generate_function_doc('scalar', scalar_support_list,
-                          os.path.join(gluten_home, 'docs', 'velox-backend-scalar-function-support.md'))
+    for category in args.categories.split(','):
+        generate_function_doc(category,
+                              os.path.join(gluten_home, 'docs', f'velox-backend-{category}-function-support.md'))
