@@ -19,12 +19,11 @@ package org.apache.gluten.config
 import org.apache.gluten.config.GlutenConfig.{buildConf, buildStaticConf, COLUMNAR_MAX_BATCH_SIZE}
 
 import org.apache.spark.network.util.ByteUnit
-import org.apache.spark.sql.internal.SQLConf
 
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
+class VeloxConfig extends GlutenConfig {
   import VeloxConfig._
 
   def veloxColumnarWindowType: String = getConf(COLUMNAR_VELOX_WINDOW_TYPE)
@@ -64,9 +63,7 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
 object VeloxConfig {
 
-  def get: VeloxConfig = {
-    new VeloxConfig(SQLConf.get)
-  }
+  def get: VeloxConfig = new VeloxConfig()
 
   val COLUMNAR_VELOX_WINDOW_TYPE =
     buildConf("spark.gluten.sql.columnar.backend.velox.window.type")
