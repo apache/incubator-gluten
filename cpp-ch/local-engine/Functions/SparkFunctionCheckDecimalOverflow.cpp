@@ -100,12 +100,18 @@ public:
         UInt32 precision = extractArgument(arguments[1]);
         UInt32 scale = extractArgument(arguments[2]);
         auto return_type = createDecimal<DataTypeDecimal>(precision, scale);
-        if constexpr (exception_mode == CheckExceptionMode::Null)
-        {
-            if (!arguments[0].type->isNullable())
-                return std::make_shared<DataTypeNullable>(return_type);
-        }
+        if (isReturnTypeNullable(arguments[0]))
+            return std::make_shared<DataTypeNullable>(return_type);
         return return_type;
+    }
+
+    bool isReturnTypeNullable(const ColumnWithTypeAndName & arg) const
+    {
+        if constexpr (exception_mode == CheckExceptionMode::Null)
+            return true;
+        if (arg.type->isNullable())
+            return true;
+        return false;
     }
 
     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
@@ -133,7 +139,10 @@ public:
                     auto from_scale = getDecimalScale(*src_col.type);
                     if (from_precision == to_precision && from_scale == to_scale)
                     {
-                        dst_col = src_col.column;
+                        if (isReturnTypeNullable(arguments[0]))
+                            dst_col = makeNullable(src_col.column);
+                        else
+                            dst_col = src_col.column;
                         return true;
                     }
                 }

@@ -500,7 +500,7 @@ Both Parquet and ORC datasets are sf1024.
 
 # Gluten UI
 
-Please refer [Gluten UI](VeloxGlutenUI.md)
+Please refer [Gluten UI](GlutenUI.md)
 
 # Gluten Native Plan Summary
 
@@ -544,6 +544,33 @@ I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan 
    Output: 27 rows (3.56KB, 3 batches), Cpu time: 10.58us, Blocked wall time: 0ns, Peak memory: 0B, Memory allocations: 0, Threads: 1
       queuedWallNanos              sum: 2.00us, count: 1, min: 2.00us, max: 2.00us
 ```
+
+
+## Using Stage-Level Resource Adjustment to Avoid OOM(Experimental)
+ see more [here](../VeloxStageResourceAdj.md)
+
+## Broadcast Build Relations to Off-Heap(Experimental)
+
+The experimental feature **Off-Heap Broadcast Build Relations** aims to mitigate out-of-memory (OOM) issues caused by heap memory consumption during broadcast operations. Detailed design
+can be found [here](https://docs.google.com/document/d/1eZNWPUEdiz2JPJfhyVn9hrk6SqJFRNzOMZm6u5Yredk/edit?tab=t.0)
+
+### Purpose & how it works
+- **Avoid OOM**: Prevent OOM errors when broadcasting large datasets.
+- **Reduce Heap Memory Usage**: Store broadcast build relations in Spark off-heap memory instead of on-heap memory
+
+### Configuration
+
+### Enable Off-Heap Broadcast
+To enable this feature, you can set the following Spark configuration:
+
+| Property                                                    | Default | Description                                                       |
+|-------------------------------------------------------------|---------|-------------------------------------------------------------------|
+| `spark.gluten.velox.offHeapBroadcastBuildRelation.enabled`  | `false` | Enable/disable off-heap storage for broadcast build relations.    |
+
+This feature has been tested through a series of tests, and we are collecting more feedback from users. If you have memory problem on broadcast build relations, please try this feature and give more feedbacks.
+
+**Note**: This feature will become the default behavior once stabilized. Stay tuned for updates!
+
 
 # Accelerators
 

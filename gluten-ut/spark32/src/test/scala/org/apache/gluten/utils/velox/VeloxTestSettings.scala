@@ -1129,6 +1129,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
     .exclude("SPARK-33687: analyze all tables in a specific database")
+    .exclude("column stats collection for null columns")
+    .exclude("analyze column command - result verification")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]

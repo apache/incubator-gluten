@@ -87,6 +87,10 @@ extern const ServerSettingsDouble skipping_index_cache_size_ratio;
 extern const ServerSettingsUInt64 max_prefixes_deserialization_thread_pool_size;
 extern const ServerSettingsUInt64 max_prefixes_deserialization_thread_pool_free_size;
 extern const ServerSettingsUInt64 prefixes_deserialization_thread_pool_thread_pool_queue_size;
+extern const ServerSettingsUInt64 max_thread_pool_size;
+extern const ServerSettingsUInt64 thread_pool_queue_size;
+extern const ServerSettingsUInt64 max_io_thread_pool_size;
+extern const ServerSettingsUInt64 io_thread_pool_queue_size;
 }
 namespace Setting
 {
@@ -104,14 +108,6 @@ namespace ErrorCodes
 extern const int BAD_ARGUMENTS;
 extern const int UNKNOWN_TYPE;
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
-}
-
-namespace ServerSetting
-{
-extern const ServerSettingsUInt64 max_thread_pool_size;
-extern const ServerSettingsUInt64 thread_pool_queue_size;
-extern const ServerSettingsUInt64 max_io_thread_pool_size;
-extern const ServerSettingsUInt64 io_thread_pool_queue_size;
 }
 
 extern void registerAggregateFunctionUniqHyperLogLogPlusPlus(AggregateFunctionFactory &);
@@ -837,8 +833,11 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);
 
-        /// Initialize a dummy query cache.
-        global_context->setQueryCache(0, 0, 0, 0);
+        /// Initialize a dummy query result cache.
+        global_context->setQueryResultCache(0, 0, 0, 0);
+
+        /// Initialize a dummy query condition cache.
+        global_context->setQueryConditionCache(DEFAULT_QUERY_CONDITION_CACHE_POLICY, 0, 0);
 
         // We must set the application type to CLIENT to avoid ServerUUID::get() throw exception
         global_context->setApplicationType(Context::ApplicationType::CLIENT);

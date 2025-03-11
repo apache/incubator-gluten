@@ -47,6 +47,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableGluten: Boolean = getConf(GLUTEN_ENABLED)
 
+  def glutenUiEnabled: Boolean = getConf(GLUTEN_UI_ENABLED)
+
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = getConf(NATIVE_VALIDATION_ENABLED)
 
@@ -1660,7 +1662,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val AUTO_ADJUST_STAGE_RESOURCE_PROFILE_ENABLED =
-    buildStaticConf("spark.gluten.auto.adjustStageResource.enabled")
+    buildConf("spark.gluten.auto.adjustStageResource.enabled")
       .internal()
       .doc("Experimental: If enabled, gluten will try to set the stage resource according " +
         "to stage execution plan. Only worked when aqe is enabled at the same time!!")
