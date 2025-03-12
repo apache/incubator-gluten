@@ -251,59 +251,57 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("delta: need to validate delta expression before execution", Some("3.5")) {
+  testWithSpecifiedSparkVersion(
+    "delta: need to validate delta expression before execution",
+    Some("3.5")) {
     withTable("source_table") {
       withTable("target_table") {
-        spark.sql(
-          s"""
-             |CREATE TABLE source_table
-             |(id BIGINT, name STRING, age STRING, dt STRING, month STRING)
-             |USING DELTA
-             |PARTITIONED BY (month)
-             |""".stripMargin)
+        spark.sql(s"""
+                     |CREATE TABLE source_table
+                     |(id BIGINT, name STRING, age STRING, dt STRING, month STRING)
+                     |USING DELTA
+                     |PARTITIONED BY (month)
+                     |""".stripMargin)
 
-        spark.sql(
-          s"""
-             |CREATE TABLE target_table
-             |(id BIGINT, name STRING, age BIGINT, dt STRING, month STRING)
-             |USING DELTA
-             |PARTITIONED BY (month)
-             |""".stripMargin)
+        spark.sql(s"""
+                     |CREATE TABLE target_table
+                     |(id BIGINT, name STRING, age BIGINT, dt STRING, month STRING)
+                     |USING DELTA
+                     |PARTITIONED BY (month)
+                     |""".stripMargin)
 
-        spark.sql(
-          s"""
-             |INSERT INTO source_table VALUES
-             |(1, 'a', '10', '2025-03-12', '2025-03'),
-             |(2, 'b', '20', '2025-03-11', '2025-03');
-             |""".stripMargin)
+        spark.sql(s"""
+                     |INSERT INTO source_table VALUES
+                     |(1, 'a', '10', '2025-03-12', '2025-03'),
+                     |(2, 'b', '20', '2025-03-11', '2025-03');
+                     |""".stripMargin)
 
-        spark.sql(
-          s"""
-             |INSERT INTO target_table VALUES
-             |(1, 'c', 10, '2025-03-12', '2025-03'),
-             |(3, 'c', 30, '2025-03-12', '2025-03');
-             |""".stripMargin)
+        spark.sql(s"""
+                     |INSERT INTO target_table VALUES
+                     |(1, 'c', 10, '2025-03-12', '2025-03'),
+                     |(3, 'c', 30, '2025-03-12', '2025-03');
+                     |""".stripMargin)
 
-        spark.sql(
-          s"""
-             |MERGE INTO target_table tar
-             |USING source_table src
-             |ON tar.id = src.id
-             |WHEN MATCHED THEN UPDATE
-             |SET
-             |tar.id = src.id,
-             |tar.name = src.name,
-             |tar.age = src.age,
-             |tar.dt = '2025-03-12',
-             |tar.month = src.month
-             |WHEN NOT MATCHED THEN INSERT
-             |(tar.id, tar.name, tar.age, tar.dt, tar.month)
-             |VALUES
-             |(src.id, src.name, src.age, '2025-03-12', src.month)
-             |""".stripMargin)
+        spark.sql(s"""
+                     |MERGE INTO target_table tar
+                     |USING source_table src
+                     |ON tar.id = src.id
+                     |WHEN MATCHED THEN UPDATE
+                     |SET
+                     |tar.id = src.id,
+                     |tar.name = src.name,
+                     |tar.age = src.age,
+                     |tar.dt = '2025-03-12',
+                     |tar.month = src.month
+                     |WHEN NOT MATCHED THEN INSERT
+                     |(tar.id, tar.name, tar.age, tar.dt, tar.month)
+                     |VALUES
+                     |(src.id, src.name, src.age, '2025-03-12', src.month)
+                     |""".stripMargin)
 
         val df1 = runQueryAndCompare("SELECT * FROM target_table") { _ => }
-        checkAnswer(df1,
+        checkAnswer(
+          df1,
           Seq(
             Row(1, "a", 10, "2025-03-12", "2025-03"),
             Row(3, "c", 30, "2025-03-12", "2025-03"),
