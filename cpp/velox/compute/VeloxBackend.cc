@@ -232,8 +232,9 @@ void VeloxBackend::initCache() {
     }
 
     // assert memCacheSize > memoryManager.capacity
-    // auto manager_ = facebook::velox::memory::MemoryManager::getInstance();
-    // auto allocator_ = static_cast<memory::MmapAllocator*>(manager_->allocator());
+    if (memCacheSize > allocator_.capacity()) {
+        VELOX_FAIL("not enough memory space for caching");
+    }
     auto allocator_ = facebook::velox::memory::memoryManager()->allocator();
     if (ssdCacheSize == 0) {
       LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
