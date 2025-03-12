@@ -169,7 +169,8 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   def validateJoinTypeAndBuildSide(): ValidationResult = {
     val result = joinType match {
       case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
-      case FullOuter =>
+      case FullOuter
+          if BackendsApiManager.getSettings.broadcastNestedLoopJoinSupportsFullOuterJoin() =>
         if (condition.isEmpty) {
           ValidationResult.succeeded
         } else {
