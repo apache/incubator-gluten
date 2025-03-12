@@ -25,6 +25,7 @@
 #include <Parser/TypeParser.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Storages/SubstraitSource/substrait_fwd.h>
 #include <substrait/plan.pb.h>
 
 namespace DB
@@ -39,7 +40,6 @@ namespace local_engine
 {
 
 class FormatFile;
-using substraitInputFile = substrait::ReadRel::LocalFiles::FileOrFiles;
 
 class FileMetaColumns
 {

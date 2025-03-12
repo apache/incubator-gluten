@@ -47,6 +47,8 @@ struct ParquetMetaBuilder
     bool collectPageIndex = false;
     bool collectSchema = false;
 
+    std::shared_ptr<parquet::FileMetaData> fileMetaData;
+
     //
     std::vector<RowGroupInformation> readRowGroups;
 

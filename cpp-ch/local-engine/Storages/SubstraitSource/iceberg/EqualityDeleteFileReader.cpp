@@ -17,51 +17,18 @@
 
 #include "EqualityDeleteFileReader.h"
 
+#include <Columns/ColumnConst.h>
+#include <Columns/ColumnSet.h>
 #include <DataTypes/DataTypeSet.h>
-#include <Formats/FormatFactory.h>
 #include <Functions/FunctionFactory.h>
-#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
-#include <Storages/Parquet/ParquetMeta.h>
-#include <Storages/Parquet/VectorizedParquetRecordReader.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <substrait/algebra.pb.h>
-#include <Poco/URI.h>
+#include <Storages/SubstraitSource/iceberg/SimpleParquetReader.h>
 #include <Common/BlockTypeUtils.h>
-
-
 using namespace DB;
 
 namespace local_engine
 {
-
-SimpleParquetReader::SimpleParquetReader(const ContextPtr & context, const substraitInputFile & file_info)
-{
-    const Poco::URI file_uri{file_info.uri_file()};
-    ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
-    read_buffer_ = read_buffer_builder->build(file_info);
-    FormatSettings format_settings = getFormatSettings(context);
-    ParquetMetaBuilder metaBuilder{
-        .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
-        .allow_missing_columns = false,
-        .collectPageIndex = true,
-        .collectSchema = true};
-    metaBuilder.build(*read_buffer_);
-    std::atomic<int> is_stopped{0};
-    auto arrow_file = asArrowFile(*read_buffer_, format_settings, is_stopped, "Parquet", PARQUET_MAGIC_BYTES);
-    provider_ = std::make_unique<ColumnIndexRowRangesProvider>(metaBuilder);
-    fileHeader_ = std::move(metaBuilder.fileHeader);
-    reader_ = std::make_unique<VectorizedParquetRecordReader>(fileHeader_, format_settings);
-    reader_->initialize(arrow_file, *provider_);
-}
-
-SimpleParquetReader::~SimpleParquetReader() = default;
-
-Block SimpleParquetReader::next() const
-{
-    Chunk chunk = reader_->nextBatch();
-    return chunk.hasRows() ? fileHeader_.cloneWithColumns(chunk.detachColumns()) : fileHeader_.cloneEmpty();
-}
 
 namespace iceberg
 {
@@ -114,7 +81,7 @@ void EqualityDeleteActionBuilder::notIn(Block deleteBlock, const std::string & c
     andArgs.push_back(&addFunction(function_builder, std::move(args)));
 }
 
-void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names & column_names)
+void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const Names & column_names)
 {
     auto numDeleteFields = deleteBlock.columns();
     assert(deleteBlock.columns() > 1);
@@ -147,38 +114,25 @@ void EqualityDeleteActionBuilder::notEquals(Block deleteBlock, const DB::Names &
 
 ExpressionActionsPtr EqualityDeleteActionBuilder::finish()
 {
-    if (andArgs.size() == 0)
+    if (andArgs.empty())
         return nullptr;
 
     actions.addOrReplaceInOutputs(lastMerge());
     return std::make_shared<ExpressionActions>(std::move(actions), ExpressionActionsSettings(context, CompileExpressions::no));
 }
 
-namespace
-{
-substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
-{
-    assert(deleteFile.filecontent() == IcebergReadOptions::EQUALITY_DELETES);
-    assert(deleteFile.has_parquet());
-    substraitInputFile file;
-    file.set_uri_file(deleteFile.filepath());
-    file.set_start(0);
-    file.set_length(deleteFile.filesize());
-    return file;
-}
-
-}
-
 EqualityDeleteFileReader::EqualityDeleteFileReader(
-    const ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile)
-    : reader_(context, fromDeleteFile(deleteFile)), read_header_(read_header), deleteFile_(deleteFile)
+    const ContextPtr & context, const Block & read_header, const substraitIcebergDeleteFile & deleteFile)
+    : context_(context), read_header_(read_header), deleteFile_(deleteFile)
 {
     assert(deleteFile_.recordcount() > 0);
 }
 
 void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & expressionInputs) const
 {
-    Block deleteBlock = reader_.next();
+    SimpleParquetReader reader{context_, deleteFile_};
+
+    Block deleteBlock = reader.next();
     assert(deleteBlock.rows() > 0 && "Iceberg equality delete file should have at least one row.");
     auto numDeleteFields = deleteBlock.columns();
     assert(numDeleteFields > 0 && "Iceberg equality delete file should have at least one field.");
@@ -197,9 +151,29 @@ void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & ex
         else
             expressionInputs.notEquals(std::move(deleteBlock), names);
 
-        deleteBlock = reader_.next();
+        deleteBlock = reader.next();
     }
 }
+
+ExpressionActionsPtr EqualityDeleteFileReader::createDeleteExpr(
+    const ContextPtr & context,
+    const Block & to_read_header,
+    const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+    const std::vector<int> & equality_delete_files)
+{
+    assert(!equality_delete_files.empty());
+
+    EqualityDeleteActionBuilder expressionInputs{context, to_read_header.getNamesAndTypesList()};
+    for (auto deleteIndex : equality_delete_files)
+    {
+        const auto & delete_file = delete_files[deleteIndex];
+        assert(delete_file.filecontent() == IcebergReadOptions::EQUALITY_DELETES);
+        if (delete_file.recordcount() > 0)
+            EqualityDeleteFileReader{context, to_read_header, delete_file}.readDeleteValues(expressionInputs);
+    }
+    return expressionInputs.finish();
+}
+
 }
 
 }

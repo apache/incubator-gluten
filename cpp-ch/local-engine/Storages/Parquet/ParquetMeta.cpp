@@ -206,21 +206,21 @@ ParquetMetaBuilder & ParquetMetaBuilder::build(
     const std::function<bool(UInt64)> & should_include_row_group)
 {
     auto reader = openInputParquetFile(read_buffer);
-    const auto file_meta = reader->metadata();
-    return buildRequiredRowGroups(*file_meta, should_include_row_group)
-        .buildSkipRowGroup(*file_meta)
-        .buildSchema(*file_meta)
-        .buildRowRange(*reader, *file_meta, readBlock, column_index_filter);
+    fileMetaData = reader->metadata();
+    return buildRequiredRowGroups(*fileMetaData, should_include_row_group)
+        .buildSkipRowGroup(*fileMetaData)
+        .buildSchema(*fileMetaData)
+        .buildRowRange(*reader, *fileMetaData, readBlock, column_index_filter);
 }
 
 ParquetMetaBuilder & ParquetMetaBuilder::build(DB::ReadBuffer & read_buffer, const std::function<bool(UInt64)> & should_include_row_group)
 {
     auto reader = openInputParquetFile(read_buffer);
-    const auto file_meta = reader->metadata();
-    return buildRequiredRowGroups(*file_meta, should_include_row_group)
-        .buildSkipRowGroup(*file_meta)
-        .buildSchema(*file_meta)
-        .buildAllRowRange(*file_meta);
+    fileMetaData = reader->metadata();
+    return buildRequiredRowGroups(*fileMetaData, should_include_row_group)
+        .buildSkipRowGroup(*fileMetaData)
+        .buildSchema(*fileMetaData)
+        .buildAllRowRange(*fileMetaData);
 }
 
 
