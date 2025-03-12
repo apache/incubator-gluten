@@ -1273,6 +1273,31 @@ class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
       }
     }
   }
+
+  test("flushable aggregate rule - disable when double sum") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory" -> "100",
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "false",
+      "spark.gluten.sql.columnar.maxBatchSize" -> "2"
+    ) {
+      withTempView("t1") {
+        import testImplicits._
+        Seq((24.621d, 1), (12.14d, 1), (0.169d, 1), (6.865d, 1), (1.879d, 1), (16.326d, 1))
+          .toDF("c1", "c2")
+          .createOrReplaceTempView("t1")
+        runQueryAndCompare("select c2, cast(sum(c1) as bigint) from t1 group by c2") {
+          df =>
+            {
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[RegularHashAggregateExecTransformer]
+                  }) == 2)
+            }
+        }
+      }
+    }
+  }
 }
 
 object VeloxAggregateFunctionsSuite {

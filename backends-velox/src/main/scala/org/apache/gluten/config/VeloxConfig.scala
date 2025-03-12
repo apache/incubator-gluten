@@ -307,6 +307,18 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val MAX_PARTIAL_AGGREGATION_MEMORY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory")
+      .internal()
+      .doc(
+        "Set the max memory of partial aggregation in bytes. When this option is set to a " +
+          "value greater than 0, it will override spark.gluten.sql.columnar.backend.velox." +
+          "maxPartialAggregationMemoryRatio. Note: this option only works when flushable " +
+          "partial aggregation is enabled. Ignored when spark.gluten.sql.columnar.backend." +
+          "velox.flushablePartialAggregation=false."
+      )
+      .bytesConf(ByteUnit.BYTE)
+
   val MAX_PARTIAL_AGGREGATION_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio")
       .internal()
