@@ -121,7 +121,7 @@ class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
         .filterNot(_.getId.contains("Antarctica/Vostok"))
         .filterNot(_.getId.contains("Pacific/Kanton")),
       prefix = "CastSuiteBase-cast-string-to-timestamp",
-      maxThreads = Runtime.getRuntime.availableProcessors
+      maxThreads = 1
     ) {
       zid =>
         withSQLConf(
