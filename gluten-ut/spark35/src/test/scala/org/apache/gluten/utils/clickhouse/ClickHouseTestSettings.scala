@@ -504,6 +504,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "session window groupBy with multiple keys statement - keys overlapped with sessions")
     .excludeCH("SPARK-36465: filter out events with negative/zero gap duration")
     .excludeCH("SPARK-36724: Support timestamp_ntz as a type of time column for SessionWindow")
+    .excludeCH(
+      "SPARK-49836 using window fn with window as parameter should preserve parent operator")
   enableSuite[GlutenDataFrameSetOperationsSuite]
     .exclude("SPARK-37371: UnionExec should support columnar if all children support columnar")
     // Result depends on the implementation for nondeterministic expression rand.
@@ -1659,6 +1661,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("full outer join with unique keys using SortMergeJoin (whole-stage-codegen off)")
     .excludeCH("full outer join with unique keys using SortMergeJoin (whole-stage-codegen on)")
     .excludeCH("SPARK-32717: AQEOptimizer should respect excludedRules configuration")
+    .excludeCH("SPARK-46037: ShuffledHashJoin build left with left outer join, "
+      + "codegen off (whole-stage-codegen off)")
+    .excludeCH("SPARK-46037: ShuffledHashJoin build left with left outer join, "
+      + "codegen off (whole-stage-codegen on)")
   enableSuite[GlutenOuterJoinSuiteForceShjOn]
     .excludeCH("basic left outer join using ShuffledHashJoin (whole-stage-codegen off)")
     .excludeCH("basic left outer join using ShuffledHashJoin (whole-stage-codegen on)")
@@ -1684,6 +1690,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("full outer join with unique keys using ShuffledHashJoin (whole-stage-codegen on)")
     .excludeCH("full outer join with unique keys using SortMergeJoin (whole-stage-codegen off)")
     .excludeCH("full outer join with unique keys using SortMergeJoin (whole-stage-codegen on)")
+    .excludeCH("SPARK-46037: ShuffledHashJoin build left with left outer join, "
+      + "codegen off (whole-stage-codegen off)")
+    .excludeCH("SPARK-46037: ShuffledHashJoin build left with left outer join, "
+      + "codegen off (whole-stage-codegen on)")
   enableSuite[GlutenParametersSuite]
   enableSuite[GlutenParquetCodecSuite]
     // codec not supported in native
