@@ -273,26 +273,20 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
     const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
     const ColumnIndexFilterPtr & column_index_filter = nullptr)
 {
-    FormatFile::InputFormatPtr input_format;
-    if (auto * parquetFile = dynamic_cast<ParquetFormatFile *>(file.get()))
+    file->initialize(column_index_filter);
+    auto createInputFormat = [&](const DB::Block & new_read_header_) -> FormatFile::InputFormatPtr
     {
-        /// Apply key condition to the reader.
-        /// If use_local_format is true, column_index_filter will be used  otherwise it will be ignored
-        input_format = parquetFile->createInputFormat(to_read_header_, key_condition, column_index_filter);
-    }
-    else
-    {
-        input_format = file->createInputFormat(to_read_header_);
-        if (key_condition)
+        auto input_format = file->createInputFormat(new_read_header_);
+        if (key_condition && input_format)
             input_format->inputFormat().setKeyCondition(key_condition);
-    }
-    if (!input_format)
-        return nullptr;
+        return input_format;
+    };
 
     if (file->getFileInfo().has_iceberg())
-        return iceberg::IcebergReader::create(file, to_read_header_, output_header_, input_format);
+        return iceberg::IcebergReader::create(file, to_read_header_, output_header_, createInputFormat);
 
-    return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
+    auto input_format = createInputFormat(to_read_header_);
+    return input_format == nullptr ? nullptr : std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
 }
 }
 std::unique_ptr<BaseReader> BaseReader::create(
