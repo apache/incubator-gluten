@@ -209,6 +209,31 @@ void VeloxBackend::initCache() {
 
     uint64_t memCacheSize = backendConf_->get<uint64_t>(kVeloxMemCacheSize, kVeloxMemCacheSizeDefault);
     uint64_t ssdCacheSize = backendConf_->get<uint64_t>(kVeloxSsdCacheSize, kVeloxSsdCacheSizeDefault);
+
+    // assert memCacheSize > memoryManager.capacity
+    if (memCacheSize > allocator_.capacity()) {
+        VELOX_FAIL("not enough memory space for caching");
+    }
+    auto allocator_ = facebook::velox::memory::memoryManager()->allocator();
+    if (ssdCacheSize == 0) {
+      LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
+      // TODO: this is not tracked by Spark.
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator_);
+    } else {
+       auto ssd = initSsdCache();
+      // TODO: this is not tracked by Spark.
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator_, std::move(ssd));
+    }
+
+    VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()));
+    LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
+              << ", ssdCache prefix: " << ssdCachePath << ", ssdCache size: " << ssdCacheSize
+              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads;
+  }
+}
+
+std::unique_ptr<facebook:velox::cache::SsdCache> VeloxBackend::initSsdCache() {
+    uint64_t ssdCacheSize = backendConf_->get<uint64_t>(kVeloxSsdCacheSize, kVeloxSsdCacheSizeDefault);
     int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
     int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
     std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
@@ -222,7 +247,6 @@ void VeloxBackend::initCache() {
     const cache::SsdCache::Config config(
         ssdCachePath, ssdCacheSize, ssdCacheShards, ssdCacheExecutor_.get(), ssdCheckpointIntervalSize);
     auto ssd = std::make_unique<velox::cache::SsdCache>(config);
-
     std::error_code ec;
     const std::filesystem::space_info si = std::filesystem::space(ssdCachePathPrefix, ec);
     if (si.available < ssdCacheSize) {
@@ -230,26 +254,6 @@ void VeloxBackend::initCache() {
           "not enough space for ssd cache in " + ssdCachePath + " cache size: " + std::to_string(ssdCacheSize) +
           "free space: " + std::to_string(si.available));
     }
-
-    // assert memCacheSize > memoryManager.capacity
-    if (memCacheSize > allocator_.capacity()) {
-        VELOX_FAIL("not enough memory space for caching");
-    }
-    auto allocator_ = facebook::velox::memory::memoryManager()->allocator();
-    if (ssdCacheSize == 0) {
-      LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
-      // TODO: this is not tracked by Spark.
-      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator_);
-    } else {
-      // TODO: this is not tracked by Spark.
-      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator_, std::move(ssd));
-    }
-
-    VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()));
-    LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
-              << ", ssdCache prefix: " << ssdCachePath << ", ssdCache size: " << ssdCacheSize
-              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads;
-  }
 }
 
 void VeloxBackend::initConnector() {
