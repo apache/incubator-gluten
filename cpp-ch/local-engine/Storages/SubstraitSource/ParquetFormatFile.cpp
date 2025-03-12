@@ -18,8 +18,6 @@
 
 #if USE_PARQUET
 
-#include <memory>
-
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Formats/FormatFactory.h>
@@ -30,7 +28,6 @@
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
 #include <Storages/Parquet/VirtualColumnRowIndexReader.h>
-#include <Common/Exception.h>
 #include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
 
 namespace DB

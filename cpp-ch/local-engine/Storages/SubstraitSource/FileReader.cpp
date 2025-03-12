@@ -284,6 +284,14 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
         return input_format;
     };
 
+    if (file->getFileInfo().has_iceberg())
+        return iceberg::IcebergReader::create(file, to_read_header_, output_header_, createInputFormat);
+
+    auto input_format = createInputFormat(to_read_header_);
+
+    if (!input_format)
+        return nullptr;
+
     if (file->getFileInfo().other_const_metadata_columns_size())
     {
         String row_index_ids_encoded;
@@ -299,11 +307,7 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
             return delta::DeltaReader::create(file, to_read_header_, output_header_, input_format, row_index_ids_encoded, row_index_filter_type);
     }
 
-    if (file->getFileInfo().has_iceberg())
-        return iceberg::IcebergReader::create(file, to_read_header_, output_header_, createInputFormat);
-
-    auto input_format = createInputFormat(to_read_header_);
-    return input_format == nullptr ? nullptr : std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
+    return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
 }
 }
 std::unique_ptr<BaseReader> BaseReader::create(
