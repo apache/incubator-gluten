@@ -85,6 +85,7 @@ jobs:
         run: |
           docker pull apache/gluten:vcpkg-centos-7
           docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            yum install tzdata -y
             df -a
             cd /work
             export CCACHE_DIR=/work/.ccache
