@@ -23,6 +23,7 @@ RUN dnf install -y --setopt=install_weak_deps=False gcc-toolset-11
 RUN echo "check_certificate = off" >> ~/.wgetrc
 
 RUN yum install -y java-17-openjdk-devel patch wget git perl
+RUN yum install https://rpmfind.net/linux/almalinux/8.10/BaseOS/x86_64/os/Packages/tzdata-2024b-4.el8.noarch.rpm -y
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 ENV PATH=$JAVA_HOME/bin:$PATH
 RUN wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
