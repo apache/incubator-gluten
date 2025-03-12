@@ -26,6 +26,7 @@
 #include "substrait/type.pb.h"
 #include "velox/core/PlanNode.h"
 #include "velox/type/Type.h"
+#include <iostream>
 
 namespace gluten {
 
@@ -68,6 +69,7 @@ std::shared_ptr<facebook::velox::exec::HashTableBuilder> nativeHashTableBuild(
     bool hasNullKeyValues,
     std::vector<std::shared_ptr<ColumnarBatch>>& batches,
     std::shared_ptr<facebook::velox::memory::MemoryPool> memoryPool) {
+  std::cout << "nativeHashTableBuild is running" << "\n";
   auto rowType = std::make_shared<facebook::velox::RowType>(std::move(names), std::move(veloxTypeList));
 
   auto sJoin = static_cast<substrait::JoinRel_JoinType>(joinType);
