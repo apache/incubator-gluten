@@ -959,14 +959,14 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Prepare
+      - name: Prepare Python3.9 and PySpark 3.5.5
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12

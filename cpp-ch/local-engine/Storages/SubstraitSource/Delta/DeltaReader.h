@@ -17,45 +17,51 @@
 #pragma once
 
 #include <Storages/SubstraitSource/FileReader.h>
+#include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
 
-namespace local_engine
+namespace local_engine::delta
 {
-class DeltaDVRoaringBitmapArray;
-}
 
-namespace local_engine::iceberg
+struct DeltaDVBitmapConfig
 {
-class IcebergReader final : public NormalFileReader
+    inline static const String DELTA_ROW_INDEX_FILTER_TYPE = "row_index_filter_type";
+    inline static const String DELTA_ROW_INDEX_FILTER_ID_ENCODED = "row_index_filter_id_encoded";
+    inline static const String DELTA_ROW_INDEX_FILTER_TYPE_IF_CONTAINED = "IF_CONTAINED";
+    inline static const String DELTA_ROW_INDEX_FILTER_TYPE_IF_NOT_CONTAINED = "IF_NOT_CONTAINED";
+
+    String storage_type;
+    String path_or_inline_dv;
+    Int32 offset = 0;
+    Int32 size_in_bytes = 0;
+    Int64 cardinality = 0;
+    Int64 max_row_index = 0;
+};
+
+class DeltaReader final : public NormalFileReader
 {
-    DB::ExpressionActionsPtr delete_expr;
-    const std::string delete_expr_column_name;
-    std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array;
-    size_t start_remove_index;
+    std::shared_ptr<DeltaDVBitmapConfig> bitmap_config;
+    std::unique_ptr<DeltaDVRoaringBitmapArray> bitmap_array;
 
 public:
-    static std::unique_ptr<IcebergReader> create(
-        const FormatFilePtr & file_,
-        const DB::Block & to_read_header_,
-        const DB::Block & output_header_,
-        const std::function<FormatFile::InputFormatPtr(const DB::Block &)> & input_format_callback);
-
-    IcebergReader(
+    static std::unique_ptr<DeltaReader> create(
         const FormatFilePtr & file_,
         const DB::Block & to_read_header_,
         const DB::Block & output_header_,
         const FormatFile::InputFormatPtr & input_format_,
-        const DB::ExpressionActionsPtr & delete_expr_,
-        std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array_,
-        size_t start_remove_index_);
+        const String & row_index_ids_encoded,
+        const String & row_index_filter_type);
 
-    ~IcebergReader() override;
+    DeltaReader(
+        const FormatFilePtr & file_,
+        const DB::Block & to_read_header_,
+        const DB::Block & output_header_,
+        const FormatFile::InputFormatPtr & input_format_,
+        const std::shared_ptr<DeltaDVBitmapConfig> & bitmap_config_ = nullptr);
 
 protected:
     DB::Chunk doPull() override;
 
-    DB::Block applyEqualityDelete(DB::Chunk & chunk) const;
-    DB::Block applyPositionDelete(DB::Block block) const;
-    DB::Chunk filterRows(DB::Block block) const;
+    void deleteRowsByDV(DB::Chunk & chunk) const;
 };
 
 }
