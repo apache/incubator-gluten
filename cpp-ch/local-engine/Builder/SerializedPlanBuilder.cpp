@@ -312,14 +312,6 @@ void SerializedPlanBuilder::buildType(const DB::DataTypePtr & ch_type, String & 
     substrait_type = pb->SerializeAsString();
 }
 
-
-substrait::Expression * selection(int32_t field_id)
-{
-    substrait::Expression * rel = new substrait::Expression();
-    auto * selection = rel->mutable_selection();
-    selection->mutable_direct_reference()->mutable_struct_field()->set_field(field_id);
-    return rel;
-}
 substrait::Expression * scalarFunction(int32_t id, ExpressionList args)
 {
     substrait::Expression * rel = new substrait::Expression();
