@@ -18,8 +18,6 @@
 
 #if USE_PARQUET
 
-#include <memory>
-
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Formats/FormatFactory.h>
@@ -30,7 +28,7 @@
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
 #include <Storages/Parquet/VirtualColumnRowIndexReader.h>
-#include <Common/Exception.h>
+#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
 
 namespace DB
 {
@@ -116,7 +114,7 @@ public:
         if (row_index_reader && num_rows)
         {
             auto row_index_column = row_index_reader->readBatch(num_rows);
-            assert(outputHeader.columns() == readHeader.columns() + 1);
+            assert(outputHeader.columns() > readHeader.columns());
             size_t column_pos = outputHeader.getPositionByName(TMP_ROWINDEX);
             if (column_pos < chunk.getNumColumns())
                 chunk.addColumn(column_pos, std::move(row_index_column));
@@ -150,9 +148,10 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const Block & he
 
     bool readRowIndex = hasMetaColumns(header);
     bool usePageIndexReader = (use_pageindex_reader || readRowIndex) && onlyHasFlatType(header);
+
     auto format_settings = getFormatSettings(context);
     Block output_header = header;
-    Block read_header = removeMetaColumns(header);
+    Block read_header = DeltaParquetVirtualMeta::removeMetaColumns(removeMetaColumns(header));
 
     ParquetMetaBuilder metaBuilder{
         .collectPageIndex = usePageIndexReader || readRowIndex,
