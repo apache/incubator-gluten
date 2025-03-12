@@ -123,6 +123,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def scanFileSchemeValidationEnabled: Boolean =
     getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
 
+  def getSupportedCollapsedExpressions: String = getConf(GLUTEN_SUPPORTED_COLLAPSED_FUNCTIONS)
+
   // Whether to use GlutenShuffleManager (experimental).
   def isUseGlutenShuffleManager: Boolean =
     conf
@@ -688,6 +690,13 @@ object GlutenConfig {
     .doc("Supported scala udf names.")
     .stringConf
     .createWithDefault("")
+
+  val GLUTEN_SUPPORTED_COLLAPSED_FUNCTIONS =
+    buildConf("spark.gluten.sql.supported.collapseNestedFunctions")
+      .internal()
+      .doc("Collapse nested functions as one for optimization.")
+      .stringConf
+      .createWithDefault("and,or");
 
   val GLUTEN_SOFT_AFFINITY_ENABLED =
     buildConf("spark.gluten.soft-affinity.enabled")

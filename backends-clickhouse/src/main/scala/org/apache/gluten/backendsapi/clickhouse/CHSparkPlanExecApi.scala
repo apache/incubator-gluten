@@ -947,4 +947,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec =
     CHRangeExecTransformer(start, end, step, numSlices, numElements, outputAttributes, child)
+
+  override def genCollapseNestedExpressionsTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression): ExpressionTransformer =
+    CHCollapseNestedExpressionsTransformer(substraitExprName, children, original)
+
+  override def expressionCollapseSupported(exprName: String): Boolean =
+    GlutenConfig.get.getSupportedCollapsedExpressions.split(",").exists(c => exprName.equals(c))
+
 }
