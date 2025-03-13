@@ -38,7 +38,8 @@ class GlutenParquetColumnIndexSuite extends ParquetColumnIndexSuite with GlutenS
         "cast(id as float) as _5",
         "cast(id as double) as _6",
         "cast(id as decimal(20,0)) as _7",
-        // We changed 1618161925000 to 1618161925 to avoid reaching the limitation of Velox.
+        // We changed 1618161925000 to 1618161925 to avoid reaching the limitation of Velox:
+        // Timepoint is outside of supported year range.
         "cast(cast(1618161925 + id * 60 * 60 * 24 as timestamp) as date) as _9"
       )
     checkUnalignedPages(df)(actions: _*)
