@@ -21,7 +21,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
 import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarSubqueryBroadcastExec, InputIteratorTransformer}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
 
@@ -196,27 +196,38 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
         })
   }
 
-  test("pull out duplicate projections") {
+  test("pull out hash probe's duplicate projections outside of the join") {
     withTable("t1", "t2") {
       Seq((1, 1), (2, 2)).toDF("c1", "c2").write.saveAsTable("t1")
       Seq(1, 2, 3).toDF("c1").write.saveAsTable("t2")
-      val query =
+      val query1 =
         """
           |select t3.* from
           |(select c1, c2 as a,c2 as b from t1) t3
           |left join t2
           |on t3.c1 = t2.c1
           |""".stripMargin
-      runQueryAndCompare(query) {
-        df =>
-          {
-            val executedPlan = getExecutedPlan(df)
-            val bhjs = executedPlan.collect { case p: BroadcastHashJoinExecTransformer => p }
-            val projects = executedPlan.collect { case p: ProjectExecTransformer => p }
-            assert(bhjs.size == 1)
-            // The pulled out project and the outermost project are collapsed.
-            assert(projects.size == 2)
-          }
+      val query2 =
+        """
+          |select t3.* from
+          |(select c1, c2 as a,c2 as b from t1) t3
+          |left join t2
+          |on t3.c1 = t2.c1
+          |limit 1
+          |""".stripMargin
+      Seq(query1, query2).foreach {
+        runQueryAndCompare(_) {
+          df =>
+            {
+              val executedPlan = getExecutedPlan(df)
+              val projects = executedPlan.collect {
+                case p @ ProjectExecTransformer(_, _: BroadcastHashJoinExecTransformer) => p
+              }
+              assert(projects.size == 1)
+              val aliases = projects.head.projectList.collect { case a: Alias => a }
+              assert(aliases.size == 2)
+            }
+        }
       }
     }
   }

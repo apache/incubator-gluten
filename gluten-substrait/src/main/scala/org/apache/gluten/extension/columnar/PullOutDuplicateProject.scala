@@ -28,13 +28,13 @@ import scala.collection.mutable.ArrayBuffer
 
 /**
  * Velox does not allow duplicate projections in hash probe, this rule pull out duplicate
- * projections.
+ * projections to a new project outside the join.
  */
 object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case bhj: BroadcastHashJoinExecTransformerBase =>
       val pullOutAliases = new ArrayBuffer[Alias]()
-      val streamedPlan = rewriteStreamPlan(bhj.streamedPlan, bhj.references, pullOutAliases)
+      val streamedPlan = rewriteStreamedPlan(bhj.streamedPlan, bhj.references, pullOutAliases)
       if (pullOutAliases.isEmpty) {
         bhj
       } else {
@@ -59,12 +59,16 @@ object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
       }
   }
 
-  def rewriteStreamPlan(
+  /**
+   * If there are duplicate projections in the streamed plan of the join, only the original
+   * attribute is kept in the project.
+   */
+  private def rewriteStreamedPlan(
       plan: SparkPlan,
       references: AttributeSet,
       pullOutAliases: ArrayBuffer[Alias]): SparkPlan = plan match {
     case l @ LimitExecTransformer(child, _, _) =>
-      val newChild = rewriteStreamPlan(child, references, pullOutAliases)
+      val newChild = rewriteStreamedPlan(child, references, pullOutAliases)
       if (pullOutAliases.isEmpty) {
         l
       } else {
