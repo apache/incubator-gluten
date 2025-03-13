@@ -253,7 +253,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
 
   testWithSpecifiedSparkVersion(
     "delta: need to validate delta expression before execution",
-    Some("3.5")) {
+    Some("3.2")) {
     withTable("source_table") {
       withTable("target_table") {
         spark.sql(s"""
