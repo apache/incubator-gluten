@@ -75,6 +75,8 @@ const std::string kSparkLegacyTimeParserPolicy = "spark.sql.legacy.timeParserPol
 const std::string kShuffleFileBufferSize = "spark.shuffle.file.buffer";
 const std::string kSparkMapKeyDedupPolicy = "spark.sql.mapKeyDedupPolicy";
 
+const std::string kSparkLegacyStatisticalAggregate = "spark.sql.legacy.statisticalAggregate";
+
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);
 

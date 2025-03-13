@@ -985,6 +985,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSQLAggregateFunctionSuite]
+    .excludeGlutenTest("Return NaN or null when dividing by zero")
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("window function: partition and order expressions")
     .exclude("window function: expressions in arguments of a window functions")
