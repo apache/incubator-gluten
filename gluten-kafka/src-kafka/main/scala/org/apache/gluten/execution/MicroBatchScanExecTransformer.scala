@@ -17,8 +17,9 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.{ReadRelNode, SplitInfo}
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.connector.catalog.Table
@@ -93,7 +94,10 @@ case class MicroBatchScanExecTransformer(
 
 object MicroBatchScanExecTransformer {
   def apply(batch: MicroBatchScanExec): MicroBatchScanExecTransformer = {
-    val output = batch.output.filter(_.isInstanceOf[AttributeReference]).map(_.asInstanceOf[AttributeReference]).toSeq
+    val output = batch.output
+      .filter(_.isInstanceOf[AttributeReference])
+      .map(_.asInstanceOf[AttributeReference])
+      .toSeq
     if (output.size == batch.output.size) {
       new MicroBatchScanExecTransformer(
         output,

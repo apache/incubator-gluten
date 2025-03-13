@@ -17,6 +17,7 @@
 package org.apache.execution
 
 import org.apache.gluten.execution.VeloxTPCHSuite
+
 import org.apache.spark.SparkConf
 
 import java.io.File
