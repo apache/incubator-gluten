@@ -21,7 +21,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
-import org.apache.iceberg.BaseTable
+import org.apache.iceberg.{BaseTable, MetadataColumns}
 import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
@@ -68,6 +68,11 @@ case class IcebergScanTransformer(
     }
     if (notSupport) {
       return ValidationResult.failed("Contains not supported data type or metadata column")
+    }
+    // Delete from command read the _file metadata, which may be not successful.
+    val readMetadata = scan.readSchema().fieldNames.exists(f => MetadataColumns.isMetadataColumn(f))
+    if (readMetadata) {
+      return ValidationResult.failed(s"Read the metadata column")
     }
     ValidationResult.succeeded
   }

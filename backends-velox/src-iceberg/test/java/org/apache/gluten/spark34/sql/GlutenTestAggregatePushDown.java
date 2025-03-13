@@ -23,20 +23,12 @@ import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.hive.TestHiveMetastore;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
-import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.spark.SparkTestBase;
 import org.apache.iceberg.spark.sql.TestAggregatePushDown;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Test;
 
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class GlutenTestAggregatePushDown extends TestAggregatePushDown {
     public GlutenTestAggregatePushDown(String catalogName, String implementation, Map<String, String> config) {
@@ -67,44 +59,5 @@ public class GlutenTestAggregatePushDown extends TestAggregatePushDown {
         } catch (AlreadyExistsException ignored) {
             // the default namespace already exists. ignore the create error
         }
-    }
-
-    @Test
-    public void testAggregatePushDownInDeleteCopyOnWrite() {
-        sql("CREATE TABLE %s (id LONG, data INT) USING iceberg", tableName);
-        sql(
-                "INSERT INTO TABLE %s VALUES (1, 1111), (1, 2222), (2, 3333), (2, 4444), (3, 5555), (3, 6666) ",
-                tableName);
-        withSQLConf(ImmutableMap.of("spark.gluten.enabled", "false"), () -> {
-            sql("DELETE FROM %s WHERE data = 1111", tableName);
-            Dataset<Row> df = spark.sql(String.format("DELETE FROM %s WHERE data = 1111", tableName));
-            df.collect();
-            System.out.println(df.queryExecution().executedPlan().toString());
-        });
-
-        Dataset<Row> df = spark.sql(String.format("DELETE FROM %s WHERE data = 1111", tableName));
-        df.collect();
-        System.out.println("gluten plan" + df.queryExecution().executedPlan().toString());
-        String select = "SELECT max(data), min(data), count(data) FROM %s";
-
-        List<Object[]> explain = sql("EXPLAIN " + select, tableName);
-        String explainString = explain.get(0)[0].toString().toLowerCase(Locale.ROOT);
-        boolean explainContainsPushDownAggregates = false;
-        if (explainString.contains("max(data)")
-                && explainString.contains("min(data)")
-                && explainString.contains("count(data)")) {
-            explainContainsPushDownAggregates = true;
-        }
-
-        Assert.assertTrue("min/max/count pushed down for deleted", explainContainsPushDownAggregates);
-
-        AtomicReference<List<Object[]>> actual = new AtomicReference<>();
-        withSQLConf(ImmutableMap.of("spark.gluten.enabled", "false"), () -> {
-            actual.set(sql(select, tableName));
-        });
-        
-        List<Object[]> expected = Lists.newArrayList();
-        expected.add(new Object[] {6666, 2222, 5L});
-        assertEquals("min/max/count push down", expected, actual.get());
     }
 }
