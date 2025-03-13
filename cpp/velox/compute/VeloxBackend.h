@@ -26,6 +26,7 @@
 
 #include "velox/common/caching/AsyncDataCache.h"
 #include "velox/common/config/Config.h"
+#include "velox/common/caching/SsdCache.h"
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/common/memory/MmapAllocator.h"
 
@@ -77,6 +78,7 @@ class VeloxBackend {
   void initCache();
   void initConnector();
   void initUdf();
+  std::unique_ptr<facebook::velox::cache::SsdCache> initSsdCache();
 
   void initJolFilesystem();
 
