@@ -27,12 +27,18 @@ target_compile_options(
 if(ENABLE_HDFS)
   target_link_libraries(
     substrait_source
-    PUBLIC boost::headers_only ch_contrib::protobuf clickhouse_common_io
-           ch_contrib::hdfs substrait ch_contrib::roaring)
+    PUBLIC boost::headers_only
+           ch_contrib::protobuf
+           clickhouse_common_io
+           ch_contrib::hdfs
+           substrait
+           ch_contrib::roaring
+           ch_contrib::rapidjson)
 else()
   target_link_libraries(
-    substrait_source PUBLIC boost::headers_only ch_contrib::protobuf
-                            clickhouse_common_io substrait ch_contrib::roaring)
+    substrait_source
+    PUBLIC boost::headers_only ch_contrib::protobuf clickhouse_common_io
+           substrait ch_contrib::roaring ch_contrib::rapidjson)
 endif()
 target_include_directories(
   substrait_source SYSTEM BEFORE

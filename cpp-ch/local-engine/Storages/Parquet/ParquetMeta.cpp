@@ -17,14 +17,15 @@
 
 #include "ParquetMeta.h"
 
+#include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ArrowFieldIndexUtil.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/arrow/schema.h>
 #include <parquet/metadata.h>
-#include "Processors/Formats/Impl/ArrowColumnToCHColumn.h"
 
 namespace DB
 {
@@ -34,13 +35,14 @@ extern const int BAD_ARGUMENTS;
 }
 }
 
+using namespace DB;
 
 namespace local_engine
 {
 
-std::unique_ptr<parquet::ParquetFileReader> ParquetMetaBuilder::openInputParquetFile(DB::ReadBuffer & read_buffer)
+std::unique_ptr<parquet::ParquetFileReader> ParquetMetaBuilder::openInputParquetFile(ReadBuffer & read_buffer)
 {
-    const DB::FormatSettings format_settings{
+    const FormatSettings format_settings{
         .seekable_read = true,
     };
     std::atomic<int> is_stopped{0};
@@ -49,13 +51,28 @@ std::unique_ptr<parquet::ParquetFileReader> ParquetMetaBuilder::openInputParquet
     return parquet::ParquetFileReader::Open(arrow_file, parquet::default_reader_properties(), nullptr);
 }
 
+Block ParquetMetaBuilder::collectFileSchema(const ContextPtr & context, ReadBuffer & read_buffer)
+{
+    assert(dynamic_cast<SeekableReadBuffer *>(&read_buffer) != nullptr);
+
+    FormatSettings format_settings = getFormatSettings(context);
+    ParquetMetaBuilder metaBuilder{
+        .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
+        .allow_missing_columns = false,
+        .collectPageIndex = false,
+        .collectSchema = true};
+    metaBuilder.build(read_buffer);
+
+    return metaBuilder.fileHeader;
+}
+
 std::vector<Int32> ParquetMetaBuilder::pruneColumn(
-    const DB::Block & header, const parquet::FileMetaData & metadata, bool case_insensitive, bool allow_missing_columns)
+    const Block & header, const parquet::FileMetaData & metadata, bool case_insensitive, bool allow_missing_columns)
 {
     std::shared_ptr<arrow::Schema> schema;
     THROW_ARROW_NOT_OK(parquet::arrow::FromParquetSchema(metadata.schema(), &schema));
 
-    DB::ArrowFieldIndexUtil field_util(case_insensitive, allow_missing_columns);
+    ArrowFieldIndexUtil field_util(case_insensitive, allow_missing_columns);
     auto index_mapping = field_util.findRequiredIndices(header, *schema, metadata);
 
     std::vector<Int32> column_indices;
@@ -93,7 +110,7 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildSchema(const parquet::FileMetaData
         std::shared_ptr<arrow::Schema> schema;
         THROW_ARROW_NOT_OK(parquet::arrow::FromParquetSchema(file_meta.schema(), &schema));
 
-        fileHeader = DB::ArrowColumnToCHColumn::arrowSchemaToCHHeader(*schema, "Parquet", false, true);
+        fileHeader = ArrowColumnToCHColumn::arrowSchemaToCHHeader(*schema, "Parquet", false, true);
     }
     return *this;
 }
@@ -175,7 +192,7 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildAllRowRange(const parquet::FileMet
 ParquetMetaBuilder & ParquetMetaBuilder::buildRowRange(
     parquet::ParquetFileReader & reader,
     const parquet::FileMetaData & file_meta,
-    const DB::Block & readBlock,
+    const Block & readBlock,
     const ColumnIndexFilter * column_index_filter)
 {
     if (collectPageIndex)
@@ -200,27 +217,27 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildRowRange(
 }
 
 ParquetMetaBuilder & ParquetMetaBuilder::build(
-    DB::ReadBuffer & read_buffer,
-    const DB::Block & readBlock,
+    ReadBuffer & read_buffer,
+    const Block & readBlock,
     const ColumnIndexFilter * column_index_filter,
     const std::function<bool(UInt64)> & should_include_row_group)
 {
     auto reader = openInputParquetFile(read_buffer);
-    const auto file_meta = reader->metadata();
-    return buildRequiredRowGroups(*file_meta, should_include_row_group)
-        .buildSkipRowGroup(*file_meta)
-        .buildSchema(*file_meta)
-        .buildRowRange(*reader, *file_meta, readBlock, column_index_filter);
+    fileMetaData = reader->metadata();
+    return buildRequiredRowGroups(*fileMetaData, should_include_row_group)
+        .buildSkipRowGroup(*fileMetaData)
+        .buildSchema(*fileMetaData)
+        .buildRowRange(*reader, *fileMetaData, readBlock, column_index_filter);
 }
 
-ParquetMetaBuilder & ParquetMetaBuilder::build(DB::ReadBuffer & read_buffer, const std::function<bool(UInt64)> & should_include_row_group)
+ParquetMetaBuilder & ParquetMetaBuilder::build(ReadBuffer & read_buffer, const std::function<bool(UInt64)> & should_include_row_group)
 {
     auto reader = openInputParquetFile(read_buffer);
-    const auto file_meta = reader->metadata();
-    return buildRequiredRowGroups(*file_meta, should_include_row_group)
-        .buildSkipRowGroup(*file_meta)
-        .buildSchema(*file_meta)
-        .buildAllRowRange(*file_meta);
+    fileMetaData = reader->metadata();
+    return buildRequiredRowGroups(*fileMetaData, should_include_row_group)
+        .buildSkipRowGroup(*fileMetaData)
+        .buildSchema(*fileMetaData)
+        .buildAllRowRange(*fileMetaData);
 }
 
 

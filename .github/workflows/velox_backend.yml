@@ -85,6 +85,7 @@ jobs:
         run: |
           docker pull apache/gluten:vcpkg-centos-7
           docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            yum install tzdata -y
             df -a
             cd /work
             export CCACHE_DIR=/work/.ccache
@@ -236,6 +237,7 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
+          yum install https://rpmfind.net/linux/almalinux/8.10/BaseOS/x86_64/os/Packages/tzdata-2024b-4.el8.noarch.rpm -y
           $SETUP install_maven
       - name: Set environment variables
         run: |

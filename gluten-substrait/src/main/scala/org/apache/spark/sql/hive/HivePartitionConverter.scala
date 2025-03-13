@@ -141,9 +141,9 @@ class HivePartitionConverter(hadoopConf: Configuration, session: SparkSession)
             f =>
               SparkShimLoader.getSparkShims.splitFiles(
                 session,
-                f,
-                f.getPath,
-                isSplitable = canBeSplit(f.getPath),
+                f._1,
+                f._1.getPath,
+                isSplitable = canBeSplit(f._1.getPath),
                 maxSplitBytes,
                 partition.values
               )
