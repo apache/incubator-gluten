@@ -130,6 +130,20 @@ std::unordered_map<String, std::unordered_map<String, String>> convertToKVs(cons
     return res;
 }
 
+String serializeKVs(const std::unordered_map<String, std::unordered_map<String, String>> & kvs)
+{
+    String res;
+    for (const auto & [key, kv] : kvs)
+    {
+        res += key + ":";
+        for (const auto & [k, v] : kv)
+        {
+            res += k + "=" + v + "\n";
+        }
+    }
+    return res;
+}
+
 JoinOptimizationInfo JoinOptimizationInfo::parse(const String & advance)
 {
     JoinOptimizationInfo info;

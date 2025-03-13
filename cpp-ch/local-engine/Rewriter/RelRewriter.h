@@ -102,11 +102,12 @@ class RelRewriterFactory : public boost::noncopyable
 {
 public:
     static RelRewriterFactory & instance();
-    bool apply(substrait::Rel rel);
+    bool apply(ParserContextPtr parser_context, substrait::Rel & rel);
 
 protected:
     RelRewriterFactory();
-    std::vector<std::unique_ptr<RelRewriter>> rewriters;
+    using RelRewriterCreator = std::function<std::unique_ptr<RelRewriter>(ParserContextPtr)>;
+    std::vector<RelRewriterCreator> rewriters;
 };
 
 }

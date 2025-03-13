@@ -22,6 +22,8 @@ namespace local_engine
 {
 std::unordered_map<String, std::unordered_map<String, String>> convertToKVs(const String & advance);
 
+String serializeKVs(const std::unordered_map<String, std::unordered_map<String, String>> & kvs);
+
 
 struct JoinOptimizationInfo
 {
