@@ -522,6 +522,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("null cast")
     .exclude("cast string to date")
     .exclude("cast string to timestamp")
+    .excludeGlutenTest("cast string to timestamp")
     .exclude("cast from boolean")
     .exclude("data type casting")
     .excludeGlutenTest("data type casting")

@@ -73,6 +73,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
     // Set timezone through config.
     .exclude("data type casting")
+    // Revised by setting timezone through config and commented unsupported cases.
+    .exclude("cast string to timestamp")
+    .exclude("SPARK-36286: invalid string cast to timestamp")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
     .exclude(
@@ -113,6 +116,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
     // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
+    // Revised by setting timezone through config and commented unsupported cases.
+    .exclude("cast string to timestamp")
 
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.

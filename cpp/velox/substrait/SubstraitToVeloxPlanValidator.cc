@@ -262,7 +262,7 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   }
 
   // Limited support for X to Timestamp.
-  if (toType->isTimestamp() && !fromType->isDate()) {
+  if (toType->isTimestamp() && !(fromType->isDate() || fromType->isVarchar())) {
     LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
     return false;
   }
