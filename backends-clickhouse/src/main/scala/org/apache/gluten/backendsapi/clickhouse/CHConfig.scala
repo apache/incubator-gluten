@@ -20,7 +20,6 @@ import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.network.util.ByteUnit
-import org.apache.spark.sql.internal.SQLConf
 
 object CHConfig {
   private[clickhouse] val BACKEND_NAME: String = "ch"
@@ -57,7 +56,7 @@ object CHConfig {
   def startWithSettingsPrefix(key: String): Boolean = key.startsWith(RUNTIME_SETTINGS)
   def removeSettingsPrefix(key: String): String = key.substring(RUNTIME_SETTINGS.length + 1)
 
-  def get: CHConfig = new CHConfig(SQLConf.get)
+  def get: CHConfig = new CHConfig()
 
   import GlutenConfig._
 
@@ -106,7 +105,7 @@ object CHConfig {
       .createWithDefault(false)
 }
 
-class CHConfig(conf: SQLConf) extends GlutenConfig(conf) {
+class CHConfig extends GlutenConfig {
   import CHConfig._
 
   def enableOnePipelineMergeTreeWrite: Boolean =

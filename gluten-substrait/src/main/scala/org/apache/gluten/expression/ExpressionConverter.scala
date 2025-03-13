@@ -696,7 +696,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case t: TransformKeys =>
         // default is `EXCEPTION`
-        val mapKeyDedupPolicy = SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+        val mapKeyDedupPolicy = conf.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
         if (mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
           // TODO: Remove after fix ready for
           //  https://github.com/facebookincubator/velox/issues/10219
