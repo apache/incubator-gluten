@@ -273,7 +273,8 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
       inputStreamedOutput,
       inputBuildOutput,
       context,
-      operatorId
+      operatorId,
+      buildPlan.id.toString
     )
 
     context.registerJoinParam(operatorId, joinParams)
