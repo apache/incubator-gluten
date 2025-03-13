@@ -75,7 +75,7 @@ object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
         l.copy(child = newChild)
       }
     case p @ ProjectExecTransformer(projectList, _) =>
-      val duplicates =
+      val duplicates = AttributeSet(
         projectList
           .collect {
             case attr: Attribute if !references.contains(attr) => attr
@@ -83,17 +83,16 @@ object PullOutDuplicateProject extends Rule[SparkPlan] with PredicateHelper {
                 if !references.contains(a) && !references.contains(attr) =>
               attr
           }
-          .groupBy(identity)
-          .mapValues(_.size)
-          .filter(_._2 > 1)
-          .keySet
+          .groupBy(_.exprId)
+          .filter(_._2.size > 1)
+          .map(_._2.head))
       if (duplicates.nonEmpty) {
-        val newProjectList = projectList.map {
+        val newProjectList = projectList.filter {
           case a @ Alias(attr: Attribute, _) if duplicates.contains(attr) =>
             pullOutAliases.append(a)
-            attr
-          case ne => ne
-        }.distinct
+            false
+          case _ => true
+        } ++ duplicates.filter(!p.outputSet.contains(_)).toSeq
         p.copy(projectList = newProjectList)
       } else {
         p
