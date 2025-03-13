@@ -33,6 +33,11 @@ if [ "$LINUX_OS" == "centos" ]; then
   fi
 fi
 
+if [ "$ARCH" = "aarch64" ]; then
+  export VCPKG_FORCE_SYSTEM_BINARIES=1
+  export CPU_TARGET="aarch64"
+fi
+
 
 # build gluten with velox backend, prompt always respond y
 export PROMPT_ALWAYS_RESPOND=y
