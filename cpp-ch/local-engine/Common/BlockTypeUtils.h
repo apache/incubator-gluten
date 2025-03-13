@@ -28,6 +28,11 @@
 
 namespace local_engine
 {
+/**
+ * A simple alias for NamesAndTypesList
+ */
+using RowType = DB::NamesAndTypesList;
+
 inline DB::DataTypePtr BIGINT()
 {
     return std::make_shared<DB::DataTypeInt64>();
@@ -87,8 +92,8 @@ inline DB::ColumnWithTypeAndName toColumnType(const DB::NameAndTypePair & type)
     return DB::ColumnWithTypeAndName(type.type, type.name);
 }
 
-DB::Block toSampleBlock(const DB::NamesAndTypesList & type);
-DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
+DB::Block toSampleBlock(const RowType & type);
+RowType blockToRowType(const DB::Block & header);
 DB::DataTypePtr wrapNullableType(bool nullable, DB::DataTypePtr nested_type);
 
 inline DB::DataTypePtr wrapNullableType(DB::DataTypePtr nested_type)

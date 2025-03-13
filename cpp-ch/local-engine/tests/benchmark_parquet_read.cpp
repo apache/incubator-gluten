@@ -219,7 +219,7 @@ void BM_ColumnIndexRead_Filter_ReturnAllResult(benchmark::State & state)
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
     const std::string filter1 = "l_shipdate is not null AND l_shipdate <= toDate32('1998-09-01')";
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
-    const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
+    const local_engine::RowType schema = local_engine::test::readParquetSchema(filename);
     auto pushDown = local_engine::test::parseFilter(filter1, schema);
     const Block header = {local_engine::toSampleBlock(schema)};
 
@@ -236,7 +236,7 @@ void BM_ColumnIndexRead_Filter_ReturnHalfResult(benchmark::State & state)
         "benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
     const std::string filter1 = "l_orderkey is not null AND l_orderkey > 300977829";
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
-    const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
+    const local_engine::RowType schema = local_engine::test::readParquetSchema(filename);
     auto pushDown = local_engine::test::parseFilter(filter1, schema);
     const Block header = {local_engine::toSampleBlock(schema)};
 

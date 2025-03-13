@@ -38,7 +38,6 @@ class LocalExecutor;
 }
 using BlockRowType = DB::ColumnsWithTypeAndName;
 using BlockFieldType = DB::ColumnWithTypeAndName;
-using AnotherRowType = DB::NamesAndTypesList;
 using AnotherFieldType = DB::NameAndTypePair;
 
 namespace parquet
@@ -69,9 +68,9 @@ std::shared_ptr<arrow::io::RandomAccessFile> asArrowFileForParquet(DB::ReadBuffe
 
 DB::DataTypePtr toDataType(const parquet::ColumnDescriptor & type);
 
-AnotherRowType readParquetSchema(const std::string & file, const DB::FormatSettings & settings = DB::FormatSettings{});
+RowType readParquetSchema(const std::string & file, const DB::FormatSettings & settings = DB::FormatSettings{});
 
-std::optional<DB::ActionsDAG> parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
+std::optional<DB::ActionsDAG> parseFilter(const std::string & filter, const RowType & name_and_types);
 
 std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>>
 create_plan_and_executor(std::string_view json_plan, std::string_view split, const std::optional<DB::ContextPtr> & context = std::nullopt);
@@ -104,9 +103,9 @@ inline AnotherFieldType toAnotherFieldType(const parquet::ColumnDescriptor & typ
     return {type.name(), local_engine::test::toDataType(type)};
 }
 
-inline AnotherRowType toAnotherRowType(const DB::Block & header)
+inline local_engine::RowType toRowType(const DB::Block & header)
 {
-    AnotherRowType types;
+    local_engine::RowType types;
     for (const auto & name : header.getNames())
     {
         const auto * column = header.findByName(name);
@@ -116,7 +115,7 @@ inline AnotherRowType toAnotherRowType(const DB::Block & header)
 }
 
 template <class Predicate>
-BlockRowType toBlockRowType(const AnotherRowType & type, Predicate predicate)
+BlockRowType toBlockRowType(const local_engine::RowType & type, Predicate predicate)
 {
     BlockRowType result;
     result.reserve(type.size());

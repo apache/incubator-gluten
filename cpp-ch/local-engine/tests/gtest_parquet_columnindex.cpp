@@ -346,9 +346,9 @@ local_engine::ColumnIndexStore buildTestColumnIndexStore()
     return result;
 }
 
-AnotherRowType buildTestRowType()
+local_engine::RowType buildTestRowType()
 {
-    AnotherRowType result;
+    local_engine::RowType result;
     result.emplace_back(toAnotherFieldType(d1));
     result.emplace_back(toAnotherFieldType(d2));
     result.emplace_back(toAnotherFieldType(d3));
@@ -395,7 +395,7 @@ void assertRows(const local_engine::RowRanges & ranges, const std::vector<size_t
 
 local_engine::RowRanges calculateRowRangesForTest(const std::string & exp)
 {
-    static const AnotherRowType name_and_types = buildTestRowType();
+    static const local_engine::RowType name_and_types = buildTestRowType();
     static const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
     const local_engine::ColumnIndexFilter filter(
         local_engine::test::parseFilter(exp, name_and_types).value(), local_engine::QueryContext::globalContext());
@@ -550,7 +550,7 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
 
     {
         // COLUMN5 is not found in the column_index_store,
-        const AnotherRowType upper_name_and_types{{"COLUMN5", BIGINT()}};
+        const RowType upper_name_and_types{{"COLUMN5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_upper(
             local_engine::test::parseFilter("COLUMN5 in (7, 20)", upper_name_and_types).value(),
             local_engine::QueryContext::globalContext());
@@ -560,7 +560,7 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
     }
 
     {
-        const AnotherRowType lower_name_and_types{{"column5", BIGINT()}};
+        const RowType lower_name_and_types{{"column5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_lower(
             local_engine::test::parseFilter("column5 in (7, 20)", lower_name_and_types).value(),
             local_engine::QueryContext::globalContext());
@@ -1124,7 +1124,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     const FormatSettings format_settings{};
 
 
-    static const AnotherRowType name_and_types{{"11", BIGINT()}};
+    static const RowType name_and_types{{"11", BIGINT()}};
     const auto filterAction = test::parseFilter("`11` = 10 or `11` = 50", name_and_types);
     auto column_index_filter = std::make_shared<ColumnIndexFilter>(filterAction.value(), local_engine::QueryContext::globalContext());
 
