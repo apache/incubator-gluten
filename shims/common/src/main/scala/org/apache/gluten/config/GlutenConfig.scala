@@ -467,6 +467,7 @@ object GlutenConfig {
       GLUTEN_DEFAULT_SESSION_TIMEZONE.key,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       SQLConf.LEGACY_TIME_PARSER_POLICY.key,
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
       "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
@@ -509,6 +510,9 @@ object GlutenConfig {
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
       (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
       (SQLConf.LEGACY_TIME_PARSER_POLICY.key, SQLConf.LEGACY_TIME_PARSER_POLICY.defaultValueString),
+      (
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
@@ -610,7 +614,8 @@ object GlutenConfig {
       SESSION_LOCAL_TIMEZONE.key,
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX,
-      LEGACY_TIME_PARSER_POLICY.key
+      LEGACY_TIME_PARSER_POLICY.key,
+      LEGACY_STATISTICAL_AGGREGATE.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
