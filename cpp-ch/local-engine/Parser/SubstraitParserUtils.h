@@ -17,9 +17,12 @@
 #pragma once
 
 #include <string>
+#include <optional>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <substrait/plan.pb.h>
 #include <Common/Exception.h>
+#include "substrait/algebra.pb.h"
 
 namespace DB::ErrorCodes
 {
@@ -73,5 +76,11 @@ inline std::string toString(const google::protobuf::Any & any)
     google::protobuf::StringValue sv;
     sv.ParseFromString(any.value());
     return sv.value();
+}
+
+namespace SubstraitParserUtils
+{
+    std::optional<size_t> getStructFieldIndex(const substrait::Expression & e);
+    substrait::Expression buildStructFieldExpression(size_t index);
 }
 } // namespace local_engine
