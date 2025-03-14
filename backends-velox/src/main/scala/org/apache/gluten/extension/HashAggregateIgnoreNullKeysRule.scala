@@ -34,19 +34,17 @@ import org.apache.spark.sql.execution.joins.BaseJoinExec
  */
 case class HashAggregateIgnoreNullKeysRule(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (
-      !session.conf.get(VeloxConfig.VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED.key, "true").toBoolean
-    ) {
+    if (!VeloxConfig.get.enablePropagateIgnoreNullKeys) {
       return plan
     }
     plan.transformUp {
       case join: BaseJoinExec if join.joinType == Inner =>
         val newLeftChild = setIgnoreKeysIfAggregateOnJoinKeys(join.left, join.leftKeys)
         val newRightChild = setIgnoreKeysIfAggregateOnJoinKeys(join.right, join.rightKeys)
-        if (!newLeftChild.fastEquals(join.left) || !newRightChild.fastEquals(join.right)) {
-          join.withNewChildren(Seq(newLeftChild, newRightChild))
-        } else {
+        if (newLeftChild.fastEquals(join.left) && newRightChild.fastEquals(join.right)) {
           join
+        } else {
+          join.withNewChildren(Seq(newLeftChild, newRightChild))
         }
       case p => p
     }
@@ -54,22 +52,23 @@ case class HashAggregateIgnoreNullKeysRule(session: SparkSession) extends Rule[S
 
   private def setIgnoreKeysIfAggregateOnJoinKeys(
       plan: SparkPlan,
-      joinKeys: Seq[Expression]): SparkPlan = {
-    def transformDown: SparkPlan => SparkPlan = {
-      case agg: FlushableHashAggregateExecTransformer =>
-        val newChild = transformDown(agg.child)
-        val canIgnoreNullKeysRule = semanticEquals(agg.groupingExpressions, joinKeys)
-        agg.copy(ignoreNullKeys = canIgnoreNullKeysRule, child = newChild)
-      case agg: RegularHashAggregateExecTransformer =>
-        val newChild = transformDown(agg.child)
-        val canIgnoreNullKeysRule = semanticEquals(agg.groupingExpressions, joinKeys)
-        agg.copy(ignoreNullKeys = canIgnoreNullKeysRule, child = newChild)
-      case s: ShuffleQueryStageExec => s.copy(plan = transformDown(s.plan))
-      case p if !canPropagate(p) => p
-      case other => other.withNewChildren(other.children.map(transformDown))
-    }
-    val out = transformDown(plan)
-    out
+      joinKeys: Seq[Expression]): SparkPlan = plan match {
+    case agg: HashAggregateExecTransformer =>
+      val newChild = setIgnoreKeysIfAggregateOnJoinKeys(agg.child, joinKeys)
+      val canIgnoreNullKeysRule = semanticEquals(agg.groupingExpressions, joinKeys)
+      agg match {
+        case f: FlushableHashAggregateExecTransformer =>
+          f.copy(ignoreNullKeys = canIgnoreNullKeysRule, child = newChild)
+        case r: RegularHashAggregateExecTransformer =>
+          r.copy(ignoreNullKeys = canIgnoreNullKeysRule, child = newChild)
+        case _ => agg
+      }
+    case s: ShuffleQueryStageExec =>
+      s.copy(plan = setIgnoreKeysIfAggregateOnJoinKeys(s.plan, joinKeys))
+    case p if !canPropagate(p) => p
+    case other =>
+      other.withNewChildren(
+        other.children.map(c => setIgnoreKeysIfAggregateOnJoinKeys(c, joinKeys)))
   }
 
   private def canPropagate(plan: SparkPlan): Boolean = plan match {
