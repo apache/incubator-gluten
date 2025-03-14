@@ -43,9 +43,5 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     bool has_null_key_values);
 void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
 std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & hash_table_id);
-
-
-void init(JNIEnv *);
-void destroy(JNIEnv *);
 }
 }
