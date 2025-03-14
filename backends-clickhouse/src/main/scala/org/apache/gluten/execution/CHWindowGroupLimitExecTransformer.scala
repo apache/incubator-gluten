@@ -96,13 +96,12 @@ case class CHWindowGroupLimitExecTransformer(
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     // Partition By Expressions
     val partitionsExpressions = partitionSpec
       .map(
         ExpressionConverter
           .replaceWithExpressionTransformer(_, attributeSeq = child.output)
-          .doTransform(args))
+          .doTransform(context))
       .asJava
 
     // Sort By Expressions
@@ -112,7 +111,7 @@ case class CHWindowGroupLimitExecTransformer(
           val builder = SortField.newBuilder()
           val exprNode = ExpressionConverter
             .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-            .doTransform(args)
+            .doTransform(context)
           builder.setExpr(exprNode.toProtobuf)
           builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
           builder.build()

@@ -105,14 +105,13 @@ case class WindowExecTransformer(
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     // WindowFunction Expressions
     val windowExpressions = new JArrayList[WindowFunctionNode]()
     BackendsApiManager.getSparkPlanExecApiInstance.genWindowFunctionsNode(
       windowExpression,
       windowExpressions,
       originalInputAttributes,
-      args
+      context
     )
 
     // Partition By Expressions
@@ -120,7 +119,7 @@ case class WindowExecTransformer(
       .map(
         ExpressionConverter
           .replaceWithExpressionTransformer(_, attributeSeq = child.output)
-          .doTransform(args))
+          .doTransform(context))
       .asJava
 
     // Sort By Expressions
@@ -130,7 +129,7 @@ case class WindowExecTransformer(
           val builder = SortField.newBuilder()
           val exprNode = ExpressionConverter
             .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-            .doTransform(args)
+            .doTransform(context)
           builder.setExpr(exprNode.toProtobuf)
           builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
           builder.build()

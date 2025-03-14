@@ -49,11 +49,10 @@ case class DeltaProjectExecTransformer(projectList: Seq[NamedExpression], child:
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     val newProjectList = genNewProjectList(projectList)
     val columnarProjExprs: Seq[ExpressionTransformer] = ExpressionConverter
       .replaceWithExpressionTransformer(newProjectList, attributeSeq = originalInputAttributes)
-    val projExprNodeList = columnarProjExprs.map(_.doTransform(args)).asJava
+    val projExprNodeList = columnarProjExprs.map(_.doTransform(context)).asJava
     val emitStartIndex = originalInputAttributes.size
     if (!validation) {
       RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId, emitStartIndex)

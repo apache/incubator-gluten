@@ -49,17 +49,16 @@ case class DeltaFilterExecTransformer(condition: Expression, child: SparkPlan)
       input: RelNode,
       validation: Boolean): RelNode = {
     assert(condExpr != null)
-    val args = context.registeredFunction
     val condExprNode = condExpr match {
       case IncrementMetric(child, metric) =>
         extraMetrics :+= (condExpr.prettyName, metric)
         ExpressionConverter
           .replaceWithExpressionTransformer(child, attributeSeq = originalInputAttributes)
-          .doTransform(args)
+          .doTransform(context)
       case _ =>
         ExpressionConverter
           .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
-          .doTransform(args)
+          .doTransform(context)
     }
 
     if (!validation) {
