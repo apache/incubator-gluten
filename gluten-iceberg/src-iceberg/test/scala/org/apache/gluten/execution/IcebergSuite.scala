@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 
@@ -63,7 +62,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $leftTable(id int, name string, p string)
@@ -80,12 +78,8 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(3, 'a4', 'p3');
              |""".stripMargin
         )
-      }
 
       // Partition key of integer type.
-      withSQLConf(
-        GlutenConfig.GLUTEN_ENABLED.key -> "false"
-      ) {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $rightTable(id int, name string, p int)
@@ -102,7 +96,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(1, 'b1', 21);
              |""".stripMargin
         )
-      }
 
       withSQLConf(
         "spark.sql.sources.v2.bucketing.enabled" -> "true",
@@ -143,7 +136,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $leftTable(id int, name string, p int)
@@ -160,12 +152,8 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(3, 'a4', 2);
              |""".stripMargin
         )
-      }
 
       // Partition key of integer type.
-      withSQLConf(
-        GlutenConfig.GLUTEN_ENABLED.key -> "false"
-      ) {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $rightTable(id int, name string, p int)
@@ -182,7 +170,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(1, 'b1', 1);
              |""".stripMargin
         )
-      }
 
       withSQLConf(
         "spark.sql.sources.v2.bucketing.enabled" -> "true",
@@ -223,7 +210,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $leftTable(id int, name string, p string)
@@ -261,7 +247,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(1, 'b1', 21);
              |""".stripMargin
         )
-      }
 
       withSQLConf(
         "spark.sql.sources.v2.bucketing.enabled" -> "true",
@@ -301,7 +286,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $leftTable(id int, name string, p string)
@@ -339,7 +323,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(1, 'b1', 21);
              |""".stripMargin
         )
-      }
 
       withSQLConf(
         "spark.sql.sources.v2.bucketing.enabled" -> "true",
@@ -379,7 +362,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $leftTable(id int, name string, p int)
@@ -396,12 +378,9 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(3, 'a4', 2);
              |""".stripMargin
         )
-      }
 
       // Partition key of integer type.
-      withSQLConf(
-        GlutenConfig.GLUTEN_ENABLED.key -> "false"
-      ) {
+
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $rightTable(id int, name string, p int)
@@ -418,7 +397,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
              |(1, 'b1', 1);
              |""".stripMargin
         )
-      }
 
       withSQLConf(
         "spark.sql.sources.v2.bucketing.enabled" -> "true",
@@ -494,51 +472,53 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
 
   test("iceberg read mor table - delete and update") {
     withTable("iceberg_mor_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
-        spark.sql("""
-                    |create table iceberg_mor_tb (
-                    |  id int,
-                    |  name string,
-                    |  p string
-                    |) using iceberg
-                    |tblproperties (
-                    |  'format-version' = '2',
-                    |  'write.delete.mode' = 'merge-on-read',
-                    |  'write.update.mode' = 'merge-on-read',
-                    |  'write.merge.mode' = 'merge-on-read'
-                    |)
-                    |partitioned by (p);
-                    |""".stripMargin)
+      spark.sql(
+        """
+          |create table iceberg_mor_tb (
+          |  id int,
+          |  name string,
+          |  p string
+          |) using iceberg
+          |tblproperties (
+          |  'format-version' = '2',
+          |  'write.delete.mode' = 'merge-on-read',
+          |  'write.update.mode' = 'merge-on-read',
+          |  'write.merge.mode' = 'merge-on-read'
+          |)
+          |partitioned by (p);
+          |""".stripMargin)
 
-        // Insert some test rows.
-        spark.sql("""
-                    |insert into table iceberg_mor_tb
-                    |values (1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2'),
-                    |       (4, 'a4', 'p1'), (5, 'a5', 'p2'), (6, 'a6', 'p1');
-                    |""".stripMargin)
+      // Insert some test rows.
+      spark.sql(
+        """
+          |insert into table iceberg_mor_tb
+          |values (1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2'),
+          |       (4, 'a4', 'p1'), (5, 'a5', 'p2'), (6, 'a6', 'p1');
+          |""".stripMargin)
 
-        // Delete row.
-        spark.sql(
-          """
-            |delete from iceberg_mor_tb where name = 'a1';
-            |""".stripMargin
-        )
-        // Update row.
-        spark.sql(
-          """
-            |update iceberg_mor_tb set name = 'new_a2' where id = 'a2';
-            |""".stripMargin
-        )
-        // Delete row again.
-        spark.sql(
-          """
-            |delete from iceberg_mor_tb where id = 6;
-            |""".stripMargin
-        )
-      }
-      runQueryAndCompare("""
-                           |select * from iceberg_mor_tb;
-                           |""".stripMargin) {
+      // Delete row.
+      spark.sql(
+        """
+          |delete from iceberg_mor_tb where name = 'a1';
+          |""".stripMargin
+      )
+      // Update row.
+      spark.sql(
+        """
+          |update iceberg_mor_tb set name = 'new_a2' where id = 'a2';
+          |""".stripMargin
+      )
+      // Delete row again.
+      spark.sql(
+        """
+          |delete from iceberg_mor_tb where id = 6;
+          |""".stripMargin
+      )
+
+      runQueryAndCompare(
+        """
+          |select * from iceberg_mor_tb;
+          |""".stripMargin) {
         checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
@@ -546,7 +526,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
 
   test("iceberg read mor table - merge into") {
     withTable("iceberg_mor_tb", "merge_into_source_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         spark.sql("""
                     |create table iceberg_mor_tb (
                     |  id int,
@@ -605,7 +584,6 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
             | insert (id, name, p) values (s.id, s.name, s.p);
             |""".stripMargin
         )
-      }
       runQueryAndCompare("""
                            |select * from iceberg_mor_tb;
                            |""".stripMargin) {
