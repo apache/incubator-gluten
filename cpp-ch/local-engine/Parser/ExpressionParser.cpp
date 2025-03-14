@@ -337,7 +337,7 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             }
             else if (isFloat(denull_input_type) && isString(denull_output_type))
                 result_node = toFunctionNode(actions_dag, "sparkCastFloatToString", args);
-            else if ((isDecimal(denull_input_type) && substrait_type.has_decimal()))
+            else if ((isDecimal(denull_input_type) || isNativeNumber(denull_input_type)) && substrait_type.has_decimal())
             {
                 int precision = substrait_type.decimal().precision();
                 int scale = substrait_type.decimal().scale();
