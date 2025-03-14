@@ -62,7 +62,8 @@ If delete by Spark and copy on read, will generate position delete file, the que
 
 If delete by Flink, may generate the equality delete file, fallback in tht case.
 
-Now we only offload the simple query, for partition table, many operators are fallback, wait to be supported.
+Now we only offload the simple query, for partition table, many operators are fallback by Expression
+StaticInvoke such as BucketFunction, wait to be supported.
 
 DataFrame reads are supported and can now reference tables by name using spark.table:
 
