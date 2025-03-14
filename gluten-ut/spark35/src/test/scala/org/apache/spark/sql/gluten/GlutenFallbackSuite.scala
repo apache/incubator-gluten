@@ -115,14 +115,10 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
       spark.range(10).write.format("parquet").saveAsTable("t1")
       spark.range(10).write.format("parquet").saveAsTable("t2")
 
-      val id = runExecution("SELECT * FROM t1 FULL OUTER JOIN t2 on t1.id < t2.id")
+      val id = runExecution("SELECT * FROM t1 FULL OUTER JOIN t2")
       val execution = glutenStore.execution(id)
       if (BackendTestUtils.isVeloxBackendLoaded()) {
-        assert(execution.get.numFallbackNodes == 1)
-        assert(
-          execution.get.fallbackNodeToReason.head._2
-            .contains(
-              "FullOuter join with join condition is not supported with BroadcastNestedLoopJoin"))
+        assert(execution.get.numFallbackNodes == 0)
       } else {
         assert(execution.get.numFallbackNodes == 2)
       }
