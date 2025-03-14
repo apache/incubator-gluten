@@ -340,7 +340,7 @@ public:
                 = [this, hdfs_uri = hdfs_uri, hdfs_file_path = hdfs_file_path, read_settings, &config](
                       bool /* restricted_seek */, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromHDFS> {
                 return std::make_unique<DB::ReadBufferFromHDFS>(
-                    hdfs_uri, hdfs_file_path, config, read_settings, 0, false, object.bytes_size);
+                    hdfs_uri, hdfs_file_path, config, read_settings, 0, true, object.bytes_size);
             };
 
             auto remote_path = uri.getPath().substr(1);
