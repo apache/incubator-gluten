@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.initializer
 
+import org.apache.spark.internal.Logging
+
 import java.lang.reflect.Field
 
 /**
@@ -23,7 +25,9 @@ import java.lang.reflect.Field
  * the limit is hit for deeply nested plans. This is based on the fact that the same class loader is
  * used to load this class in the program, then this modification will really take effect.
  */
-object CodedInputStreamClassInitializer {
+object CodedInputStreamClassInitializer extends Logging {
+  private val newDefaultRecursionLimit = 100000
+
   {
     try {
       // scalastyle:off classforname
@@ -34,8 +38,14 @@ object CodedInputStreamClassInitializer {
       val field: Field = clazz.getDeclaredField("defaultRecursionLimit")
       field.setAccessible(true)
       // Enlarge defaultRecursionLimit whose original value is 100.
-      field.setInt(null, 100000)
+      field.setInt(null, newDefaultRecursionLimit)
+      logInfo(
+        s"The defaultRecursionLimit in protobuf has been increased to $newDefaultRecursionLimit")
     } catch {
+      // The class is shaded during package phase (see package/pom.xml). We tolerate
+      // this ClassNotFoundException in mvn test.
+      case _: ClassNotFoundException =>
+        logWarning("The defaultRecursionLimit in protobuf has not been modified.")
       case e: Exception => e.printStackTrace()
     }
   }
