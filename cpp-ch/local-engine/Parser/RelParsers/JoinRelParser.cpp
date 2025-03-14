@@ -31,6 +31,7 @@
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/ExpressionParser.h>
 #include <Parsers/ASTIdentifier.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
@@ -114,10 +115,9 @@ std::unordered_set<DB::JoinTableSide> JoinRelParser::extractTableSidesFromExpres
             table_sides.insert(table_sides_from_arg.begin(), table_sides_from_arg.end());
         }
     }
-    else if (expr.has_selection() && expr.selection().has_direct_reference() && expr.selection().direct_reference().has_struct_field())
+    else if (auto field = SubstraitParserUtils::getStructFieldIndex(expr))
     {
-        auto pos = expr.selection().direct_reference().struct_field().field();
-        if (pos < left_header.columns())
+        if (*field < left_header.columns())
             table_sides.insert(DB::JoinTableSide::Left);
         else
             table_sides.insert(DB::JoinTableSide::Right);
@@ -272,15 +272,10 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
                 auto input_header = left->getCurrentHeader();
                 DB::ActionsDAG filter_is_not_null_dag{input_header.getColumnsWithTypeAndName()};
                 // when is_null_aware_anti_join is true, there is only one join key
-                const auto * key_field = filter_is_not_null_dag.getInputs()[join.expression()
-                                                                                .scalar_function()
-                                                                                .arguments()
-                                                                                .at(0)
-                                                                                .value()
-                                                                                .selection()
-                                                                                .direct_reference()
-                                                                                .struct_field()
-                                                                                .field()];
+                auto field_index = SubstraitParserUtils::getStructFieldIndex(join.expression().scalar_function().arguments(0).value());
+                if (!field_index)
+                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "The join key is not found in the expression.");
+                const auto * key_field = filter_is_not_null_dag.getInputs()[*field_index];
 
                 auto result_node = filter_is_not_null_dag.tryFindInOutputs(key_field->result_name);
                 // add a function isNotNull to filter the null key on the left side
@@ -480,12 +475,12 @@ void JoinRelParser::collectJoinKeys(
             size_t left_pos = 0, right_pos = 0;
             for (const auto & arg : current_expr->scalar_function().arguments())
             {
-                if (!arg.value().has_selection() || !arg.value().selection().has_direct_reference()
-                    || !arg.value().selection().direct_reference().has_struct_field())
+                auto field_index = SubstraitParserUtils::getStructFieldIndex(arg.value());
+                if (!field_index)
                 {
                     throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "A column reference is expected");
                 }
-                auto col_pos_ref = arg.value().selection().direct_reference().struct_field().field();
+                auto col_pos_ref = *field_index;
                 if (col_pos_ref < left_header.columns())
                 {
                     left_pos = col_pos_ref;
@@ -550,8 +545,7 @@ bool JoinRelParser::applyJoinFilter(
         std::vector<substrait::Expression> exprs;
         for (size_t i = 0; i < header.columns(); ++i)
         {
-            substrait::Expression expr;
-            expr.mutable_selection()->mutable_direct_reference()->mutable_struct_field()->set_field(i);
+            substrait::Expression expr = SubstraitParserUtils::buildStructFieldExpression(i);
             exprs.emplace_back(expr);
         }
         return exprs;
@@ -680,23 +674,17 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
         dfs_visit_and_expr(and_exprs, args[1].value());
     };
 
-    auto get_field_ref = [](const substrait::Expression & e) -> std::optional<Int32>
-    {
-        if (e.has_selection() && e.selection().has_direct_reference() && e.selection().direct_reference().has_struct_field())
-            return std::optional<Int32>(e.selection().direct_reference().struct_field().field());
-        return {};
-    };
     auto visit_equal_expr = [&](const substrait::Expression & e) -> std::optional<std::pair<String, String>>
     {
         if (!check_function("equals", e))
             return {};
         const auto & args = e.scalar_function().arguments();
-        auto l_field_ref = get_field_ref(args[0].value());
-        auto r_field_ref = get_field_ref(args[1].value());
+        auto l_field_ref = SubstraitParserUtils::getStructFieldIndex(args[0].value());
+        auto r_field_ref = SubstraitParserUtils::getStructFieldIndex(args[1].value());
         if (!l_field_ref.has_value() || !r_field_ref.has_value())
             return {};
-        size_t l_pos = static_cast<size_t>(*l_field_ref);
-        size_t r_pos = static_cast<size_t>(*r_field_ref);
+        size_t l_pos = *l_field_ref;
+        size_t r_pos = *r_field_ref;
         size_t l_cols = left_header.columns();
         size_t total_cols = l_cols + right_header.columns();
 

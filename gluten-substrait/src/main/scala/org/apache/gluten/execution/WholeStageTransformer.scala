@@ -106,6 +106,7 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
     if (!schemaValidationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
       if (validationFailFast) {
+        logOnLevel(glutenConf.validationLogLevel, schemaValidationResult.reason())
         return schemaValidationResult
       }
     }
@@ -118,8 +119,13 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
     if (!validationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
     }
-    if (validationFailFast) validationResult
-    else ValidationResult.merge(schemaValidationResult, validationResult)
+    val result =
+      if (validationFailFast) validationResult
+      else ValidationResult.merge(schemaValidationResult, validationResult)
+    if (!result.ok()) {
+      logOnLevel(glutenConf.validationLogLevel, result.reason())
+    }
+    result
   }
 
   protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded

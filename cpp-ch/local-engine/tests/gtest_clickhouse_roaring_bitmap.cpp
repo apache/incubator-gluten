@@ -14,17 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <tests/utils/gluten_test_util.h>
-#include <iostream>
+#include <zlib.h>
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
 #include <Parser/SerializedPlanParser.h>
-#include <gtest/gtest.h>
-#include <Common/QueryContext.h>
-#include <zlib.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <roaring.hh>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <gtest/gtest.h>
+#include <tests/utils/gluten_test_util.h>
+#include <roaring.hh>
+#include <Common/QueryContext.h>
 
 namespace DB::Setting
 {
@@ -136,11 +135,11 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
 
-    const Poco::URI file_uri(test::gtest_data("deletion_vector_multiple.bin"));
-    const Poco::URI file_uri1(test::gtest_data("deletion_vector_only_one.bin"));
+    const std::string file_uri(test::gtest_uri("deletion_vector_multiple.bin"));
+    const std::string file_uri1(test::gtest_uri("deletion_vector_only_one.bin"));
 
-    local_engine::DeltaDVRoaringBitmapArray bitmap_array(context);
-    bitmap_array.rb_read(file_uri.getPath(), 426433, 426424);
+    DeltaDVRoaringBitmapArray bitmap_array(context);
+    bitmap_array.rb_read(file_uri, 426433, 426424);
     EXPECT_TRUE(bitmap_array.rb_contains(5));
     EXPECT_TRUE(bitmap_array.rb_contains(3618));
     EXPECT_TRUE(bitmap_array.rb_contains(155688));
@@ -158,8 +157,8 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     bitmap_array.rb_add(10000000000);
     EXPECT_TRUE(bitmap_array.rb_contains(10000000000));
 
-    local_engine::DeltaDVRoaringBitmapArray bitmap_array1(context);
-    bitmap_array1.rb_read(file_uri1.getPath(), 1, 539);
+    DeltaDVRoaringBitmapArray bitmap_array1(context);
+    bitmap_array1.rb_read(file_uri1, 1, 539);
     EXPECT_TRUE(bitmap_array1.rb_contains(0));
     EXPECT_TRUE(bitmap_array1.rb_contains(1003));
     EXPECT_TRUE(bitmap_array1.rb_contains(880));
@@ -172,10 +171,10 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     EXPECT_TRUE(bitmap_array.rb_contains(1003));
     EXPECT_TRUE(bitmap_array.rb_contains(880));
 
-    const Poco::URI file_uri2(test::gtest_data("deletion_vector_long_values.bin"));
+    const std::string file_uri2(test::gtest_uri("deletion_vector_long_values.bin"));
 
-    local_engine::DeltaDVRoaringBitmapArray bitmap_array2(context);
-    bitmap_array2.rb_read(file_uri2.getPath(), 1, 4047);
+    DeltaDVRoaringBitmapArray bitmap_array2(context);
+    bitmap_array2.rb_read(file_uri2, 1, 4047);
     EXPECT_FALSE(bitmap_array2.rb_is_empty());
     EXPECT_EQ(2098, bitmap_array2.rb_size());
     EXPECT_TRUE(bitmap_array2.rb_contains(0));
