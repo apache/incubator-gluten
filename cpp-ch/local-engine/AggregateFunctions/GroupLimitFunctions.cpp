@@ -66,6 +66,10 @@ public:
             const auto & pos = sort_order.pos;
             const auto & asc = sort_order.direction;
             const auto & nulls_first = sort_order.nulls_direction;
+            if (pos + 1 > lhs.size() || pos + 1 > rhs.size())
+            {
+                return false;
+            }
             bool l_is_null = lhs[pos].isNull();
             bool r_is_null = rhs[pos].isNull();
             if (l_is_null && r_is_null)
@@ -177,8 +181,8 @@ public:
         : DB::IAggregateFunctionDataHelper<RowNumGroupArraySortedData, RowNumGroupArraySorted>(
               {data_type}, parameters_, getRowNumReultDataType(data_type))
     {
-        if (parameters_.size() != 2)
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} needs two parameters: limit and order clause", getName());
+        if (parameters_.size() != 3)
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} needs three parameters: limit, order clause and sorted field pos map", getName());
         const auto * tuple_type = typeid_cast<const DB::DataTypeTuple *>(data_type.get());
         if (!tuple_type)
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Tuple type is expected, but got: {}", data_type->getName());
@@ -186,7 +190,8 @@ public:
         limit = parameters_[0].safeGet<UInt64>();
 
         String order_by_clause = parameters_[1].safeGet<String>();
-        sort_order_fields = parseSortOrderFields(order_by_clause);
+        DB::FieldMap sort_field_pos = parameters_[2].safeGet<DB::Object>();
+        sort_order_fields = parseSortOrderFields(order_by_clause, sort_field_pos);
 
         serialization = data_type->getDefaultSerialization();
     }
@@ -245,7 +250,7 @@ private:
     SortOrderFields sort_order_fields;
     DB::SerializationPtr serialization;
 
-    SortOrderFields parseSortOrderFields(const String & order_by_clause) const
+    SortOrderFields parseSortOrderFields(const String & order_by_clause, const DB::FieldMap & field_pos_map) const
     {
         DB::ParserOrderByExpressionList order_by_parser;
         auto order_by_ast = DB::parseQuery(order_by_parser, order_by_clause, 1000, 1000, 1000);
@@ -265,13 +270,21 @@ private:
                 = field.direction ? order_by_element_ast->nulls_direction == -1 : order_by_element_ast->nulls_direction == 1;
 
             auto name_pos = std::find(tuple_element_names.begin(), tuple_element_names.end(), ident_name);
-            if (name_pos == tuple_element_names.end())
+            auto field_pos_it = field_pos_map.find(ident_name);
+            if (name_pos == tuple_element_names.end() && field_pos_it == field_pos_map.end())
             {
                 throw DB::Exception(
                     DB::ErrorCodes::BAD_ARGUMENTS, "Not found column {} in tuple {}", ident_name, argument_types[0]->getName());
             }
-            field.pos = std::distance(tuple_element_names.begin(), name_pos);
-
+            else if (field_pos_it != field_pos_map.end())
+            {
+                const DB::Field pos_field = field_pos_it->second;
+                field.pos = pos_field.safeGet<UInt32>();
+            }
+            else 
+            {
+                field.pos = std::distance(tuple_element_names.begin(), name_pos);
+            }
             fields.push_back(field);
         }
         return fields;

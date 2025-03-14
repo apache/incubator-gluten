@@ -75,7 +75,7 @@ DB::SortDescription parseSortFields(const DB::Block & header, const google::prot
 }
 
 std::string
-buildSQLLikeSortDescription(const DB::Block & header, const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields)
+buildSQLLikeSortDescription(const DB::Block & header, const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields, DB::FieldMap & field_pos_map)
 {
     static const std::unordered_map<int, std::string> order_directions
         = {{1, " asc nulls first"}, {2, " asc nulls last"}, {3, " desc nulls first"}, {4, " desc nulls last"}};
@@ -93,6 +93,7 @@ buildSQLLikeSortDescription(const DB::Block & header, const google::protobuf::Re
         }
         auto ref = sort_field.expr().selection().direct_reference().struct_field().field();
         const auto & col_name = header.getByPosition(ref).name;
+        field_pos_map[col_name] = ref;
         if (n)
             ostr << String(",");
         // the col_name may contain '#' which can may ch fail to parse.

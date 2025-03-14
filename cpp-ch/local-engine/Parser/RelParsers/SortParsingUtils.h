@@ -29,5 +29,5 @@ parseSortFields(const DB::Block & header, const google::protobuf::RepeatedPtrFie
 DB::SortDescription parseSortFields(const DB::Block & header, const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
 
 std::string
-buildSQLLikeSortDescription(const DB::Block & header, const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
+buildSQLLikeSortDescription(const DB::Block & header, const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields, DB::FieldMap & sort_field_pos_map);
 }
