@@ -181,7 +181,8 @@ abstract class AbstractFileSourceScanExec(
     logInfo(s"Planning with ${bucketSpec.numBuckets} buckets")
     val filesGroupedToBuckets =
       selectedPartitions
-        .flatMap(p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, p.values)))
+        .flatMap(
+          p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, f.getPath, p.values)))
         .groupBy {
           f =>
             BucketingUtils
@@ -264,14 +265,14 @@ abstract class AbstractFileSourceScanExec(
         partition =>
           partition.files.flatMap {
             file =>
-              if (shouldProcess(file.getPath)) {
-                val isSplitable = relation.fileFormat.isSplitable(
-                  relation.sparkSession,
-                  relation.options,
-                  file.getPath)
+              val filePath = file.getPath
+              if (shouldProcess(filePath)) {
+                val isSplitable =
+                  relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
                 PartitionedFileUtil.splitFiles(
                   sparkSession = relation.sparkSession,
                   file = file,
+                  filePath,
                   isSplitable = isSplitable,
                   maxSplitBytes = maxSplitBytes,
                   partitionValues = partition.values
