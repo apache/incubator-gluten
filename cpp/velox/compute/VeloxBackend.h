@@ -25,8 +25,8 @@
 #include <filesystem>
 
 #include "velox/common/caching/AsyncDataCache.h"
-#include "velox/common/config/Config.h"
 #include "velox/common/caching/SsdCache.h"
+#include "velox/common/config/Config.h"
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/common/memory/MmapAllocator.h"
 
@@ -37,8 +37,7 @@ inline static const std::string kVeloxBackendKind{"velox"};
 /// Should not put heavily work here.
 class VeloxBackend {
  public:
-  ~VeloxBackend() {
-  }
+  ~VeloxBackend() {}
 
   static void create(const std::unordered_map<std::string, std::string>& conf);
 
@@ -97,7 +96,6 @@ class VeloxBackend {
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
-
 
   bool ssdReuse_;
   std::string cachePathPrefix_;
