@@ -18,6 +18,7 @@ package org.apache.gluten.config
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf, SQLConfProvider}
 
 import com.google.common.collect.ImmutableList
@@ -33,8 +34,12 @@ case class GlutenNumaBindingInfo(
     totalCoreRange: Array[String] = null,
     numCoresPerExecutor: Int = -1) {}
 
-class GlutenConfig(conf: SQLConf) extends Logging {
+class GlutenConfig(sessionOpt: Option[SparkSession] = None) extends Logging {
   import GlutenConfig._
+
+  def this(spark: SparkSession) = this(Some(spark))
+
+  def conf: SQLConf = sessionOpt.map(_.sessionState.conf).getOrElse(SQLConf.get)
 
   private lazy val configProvider = new SQLConfProvider(conf)
 
@@ -436,9 +441,7 @@ object GlutenConfig {
   val SPARK_SHUFFLE_SPILL_COMPRESS = "spark.shuffle.spill.compress"
   val SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT: Boolean = true
 
-  def get: GlutenConfig = {
-    new GlutenConfig(SQLConf.get)
-  }
+  def get: GlutenConfig = new GlutenConfig()
 
   def prefixOf(backendName: String): String = {
     GLUTEN_CONFIG_PREFIX + backendName
