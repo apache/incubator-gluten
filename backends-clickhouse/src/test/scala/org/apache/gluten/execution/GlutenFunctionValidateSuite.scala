@@ -507,6 +507,19 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test str2map, regular expression") {
+    val sql1 =
+      """
+        |select str_to_map('ab', '', ''),
+        | str_to_map('a:b,c:d'),
+        | str_to_map('ab', '', ':'),
+        | str_to_map('a:,c:d,e', ',', ''),
+        | str_to_map('a,b', ',', ''),
+        | str_to_map('a:c|b:c', '\\|', ':')
+        |""".stripMargin
+    runQueryAndCompare(sql1, true, false)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test parse_url") {
     val sql1 =
       """
