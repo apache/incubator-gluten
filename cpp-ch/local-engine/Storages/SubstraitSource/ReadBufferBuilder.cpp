@@ -309,7 +309,7 @@ public:
                     config,
                     read_settings,
                     /* read_until_position */ 0,
-                    /* use_external_buffer */ use_async_prefetch,
+                    /* use_external_buffer */ false,
                     file_size);
 
             if (use_async_prefetch)
