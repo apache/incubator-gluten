@@ -64,6 +64,11 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
+      .set(
+        "spark.sql.optimizer.excludedRules",
+        "org.apache.spark.sql.catalyst.optimizer.ConstantFolding,org.apache.spark." +
+          "sql.catalyst.optimizer.NullPropagation"
+      )
   }
 
   override def beforeAll(): Unit = {
@@ -503,6 +508,19 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     val sql1 =
       """
         |select str, str_to_map(str, ',', ':') from str2map_table
+        |""".stripMargin
+    runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test str2map, regular expression") {
+    val sql1 =
+      """
+        |select str_to_map('ab', '', ''),
+        | str_to_map('a:b,c:d'),
+        | str_to_map('ab', '', ':'),
+        | str_to_map('a:,c:d,e', ',', ''),
+        | str_to_map('a,b', ',', ''),
+        | str_to_map('a:c|b:c', '\\|', ':')
         |""".stripMargin
     runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
