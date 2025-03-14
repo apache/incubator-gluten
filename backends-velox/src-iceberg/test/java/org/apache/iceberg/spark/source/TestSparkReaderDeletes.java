@@ -200,6 +200,7 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
               SparkStructLike rowWrapper = new SparkStructLike(projection);
               set.add(rowWrapper.wrap(row));
             });
+    System.out.println(df.queryExecution().executedPlan().toString());
 
     return set;
   }

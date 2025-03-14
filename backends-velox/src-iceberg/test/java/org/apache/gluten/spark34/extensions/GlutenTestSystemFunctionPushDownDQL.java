@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.sql;
+package org.apache.gluten.spark34.extensions;
 
-import org.apache.iceberg.PlanningMode;
-import org.apache.iceberg.spark.sql.TestFilterPushDown;
+import org.apache.iceberg.spark.extensions.TestSystemFunctionPushDownDQL;
 
-public class GlutenTestFilterPushDown extends TestFilterPushDown {
-    public GlutenTestFilterPushDown(PlanningMode planningMode) {
-        super(planningMode);
+import java.util.Map;
+
+public class GlutenTestSystemFunctionPushDownDQL extends TestSystemFunctionPushDownDQL {
+    public GlutenTestSystemFunctionPushDownDQL(String catalogName, String implementation, Map<String, String> config) {
+        super(catalogName, implementation, config);
     }
 }
