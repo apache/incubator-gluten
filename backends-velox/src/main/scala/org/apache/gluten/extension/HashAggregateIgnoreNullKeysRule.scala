@@ -77,6 +77,7 @@ case class HashAggregateIgnoreNullKeysRule(session: SparkSession) extends Rule[S
     case _: VeloxResizeBatchesExec => true
     case _: ShuffleExchangeLike => true
     case _: VeloxColumnarToRowExec => true
+    case _: SortExecTransformer => true
     case _ => false
   }
 
