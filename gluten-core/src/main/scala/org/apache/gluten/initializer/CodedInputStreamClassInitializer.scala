@@ -28,12 +28,19 @@ import java.lang.reflect.Field
 object CodedInputStreamClassInitializer extends Logging {
   private val newDefaultRecursionLimit = 100000
 
-  {
+  def modifyDefaultRecursionLimitUnsafe: Unit = {
     try {
       // scalastyle:off classforname
-      // Use the shaded class name.
       val clazz: Class[_] =
-        Class.forName("org.apache.gluten.shaded.com.google.protobuf.CodedInputStream")
+        try {
+          // Use the shaded class name.
+          Class.forName("org.apache.gluten.shaded.com.google.protobuf.CodedInputStream")
+        } catch {
+          // The above class is shaded in final package phase (see package/pom.xml).
+          // If ClassNotFoundException happens, e.g., in mvn test, load the original class instead.
+          case _: ClassNotFoundException =>
+            Class.forName("com.google.protobuf.CodedInputStream")
+        }
       // scalastyle:on classforname
       val field: Field = clazz.getDeclaredField("defaultRecursionLimit")
       field.setAccessible(true)
@@ -42,11 +49,8 @@ object CodedInputStreamClassInitializer extends Logging {
       logInfo(
         s"The defaultRecursionLimit in protobuf has been increased to $newDefaultRecursionLimit")
     } catch {
-      // The class is shaded during package phase (see package/pom.xml). We tolerate
-      // this ClassNotFoundException in mvn test.
-      case _: ClassNotFoundException =>
-        logWarning("The defaultRecursionLimit in protobuf has not been modified.")
-      case e: Exception => e.printStackTrace()
+      case e: Exception =>
+        log.error("Failed to modify the DefaultRecursionLimit in protobuf: " + e.getMessage)
     }
   }
 }
