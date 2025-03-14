@@ -38,18 +38,6 @@ inline static const std::string kVeloxBackendKind{"velox"};
 class VeloxBackend {
  public:
   ~VeloxBackend() {
-    if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
-      LOG(INFO) << asyncDataCache_->toString();
-      if (!ssdReuse_) {
-        for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
-          if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
-            LOG(INFO) << "Removing cache file " << entry.path().filename().string();
-            std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
-          }
-        }
-      }
-      asyncDataCache_->shutdown();
-    }
   }
 
   static void create(const std::unordered_map<std::string, std::string>& conf);
@@ -67,6 +55,19 @@ class VeloxBackend {
     // On threads exit, thread local variables can be constructed with referencing global variables.
     // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
     ioExecutor_.reset();
+
+    if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
+      LOG(INFO) << asyncDataCache_->toString();
+      if (!ssdReuse_) {
+        for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
+          if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
+            LOG(INFO) << "Removing cache file " << entry.path().filename().string();
+            std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
+          }
+        }
+      }
+      asyncDataCache_->shutdown();
+    }
   }
 
  private:
@@ -96,7 +97,6 @@ class VeloxBackend {
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
-  std::shared_ptr<facebook::velox::memory::MmapAllocator> cacheAllocator_;
 
 
   bool ssdReuse_;
