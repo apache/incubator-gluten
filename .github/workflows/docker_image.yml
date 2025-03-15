@@ -110,6 +110,7 @@ jobs:
           retention-days: 1
 
   build-centos-8-jdk8:
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

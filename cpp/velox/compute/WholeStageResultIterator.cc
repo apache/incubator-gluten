@@ -566,6 +566,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "false";
     }
 
+    if (veloxCfg_->get<std::string>(kSparkMapKeyDedupPolicy, "") == "EXCEPTION") {
+      configs[velox::core::QueryConfig::kThrowExceptionOnDuplicateMapKeys] = "true";
+    } else {
+      configs[velox::core::QueryConfig::kThrowExceptionOnDuplicateMapKeys] = "false";
+    }
+
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
       const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);
       if (valueOptional.hasValue()) {

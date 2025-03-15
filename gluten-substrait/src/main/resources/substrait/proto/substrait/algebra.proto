@@ -232,6 +232,12 @@ message ReadRel {
         int64 modificationTime = 2;
       }
       fileProperties properties = 20;
+
+      message otherConstantMetadataColumnValues {
+        string key = 1;
+        google.protobuf.Any value = 2;
+      }
+      repeated otherConstantMetadataColumnValues other_const_metadata_columns = 21;
     }
   }
 }

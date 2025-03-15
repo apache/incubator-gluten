@@ -259,6 +259,7 @@ object ExpressionMappings {
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
+    Sig[MapConcat](MAP_CONCAT),
     Sig[MapKeys](MAP_KEYS),
     Sig[MapValues](MAP_VALUES),
     Sig[MapFromArrays](MAP_FROM_ARRAYS),

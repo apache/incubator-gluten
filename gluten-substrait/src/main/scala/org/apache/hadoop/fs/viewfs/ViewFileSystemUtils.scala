@@ -31,10 +31,7 @@ object ViewFileSystemUtils {
     val path = new Path(f)
     FileSystem.get(path.toUri, hadoopConfig) match {
       case vfs: ViewFileSystem =>
-        val fsStateField = vfs.getClass.getDeclaredField("fsState")
-        fsStateField.setAccessible(true)
-        val fsState = fsStateField.get(vfs).asInstanceOf[InodeTree[FileSystem]]
-        val res = fsState.resolve(f, true)
+        val res = vfs.fsState.resolve(f, true)
         if (res.isInternalDir) {
           f
         } else {

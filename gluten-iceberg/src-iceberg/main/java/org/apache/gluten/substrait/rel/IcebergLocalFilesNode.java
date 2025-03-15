@@ -49,7 +49,8 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         new ArrayList<>(),
         fileFormat,
         preferredLocations,
-        new HashMap<>());
+        new HashMap<>(),
+        new ArrayList<>());
     this.deleteFilesList = deleteFilesList;
   }
 

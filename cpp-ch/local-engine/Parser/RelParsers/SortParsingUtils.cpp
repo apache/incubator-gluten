@@ -20,6 +20,7 @@
 #include <Poco/Logger.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
+#include <Parser/SubstraitParserUtils.h>
 
 namespace DB::ErrorCodes
 {
@@ -33,16 +34,18 @@ DB::SortDescription parseSortFields(const DB::Block & header, const google::prot
 {
     DB::SortDescription description;
     for (const auto & expr : expressions)
-        if (expr.has_selection())
+    {
+        auto field_index = SubstraitParserUtils::getStructFieldIndex(expr);
+        if (field_index)
         {
-            auto pos = expr.selection().direct_reference().struct_field().field();
-            const auto & col_name = header.getByPosition(pos).name;
+            const auto & col_name = header.getByPosition(*field_index).name;
             description.push_back(DB::SortColumnDescription(col_name, 1, -1));
         }
         else if (expr.has_literal())
             continue;
         else
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow expression as sort field: {}", expr.DebugString());
+    }
     return description;
 }
 
@@ -58,17 +61,16 @@ DB::SortDescription parseSortFields(const DB::Block & header, const google::prot
         if (sort_field.expr().has_literal())
             continue;
 
-        if (!sort_field.expr().has_selection() || !sort_field.expr().selection().has_direct_reference()
-            || !sort_field.expr().selection().direct_reference().has_struct_field())
+        auto field_index = SubstraitParserUtils::getStructFieldIndex(sort_field.expr());
+        if(!field_index)
         {
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupport sort field");
         }
-        auto field_pos = sort_field.expr().selection().direct_reference().struct_field().field();
 
         auto direction_iter = direction_map.find(sort_field.direction());
         if (direction_iter == direction_map.end())
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsuppor sort direction: {}", sort_field.direction());
-        const auto & col_name = header.getByPosition(field_pos).name;
+        const auto & col_name = header.getByPosition(*field_index).name;
         sort_descr.emplace_back(col_name, direction_iter->second.first, direction_iter->second.second);
     }
     return sort_descr;
@@ -86,13 +88,13 @@ buildSQLLikeSortDescription(const DB::Block & header, const google::protobuf::Re
         auto it = order_directions.find(sort_field.direction());
         if (it == order_directions.end())
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow sort direction: {}", sort_field.direction());
-        if (!sort_field.expr().has_selection())
+        auto field_index = SubstraitParserUtils::getStructFieldIndex(sort_field.expr());
+        if (!field_index)
         {
             throw DB::Exception(
                 DB::ErrorCodes::BAD_ARGUMENTS, "Sort field must be a column reference. but got {}", sort_field.DebugString());
         }
-        auto ref = sort_field.expr().selection().direct_reference().struct_field().field();
-        const auto & col_name = header.getByPosition(ref).name;
+        const auto & col_name = header.getByPosition(*field_index).name;
         if (n)
             ostr << String(",");
         // the col_name may contain '#' which can may ch fail to parse.

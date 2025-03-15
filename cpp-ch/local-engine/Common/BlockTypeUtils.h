@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <Columns/ColumnString.h>
 #include <Columns/ColumnsNumber.h>
 #include <Core/Block.h>
 #include <DataTypes/DataTypeDate32.h>
@@ -148,6 +149,14 @@ struct CppToDataType<Int64>
 };
 
 template <>
+struct CppToDataType<std::string>
+{
+    using Type = DB::DataTypeString;
+    using ColumnType = Type::ColumnType; //DB::ColumnString;
+    static auto create() { return std::make_shared<Type>(); }
+};
+
+template <>
 struct CppToDataType<UInt64>
 {
     using Type = DB::DataTypeUInt64;
@@ -184,6 +193,15 @@ template <typename T>
 DB::ColumnWithTypeAndName createColumnConst(size_t size, T value, const std::string & col_name)
 {
     return {createColumnConst(size, value), CppToDataType<T>::create(), col_name};
+}
+
+template <typename T>
+DB::ColumnPtr createColumn(size_t size, const std::function<T(size_t)> & valueAt)
+{
+    auto column = CppToDataType<T>::ColumnType::create();
+    for (size_t i = 0; i < size; ++i)
+        column->insert(valueAt(i));
+    return column;
 }
 
 // end of CppToDataType
