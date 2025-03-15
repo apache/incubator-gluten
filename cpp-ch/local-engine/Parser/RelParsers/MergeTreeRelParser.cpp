@@ -317,9 +317,11 @@ void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameS
         }
 
         case substrait::Expression::RexTypeCase::kSelection: {
-            const size_t idx = rel.selection().direct_reference().struct_field().field();
-            if (const Names names = block.getNames(); names.size() > idx)
-                columns.insert(names[idx]);
+            auto idx = SubstraitParserUtils::getStructFieldIndex(rel);
+            if (!idx)
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Selection node must have direct reference.");
+            if (const Names names = block.getNames(); names.size() > *idx)
+                columns.insert(names[*idx]);
 
             return;
         }

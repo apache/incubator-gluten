@@ -18,20 +18,16 @@
 #pragma once
 
 #include <concepts>
-#include <Columns/ColumnsNumber.h>
 #include <Columns/IColumn_fwd.h>
 #include <Core/ColumnWithTypeAndName.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/Context_fwd.h>
 #include <Interpreters/DatabaseCatalog.h>
+#include <Storages/SubstraitSource/FileReader.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <gtest/gtest.h>
 #include <Common/Logger.h>
 
-namespace local_engine
-{
-class NormalFileReader;
-}
+
 namespace DB
 {
 class PullingPipelineExecutor;
@@ -47,6 +43,17 @@ concept couldbe_collected = requires(T t) {
     { t.getHeader() } -> std::same_as<const DB::Block &>;
 };
 
+
+struct BaseReaders
+{
+    std::vector<std::unique_ptr<BaseReader>> & readers;
+
+    int index = 0;
+
+    bool pull(DB::Chunk & chunk);
+    const DB::Block & getHeader() const { return readers.front()->getHeader(); }
+};
+
 class ReaderTestBase : public testing::Test
 {
     int64_t query_id_ = 0;
@@ -56,6 +63,7 @@ protected:
     DB::ContextMutablePtr context_ = nullptr;
 
     void writeToFile(const std::string & filePath, const DB::Block & block) const;
+    void writeToFile(const std::string & filePath, const std::vector<DB::Block> & blocks, bool rowGroupPerBlock = false) const;
 
     DB::DatabasePtr createMemoryDatabaseIfNotExists(const String & database_name);
     void createMemoryTableIfNotExists(const String & database_name, const String & table_name, const std::vector<DB::Block> & blocks);

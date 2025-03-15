@@ -22,7 +22,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics.IMetrics
-import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.sql.shims.{DeltaShimLoader, SparkShimLoader}
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -159,6 +159,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val modificationTimes = new JArrayList[JLong]()
         val partitionColumns = new JArrayList[JMap[String, String]]
         val metadataColumns = new JArrayList[JMap[String, String]]
+        val otherMetadataColumns = new JArrayList[JMap[String, Object]]
         f.files.foreach {
           file =>
             paths.add(new URI(file.filePath.toString()).toASCIIString)
@@ -203,6 +204,14 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 fileSizes.add(0)
                 modificationTimes.add(0)
             }
+
+            val otherConstantMetadataColumnValues =
+              DeltaShimLoader.getDeltaShims.convertRowIndexFilterIdEncoded(
+                partitionColumn.size(),
+                file,
+                SparkShimLoader.getSparkShims.getOtherConstantMetadataColumnValues(file)
+              )
+            otherMetadataColumns.add(otherConstantMetadataColumnValues)
         }
         val preferredLocations =
           CHAffinity.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
@@ -217,7 +226,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           metadataColumns,
           fileFormat,
           preferredLocations.toList.asJava,
-          mapAsJavaMap(properties)
+          mapAsJavaMap(properties),
+          otherMetadataColumns
         )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
