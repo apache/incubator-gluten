@@ -18,7 +18,7 @@
 ####################################################################################################
 #  The main function of this script is to allow developers to build the environment with one click #
 #  Recommended commands for first-time installation:                                               #
-#  ./dev/buildbundle-veloxbe.sh                                                            #
+#  ./dev/buildbundle-veloxbe.sh                                                                    #
 ####################################################################################################
 set -exu
 
@@ -45,7 +45,7 @@ VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
-SPARK_VERSION=ALL
+SPARK_VERSION=${SPARK_VERSION:-ALL}
 INSTALL_PREFIX=${INSTALL_PREFIX:-}
 
 # set default number of threads as cpu cores minus 2
