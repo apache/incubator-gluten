@@ -26,7 +26,7 @@ import org.apache.spark.util.ThreadUtils
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 
-class GlutenTryCastSuite extends TryCastSuite with GlutenTestsTrait {
+class GlutenTryCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
 
   testGluten("data type casting") {
     val sd = "1970-01-01"
