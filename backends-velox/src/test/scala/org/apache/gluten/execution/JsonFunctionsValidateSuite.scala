@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.execution.ProjectExec
 
 class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
@@ -323,6 +324,66 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
         runQueryAndCompare("select txt, from_json(txt, 'id INT') from tbl") {
           checkSparkOperatorMatch[ProjectExecTransformer]
         }
+    }
+  }
+
+  test("json_object_keys function valid json format") {
+    withTempPath {
+      path =>
+        Seq[(String)](
+          (""""""),
+          ("""200"""),
+          ("""{}"""),
+          ("""{"key": 1}"""),
+          ("""{"key": "value", "key2": 2}"""),
+          ("""{"arrayKey": [1, 2, 3]}"""),
+          ("""{"key":[1,2,3,{"key":"value"},[1,2,3]]}"""),
+          ("""{"f1":"abc","f2":{"f3":"a", "f4":"b"}}"""),
+          ("""{"k1": [1, 2, {"key": 5}], "k2": {"key2": [1, 2]}}"""),
+          ("""[1, 2, 3]""")
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select txt, json_object_keys(txt) from tbl") {
+          checkSparkOperatorMatch[ProjectExecTransformer]
+        }
+
+        runQueryAndCompare(
+          "SELECT json_object_keys(null) " +
+            "from datatab limit 1;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("json_object_keys function invalid json format") {
+    withTempPath {
+      path =>
+        Seq[(String)](
+          ("""{[1,2]}"""),
+          ("""{"key": 45, "random_string"}""")
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select txt, json_object_keys(txt) from tbl") {
+          checkSparkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("json_object_keys function no argument") {
+    intercept[AnalysisException] {
+      sql(
+        "SELECT json_object_keys()" +
+          "FROM datatab LIMIT 1");
     }
   }
 }
