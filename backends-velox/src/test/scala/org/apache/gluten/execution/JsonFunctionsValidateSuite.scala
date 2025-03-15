@@ -348,8 +348,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
-        runQueryAndCompare(
-          "select txt, json_object_keys(txt) from tbl") {
+        runQueryAndCompare("select txt, json_object_keys(txt) from tbl") {
           checkSparkOperatorMatch[ProjectExecTransformer]
         }
 
@@ -374,8 +373,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
-        runQueryAndCompare(
-          "select txt, json_object_keys(txt) from tbl") {
+        runQueryAndCompare("select txt, json_object_keys(txt) from tbl") {
           checkSparkOperatorMatch[ProjectExecTransformer]
         }
     }
@@ -383,8 +381,9 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
 
   test("json_object_keys function no argument") {
     intercept[AnalysisException] {
-      sql("SELECT json_object_keys()" +
-        "FROM datatab LIMIT 1");
+      sql(
+        "SELECT json_object_keys()" +
+          "FROM datatab LIMIT 1");
     }
   }
 }
