@@ -242,6 +242,9 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   // 3. Timestamp to most categories except few supported types is not allowed.
   // 4. Certain complex types are not allowed.
 
+  auto fromKind = fromType->kind();
+  auto toKind = toType->kind();
+
   // Don't support isIntervalYearMonth.
   if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
     LOG_VALIDATION_MSG("Casting involving INTERVAL_YEAR_MONTH is not supported.");
@@ -269,7 +272,7 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
     if (fromType->isVarchar()) {
       return true;
     }
-    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint()) {
+    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() || fromType->isDouble() || fromType->isReal()) {
       return true;
     }
     LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
