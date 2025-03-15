@@ -493,45 +493,56 @@ void VeloxSortShuffleReaderDeserializer::readLargeRow(std::vector<std::shared_pt
   cachedRows_++;
 }
 
-class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::GlutenByteInputStream {
+class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream {
  public:
   VeloxInputStream(std::shared_ptr<arrow::io::InputStream> input, facebook::velox::BufferPtr buffer);
 
   bool hasNext();
 
-  void next(bool throwIfPastEnd) override;
+  void next();
 
+  ByteInputStream* getStream();
+
+ private:
   std::shared_ptr<arrow::io::InputStream> in_;
   const facebook::velox::BufferPtr buffer_;
   uint64_t offset_ = -1;
+
+  std::unique_ptr<ByteInputStream> byteInputStream_;
 };
 
 VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::VeloxInputStream(
     std::shared_ptr<arrow::io::InputStream> input,
     facebook::velox::BufferPtr buffer)
     : in_(std::move(input)), buffer_(std::move(buffer)) {
-  next(true);
+  next();
 }
 
 bool VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::hasNext() {
   if (offset_ == 0) {
     return false;
   }
-  if (ranges()[0].position >= ranges()[0].size) {
-    next(true);
+  if (byteInputStream_->tellp() >= byteInputStream_->size()) {
+    next();
     return offset_ != 0;
   }
   return true;
 }
 
-void VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::next(bool throwIfPastEnd) {
+void VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::next() {
   const uint32_t readBytes = buffer_->capacity();
   offset_ = in_->Read(readBytes, buffer_->asMutable<char>()).ValueOr(0);
   if (offset_ > 0) {
     int32_t realBytes = offset_;
     VELOX_CHECK_LT(0, realBytes, "Reading past end of file.");
-    setRange({buffer_->asMutable<uint8_t>(), realBytes, 0});
+    std::vector<ByteRange> byteRanges;
+    byteRanges.push_back(ByteRange{buffer_->asMutable<uint8_t>(), realBytes, 0});
+    byteInputStream_ = std::make_unique<BufferInputStream>(byteRanges);
   }
+}
+
+ByteInputStream* VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::getStream() {
+  return byteInputStream_.get();
 }
 
 VeloxRssSortShuffleReaderDeserializer::VeloxRssSortShuffleReaderDeserializer(
@@ -561,7 +572,7 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
   ScopedTimer timer(&deserializeTime_);
 
   RowVectorPtr rowVector;
-  VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, serde_, &rowVector, &serdeOptions_);
+  VectorStreamGroup::read(in_->getStream(), veloxPool_.get(), rowType_, serde_, &rowVector, &serdeOptions_);
 
   if (rowVector->size() >= batchSize_) {
     return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
@@ -569,7 +580,7 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
 
   while (rowVector->size() < batchSize_ && in_->hasNext()) {
     RowVectorPtr rowVectorTemp;
-    VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, serde_, &rowVectorTemp, &serdeOptions_);
+    VectorStreamGroup::read(in_->getStream(), veloxPool_.get(), rowType_, serde_, &rowVectorTemp, &serdeOptions_);
     rowVector->append(rowVectorTemp.get());
   }
 
