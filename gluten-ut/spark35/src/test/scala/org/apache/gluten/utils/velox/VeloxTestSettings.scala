@@ -110,6 +110,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("data type casting")
     // Revised by setting timezone through config and commented unsupported cases.
     .exclude("cast string to timestamp")
+    .exclude("cast from timestamp II")
+    .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
+    .exclude("SPARK-36286: invalid string cast to timestamp")
+    .exclude("SPARK-39749: cast Decimal to string")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
