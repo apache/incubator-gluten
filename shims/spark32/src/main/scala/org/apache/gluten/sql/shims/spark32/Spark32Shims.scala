@@ -196,7 +196,8 @@ class Spark32Shims extends SparkShims {
 
   override def supportDuplicateReadingTracking: Boolean = false
 
-  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
+  def getFileStatus(partition: PartitionDirectory): Seq[(FileStatus, Map[String, Any])] =
+    partition.files.map(f => (f, Map.empty[String, Any]))
 
   def isFileSplittable(
       relation: HadoopFsRelation,
@@ -213,7 +214,8 @@ class Spark32Shims extends SparkShims {
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
-      partitionValues: InternalRow): Seq[PartitionedFile] = {
+      partitionValues: InternalRow,
+      metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile] = {
     PartitionedFileUtil.splitFiles(
       sparkSession,
       file,

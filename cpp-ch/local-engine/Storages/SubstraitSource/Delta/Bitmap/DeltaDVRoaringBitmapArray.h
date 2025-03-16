@@ -14,9 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <IO/ReadHelpers.h>
-#include <IO/WriteHelpers.h>
-#include <Common/PODArray.h>
+#pragma once
+
+#include <Interpreters/Context_fwd.h>
+#include <base/types.h>
+#include <boost/core/noncopyable.hpp>
 #include <roaring.hh>
 
 namespace local_engine
@@ -27,9 +29,8 @@ namespace local_engine
   */
 class DeltaDVRoaringBitmapArray : private boost::noncopyable
 {
-private:
-    const Int64 MAX_REPRESENTABLE_VALUE =
-        (static_cast<UInt64>(INT32_MAX - 1) << 32) | (static_cast<UInt64>(INT32_MIN) & 0xFFFFFFFFL);
+    static constexpr Int64 MAX_REPRESENTABLE_VALUE
+        = (static_cast<UInt64>(INT32_MAX - 1) << 32) | (static_cast<UInt64>(INT32_MIN) & 0xFFFFFFFFL);
     DB::ContextPtr context;
     std::vector<roaring::Roaring> roaring_bitmap_array;
 
@@ -37,13 +38,13 @@ private:
     static UInt64 compose_from_high_low_bytes(UInt32 high, UInt32 low);
     void rb_extend_bitmaps(Int32 new_length);
     void rb_shrink_bitmaps(Int32 new_length);
-public:
 
-    DeltaDVRoaringBitmapArray(const DB::ContextPtr & context_);
+public:
+    explicit DeltaDVRoaringBitmapArray(const DB::ContextPtr & context_);
     ~DeltaDVRoaringBitmapArray() = default;
-    bool operator==(const DeltaDVRoaringBitmapArray& other) const;
+    bool operator==(const DeltaDVRoaringBitmapArray & other) const;
     UInt64 rb_size() const;
-    void rb_read(const String & file_path, const Int32 offset, const Int32 data_size);
+    void rb_read(const String & file_path, Int32 offset, Int32 data_size);
     bool rb_contains(Int64 x) const;
     bool rb_is_empty() const;
     void rb_clear();

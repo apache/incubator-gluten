@@ -294,6 +294,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
           fields.flatMap {
             case StructField(_, _: YearMonthIntervalType, _, _) =>
               Some("YearMonthIntervalType")
+            case StructField(_, _: DayTimeIntervalType, _, _) =>
+              Some("DayTimeIntervalType")
             case StructField(_, _: StructType, _, _) =>
               Some("StructType")
             case _ => None

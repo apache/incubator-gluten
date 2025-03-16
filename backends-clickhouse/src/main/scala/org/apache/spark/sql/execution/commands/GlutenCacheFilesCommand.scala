@@ -121,7 +121,8 @@ case class GlutenCacheFilesCommand(
             new JArrayList[JMap[String, String]](),
             ReadFileFormat.ParquetReadFormat, // ignore format in backend
             new JArrayList[String](),
-            new JHashMap[String, String]()
+            new JHashMap[String, String](),
+            new JArrayList[JMap[String, Object]]()
           )
 
           (executorId, localFile)

@@ -47,6 +47,8 @@ struct ParquetMetaBuilder
     bool collectPageIndex = false;
     bool collectSchema = false;
 
+    std::shared_ptr<parquet::FileMetaData> fileMetaData;
+
     //
     std::vector<RowGroupInformation> readRowGroups;
 
@@ -69,6 +71,8 @@ struct ParquetMetaBuilder
     build(DB::ReadBuffer & read_buffer, const std::function<bool(UInt64)> & should_include_row_group = [](UInt64) { return true; });
 
     static std::unique_ptr<parquet::ParquetFileReader> openInputParquetFile(DB::ReadBuffer & read_buffer);
+
+    static DB::Block collectFileSchema(const DB::ContextPtr & context, DB::ReadBuffer & read_buffer);
 
 private:
     ParquetMetaBuilder &

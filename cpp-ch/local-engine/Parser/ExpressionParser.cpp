@@ -35,6 +35,7 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Poco/Logger.h>
 #include <Common/BlockTypeUtils.h>
@@ -293,10 +294,11 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
         }
 
         case substrait::Expression::RexTypeCase::kSelection: {
-            if (!rel.selection().has_direct_reference() || !rel.selection().direct_reference().has_struct_field())
+            auto field_index = SubstraitParserUtils::getStructFieldIndex(rel);
+            if (!field_index)
                 throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Can only have direct struct references in selections");
 
-            const auto * field = actions_dag.getInputs()[rel.selection().direct_reference().struct_field().field()];
+            const auto * field = actions_dag.getInputs()[*field_index];
             return field;
         }
 
@@ -335,6 +337,8 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                 String function_name = "sparkCastFloatTo" + denull_output_type->getName();
                 result_node = toFunctionNode(actions_dag, function_name, args);
             }
+            else if (isFloat(denull_input_type) && isString(denull_output_type))
+                result_node = toFunctionNode(actions_dag, "sparkCastFloatToString", args);
             else if ((isDecimal(denull_input_type) || isNativeNumber(denull_input_type)) && substrait_type.has_decimal())
             {
                 int precision = substrait_type.decimal().precision();
@@ -521,10 +525,9 @@ ExpressionParser::expressionsToActionsDAG(const std::vector<substrait::Expressio
 
     for (const auto & expr : expressions)
     {
-        if (expr.has_selection())
+        if (auto field_index = SubstraitParserUtils::getStructFieldIndex(expr))
         {
-            auto position = expr.selection().direct_reference().struct_field().field();
-            auto col_name = header.getByPosition(position).name;
+            auto col_name = header.getByPosition(*field_index).name;
             const DB::ActionsDAG::Node * field = actions_dag.tryFindInOutputs(col_name);
             if (!field)
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found {} in actions dag's output", col_name);

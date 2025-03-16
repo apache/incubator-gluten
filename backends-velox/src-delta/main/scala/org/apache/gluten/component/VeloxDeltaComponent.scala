@@ -18,14 +18,13 @@
 package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.velox.VeloxBackend
-import org.apache.gluten.execution.OffloadDeltaScan
+import org.apache.gluten.execution.{OffloadDeltaFilter, OffloadDeltaProject, OffloadDeltaScan}
 import org.apache.gluten.extension.DeltaPostTransformRules
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
-
-import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, ProjectExec}
 
 class VeloxDeltaComponent extends Component {
   override def name(): String = "velox-delta"
@@ -37,16 +36,17 @@ class VeloxDeltaComponent extends Component {
     val ras = injector.gluten.ras
     legacy.injectTransform {
       c =>
-        val offload = Seq(OffloadDeltaScan())
+        val offload = Seq(OffloadDeltaScan(), OffloadDeltaProject(), OffloadDeltaFilter())
         HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
     }
-    ras.injectRasRule {
-      c =>
-        RasOffload.Rule(
-          RasOffload.from[FileSourceScanExec](OffloadDeltaScan()),
-          Validators.newValidator(c.glutenConf),
-          Nil)
-    }
+    val offloads: Seq[RasOffload] = Seq(
+      RasOffload.from[FileSourceScanExec](OffloadDeltaScan()),
+      RasOffload.from[ProjectExec](OffloadDeltaProject()),
+      RasOffload.from[FilterExec](OffloadDeltaFilter()))
+    offloads.foreach(
+      offload =>
+        ras.injectRasRule(
+          c => RasOffload.Rule(offload, Validators.newValidator(c.glutenConf), Nil)))
     DeltaPostTransformRules.rules.foreach {
       r =>
         legacy.injectPostTransform(_ => r)
