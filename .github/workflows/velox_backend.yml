@@ -341,7 +341,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.4" ]
     runs-on: ubuntu-20.04
     steps:
       - name: Maximize build disk space
@@ -381,7 +381,7 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
+      - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} Q67/Q95 low memory, memory isolation off
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -393,7 +393,7 @@ jobs:
             -d=OVER_ACQUIRE:0.3,spark.gluten.memory.overAcquiredMemoryRatio=0.3 \
             -d=OVER_ACQUIRE:0.5,spark.gluten.memory.overAcquiredMemoryRatio=0.5 \
             --excluded-dims=OFFHEAP_SIZE:4g
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q67 low memory, memory isolation on
+      - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} Q67 low memory, memory isolation on
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -404,7 +404,7 @@ jobs:
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
             -d=OVER_ACQUIRE:0.3,spark.gluten.memory.overAcquiredMemoryRatio=0.3 \
             -d=OVER_ACQUIRE:0.5,spark.gluten.memory.overAcquiredMemoryRatio=0.5
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q95 low memory, memory isolation on
+      - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} Q95 low memory, memory isolation on
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -415,7 +415,7 @@ jobs:
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
             -d=OVER_ACQUIRE:0.3,spark.gluten.memory.overAcquiredMemoryRatio=0.3 \
             -d=OVER_ACQUIRE:0.5,spark.gluten.memory.overAcquiredMemoryRatio=0.5
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q23A/Q23B low memory
+      - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} Q23A/Q23B low memory
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -426,7 +426,7 @@ jobs:
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:ABANDONED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:FLUSHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=0.05,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=0.1,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q23A/Q23B low memory, memory isolation on
+      - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} Q23A/Q23B low memory, memory isolation on
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -437,7 +437,7 @@ jobs:
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:ABANDONED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:FLUSHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=0.05,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=0.1,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0
-      - name: TPC-DS SF30.0 Parquet local spark3.2 Q97 low memory
+      - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} Q97 low memory
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -456,7 +456,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.4" ]
     runs-on: ubuntu-20.04
     steps:
       - name: Maximize build disk space
@@ -496,7 +496,7 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: TPC-DS SF30.0 Parquet local spark3.2 random kill tasks
+      - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} random kill tasks
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
@@ -508,7 +508,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.4" ]
         uniffle: [ "0.9.2" ]
         hadoop: [ "2.8.5" ]
     runs-on: ubuntu-20.04
@@ -546,7 +546,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/ && \
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with uniffle-${{ matrix.uniffle }}
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local ${{ matrix.spark }} with uniffle-${{ matrix.uniffle }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
@@ -559,7 +559,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        spark: [ "spark-3.2" ]
+        spark: [ "spark-3.4" ]
         celeborn: [ "celeborn-0.5.4", "celeborn-0.4.3"]
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8-jdk8
@@ -579,7 +579,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with ${{ matrix.celeborn }}
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local ${{ matrix.spark }} with ${{ matrix.celeborn }}
         run: |
           EXTRA_PROFILE=""
           if [ "${{ matrix.celeborn }}" = "celeborn-0.4.3" ]; then
@@ -598,7 +598,7 @@ jobs:
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g' > ./conf/celeborn-env.sh" && \
           bash -c "echo -e 'celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64' > ./conf/celeborn-defaults.conf" && \
           bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
-          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -P${{ matrix.spark }} -Pceleborn ${EXTRA_PROFILE} && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1 && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
