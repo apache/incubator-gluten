@@ -418,7 +418,7 @@ jobs:
       - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} Q23A/Q23B low memory
         run: |
           cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
+          && GLUTEN_IT_JVM_ARGS=-Xmx12G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
             --data-gen=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
@@ -429,7 +429,7 @@ jobs:
       - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} Q23A/Q23B low memory, memory isolation on
         run: |
           cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
+          && GLUTEN_IT_JVM_ARGS=-Xmx12G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
             --data-gen=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
@@ -499,7 +499,7 @@ jobs:
       - name: TPC-DS SF30.0 Parquet local ${{ matrix.spark }} random kill tasks
         run: |
           cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
+          && GLUTEN_IT_JVM_ARGS=-Xmx12G sbin/gluten-it.sh queries \
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
             --data-gen=skip  --random-kill-tasks --no-session-reuse
 
