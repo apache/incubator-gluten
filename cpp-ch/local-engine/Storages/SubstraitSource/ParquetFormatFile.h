@@ -25,7 +25,6 @@
 namespace local_engine
 {
 
-
 class ParquetFormatFile : public FormatFile
 {
 public:
@@ -36,15 +35,7 @@ public:
         bool use_local_format_);
     ~ParquetFormatFile() override = default;
 
-    InputFormatPtr createInputFormat(const DB::Block & /*header*/) override
-    {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Use createInputFormat with key_condition and column_index_filter");
-    }
-
-    InputFormatPtr createInputFormat(
-        const DB::Block & header,
-        const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
-        const ColumnIndexFilterPtr & column_index_filter = nullptr) const;
+    InputFormatPtr createInputFormat(const DB::Block & header) override;
 
     std::optional<size_t> getTotalRows() override;
 
@@ -54,10 +45,21 @@ public:
 
     static bool onlyHasFlatType(const DB::Block & header);
 
+    void initialize(const ColumnIndexFilterPtr &) override;
+
 private:
     bool use_pageindex_reader;
     std::mutex mutex;
     std::optional<size_t> total_rows;
+
+    /// We need the file schema when reading iceberg parquet, and hence we need the read buffer when ParquetFormatFile is
+    /// created. To avoid opening the file twice, We have to keep read_buffer_ alive until createInputFormat is called.
+    /// After that, the read_buffer_ will be moved to the InputFormat
+    std::unique_ptr<DB::ReadBuffer> read_buffer_;
+
+    /// TODO: we should use KeyCondition instead of ColumnIndexFilter, this is a temporary solution
+    /// initialized at initialize() to avoid defining special createInputFormat, and reset once createInputFormat is called.
+    ColumnIndexFilterPtr column_index_filter_;
 };
 
 }

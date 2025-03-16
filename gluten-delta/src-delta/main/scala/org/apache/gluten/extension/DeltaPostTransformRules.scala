@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.execution.{DeltaFilterExecTransformer, DeltaProjectExecTransformer, DeltaScanTransformer, ProjectExecTransformer}
+import org.apache.gluten.execution.{DeltaScanTransformer, ProjectExecTransformer}
 import org.apache.gluten.extension.columnar.transition.RemoveTransitions
 
 import org.apache.spark.sql.SparkSession
@@ -24,15 +24,14 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeRef
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.delta.{DeltaColumnMapping, DeltaParquetFileFormat, NoMapping}
-import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.FileFormat
 
 import scala.collection.mutable.ListBuffer
 
 object DeltaPostTransformRules {
   def rules: Seq[Rule[SparkPlan]] =
-    RemoveTransitions :: columnMappingRule :: filterRule :: projectRule ::
-      pushDownInputFileExprRule :: Nil
+    RemoveTransitions :: columnMappingRule :: pushDownInputFileExprRule :: Nil
 
   private val COLUMN_MAPPING_RULE_TAG: TreeNodeTag[String] =
     TreeNodeTag[String]("org.apache.gluten.delta.column.mapping")
@@ -56,18 +55,6 @@ object DeltaPostTransformRules {
         transformColumnMappingPlan(p)
     }
 
-  val filterRule: Rule[SparkPlan] = (plan: SparkPlan) =>
-    plan.transformUp {
-      case FilterExec(condition, child) if containsIncrementMetricExpr(condition) =>
-        DeltaFilterExecTransformer(condition, child)
-    }
-
-  val projectRule: Rule[SparkPlan] = (plan: SparkPlan) =>
-    plan.transformUp {
-      case ProjectExec(projectList, child) if projectList.exists(containsIncrementMetricExpr) =>
-        DeltaProjectExecTransformer(projectList, child)
-    }
-
   val pushDownInputFileExprRule: Rule[SparkPlan] = (plan: SparkPlan) =>
     plan.transformUp {
       case p @ ProjectExec(projectList, child: DeltaScanTransformer)
@@ -89,7 +76,7 @@ object DeltaPostTransformRules {
     }
   }
 
-  private def containsIncrementMetricExpr(expr: Expression): Boolean = {
+  private[gluten] def containsIncrementMetricExpr(expr: Expression): Boolean = {
     expr match {
       case e if e.prettyName == "increment_metric" => true
       case _ => expr.children.exists(containsIncrementMetricExpr)

@@ -58,15 +58,8 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "regexp_replace",
     "rlike"};
 
-const std::unordered_set<std::string> kBlackList = {
-    "split_part",
-    "factorial",
-    "json_array_length",
-    "trunc",
-    "sequence",
-    "approx_percentile",
-    "get_array_struct_fields",
-    "map_from_arrays"};
+const std::unordered_set<std::string> kBlackList =
+    {"split_part", "factorial", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -269,7 +262,16 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   }
 
   // Limited support for X to Timestamp.
-  if (toType->isTimestamp() && !fromType->isDate()) {
+  if (toType->isTimestamp()) {
+    if (fromType->isDate()) {
+      return true;
+    }
+    if (fromType->isVarchar()) {
+      return true;
+    }
+    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint()) {
+      return true;
+    }
     LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
     return false;
   }

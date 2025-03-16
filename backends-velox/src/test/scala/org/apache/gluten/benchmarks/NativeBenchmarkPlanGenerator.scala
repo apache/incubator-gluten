@@ -49,6 +49,7 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.sql.session.timeZone", "GMT+08:00")
   }
 
   test("Test plan json non-empty - AQE off") {
