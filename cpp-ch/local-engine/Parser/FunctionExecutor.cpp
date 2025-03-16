@@ -19,6 +19,7 @@
 #include <Builder/SerializedPlanBuilder.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Common/BlockTypeUtils.h>
+#include <Parser/SubstraitParserUtils.h>
 
 namespace DB
 {
@@ -57,10 +58,7 @@ void FunctionExecutor::buildExpression()
       [&](const auto & ) {
           substrait::FunctionArgument argument;
           auto * value = argument.mutable_value();
-          auto * selection = value->mutable_selection();
-          auto * direct_reference = selection->mutable_direct_reference();
-          auto * struct_field = direct_reference->mutable_struct_field();
-          struct_field->set_field(field++);
+          value->CopyFrom(SubstraitParserUtils::buildStructFieldExpression(field++));
 
           arguments->Add(std::move(argument));
     });

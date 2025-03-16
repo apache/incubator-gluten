@@ -416,10 +416,9 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
             visitNonNullable(scalar_function.arguments(1).value());
         }
     }
-    else if (expr.has_selection())
+    else if (auto field_index = SubstraitParserUtils::getStructFieldIndex(expr))
     {
-        const auto & selection = expr.selection();
-        auto column_pos = selection.direct_reference().struct_field().field();
+        const auto & column_pos = *field_index;
         auto column_name = header.getByPosition(column_pos).name;
         collected_columns.insert(column_name);
     }

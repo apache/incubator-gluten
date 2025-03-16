@@ -49,12 +49,12 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileStatus, Path}
-import org.apache.hadoop.fs.LocatedFileStatus
+import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
 import org.apache.parquet.schema.MessageType
 
 import java.util.{Map => JMap, Properties}
 
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 sealed abstract class ShimDescriptor
@@ -193,7 +193,7 @@ trait SparkShims {
   // Because above, this feature is only supported after spark 3.3
   def supportDuplicateReadingTracking: Boolean
 
-  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus]
+  def getFileStatus(partition: PartitionDirectory): Seq[(FileStatus, Map[String, Any])]
 
   def isFileSplittable(relation: HadoopFsRelation, filePath: Path, sparkSchema: StructType): Boolean
 
@@ -207,7 +207,8 @@ trait SparkShims {
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
-      partitionValues: InternalRow): Seq[PartitionedFile]
+      partitionValues: InternalRow,
+      metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile]
 
   def structFromAttributes(attrs: Seq[Attribute]): StructType
 
@@ -297,4 +298,6 @@ trait SparkShims {
 
   def isColumnarLimitExecSupported(): Boolean
 
+  def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
+    Map.empty[String, Any].asJava.asInstanceOf[JMap[String, Object]]
 }

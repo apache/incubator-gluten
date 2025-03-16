@@ -94,6 +94,8 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     // Set timezone through config.
     .exclude("data type casting")
+    // Revised by setting timezone through config and commented unsupported cases.
+    .exclude("cast string to timestamp")
   enableSuite[GlutenTryCastSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
@@ -106,6 +108,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-26218: Fix the corner case of codegen when casting float to Integer")
     // Set timezone through config.
     .exclude("data type casting")
+    // Revised by setting timezone through config and commented unsupported cases.
+    .exclude("cast string to timestamp")
   enableSuite[GlutenCollectionExpressionsSuite]
     // Rewrite in Gluten to replace Seq with Array
     .exclude("Shuffle")
@@ -671,6 +675,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetColumnIndexSuite]
     // Rewrite by just removing test timestamp.
     .exclude("test reading unaligned pages - test all types")
+    // Rewrite by converting smaller integral value to timestamp.
+    .exclude("test reading unaligned pages - test all types (dict encode)")
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
   enableSuite[GlutenParquetDeltaByteArrayEncodingSuite]
   enableSuite[GlutenParquetDeltaEncodingInteger]
@@ -1217,6 +1223,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStatisticsCollectionSuite]
     // The output byte size of Velox is different
     .exclude("SPARK-33687: analyze all tables in a specific database")
+    .exclude("column stats collection for null columns")
+    .exclude("analyze column command - result verification")
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
       "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.

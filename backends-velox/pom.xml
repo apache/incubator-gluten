@@ -16,6 +16,7 @@
   <properties>
     <cpp.build.dir>../cpp/build/</cpp.build.dir>
     <cpp.releases.dir>${cpp.build.dir}/releases/</cpp.releases.dir>
+    <byte-buddy.version>1.9.3</byte-buddy.version>
   </properties>
 
   <profiles>
@@ -81,6 +82,10 @@
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
+      <properties>
+<!--        The version should be same with the version in assertj-core-->
+        <byte-buddy.version>1.14.18</byte-buddy.version>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
@@ -119,6 +124,37 @@
           <artifactId>iceberg-api</artifactId>
           <version>${iceberg.version}</version>
           <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-data</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.assertj</groupId>
+          <artifactId>assertj-core</artifactId>
+          <version>3.26.3</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.13.2</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter-api</artifactId>
+          <version>5.11.4</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.awaitility</groupId>
+          <artifactId>awaitility</artifactId>
+          <version>4.2.2</version>
           <scope>test</scope>
         </dependency>
       </dependencies>
@@ -178,6 +214,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -194,6 +231,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -210,6 +248,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -229,6 +268,7 @@
             <configuration>
               <testExcludes>
                 <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
               </testExcludes>
             </configuration>
           </plugin>
@@ -309,6 +349,18 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>2.23.4</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>net.bytebuddy</groupId>
+          <artifactId>byte-buddy</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy</artifactId>
+      <version>${byte-buddy.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>

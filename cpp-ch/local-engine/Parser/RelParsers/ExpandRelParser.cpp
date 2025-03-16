@@ -23,6 +23,7 @@
 #include <Operator/AdvancedExpandStep.h>
 #include <Operator/ExpandStep.h>
 #include <Parser/RelParsers/RelParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Common/logger_useful.h>
 
@@ -83,18 +84,17 @@ ExpandField ExpandRelParser::buildExpandField(const DB::Block & header, const su
         for (int i = 0; i < expand_col_size; ++i)
         {
             const auto & project_expr = projections.switching_field().duplicates(i);
-            if (project_expr.has_selection())
+            if (auto field_index = SubstraitParserUtils::getStructFieldIndex(project_expr))
             {
-                auto field = project_expr.selection().direct_reference().struct_field().field();
                 kinds.push_back(ExpandFieldKind::EXPAND_FIELD_KIND_SELECTION);
-                fields.push_back(field);
-                if (field >= header.columns())
+                fields.push_back(*field_index);
+                if (*field_index >= header.columns())
                 {
                     throw DB::Exception(
-                        DB::ErrorCodes::LOGICAL_ERROR, "Field index out of range: {}, header: {}", field, header.dumpStructure());
+                        DB::ErrorCodes::LOGICAL_ERROR, "Field index out of range: {}, header: {}", *field_index, header.dumpStructure());
                 }
-                updateType(types[i], header.getByPosition(field).type);
-                const auto & name = header.getByPosition(field).name;
+                updateType(types[i], header.getByPosition(*field_index).type);
+                const auto & name = header.getByPosition(*field_index).name;
                 if (names[i].empty())
                 {
                     if (distinct_names.contains(name))
