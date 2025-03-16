@@ -203,7 +203,8 @@ case class ColumnarCollectLimitExec(
       partition => {
         val droppedRows = dropLimitedRows(partition, offset)
         val adjustedLimit = Math.max(0, limit - offset)
-        collectLimitedRows(droppedRows, adjustedLimit)
+        if (limit > 0) collectLimitedRows(droppedRows, adjustedLimit)
+        else droppedRows
       })
   }
 

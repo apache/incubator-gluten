@@ -56,9 +56,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assert(assertionCondition, assertionMessage)
   }
 
-  testWithSpecifiedSparkVersion(
-    "ColumnarCollectLimitExec - basic limit test",
-    Array("3.2", "3.3", "3.4", "3.5")) {
+  test("ColumnarCollectLimitExec - basic limit test") {
     val df = spark.range(0, 1000, 1).toDF("id").limit(5)
     val expectedData = Seq(Row(0L), Row(1L), Row(2L), Row(3L), Row(4L))
 
@@ -67,9 +65,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion(
-    "ColumnarCollectLimitExec - with filter",
-    Array("3.2", "3.3", "3.4", "3.5")) {
+  test("ColumnarCollectLimitExec - with filter") {
     val df = spark
       .range(0, 20, 1)
       .toDF("id")
@@ -82,9 +78,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion(
-    "ColumnarCollectLimitExec - range with repartition",
-    Array("3.2", "3.3", "3.4", "3.5")) {
+  test("ColumnarCollectLimitExec - range with repartition") {
 
     val df = spark
       .range(0, 10, 1)
@@ -98,9 +92,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion(
-    "ColumnarCollectLimitExec - with distinct values",
-    Array("3.2", "3.3", "3.4", "3.5")) {
+  test("ColumnarCollectLimitExec - with distinct values") {
     val df = spark
       .range(0, 10, 1)
       .toDF("id")
@@ -142,11 +134,99 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
   }
 
   testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - offset test", Array("3.4", "3.5")) {
-    val df = spark.range(0, 10, 1).toDF("id").limit(5).offset(2)
-    val expectedData = Seq(Row(2L), Row(3L), Row(4L))
+    val df1 = spark.range(0, 10, 1).toDF("id").limit(5).offset(2)
+    val expectedData1 = Seq(Row(2L), Row(3L), Row(4L))
 
-    checkAnswer(df, expectedData)
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
+    checkAnswer(df1, expectedData1)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df1, checkMatch = true)
+
+    val df2 = spark.range(0, 20, 1).toDF("id").limit(12).offset(5)
+    val expectedData2 = Seq(Row(5L), Row(6L), Row(7L), Row(8L), Row(9L), Row(10L), Row(11L))
+
+    checkAnswer(df2, expectedData2)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df2, checkMatch = true)
+
+    val df3 = spark.range(0, 30, 1).toDF("id").limit(10).offset(3)
+    val expectedData3 = Seq(Row(3L), Row(4L), Row(5L), Row(6L), Row(7L), Row(8L), Row(9L))
+
+    checkAnswer(df3, expectedData3)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df3, checkMatch = true)
+
+    val df4 = spark.range(0, 15, 1).toDF("id").limit(8).offset(4)
+    val expectedData4 = Seq(Row(4L), Row(5L), Row(6L), Row(7L))
+
+    checkAnswer(df4, expectedData4)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df4, checkMatch = true)
+
+    val df5 = spark.range(0, 50, 1).toDF("id").limit(20).offset(10)
+    val expectedData5 = Seq(
+      Row(10L),
+      Row(11L),
+      Row(12L),
+      Row(13L),
+      Row(14L),
+      Row(15L),
+      Row(16L),
+      Row(17L),
+      Row(18L),
+      Row(19L))
+
+    checkAnswer(df5, expectedData5)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df5, checkMatch = true)
+  }
+
+  testWithSpecifiedSparkVersion(
+    "ColumnarCollectLimitExec - pure offset test",
+    Array("3.4", "3.5")) {
+    val df1 = spark.range(0, 20, 1).toDF("id").offset(5)
+    val expectedData1 = Seq(
+      Row(5L),
+      Row(6L),
+      Row(7L),
+      Row(8L),
+      Row(9L),
+      Row(10L),
+      Row(11L),
+      Row(12L),
+      Row(13L),
+      Row(14L),
+      Row(15L),
+      Row(16L),
+      Row(17L),
+      Row(18L),
+      Row(19L))
+
+    checkAnswer(df1, expectedData1)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df1, checkMatch = true)
+
+    val df2 = spark.range(0, 50, 1).toDF("id").offset(10)
+    val expectedData2 = (10L to 49L).map(Row(_))
+
+    checkAnswer(df2, expectedData2)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df2, checkMatch = true)
+
+    val df3 = spark.range(0, 100, 2).toDF("id").offset(15)
+    val expectedData3 = (30L to 98L by 2).map(Row(_))
+
+    checkAnswer(df3, expectedData3)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df3, checkMatch = true)
+
+    val df4 = spark.range(0, 30, 1).toDF("id").offset(20)
+    val expectedData4 = (20L to 29L).map(Row(_))
+
+    checkAnswer(df4, expectedData4)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df4, checkMatch = true)
+
+    val df5 = spark.range(0, 200, 5).toDF("id").offset(10)
+    val expectedData5 = (50L to 195L by 5).map(Row(_))
+
+    checkAnswer(df5, expectedData5)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df5, checkMatch = true)
+
+    val df6 = spark.range(0, 5, 1).toDF("id").limit(10)
+    val expectedData6 = (0L to 4L).map(Row(_))
+
+    checkAnswer(df6, expectedData6)
   }
 
   testWithSpecifiedSparkVersion(
@@ -170,4 +250,25 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     checkAnswer(unionDf, expectedData)
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](unionDf, checkMatch = true)
   }
+
+  test("ColumnarCollectLimitExec - single partition with limit, offset, and limit + offset") {
+
+    val singlePartitionDF = spark.range(0, 10, 1).toDF("id").coalesce(1)
+
+    val limitDF = singlePartitionDF.limit(5)
+    val expectedLimitData = Seq(Row(0L), Row(1L), Row(2L), Row(3L), Row(4L))
+    checkAnswer(limitDF, expectedLimitData)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](limitDF, checkMatch = true)
+
+    val offsetDF = singlePartitionDF.offset(3)
+    val expectedOffsetData = Seq(Row(3L), Row(4L), Row(5L), Row(6L), Row(7L), Row(8L), Row(9L))
+    checkAnswer(offsetDF, expectedOffsetData)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](offsetDF, checkMatch = true)
+
+    val limitOffsetDF = singlePartitionDF.limit(5).offset(2)
+    val expectedLimitOffsetData = Seq(Row(2L), Row(3L), Row(4L))
+    checkAnswer(limitOffsetDF, expectedLimitOffsetData)
+    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](limitOffsetDF, checkMatch = true)
+  }
+
 }

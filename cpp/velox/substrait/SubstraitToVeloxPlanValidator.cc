@@ -58,16 +58,8 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "regexp_replace",
     "rlike"};
 
-const std::unordered_set<std::string> kBlackList = {
-    "split_part",
-    "factorial",
-    "from_json",
-    "json_array_length",
-    "trunc",
-    "sequence",
-    "approx_percentile",
-    "get_array_struct_fields",
-    "map_from_arrays"};
+const std::unordered_set<std::string> kBlackList =
+    {"split_part", "factorial", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -90,7 +82,7 @@ bool SubstraitToVeloxPlanValidator::parseVeloxType(
 }
 
 bool SubstraitToVeloxPlanValidator::flattenSingleLevel(const TypePtr& type, std::vector<TypePtr>& out) {
-  if (type->kind() != TypeKind::ROW) {
+  if (!type->isRow()) {
     LOG_VALIDATION_MSG("Type is not a RowType.");
     return false;
   }
@@ -106,7 +98,7 @@ bool SubstraitToVeloxPlanValidator::flattenSingleLevel(const TypePtr& type, std:
 }
 
 bool SubstraitToVeloxPlanValidator::flattenDualLevel(const TypePtr& type, std::vector<std::vector<TypePtr>>& out) {
-  if (type->kind() != TypeKind::ROW) {
+  if (!type->isRow()) {
     LOG_VALIDATION_MSG("Type is not a RowType.");
     return false;
   }
@@ -242,19 +234,13 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
 
 bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const TypePtr& toType) {
   // Currently cast is not allowed for various categories, code has a bunch of rules
-  // which define the cast categories and if we should offload to velox. Currently
+  // which define the cast categories and if we should offload to velox. Currently,
   // the following categories are denied.
   //
   // 1. from/to isIntervalYearMonth is not allowed.
   // 2. Date to most categories except few supported types is not allowed.
   // 3. Timestamp to most categories except few supported types is not allowed.
   // 4. Certain complex types are not allowed.
-
-  TypeKind fromKind = fromType->kind();
-  TypeKind toKind = toType->kind();
-
-  static const std::unordered_set<TypeKind> complexTypeList = {
-      TypeKind::ARRAY, TypeKind::MAP, TypeKind::ROW, TypeKind::VARBINARY};
 
   // Don't support isIntervalYearMonth.
   if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
@@ -263,26 +249,35 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   }
 
   // Limited support for DATE to X.
-  if (fromType->isDate() && toKind != TypeKind::TIMESTAMP && toKind != TypeKind::VARCHAR) {
+  if (fromType->isDate() && !toType->isTimestamp() && !toType->isVarchar()) {
     LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
     return false;
   }
 
   // Limited support for Timestamp to X.
-  if (fromKind == TypeKind::TIMESTAMP && !(toType->isDate() || toKind == TypeKind::VARCHAR)) {
+  if (fromType->isTimestamp() && !(toType->isDate() || toType->isVarchar())) {
     LOG_VALIDATION_MSG(
         "Casting from TIMESTAMP to " + toType->toString() + " is not supported or has incorrect result.");
     return false;
   }
 
   // Limited support for X to Timestamp.
-  if (toKind == TypeKind::TIMESTAMP && !fromType->isDate()) {
+  if (toType->isTimestamp()) {
+    if (fromType->isDate()) {
+      return true;
+    }
+    if (fromType->isVarchar()) {
+      return true;
+    }
+    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint()) {
+      return true;
+    }
     LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
     return false;
   }
 
   // Limited support for Complex types.
-  if (complexTypeList.find(fromKind) != complexTypeList.end()) {
+  if (fromType->isArray() || fromType->isMap() || fromType->isRow() || fromType->isVarbinary()) {
     LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " is not currently supported.");
     return false;
   }

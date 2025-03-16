@@ -500,7 +500,7 @@ Both Parquet and ORC datasets are sf1024.
 
 # Gluten UI
 
-Please refer [Gluten UI](VeloxGlutenUI.md)
+Please refer [Gluten UI](GlutenUI.md)
 
 # Gluten Native Plan Summary
 
@@ -545,6 +545,9 @@ I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan 
       queuedWallNanos              sum: 2.00us, count: 1, min: 2.00us, max: 2.00us
 ```
 
+
+## Using Stage-Level Resource Adjustment to Avoid OOM(Experimental)
+ see more [here](../VeloxStageResourceAdj.md)
 
 ## Broadcast Build Relations to Off-Heap(Experimental)
 
