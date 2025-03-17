@@ -23,9 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.{ArrowFileSourceScanExec, BaseArrowScanExec, ColumnarToRowExec}
 import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
 
-import org.scalatest.Ignore
-
-class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuiteBase {
+class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "csv")
@@ -67,13 +65,8 @@ class ArrowCsvScanSuiteV2 extends ArrowCsvScanSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "")
   }
-
-  test("csv scan") {
-    runAndCompare("select * from student")()
-  }
 }
 
-@Ignore
 class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -93,9 +86,7 @@ class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
 }
 
 /** Since https://github.com/apache/incubator-gluten/pull/5850. */
-@Ignore
 abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
-
   test("csv scan with option string as null") {
     val df = runAndCompare("select * from student_option_str")()
     val plan = df.queryExecution.executedPlan
@@ -148,6 +139,11 @@ abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
         checkGlutenOperatorMatch[BaseArrowScanExec]
       }
     }
+  }
+
+  test("count(1) on csv scan") {
+    val df = runAndCompare("select count(1) from student")()
+    checkLengthAndPlan(df, 1)
   }
 }
 
