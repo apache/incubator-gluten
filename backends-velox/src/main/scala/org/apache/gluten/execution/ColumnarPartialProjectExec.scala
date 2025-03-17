@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.expression.{ArrowProjection, ExpressionUtils}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -337,8 +337,15 @@ object ColumnarPartialProjectExec {
     val newProjectList = original.projectList.map {
       p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
     }
+    val wrappedChild =
+      if (VeloxConfig.get.veloxResizeBatchesPartialProjectInput) {
+        val range = VeloxConfig.get.veloxResizeBatchesPartialProjectInputRange
+        VeloxResizeBatchesExec(original.child, range.min, range.max)
+      } else {
+        original.child
+      }
     val partialProject =
-      ColumnarPartialProjectExec(original, original.child)(replacedAliasUdf.toSeq)
+      ColumnarPartialProjectExec(original, wrappedChild)(replacedAliasUdf.toSeq)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }
