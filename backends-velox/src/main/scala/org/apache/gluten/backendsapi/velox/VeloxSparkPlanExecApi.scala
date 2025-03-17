@@ -40,6 +40,7 @@ import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
@@ -350,7 +351,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         case shuffle: ColumnarShuffleExchangeExec
             if !shuffle.useSortBasedShuffle &&
               VeloxConfig.get.veloxResizeBatchesShuffleInput =>
-          val range = VeloxConfig.get.veloxResizeBatchesShuffleInputRange
+          val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
           val appendBatches =
             VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
           shuffle.withNewChildren(Seq(appendBatches))
@@ -914,4 +915,25 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       child: Seq[SparkPlan]): ColumnarRangeBaseExec =
     ColumnarRangeExec(start, end, step, numSlices, numElements, outputAttributes, child)
 
+  override def genShuffleRead(plan: SparkPlan): SparkPlan = {
+    if (!VeloxConfig.get.veloxResizeBatchesShuffleOutput) return plan
+    val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
+    plan match {
+      case a @ AQEShuffleReadExec(ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _), _) =>
+        VeloxResizeBatchesExec(a, range.min, range.max)
+      // Since OffloadSingleNode is transformed in a bottom to up order, so we may first encountered
+      // ShuffeQueryStageExec, and transformed to VeloxResizeBatchesExec(ShuffeQueryStageExec),
+      // then we see AQEShuffleReadExec
+      case a @ AQEShuffleReadExec(
+            VeloxResizeBatchesExec(
+              s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _),
+              _,
+              _),
+            _) =>
+        VeloxResizeBatchesExec(a.copy(child = s), range.min, range.max)
+      case s @ ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
+        VeloxResizeBatchesExec(s, range.min, range.max)
+      case _ => plan
+    }
+  }
 }

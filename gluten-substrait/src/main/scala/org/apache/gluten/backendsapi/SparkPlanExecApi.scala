@@ -711,4 +711,6 @@ trait SparkPlanExecApi {
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec
+
+  def genShuffleRead(plan: SparkPlan): SparkPlan = plan
 }

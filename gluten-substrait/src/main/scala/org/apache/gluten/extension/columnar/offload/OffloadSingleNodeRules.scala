@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.CollectLimitExec
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -51,6 +52,8 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
       val child = b.child
       logDebug(s"Columnar Processing for ${b.getClass} is currently supported.")
       ColumnarBroadcastExchangeExec(b.mode, child)
+    case _: AQEShuffleReadExec | _: ShuffleQueryStageExec =>
+      BackendsApiManager.getSparkPlanExecApiInstance.genShuffleRead(plan)
     case other => other
   }
 }
