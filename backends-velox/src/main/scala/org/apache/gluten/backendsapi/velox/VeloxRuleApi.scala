@@ -107,6 +107,7 @@ object VeloxRuleApi {
 
     // Gluten columnar: Post rules.
     injector.injectPost(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
+    injector.injectPost(c => RemoveColumnarPartialProject(c.session))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
@@ -189,6 +190,7 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
     injector.injectPostTransform(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
+    injector.injectPostTransform(c => RemoveColumnarPartialProject(c.session))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPostTransform(c => each(c.session)))
