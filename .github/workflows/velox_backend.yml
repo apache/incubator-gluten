@@ -638,6 +638,12 @@ jobs:
         with:
           name: test-report-spark32
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark32
+          path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -672,6 +678,12 @@ jobs:
         with:
           name: test-report-spark32-slow
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark32-slow
+          path: "**/target/*.log"
 
   run-spark-test-spark33:
     needs: build-native-lib-centos-7
@@ -709,6 +721,12 @@ jobs:
         with:
           name: test-report-spark33
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark33
+          path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -746,6 +764,12 @@ jobs:
         with:
           name: test-report-spark33-slow
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark33-slow
+          path: "**/target/*.log"
 
   run-spark-test-spark34:
     needs: build-native-lib-centos-7
@@ -786,6 +810,12 @@ jobs:
         with:
           name: test-report-spark34-jdk17
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark34-jdk17
+          path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -832,6 +862,12 @@ jobs:
         with:
           name: test-report-spark34
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark34-jdk8
+          path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -869,6 +905,12 @@ jobs:
         with:
           name: test-report-spark34-slow-jdk17
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark34-slow-jdk17
+          path: "**/target/*.log"
 
   run-spark-test-spark34-slow-jdk8:
     needs: build-native-lib-centos-7
@@ -901,6 +943,12 @@ jobs:
         with:
           name: test-report-spark34-slow-jdk8
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark34-slow-jdk8
+          path: "**/target/*.log"
 
   run-spark-test-spark35:
     needs: build-native-lib-centos-7
@@ -938,6 +986,12 @@ jobs:
         with:
           name: test-report-spark35
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35
+          path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -982,6 +1036,12 @@ jobs:
         with:
           name: test-report-spark35-jdk17
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35-jdk17
+          path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -1025,6 +1085,12 @@ jobs:
         with:
           name: test-report-spark35-scala213
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35-scala213
+          path: "**/target/*.log"
 
   run-spark-test-spark35-slow:
     needs: build-native-lib-centos-7
@@ -1054,6 +1120,12 @@ jobs:
         with:
           name: test-report-spark35-slow
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35-slow
+          path: "**/target/*.log"
 
   run-spark-test-spark35-ras:
     needs: build-native-lib-centos-7
@@ -1090,6 +1162,12 @@ jobs:
         with:
           name: test-report-spark35-ras
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35-ras
+          path: "**/target/*.log"
 
   run-spark-test-spark35-slow-ras:
     needs: build-native-lib-centos-7
@@ -1118,6 +1196,12 @@ jobs:
         with:
           name: test-report-spark35-slow-ras
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35-slow-ras
+          path: "**/target/*.log"
 
   run-spark-test-spark35-smj:
     needs: build-native-lib-centos-7
@@ -1154,6 +1238,12 @@ jobs:
         with:
           name: test-report-spark35-smj
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35-smj
+          path: "**/target/*.log"
 
   run-spark-test-spark35-slow-smj:
     needs: build-native-lib-centos-7
@@ -1182,6 +1272,12 @@ jobs:
         with:
           name: test-report-spark35-slow-smj
           path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35-slow-smj
+          path: "**/target/*.log"
 
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
@@ -1223,3 +1319,15 @@ jobs:
           # Depends on --build_example=ON.
           $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None \
           -DtagsToInclude=org.apache.gluten.tags.UDFTest
+            - name: Upload test report
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark35-udf
+          path: '**/surefire-reports/TEST-*.xml'
+      - name: Upload unit tests log files
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-log-spark35-udf
+          path: "**/target/*.log"
