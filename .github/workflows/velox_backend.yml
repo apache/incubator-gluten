@@ -629,7 +629,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg \
+          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Piceberg \
           -Pdelta -Phudi -DargLine="-Dspark.test.home=/opt/shims/spark32/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -664,7 +664,7 @@ jobs:
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi \
+          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Piceberg -Pdelta -Phudi \
           -DargLine="-Dspark.test.home=/opt/shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
         if: always()
@@ -700,7 +700,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark33/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -737,7 +737,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark33/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -777,7 +777,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/ ${EXTRA_FLAGS}" 
       - name: Upload test report
@@ -823,7 +823,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-8 -Pbackends-velox -Pceleborn -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-8 -Pbackends-velox -Pdelta -Phudi -Pspark-ut \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" 
       - name: Upload test report
@@ -860,7 +860,7 @@ jobs:
           cd $GITHUB_WORKSPACE/
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/ ${EXTRA_FLAGS}" 
       - name: Upload test report
@@ -892,7 +892,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-8 -Pbackends-velox -Pceleborn -Pdelta -Pspark-ut -Phudi \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-8 -Pbackends-velox -Pdelta -Pspark-ut -Phudi \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" 
       - name: Upload test report
@@ -929,7 +929,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -973,7 +973,7 @@ jobs:
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/  ${EXTRA_FLAGS}" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -1016,7 +1016,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
-          $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Pceleborn -Piceberg \
+          $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Piceberg \
           -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark35-scala-2.13/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -1045,7 +1045,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -1082,7 +1082,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -1110,7 +1110,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -1146,7 +1146,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.sql.columnar.forceShuffledHashJoin=false" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -1174,7 +1174,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.sql.columnar.forceShuffledHashJoin=false" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
