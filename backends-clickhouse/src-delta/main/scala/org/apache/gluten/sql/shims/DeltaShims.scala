@@ -33,6 +33,8 @@ trait DeltaShims {
       s"Can't transform ColumnarDeltaOptimizedWriterExec from ${plan.getClass.getSimpleName}")
   }
 
+  def registerExpressionExtension(): Unit = {}
+
   def convertRowIndexFilterIdEncoded(
       partitionColsCnt: Int,
       file: PartitionedFile,

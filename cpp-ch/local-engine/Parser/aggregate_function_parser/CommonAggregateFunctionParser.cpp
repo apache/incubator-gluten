@@ -44,4 +44,5 @@ REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(PercentRank, percent_rank, percent_ran
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Rank, rank, rank)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(RowNumber, row_number, row_number)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(CountDistinct, count_distinct, uniqExact)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(BitmapAggregator, bitmapaggregator, bitmapaggregator)
 }
