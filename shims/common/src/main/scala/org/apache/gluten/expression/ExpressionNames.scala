@@ -107,6 +107,7 @@ object ExpressionNames {
   final val LTRIM = "ltrim"
   final val RTRIM = "rtrim"
   final val TRIM = "trim"
+  final val BTRIM = "btrim"
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
@@ -281,6 +282,7 @@ object ExpressionNames {
   // Map functions
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
+  final val MAP_CONCAT = "map_concat"
   final val MAP_KEYS = "map_keys"
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"

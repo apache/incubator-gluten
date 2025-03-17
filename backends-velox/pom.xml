@@ -16,6 +16,7 @@
   <properties>
     <cpp.build.dir>../cpp/build/</cpp.build.dir>
     <cpp.releases.dir>${cpp.build.dir}/releases/</cpp.releases.dir>
+    <byte-buddy.version>1.9.3</byte-buddy.version>
   </properties>
 
   <profiles>
@@ -81,6 +82,10 @@
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
+      <properties>
+<!--        The version should be same with the version in assertj-core-->
+        <byte-buddy.version>1.14.18</byte-buddy.version>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
@@ -99,6 +104,58 @@
           <artifactId>iceberg-spark-runtime-${sparkbundle.version}_${scala.binary.version}</artifactId>
           <version>${iceberg.version}</version>
           <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-spark-${sparkbundle.version}_${scala.binary.version}</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-hive-metastore</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-api</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-data</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.assertj</groupId>
+          <artifactId>assertj-core</artifactId>
+          <version>3.26.3</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.13.2</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter-api</artifactId>
+          <version>5.11.4</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.awaitility</groupId>
+          <artifactId>awaitility</artifactId>
+          <version>4.2.2</version>
+          <scope>test</scope>
         </dependency>
       </dependencies>
     </profile>
@@ -147,6 +204,77 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>spark-3.2</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <testExcludes>
+                <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
+              </testExcludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>spark-3.3</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <testExcludes>
+                <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
+              </testExcludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>spark-3.5</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <testExcludes>
+                <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
+              </testExcludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>default</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <testExcludes>
+                <testExclude>**/org/apache/gluten/spark34/**</testExclude>
+                <testExclude>**/org/apache/iceberg/**</testExclude>
+              </testExcludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
   </profiles>
 
   <dependencies>
@@ -157,9 +285,9 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>io.glutenproject</groupId>
+      <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${custom.protobuf.version}</version>
+      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -221,6 +349,18 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>2.23.4</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>net.bytebuddy</groupId>
+          <artifactId>byte-buddy</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>net.bytebuddy</groupId>
+      <artifactId>byte-buddy</artifactId>
+      <version>${byte-buddy.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>

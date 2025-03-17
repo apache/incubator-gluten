@@ -80,10 +80,6 @@ namespace ServerSetting
 extern const ServerSettingsString primary_index_cache_policy;
 extern const ServerSettingsUInt64 primary_index_cache_size;
 extern const ServerSettingsDouble primary_index_cache_size_ratio;
-extern const ServerSettingsString skipping_index_cache_policy;
-extern const ServerSettingsUInt64 skipping_index_cache_size;
-extern const ServerSettingsUInt64 skipping_index_cache_max_entries;
-extern const ServerSettingsDouble skipping_index_cache_size_ratio;
 extern const ServerSettingsUInt64 max_prefixes_deserialization_thread_pool_size;
 extern const ServerSettingsUInt64 max_prefixes_deserialization_thread_pool_free_size;
 extern const ServerSettingsUInt64 prefixes_deserialization_thread_pool_thread_pool_queue_size;
@@ -816,15 +812,7 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
         global_context->setIndexMarkCache(index_mark_cache_policy, index_mark_cache_size, index_mark_cache_size_ratio);
-
-        String skipping_index_cache_policy = server_settings[ServerSetting::skipping_index_cache_policy];
-        size_t skipping_index_cache_size = server_settings[ServerSetting::skipping_index_cache_size];
-        size_t skipping_index_cache_max_entries = server_settings[ServerSetting::skipping_index_cache_max_entries];
-        double skipping_index_cache_size_ratio = server_settings[ServerSetting::skipping_index_cache_size_ratio];
-        LOG_INFO(log, "Skipping index cache size to {}", formatReadableSizeWithBinarySuffix(skipping_index_cache_size));
-        global_context->setSkippingIndexCache(
-            skipping_index_cache_policy, skipping_index_cache_size, skipping_index_cache_max_entries, skipping_index_cache_size_ratio);
-
+        
         getMergeTreePrefixesDeserializationThreadPool().initialize(
             server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_size],
             server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_free_size],
@@ -833,8 +821,8 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);
 
-        /// Initialize a dummy query cache.
-        global_context->setQueryCache(0, 0, 0, 0);
+        /// Initialize a dummy query result cache.
+        global_context->setQueryResultCache(0, 0, 0, 0);
 
         /// Initialize a dummy query condition cache.
         global_context->setQueryConditionCache(DEFAULT_QUERY_CONDITION_CACHE_POLICY, 0, 0);

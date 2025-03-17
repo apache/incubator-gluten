@@ -75,6 +75,7 @@ const std::string kSparkRedactionString = "*********(redacted)";
 
 const std::string kSparkLegacyTimeParserPolicy = "spark.sql.legacy.timeParserPolicy";
 const std::string kShuffleFileBufferSize = "spark.shuffle.file.buffer";
+const std::string kSparkMapKeyDedupPolicy = "spark.sql.mapKeyDedupPolicy";
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);

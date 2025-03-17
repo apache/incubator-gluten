@@ -179,7 +179,7 @@
 |-------------------|---------------------|----------|----------------|
 | from_json         | JsonToStructs       |          |                |
 | get_json_object   | GetJsonObject       | S        |                |
-| json_array_length | LengthOfJsonArray   |          |                |
+| json_array_length | LengthOfJsonArray   | S        |                |
 | json_object_keys  | JsonObjectKeys      |          |                |
 | json_tuple        | JsonTuple           | S        |                |
 | schema_of_json    | SchemaOfJson        |          |                |

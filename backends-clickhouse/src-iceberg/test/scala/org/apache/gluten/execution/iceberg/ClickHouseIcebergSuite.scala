@@ -222,6 +222,166 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     }
   }
 
+  testWithSpecifiedSparkVersion("iceberg bucketed join partition value not exists",
+    Array("3.4", "3.5")) {
+    val leftTable = "p_str_tb"
+    val rightTable = "p_int_tb"
+    withTable(leftTable, rightTable) {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+        // Gluten does not support write iceberg table.
+        spark.sql(
+          s"""
+             |create table $leftTable(id int, name string, p string)
+             |using iceberg
+             |partitioned by (bucket(4, id));
+             |""".stripMargin)
+        spark.sql(
+          s"""
+             |insert into table $leftTable values
+             |(4, 'a5', 'p4'),
+             |(1, 'a1', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(2, 'a3', 'p2'),
+             |(1, 'a2', 'p1'),
+             |(3, 'a4', 'p3'),
+             |(10, 'a4', 'p3');
+             |""".stripMargin
+        )
+        spark.sql(
+          s"""
+             |create table $rightTable(id int, name string, p int)
+             |using iceberg
+             |partitioned by (bucket(4, id));
+             |""".stripMargin)
+        spark.sql(
+          s"""
+             |insert into table $rightTable values
+             |(3, 'b4', 23),
+             |(1, 'b1', 21);
+             |""".stripMargin
+        )
+      }
+
+      withSQLConf(
+        "spark.sql.sources.v2.bucketing.enabled" -> "true",
+        "spark.sql.requireAllClusterKeysForCoPartition" -> "false",
+        "spark.sql.adaptive.enabled" -> "false",
+        "spark.sql.iceberg.planning.preserve-data-grouping" -> "true",
+        "spark.sql.autoBroadcastJoinThreshold" -> "-1",
+        "spark.sql.sources.v2.bucketing.pushPartValues.enabled" -> "true",
+        "spark.sql.sources.v2.bucketing.partiallyClusteredDistribution.enabled" -> "false"
+      ) {
+        runQueryAndCompare(
+          s"""
+             |select s.id, s.name, i.name, i.p
+             | from $leftTable s inner join $rightTable i
+             | on s.id = i.id;
+             |""".stripMargin) {
+          df => {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[IcebergScanTransformer]
+                }) == 2)
+            getExecutedPlan(df).map {
+              case plan: IcebergScanTransformer =>
+                assert(plan.getKeyGroupPartitioning.isDefined)
+                assert(plan.getSplitInfosWithIndex.length == 3)
+              case _ => // do nothing
+            }
+          }
+        }
+      }
+    }
+  }
+
+  testWithSpecifiedSparkVersion(
+    "iceberg bucketed join partition value not exists partial cluster", Array("3.4", "3.5")) {
+    val leftTable = "p_str_tb"
+    val rightTable = "p_int_tb"
+    withTable(leftTable, rightTable) {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
+        // Gluten does not support write iceberg table.
+        spark.sql(
+          s"""
+             |create table $leftTable(id int, name string, p string)
+             |using iceberg
+             |partitioned by (bucket(4, id));
+             |""".stripMargin)
+        spark.sql(
+          s"""
+             |insert into table $leftTable values
+             |(4, 'a5', 'p4'),
+             |(1, 'a1', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(1, 'a2', 'p1'),
+             |(2, 'a3', 'p2'),
+             |(1, 'a2', 'p1'),
+             |(3, 'a4', 'p3'),
+             |(10, 'a4', 'p3');
+             |""".stripMargin
+        )
+        spark.sql(
+          s"""
+             |create table $rightTable(id int, name string, p int)
+             |using iceberg
+             |partitioned by (bucket(4, id));
+             |""".stripMargin)
+        spark.sql(
+          s"""
+             |insert into table $rightTable values
+             |(3, 'b4', 23),
+             |(1, 'b1', 21);
+             |""".stripMargin
+        )
+      }
+
+      withSQLConf(
+        "spark.sql.sources.v2.bucketing.enabled" -> "true",
+        "spark.sql.requireAllClusterKeysForCoPartition" -> "false",
+        "spark.sql.adaptive.enabled" -> "false",
+        "spark.sql.iceberg.planning.preserve-data-grouping" -> "true",
+        "spark.sql.autoBroadcastJoinThreshold" -> "-1",
+        "spark.sql.sources.v2.bucketing.pushPartValues.enabled" -> "true",
+        "spark.sql.sources.v2.bucketing.partiallyClusteredDistribution.enabled" -> "true"
+      ) {
+        runQueryAndCompare(
+          s"""
+             |select s.id, s.name, i.name, i.p
+             | from $leftTable s inner join $rightTable i
+             | on s.id = i.id;
+             |""".stripMargin) {
+          df => {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[IcebergScanTransformer]
+                }) == 2)
+            getExecutedPlan(df).map {
+              case plan: IcebergScanTransformer =>
+                assert(plan.getKeyGroupPartitioning.isDefined)
+                assert(plan.getSplitInfosWithIndex.length == 3)
+              case _ => // do nothing
+            }
+          }
+        }
+      }
+    }
+  }
+
   testWithSpecifiedSparkVersion(
     "iceberg bucketed join with partition filter", Array("3.3", "3.5")) {
     val leftTable = "p_str_tb"
@@ -348,12 +508,12 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     }
   }
 
-  test("iceberg read mor table - delete and update") {
-    withTable("iceberg_mor_tb") {
+  test("iceberg read cow table - delete and update") {
+    withTable("iceberg_cow_tb") {
       withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         spark.sql(
           """
-            |create table iceberg_mor_tb (
+            |create table iceberg_cow_tb (
             |  id int,
             |  name string,
             |  p string
@@ -367,7 +527,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
         // Insert some test rows.
         spark.sql(
           """
-            |insert into table iceberg_mor_tb
+            |insert into table iceberg_cow_tb
             |values (1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2'),
             |       (4, 'a4', 'p1'), (5, 'a5', 'p2'), (6, 'a6', 'p1');
             |""".stripMargin)
@@ -375,33 +535,32 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
         // Delete row.
         spark.sql(
           """
-            |delete from iceberg_mor_tb where name = 'a1';
+            |delete from iceberg_cow_tb where name = 'a1';
             |""".stripMargin
         )
         // Update row.
         spark.sql(
           """
-            |update iceberg_mor_tb set name = 'new_a2' where id = 'a2';
+            |update iceberg_cow_tb set name = 'new_a2' where id = 'a2';
             |""".stripMargin
         )
         // Delete row again.
         spark.sql(
           """
-            |delete from iceberg_mor_tb where id = 6;
+            |delete from iceberg_cow_tb where id = 6;
             |""".stripMargin
         )
       }
       runQueryAndCompare(
         """
-          |select * from iceberg_mor_tb;
+          |select * from iceberg_cow_tb;
           |""".stripMargin) {
         checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
   }
 
-  // TODO: support merge-on-read mode
-  ignore("iceberg read mor table - delete and update with merge-on-read mode") {
+  test("iceberg read mor table - delete and update") {
     withTable("iceberg_mor_tb") {
       withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         spark.sql(
@@ -456,12 +615,12 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     }
   }
 
-  test("iceberg read mor table - merge into") {
-    withTable("iceberg_mor_tb", "merge_into_source_tb") {
+  test("iceberg read cow table - merge into") {
+    withTable("iceberg_cow_tb", "merge_into_source_tb") {
       withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         spark.sql(
           """
-            |create table iceberg_mor_tb (
+            |create table iceberg_cow_tb (
             |  id int,
             |  name string,
             |  p string
@@ -483,7 +642,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
         // Insert some test rows.
         spark.sql(
           """
-            |insert into table iceberg_mor_tb
+            |insert into table iceberg_cow_tb
             |values (1, 'a1', 'p1'), (2, 'a2', 'p1'), (3, 'a3', 'p2');
             |""".stripMargin)
         spark.sql(
@@ -496,20 +655,20 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
         // Delete row.
         spark.sql(
           """
-            |delete from iceberg_mor_tb where name = 'a1';
+            |delete from iceberg_cow_tb where name = 'a1';
             |""".stripMargin
         )
         // Update row.
         spark.sql(
           """
-            |update iceberg_mor_tb set name = 'new_a2' where id = 'a2';
+            |update iceberg_cow_tb set name = 'new_a2' where id = 'a2';
             |""".stripMargin
         )
 
         // Merge into.
         spark.sql(
           """
-            |merge into iceberg_mor_tb t
+            |merge into iceberg_cow_tb t
             |using (select * from merge_into_source_tb) s
             |on t.id = s.id
             |when matched then
@@ -521,15 +680,14 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
       }
       runQueryAndCompare(
         """
-          |select * from iceberg_mor_tb;
+          |select * from iceberg_cow_tb;
           |""".stripMargin) {
         checkGlutenOperatorMatch[IcebergScanTransformer]
       }
     }
   }
 
-  // TODO: support merge-on-read mode
-  ignore("iceberg read mor table - merge into with merge-on-read mode") {
+  test("iceberg read mor table - merge into with merge-on-read mode") {
     withTable("iceberg_mor_tb", "merge_into_source_tb") {
       withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         spark.sql(
@@ -635,6 +793,35 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
             checkAnswer(df, Row(java.sql.Timestamp.valueOf("2022-01-01 00:01:20")) :: Nil)
           }
         }
+    }
+  }
+
+  test("test read v1 iceberg with partition drop") {
+    val testTable = "test_table_with_partition"
+    withTable(testTable) {
+      spark.sql(
+        s"""
+           |CREATE TABLE $testTable (id INT, data STRING, p1 STRING, p2 STRING)
+           |USING iceberg
+           |tblproperties (
+           |  'format-version' = '1'
+           |)
+           |PARTITIONED BY (p1, p2);
+           |""".stripMargin)
+      spark.sql(
+        s"""
+           |INSERT INTO $testTable VALUES
+           |(1, 'test_data', 'test_p1', 'test_p2');
+           |""".stripMargin)
+      spark.sql(
+        s"""
+           |ALTER TABLE $testTable DROP PARTITION FIELD p2
+           |""".stripMargin)
+      val resultDf = spark.sql(s"SELECT id, data, p1, p2 FROM $testTable")
+      val result = resultDf.collect()
+
+      assert(result.length == 1)
+      assert(result.head.getString(3) == "test_p2")
     }
   }
 }

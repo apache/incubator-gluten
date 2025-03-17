@@ -253,42 +253,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("get_json_object") {
-    runQueryAndCompare(
-      "SELECT get_json_object(string_field1, '$.a') " +
-        "from datatab limit 1;") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-
-    runQueryAndCompare(
-      "SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
-        "from lineitem limit 1;") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-
-    // Invalid UTF-8 encoding.
-    spark.sql(
-      "CREATE TABLE t USING parquet SELECT concat('{\"a\": 2, \"'," +
-        " string(X'80'), '\": 3, \"c\": 100}') AS c1")
-    withTable("t") {
-      runQueryAndCompare("SELECT get_json_object(c1, '$.c') FROM t;") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
-    }
-  }
-
-  ignore("json_array_length") {
-    runQueryAndCompare(
-      s"select *, json_array_length(string_field1) " +
-        s"from datatab limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, json_array_length('[1,2,3,4]') " +
-        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, json_array_length(null) " +
-        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
-  }
-
   test("Test acos function") {
     runQueryAndCompare("SELECT acos(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -609,6 +573,24 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
 
         runQueryAndCompare(
           "select map_zip_with(m1, m2, (k, v1, v2) -> k == v1 + v2) from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("map_concat") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[String, Int]("a" -> 1, "b" -> 2),
+          Map[String, Int]("a" -> 2, "b" -> 3),
+          null
+        )
+          .toDF("m")
+          .write
+          .parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+        runQueryAndCompare("select map_concat(m, map('c', 4)) from map_tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }

@@ -36,6 +36,7 @@
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/RelParsers/SortParsingUtils.h>
 #include <Parser/RelParsers/SortRelParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
@@ -100,8 +101,8 @@ static std::vector<size_t> parsePartitionFields(const google::protobuf::Repeated
 {
     std::vector<size_t> fields;
     for (const auto & expr : expressions)
-        if (expr.has_selection())
-            fields.push_back(static_cast<size_t>(expr.selection().direct_reference().struct_field().field()));
+        if (auto field_index = SubstraitParserUtils::getStructFieldIndex(expr))
+            fields.push_back(*field_index);
         else if (expr.has_literal())
             continue;
         else
@@ -115,8 +116,8 @@ std::vector<size_t> parseSortFields(const google::protobuf::RepeatedPtrField<sub
     for (const auto sort_field : sort_fields)
         if (sort_field.expr().has_literal())
             continue;
-        else if (sort_field.expr().has_selection())
-            fields.push_back(static_cast<size_t>(sort_field.expr().selection().direct_reference().struct_field().field()));
+        else if (auto field_index = SubstraitParserUtils::getStructFieldIndex(sort_field.expr()))
+            fields.push_back(*field_index);
         else
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknown expression: {}", sort_field.expr().DebugString());
     return fields;
@@ -414,7 +415,7 @@ void AggregateGroupLimitRelParser::addSortStep(DB::QueryPlan & plan)
     auto sort_descr = parseSortFields(header, win_rel_def->sorts());
     full_sort_descr.insert(full_sort_descr.end(), sort_descr.begin(), sort_descr.end());
 
-    DB::SortingStep::Settings settings(*getContext());
+    DB::SortingStep::Settings settings(getContext()->getSettingsRef());
     auto config = MemoryConfig::loadFromContext(getContext());
     double spill_mem_ratio = config.spill_mem_ratio;
     settings.worth_external_sort = [spill_mem_ratio]() -> bool { return currentThreadGroupMemoryUsageRatio() > spill_mem_ratio; };
