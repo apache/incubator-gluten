@@ -266,4 +266,14 @@ class GlutenCastSuite extends CastSuiteBase with GlutenTestsTrait {
         }
     }
   }
+
+  testGluten("cast decimal to timestamp") {
+    val tz = TimeZone.getTimeZone(TimeZone.getDefault.getID)
+    val c = Calendar.getInstance(tz)
+    c.set(2015, 0, 1, 0, 0, 0)
+    c.set(Calendar.MILLISECOND, 123)
+    val d = Decimal(c.getTimeInMillis.toDouble / 1000)
+    checkEvaluation(cast(d, TimestampType), new Timestamp(c.getTimeInMillis))
+  }
+
 }
