@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarPartialProjectExec
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.udf.CustomerUDF
@@ -111,20 +112,38 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
   }
 
   test("customer udf") {
-    withTempFunction("testUDF") {
-      sql(s"CREATE TEMPORARY FUNCTION testUDF AS '${classOf[CustomerUDF].getName}'")
-      val df = sql("select l_partkey, testUDF(l_comment) from lineitem")
-      df.show()
-      checkOperatorMatch[ColumnarPartialProjectExec](df)
+    Seq("false", "true").foreach {
+      removePartialProject =>
+        withSQLConf(GlutenConfig.REMOVE_COLUMNAR_PARTIAL_PROJECT.key -> removePartialProject) {
+          withTempFunction("testUDF") {
+            sql(s"CREATE TEMPORARY FUNCTION testUDF AS '${classOf[CustomerUDF].getName}'")
+            val df = sql("select l_partkey, testUDF(l_comment) from lineitem")
+            df.show()
+            if (removePartialProject.toBoolean) {
+              checkOperatorMatch[ProjectExec](df)
+            } else {
+              checkOperatorMatch[ColumnarPartialProjectExec](df)
+            }
+          }
+        }
     }
   }
 
   test("customer udf wrapped in function") {
-    withTempFunction("testUDF") {
-      sql(s"CREATE TEMPORARY FUNCTION testUDF AS '${classOf[CustomerUDF].getName}'")
-      val df = sql("select l_partkey, hash(testUDF(l_comment)) from lineitem")
-      df.show()
-      checkOperatorMatch[ColumnarPartialProjectExec](df)
+    Seq("false", "true").foreach {
+      removePartialProject =>
+        withSQLConf(GlutenConfig.REMOVE_COLUMNAR_PARTIAL_PROJECT.key -> removePartialProject) {
+          withTempFunction("testUDF") {
+            sql(s"CREATE TEMPORARY FUNCTION testUDF AS '${classOf[CustomerUDF].getName}'")
+            val df = sql("select l_partkey, hash(testUDF(l_comment)) from lineitem")
+            df.show()
+            if (removePartialProject.toBoolean) {
+              checkOperatorMatch[ProjectExec](df)
+            } else {
+              checkOperatorMatch[ColumnarPartialProjectExec](df)
+            }
+          }
+        }
     }
   }
 
@@ -143,62 +162,80 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
   }
 
   test("udf with array") {
-    withTempFunction("udf_sort_array") {
-      sql("""
-            |CREATE TEMPORARY FUNCTION udf_sort_array AS
-            |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFSortArray';
-            |""".stripMargin)
+    Seq("false", "true").foreach {
+      removePartialProject =>
+        withSQLConf(GlutenConfig.REMOVE_COLUMNAR_PARTIAL_PROJECT.key -> removePartialProject) {
+          withTempFunction("udf_sort_array") {
+            sql("""
+                  |CREATE TEMPORARY FUNCTION udf_sort_array AS
+                  |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFSortArray';
+                  |""".stripMargin)
 
-      val df = sql("""
-                     |SELECT
-                     |  l_orderkey,
-                     |  l_partkey,
-                     |  udf_sort_array(array(10, l_orderkey, 1)) as udf_result
-                     |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
-                     |""".stripMargin)
+            val df = sql("""
+                           |SELECT
+                           |  l_orderkey,
+                           |  l_partkey,
+                           |  udf_sort_array(array(10, l_orderkey, 1)) as udf_result
+                           |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
+                           |""".stripMargin)
 
-      checkAnswer(
-        df,
-        Seq(
-          Row(35, 5, mutable.WrappedArray.make(Array(1, 10, 35))),
-          Row(321, 4, mutable.WrappedArray.make(Array(1, 10, 321))),
-          Row(548, 2, mutable.WrappedArray.make(Array(1, 10, 548))),
-          Row(640, 5, mutable.WrappedArray.make(Array(1, 10, 640))),
-          Row(807, 2, mutable.WrappedArray.make(Array(1, 10, 807)))
-        )
-      )
-      checkOperatorMatch[ColumnarPartialProjectExec](df)
+            checkAnswer(
+              df,
+              Seq(
+                Row(35, 5, mutable.WrappedArray.make(Array(1, 10, 35))),
+                Row(321, 4, mutable.WrappedArray.make(Array(1, 10, 321))),
+                Row(548, 2, mutable.WrappedArray.make(Array(1, 10, 548))),
+                Row(640, 5, mutable.WrappedArray.make(Array(1, 10, 640))),
+                Row(807, 2, mutable.WrappedArray.make(Array(1, 10, 807)))
+              )
+            )
+            if (removePartialProject.toBoolean) {
+              checkOperatorMatch[ProjectExec](df)
+            } else {
+              checkOperatorMatch[ColumnarPartialProjectExec](df)
+            }
+          }
+        }
     }
   }
 
   test("udf with map") {
-    withTempFunction("udf_str_to_map") {
-      sql("""
-            |CREATE TEMPORARY FUNCTION udf_str_to_map AS
-            |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap';
-            |""".stripMargin)
+    Seq("false", "true").foreach {
+      removePartialProject =>
+        withSQLConf(GlutenConfig.REMOVE_COLUMNAR_PARTIAL_PROJECT.key -> removePartialProject) {
+          withTempFunction("udf_str_to_map") {
+            sql("""
+                  |CREATE TEMPORARY FUNCTION udf_str_to_map AS
+                  |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap';
+                  |""".stripMargin)
 
-      val df = sql(
-        """
-          |SELECT
-          |  l_orderkey,
-          |  l_partkey,
-          |  udf_str_to_map(
-          |    concat_ws(',', array(concat('hello', l_partkey), 'world')), ',', 'l') as udf_result
-          |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
-          |""".stripMargin)
+            val df = sql("""
+                           |SELECT
+                           |  l_orderkey,
+                           |  l_partkey,
+                           |  udf_str_to_map(
+                           |    concat_ws(',', array(concat('hello', l_partkey),
+                           |    'world')), ',', 'l') as udf_result
+                           |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
+                           |""".stripMargin)
 
-      checkAnswer(
-        df,
-        Seq(
-          Row(321, 4, Map("he" -> "lo4", "wor" -> "d")),
-          Row(35, 5, Map("he" -> "lo5", "wor" -> "d")),
-          Row(548, 2, Map("he" -> "lo2", "wor" -> "d")),
-          Row(640, 5, Map("he" -> "lo5", "wor" -> "d")),
-          Row(807, 2, Map("he" -> "lo2", "wor" -> "d"))
-        )
-      )
-      checkOperatorMatch[ColumnarPartialProjectExec](df)
+            checkAnswer(
+              df,
+              Seq(
+                Row(321, 4, Map("he" -> "lo4", "wor" -> "d")),
+                Row(35, 5, Map("he" -> "lo5", "wor" -> "d")),
+                Row(548, 2, Map("he" -> "lo2", "wor" -> "d")),
+                Row(640, 5, Map("he" -> "lo5", "wor" -> "d")),
+                Row(807, 2, Map("he" -> "lo2", "wor" -> "d"))
+              )
+            )
+            if (removePartialProject.toBoolean) {
+              checkOperatorMatch[ProjectExec](df)
+            } else {
+              checkOperatorMatch[ColumnarPartialProjectExec](df)
+            }
+          }
+        }
     }
   }
 
