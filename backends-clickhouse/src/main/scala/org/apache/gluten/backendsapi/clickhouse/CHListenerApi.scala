@@ -53,7 +53,7 @@ class CHListenerApi extends ListenerApi with Logging {
       pc.conf.get(GlutenConfig.EXTENDED_EXPRESSION_TRAN_CONF.key, "")
     )
     if (expressionExtensionTransformer != null) {
-      ExpressionExtensionTrait.expressionExtensionTransformer = expressionExtensionTransformer
+      ExpressionExtensionTrait.registerExpressionExtension(expressionExtensionTransformer)
     }
   }
 
