@@ -15,8 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.gluten.table.runtime.operators;
+package org.apache.gluten.streaming.api.operators;
+
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.type.RowType;
 
 /** Interface for all gluten operators. */
 public interface GlutenOperator {
+    public PlanNode getPlanNode();
+    public RowType getOutputType();
+    public String getId();
 }

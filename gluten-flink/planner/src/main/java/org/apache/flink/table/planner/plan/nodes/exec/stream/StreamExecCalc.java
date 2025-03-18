@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.rexnode.LogicalTypeConverter;
+import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.table.runtime.operators.GlutenCalOperator;
 

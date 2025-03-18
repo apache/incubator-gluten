@@ -27,6 +27,7 @@ import java.util.List;
 public class Utils {
 
     private static boolean registryInitialized = false;
+
     // Get names for project node.
     public static List<String> getNamesFromRowType(LogicalType logicalType) {
         if (logicalType instanceof RowType) {

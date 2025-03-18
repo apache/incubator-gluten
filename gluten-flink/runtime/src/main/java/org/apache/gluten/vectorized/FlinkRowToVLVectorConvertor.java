@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Converter between velox RowVector and Flink RowData. */
-public class FlinkRowToVLRowConvertor {
+public class FlinkRowToVLVectorConvertor {
 
     public static RowVector fromRowData(
             RowData row,
@@ -70,7 +70,7 @@ public class FlinkRowToVLRowConvertor {
         return session.arrowOps().fromArrowTable(allocator, new Table(arrowVectors));
     }
 
-    public static RowData toRowData(
+    public static List<RowData> toRowData(
             RowVector rowVector,
             BufferAllocator allocator,
             Session session,
@@ -79,23 +79,27 @@ public class FlinkRowToVLRowConvertor {
         FieldVector fieldVector = session.arrowOps().toArrowVector(
                 allocator,
                 rowVector.loadedVector());
-        List<Object> fieldValues = new ArrayList<>(rowType.size());
-        for (int i = 0; i < rowType.size(); i++) {
-            Type fieldType = rowType.getChildren().get(i);
-            if (fieldType instanceof IntegerType) {
-                fieldValues.add(i, ((IntVector) fieldVector.getChildrenFromFields().get(i)).get(0));
-            } else if (fieldType instanceof BigIntType) {
-                fieldValues.add(i, ((BigIntVector) fieldVector.getChildrenFromFields().get(i)).get(0));
-            } else if (fieldType instanceof VarCharType) {
-                fieldValues.add(
-                        i,
-                        BinaryStringData.fromBytes(
-                                ((VarCharVector) fieldVector.getChildrenFromFields().get(i)).get(0)));
-            } else {
-                throw new RuntimeException("Unsupported field type: " + fieldType);
+        List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
+        for (int j = 0; j < rowVector.getSize(); j++) {
+            List<Object> fieldValues = new ArrayList<>(rowType.size());
+            for (int i = 0; i < rowType.size(); i++) {
+                Type fieldType = rowType.getChildren().get(i);
+                if (fieldType instanceof IntegerType) {
+                    fieldValues.add(i, ((IntVector) fieldVector.getChildrenFromFields().get(i)).get(j));
+                } else if (fieldType instanceof BigIntType) {
+                    fieldValues.add(i, ((BigIntVector) fieldVector.getChildrenFromFields().get(i)).get(j));
+                } else if (fieldType instanceof VarCharType) {
+                    fieldValues.add(
+                            i,
+                            BinaryStringData.fromBytes(
+                                    ((VarCharVector) fieldVector.getChildrenFromFields().get(i)).get(j)));
+                } else {
+                    throw new RuntimeException("Unsupported field type: " + fieldType);
+                }
             }
+            rowDatas.add(GenericRowData.of(fieldValues.toArray()));
         }
-        return GenericRowData.of(fieldValues.toArray());
+        return rowDatas;
     }
 
 }
