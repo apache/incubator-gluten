@@ -641,6 +641,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       if (
         buildKeys
           .forall(k => k.isInstanceOf[AttributeReference] || k.isInstanceOf[BoundReference])
+        || buildKeys.forall(k => k.prettyName.contains("cast"))
       ) {
         (child, child.output, Seq.empty[Expression])
       } else {

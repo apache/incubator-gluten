@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.iterator.Iterators
+
 import org.apache.spark.{broadcast, SparkContext}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -23,11 +25,22 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class VeloxBroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
     broadcasted: broadcast.Broadcast[BuildSideRelation],
-    broadcastContext: BroadCastHashJoinContext)
+    broadcastContext: BroadCastHashJoinContext,
+    isBNL: Boolean = false)
   extends BroadcastBuildSideRDD(sc, broadcasted) {
 
   override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
-    VeloxBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadcastContext)
-    Iterator.empty
+    val output = if (isBNL) {
+      val relation = broadcasted.value.asReadOnlyCopy()
+      Iterators
+        .wrap(relation.deserialized)
+        .recyclePayload(batch => batch.close())
+        .create()
+    } else {
+      VeloxBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadcastContext)
+      Iterator.empty
+    }
+
+    output
   }
 }
