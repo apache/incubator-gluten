@@ -112,17 +112,10 @@ FormatFile::FormatFile(DB::ContextPtr context_, const substraitInputFile & file_
         for (size_t i = 0; i < file_info.partition_columns_size(); ++i)
         {
             const auto & partition_column = file_info.partition_columns(i);
+            partition_values[partition_column.key()] = partition_column.value();
 
-            std::string unescaped_key;
-            std::string unescaped_value;
-            Poco::URI::decode(partition_column.key(), unescaped_key);
-            Poco::URI::decode(partition_column.value(), unescaped_value);
-
-            partition_values[unescaped_key] = unescaped_value;
-
-            std::string normalized_key = unescaped_key;
-            boost::to_lower(normalized_key);
-            normalized_partition_values[normalized_key] = unescaped_value;
+            auto normalized_key = boost::to_lower_copy(partition_column.key());
+            normalized_partition_values[normalized_key] = partition_column.value();
         }
     }
 
