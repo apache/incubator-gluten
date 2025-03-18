@@ -16,6 +16,4 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.execution.HudiSuite
-
 class VeloxHudiSuite extends HudiSuite {}
