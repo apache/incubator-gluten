@@ -228,7 +228,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     LOG_VALIDATION_MSG("Function is not supported: " + name);
     return false;
   }
-
   return true;
 }
 
@@ -245,6 +244,12 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   // Don't support isIntervalYearMonth.
   if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
     LOG_VALIDATION_MSG("Casting involving INTERVAL_YEAR_MONTH is not supported.");
+    return false;
+  }
+
+  // Don't support from/to isIntervalDayTime.
+  if (fromType->isIntervalDayTime() || toType->isIntervalDayTime()) {
+    LOG_VALIDATION_MSG("Casting involving INTERVAL_DAY_TIME is not supported.");
     return false;
   }
 
