@@ -2034,6 +2034,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
               df => {
                 val executedPlan = getExecutedPlan(df)
                 assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExecTransformer]) == 1)
               })
         }
       }
