@@ -67,7 +67,7 @@ object ExpressionExtensionTrait {
   private var expressionExtensionTransformers: Seq[ExpressionExtensionTrait] =
     Seq.apply(DefaultExpressionExtensionTransformer())
 
-  lazy val expressionExtensionSigList: Seq[Sig] =
+  def expressionExtensionSigList: Seq[Sig] =
     expressionExtensionTransformers.flatMap(_.expressionSigList)
 
   def findExpressionExtension(clazz: Class[_]): Option[ExpressionExtensionTrait] = {
