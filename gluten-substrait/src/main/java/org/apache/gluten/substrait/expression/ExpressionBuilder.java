@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.substrait.expression;
 
+import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.exception.GlutenNotSupportException;
 import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.substrait.type.*;
@@ -158,6 +159,10 @@ public class ExpressionBuilder {
     return new StructLiteralNode(row, typeNode);
   }
 
+  public static IntervalYearLiteralNode makeIntervalYearLiteral(Integer row, TypeNode typeNode) {
+    return new IntervalYearLiteralNode(row, typeNode);
+  }
+
   public static LiteralNode makeLiteral(Object obj, TypeNode typeNode) {
     if (obj == null) {
       return makeNullLiteral(typeNode);
@@ -208,6 +213,10 @@ public class ExpressionBuilder {
     }
     if (typeNode instanceof StructNode) {
       return makeStructLiteral((InternalRow) obj, typeNode);
+    }
+    if (typeNode instanceof IntervalYearTypeNode
+        && BackendsApiManager.getSettings().supportYearMonthInterval()) {
+      return makeIntervalYearLiteral((Integer) obj, typeNode);
     }
     throw new GlutenNotSupportException(
         String.format(
