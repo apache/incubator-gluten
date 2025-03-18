@@ -24,8 +24,9 @@ import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.type.RowType;
+import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.vectorized.VLVectorIterator;
-import org.apache.gluten.vectorized.FlinkRowToVLRowConvertor;
+import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
@@ -89,21 +90,36 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
     @Override
     public void processElement(StreamRecord<RowData> element) {
         inputIterator.addRow(
-                FlinkRowToVLRowConvertor.fromRowData(
+                FlinkRowToVLVectorConvertor.fromRowData(
                         element.getValue(),
                         allocator,
                         session,
                         Serde.fromJson(inputType, RowType.class)));
         UpIterator result = session.queryOps().execute(query);
         if (result.hasNext()) {
-            output.collect(
-                    outElement.replace(
-                            FlinkRowToVLRowConvertor.toRowData(
-                                    result.next(),
-                                    allocator,
-                                    session,
-                                    Serde.fromJson(outputType, RowType.class))));
+            List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
+                    result.next(),
+                    allocator,
+                    session,
+                    Serde.fromJson(outputType, RowType.class));
+            for (RowData row : rows) {
+                output.collect(outElement.replace(row));
+            }
         }
     }
 
+    @Override
+    public PlanNode getPlanNode() {
+        return Serde.fromJson(glutenPlan, PlanNode.class);
+    }
+
+    @Override
+    public RowType getOutputType() {
+        return Serde.fromJson(outputType, RowType.class);
+    }
+
+    @Override
+    public String getId() {
+        return id;
+    }
 }
