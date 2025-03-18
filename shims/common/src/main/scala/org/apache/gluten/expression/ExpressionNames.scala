@@ -278,6 +278,7 @@ object ExpressionNames {
   final val ZIP_WITH = "zip_with"
   final val FLATTEN = "flatten"
   final val ARRAY_INSERT = "array_insert"
+  final val ARRAY_APPEND = "array_append"
 
   // Map functions
   final val CREATE_MAP = "map"
