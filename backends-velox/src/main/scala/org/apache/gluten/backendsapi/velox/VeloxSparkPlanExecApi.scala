@@ -549,9 +549,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
       conf.celebornShuffleWriterType == ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
     partitioning != SinglePartition &&
-    (partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
+    ((partitioning.numPartitions >= GlutenConfig.get.columnarShuffleSortPartitionsThreshold ||
       output.size >= GlutenConfig.get.columnarShuffleSortColumnsThreshold) ||
-    isCelebornSortBasedShuffle
+      isCelebornSortBasedShuffle)
   }
 
   /**
@@ -606,8 +606,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     if (GlutenConfig.get.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =
-        clazz.getConstructor(classOf[StructType], classOf[SQLMetric], classOf[SQLMetric])
-      constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
+        clazz.getConstructor(
+          classOf[StructType],
+          classOf[SQLMetric],
+          classOf[SQLMetric],
+          classOf[Boolean])
+      constructor
+        .newInstance(schema, readBatchNumRows, numOutputRows, isSort: java.lang.Boolean)
+        .asInstanceOf[Serializer]
     } else {
       new ColumnarBatchSerializer(
         schema,

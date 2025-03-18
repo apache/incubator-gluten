@@ -19,7 +19,6 @@ package org.apache.spark.shuffle
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.ReservedKeys
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
@@ -70,9 +69,7 @@ abstract class CelebornColumnarShuffleWriter[K, V](
   protected val clientPushSortMemoryThreshold: Long = celebornConf.clientPushSortMemoryThreshold
 
   protected val shuffleWriterType: String =
-    celebornConf.shuffleWriterMode.name
-      .toLowerCase(Locale.ROOT)
-      .replace(ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER, ReservedKeys.GLUTEN_RSS_SORT_SHUFFLE_WRITER)
+    celebornConf.shuffleWriterMode.name.toLowerCase(Locale.ROOT)
 
   protected val celebornPartitionPusher = new CelebornPartitionPusher(
     shuffleId,
