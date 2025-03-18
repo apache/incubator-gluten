@@ -753,7 +753,7 @@ jobs:
   run-spark-test-spark34:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -777,7 +777,10 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
+          yum install -y java-17-openjdk-devel
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
           $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
@@ -845,7 +848,7 @@ jobs:
   run-spark-test-spark34-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -862,6 +865,10 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_HOME=/opt/shims/spark34/spark_home/
+          yum install -y java-17-openjdk-devel
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
           ls -l /opt/shims/spark34/spark_home/
           $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
@@ -951,7 +958,7 @@ jobs:
   run-spark-test-spark35-jdk17:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -975,7 +982,10 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
+          yum install -y java-17-openjdk-devel
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
           $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/  ${EXTRA_FLAGS}" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
