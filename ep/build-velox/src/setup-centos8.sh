@@ -59,7 +59,7 @@ function install_build_prerequisites {
   dnf_install ninja-build curl ccache gcc-toolset-11 git wget which
   dnf_install yasm
   dnf_install autoconf automake python39 python39-devel python39-pip libtool
-  dnf_install https://rpmfind.net/linux/almalinux/8.10/BaseOS/x86_64/os/Packages/tzdata-2024b-4.el8.noarch.rpm
+  dnf_install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm
   pip3.9 install cmake==3.28.3
 }
 
