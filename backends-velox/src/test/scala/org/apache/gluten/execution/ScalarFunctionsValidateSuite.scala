@@ -133,7 +133,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           (Array(1, 2, null.asInstanceOf[Int]), 1),
           (Array(null.asInstanceOf[Int]), 1),
           (Array(null.asInstanceOf[Int]), null.asInstanceOf[Int]),
-          (Array(), null.asInstanceOf[Int])
+          (Array(), null.asInstanceOf[Int]),
+          (null.asInstanceOf[Array[Int]], 1)
         )
           .toDF("arr", "num")
           .write
