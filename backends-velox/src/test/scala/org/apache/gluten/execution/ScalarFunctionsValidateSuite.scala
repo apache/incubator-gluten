@@ -131,7 +131,9 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           (Array(1), 1),
           (Array(), 0),
           (Array(1, 2, null.asInstanceOf[Int]), 1),
-          (Array(null.asInstanceOf[Int]), 1)
+          (Array(null.asInstanceOf[Int]), 1),
+          (Array(null.asInstanceOf[Int]), null.asInstanceOf[Int]),
+          (Array(), null.asInstanceOf[Int])
         )
           .toDF("arr", "num")
           .write
@@ -140,14 +142,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
         runQueryAndCompare("select arr, num, array_append(arr, num) from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
-        }
-
-        runQueryAndCompare("select array_append(array(), NULL) from tbl") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
-        }
-
-        runQueryAndCompare("select array_append(array(NULL), NULL) from tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
@@ -161,7 +155,9 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           (Array("a"), "b"),
           (Array(), "a"),
           (Array("a", "b", null.asInstanceOf[String]), "c"),
-          (Array(null.asInstanceOf[String]), "a")
+          (Array(null.asInstanceOf[String]), "a"),
+          (Array(null.asInstanceOf[String]), null.asInstanceOf[String]),
+          (Array(), null.asInstanceOf[String])
         )
           .toDF("arr", "txt")
           .write
