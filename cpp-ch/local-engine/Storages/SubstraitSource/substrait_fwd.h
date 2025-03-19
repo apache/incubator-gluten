@@ -19,8 +19,8 @@
 
 namespace local_engine
 {
-using substraitInputFile = substrait::ReadRel::LocalFiles::FileOrFiles;
-using substraitIcebergDeleteFile = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions::DeleteFile;
+using SubstraitInputFile = substrait::ReadRel::LocalFiles::FileOrFiles;
+using SubstraitIcebergDeleteFile = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions::DeleteFile;
 using IcebergReadOptions = substrait::ReadRel::LocalFiles::FileOrFiles::IcebergReadOptions;
 using FileContent = IcebergReadOptions::FileContent;
 

@@ -1231,4 +1231,22 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("Test partition values with special characters") {
+    spark.sql("""
+      CREATE TABLE tbl_9050 (
+        product_id STRING,
+        quantity INT
+      ) using parquet
+      PARTITIONED BY (year STRING)
+    """)
+
+    sql("INSERT INTO tbl_9050 PARTITION(year='%s') SELECT 'prod1', 1")
+    sql("INSERT INTO tbl_9050 PARTITION(year='%%s') SELECT 'prod2', 2")
+    sql("INSERT INTO tbl_9050 PARTITION(year='%25s') SELECT 'prod3', 3")
+    sql("INSERT INTO tbl_9050 PARTITION(year=' s') SELECT 'prod3', 4")
+
+    compareResultsAgainstVanillaSpark("select *, input_file_name() from tbl_9050", true, { _ => })
+
+    sql("DROP TABLE tbl_9050")
+  }
 }

@@ -29,13 +29,13 @@ namespace local_engine
 
 namespace iceberg
 {
-substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
+SubstraitInputFile fromDeleteFile(const SubstraitIcebergDeleteFile & deleteFile)
 {
     assert(
         deleteFile.filecontent() == IcebergReadOptions::EQUALITY_DELETES
         || deleteFile.filecontent() == IcebergReadOptions::POSITION_DELETES);
     assert(deleteFile.has_parquet());
-    substraitInputFile file;
+    SubstraitInputFile file;
     file.set_uri_file(deleteFile.filepath());
     file.set_start(0);
     file.set_length(deleteFile.filesize());
@@ -44,7 +44,7 @@ substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile)
 }
 
 SimpleParquetReader::SimpleParquetReader(
-    const ContextPtr & context, const substraitInputFile & file_info, Block header, const std::optional<ActionsDAG> & filter)
+    const ContextPtr & context, const SubstraitInputFile & file_info, Block header, const std::optional<ActionsDAG> & filter)
 {
     const Poco::URI file_uri{file_info.uri_file()};
     ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
@@ -79,7 +79,7 @@ SimpleParquetReader::SimpleParquetReader(
 }
 
 SimpleParquetReader::SimpleParquetReader(
-    const ContextPtr & context, const substraitIcebergDeleteFile & file_info, Block header, const std::optional<ActionsDAG> & filter)
+    const ContextPtr & context, const SubstraitIcebergDeleteFile & file_info, Block header, const std::optional<ActionsDAG> & filter)
     : SimpleParquetReader(context, iceberg::fromDeleteFile(file_info), std::move(header), filter)
 {
 }
