@@ -66,8 +66,8 @@ DeltaReader::DeltaReader(
     : NormalFileReader(file_, to_read_header_, output_header_, input_format_)
     , bitmap_config(bitmap_config_)
 {
-    bitmap_array = std::make_unique<DeltaDVRoaringBitmapArray>(file->getContext());
-    bitmap_array->rb_read(bitmap_config->path_or_inline_dv, bitmap_config->offset, bitmap_config->size_in_bytes);
+    bitmap_array = std::make_unique<DeltaDVRoaringBitmapArray>();
+    bitmap_array->rb_read(bitmap_config->path_or_inline_dv, bitmap_config->offset, bitmap_config->size_in_bytes, file->getContext());
 }
 
 Chunk DeltaReader::doPull()
