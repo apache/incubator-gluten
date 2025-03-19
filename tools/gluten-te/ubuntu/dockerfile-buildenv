@@ -70,8 +70,10 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo loc
 # install HBM dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
 
-# Install OpenJDK 8 and Maven
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
+# Install OpenJDK 11 and Maven (8 on ARM doesn't work with FindJNI() because the ambigiuous arch substitution for libraries.
+#                               E.g., /usr/lib/jvm/java-8-openjdk-arm64/jre/lib/aarch64/server/libjvm.so have both
+#                               arm64 / aarch64 in the path.)
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-11-jdk
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven
 
 # Setup SSH server
