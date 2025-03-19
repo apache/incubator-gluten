@@ -17,6 +17,7 @@
 
 #include <DataTypes/DataTypeString.h>
 #include <Parser/FunctionParser.h>
+#include <Common/DateLUTImpl.h>
 
 namespace DB
 {
