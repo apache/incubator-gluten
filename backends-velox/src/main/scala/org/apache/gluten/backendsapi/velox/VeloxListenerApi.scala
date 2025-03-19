@@ -19,7 +19,7 @@ package org.apache.gluten.backendsapi.velox
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
 import org.apache.gluten.columnarbatch.VeloxBatch
-import org.apache.gluten.config.{GlutenConfig, GlutenStaticConfig, VeloxConfig}
+import org.apache.gluten.config.{GlutenConfig, GlutenStaticConfig}
 import org.apache.gluten.config.VeloxStaticConfig._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
@@ -149,8 +149,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
-    // Initialize the configurations.
-    VeloxConfig.init()
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
     ArrowJavaBatch.ensureRegistered()

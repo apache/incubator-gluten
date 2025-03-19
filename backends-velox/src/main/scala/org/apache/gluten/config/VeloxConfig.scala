@@ -63,11 +63,6 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 }
 
 object VeloxConfig {
-  // ensure the Velox configEntries are registered
-  def init(): Unit = {
-    VeloxConfig
-    VeloxStaticConfig
-  }
 
   def get: VeloxConfig = {
     new VeloxConfig(SQLConf.get)
