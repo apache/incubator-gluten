@@ -233,9 +233,6 @@ class GlutenDeltaParquetDeletionVectorSuite
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_delta_parquet_upsert_dv;
                  |""".stripMargin)
-    spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_delta_parquet_upsert_dv;
-                 |""".stripMargin)
 
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_upsert_dv

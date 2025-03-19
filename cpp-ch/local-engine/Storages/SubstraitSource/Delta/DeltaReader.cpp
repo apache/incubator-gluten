@@ -52,7 +52,8 @@ std::unique_ptr<DeltaReader> DeltaReader::create(
         bitmap_config_ = std::make_shared<DeltaDVBitmapConfig>();
         rapidjson::Document doc;
         doc.Parse(row_index_ids_encoded.c_str());
-        assert(!doc.HasParseError());
+        if (doc.HasParseError())
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid JSON in row_index_ids_encoded: {}", doc.GetParseError());
         if (doc.HasMember("storageType") && doc["storageType"].IsString())
             bitmap_config_->storage_type = doc["storageType"].GetString();
         if (doc.HasMember("pathOrInlineDv") && doc["pathOrInlineDv"].IsString())
