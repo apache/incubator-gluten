@@ -484,7 +484,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       || conf.isUseUniffleShuffleManager)
   }
 
-  override def enableJoinKeysRewrite(): Boolean = false
+  override def enableJoinKeysRewrite(): Boolean = true
 
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     t =>

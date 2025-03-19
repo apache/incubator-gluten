@@ -640,8 +640,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val (newChild, newOutput, newBuildKeys) =
       if (
         buildKeys
-          .forall(k => k.isInstanceOf[AttributeReference] || k.isInstanceOf[BoundReference])
-        || buildKeys.forall(k => k.prettyName.contains("cast"))
+          .forall(
+            k =>
+              k.isInstanceOf[AttributeReference] ||
+                k.isInstanceOf[BoundReference])
       ) {
         (child, child.output, Seq.empty[Expression])
       } else {
