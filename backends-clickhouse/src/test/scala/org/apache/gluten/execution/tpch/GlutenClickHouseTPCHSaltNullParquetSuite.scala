@@ -3397,29 +3397,39 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("GLUTEN-8974 accelerate join + aggregate by any join") {
-    val sql1 =
-      """
-        |select t1.*, t2.* from nation as t1
-        |lef join (select n_regionkey, n_nationkey from nation group by n_regionkey, n_nationkey) t2
-        |on t1.n_regionkey = t.n_regionkey and t1.n_nationkey = t2.n_nationkey
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      // check EliminateDeduplicateAggregateWithAnyJoin is effective
+      def checkOnlyOneAggregate(df: DataFrame): Unit = {
+        logError(s"xxx plan\n${df.queryExecution.executedPlan}")
+        val aggregates = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case e: HashAggregateExecBaseTransformer => e
+        }
+        assert(aggregates.size == 1)
+      }
+      val sql1 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_regionkey, n_nationkey from nation group by n_regionkey, n_nationkey) t2
+          |on t1.n_regionkey = t2.n_regionkey and t1.n_nationkey = t2.n_nationkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql1, true, checkOnlyOneAggregate)
 
-    val sql2 =
-      """
-        |select t1.*, t2.* from nation as t1
-        |lef join (select n_nationkey, n_regionkey from nation group by n_regionkey, n_nationkey) t2
-        |on t1.n_regionkey = t.n_regionkey and t1.n_nationkey = t2.n_nationkey
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+      val sql2 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_nationkey, n_regionkey from nation group by n_regionkey, n_nationkey) t2
+          |on t1.n_regionkey = t2.n_regionkey and t1.n_nationkey = t2.n_nationkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql2, true, checkOnlyOneAggregate)
 
-    val sql3 =
-      """
-        |select t1.*, t2.* from nation as t1
-        |lef join (select n_regionkey from nation group by n_regionkey) t2
-        |on t1.n_regionkey = t.n_regionkey
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+      val sql3 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_regionkey from nation group by n_regionkey) t2
+          |on t1.n_regionkey = t2.n_regionkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql3, true, checkOnlyOneAggregate)
+    }
   }
 }
 // scalastyle:on line.size.limit

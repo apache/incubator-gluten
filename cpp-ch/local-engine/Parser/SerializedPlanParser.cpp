@@ -59,7 +59,6 @@
 #include <Common/PlanUtil.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
-#include <Rewriter/RelRewriter.h>
 
 namespace DB
 {
@@ -202,12 +201,8 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     const bool writePipeline = root_rel.root().input().has_write();
     const substrait::Rel & first_read_rel = writePipeline ? root_rel.root().input().write().input() : root_rel.root().input();
 
-    substrait::Rel rewritten_rel;
-    rewritten_rel.CopyFrom(first_read_rel);
-    RelRewriterFactory::instance().apply(parser_context, rewritten_rel);
-
     std::list<const substrait::Rel *> rel_stack;
-    auto query_plan = parseOp(rewritten_rel, rel_stack);
+    auto query_plan = parseOp(first_read_rel, rel_stack);
     if (!writePipeline)
         adjustOutput(query_plan, plan);
 
