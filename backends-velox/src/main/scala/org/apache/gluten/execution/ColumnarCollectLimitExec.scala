@@ -34,7 +34,7 @@ case class ColumnarCollectLimitExec(
     limit: Int,
     child: SparkPlan,
     offset: Int = 0
-) extends ColumnarCollectLimitBaseExec(limit, child) {
+) extends ColumnarCollectLimitBaseExec(limit, child, offset) {
 
   assert(limit >= 0 || (limit == -1 && offset > 0))
 

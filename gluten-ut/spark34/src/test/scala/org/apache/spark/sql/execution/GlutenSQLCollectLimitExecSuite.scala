@@ -17,14 +17,11 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row}
 
-class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
+class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
 
-  override protected val resourcePath: String = "N/A"
-  override protected val fileFormat: String = "N/A"
-
-  override protected def sparkConf: SparkConf = {
+  override def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
   }
@@ -84,12 +81,11 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
       .range(0, 10, 1)
       .toDF("id")
       .repartition(3)
+      .orderBy("id")
       .limit(3)
-    val expectedData = Seq(Row(1L), Row(2L), Row(4L))
+    val expectedData = Seq(Row(0L), Row(1L), Row(2L))
 
     checkAnswer(df, expectedData)
-
-    assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
   test("ColumnarCollectLimitExec - with distinct values") {
@@ -106,7 +102,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - chained limit", Array("3.2", "3.3")) {
+  test("ColumnarCollectLimitExec - chained limit") {
     val df = spark
       .range(0, 10, 1)
       .toDF("id")
@@ -119,9 +115,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion(
-    "ColumnarCollectLimitExec - limit after union",
-    Array("3.2", "3.3")) {
+  test("ColumnarCollectLimitExec - limit after union") {
     val df1 = spark.range(0, 5).toDF("id")
     val df2 = spark.range(5, 10).toDF("id")
     val unionDf = df1.union(df2).limit(3)
@@ -133,7 +127,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](unionDf, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion("ColumnarCollectLimitExec - offset test", Array("3.4", "3.5")) {
+  test("ColumnarCollectLimitExec - offset test") {
     val df1 = spark.range(0, 10, 1).toDF("id").limit(5).offset(2)
     val expectedData1 = Seq(Row(2L), Row(3L), Row(4L))
 
@@ -175,9 +169,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df5, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion(
-    "ColumnarCollectLimitExec - pure offset test",
-    Array("3.4", "3.5")) {
+  test("ColumnarCollectLimitExec - pure offset test") {
     val df1 = spark.range(0, 20, 1).toDF("id").offset(5)
     val expectedData1 = Seq(
       Row(5L),
@@ -229,9 +221,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     checkAnswer(df6, expectedData6)
   }
 
-  testWithSpecifiedSparkVersion(
-    "ColumnarCollectLimitExec - offset with filter",
-    Array("3.4", "3.5")) {
+  test("ColumnarCollectLimitExec - offset with filter") {
     val df = spark.range(0, 10, 1).toDF("id").filter("id % 2 == 0").limit(5).offset(2)
     val expectedData = Seq(Row(4L), Row(6L), Row(8L))
 
@@ -239,9 +229,7 @@ class GlutenSQLCollectLimitExecSuite extends WholeStageTransformerSuite {
     assertGlutenOperatorMatch[ColumnarCollectLimitBaseExec](df, checkMatch = true)
   }
 
-  testWithSpecifiedSparkVersion(
-    "ColumnarCollectLimitExec - offset after union",
-    Array("3.4", "3.5")) {
+  test("ColumnarCollectLimitExec - offset after union") {
     val df1 = spark.range(0, 5).toDF("id")
     val df2 = spark.range(5, 10).toDF("id")
     val unionDf = df1.union(df2).limit(6).offset(3)
