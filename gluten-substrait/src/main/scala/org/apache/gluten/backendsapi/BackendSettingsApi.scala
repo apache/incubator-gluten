@@ -155,4 +155,6 @@ trait BackendSettingsApi {
 
   def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = false
 
+  def supportIcebergEqualityDeleteRead(): Boolean = true
+
 }

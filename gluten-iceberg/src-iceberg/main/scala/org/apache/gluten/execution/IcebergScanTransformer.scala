@@ -16,12 +16,13 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.IcebergScanTransformer.{containsMetadataColumn, containsUuidOrFixedType}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
-import org.apache.iceberg.BaseTable
+import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
 import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
@@ -55,20 +56,41 @@ case class IcebergScanTransformer(
   }
 
   override def doValidateInternal(): ValidationResult = {
-    if (!super.doValidateInternal().ok()) {
-      return ValidationResult.failed(s"Unsupported scan $scan")
+    val validationResult = super.doValidateInternal();
+    if (!validationResult.ok()) {
+      return validationResult
     }
-    val notSupport = table match {
-      case t: SparkTable => t.table() match {
-        case t: BaseTable => t.operations().current().schema().columns().stream
-          .anyMatch(c => containsUuidOrFixedType(c.`type`()) || containsMetadataColumn(c))
+
+    if (!BackendsApiManager.getSettings.supportIcebergEqualityDeleteRead()) {
+      val notSupport = table match {
+        case t: SparkTable => t.table() match {
+          case t: BaseTable => t.operations().current().schema().columns().stream
+            .anyMatch(c => containsUuidOrFixedType(c.`type`()) || containsMetadataColumn(c))
+          case _ => false
+        }
         case _ => false
       }
-      case _ => false
+      if (notSupport) {
+        return ValidationResult.failed("Contains not supported data type or metadata column")
+      }
+      // Delete from command read the _file metadata, which may be not successful.
+      val readMetadata = scan.readSchema().fieldNames.exists(f => MetadataColumns.isMetadataColumn(f))
+      if (readMetadata) {
+        return ValidationResult.failed(s"Read the metadata column")
+      }
+      val containsEqualityDelete = table match {
+        case t: SparkTable => t.table() match {
+          case t: BaseTable => t.operations().current().currentSnapshot().summary()
+            .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0").toInt > 0
+          case _ => false
+        }
+        case _ => false
+      }
+      if (containsEqualityDelete) {
+        return ValidationResult.failed("Contains equality delete files")
+      }
     }
-    if (notSupport) {
-      return ValidationResult.failed("Contains not supported data type or metadata column")
-    }
+
     ValidationResult.succeeded
   }
 
