@@ -176,6 +176,11 @@ function concat_velox_param {
     fi
 }
 
+if [ "$(uname -m)" = "aarch64" ]; then
+    export CPU_TARGET="aarch64";
+    export VCPKG_FORCE_SYSTEM_BINARIES=1;
+fi
+
 if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
     BUILD_OPTIONS="--build_tests=$BUILD_TESTS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS \
