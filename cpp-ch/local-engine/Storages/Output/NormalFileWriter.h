@@ -134,10 +134,7 @@ struct DeltaStats
             this->null_count[i] += null_count;
 
             DB::Field min_value, max_value;
-            if (const auto * column_nullable = typeid_cast<const DB::ColumnNullable *>(column.get()))
-                column_nullable->getExtremesNullLast(min_value, max_value);
-            else
-                column->getExtremes(min_value, max_value);
+            column->getExtremes(min_value, max_value);
 
             assert(min[i].isNull() || min_value.getType() == min[i].getType());
             assert(max[i].isNull() || max_value.getType() == max[i].getType());
