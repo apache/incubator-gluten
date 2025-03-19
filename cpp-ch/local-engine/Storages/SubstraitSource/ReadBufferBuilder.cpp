@@ -309,7 +309,7 @@ public:
                     config,
                     read_settings,
                     /* read_until_position */ 0,
-                    /* use_external_buffer */ true,
+                    /* use_external_buffer */ false,
                     file_size);
 
             if (use_async_prefetch)
@@ -329,8 +329,7 @@ public:
                     hdfs_file_path,
                     config,
                     read_settings,
-                    /* read_until_position */ 0,
-                    /* use_external_buffer */ true);
+                    /* read_until_position */ 0);
                 file_size = tmp_read_buffer->getFileSize();
             }
 
