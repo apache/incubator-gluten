@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 #include <Rewriter/RelRewriter.h>
 #include "substrait/algebra.pb.h"
 
@@ -40,6 +41,8 @@ protected:
 private:
     static bool isDeduplicationAggregate(const substrait::AggregateRel & aggregate_rel);
 
-    bool collectOnJoinEqualConditions(const substrait::Expression & e, std::vector<const substrait::Expression *> & equal_expressions);
+    bool collectOnJoinEqualConditions(const substrait::Expression & e, std::vector<const substrait::Expression *> & equal_expressions) const;
+    bool checkAllRightColumnsAreGroupingKeys(size_t left_columns_num, size_t right_columns_num, const substrait::Expression & join_expression) const;
+
 };
 }

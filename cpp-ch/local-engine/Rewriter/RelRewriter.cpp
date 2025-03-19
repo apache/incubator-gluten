@@ -24,7 +24,6 @@ namespace local_engine
 {
 bool RelRewriter::visitRel(substrait::Rel & rel)
 {
-    LOG_ERROR(getLogger("RelRewriter"), "visitRel: {}", rel.rel_type_case());
     switch (rel.rel_type_case())
     {
         case substrait::Rel::RelTypeCase::kRead:
