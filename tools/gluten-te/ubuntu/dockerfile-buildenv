@@ -104,9 +104,11 @@ RUN set-login-env "LANGUAGE=en_US:en"
 RUN set-login-env "LC_ALL=en_US.UTF-8"
 
 # Install CMake
-RUN cd /opt && wget https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-x86_64.sh \
+ARG ARCH
+RUN test -n "$ARCH" || (echo "ARCH not set" && false)
+RUN cd /opt && wget https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-$ARCH.sh \
     && mkdir cmake \
-    && bash cmake-3.28.3-linux-x86_64.sh --skip-license --prefix=/opt/cmake \
+    && bash cmake-3.28.3-linux-$ARCH.sh --skip-license --prefix=/opt/cmake \
     && ln -s /opt/cmake/bin/cmake /usr/bin/cmake
 RUN cmake --version
 
