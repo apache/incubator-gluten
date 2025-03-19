@@ -18,8 +18,8 @@ package org.apache.gluten.memory.memtarget;
 
 import org.apache.gluten.config.GlutenConfig$;
 
+import org.apache.spark.SparkEnv;
 import org.apache.spark.memory.SparkMemoryUtil;
-import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.task.TaskResources;
 import org.apache.spark.util.Utils;
 
@@ -48,62 +48,70 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
     }
     // Build error message, then throw
     StringBuilder errorBuilder = new StringBuilder();
-    errorBuilder
-        .append(
-            String.format(
-                "Not enough spark off-heap execution memory. Acquired: %s, granted: %s. "
-                    + "Try tweaking config option spark.memory.offHeap.size to get larger "
-                    + "space to run this application "
-                    + "(if spark.gluten.memory.dynamic.offHeap.sizing.enabled "
-                    + "is not enabled). %n",
-                Utils.bytesToString(size), Utils.bytesToString(granted)))
-        .append("Current config settings: ")
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenConfig$.MODULE$.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key(),
-                reformatBytes(
-                    SQLConf.get()
-                        .getConfString(
-                            GlutenConfig$.MODULE$.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key()))))
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenConfig$.MODULE$.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
-                reformatBytes(
-                    SQLConf.get()
-                        .getConfString(
-                            GlutenConfig$.MODULE$.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key()))))
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenConfig$.MODULE$.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
-                reformatBytes(
-                    SQLConf.get()
-                        .getConfString(
-                            GlutenConfig$.MODULE$
-                                .COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES()
-                                .key()))))
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenConfig$.MODULE$.SPARK_OFFHEAP_ENABLED(),
-                SQLConf.get().getConfString(GlutenConfig$.MODULE$.SPARK_OFFHEAP_ENABLED())))
-        .append(System.lineSeparator())
-        .append(
-            String.format(
-                "\t%s=%s",
-                GlutenConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(),
-                SQLConf.get()
-                    .getConfString(GlutenConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key())))
-        .append(System.lineSeparator());
-    // Dump all consumer usages to exception body
-    errorBuilder.append(SparkMemoryUtil.dumpMemoryTargetStats(target));
-    errorBuilder.append(System.lineSeparator());
+    errorBuilder.append(
+        String.format(
+            "Not enough spark off-heap execution memory. Acquired: %s, granted: %s. "
+                + "Try tweaking config option spark.memory.offHeap.size to get larger "
+                + "space to run this application "
+                + "(if spark.gluten.memory.dynamic.offHeap.sizing.enabled "
+                + "is not enabled). %n",
+            Utils.bytesToString(size), Utils.bytesToString(granted)));
+    SparkEnv sparkEnv = SparkEnv.get();
+    if (sparkEnv != null && sparkEnv.conf() != null) {
+      errorBuilder
+          .append("Current config settings: ")
+          .append(System.lineSeparator())
+          .append(
+              String.format(
+                  "\t%s=%s",
+                  GlutenConfig$.MODULE$.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key(),
+                  reformatBytes(
+                      sparkEnv
+                          .conf()
+                          .get(GlutenConfig$.MODULE$.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key(), "0"))))
+          .append(System.lineSeparator())
+          .append(
+              String.format(
+                  "\t%s=%s",
+                  GlutenConfig$.MODULE$.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+                  reformatBytes(
+                      sparkEnv
+                          .conf()
+                          .get(
+                              GlutenConfig$.MODULE$.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+                              "0"))))
+          .append(System.lineSeparator())
+          .append(
+              String.format(
+                  "\t%s=%s",
+                  GlutenConfig$.MODULE$.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(),
+                  reformatBytes(
+                      sparkEnv
+                          .conf()
+                          .get(
+                              GlutenConfig$.MODULE$
+                                  .COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES()
+                                  .key(),
+                              "0"))))
+          .append(System.lineSeparator())
+          .append(
+              String.format(
+                  "\t%s=%s",
+                  GlutenConfig$.MODULE$.SPARK_OFFHEAP_ENABLED(),
+                  sparkEnv.conf().get(GlutenConfig$.MODULE$.SPARK_OFFHEAP_ENABLED(), "false")))
+          .append(System.lineSeparator())
+          .append(
+              String.format(
+                  "\t%s=%s",
+                  GlutenConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(),
+                  sparkEnv
+                      .conf()
+                      .get(GlutenConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(), "false")))
+          .append(System.lineSeparator());
+      // Dump all consumer usages to exception body
+      errorBuilder.append(SparkMemoryUtil.dumpMemoryTargetStats(target));
+      errorBuilder.append(System.lineSeparator());
+    }
     throw new OutOfMemoryException(errorBuilder.toString());
   }
 
