@@ -94,5 +94,5 @@ abstract class GenerateExecTransformerBase(
   private def getGeneratorNode(context: SubstraitContext): ExpressionNode =
     ExpressionConverter
       .replaceWithExpressionTransformer(generator, child.output)
-      .doTransform(context.registeredFunction)
+      .doTransform(context)
 }

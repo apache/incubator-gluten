@@ -127,7 +127,7 @@ case class CartesianProductExecTransformer(
       expr =>
         ExpressionConverter
           .replaceWithExpressionTransformer(expr, left.output ++ right.output)
-          .doTransform(substraitContext.registeredFunction)
+          .doTransform(substraitContext)
     }
     val extensionNode =
       JoinUtils.createExtensionNode(left.output ++ right.output, validation = true)
