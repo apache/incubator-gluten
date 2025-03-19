@@ -51,9 +51,9 @@ namespace local_engine
 {
 struct ShouldIncludeRowGroup
 {
-    const substraitInputFile & file_info;
+    const SubstraitInputFile & file_info;
 
-    explicit ShouldIncludeRowGroup(const substraitInputFile & file_info) : file_info(file_info) { }
+    explicit ShouldIncludeRowGroup(const SubstraitInputFile & file_info) : file_info(file_info) { }
 
     bool operator()(UInt64 midpoint_offset) const
     {
@@ -63,7 +63,7 @@ struct ShouldIncludeRowGroup
 
 namespace
 {
-ParquetMetaBuilder collectRequiredRowGroups(ReadBuffer & read_buffer, const substraitInputFile & file_info)
+ParquetMetaBuilder collectRequiredRowGroups(ReadBuffer & read_buffer, const SubstraitInputFile & file_info)
 {
     ParquetMetaBuilder result;
     ShouldIncludeRowGroup should_include_row_group{file_info};

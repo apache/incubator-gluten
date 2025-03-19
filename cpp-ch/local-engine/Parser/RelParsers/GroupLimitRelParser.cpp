@@ -267,9 +267,10 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryP
 {
     auto projection_actions = std::make_shared<DB::ActionsDAG>(input_header.getColumnsWithTypeAndName());
 
-
     auto partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
+    auto sort_fields = parseSortFields(win_rel_def->sorts());
     std::set<size_t> unique_partition_fields(partition_fields.begin(), partition_fields.end());
+    std::set<size_t> unique_sort_fields(sort_fields.begin(), sort_fields.end());
     DB::NameSet required_column_names;
     auto build_tuple = [&](const DB::DataTypes & data_types,
                            const Strings & names,
@@ -295,7 +296,7 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryP
     for (size_t i = 0; i < input_header.columns(); ++i)
     {
         const auto & col = input_header.getByPosition(i);
-        if (unique_partition_fields.count(i))
+        if (unique_partition_fields.count(i) && !unique_sort_fields.count(i))
         {
             required_column_names.insert(col.name);
             aggregate_grouping_keys.push_back(col.name);

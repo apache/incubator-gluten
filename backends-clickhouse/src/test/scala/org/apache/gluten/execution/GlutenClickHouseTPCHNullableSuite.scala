@@ -252,4 +252,9 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
         }
       })
   }
+
+  test("Fix array_sort issue-9038") {
+    val sql = "select array_sort(split(l_comment, ' ')) from lineitem limit 10"
+    runSql(sql) { _ => }
+  }
 }

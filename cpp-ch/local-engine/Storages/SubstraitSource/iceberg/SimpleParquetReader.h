@@ -32,7 +32,7 @@ namespace local_engine
 
 namespace iceberg
 {
-substraitInputFile fromDeleteFile(const substraitIcebergDeleteFile & deleteFile);
+SubstraitInputFile fromDeleteFile(const SubstraitIcebergDeleteFile & deleteFile);
 }
 
 class ColumnIndexRowRangesProvider;
@@ -48,12 +48,12 @@ class SimpleParquetReader
 public:
     SimpleParquetReader(
         const DB::ContextPtr & context,
-        const substraitInputFile & file_info,
+        const SubstraitInputFile & file_info,
         DB::Block header = {},
         const std::optional<DB::ActionsDAG> & filter = std::nullopt);
     SimpleParquetReader(
         const DB::ContextPtr & context,
-        const substraitIcebergDeleteFile & file_info,
+        const SubstraitIcebergDeleteFile & file_info,
         DB::Block header = {},
         const std::optional<DB::ActionsDAG> & filter = std::nullopt);
     ~SimpleParquetReader();

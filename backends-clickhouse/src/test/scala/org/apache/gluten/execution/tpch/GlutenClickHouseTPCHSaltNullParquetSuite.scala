@@ -3390,5 +3390,78 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_8343")
   }
 
+  test("GLUTEN-8995: Fix column not found in row_number") {
+    val select_sql =
+      "select  id from (select id ,row_number() over (partition by id order by id desc) as rank from range(1)) c1 where  rank =1"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+  }
+
+  test("GLUTEN-9032 default values from nothing types") {
+    val sql1 =
+      """
+        |select a, b, c from (
+        |  select
+        |    n_regionkey as a, n_nationkey as b, array() as c
+        |  from nation where n_nationkey % 2 = 1
+        |  union all
+        |  select n_nationkey as a, n_regionkey as b, array('123') as c
+        |  from nation where n_nationkey % 2 = 0
+        |)
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 =
+      """
+        |select a, b, c from (
+        |  select
+        |    n_regionkey as a, n_nationkey as b, array() as c
+        |  from nation where n_nationkey % 2 = 1
+        |  union all
+        |  select n_nationkey as a, n_regionkey as b, array('123', null) as c
+        |  from nation where n_nationkey % 2 = 0
+        |)
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+    val sql3 =
+      """
+        |select a, b, c from (
+        |  select
+        |    n_regionkey as a, n_nationkey as b, array() as c
+        |  from nation where n_nationkey % 2 = 1
+        |  union all
+        |  select n_nationkey as a, n_regionkey as b, array(null) as c
+        |  from nation where n_nationkey % 2 = 0
+        |)
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+
+    val sql4 =
+      """
+        |select a, b, c from (
+        |  select
+        |    n_regionkey as a, n_nationkey as b, map() as c
+        |  from nation where n_nationkey % 2 = 1
+        |  union all
+        |  select n_nationkey as a, n_regionkey as b, map('123', 1) as c
+        |  from nation where n_nationkey % 2 = 0
+        |)
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
+
+    val sql5 =
+      """
+        |select a, b, c from (
+        |  select
+        |    n_regionkey as a, n_nationkey as b, map() as c
+        |  from nation where n_nationkey % 2 = 1
+        |  union all
+        |  select n_nationkey as a, n_regionkey as b, map('123', null) as c
+        |  from nation where n_nationkey % 2 = 0
+        |)
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql5, true, { _ => })
+
+  }
 }
 // scalastyle:on line.size.limit
