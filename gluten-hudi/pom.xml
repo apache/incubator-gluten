@@ -14,6 +14,12 @@
   <packaging>jar</packaging>
   <name>Gluten Hudi</name>
 
+  <properties>
+    <properties>
+      <log4j.conf>file:src-hudi/test/resources/log4j2.properties</log4j.conf>
+    </properties>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>

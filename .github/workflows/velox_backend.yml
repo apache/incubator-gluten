@@ -642,7 +642,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark32
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
@@ -682,7 +682,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark32-slow
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark33:
@@ -725,7 +725,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark33
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
@@ -768,7 +768,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark33-slow
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark34:
@@ -814,7 +814,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark34-jdk17
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
@@ -866,7 +866,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark34-jdk8
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
@@ -909,7 +909,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark34-slow-jdk17
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark34-slow-jdk8:
@@ -947,7 +947,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark34-slow-jdk8
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark35:
@@ -990,7 +990,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
@@ -1040,7 +1040,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35-jdk17
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
       - name: Upload golden files
         if: failure()
@@ -1089,7 +1089,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35-scala213
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark35-slow:
@@ -1124,7 +1124,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35-slow
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark35-ras:
@@ -1166,7 +1166,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35-ras
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark35-slow-ras:
@@ -1200,7 +1200,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35-slow-ras
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark35-smj:
@@ -1242,7 +1242,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35-smj
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-spark-test-spark35-slow-smj:
@@ -1276,7 +1276,7 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35-slow-smj
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
 
   run-cpp-test-udf-test:
@@ -1329,5 +1329,5 @@ jobs:
         if: ${{ !success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-log-spark35-udf
+          name: ${{ github.job }}-test-log
           path: "**/target/*.log"
