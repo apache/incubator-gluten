@@ -24,6 +24,15 @@ import org.apache.spark.storage.BlockId
 import java.lang.reflect.Field
 import java.util.UUID
 
+/**
+ * API #acuqire is for reserving some global off-heap memory from Spark memory manager. Once reserved, Spark
+ * tasks will have less off-heap memory to use because of the reservation.
+ *
+ * Note the API #acuqire doesn't trigger spills on Spark tasks although OOM may be encountered.
+ *
+ * The utility internally relies on the Spark storage memory pool. As Spark doesn't expect trait BlockId to be
+ * extended by user, TestBlockId is chosen for the storage memory reservations.
+ */
 object GlobalOffHeapMemory {
   private val FIELD_MEMORY_MANAGER: Field = {
     val f = try {
