@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.config.{GlutenConfig, ReservedKeys, VeloxConfig}
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
@@ -40,6 +40,7 @@ import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
@@ -59,6 +60,8 @@ import org.apache.commons.lang3.ClassUtils
 import javax.ws.rs.core.UriBuilder
 
 import java.util.Locale
+
+import scala.collection.mutable.ArrayBuffer
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
@@ -625,9 +628,90 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan,
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
+
+    val (buildKeys, isNullAware) = mode match {
+      case mode1: HashedRelationBroadcastMode =>
+        (mode1.key, mode1.isNullAware)
+      case _ =>
+        // IdentityBroadcastMode
+        (Seq.empty, false)
+    }
+
+    val (newChild, newOutput, newBuildKeys) =
+      if (
+        buildKeys
+          .forall(
+            k =>
+              k.isInstanceOf[AttributeReference] ||
+                k.isInstanceOf[BoundReference])
+      ) {
+        (child, child.output, Seq.empty[Expression])
+      } else {
+        // pre projection in case of expression join keys
+        val appendedProjections = new ArrayBuffer[NamedExpression]()
+        val preProjectionBuildKeys = buildKeys.zipWithIndex.map {
+          case (e, idx) =>
+            e match {
+              case b: BoundReference => child.output(b.ordinal)
+              case o: Expression =>
+                val newExpr = Alias(o, "col_" + idx)()
+                appendedProjections += newExpr
+                newExpr
+            }
+        }
+
+        def wrapChild(child: SparkPlan): WholeStageTransformer = {
+          val childWithAdapter = ColumnarCollapseTransformStages.wrapInputIteratorTransformer(child)
+          WholeStageTransformer(
+            ProjectExecTransformer(child.output ++ appendedProjections, childWithAdapter))(
+            ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
+          )
+        }
+
+        val newChild = child match {
+          case wt: WholeStageTransformer =>
+            wt.withNewChildren(
+              Seq(ProjectExecTransformer(child.output ++ appendedProjections, wt.child)))
+          case w: WholeStageCodegenExec =>
+            w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections, w.child)))
+          case r: AQEShuffleReadExec if r.supportsColumnar =>
+            // when aqe is open
+            // TODO: remove this after pushdowning preprojection
+            wrapChild(r)
+          case r2c: RowToVeloxColumnarExec =>
+            wrapChild(r2c)
+          case union: ColumnarUnionExec =>
+            wrapChild(union)
+          case ordered: TakeOrderedAndProjectExecTransformer =>
+            wrapChild(ordered)
+          case other =>
+            throw new GlutenNotSupportException(
+              s"Not supported operator ${other.nodeName} for BroadcastRelation")
+        }
+        (newChild, (child.output ++ appendedProjections).map(_.toAttribute), preProjectionBuildKeys)
+      }
+
+    // find the key index in the output
+    val keyColumnIndex = if (isNullAware) {
+      def findKeyOrdinal(key: Expression, output: Seq[Attribute]): Int = {
+        key match {
+          case b: BoundReference => b.ordinal
+          case n: NamedExpression =>
+            output.indexWhere(o => (o.name.equals(n.name) && o.exprId == n.exprId))
+          case _ => throw new GlutenException(s"Cannot find $key in the child's output: $output")
+        }
+      }
+      if (newBuildKeys.isEmpty) {
+        findKeyOrdinal(buildKeys(0), newOutput)
+      } else {
+        findKeyOrdinal(newBuildKeys(0), newOutput)
+      }
+    } else {
+      0
+    }
     val useOffheapBroadcastBuildRelation =
       VeloxConfig.get.enableBroadcastBuildRelationInOffheap
-    val serialized: Array[ColumnarBatchSerializeResult] = child
+    val serialized: Array[ColumnarBatchSerializeResult] = newChild
       .executeColumnar()
       .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
       .filter(_.getNumRows != 0)
@@ -639,12 +723,13 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
+
     if (useOffheapBroadcastBuildRelation) {
       TaskResources.runUnsafe {
         new UnsafeColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
       }
     } else {
-      ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
+      ColumnarBuildSideRelation(newOutput, serialized.map(_.getSerialized), mode, -1, newBuildKeys)
     }
   }
 

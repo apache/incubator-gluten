@@ -24,14 +24,23 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class VeloxBroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
-    broadcasted: broadcast.Broadcast[BuildSideRelation])
+    broadcasted: broadcast.Broadcast[BuildSideRelation],
+    broadcastContext: BroadCastHashJoinContext,
+    isBNL: Boolean = false)
   extends BroadcastBuildSideRDD(sc, broadcasted) {
 
   override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
-    val relation = broadcasted.value.asReadOnlyCopy()
-    Iterators
-      .wrap(relation.deserialized)
-      .recyclePayload(batch => batch.close())
-      .create()
+    val output = if (isBNL) {
+      val relation = broadcasted.value.asReadOnlyCopy()
+      Iterators
+        .wrap(relation.deserialized)
+        .recyclePayload(batch => batch.close())
+        .create()
+    } else {
+      VeloxBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadcastContext)
+      Iterator.empty
+    }
+
+    output
   }
 }
