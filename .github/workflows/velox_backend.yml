@@ -1319,7 +1319,6 @@ jobs:
           # Depends on --build_example=ON.
           $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None \
           -DtagsToInclude=org.apache.gluten.tags.UDFTest
-            - name: Upload test report
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
