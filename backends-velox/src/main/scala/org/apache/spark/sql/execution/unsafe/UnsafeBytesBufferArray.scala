@@ -81,7 +81,7 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
         val memoryManager = SparkEnv.get.memoryManager
         throw new GlutenException(s"Spark off-heap memory is exhausted." +
           s" Storage: ${memoryManager.offHeapStorageMemoryUsed} / ${memoryManager.maxOffHeapStorageMemory}," +
-          s" execution: ${memoryManager.offHeapExecutionMemoryUsed} / ${GlutenConfig.get.offHeapMemorySize}")
+          s" execution: ${memoryManager.offHeapExecutionMemoryUsed} / ${GlutenConfig.get.offHeapMemorySize - memoryManager.maxOffHeapStorageMemory}")
       }
       longArray = new LongArray(MemoryAllocator.UNSAFE.allocate(numBytes))
     }
