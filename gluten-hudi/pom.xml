@@ -15,9 +15,7 @@
   <name>Gluten Hudi</name>
 
   <properties>
-    <properties>
-      <log4j.conf>file:src-hudi/test/resources/log4j2.properties</log4j.conf>
-    </properties>
+    <log4j.conf>file:src-hudi/test/resources/log4j2.properties</log4j.conf>
   </properties>
 
   <dependencies>
