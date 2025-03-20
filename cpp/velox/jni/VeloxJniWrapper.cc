@@ -545,7 +545,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_clearHa
     jlong tableHandler) {
   JNI_METHOD_START
   auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(tableHandler);
-  // hashTableHandler->clear();
+  hashTableHandler->clear();
   ObjectStore::release(tableHandler);
   JNI_METHOD_END()
 }
