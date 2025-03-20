@@ -448,6 +448,18 @@ object GlutenConfig {
     GLUTEN_CONFIG_PREFIX + backendName
   }
 
+  private def appendAdditionalNativeConf(
+      conf: scala.collection.Map[String, String],
+      nativeConfMap: util.Map[String, String]): Unit = {
+    // Pass the additional confs to native.
+    conf.get(NATIVE_ADDITIONAL_CONF_LIST.key).foreach {
+      confList =>
+        confList.split(",").foreach {
+          key => conf.get(key).foreach(value => nativeConfMap.put(key, value))
+        }
+    }
+  }
+
   /**
    * Get dynamic configs.
    *
@@ -549,6 +561,8 @@ object GlutenConfig {
       ReservedKeys.GLUTEN_UGI_USERNAME,
       UserGroupInformation.getCurrentUser.getUserName)
 
+    appendAdditionalNativeConf(conf, nativeConfMap)
+
     // return
     nativeConfMap
   }
@@ -628,6 +642,8 @@ object GlutenConfig {
     conf
       .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    appendAdditionalNativeConf(conf, nativeConfMap)
 
     // return
     nativeConfMap
@@ -1712,4 +1728,10 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val NATIVE_ADDITIONAL_CONF_LIST =
+    buildConf("spark.gluten.native.additionalConfList")
+      .internal()
+      .doc("Comma-separated additional configurations to be passed to the native backend.")
+      .stringConf
+      .createOptional
 }
