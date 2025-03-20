@@ -566,4 +566,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = true
 
+  override def supportIcebergEqualityDeleteRead(): Boolean = false
+
 }
