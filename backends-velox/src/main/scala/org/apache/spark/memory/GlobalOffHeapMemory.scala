@@ -55,7 +55,7 @@ object GlobalOffHeapMemory {
       MemoryMode.OFF_HEAP)
   }
 
-  def free(numBytes: Long): Unit = {
+  def release(numBytes: Long): Unit = {
     memoryManager().releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
   }
 

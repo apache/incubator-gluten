@@ -16,11 +16,16 @@
  */
 package org.apache.spark.sql.execution.unsafe
 
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.exception.GlutenException
+
+import org.apache.spark.SparkEnv
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
+import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.unsafe.Platform
 import org.apache.spark.unsafe.array.LongArray
+import org.apache.spark.unsafe.memory.MemoryAllocator
 
 /**
  * Used to store broadcast variable off-heap memory for broadcast variable. The underlying data
@@ -35,14 +40,8 @@ import org.apache.spark.unsafe.array.LongArray
  */
 // scalastyle:off no.finalize
 @Experimental
-case class UnsafeBytesBufferArray(
-    arraySize: Int,
-    bytesBufferLengths: Array[Int],
-    totalBytes: Long,
-    tmm: TaskMemoryManager)
-  extends MemoryConsumer(tmm, MemoryMode.OFF_HEAP)
-  with Logging {
-
+case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int], totalBytes: Long)
+  extends Logging {
   {
     assert(
       arraySize == bytesBufferLengths.length,
@@ -64,8 +63,6 @@ case class UnsafeBytesBufferArray(
     bytesBufferLengths.init.scanLeft(0)(_ + _)
   }
 
-  override def spill(l: Long, memoryConsumer: MemoryConsumer): Long = 0L
-
   /**
    * Put bytesBuffer at specified array index.
    *
@@ -79,7 +76,14 @@ case class UnsafeBytesBufferArray(
     assert(bytesBuffer.length == bytesBufferLengths(index))
     // first to allocate underlying long array
     if (null == longArray && index == 0) {
-      longArray = allocateArray((totalBytes + 7) / 8)
+      val numBytes = totalBytes + 7
+      if (!GlobalOffHeapMemory.acquire(numBytes)) {
+        val memoryManager = SparkEnv.get.memoryManager
+        throw new GlutenException(s"Spark off-heap memory is exhausted." +
+          s" Storage: ${memoryManager.offHeapStorageMemoryUsed} / ${memoryManager.maxOffHeapStorageMemory}," +
+          s" execution: ${memoryManager.offHeapExecutionMemoryUsed} / ${GlutenConfig.get.offHeapMemorySize}")
+      }
+      longArray = new LongArray(MemoryAllocator.UNSAFE.allocate(numBytes))
     }
 
     Platform.copyMemory(
@@ -132,8 +136,8 @@ case class UnsafeBytesBufferArray(
   override def finalize(): Unit = {
     try {
       if (longArray != null) {
-        freeArray(longArray)
         longArray = null
+        GlobalOffHeapMemory.release(longArray.size())
       }
     } finally {
       super.finalize()
