@@ -41,134 +41,6 @@ case class ColumnarCollectLimitExec(
   override def batchType(): Convention.BatchType =
     BackendsApiManager.getSettings.primaryBatchType
 
-  /**
-   * Returns an iterator that yields up to `limit` rows in total from the input partitionIter.
-   * Either retain the entire batch if it fits within the remaining limit, or prune it if it
-   * partially exceeds the remaining limit.
-   */
-  private def collectLimitedRows(
-      partitionIter: Iterator[ColumnarBatch],
-      limit: Int
-  ): Iterator[ColumnarBatch] = {
-
-    if (partitionIter.isEmpty) {
-      return Iterator.empty
-    }
-
-    new Iterator[ColumnarBatch] {
-      private var rowsCollected = 0
-      private var nextBatch: Option[ColumnarBatch] = None
-
-      override def hasNext: Boolean = {
-        nextBatch.isDefined || fetchNext()
-      }
-
-      override def next(): ColumnarBatch = {
-        if (!hasNext) {
-          throw new NoSuchElementException("No more batches available.")
-        }
-        val batch = nextBatch.get
-        nextBatch = None
-        batch
-      }
-
-      /**
-       * Attempt to fetch the next batch from the underlying iterator if we haven't yet hit the
-       * limit. Returns true if we found a new batch, false otherwise.
-       */
-      private def fetchNext(): Boolean = {
-        if (rowsCollected >= limit || !partitionIter.hasNext) {
-          return false
-        }
-
-        val currentBatch = partitionIter.next()
-        val currentBatchRowCount = currentBatch.numRows()
-        val remaining = limit - rowsCollected
-
-        if (currentBatchRowCount <= remaining) {
-          rowsCollected += currentBatchRowCount
-          ColumnarBatches.retain(currentBatch)
-          nextBatch = Some(currentBatch)
-        } else {
-          val prunedBatch = VeloxColumnarBatches.slice(currentBatch, 0, remaining)
-          rowsCollected += remaining
-          nextBatch = Some(prunedBatch)
-        }
-        true
-      }
-    }
-  }
-
-  /**
-   * Drop offset rows from the beginning of the partition iterator. If a batch is completely within
-   * the offset, skip it. If offset lands inside a batch, prune that batch partially and return the
-   * remainder. Then return all subsequent batches unmodified.
-   */
-  private def dropLimitedRows(
-      partitionIter: Iterator[ColumnarBatch],
-      offset: Int
-  ): Iterator[ColumnarBatch] = {
-
-    if (partitionIter.isEmpty) {
-      return Iterator.empty
-    }
-
-    new Iterator[ColumnarBatch] {
-      private var rowsDropped = 0
-      private var nextBatch: Option[ColumnarBatch] = None
-
-      override def hasNext: Boolean = {
-        nextBatch.isDefined || fetchNext()
-      }
-
-      override def next(): ColumnarBatch = {
-        if (!hasNext) {
-          throw new NoSuchElementException("No batches available.")
-        }
-        val batch = nextBatch.get
-        nextBatch = None
-        batch
-      }
-
-      /**
-       * Fetch next batch from the iterator, skipping batches until we've satisfied the `offset`.
-       *
-       * @return
-       *   true if we found a new batch to return, false otherwise
-       */
-      private def fetchNext(): Boolean = {
-        while (rowsDropped < offset && partitionIter.hasNext) {
-          val currentBatch = partitionIter.next()
-          val rowCount = currentBatch.numRows()
-          val remain = offset - rowsDropped
-
-          if (rowCount <= remain) {
-            rowsDropped += rowCount
-          } else {
-            ColumnarBatches.retain(currentBatch)
-            val prunedBatch = VeloxColumnarBatches.slice(currentBatch, remain, rowCount - remain)
-            rowsDropped += remain
-            nextBatch = Some(prunedBatch)
-            return true
-          }
-        }
-
-        if (rowsDropped < offset) {
-          return false
-        }
-
-        if (!partitionIter.hasNext) {
-          return false
-        }
-
-        val nextOne = partitionIter.next()
-        ColumnarBatches.retain(nextOne)
-        nextBatch = Some(nextOne)
-        true
-      }
-    }
-  }
-
   private lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
 
@@ -188,6 +60,73 @@ case class ColumnarCollectLimitExec(
       .genColumnarShuffleExchangeMetrics(sparkContext, useSortBasedShuffle) ++
       readMetrics ++ writeMetrics
 
+  /**
+   * Returns an iterator that gives offset to limit rows in total from the input partitionIter.
+   * Either retain the entire batch if it fits within the remaining limit, or prune it if it
+   * partially exceeds the remaining limit/offset.
+   */
+  private def collectWithOffsetAndLimit(
+      inputIter: Iterator[ColumnarBatch],
+      offset: Int,
+      limit: Int): Iterator[ColumnarBatch] = {
+
+    val unlimited = limit < 0
+    var rowsToSkip = math.max(offset, 0)
+    var rowsToCollect = if (unlimited) Int.MaxValue else limit
+
+    new Iterator[ColumnarBatch] {
+      private var nextBatch: Option[ColumnarBatch] = None
+
+      override def hasNext: Boolean = {
+        nextBatch.isDefined || fetchNextBatch()
+      }
+
+      override def next(): ColumnarBatch = {
+        if (!hasNext) throw new NoSuchElementException("No more batches available.")
+        val batch = nextBatch.get
+        nextBatch = None
+        batch
+      }
+
+      /**
+       * Advance the iterator until we find a batch (possibly sliced) that we can return, or exhaust
+       * the input.
+       */
+      private def fetchNextBatch(): Boolean = {
+
+        if (rowsToCollect <= 0) return false
+
+        while (inputIter.hasNext) {
+          val batch = inputIter.next()
+          val batchSize = batch.numRows()
+
+          if (rowsToSkip >= batchSize) {
+            rowsToSkip -= batchSize
+          } else {
+            val startIndex = rowsToSkip
+            val leftoverAfterSkip = batchSize - startIndex
+            rowsToSkip = 0
+
+            val needed = math.min(rowsToCollect, leftoverAfterSkip)
+
+            val prunedBatch =
+              if (startIndex == 0 && needed == batchSize) {
+                ColumnarBatches.retain(batch)
+                batch
+              } else {
+                VeloxColumnarBatches.slice(batch, startIndex, needed)
+              }
+
+            rowsToCollect -= needed
+            nextBatch = Some(prunedBatch)
+            return true
+          }
+        }
+        false
+      }
+    }
+  }
+
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val childRDD = child.executeColumnar()
 
@@ -201,16 +140,21 @@ case class ColumnarCollectLimitExec(
 
     processedRDD.mapPartitions(
       partition => {
-        val droppedRows = dropLimitedRows(partition, offset)
-        val adjustedLimit = Math.max(0, limit - offset)
-        if (limit > 0) collectLimitedRows(droppedRows, adjustedLimit)
-        else droppedRows
+        if (limit > 0) {
+          val adjusted = math.max(0, limit - offset)
+          collectWithOffsetAndLimit(partition, offset, adjusted)
+        } else {
+          collectWithOffsetAndLimit(partition, offset, -1)
+        }
       })
   }
 
   private def shuffleLimitedPartitions(childRDD: RDD[ColumnarBatch]): RDD[ColumnarBatch] = {
-    val locallyLimited = if (limit >= 0) {
-      childRDD.mapPartitions(partition => collectLimitedRows(partition, limit))
+    val applyLocalLimit = (offset == 0 && limit >= 0)
+    val locallyLimited = if (applyLocalLimit) {
+      childRDD.mapPartitions {
+        collectWithOffsetAndLimit(_, 0, limit)
+      }
     } else {
       childRDD
     }
