@@ -279,10 +279,6 @@ if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     exit 1
   fi
   if [ $ENABLE_S3 == "ON" ]; then
-    if [ $OS == 'Darwin' ]; then
-      echo "S3 is not supported on MacOS."
-      exit 1
-    fi
     ${VELOX_HOME}/scripts/setup-adapters.sh aws
   fi
   if [ $ENABLE_GCS == "ON" ]; then
