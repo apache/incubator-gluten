@@ -39,7 +39,6 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -421,17 +420,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       )
     )
 
-    allInputPartitions.head.indices.foreach(
-      i => {
-        val currentPartitions = allInputPartitions.map(_(i))
-        currentPartitions.indices.foreach(
-          i =>
-            currentPartitions(i) match {
-              case f: FilePartition =>
-                SoftAffinity.updateFilePartitionLocations(f, rdd.id)
-              case _ =>
-            })
-      })
+    SoftAffinity.updateFilePartitionLocations(Seq(allInputPartitions), rdd.id)
 
     rdd
   }
@@ -510,11 +499,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       )
     )
 
-    allInputPartitions.foreach(_.foreach(_.foreach {
-      case f: FilePartition =>
-        SoftAffinity.updateFilePartitionLocations(f, rdd.id)
-      case _ =>
-    }))
+    SoftAffinity.updateFilePartitionLocations(allInputPartitions, rdd.id)
 
     rdd
   }
