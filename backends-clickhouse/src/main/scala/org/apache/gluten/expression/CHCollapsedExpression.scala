@@ -27,7 +27,7 @@ import org.apache.spark.sql.types.DataType
 
 abstract class CHCollapsedExpression(children: Seq[Expression], name: String) extends Expression {
 
-  def this() {
+  def this() = {
     this(Seq.empty[Expression], "")
   }
 

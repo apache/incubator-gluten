@@ -610,7 +610,6 @@ trait SparkPlanExecApi {
    * Vanilla spark just push down part of filter condition into scan, however gluten can push down
    * all filters. This function calculates the remaining conditions in FilterExec, add into the
    * dataFilters of the leaf node.
-   *
    * @param extraFilters
    *   : Conjunctive Predicates, which are split from the upper FilterExec
    * @param sparkExecNode
