@@ -100,7 +100,7 @@ public:
             /// The difference of both types will result in runtime exceptions in function capture.
             const auto & src_array_type = parsed_args[0]->result_type;
             DataTypePtr dst_array_type = std::make_shared<DataTypeArray>(lambda_args.front().type);
-            if (isNullableOrLowCardinalityNullable(src_array_type))
+            if (src_array_type->isNullable())
                 dst_array_type = std::make_shared<DataTypeNullable>(dst_array_type);
             const auto * dst_array_arg = ActionsDAGUtil::convertNodeTypeIfNeeded(actions_dag, parsed_args[0], dst_array_type);
             return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], dst_array_arg});
@@ -170,13 +170,16 @@ class FunctionParserArraySort : public FunctionParser
 {
 public:
     static constexpr auto name = "array_sort";
+
     explicit FunctionParserArraySort(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserArraySort() override = default;
+
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & scalar_function) const override
     {
         return "arraySortSpark";
     }
+
     const DB::ActionsDAG::Node *
     parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
@@ -190,6 +193,20 @@ public:
         {
             return toFunctionNode(actions_dag, ch_func_name, {parsed_args[0]});
         }
+
+        auto lambda_args = collectLambdaArguments(parser_context, substrait_func.arguments()[1].value().scalar_function());
+        if (lambda_args.size() != 2 || !lambda_args.front().type->equals(*(lambda_args.back().type)))
+            throw DB::Exception(
+                DB::ErrorCodes::BAD_ARGUMENTS, "array_sort function must have a lambda function with two arguments of the same type");
+
+        /// In case lambda argument types are T, and the array has type Array(Nullable(T)) or Nullable(Array(Nullable(T))).
+        /// We need to convert the array type to Array(T) or Nullable(Array(T)) to match the lambda argument types, otherwise it will cause runtime exceptions
+        /// in function capture.
+        const auto & src_array_type = parsed_args[0]->result_type;
+        DataTypePtr dst_array_type = std::make_shared<DataTypeArray>(lambda_args.front().type);
+        if (src_array_type->isNullable())
+            dst_array_type = std::make_shared<DataTypeNullable>(dst_array_type);
+        parsed_args[0] = ActionsDAGUtil::convertNodeTypeIfNeeded(actions_dag, parsed_args[0], dst_array_type);
 
         return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], parsed_args[0]});
     }

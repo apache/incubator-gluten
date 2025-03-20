@@ -67,6 +67,7 @@ import org.apache.parquet.schema.MessageType
 import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
@@ -90,7 +91,8 @@ class Spark35Shims extends SparkShims {
       Sig[RoundFloor](ExpressionNames.FLOOR),
       Sig[RoundCeil](ExpressionNames.CEIL),
       Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT),
-      Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT)
+      Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT),
+      Sig[ArrayAppend](ExpressionNames.ARRAY_APPEND)
     )
   }
 
@@ -375,8 +377,8 @@ class Spark35Shims extends SparkShims {
 
   override def supportDuplicateReadingTracking: Boolean = true
 
-  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] =
-    partition.files.map(_.fileStatus)
+  def getFileStatus(partition: PartitionDirectory): Seq[(FileStatus, Map[String, Any])] =
+    partition.files.map(f => (f.fileStatus, f.metadata))
 
   def isFileSplittable(
       relation: HadoopFsRelation,
@@ -387,7 +389,8 @@ class Spark35Shims extends SparkShims {
   }
 
   def isRowIndexMetadataColumn(name: String): Boolean =
-    name == ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+    name == ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME ||
+      name.equalsIgnoreCase("__delta_internal_is_row_deleted")
 
   def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Int = {
     sparkSchema.fields.zipWithIndex.find {
@@ -411,10 +414,11 @@ class Spark35Shims extends SparkShims {
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
-      partitionValues: InternalRow): Seq[PartitionedFile] = {
+      partitionValues: InternalRow,
+      metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile] = {
     PartitionedFileUtil.splitFiles(
       sparkSession,
-      FileStatusWithMetadata(file),
+      FileStatusWithMetadata(file, metadata),
       isSplitable,
       maxSplitBytes,
       partitionValues)
@@ -669,4 +673,6 @@ class Spark35Shims extends SparkShims {
 
   override def isColumnarLimitExecSupported(): Boolean = false
 
+  override def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
+    file.otherConstantMetadataColumnValues.asJava.asInstanceOf[JMap[String, Object]]
 }

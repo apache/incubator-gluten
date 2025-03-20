@@ -27,6 +27,9 @@
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/GlutenStringUtils.h>
+#include <Parser/SubstraitParserUtils.h>
+#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
+#include <Storages/SubstraitSource/Delta/DeltaReader.h>
 
 namespace DB
 {
@@ -273,24 +276,40 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
     const std::shared_ptr<const DB::KeyCondition> & key_condition = nullptr,
     const ColumnIndexFilterPtr & column_index_filter = nullptr)
 {
-    FormatFile::InputFormatPtr input_format;
-    if (auto * parquetFile = dynamic_cast<ParquetFormatFile *>(file.get()))
+    file->initialize(column_index_filter);
+    auto createInputFormat = [&](const DB::Block & new_read_header_) -> FormatFile::InputFormatPtr
     {
-        /// Apply key condition to the reader.
-        /// If use_local_format is true, column_index_filter will be used  otherwise it will be ignored
-        input_format = parquetFile->createInputFormat(to_read_header_, key_condition, column_index_filter);
-    }
-    else
-    {
-        input_format = file->createInputFormat(to_read_header_);
-        if (key_condition)
+        auto input_format = file->createInputFormat(new_read_header_);
+        if (key_condition && input_format)
             input_format->inputFormat().setKeyCondition(key_condition);
-    }
+        return input_format;
+    };
+
+    if (file->getFileInfo().has_iceberg())
+        return iceberg::IcebergReader::create(file, to_read_header_, output_header_, createInputFormat);
+
+    auto input_format = createInputFormat(to_read_header_);
+
     if (!input_format)
         return nullptr;
 
-    if (file->getFileInfo().has_iceberg())
-        return iceberg::IcebergReader::create(file, to_read_header_, output_header_, input_format);
+    // when there is a '__delta_internal_is_row_deleted' column, it needs to use DeltaReader to read data and add column
+    if (DeltaParquetVirtualMeta::hasMetaColumns(to_read_header_))
+    {
+        String row_index_ids_encoded;
+        String row_index_filter_type;
+        if (file->getFileInfo().other_const_metadata_columns_size())
+        {
+            for (const auto & column : file->getFileInfo().other_const_metadata_columns())
+            {
+                if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_ID_ENCODED)
+                    row_index_ids_encoded = toString(column.value());
+                if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_TYPE)
+                    row_index_filter_type = toString(column.value());
+            }
+        }
+        return delta::DeltaReader::create(file, to_read_header_, output_header_, input_format, row_index_ids_encoded, row_index_filter_type);
+    }
 
     return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);
 }

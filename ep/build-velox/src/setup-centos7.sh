@@ -231,7 +231,9 @@ dnf_install epel-release dnf-plugins-core # For ccache, ninja
 dnf_install ccache wget which libevent-devel \
   yasm \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
-  curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel
+  curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel tzdata
+
+dnf_install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm
 
 $SUDO dnf remove -y gflags
 

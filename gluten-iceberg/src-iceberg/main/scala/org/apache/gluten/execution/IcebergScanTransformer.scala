@@ -16,9 +16,16 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.execution.IcebergScanTransformer.{containsMetadataColumn, containsUuidOrFixedType}
+import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
+import org.apache.iceberg.BaseTable
+import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
+import org.apache.iceberg.types.Type
+import org.apache.iceberg.types.Type.TypeID
+import org.apache.iceberg.types.Types.{ListType, MapType, NestedField}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -26,7 +33,6 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
-import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
 
 case class IcebergScanTransformer(
     override val output: Seq[AttributeReference],
@@ -46,6 +52,24 @@ case class IcebergScanTransformer(
 
   protected[this] def supportsBatchScan(scan: Scan): Boolean = {
     IcebergScanTransformer.supportsBatchScan(scan)
+  }
+
+  override def doValidateInternal(): ValidationResult = {
+    if (!super.doValidateInternal().ok()) {
+      return ValidationResult.failed(s"Unsupported scan $scan")
+    }
+    val notSupport = table match {
+      case t: SparkTable => t.table() match {
+        case t: BaseTable => t.operations().current().schema().columns().stream
+          .anyMatch(c => containsUuidOrFixedType(c.`type`()) || containsMetadataColumn(c))
+        case _ => false
+      }
+      case _ => false
+    }
+    if (notSupport) {
+      return ValidationResult.failed("Contains not supported data type or metadata column")
+    }
+    ValidationResult.succeeded
   }
 
   override lazy val getPartitionSchema: StructType =
@@ -105,5 +129,24 @@ object IcebergScanTransformer {
 
   def supportsBatchScan(scan: Scan): Boolean = {
     scan.getClass.getName == "org.apache.iceberg.spark.source.SparkBatchQueryScan"
+  }
+
+  private def containsUuidOrFixedType(dataType: Type): Boolean = {
+    dataType match {
+      case l: ListType => containsUuidOrFixedType(l.elementType)
+      case m: MapType => containsUuidOrFixedType(m.keyType) || containsUuidOrFixedType(m.valueType)
+      case s: org.apache.iceberg.types.Types.StructType =>
+        s.fields().stream().anyMatch(f => containsUuidOrFixedType(f.`type`()))
+      case t if t.typeId() == TypeID.UUID || t.typeId() == TypeID.FIXED => true
+      case _ => false
+    }
+  }
+
+  private def containsMetadataColumn(field: NestedField): Boolean = {
+    field.`type`() match {
+      case s: org.apache.iceberg.types.Types.StructType =>
+        s.fields().stream().anyMatch(f => containsMetadataColumn(f))
+      case _ => field.fieldId() >= (Integer.MAX_VALUE - 200)
+    }
   }
 }

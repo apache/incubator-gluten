@@ -359,6 +359,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
 
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
+
+  def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
 }
 
 object GlutenConfig {
@@ -506,7 +508,8 @@ object GlutenConfig {
       (
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
-      (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString)
+      (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
+      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
@@ -1693,4 +1696,10 @@ object GlutenConfig {
       .checkValue(_ > 0, s"must be positive.")
       .createWithDefault(10)
 
+  val COLUMNAR_RANGE_ENABLED =
+    buildConf("spark.gluten.sql.columnar.range")
+      .internal()
+      .doc("Enable or disable columnar range.")
+      .booleanConf
+      .createWithDefault(true)
 }

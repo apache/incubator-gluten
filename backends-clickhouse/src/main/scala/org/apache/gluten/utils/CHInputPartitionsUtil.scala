@@ -70,18 +70,19 @@ case class CHInputPartitionsUtil(
           SparkShimLoader.getSparkShims.getFileStatus(partition).flatMap {
             file =>
               // getPath() is very expensive so we only want to call it once in this block:
-              val filePath = file.getPath
+              val filePath = file._1.getPath
 
               if (shouldProcess(filePath)) {
                 val isSplitable =
                   relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
                 SparkShimLoader.getSparkShims.splitFiles(
                   relation.sparkSession,
-                  file,
+                  file._1,
                   filePath,
                   isSplitable,
                   maxSplitBytes,
-                  partition.values
+                  partition.values,
+                  file._2
                 )
               } else {
                 Seq.empty

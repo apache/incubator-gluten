@@ -58,16 +58,18 @@ case class InputPartitionsUtil(
           SparkShimLoader.getSparkShims.getFileStatus(partition).flatMap {
             file =>
               // getPath() is very expensive so we only want to call it once in this block:
-              val filePath = file.getPath
+              val filePath = file._1.getPath
               val isSplitable =
                 SparkShimLoader.getSparkShims.isFileSplittable(relation, filePath, requiredSchema)
               SparkShimLoader.getSparkShims.splitFiles(
                 sparkSession = relation.sparkSession,
-                file = file,
+                file = file._1,
                 filePath = filePath,
                 isSplitable = isSplitable,
                 maxSplitBytes = maxSplitBytes,
-                partitionValues = partition.values)
+                partitionValues = partition.values,
+                metadata = file._2
+              )
           }
       }
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
