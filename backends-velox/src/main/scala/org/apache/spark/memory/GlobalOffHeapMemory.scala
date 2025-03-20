@@ -26,7 +26,12 @@ import java.util.UUID
 
 object GlobalOffHeapMemory {
   private val FIELD_MEMORY_MANAGER: Field = {
-    val f = classOf[TaskMemoryManager].getDeclaredField("memoryManager")
+    val f = try {
+      classOf[TaskMemoryManager].getDeclaredField("memoryManager")
+    } catch {
+      case e: Exception =>
+        throw new GlutenException("Unable to find field TaskMemoryManager#memoryManager via reflection", e)
+    }
     f.setAccessible(true)
     f
   }
@@ -49,6 +54,7 @@ object GlobalOffHeapMemory {
     }
     val tc = TaskContext.get()
     if (tc != null) {
+      // This may happen in test code that mocks the task context without booting up SparkEnv.
       return FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager]
     }
     throw new GlutenException(
