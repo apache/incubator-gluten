@@ -551,8 +551,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
-    // ColumnarShuffleExchangeExec does not support SORT_BEFORE_REPARTITION
-    .exclude("SPARK-23207: Make repartition() generate consistent output")
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenReplaceHashWithSortAggSuite]
@@ -832,9 +830,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
-    // Need to support MAP<NullType, NullType>
-    .exclude(
-      "SPARK-27619: When spark.sql.legacy.allowHashOnMapType is true, hash can be used on Maptype")
     // https://github.com/apache/incubator-gluten/pull/9145.
     .exclude("SPARK-17515: CollectLimit.execute() should perform per-partition limits")
     // https://github.com/apache/incubator-gluten/pull/9145.
