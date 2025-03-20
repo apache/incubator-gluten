@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.execution
+package org.apache.gluten.execution
 
-import org.apache.gluten.execution.VeloxTPCHSuite
 import org.apache.spark.SparkConf
 
 import java.io.File

@@ -501,6 +501,8 @@ class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook:
 
   void next(bool throwIfPastEnd) override;
 
+  size_t remainingSize() const override;
+
   std::shared_ptr<arrow::io::InputStream> in_;
   const facebook::velox::BufferPtr buffer_;
   uint64_t offset_ = -1;
@@ -574,6 +576,10 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
   }
 
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+size_t VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::remainingSize() const {
+  return std::numeric_limits<unsigned long>::max();
 }
 
 VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(

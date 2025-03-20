@@ -18,31 +18,44 @@
 
 #include <Storages/SubstraitSource/FileReader.h>
 
+namespace local_engine
+{
+class DeltaDVRoaringBitmapArray;
+}
+
 namespace local_engine::iceberg
 {
 class IcebergReader final : public NormalFileReader
 {
     DB::ExpressionActionsPtr delete_expr;
     const std::string delete_expr_column_name;
+    std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array;
+    size_t start_remove_index;
 
 public:
     static std::unique_ptr<IcebergReader> create(
         const FormatFilePtr & file_,
         const DB::Block & to_read_header_,
         const DB::Block & output_header_,
-        const FormatFile::InputFormatPtr & input_format_);
+        const std::function<FormatFile::InputFormatPtr(const DB::Block &)> & input_format_callback);
 
     IcebergReader(
         const FormatFilePtr & file_,
         const DB::Block & to_read_header_,
         const DB::Block & output_header_,
         const FormatFile::InputFormatPtr & input_format_,
-        const DB::ExpressionActionsPtr & delete_expr_ = nullptr);
+        const DB::ExpressionActionsPtr & delete_expr_,
+        std::unique_ptr<DeltaDVRoaringBitmapArray> delete_bitmap_array_,
+        size_t start_remove_index_);
+
+    ~IcebergReader() override;
 
 protected:
     DB::Chunk doPull() override;
 
-    void deleteRows(DB::Chunk & chunk) const;
+    DB::Block applyEqualityDelete(DB::Chunk & chunk) const;
+    DB::Block applyPositionDelete(DB::Block block) const;
+    DB::Chunk filterRows(DB::Block block) const;
 };
 
 }

@@ -34,19 +34,69 @@
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
+#include <Core/Settings.h>
 
+namespace DB
+{
+namespace Setting
+{
+extern const SettingsUInt64 output_format_parquet_row_group_size;
+}
+}
 using namespace DB;
 
 namespace local_engine::test
 {
 
+bool BaseReaders::pull(DB::Chunk & chunk)
+{
+    assert(readers.size() > 0);
+
+    while (index < readers.size())
+    {
+        if (readers[index]->pull(chunk))
+            return true;
+        ++index;
+    }
+    return false;
+}
 
 void ReaderTestBase::writeToFile(const std::string & filePath, const DB::Block & block) const
 {
+    writeToFile(filePath, DB::Blocks{block});
+}
+
+void ReaderTestBase::writeToFile(
+    const std::string & filePath,
+    const std::vector<DB::Block> & blocks,
+    bool rowGroupPerBlock) const
+{
+
+    const auto & settings = context_->getSettingsRef();
+    auto row_group_rows = settings[Setting::output_format_parquet_row_group_size];
+
+    if (rowGroupPerBlock)
+    {
+        /// we can't set FormatSettings per block, set it minimum value of all blocks
+        const auto min_block_it = std::ranges::min_element(blocks,
+            [](const DB::Block& a, const DB::Block& b) {
+                return a.rows() < b.rows();
+        });
+
+        context_->setSetting("output_format_parquet_row_group_size", Field(min_block_it->rows()));
+    }
+
+    SCOPE_EXIT({
+        if (rowGroupPerBlock)
+            context_->setSetting("output_format_parquet_row_group_size", Field(row_group_rows));
+    });
+
+    assert(!blocks.empty());
     const Poco::Path file{filePath};
     const Poco::URI fileUri{file};
-    const auto writer = NormalFileWriter::create(context_, fileUri.toString(), block, file.getExtension());
-    writer->write(block);
+    const auto writer = NormalFileWriter::create(context_, fileUri.toString(), blocks[0], file.getExtension());
+    for (const auto & block : blocks)
+        writer->write(block);
     writer->close();
 }
 
@@ -123,6 +173,7 @@ Block ReaderTestBase::collectResult(T & input) const
 
 template Block ReaderTestBase::collectResult<PullingPipelineExecutor>(PullingPipelineExecutor & input) const;
 template Block ReaderTestBase::collectResult<BaseReader>(BaseReader & input) const;
+template Block ReaderTestBase::collectResult<BaseReaders>(BaseReaders & input) const;
 
 Block ReaderTestBase::runClickhouseSQL(const std::string & query) const
 {

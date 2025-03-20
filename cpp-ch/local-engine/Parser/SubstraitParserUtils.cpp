@@ -14,8 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.execution
+#include <Parser/SubstraitParserUtils.h>
+#include "substrait/algebra.pb.h"
+namespace local_engine::SubstraitParserUtils
+{
+std::optional<size_t> getStructFieldIndex(const substrait::Expression & e)
+{
+    if (!e.has_selection())
+        return {};
+    const auto & select = e.selection();
+    if (!select.has_direct_reference())
+        return {};
+    const auto & ref = select.direct_reference();
+    if (!ref.has_struct_field())
+        return {};
+    return ref.struct_field().field();
+}
 
-import org.apache.gluten.execution.HudiSuite
+substrait::Expression buildStructFieldExpression(size_t index)
+{
+    substrait::Expression e;
+    e.mutable_selection()->mutable_direct_reference()->mutable_struct_field()->set_field(index);
+    return e;
+}
 
-class VeloxHudiSuite extends HudiSuite {}
+}

@@ -556,8 +556,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportCartesianProductExec(): Boolean = true
 
-  override def supportBroadcastNestedLoopJoinExec(): Boolean = true
-
   override def supportSampleExec(): Boolean = true
 
   override def supportColumnarArrowUdf(): Boolean = true
@@ -567,4 +565,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def supportCollectLimitExec(): Boolean = true
 
   override def supportCollectTailExec(): Boolean = true
+
+  override def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = true
+
 }

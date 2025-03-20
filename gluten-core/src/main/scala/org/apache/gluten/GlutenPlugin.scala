@@ -270,7 +270,7 @@ private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
 
   /** Initialize the executor plugin. */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    CodedInputStreamClassInitializer
+    CodedInputStreamClassInitializer.modifyDefaultRecursionLimitUnsafe
     // Initialize Backend.
     Component.sorted().foreach(_.onExecutorStart(ctx))
   }

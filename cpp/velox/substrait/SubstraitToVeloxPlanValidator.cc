@@ -58,15 +58,8 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "regexp_replace",
     "rlike"};
 
-const std::unordered_set<std::string> kBlackList = {
-    "split_part",
-    "factorial",
-    "json_array_length",
-    "trunc",
-    "sequence",
-    "approx_percentile",
-    "get_array_struct_fields",
-    "map_from_arrays"};
+const std::unordered_set<std::string> kBlackList =
+    {"split_part", "factorial", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -248,7 +241,6 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   // 2. Date to most categories except few supported types is not allowed.
   // 3. Timestamp to most categories except few supported types is not allowed.
   // 4. Certain complex types are not allowed.
-
   // Don't support isIntervalYearMonth.
   if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
     LOG_VALIDATION_MSG("Casting involving INTERVAL_YEAR_MONTH is not supported.");
@@ -269,7 +261,22 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   }
 
   // Limited support for X to Timestamp.
-  if (toType->isTimestamp() && !fromType->isDate()) {
+  if (toType->isTimestamp()) {
+    if (fromType->isDecimal()) {
+      // Decimal to Timestamp is not supported.
+      LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
+      return false;
+    }
+    if (fromType->isDate()) {
+      return true;
+    }
+    if (fromType->isVarchar()) {
+      return true;
+    }
+    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
+        fromType->isDouble() || fromType->isReal()) {
+      return true;
+    }
     LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
     return false;
   }
@@ -1043,6 +1050,13 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
       break;
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
+      if (crossRel.has_expression()) {
+        LOG_VALIDATION_MSG("Full outer join type with condition is not supported in CrossRel");
+        return false;
+      } else {
+        break;
+      }
     default:
       LOG_VALIDATION_MSG("Unsupported Join type in CrossRel");
       return false;

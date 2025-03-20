@@ -23,6 +23,7 @@ RUN dnf install -y --setopt=install_weak_deps=False gcc-toolset-11
 RUN echo "check_certificate = off" >> ~/.wgetrc
 
 RUN yum install -y java-1.8.0-openjdk-devel patch wget git perl
+RUN yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 ENV PATH=$JAVA_HOME/bin:$PATH
 RUN wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
@@ -30,9 +31,8 @@ RUN wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8
     mv apache-maven-3.8.8 /usr/lib/maven
 ENV PATH=${PATH}:/usr/lib/maven/bin
 
-RUN wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.3.2-incubating/apache-celeborn-0.3.2-incubating-bin.tgz -P /opt/
 RUN wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.4.3/apache-celeborn-0.4.3-bin.tgz -P /opt/
-RUN wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.5.3/apache-celeborn-0.5.3-bin.tgz -P /opt/
+RUN wget -nv https://archive.apache.org/dist/celeborn/celeborn-0.5.4/apache-celeborn-0.5.4-bin.tgz -P /opt/
 
 RUN wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.2/apache-uniffle-0.9.2-incubating-bin.tar.gz -P /opt/
 RUN wget -nv https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz -P /opt/

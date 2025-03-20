@@ -29,6 +29,8 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsR
 import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import scala.collection.mutable
+
 case class ColumnarCollectTailExec(
     limit: Int,
     child: SparkPlan
@@ -39,38 +41,40 @@ case class ColumnarCollectTailExec(
 
   private def collectTailRows(
       partitionIter: Iterator[ColumnarBatch],
-      limit: Int): Iterator[ColumnarBatch] = {
-    if (partitionIter.isEmpty) {
+      limit: Int
+  ): Iterator[ColumnarBatch] = {
+
+    if (!partitionIter.hasNext || limit <= 0) {
       return Iterator.empty
     }
 
-    val result = new Iterator[ColumnarBatch] {
-      private var rowsCollected = 0
+    val tailQueue = new mutable.ListBuffer[ColumnarBatch]()
+    var totalRowsInTail = 0L
 
-      override def hasNext: Boolean = rowsCollected < limit && partitionIter.hasNext
+    while (partitionIter.hasNext) {
+      val batch = partitionIter.next()
+      val batchRows = batch.numRows()
+      ColumnarBatches.retain(batch)
+      tailQueue += batch
+      totalRowsInTail += batchRows
 
-      override def next(): ColumnarBatch = {
-        if (!hasNext) {
-          throw new NoSuchElementException("No more batches available.")
-        }
+      while (totalRowsInTail > limit && tailQueue.nonEmpty) {
+        val front = tailQueue.remove(0)
+        val frontRows = front.numRows().toLong
+        val overflow = totalRowsInTail - limit
 
-        val currentBatch = partitionIter.next()
-        val currentBatchRowCount = currentBatch.numRows()
-        val remaining = limit - rowsCollected
-
-        if (currentBatchRowCount <= remaining) {
-          ColumnarBatches.retain(currentBatch)
-          rowsCollected += currentBatchRowCount
-          currentBatch
+        if (frontRows <= overflow) {
+          totalRowsInTail -= frontRows
         } else {
-          val prunedBatch =
-            VeloxColumnarBatches.slice(currentBatch, currentBatchRowCount - remaining, limit)
-          rowsCollected += remaining
-          prunedBatch
+          val keep = frontRows - overflow
+          val partial = VeloxColumnarBatches.slice(front, overflow.toInt, keep.toInt)
+          tailQueue.prepend(partial)
+          totalRowsInTail -= overflow
         }
+        front.close()
       }
     }
-    result
+    tailQueue.iterator
   }
 
   private lazy val writeMetrics =

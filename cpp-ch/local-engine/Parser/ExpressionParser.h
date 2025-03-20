@@ -89,5 +89,10 @@ private:
 
     static bool areEqualNodes(NodeRawConstPtr a, NodeRawConstPtr b);
     NodeRawConstPtr findFirstStructureEqualNode(NodeRawConstPtr target, const DB::ActionsDAG & actions_dag) const;
+
+    NodeRawConstPtr parseCast(DB::ActionsDAG & actions_dag, const substrait::Expression & cast_expr) const;
+    bool isValueFromNothingType(const substrait::Expression & expr) const;
+    NodeRawConstPtr parseNothingValuesCast(DB::ActionsDAG & actions_dag, const substrait::Expression & cast_expr) const;
+    NodeRawConstPtr parseNormalValuesCast(DB::ActionsDAG & actions_dag, const substrait::Expression & cast_expr) const;
 };
 }
