@@ -131,21 +131,14 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
     }
   }
 
+  static const auto pool = defaultLeafVeloxMemoryPool().get();
+  static SubstraitToVeloxPlanValidator planValidator(pool);
   ::substrait::Plan subPlan;
   parseProtobuf(planData, planSize, &subPlan);
 
-  // A query context with dummy configs. Used for function validation.
-  static const std::unordered_map<std::string, std::string> configs{
-      {velox::core::QueryConfig::kSparkPartitionId, "0"}, {velox::core::QueryConfig::kSessionTimezone, "GMT"}};
-  static const auto queryCtx = velox::core::QueryCtx::create(nullptr, velox::core::QueryConfig(configs));
-  static const auto pool = defaultLeafVeloxMemoryPool().get();
-  // An execution context used for function validation.
-  static const velox::core::ExecCtx execCtx(pool, queryCtx.get());
-
-  static const SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
   static const jclass infoCls = env->FindClass("Lorg/apache/gluten/validate/NativePlanValidationInfo;");
   if (infoCls == nullptr) {
-    const std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidationInfo";
+    static const std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidationInfo";
     throw GlutenException(errorMessage);
   }
   static const jmethodID method = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
