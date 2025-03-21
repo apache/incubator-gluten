@@ -18,8 +18,8 @@ package org.apache.gluten
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.component.Component
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.config.GlutenConfig._
+import org.apache.gluten.config.GlutenStaticConfig._
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenSessionExtensions
@@ -148,9 +148,8 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     conf.set(SPARK_SESSION_EXTENSIONS.key, extensions)
 
     // adaptive custom cost evaluator class
-    val enableGlutenCostEvaluator = conf.getBoolean(
-      GlutenConfig.COST_EVALUATOR_ENABLED.key,
-      GlutenConfig.COST_EVALUATOR_ENABLED.defaultValue.get)
+    val enableGlutenCostEvaluator =
+      conf.getBoolean(COST_EVALUATOR_ENABLED.key, COST_EVALUATOR_ENABLED.defaultValue.get)
     if (enableGlutenCostEvaluator) {
       val costEvaluator = "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator"
       conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key, costEvaluator)
@@ -162,8 +161,8 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       !conf.getBoolean(
         DYNAMIC_OFFHEAP_SIZING_ENABLED.key,
         DYNAMIC_OFFHEAP_SIZING_ENABLED.defaultValue.get) &&
-      (!conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, false) ||
-        conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
+      (!conf.getBoolean(SPARK_OFFHEAP_ENABLED, false) ||
+        conf.getSizeAsBytes(SPARK_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
           minOffHeapSize))
     ) {
       throw new GlutenException(
