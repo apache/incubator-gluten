@@ -111,10 +111,9 @@ public:
         if (const auto * tuple_col = DB::checkAndGetColumn<DB::ColumnTuple>(nested_col_with_type_and_name.column.get()))
         {
             const auto * tuple_type = DB::checkAndGetDataType<DB::DataTypeTuple>(nested_col_with_type_and_name.type.get());
-            auto elems_type = tuple_type->getElements();
             for (size_t row = 0; row < input_rows_count; ++row)
             {
-                serializeTuple(*tuple_col, row, elems_type, write_buffer, format_settings);
+                serializeTuple(*tuple_col, row, tuple_type->getElements(), write_buffer, format_settings);
                 write_helper.rowWritten();
             }
             write_helper.finalize();
@@ -166,6 +165,7 @@ private:
         {
             if (i != 0)
                 writeString(", ", ostr);
+
             const auto & elem_type = elems_type[i];
             const auto & elem_column = tuple_col.getColumn(i);
 
@@ -183,7 +183,7 @@ private:
                 serializeTuple(
                     assert_cast<const DB::ColumnTuple &>(elem_column),
                     row_num,
-                    typeid_cast<const DB::DataTypeTuple &>(*elem_type).getElements(),
+                    assert_cast<const DB::DataTypeTuple &>(*elem_type).getElements(),
                     ostr,
                     settings);
             }
