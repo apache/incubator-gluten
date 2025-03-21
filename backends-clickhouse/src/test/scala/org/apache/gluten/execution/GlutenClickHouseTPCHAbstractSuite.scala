@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
@@ -575,16 +575,19 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   }
 
   override protected def afterAll(): Unit = {
-    // guava cache invalidate event trigger remove operation may in seconds delay, so wait a bit
-    // normally this doesn't take more than 1s
-    eventually(timeout(60.seconds), interval(1.seconds)) {
-      // Spark listener message was not sent in time with ci env.
-      // In tpch case, there are more then 10 hbj data has build.
-      // Let's just verify it was cleaned ever.
-      assert(CHBroadcastBuildSideCache.size() <= 10)
-    }
 
-    ClickhouseSnapshot.clearAllFileStatusCache()
+    // if SparkEnv.get returns null which means something wrong at beforeAll()
+    if (SparkEnv.get != null) {
+      // guava cache invalidate event trigger remove operation may in seconds delay, so wait a bit
+      // normally this doesn't take more than 1s
+      eventually(timeout(60.seconds), interval(1.seconds)) {
+        // Spark listener message was not sent in time with ci env.
+        // In tpch case, there are more than 10 hbj data has built.
+        // Let's just verify it was cleaned ever.
+        assert(CHBroadcastBuildSideCache.size() <= 10)
+      }
+      ClickhouseSnapshot.clearAllFileStatusCache()
+    }
     DeltaLog.clearCache()
     super.afterAll()
   }
