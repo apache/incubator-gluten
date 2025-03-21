@@ -38,6 +38,8 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   protected val parquetTableDataPath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
 
+  final protected lazy val absoluteParquetPath = rootPath + parquetTableDataPath
+
   protected val tablesPath: String
   protected val tpchQueries: String
   protected val queriesResults: String
@@ -47,7 +49,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     super.beforeAll()
 
     if (needCopyParquetToTablePath) {
-      val sourcePath = new File(rootPath + parquetTableDataPath)
+      val sourcePath = new File(absoluteParquetPath)
       FileUtils.copyDirectory(sourcePath, new File(tablesPath))
     }
 
@@ -68,7 +70,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     spark.sql(s"use $parquetSourceDB")
 
     val parquetTablePath = basePath + "/tpch-data"
-    FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
+    FileUtils.copyDirectory(new File(absoluteParquetPath), new File(parquetTablePath))
 
     createNotNullTPCHTablesInParquet(parquetTablePath)
 
@@ -236,7 +238,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     spark.sql(s"use $parquetSourceDB")
 
     val parquetTablePath = basePath + "/tpch-data"
-    FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
+    FileUtils.copyDirectory(new File(absoluteParquetPath), new File(parquetTablePath))
 
     createNotNullTPCHTablesInParquet(parquetTablePath)
 

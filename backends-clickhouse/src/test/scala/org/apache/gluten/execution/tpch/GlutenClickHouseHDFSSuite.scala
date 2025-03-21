@@ -24,7 +24,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import org.apache.commons.io.IOUtils
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileUtil, Path}
 
 import java.nio.charset.Charset
 
@@ -70,6 +70,23 @@ class GlutenClickHouseHDFSSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    val targetFile = new Path(s"$tablesPath/lineitem")
+    val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
+    val existed = fs.exists(targetFile)
+    // If the 'lineitem' directory doesn't exist in HDFS,
+    // upload the 'lineitem' data from the local system.
+    if (!existed) {
+      val localDataDir = new Path(s"$absoluteParquetPath/lineitem")
+      val localFs = localDataDir.getFileSystem(spark.sessionState.newHadoopConf())
+      FileUtil.copy(
+        localFs,
+        localDataDir,
+        fs,
+        targetFile,
+        false,
+        true,
+        spark.sessionState.newHadoopConf())
+    }
   }
 
   override protected def beforeEach(): Unit = {
