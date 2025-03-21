@@ -41,7 +41,6 @@ import org.apache.spark.unsafe.memory.MemoryAllocator
 @Experimental
 case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int], totalBytes: Long)
   extends Logging {
-  private val allocatedBytes = totalBytes + 7;
   {
     assert(
       arraySize == bytesBufferLengths.length,
@@ -49,6 +48,7 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
         "not equal to buffer lengths!")
     assert(totalBytes >= 0, "Unsafe buffer array total bytes can't be negative!")
   }
+  private val allocatedBytes = totalBytes + 7;
 
   /**
    * A single array to store all bytesBufferArray's value, it's inited once when first time get
