@@ -67,6 +67,8 @@ OutputFormatFilePtr createOutputFormatFile(
 
 struct DeltaStats
 {
+    // TODO Support delta.dataSkippingNumIndexedCols, detail see https://docs.databricks.com/aws/en/delta/data-skipping
+    static constexpr size_t MAX_STATS_COLS = 32;
     size_t row_count;
     std::vector<DB::Field> min;
     std::vector<DB::Field> max;
@@ -82,7 +84,7 @@ struct DeltaStats
             std::inserter(partition_index, partition_index.end()),
             [&](const auto & name) { return output.getPositionByName(name); });
         assert(partition_index.size() == partition.size());
-        return DeltaStats(size, partition_index);
+        return DeltaStats(numStatsCols(size), partition_index);
     }
     static DB::Block statsHeader(const DB::Block & output, const DB::Names & partition, DB::ColumnsWithTypeAndName && statsHeaderBase)
     {
@@ -91,23 +93,38 @@ struct DeltaStats
 
         assert(partition_index.size() == partition.size());
 
+        size_t num_stats_cols = numStatsCols(output.columns() - partition.size());
         auto appendBase = [&](const std::string & prefix)
         {
-            for (const auto & column : output.getColumnsWithTypeAndName())
+            for (size_t i = 0; i < num_stats_cols;)
+            {
+                const auto & column = output.getByPosition(i);
                 if (!partition_index.contains(column.name))
+                {
                     statsHeaderBase.emplace_back(wrapNullableType(column.type), prefix + column.name);
+                    ++i;
+                }
+            }
         };
         appendBase("min_");
         appendBase("max_");
-        for (const auto & column : output.getColumnsWithTypeAndName())
+        for (int i = 0; i < num_stats_cols;)
+        {
+            const auto & column = output.getByPosition(i);
             if (!partition_index.contains(column.name))
+            {
                 statsHeaderBase.emplace_back(BIGINT(), "null_count_" + column.name);
+                ++i;
+            }
+        }
 
         return DB::Block{statsHeaderBase};
     }
 
+    static size_t numStatsCols(size_t origin) { return std::min(MAX_STATS_COLS, origin); }
+
     explicit DeltaStats(size_t size, const std::set<size_t> & partition_index_ = {})
-        : row_count(0), min(size), max(size), null_count(size, 0), partition_index(partition_index_)
+        : row_count(0), min(numStatsCols(size)), max(numStatsCols(size)), null_count(numStatsCols(size), 0), partition_index(partition_index_)
     {
         assert(size > 0);
     }
@@ -118,8 +135,8 @@ struct DeltaStats
     {
         assert(chunk.getNumRows() > 0);
         const auto & columns = chunk.getColumns();
-        assert(columns.size() == min.size() + partition_index.size());
-        for (size_t i = 0, col = 0; col < columns.size(); ++col)
+        assert(numStatsCols(columns.size() - partition_index.size()) == min.size());
+        for (size_t i = 0, col = 0; i < min.size(); ++col)
         {
             if (partition_index.contains(col))
                 continue;
