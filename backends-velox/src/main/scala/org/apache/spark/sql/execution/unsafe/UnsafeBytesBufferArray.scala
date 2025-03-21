@@ -41,6 +41,7 @@ import org.apache.spark.unsafe.memory.MemoryAllocator
 @Experimental
 case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int], totalBytes: Long)
   extends Logging {
+  private val allocatedBytes = totalBytes + 7;
   {
     assert(
       arraySize == bytesBufferLengths.length,
@@ -75,8 +76,7 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
     assert(bytesBuffer.length == bytesBufferLengths(index))
     // first to allocate underlying long array
     if (null == longArray && index == 0) {
-      val numBytes = totalBytes + 7
-      if (!GlobalOffHeapMemory.acquire(numBytes)) {
+      if (!GlobalOffHeapMemory.acquire(allocatedBytes)) {
         val memoryManager = SparkEnv.get.memoryManager
         val offHeapMemoryTotal =
           memoryManager.maxOffHeapStorageMemory + memoryManager.offHeapExecutionMemoryUsed
@@ -85,7 +85,7 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
             s" Storage: ${memoryManager.offHeapStorageMemoryUsed} / $offHeapMemoryTotal," +
             s" execution: ${memoryManager.offHeapExecutionMemoryUsed} / $offHeapMemoryTotal")
       }
-      longArray = new LongArray(MemoryAllocator.UNSAFE.allocate(numBytes))
+      longArray = new LongArray(MemoryAllocator.UNSAFE.allocate(allocatedBytes))
     }
 
     Platform.copyMemory(
@@ -139,7 +139,7 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
     try {
       if (longArray != null) {
         longArray = null
-        GlobalOffHeapMemory.release(longArray.size())
+        GlobalOffHeapMemory.release(allocatedBytes)
       }
     } finally {
       super.finalize()
