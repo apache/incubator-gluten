@@ -242,32 +242,24 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   // 3. Timestamp to most categories except few supported types is not allowed.
   // 4. Certain complex types are not allowed.
 
-  auto toKind = toType->kind();
-
   // Don't support isIntervalYearMonth.
   if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
-    LOG_VALIDATION_MSG("Casting involving INTERVAL_YEAR_MONTH is not supported.");
     return false;
   }
 
   // Limited support for DATE to X.
   if (fromType->isDate() && !toType->isTimestamp() && !toType->isVarchar()) {
-    LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
     return false;
   }
 
   // Limited support for Timestamp to X.
   if (fromType->isTimestamp() && !(toType->isDate() || toType->isVarchar())) {
-    LOG_VALIDATION_MSG(
-        "Casting from TIMESTAMP to " + toType->toString() + " is not supported or has incorrect result.");
     return false;
   }
 
   // Limited support for X to Timestamp.
   if (toType->isTimestamp()) {
     if (fromType->isDecimal()) {
-      // Decimal to Timestamp is not supported.
-      LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
       return false;
     }
     if (fromType->isDate()) {
@@ -280,14 +272,15 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
         fromType->isDouble() || fromType->isReal()) {
       return true;
     }
-    LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
     return false;
   }
 
   // Limited support for Complex types.
-  if (fromType->isArray() || fromType->isMap() || fromType->isRow() ||
-      (fromType->isVarbinary() && toKind != TypeKind::VARCHAR)) {
-    LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " is not currently supported.");
+  if (fromType->isArray() || fromType->isMap() || fromType->isRow()) {
+    return false;
+  }
+
+  if (fromType->isVarbinary() && !toType->isVarchar()) {
     return false;
   }
 
@@ -308,6 +301,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     return true;
   }
 
+  LOG_VALIDATION_MSG("Casting from " + input->type()->toString() + " to " + toType->toString() + " is not supported.");
   return false;
 }
 
