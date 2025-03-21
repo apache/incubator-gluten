@@ -382,7 +382,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
      * care of [[LeafTransformSupport]] there won't be any other RDD for leaf operator. As a result,
      * genFirstStageIterator rather than genFinalStageIterator will be invoked
      */
-    val allInputPartitions = leafTransformers.map(_.getPartitions.toIndexedSeq)
+    val allInputPartitions = leafTransformers.map(_.getPartitions)
     val allSplitInfos = getSplitInfosFromPartitions(leafTransformers)
 
     if (GlutenConfig.get.enableHdfsViewfs) {
