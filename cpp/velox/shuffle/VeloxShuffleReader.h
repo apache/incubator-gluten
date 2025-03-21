@@ -130,6 +130,7 @@ class VeloxRssSortShuffleReaderDeserializer : public ColumnarBatchIterator {
   facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
   int64_t& deserializeTime_;
   std::shared_ptr<VeloxInputStream> in_;
+  std::shared_ptr<arrow::io::InputStream> arrowIn_;
 };
 
 class VeloxShuffleReaderDeserializerFactory {
