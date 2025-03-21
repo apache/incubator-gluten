@@ -44,6 +44,7 @@ int main(int argc, char** argv) {
   std::unordered_map<std::string, std::string> conf;
   conf.insert({kDebugModeEnabled, "true"});
   initVeloxBackend(conf);
+  auto pool = defaultLeafVeloxMemoryPool().get();
   SubstraitToVeloxPlanValidator planValidator(pool);
 
   ::substrait::Plan subPlan;
