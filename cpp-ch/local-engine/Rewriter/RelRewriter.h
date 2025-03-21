@@ -29,7 +29,10 @@ namespace local_engine
 class RelRewriter
 {
 public:
-    RelRewriter(ParserContextPtr parser_context_) : parser_context(parser_context_) { }
+    RelRewriter(ParserContextPtr parser_context_)
+        : parser_context(parser_context_)
+    {
+    }
     virtual ~RelRewriter() = default;
     virtual void rewrite(substrait::Rel & rel) = 0;
 
@@ -38,5 +41,4 @@ protected:
 
     inline DB::ContextPtr getContext() const { return parser_context->queryContext(); }
 };
-
 }
