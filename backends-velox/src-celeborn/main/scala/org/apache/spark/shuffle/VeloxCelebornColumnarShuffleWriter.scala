@@ -21,7 +21,6 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
-
 import org.apache.spark._
 import org.apache.spark.internal.config.{SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
@@ -29,11 +28,9 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
-
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.ReservedKeys
+import org.apache.gluten.config.{GlutenConfig, ReservedKeys}
 
 import java.io.IOException
 
@@ -51,7 +48,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     celebornConf,
     client,
     writeMetrics) {
-  private val isSort = !ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER.equals(shuffleWriterType)
+  private val isSort = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]].isSort
 
   private val runtime =
     Runtimes.contextInstance(BackendsApiManager.getBackendName, "CelebornShuffleWriter")
@@ -59,6 +56,9 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
   private val jniWrapper = ShuffleWriterJniWrapper.create(runtime)
 
   private var splitResult: GlutenSplitResult = _
+
+  override val shuffleWriterType: String =
+    if (isSort) ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER else ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
 
   private def availableOffHeapPerTask(): Long = {
     val perTask =
