@@ -17,14 +17,12 @@
 package org.apache.gluten.substrait.rel;
 
 import org.apache.gluten.config.GlutenConfig;
-import org.apache.gluten.expression.ConverterUtils;
-import org.apache.gluten.substrait.utils.SubstraitUtil;
+import org.apache.gluten.substrait.type.TypeNode;
 
+import com.google.protobuf.Any;
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Type;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +37,7 @@ public class LocalFilesNode implements SplitInfo {
   private final List<Long> modificationTimes = new ArrayList<>();
   private final List<Map<String, String>> partitionColumns = new ArrayList<>();
   private final List<Map<String, String>> metadataColumns = new ArrayList<>();
-  private final List<Map<String, Object>> otherMetadataColumns = new ArrayList<>();
+  private final List<Map<String, Any>> otherMetadataColumns = new ArrayList<>();
   private final List<String> preferredLocations = new ArrayList<>();
 
   // The format of file to read.
@@ -55,9 +53,19 @@ public class LocalFilesNode implements SplitInfo {
     UnknownFormat()
   }
 
+  public static class SchemaField {
+    String name;
+    TypeNode type;
+
+    public SchemaField(String name, TypeNode type) {
+      this.name = name;
+      this.type = type;
+    }
+  }
+
   protected ReadFileFormat fileFormat = ReadFileFormat.UnknownFormat;
   private Boolean iterAsInput = false;
-  private StructType fileSchema;
+  private List<SchemaField> fileSchema;
   private Map<String, String> fileReadProperties;
 
   LocalFilesNode(
@@ -72,7 +80,7 @@ public class LocalFilesNode implements SplitInfo {
       ReadFileFormat fileFormat,
       List<String> preferredLocations,
       Map<String, String> properties,
-      List<Map<String, Object>> otherMetadataColumns) {
+      List<Map<String, Any>> otherMetadataColumns) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
@@ -102,7 +110,7 @@ public class LocalFilesNode implements SplitInfo {
     paths.addAll(newPaths);
   }
 
-  public void setFileSchema(StructType schema) {
+  public void setFileSchema(List<SchemaField> schema) {
     this.fileSchema = schema;
   }
 
@@ -111,10 +119,9 @@ public class LocalFilesNode implements SplitInfo {
 
     if (fileSchema != null) {
       Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-      for (StructField field : fileSchema.fields()) {
-        structBuilder.addTypes(
-            ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
-        namedStructBuilder.addNames(ConverterUtils.normalizeColName(field.name()));
+      for (SchemaField field : fileSchema) {
+        structBuilder.addTypes(field.type.toProtobuf());
+        namedStructBuilder.addNames(field.name);
       }
       namedStructBuilder.setStruct(structBuilder.build());
     }
@@ -199,13 +206,13 @@ public class LocalFilesNode implements SplitInfo {
       fileBuilder.setSchema(namedStruct);
 
       if (!otherMetadataColumns.isEmpty()) {
-        Map<String, Object> otherMetadatas = otherMetadataColumns.get(i);
+        Map<String, Any> otherMetadatas = otherMetadataColumns.get(i);
         if (!otherMetadatas.isEmpty()) {
           otherMetadatas.forEach(
               (key, value) -> {
                 ReadRel.LocalFiles.FileOrFiles.otherConstantMetadataColumnValues.Builder builder =
                     ReadRel.LocalFiles.FileOrFiles.otherConstantMetadataColumnValues.newBuilder();
-                builder.setKey(key).setValue(SubstraitUtil.convertJavaObjectToAny(value));
+                builder.setKey(key).setValue(value);
                 fileBuilder.addOtherConstMetadataColumns(builder.build());
               });
         }

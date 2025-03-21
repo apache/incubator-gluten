@@ -25,8 +25,8 @@ import org.apache.gluten.expression.ExpressionNames.MONOTONICALLY_INCREASING_ID
 import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
-import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
+import org.apache.gluten.substrait.expression.{ExpressionNode, WindowFunctionNode}
+import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy, WindowFunctionNodeUtil}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.ShuffleDependency
@@ -714,7 +714,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
           case wf @ (RowNumber() | Rank(_) | DenseRank(_) | PercentRank(_)) =>
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
               new JArrayList[ExpressionNode](),
               columnName,
@@ -741,7 +741,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
                     .replaceWithExpressionTransformer(expr, originalInputAttributes)
                     .doTransform(args)))
 
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               CHExpressions.createAggregateFunction(args, aggExpression.aggregateFunction).toInt,
               childrenNodeList,
               columnName,
@@ -791,7 +791,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
                   offsetWf.default,
                   attributeSeq = originalInputAttributes)
                 .doTransform(args))
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               WindowFunctionsBuilder.create(args, offsetWf).toInt,
               childrenNodeList,
               columnName,
@@ -807,7 +807,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
             val childrenNodeList = new JArrayList[ExpressionNode]()
             val literal = buckets.asInstanceOf[Literal]
             childrenNodeList.add(LiteralTransformer(literal).doTransform(args))
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               WindowFunctionsBuilder.create(args, wf).toInt,
               childrenNodeList,
               columnName,

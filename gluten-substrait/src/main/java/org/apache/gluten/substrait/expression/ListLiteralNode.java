@@ -22,16 +22,17 @@ import org.apache.gluten.substrait.type.TypeNode;
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
 import io.substrait.proto.Type;
-import org.apache.spark.sql.catalyst.util.ArrayData;
 
-public class ListLiteralNode extends LiteralNodeWithValue<ArrayData> {
-  public ListLiteralNode(ArrayData array, TypeNode typeNode) {
-    super(array, typeNode);
+import java.util.List;
+
+public class ListLiteralNode extends LiteralNodeWithValue<List<Object>> {
+  public ListLiteralNode(List<Object> list, TypeNode typeNode) {
+    super(list, typeNode);
   }
 
   @Override
-  protected void updateLiteralBuilder(Builder literalBuilder, ArrayData array) {
-    Object[] elements = array.array();
+  protected void updateLiteralBuilder(Builder literalBuilder, List<Object> list) {
+    Object[] elements = list.toArray();
     TypeNode elementType = ((ListNode) getTypeNode()).getNestedType();
 
     if (elements.length > 0) {

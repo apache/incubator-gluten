@@ -17,6 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import org.apache.gluten.utils.SparkToJavaConverter
 
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}
 import org.apache.spark.sql.types.DataType
@@ -79,7 +80,8 @@ object GenericExpressionTransformer {
 case class LiteralTransformer(original: Literal) extends LeafExpressionTransformer {
   override def substraitExprName: String = "literal"
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    ExpressionBuilder.makeLiteral(original.value, original.dataType, original.nullable)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeLiteral(SparkToJavaConverter.toJava(original.value, typeNode), typeNode)
   }
 }
 object LiteralTransformer {

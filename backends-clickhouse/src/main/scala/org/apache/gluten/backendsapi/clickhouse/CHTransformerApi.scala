@@ -44,6 +44,7 @@ import com.google.common.collect.Lists
 import com.google.protobuf.{Any, Message}
 import org.apache.hadoop.fs.Path
 
+import java.math.{BigDecimal, BigInteger, MathContext}
 import java.util
 
 class CHTransformerApi extends TransformerApi with Logging {
@@ -228,7 +229,8 @@ class CHTransformerApi extends TransformerApi with Logging {
 
     // Just make a fake toType value, because native engine cannot accept datatype itself.
     val toTypeNodes =
-      ExpressionBuilder.makeDecimalLiteral(new Decimal().set(0, dataType.precision, dataType.scale))
+      ExpressionBuilder.makeDecimalLiteral(
+        new BigDecimal(BigInteger.valueOf(0L), dataType.scale, new MathContext(dataType.precision)))
     val expressionNodes =
       Lists.newArrayList(childNode, new BooleanLiteralNode(nullOnOverflow), toTypeNodes)
     val typeNode = ConverterUtils.getTypeNode(dataType, nullable)

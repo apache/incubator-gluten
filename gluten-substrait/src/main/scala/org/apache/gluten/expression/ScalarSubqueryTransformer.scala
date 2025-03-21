@@ -17,6 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import org.apache.gluten.utils.SparkToJavaConverter
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -29,13 +30,15 @@ case class ScalarSubqueryTransformer(substraitExprName: String, query: ScalarSub
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // don't trigger collect when in validation phase
     if (TransformerState.underValidationState) {
-      return ExpressionBuilder.makeLiteral(null, query.dataType, true)
+      return ExpressionBuilder.makeNullLiteral(
+        ConverterUtils.getTypeNode(query.dataType, nullable = true))
     }
     // After https://github.com/apache/incubator-gluten/pull/5862, we do not need to execute
     // subquery manually so the exception behavior is same with vanilla Spark.
     // Note that, this code change is just for simplify. The subquery has already been materialized
     // before doing transform.
     val result = query.eval(InternalRow.empty)
-    ExpressionBuilder.makeLiteral(result, query.dataType, result == null)
+    val typeNode = ConverterUtils.getTypeNode(query.dataType, result == null)
+    ExpressionBuilder.makeLiteral(SparkToJavaConverter.toJava(result, typeNode), typeNode)
   }
 }

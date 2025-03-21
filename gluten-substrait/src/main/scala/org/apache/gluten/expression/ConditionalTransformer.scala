@@ -45,7 +45,8 @@ case class CaseWhenTransformer(
     // generate else value node, maybe null
     val elseValueNode = elseValue
       .map(_.doTransform(args))
-      .getOrElse(ExpressionBuilder.makeLiteral(null, branchDataType, true))
+      .getOrElse(ExpressionBuilder.makeNullLiteral(
+        ConverterUtils.getTypeNode(branchDataType, nullable = true)))
     new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
 }

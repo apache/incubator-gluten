@@ -56,7 +56,10 @@ object InExpressionTransformer {
       values.toSeq
         // Sort elements for deterministic behaviours
         .sortBy(Literal(_, valueType).toString())
-        .map(value => ExpressionBuilder.makeLiteral(value, valueType, value == null))
+        .map(
+          value =>
+            ExpressionBuilder
+              .makeLiteral(value, ConverterUtils.getTypeNode(valueType, value == null)))
         .asJava)
 
     ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)

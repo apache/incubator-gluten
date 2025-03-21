@@ -17,18 +17,9 @@
 package org.apache.gluten.substrait.expression;
 
 import org.apache.gluten.exception.GlutenNotSupportException;
-import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.substrait.type.*;
 
-import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
-import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.UnsafeArrayData;
-import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.catalyst.util.GenericArrayData;
-import org.apache.spark.sql.catalyst.util.MapData;
-import org.apache.spark.sql.types.*;
-
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -138,24 +129,24 @@ public class ExpressionBuilder {
     return new BinaryLiteralNode(vBytes, typeNode);
   }
 
-  public static DecimalLiteralNode makeDecimalLiteral(Decimal vDecimal) {
+  public static DecimalLiteralNode makeDecimalLiteral(BigDecimal vDecimal) {
     return new DecimalLiteralNode(vDecimal);
   }
 
-  public static DecimalLiteralNode makeDecimalLiteral(Decimal vDecimal, TypeNode typeNode) {
+  public static DecimalLiteralNode makeDecimalLiteral(BigDecimal vDecimal, TypeNode typeNode) {
     return new DecimalLiteralNode(vDecimal, typeNode);
   }
 
-  public static ListLiteralNode makeListLiteral(ArrayData array, TypeNode typeNode) {
-    return new ListLiteralNode(array, typeNode);
+  public static ListLiteralNode makeListLiteral(List<Object> list, TypeNode typeNode) {
+    return new ListLiteralNode(list, typeNode);
   }
 
-  public static MapLiteralNode makeMapLiteral(MapData map, TypeNode typeNode) {
+  public static MapLiteralNode makeMapLiteral(Map<Object, Object> map, TypeNode typeNode) {
     return new MapLiteralNode(map, typeNode);
   }
 
-  public static StructLiteralNode makeStructLiteral(InternalRow row, TypeNode typeNode) {
-    return new StructLiteralNode(row, typeNode);
+  public static StructLiteralNode makeStructLiteral(List<Object> struct, TypeNode typeNode) {
+    return new StructLiteralNode(struct, typeNode);
   }
 
   public static LiteralNode makeLiteral(Object obj, TypeNode typeNode) {
@@ -196,41 +187,23 @@ public class ExpressionBuilder {
       return makeBinaryLiteral((byte[]) obj, typeNode);
     }
     if (typeNode instanceof DecimalTypeNode) {
-      Decimal decimal = (Decimal) obj;
+      BigDecimal decimal = (BigDecimal) obj;
       checkDecimalScale(decimal.scale());
       return makeDecimalLiteral(decimal, typeNode);
     }
     if (typeNode instanceof ListNode) {
-      return makeListLiteral((ArrayData) obj, typeNode);
+      return makeListLiteral((List<Object>) obj, typeNode);
     }
     if (typeNode instanceof MapNode) {
-      return makeMapLiteral((MapData) obj, typeNode);
+      return makeMapLiteral((Map<Object, Object>) obj, typeNode);
     }
     if (typeNode instanceof StructNode) {
-      return makeStructLiteral((InternalRow) obj, typeNode);
+      return makeStructLiteral((List<Object>) obj, typeNode);
     }
     throw new GlutenNotSupportException(
         String.format(
             "Type not supported: %s, obj: %s, class: %s",
-            typeNode.toString(), obj.toString(), obj.getClass().toString()));
-  }
-
-  public static LiteralNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
-    TypeNode typeNode = ConverterUtils.getTypeNode(dataType, nullable);
-    if (obj instanceof UnsafeArrayData) {
-      UnsafeArrayData oldObj = (UnsafeArrayData) obj;
-      int numElements = oldObj.numElements();
-      Object[] elements = new Object[numElements];
-      DataType elementType = ((ArrayType) dataType).elementType();
-
-      for (int i = 0; i < numElements; i++) {
-        elements[i] = oldObj.get(i, elementType);
-      }
-
-      GenericArrayData newObj = new GenericArrayData(elements);
-      return makeListLiteral(newObj, typeNode);
-    }
-    return makeLiteral(obj, typeNode);
+            typeNode.toString(), obj, obj.getClass()));
   }
 
   public static void checkDecimalScale(int scale) {
@@ -281,32 +254,18 @@ public class ExpressionBuilder {
       List<ExpressionNode> expressionNodes,
       String columnName,
       TypeNode outputTypeNode,
-      Expression upperBound,
-      Expression lowerBound,
-      String frameType,
-      List<Attribute> originalInputAttributes) {
-    return makeWindowFunction(
-        functionId,
-        expressionNodes,
-        columnName,
-        outputTypeNode,
-        upperBound,
-        lowerBound,
-        frameType,
-        false,
-        originalInputAttributes);
-  }
-
-  public static WindowFunctionNode makeWindowFunction(
-      Integer functionId,
-      List<ExpressionNode> expressionNodes,
-      String columnName,
-      TypeNode outputTypeNode,
-      Expression upperBound,
-      Expression lowerBound,
+      String upperBound,
+      String lowerBound,
       String frameType,
       boolean ignoreNulls,
-      List<Attribute> originalInputAttributes) {
+      boolean upperBoundFoldable,
+      boolean lowerBoundFoldable,
+      long upperBoundOffset,
+      long lowerBoundOffset,
+      ExpressionNode upperBoundRefNode,
+      ExpressionNode lowerBoundRefNode,
+      boolean isPreComputeRangeFrameUpperBound,
+      boolean isPreComputeRangeFrameLowerBound) {
     return new WindowFunctionNode(
         functionId,
         expressionNodes,
@@ -316,6 +275,13 @@ public class ExpressionBuilder {
         lowerBound,
         frameType,
         ignoreNulls,
-        originalInputAttributes);
+        upperBoundFoldable,
+        lowerBoundFoldable,
+        upperBoundOffset,
+        lowerBoundOffset,
+        upperBoundRefNode,
+        lowerBoundRefNode,
+        isPreComputeRangeFrameUpperBound,
+        isPreComputeRangeFrameLowerBound);
   }
 }

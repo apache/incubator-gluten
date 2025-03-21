@@ -21,6 +21,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
+import org.apache.gluten.utils.WindowFunctionNodeUtil
 
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
@@ -484,7 +485,7 @@ trait SparkPlanExecApi {
           case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
               new JArrayList[ExpressionNode](),
               columnName,
@@ -510,7 +511,7 @@ trait SparkPlanExecApi {
                   .doTransform(args))
               .asJava
 
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
               childrenNodeList,
               columnName,
@@ -536,7 +537,9 @@ trait SparkPlanExecApi {
             // Velox only allows negative offset. WindowFunctionsBuilder#create converts
             // lag/lead with negative offset to the function with positive offset. So just
             // makes offsetNode store positive value.
-            val offsetNode = ExpressionBuilder.makeLiteral(Math.abs(offset.toLong), LongType, false)
+            val offsetNode = ExpressionBuilder.makeLongLiteral(
+              Math.abs(offset.toLong),
+              ConverterUtils.getTypeNode(LongType, nullable = false));
             childrenNodeList.add(offsetNode)
             // NullType means Null is the default value. Don't pass it to native.
             if (offsetWf.default.dataType != NullType) {
@@ -547,7 +550,7 @@ trait SparkPlanExecApi {
                     attributeSeq = originalInputAttributes)
                   .doTransform(args))
             }
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               WindowFunctionsBuilder.create(args, offsetWf).toInt,
               childrenNodeList,
               columnName,
@@ -567,7 +570,7 @@ trait SparkPlanExecApi {
                 .replaceWithExpressionTransformer(input, attributeSeq = originalInputAttributes)
                 .doTransform(args))
             childrenNodeList.add(LiteralTransformer(offset).doTransform(args))
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               WindowFunctionsBuilder.create(args, wf).toInt,
               childrenNodeList,
               columnName,
@@ -584,7 +587,7 @@ trait SparkPlanExecApi {
             val childrenNodeList = new JArrayList[ExpressionNode]()
             val literal = buckets.asInstanceOf[Literal]
             childrenNodeList.add(LiteralTransformer(literal).doTransform(args))
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+            val windowFunctionNode = WindowFunctionNodeUtil.makeWindowFunction(
               WindowFunctionsBuilder.create(args, wf).toInt,
               childrenNodeList,
               columnName,
