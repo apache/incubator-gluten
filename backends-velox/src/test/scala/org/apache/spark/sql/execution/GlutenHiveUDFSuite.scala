@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig.GLUTEN_SUPPORTED_HIVE_UDFS
 import org.apache.gluten.execution.ColumnarPartialProjectExec
 import org.apache.gluten.udf.CustomerUDF
 
@@ -76,6 +77,8 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
       // this rule may potentially block testing of other optimization rules such as
       // ConstantPropagation etc.
       .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+      // mapping udf_substr to velox substring function
+      .set(GLUTEN_SUPPORTED_HIVE_UDFS.key, "udf_substr:substring")
 
     conf.set(
       StaticSQLConf.WAREHOUSE_PATH,
@@ -198,6 +201,54 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
         )
       )
       checkOperatorMatch[ColumnarPartialProjectExec](df)
+    }
+  }
+
+  test("UDFMapping should prioritize over ColumnarPartialProject when both applicable") {
+    withTempFunction("udf_substr") {
+      withTempFunction("udf_substr2") {
+        withTempFunction("udf_sort_array") {
+          sql(s"""
+                 |CREATE TEMPORARY FUNCTION udf_sort_array AS
+                 |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFSortArray';
+                 |""".stripMargin)
+          Seq("udf_substr", "udf_substr2").foreach {
+            testudf =>
+              sql(s"""CREATE TEMPORARY FUNCTION $testudf AS
+                     |'org.apache.hadoop.hive.ql.udf.UDFSubstr';
+                     |""".stripMargin)
+
+              val df = sql(s"""
+                              |select
+                              |  l_partkey,
+                              |  udf_sort_array(array(10, l_orderkey, 1)),
+                              |  $testudf(l_comment, 1, 5)
+                              |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
+                              |""".stripMargin)
+              val executedPlan = getExecutedPlan(df)
+              checkGlutenOperatorMatch[ColumnarPartialProjectExec](df)
+              val partialProject = executedPlan
+                .filter {
+                  _ match {
+                    case _: ColumnarPartialProjectExec => true
+                    case _ => false
+                  }
+                }
+                .head
+                .asInstanceOf[ColumnarPartialProjectExec]
+
+              if (testudf == "udf_substr") {
+                // Since udf_substr is supported to transform,
+                // then we should only partial project udf_sort_array.
+                assert(partialProject.output.count(_.name.startsWith("_SparkPartialProject")) == 1)
+              } else {
+                // Since both udf_sort_array and udf_substr2 is not supported to transform,
+                // then we should partial project udf_sort_array and udf_substr2.
+                assert(partialProject.output.count(_.name.startsWith("_SparkPartialProject")) == 2)
+              }
+          }
+        }
+      }
     }
   }
 }
