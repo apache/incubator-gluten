@@ -19,6 +19,8 @@ package org.apache.gluten.expression
 import org.apache.gluten.backendsapi.clickhouse.CHConfig
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.substrait.`type`.I32TypeNode
+import org.apache.gluten.substrait.`type`.StringTypeNode
 import org.apache.gluten.substrait.expression._
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -202,7 +204,8 @@ case class CHRegExpReplaceTransformer(
             substraitExprName,
             Seq(original.subject.dataType, original.regexp.dataType, original.rep.dataType),
             FunctionConfig.OPT)
-          val replacedRepNode = ExpressionBuilder.makeLiteral(replacedValue, StringType, false)
+          val replacedRepNode =
+            ExpressionBuilder.makeStringLiteral(replacedValue, new StringTypeNode(false))
           val exprNodes = Lists.newArrayList(
             childrenWithPos(0).doTransform(args),
             childrenWithPos(1).doTransform(args),
@@ -243,7 +246,7 @@ case class GetArrayItemTransformer(
       Seq(IntegerType, getArrayItem.right.dataType),
       FunctionConfig.OPT)
     val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, addFunctionName)
-    val literalNode = ExpressionBuilder.makeLiteral(1, IntegerType, false)
+    val literalNode = ExpressionBuilder.makeIntLiteral(1, new I32TypeNode(false))
     rightNode = ExpressionBuilder.makeScalarFunction(
       addFunctionId,
       Lists.newArrayList(literalNode, rightNode),

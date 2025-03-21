@@ -18,14 +18,14 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression._
+import org.apache.gluten.expression.{ConverterUtils, _}
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
-import org.apache.gluten.utils.VeloxIntermediateData
+import org.apache.gluten.utils.{SparkToJavaConverter, VeloxIntermediateData}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -377,7 +377,10 @@ abstract class HashAggregateExecTransformer(
                     val extraAttr = AttributeReference(veloxOrders(idx).head, veloxType)()
                     newInputAttributes += extraAttr
                     val lt = Literal.default(veloxType)
-                    childNodes.add(ExpressionBuilder.makeLiteral(lt.value, lt.dataType, false))
+                    val nodeType = ConverterUtils.getTypeNode(lt.dataType, nullable = false)
+                    childNodes.add(
+                      ExpressionBuilder
+                        .makeLiteral(SparkToJavaConverter.toJava(lt.value, nodeType), nodeType))
                   } else {
                     val sparkType = sparkTypes(adjustedIdx)
                     val attr = rewrittenInputAttributes(adjustedIdx)

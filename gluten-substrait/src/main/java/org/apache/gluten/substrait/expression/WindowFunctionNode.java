@@ -17,22 +17,16 @@
 package org.apache.gluten.substrait.expression;
 
 import org.apache.gluten.exception.GlutenException;
-import org.apache.gluten.expression.ExpressionConverter;
 import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.FunctionArgument;
 import io.substrait.proto.FunctionOption;
 import io.substrait.proto.WindowType;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
-import org.apache.spark.sql.catalyst.expressions.PreComputeRangeFrameBound;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-
-import scala.collection.JavaConverters;
 
 public class WindowFunctionNode implements Serializable {
   private final Integer functionId;
@@ -41,26 +35,47 @@ public class WindowFunctionNode implements Serializable {
   private final String columnName;
   private final TypeNode outputTypeNode;
 
-  private final org.apache.spark.sql.catalyst.expressions.Expression upperBound;
+  private final String upperBound;
 
-  private final org.apache.spark.sql.catalyst.expressions.Expression lowerBound;
+  private final String lowerBound;
 
   private final String frameType;
 
   private final boolean ignoreNulls;
 
-  private final List<Attribute> originalInputAttributes;
+  private final boolean upperBoundFoldable;
+
+  private final boolean lowerBoundFoldable;
+
+  private final long upperBoundOffset;
+
+  private final long lowerBoundOffset;
+
+  private final ExpressionNode upperBoundRefNode;
+
+  private final ExpressionNode lowerBoundRefNode;
+
+  private final boolean isPreComputeRangeFrameUpperBound;
+
+  private final boolean isPreComputeRangeFrameLowerBound;
 
   WindowFunctionNode(
       Integer functionId,
       List<ExpressionNode> expressionNodes,
       String columnName,
       TypeNode outputTypeNode,
-      org.apache.spark.sql.catalyst.expressions.Expression upperBound,
-      org.apache.spark.sql.catalyst.expressions.Expression lowerBound,
+      String upperBound,
+      String lowerBound,
       String frameType,
       boolean ignoreNulls,
-      List<Attribute> originalInputAttributes) {
+      boolean upperBoundFoldable,
+      boolean lowerBoundFoldable,
+      long upperBoundOffset,
+      long lowerBoundOffset,
+      ExpressionNode upperBoundRefNode,
+      ExpressionNode lowerBoundRefNode,
+      boolean isPreComputeRangeFrameUpperBound,
+      boolean isPreComputeRangeFrameLowerBound) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.columnName = columnName;
@@ -69,13 +84,24 @@ public class WindowFunctionNode implements Serializable {
     this.lowerBound = lowerBound;
     this.frameType = frameType;
     this.ignoreNulls = ignoreNulls;
-    this.originalInputAttributes = originalInputAttributes;
+    this.upperBoundFoldable = upperBoundFoldable;
+    this.lowerBoundFoldable = lowerBoundFoldable;
+    this.upperBoundOffset = upperBoundOffset;
+    this.lowerBoundOffset = lowerBoundOffset;
+    this.upperBoundRefNode = upperBoundRefNode;
+    this.lowerBoundRefNode = lowerBoundRefNode;
+    this.isPreComputeRangeFrameUpperBound = isPreComputeRangeFrameUpperBound;
+    this.isPreComputeRangeFrameLowerBound = isPreComputeRangeFrameLowerBound;
   }
 
   private Expression.WindowFunction.Bound.Builder setBound(
       Expression.WindowFunction.Bound.Builder builder,
-      org.apache.spark.sql.catalyst.expressions.Expression boundType) {
-    switch (boundType.sql()) {
+      String boundType,
+      boolean foldable,
+      long offset,
+      ExpressionNode refNode,
+      boolean isPreComputeRangeFrameBound) {
+    switch (boundType) {
       case ("CURRENT ROW"):
         Expression.WindowFunction.Bound.CurrentRow.Builder currentRowBuilder =
             Expression.WindowFunction.Bound.CurrentRow.newBuilder();
@@ -92,20 +118,12 @@ public class WindowFunctionNode implements Serializable {
         builder.setUnboundedFollowing(followingBuilder.build());
         break;
       default:
-        if (boundType instanceof PreComputeRangeFrameBound) {
+        if (isPreComputeRangeFrameBound) {
           // Used only when backend is velox and frame type is RANGE.
           if (!frameType.equals("RANGE")) {
             throw new GlutenException(
                 "Only Range frame supports PreComputeRangeFrameBound, but got " + frameType);
           }
-          ExpressionNode refNode =
-              ExpressionConverter.replaceWithExpressionTransformer(
-                      ((PreComputeRangeFrameBound) boundType).child().toAttribute(),
-                      JavaConverters.asScalaIteratorConverter(originalInputAttributes.iterator())
-                          .asScala()
-                          .toSeq())
-                  .doTransform(new HashMap<String, Long>());
-          Long offset = Long.valueOf(boundType.eval(null).toString());
           if (offset < 0) {
             Expression.WindowFunction.Bound.Preceding.Builder refPrecedingBuilder =
                 Expression.WindowFunction.Bound.Preceding.newBuilder();
@@ -117,11 +135,10 @@ public class WindowFunctionNode implements Serializable {
             refFollowingBuilder.setRef(refNode.toProtobuf());
             builder.setFollowing(refFollowingBuilder.build());
           }
-        } else if (boundType.foldable()) {
+        } else if (foldable) {
           // Used when
           // 1. Velox backend and frame type is ROW
           // 2. Clickhouse backend
-          Long offset = Long.valueOf(boundType.eval(null).toString());
           if (offset < 0) {
             Expression.WindowFunction.Bound.Preceding.Builder offsetPrecedingBuilder =
                 Expression.WindowFunction.Bound.Preceding.newBuilder();
@@ -177,8 +194,24 @@ public class WindowFunctionNode implements Serializable {
 
     Expression.WindowFunction.Bound.Builder upperBoundBuilder =
         Expression.WindowFunction.Bound.newBuilder();
-    windowBuilder.setLowerBound(setBound(lowerBoundBuilder, lowerBound).build());
-    windowBuilder.setUpperBound(setBound(upperBoundBuilder, upperBound).build());
+    windowBuilder.setLowerBound(
+        setBound(
+                lowerBoundBuilder,
+                lowerBound,
+                lowerBoundFoldable,
+                lowerBoundOffset,
+                lowerBoundRefNode,
+                isPreComputeRangeFrameLowerBound)
+            .build());
+    windowBuilder.setUpperBound(
+        setBound(
+                upperBoundBuilder,
+                upperBound,
+                upperBoundFoldable,
+                upperBoundOffset,
+                upperBoundRefNode,
+                isPreComputeRangeFrameUpperBound)
+            .build());
     windowBuilder.setWindowType(getWindowType(frameType));
     return windowBuilder.build();
   }

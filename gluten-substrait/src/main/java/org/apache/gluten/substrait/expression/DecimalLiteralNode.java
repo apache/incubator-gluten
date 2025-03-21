@@ -22,21 +22,19 @@ import org.apache.gluten.substrait.type.TypeNode;
 import com.google.protobuf.ByteString;
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
-import org.apache.spark.sql.types.Decimal;
 
 import java.math.BigDecimal;
 
-public class DecimalLiteralNode extends LiteralNodeWithValue<Decimal> {
+public class DecimalLiteralNode extends LiteralNodeWithValue<BigDecimal> {
   private final ByteString valueBytes;
 
-  public DecimalLiteralNode(Decimal value, TypeNode typeNode) {
+  public DecimalLiteralNode(BigDecimal value, TypeNode typeNode) {
     super(value, typeNode);
     ExpressionBuilder.checkDecimalScale(value.scale());
-    this.valueBytes =
-        ByteString.copyFrom(encodeDecimalIntoBytes(value.toJavaBigDecimal(), value.scale(), 16));
+    this.valueBytes = ByteString.copyFrom(encodeDecimalIntoBytes(value, value.scale(), 16));
   }
 
-  public DecimalLiteralNode(Decimal value) {
+  public DecimalLiteralNode(BigDecimal value) {
     this(value, TypeBuilder.makeDecimal(true, value.precision(), value.scale()));
   }
 
@@ -76,7 +74,7 @@ public class DecimalLiteralNode extends LiteralNodeWithValue<Decimal> {
   }
 
   @Override
-  protected void updateLiteralBuilder(Builder literalBuilder, Decimal value) {
+  protected void updateLiteralBuilder(Builder literalBuilder, BigDecimal value) {
     Expression.Literal.Decimal.Builder decimalBuilder = Expression.Literal.Decimal.newBuilder();
     decimalBuilder.setPrecision(value.precision());
     decimalBuilder.setScale(value.scale());
