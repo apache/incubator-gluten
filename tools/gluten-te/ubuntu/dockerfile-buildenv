@@ -70,8 +70,10 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo loc
 # install HBM dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
 
-# Install OpenJDK 8 and Maven
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk
+# Install OpenJDK 11 and Maven (8 on ARM doesn't work with FindJNI() because the ambigiuous arch substitution for libraries.
+#                               E.g., /usr/lib/jvm/java-8-openjdk-arm64/jre/lib/aarch64/server/libjvm.so have both
+#                               arm64 / aarch64 in the path.)
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-11-jdk
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y maven
 
 # Setup SSH server
@@ -104,9 +106,11 @@ RUN set-login-env "LANGUAGE=en_US:en"
 RUN set-login-env "LC_ALL=en_US.UTF-8"
 
 # Install CMake
-RUN cd /opt && wget https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-x86_64.sh \
+ARG ARCH
+RUN test -n "$ARCH" || (echo "ARCH not set" && false)
+RUN cd /opt && wget https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-$ARCH.sh \
     && mkdir cmake \
-    && bash cmake-3.28.3-linux-x86_64.sh --skip-license --prefix=/opt/cmake \
+    && bash cmake-3.28.3-linux-$ARCH.sh --skip-license --prefix=/opt/cmake \
     && ln -s /opt/cmake/bin/cmake /usr/bin/cmake
 RUN cmake --version
 
