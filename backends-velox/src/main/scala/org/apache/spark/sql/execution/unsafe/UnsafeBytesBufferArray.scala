@@ -48,7 +48,7 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
         "not equal to buffer lengths!")
     assert(totalBytes >= 0, "Unsafe buffer array total bytes can't be negative!")
   }
-  private val allocatedBytes = totalBytes + 7;
+  private val allocatedBytes = (totalBytes + 7) / 8 * 8
 
   /**
    * A single array to store all bytesBufferArray's value, it's inited once when first time get
