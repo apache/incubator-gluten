@@ -273,6 +273,10 @@
             <artifactId>protobuf-java</artifactId>
             <groupId>com.google.protobuf</groupId>
           </exclusion>
+          <exclusion>
+            <groupId>jdk.tools</groupId>
+            <artifactId>jdk.tools</artifactId>
+          </exclusion>
         </exclusions>
     </dependency>
     <dependency>

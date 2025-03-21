@@ -100,3 +100,6 @@ dist/
 metastore_db/
 
 .ipynb_checkpoints
+
+# For Spark warehouse
+gluten-ut/*/spark-warehouse/
