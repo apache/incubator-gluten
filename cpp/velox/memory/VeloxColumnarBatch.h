@@ -51,9 +51,12 @@ class VeloxColumnarBatch final : public ColumnarBatch {
       const std::vector<int32_t>& columnIndices);
   facebook::velox::RowVectorPtr getRowVector() const;
   facebook::velox::RowVectorPtr getFlattenedRowVector();
+  facebook::velox::RowVectorPtr getPartialFlattenedRowVector(const std::vector<int32_t>& columnIndices);
 
  private:
   void ensureFlattened();
+  void ensurePartialFlattened(const std::vector<int32_t>& columnIndices);
+  void doFlatten(std::shared_ptr<facebook::velox::BaseVector>&);
 
   facebook::velox::RowVectorPtr rowVector_ = nullptr;
   bool flattened_ = false;
