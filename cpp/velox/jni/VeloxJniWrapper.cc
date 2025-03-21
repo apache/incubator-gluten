@@ -42,6 +42,9 @@ using namespace gluten;
 using namespace facebook;
 
 namespace {
+jclass infoCls;
+jmethodID infoClsInitMethod;
+
 jclass blockStripesClass;
 jmethodID blockStripesConstructor;
 } // namespace
@@ -60,6 +63,9 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   getJniErrorState()->ensureInitialized(env);
   initVeloxJniFileSystem(env);
   initVeloxJniUDF(env);
+
+  infoCls = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/validate/NativePlanValidationInfo;");
+  infoClsInitMethod = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
 
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
@@ -136,12 +142,6 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   ::substrait::Plan subPlan;
   parseProtobuf(planData, planSize, &subPlan);
 
-  static const jclass infoCls = env->FindClass("Lorg/apache/gluten/validate/NativePlanValidationInfo;");
-  if (infoCls == nullptr) {
-    static const std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidationInfo";
-    throw GlutenException(errorMessage);
-  }
-  static const jmethodID method = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
   try {
     const auto isSupported = planValidator.validate(subPlan);
     const auto logs = planValidator.getValidateLog();
@@ -149,10 +149,10 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
     for (int i = 0; i < logs.size(); i++) {
       concatLog += logs[i] + "@";
     }
-    return env->NewObject(infoCls, method, isSupported, env->NewStringUTF(concatLog.c_str()));
+    return env->NewObject(infoCls, infoClsInitMethod, isSupported, env->NewStringUTF(concatLog.c_str()));
   } catch (std::invalid_argument& e) {
     LOG(INFO) << "Failed to validate substrait plan because " << e.what();
-    return env->NewObject(infoCls, method, false, env->NewStringUTF(""));
+    return env->NewObject(infoCls, infoClsInitMethod, false, env->NewStringUTF(""));
   }
   JNI_METHOD_END(nullptr)
 }

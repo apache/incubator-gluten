@@ -70,7 +70,7 @@ static inline jclass createGlobalClassReference(JNIEnv* env, const char* classNa
 static inline jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
   jclass globalClass = createGlobalClassReference(env, className);
   if (globalClass == nullptr) {
-    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for" + std::string(className);
+    std::string errorMessage = "Unable to create global class reference  for" + std::string(className);
     throw gluten::GlutenException(errorMessage);
   }
   return globalClass;
