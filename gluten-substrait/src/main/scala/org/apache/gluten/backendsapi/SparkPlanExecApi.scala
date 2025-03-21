@@ -325,6 +325,7 @@ trait SparkPlanExecApi {
    *
    * childOutputAttributes may be different from outputAttributes, for example, the
    * childOutputAttributes include additional shuffle key columns
+   *
    * @return
    */
   // scalastyle:off argcount
@@ -609,10 +610,10 @@ trait SparkPlanExecApi {
    * Vanilla spark just push down part of filter condition into scan, however gluten can push down
    * all filters. This function calculates the remaining conditions in FilterExec, add into the
    * dataFilters of the leaf node.
-   * @param extraFilters:
-   *   Conjunctive Predicates, which are split from the upper FilterExec
-   * @param sparkExecNode:
-   *   The vanilla leaf node of the plan tree, which is FileSourceScanExec or BatchScanExec
+   * @param extraFilters
+   *   : Conjunctive Predicates, which are split from the upper FilterExec
+   * @param sparkExecNode
+   *   : The vanilla leaf node of the plan tree, which is FileSourceScanExec or BatchScanExec
    * @return
    *   return all push down filters
    */
@@ -626,6 +627,7 @@ trait SparkPlanExecApi {
         attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
       })
     }
+
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExecTransformerBase =>
         getPushedFilter(fileSourceScan.dataFilters)
@@ -711,4 +713,12 @@ trait SparkPlanExecApi {
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec
+
+  def expressionCollapseSupported(expr: Expression): Boolean = false
+
+  def genCollapsedExpressionTransformer(
+      substraitName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer =
+    GenericExpressionTransformer(substraitName, children, expr)
 }
