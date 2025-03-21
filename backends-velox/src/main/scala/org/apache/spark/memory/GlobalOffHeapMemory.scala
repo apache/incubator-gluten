@@ -24,9 +24,26 @@ import org.apache.spark.storage.BlockId
 import java.lang.reflect.Field
 import java.util.UUID
 
+/**
+ * API #acuqire is for reserving some global off-heap memory from Spark memory manager. Once
+ * reserved, Spark tasks will have less off-heap memory to use because of the reservation.
+ *
+ * Note the API #acuqire doesn't trigger spills on Spark tasks although OOM may be encountered.
+ *
+ * The utility internally relies on the Spark storage memory pool. As Spark doesn't expect trait
+ * BlockId to be extended by user, TestBlockId is chosen for the storage memory reservations.
+ */
 object GlobalOffHeapMemory {
   private val FIELD_MEMORY_MANAGER: Field = {
-    val f = classOf[TaskMemoryManager].getDeclaredField("memoryManager")
+    val f =
+      try {
+        classOf[TaskMemoryManager].getDeclaredField("memoryManager")
+      } catch {
+        case e: Exception =>
+          throw new GlutenException(
+            "Unable to find field TaskMemoryManager#memoryManager via reflection",
+            e)
+      }
     f.setAccessible(true)
     f
   }
@@ -38,7 +55,7 @@ object GlobalOffHeapMemory {
       MemoryMode.OFF_HEAP)
   }
 
-  def free(numBytes: Long): Unit = {
+  def release(numBytes: Long): Unit = {
     memoryManager().releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
   }
 
@@ -49,6 +66,7 @@ object GlobalOffHeapMemory {
     }
     val tc = TaskContext.get()
     if (tc != null) {
+      // This may happen in test code that mocks the task context without booting up SparkEnv.
       return FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager]
     }
     throw new GlutenException(

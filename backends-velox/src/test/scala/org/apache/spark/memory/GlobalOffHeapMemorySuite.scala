@@ -95,7 +95,7 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
             Collections.emptyMap())
       Assert.assertTrue(GlobalOffHeapMemory.acquire(300))
       Assert.assertEquals(100, consumer.borrow(200))
-      GlobalOffHeapMemory.free(10)
+      GlobalOffHeapMemory.release(10)
       Assert.assertEquals(10, consumer.borrow(50))
     }
   }
