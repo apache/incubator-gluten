@@ -31,9 +31,9 @@ class SubstraitToVeloxPlanValidator {
   SubstraitToVeloxPlanValidator(memory::MemoryPool* pool) : planConverter_(pool, {}, std::nullopt, true) {
     const std::unordered_map<std::string, std::string> configs{
         {velox::core::QueryConfig::kSparkPartitionId, "0"}, {velox::core::QueryConfig::kSessionTimezone, "GMT"}};
-    const auto queryCtx = velox::core::QueryCtx::create(nullptr, velox::core::QueryConfig(configs));
+    queryCtx_ = velox::core::QueryCtx::create(nullptr, velox::core::QueryConfig(configs));
     // An execution context used for function validation.
-    execCtx_ = std::make_unique<velox::core::ExecCtx>(pool, queryCtx.get());
+    execCtx_ = std::make_unique<velox::core::ExecCtx>(pool, queryCtx_.get());
   }
 
   /// Used to validate whether the computing of this Plan is supported.
@@ -94,6 +94,8 @@ class SubstraitToVeloxPlanValidator {
 
   /// Used to validate whether the computing of this RelRoot is supported.
   bool validate(const ::substrait::RelRoot& relRoot);
+
+  std::shared_ptr<velox::core::QueryCtx> queryCtx_;
 
   /// An execution context used for function validation.
   std::unique_ptr<core::ExecCtx> execCtx_;
