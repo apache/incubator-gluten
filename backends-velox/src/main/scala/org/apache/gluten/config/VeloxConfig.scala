@@ -60,17 +60,6 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
-
-  def veloxResizeBatchesPartialProjectInput: Boolean =
-    getConf(COLUMNAR_VELOX_RESIZE_BATCHES_PARTIAL_PROJECT_INPUT)
-
-  def veloxResizeBatchesPartialProjectInputRange: ResizeRange = {
-    val standardSize = getConf(COLUMNAR_MAX_BATCH_SIZE)
-    val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
-    val minSize = getConf(COLUMNAR_VELOX_RESIZE_BATCHES_PARTIAL_INPUT_MIN_SIZE)
-      .getOrElse(defaultMinSize)
-    ResizeRange(minSize, Int.MaxValue)
-  }
 }
 
 object VeloxConfig {
@@ -531,24 +520,4 @@ object VeloxConfig {
       .internal()
       .stringConf
       .createWithDefault("")
-
-  val COLUMNAR_VELOX_RESIZE_BATCHES_PARTIAL_PROJECT_INPUT =
-    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.partialProjectInput")
-      .internal()
-      .doc(s"If true, combine small columnar batches together before partial project. " +
-        s"The default minimum output batch size is equal to 0.8 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
-      .booleanConf
-      .createWithDefault(false)
-
-  val COLUMNAR_VELOX_RESIZE_BATCHES_PARTIAL_INPUT_MIN_SIZE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.partialProjectInput.minSize")
-      .internal()
-      .doc(
-        s"The minimum batch size for partial project. If size of an input batch is " +
-          s"smaller than the value, it will be combined with other " +
-          s"batches before sending to parital project. Only functions when " +
-          s"${COLUMNAR_VELOX_RESIZE_BATCHES_PARTIAL_PROJECT_INPUT.key} is set to true. " +
-          s"Default value: 0.25 * <max batch size>")
-      .intConf
-      .createOptional
 }
