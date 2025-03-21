@@ -138,7 +138,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   }
 
   const auto pool = defaultLeafVeloxMemoryPool().get();
-  static SubstraitToVeloxPlanValidator planValidator(pool);
+  SubstraitToVeloxPlanValidator planValidator(pool);
   ::substrait::Plan subPlan;
   parseProtobuf(planData, planSize, &subPlan);
 
