@@ -18,6 +18,7 @@ package org.apache.gluten.memory.memtarget;
 
 import org.apache.gluten.config.GlutenConfig;
 
+import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +31,19 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
   private final MemoryTarget delegated;
   // When dynamic off-heap sizing is enabled, the off-heap should be sized for the total usable
   // memory, so we can use it as the max memory we will use.
-  private static final long MAX_MEMORY_IN_BYTES = GlutenConfig.get().offHeapMemorySize();
+  private static final long MAX_MEMORY_IN_BYTES;
+
+  static {
+    SparkEnv sparkEnv = SparkEnv.get();
+    if (sparkEnv != null && sparkEnv.conf() != null) {
+      MAX_MEMORY_IN_BYTES =
+          sparkEnv.conf().getLong(GlutenConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES().key(), 0);
+    } else {
+      MAX_MEMORY_IN_BYTES = GlutenConfig.get().offHeapMemorySize();
+    }
+    LOG.info("Setting MAX_MEMORY_IN_BYTES to {}", MAX_MEMORY_IN_BYTES);
+  }
+
   private static final AtomicLong USED_OFFHEAP_BYTES = new AtomicLong();
 
   public DynamicOffHeapSizingMemoryTarget(MemoryTarget delegated) {
