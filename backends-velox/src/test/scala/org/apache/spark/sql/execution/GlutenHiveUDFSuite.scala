@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.config.GlutenConfig.GLUTEN_SUPPORTED_HIVE_UDFS
 import org.apache.gluten.execution.ColumnarPartialProjectExec
+import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.udf.CustomerUDF
 
 import org.apache.spark.SparkConf
@@ -77,8 +77,6 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
       // this rule may potentially block testing of other optimization rules such as
       // ConstantPropagation etc.
       .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
-      // mapping udf_substr to velox substring function
-      .set(GLUTEN_SUPPORTED_HIVE_UDFS.key, "udf_substr:substring")
 
     conf.set(
       StaticSQLConf.WAREHOUSE_PATH,
@@ -208,23 +206,25 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
     withTempFunction("udf_substr") {
       withTempFunction("udf_substr2") {
         withTempFunction("udf_sort_array") {
-          sql(s"""
-                 |CREATE TEMPORARY FUNCTION udf_sort_array AS
-                 |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFSortArray';
-                 |""".stripMargin)
+          spark.sql(s"""
+                       |CREATE TEMPORARY FUNCTION udf_sort_array AS
+                       |'org.apache.hadoop.hive.ql.udf.generic.GenericUDFSortArray';
+                       |""".stripMargin)
+          // Mapping hive udf "udf_substr" to velox function "substring"
+          UDFMappings.hiveUDFMap.put("udf_substr", "substring")
           Seq("udf_substr", "udf_substr2").foreach {
             testudf =>
-              sql(s"""CREATE TEMPORARY FUNCTION $testudf AS
-                     |'org.apache.hadoop.hive.ql.udf.UDFSubstr';
-                     |""".stripMargin)
+              spark.sql(s"""CREATE TEMPORARY FUNCTION $testudf AS
+                           |'org.apache.hadoop.hive.ql.udf.UDFSubstr';
+                           |""".stripMargin)
 
-              val df = sql(s"""
-                              |select
-                              |  l_partkey,
-                              |  udf_sort_array(array(10, l_orderkey, 1)),
-                              |  $testudf(l_comment, 1, 5)
-                              |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
-                              |""".stripMargin)
+              val df = spark.sql(s"""
+                                    |select
+                                    |  l_partkey,
+                                    |  udf_sort_array(array(10, l_orderkey, 1)),
+                                    |  $testudf(l_comment, 1, 5)
+                                    |FROM lineitem WHERE l_partkey <= 5 and l_orderkey <1000
+                                    |""".stripMargin)
               val executedPlan = getExecutedPlan(df)
               checkGlutenOperatorMatch[ColumnarPartialProjectExec](df)
               val partialProject = executedPlan
