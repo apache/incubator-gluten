@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.hive.HiveUdfUtil
+import org.apache.spark.sql.hive.{HiveUdfUtil, VeloxHiveUDFTransformer}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 import scala.collection.mutable.ListBuffer
@@ -275,7 +275,10 @@ object ColumnarPartialProjectExec {
     if (expr == null) return false
     expr match {
       case _: ScalaUDF => true
-      case h if HiveUdfUtil.isHiveUdf(h) => true
+      case h
+          if HiveUdfUtil.isHiveUdf(h) &&
+            !VeloxHiveUDFTransformer.isHiveUDFSupportsTransform(h) =>
+        true
       case p => p.children.exists(c => containsUDF(c))
     }
   }
@@ -306,7 +309,9 @@ object ColumnarPartialProjectExec {
     expr match {
       case u: ScalaUDF =>
         replaceByAlias(u, replacedAliasUdf)
-      case h if HiveUdfUtil.isHiveUdf(h) =>
+      case h
+          if HiveUdfUtil.isHiveUdf(h) &&
+            !VeloxHiveUDFTransformer.isHiveUDFSupportsTransform(h) =>
         replaceByAlias(h, replacedAliasUdf)
       case au @ Alias(_: ScalaUDF, _) =>
         val replaceIndex = replacedAliasUdf.indexWhere(r => r.exprId == au.exprId)

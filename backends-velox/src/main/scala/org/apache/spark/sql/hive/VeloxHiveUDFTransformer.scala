@@ -17,24 +17,18 @@
 package org.apache.spark.sql.hive
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer}
+import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer, UDFMappings}
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.expression.UDFResolver
+
+import java.util.Locale
 
 object VeloxHiveUDFTransformer {
   def replaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    val (udfName, udfClassName) = expr match {
-      case s: HiveSimpleUDF =>
-        (s.name.stripPrefix("default."), s.funcWrapper.functionClassName)
-      case g: HiveGenericUDF =>
-        (g.name.stripPrefix("default."), g.funcWrapper.functionClassName)
-      case _ =>
-        throw new GlutenNotSupportException(
-          s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
-    }
+    val (udfName, udfClassName) = getHiveUDFNameAndClassName(expr)
 
     if (UDFResolver.UDFNames.contains(udfClassName)) {
       val udfExpression = UDFResolver
@@ -45,5 +39,21 @@ object VeloxHiveUDFTransformer {
     } else {
       HiveUDFTransformer.genTransformerFromUDFMappings(udfName, expr, attributeSeq)
     }
+  }
+
+  def isHiveUDFSupportsTransform(expr: Expression): Boolean = {
+    val (udfName, udfClassName) = getHiveUDFNameAndClassName(expr)
+    UDFResolver.UDFNames.contains(udfClassName) ||
+    UDFMappings.hiveUDFMap.contains(udfName.toLowerCase(Locale.ROOT))
+  }
+
+  private def getHiveUDFNameAndClassName(expr: Expression): (String, String) = expr match {
+    case s: HiveSimpleUDF =>
+      (s.name.stripPrefix("default."), s.funcWrapper.functionClassName)
+    case g: HiveGenericUDF =>
+      (g.name.stripPrefix("default."), g.funcWrapper.functionClassName)
+    case _ =>
+      throw new GlutenNotSupportException(
+        s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
   }
 }
