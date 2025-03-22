@@ -23,7 +23,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
@@ -2039,5 +2039,43 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
     }
+  }
+
+  test("Check VeloxResizeBatches is added in ShuffleRead") {
+    Seq(true, false).foreach(
+      coalesceEnabled => {
+        withSQLConf(
+          SQLConf.SHUFFLE_PARTITIONS.key -> "10",
+          SQLConf.COALESCE_PARTITIONS_ENABLED.key -> coalesceEnabled.toString) {
+          runQueryAndCompare(
+            "SELECT l_orderkey, count(1) from lineitem group by l_orderkey".stripMargin) {
+            df =>
+              val executedPlan = getExecutedPlan(df)
+              if (coalesceEnabled) {
+                // VeloxResizeBatches(AQEShuffleRead(ShuffleQueryStage(ColumnarShuffleExchange)))
+                assert(executedPlan.sliding(4).exists {
+                  case Seq(
+                        _: ColumnarShuffleExchangeExec,
+                        _: ShuffleQueryStageExec,
+                        _: AQEShuffleReadExec,
+                        _: VeloxResizeBatchesExec
+                      ) =>
+                    true
+                  case _ => false
+                })
+              } else {
+                // VeloxResizeBatches(ShuffleQueryStage(ColumnarShuffleExchange))
+                assert(executedPlan.sliding(3).exists {
+                  case Seq(
+                        _: ColumnarShuffleExchangeExec,
+                        _: ShuffleQueryStageExec,
+                        _: VeloxResizeBatchesExec) =>
+                    true
+                  case _ => false
+                })
+              }
+          }
+        }
+      })
   }
 }
