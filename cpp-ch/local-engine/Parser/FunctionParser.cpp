@@ -18,14 +18,20 @@
 #include "FunctionParser.h"
 #include <memory>
 #include <Core/Field.h>
+#include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Parser/TypeParser.h>
+#include "Common/Exception.h"
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include "ExpressionParser.h"
+
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -41,7 +47,8 @@ namespace local_engine
 {
 using namespace DB;
 
-FunctionParser::FunctionParser(ParserContextPtr ctx) : parser_context(ctx)
+FunctionParser::FunctionParser(ParserContextPtr ctx)
+    : parser_context(ctx)
 {
     expression_parser = std::make_unique<ExpressionParser>(parser_context);
 }
@@ -111,6 +118,86 @@ const ActionsDAG::Node * FunctionParser::parse(const substrait::Expression_Scala
     return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
 }
 
+// Nothing type doesn't have nullability in substrait, but CH cares this.
+// Before this, we presumed that all `nothing` types were nullable. However, this assumption resulted in the failure of following query.
+//   select array() from t union all select array(123) from t;
+// There is a conversion from Array(Nullable(Nothing)) to Array(UInt32) in it.
+// Additionally, if we do not encapsulate the nothing type within nullable, the subsequent query fails.
+//   select cast(array(null) as String)
+// Therefore, when the output type in the Substrait plan is nothing, we ascertain the nullability of the output type based on the result
+// type of the actions node.
+DB::DataTypePtr FunctionParser::correctNothingTypeNullability(const DB::DataTypePtr & from_type, const DB::DataTypePtr & target_type) const
+{
+    if (from_type->getTypeId() == target_type->getTypeId())
+    {
+        if (DB::isArray(from_type))
+        {
+            auto res = std::make_shared<DB::DataTypeArray>(correctNothingTypeNullability(
+                typeid_cast<const DB::DataTypeArray *>(from_type.get())->getNestedType(),
+                typeid_cast<const DB::DataTypeArray *>(target_type.get())->getNestedType()));
+            return res;
+        }
+        else if (DB::isMap(from_type))
+        {
+            const auto * from_map = typeid_cast<const DB::DataTypeMap *>(from_type.get());
+            const auto * target_map = typeid_cast<const DB::DataTypeMap *>(target_type.get());
+            auto from_key = from_map->getKeyType();
+            auto target_key = target_map->getKeyType();
+            auto from_value = from_map->getValueType();
+            auto target_value = target_map->getValueType();
+            auto key_type = correctNothingTypeNullability(from_key, target_key);
+            auto value_type = correctNothingTypeNullability(from_value, target_value);
+            return std::make_shared<DB::DataTypeMap>(key_type, value_type);
+        }
+        else if (DB::isTuple(from_type))
+        {
+            const auto * from_tuple = typeid_cast<const DB::DataTypeTuple *>(from_type.get());
+            const auto * target_tuple = typeid_cast<const DB::DataTypeTuple *>(target_type.get());
+            size_t from_size = from_tuple->getElements().size();
+            size_t target_size = target_tuple->getElements().size();
+            if (from_size != target_size)
+                return target_type;
+
+            DB::DataTypes elements(target_size);
+            for (size_t i = 0; i < from_size; ++i)
+            {
+                elements[i] = correctNothingTypeNullability(from_tuple->getElements()[i], target_tuple->getElements()[i]);
+            }
+            if (target_tuple->haveExplicitNames())
+            {
+                const auto & names = target_tuple->getElementNames();
+                return std::make_shared<DB::DataTypeTuple>(elements, names);
+            }
+            else
+                return std::make_shared<DB::DataTypeTuple>(elements);
+        }
+        else if (from_type->isNullable() && target_type->isNullable())
+        {
+            auto from_nested = typeid_cast<const DB::DataTypeNullable *>(from_type.get())->getNestedType();
+            auto target_nested = typeid_cast<const DB::DataTypeNullable *>(target_type.get())->getNestedType();
+            return std::make_shared<DB::DataTypeNullable>(correctNothingTypeNullability(from_nested, target_nested));
+        }
+        else
+            return target_type;
+    }
+    else if (from_type->isNullable() && !target_type->isNullable())
+    {
+        auto from_nested = typeid_cast<const DB::DataTypeNullable *>(from_type.get())->getNestedType();
+        if (DB::isNothing(from_nested) && DB::isNothing(target_type))
+        {
+            return from_type;
+        }
+        else
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Convert nullable type to non-nullable type is not supported");
+    }
+    else if (!from_type->isNullable() && target_type->isNullable())
+    {
+        auto target_nested = typeid_cast<const DB::DataTypeNullable *>(target_type.get())->getNestedType();
+        return std::make_shared<DB::DataTypeNullable>(correctNothingTypeNullability(from_type, target_nested));
+    }
+    return target_type;
+}
+
 const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
     const substrait::Expression_ScalarFunction & substrait_func, const ActionsDAG::Node * func_node, ActionsDAG & actions_dag) const
 {
@@ -119,9 +206,10 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
 
     auto convert_type_if_needed = [&]()
     {
-        if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
+        auto result_type = TypeParser::parseType(output_type);
+        result_type = correctNothingTypeNullability(func_node->result_type, result_type);
+        if (!result_type->equals(*func_node->result_type))
         {
-            auto result_type = TypeParser::parseType(substrait_func.output_type());
             if (DB::isDecimalOrNullableDecimal(result_type))
             {
                 return ActionsDAGUtil::convertNodeType(

@@ -26,6 +26,7 @@
 #include <base/types.h>
 #include <substrait/algebra.pb.h>
 #include <Common/IFactoryWithAliases.h>
+#include "DataTypes/Serializations/ISerialization.h"
 
 namespace local_engine
 {
@@ -63,6 +64,8 @@ protected:
     virtual DB::ActionsDAG::NodeRawConstPtrs
     parseFunctionArguments(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const;
 
+    DB::DataTypePtr correctNothingTypeNullability(const DB::DataTypePtr & from_type, const DB::DataTypePtr & target_type) const;
+
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const substrait::Expression_ScalarFunction & substrait_func,
         const DB::ActionsDAG::Node * func_node,
@@ -78,6 +81,7 @@ protected:
     const DB::ActionsDAG::Node *
     toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const;
 
+
     const DB::ActionsDAG::Node * toFunctionNode(
         DB::ActionsDAG & action_dag,
         const String & func_name,
@@ -90,6 +94,7 @@ protected:
     const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel) const;
 
     std::pair<DB::DataTypePtr, DB::Field> parseLiteral(const substrait::Expression_Literal & literal) const;
+
 
     ParserContextPtr parser_context;
     std::unique_ptr<ExpressionParser> expression_parser;
