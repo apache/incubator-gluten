@@ -553,7 +553,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ExpandRel& expan
       if (rowType) {
         // Try to compile the expressions. If there is any unregistered
         // function or mismatched type, exception will be thrown.
-        exec::ExprSet exprSet(std::move(expressions), execCtx_);
+        exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
       }
     } else {
       LOG_VALIDATION_MSG("Only SwitchingField is supported in ExpandRel.");
@@ -667,7 +667,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   }
   // Try to compile the expressions. If there is any unregistred funciton or
   // mismatched type, exception will be thrown.
-  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
 
   // Validate Sort expression
   const auto& sorts = windowRel.sorts();
@@ -690,7 +690,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
         LOG_VALIDATION_MSG("in windowRel, the sorting key in Sort Operator only support field.");
         return false;
       }
-      exec::ExprSet exprSet1({std::move(expression)}, execCtx_);
+      exec::ExprSet exprSet1({std::move(expression)}, execCtx_.get());
     }
   }
 
@@ -738,7 +738,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimit
   }
   // Try to compile the expressions. If there is any unregistered function or
   // mismatched type, exception will be thrown.
-  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
   // Validate Sort expression
   const auto& sorts = windowGroupLimitRel.sorts();
   for (const auto& sort : sorts) {
@@ -760,7 +760,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimit
         LOG_VALIDATION_MSG("in windowGroupLimitRel, the sorting key in Sort Operator only support field.");
         return false;
       }
-      exec::ExprSet exprSet1({std::move(expression)}, execCtx_);
+      exec::ExprSet exprSet1({std::move(expression)}, execCtx_.get());
     }
   }
 
@@ -862,7 +862,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
         LOG_VALIDATION_MSG("in SortRel, the sorting key in Sort Operator only support field.");
         return false;
       }
-      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+      exec::ExprSet exprSet({std::move(expression)}, execCtx_.get());
     }
   }
 
@@ -909,7 +909,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ProjectRel& proj
   }
   // Try to compile the expressions. If there is any unregistered function or
   // mismatched type, exception will be thrown.
-  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
   return true;
 }
 
@@ -948,7 +948,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
   expressions.emplace_back(exprConverter_->toVeloxExpr(filterRel.condition(), rowType));
   // Try to compile the expressions. If there is any unregistered function
   // or mismatched type, exception will be thrown.
-  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
   return true;
 }
 
@@ -1022,7 +1022,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
 
   if (joinRel.has_post_join_filter()) {
     auto expression = exprConverter_->toVeloxExpr(joinRel.post_join_filter(), rowType);
-    exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+    exec::ExprSet exprSet({std::move(expression)}, execCtx_.get());
   }
   return true;
 }
@@ -1078,7 +1078,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
 
   if (crossRel.has_expression()) {
     auto expression = exprConverter_->toVeloxExpr(crossRel.expression(), rowType);
-    exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+    exec::ExprSet exprSet({std::move(expression)}, execCtx_.get());
   }
 
   return true;
@@ -1304,7 +1304,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
     expressions.emplace_back(exprConverter_->toVeloxExpr(readRel.filter(), rowType));
     // Try to compile the expressions. If there is any unregistered function
     // or mismatched type, exception will be thrown.
-    exec::ExprSet exprSet(std::move(expressions), execCtx_);
+    exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
   }
 
   return true;
