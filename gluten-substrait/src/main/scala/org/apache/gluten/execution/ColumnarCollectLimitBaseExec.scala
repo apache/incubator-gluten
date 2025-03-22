@@ -22,11 +22,12 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
-import org.apache.spark.sql.execution.{CollectLimitExec, LimitExec, SparkPlan}
+import org.apache.spark.sql.execution.{LimitExec, SparkPlan}
 
 abstract class ColumnarCollectLimitBaseExec(
     limit: Int,
-    childPlan: SparkPlan
+    childPlan: SparkPlan,
+    offset: Int = 0
 ) extends LimitExec
   with ValidatablePlan {
 
@@ -56,13 +57,4 @@ abstract class ColumnarCollectLimitBaseExec(
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
-}
-object ColumnarCollectLimitBaseExec {
-  def from(collectLimitExec: CollectLimitExec): ColumnarCollectLimitBaseExec = {
-    BackendsApiManager.getSparkPlanExecApiInstance
-      .genColumnarCollectLimitExec(
-        collectLimitExec.limit,
-        collectLimitExec.child
-      )
-  }
 }
