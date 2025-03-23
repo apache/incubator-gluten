@@ -29,8 +29,6 @@
 #include "memory/ArrowMemoryPool.h"
 #include "utils/Exception.h"
 
-DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
-
 namespace gluten {
 
 using namespace facebook;
