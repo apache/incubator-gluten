@@ -22,7 +22,6 @@ import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   import VeloxConfig._
@@ -82,20 +81,6 @@ object VeloxConfig {
       .stringConf
       .checkValues(Set("streaming", "sort"))
       .createWithDefault("streaming")
-
-  val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
-    buildConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
-      .internal()
-      .doc("The initial memory capacity to reserve for a newly created Velox query memory pool.")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("8MB")
-
-  val COLUMNAR_VELOX_MEM_RECLAIM_MAX_WAIT_MS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.reclaimMaxWaitMs")
-      .internal()
-      .doc("The max time in ms to wait for memory reclaim.")
-      .timeConf(TimeUnit.MILLISECONDS)
-      .createWithDefault(TimeUnit.MINUTES.toMillis(60))
 
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
     buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")

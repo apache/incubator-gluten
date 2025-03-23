@@ -25,6 +25,7 @@ import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
@@ -939,6 +940,20 @@ object GlutenConfig {
         "shuffle will be used if the number of columns is greater than this threshold.")
       .intConf
       .createWithDefault(100000)
+
+  val COLUMNAR_VELOX_MEM_INIT_CAPACITY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memInitCapacity")
+      .internal()
+      .doc("The initial memory capacity to reserve for a newly created Velox query memory pool.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
+
+  val COLUMNAR_VELOX_MEM_RECLAIM_MAX_WAIT_MS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.reclaimMaxWaitMs")
+      .internal()
+      .doc("The max time in ms to wait for memory reclaim.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefault(TimeUnit.MINUTES.toMillis(60))
 
   val COLUMNAR_PREFER_ENABLED =
     buildConf("spark.gluten.sql.columnar.preferColumnar")
