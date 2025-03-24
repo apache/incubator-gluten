@@ -497,7 +497,9 @@ object GlutenConfig {
       "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig",
       "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace",
       "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
-      "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages"
+      "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
+      "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
+      "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
