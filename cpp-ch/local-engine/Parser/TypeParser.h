@@ -42,8 +42,6 @@ namespace local_engine
             return parseType(substrait_type, nullptr);
         }
 
-        static DB::DataTypePtr resolveNothingTypeNullability(DB::DataTypePtr parsed_result_type, DB::DataTypePtr output_type);
-
         // low_card_cols is in format of "cola,colb". Currently does not nested column to be LowCardinality.
         static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct& struct_, const std::string& low_card_cols = "");
 

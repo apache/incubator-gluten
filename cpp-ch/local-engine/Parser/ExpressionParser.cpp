@@ -375,7 +375,9 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                 /// Common process: CAST(input, type)
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
                 if (TypeUtil::hasNothingType(args[0]->result_type))
+                {
                     result_node = toFunctionNode(actions_dag, "accurateCastOrNull", args);
+                }
                 else
                     result_node = toFunctionNode(actions_dag, "CAST", args);
             }

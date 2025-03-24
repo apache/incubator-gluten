@@ -147,7 +147,6 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
             const auto & origin_column = origin_columns[i];
             const auto & origin_type = origin_column.type;
             auto final_type = TypeParser::parseType(output_schema.types(i));
-            final_type = TypeParser::resolveNothingTypeNullability(origin_type, final_type);
 
             /// Intermediate aggregate data is special, no check here.
             if (typeid_cast<const DataTypeAggregateFunction *>(origin_column.type.get()) || origin_type->equals(*final_type))
