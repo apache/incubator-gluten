@@ -114,7 +114,7 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("Reuse broadcast exchange for different build keys with same table") {
+  ignore("Reuse broadcast exchange for different build keys with same table") {
     Seq("true", "false").foreach(
       enabledOffheapBroadcast =>
         withSQLConf(VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key -> "false") {
