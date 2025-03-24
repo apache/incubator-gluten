@@ -16,9 +16,6 @@
  */
 package org.apache.spark.sql.execution.unsafe
 
-import org.apache.gluten.exception.GlutenException
-
-import org.apache.spark.SparkEnv
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.GlobalOffHeapMemory
