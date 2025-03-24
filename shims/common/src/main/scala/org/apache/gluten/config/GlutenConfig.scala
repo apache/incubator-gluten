@@ -1731,7 +1731,10 @@ object GlutenConfig {
   val NATIVE_ADDITIONAL_CONF_LIST =
     buildConf("spark.gluten.native.additionalConfList")
       .internal()
-      .doc("Comma-separated additional configurations to be passed to the native backend.")
+      .doc("Comma-separated additional configurations to be passed to the native backend. " +
+        "E.g. adding configuration spark.gluten.native.additionalConfList=key1,key2, " +
+        "then configurations --conf key1=value1 --conf key2=value2 will be passed to the native " +
+        "backend.")
       .stringConf
       .createOptional
 }
