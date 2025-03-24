@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-#include <Functions/SparkFunctionArrayToString.h>
+#include <Functions/SparkCastComplexTypesToString.h>
 
 namespace local_engine
 {
 
-REGISTER_FUNCTION(SparkFunctionArrayToString)
+REGISTER_FUNCTION(SparkCastComplexTypesToString)
 {
-    factory.registerFunction<local_eingine::SparkFunctionArrayToString>();
+    factory.registerFunction<local_engine::SparkCastComplexTypesToString>();
 }
 
 }

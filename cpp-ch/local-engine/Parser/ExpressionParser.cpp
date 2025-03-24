@@ -266,7 +266,7 @@ bool ExpressionParser::reuseCSE() const
 }
 
 ExpressionParser::NodeRawConstPtr
-ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr type, const DB::Field & field) const
+ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
 {
     String name = toString(field).substr(0, 10);
     name = getUniqueName(name);
@@ -350,19 +350,10 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                     result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
                 }
             }
-            else if (isMap(denull_input_type) && isString(denull_output_type))
+            else if ((isMap(denull_input_type) || isArray(denull_input_type) || isTuple(denull_input_type)) && isString(denull_output_type))
             {
-                // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
-                auto map_input_type = std::static_pointer_cast<const DataTypeMap>(denull_input_type);
-                args.emplace_back(addConstColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
-                args.emplace_back(
-                    addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
-                result_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
-            }
-            else if (isArray(denull_input_type) && isString(denull_output_type))
-            {
-                // ISSUE-7602: spark cast(array to string) has different result with CH cast(array to string)
-                result_node = toFunctionNode(actions_dag, "sparkCastArrayToString", args);
+                /// https://github.com/apache/incubator-gluten/issues/9049
+                result_node = toFunctionNode(actions_dag, "sparkCastComplexTypesToString", args);
             }
             else if (isString(denull_input_type) && substrait_type.has_bool_())
             {
@@ -374,7 +365,7 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             {
                 /// Spark cast(x as INT) if x is String -> CH cast(trim(x) as INT)
                 /// Refer to https://github.com/apache/incubator-gluten/issues/4956 and https://github.com/apache/incubator-gluten/issues/8598
-                auto trim_str_arg = addConstColumn(actions_dag, std::make_shared<DataTypeString>(), " \t\n\r\f");
+                const auto * trim_str_arg = addConstColumn(actions_dag, std::make_shared<DataTypeString>(), " \t\n\r\f");
                 args[0] = toFunctionNode(actions_dag, "trimBothSpark", {args[0], trim_str_arg});
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
                 result_node = toFunctionNode(actions_dag, "CAST", args);
@@ -821,7 +812,7 @@ ExpressionParser::parseArrayJoin(const substrait::Expression_ScalarFunction & fu
             const auto * key_node = add_tuple_element(item_node, 1);
 
             /// value = arrayJoin(arg_not_null).2.2
-            const auto val_node = add_tuple_element(item_node, 2);
+            const auto * val_node = add_tuple_element(item_node, 2);
 
             actions_dag.addOrReplaceInOutputs(*pos_node);
             actions_dag.addOrReplaceInOutputs(*key_node);
@@ -862,7 +853,7 @@ ExpressionParser::parseJsonTuple(const substrait::Expression_ScalarFunction & fu
     const auto * extract_expr_node = addConstColumn(actions_dag, std::make_shared<DB::DataTypeString>(), write_buffer.str());
     auto json_extract_builder = DB::FunctionFactory::instance().get("JSONExtract", context->queryContext());
     auto json_extract_result_name = "JSONExtract(" + json_expr_node->result_name + ", " + extract_expr_node->result_name + ")";
-    const auto json_extract_node
+    const auto * json_extract_node
         = &actions_dag.addFunction(json_extract_builder, {json_expr_node, extract_expr_node}, json_extract_result_name);
     auto tuple_element_builder = DB::FunctionFactory::instance().get("sparkTupleElement", context->queryContext());
     auto tuple_index_type = std::make_shared<DB::DataTypeUInt32>();
