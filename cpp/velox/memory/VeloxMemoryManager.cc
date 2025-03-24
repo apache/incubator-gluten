@@ -395,7 +395,9 @@ VeloxMemoryManager::~VeloxMemoryManager() {
 }
 
 VeloxMemoryManager* getDefaultMemoryManager() {
-  return VeloxBackend::get()->getGlobalMemoryManager();
+  static auto memoryManager =
+      std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, VeloxBackend::get()->newGlobalAllocationListener());
+  return memoryManager.get();
 }
 
 std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {

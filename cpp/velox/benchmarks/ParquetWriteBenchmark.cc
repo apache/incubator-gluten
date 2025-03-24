@@ -34,10 +34,10 @@
 #include <chrono>
 
 #include "benchmarks/common/BenchmarkUtils.h"
+#include "compute/VeloxBackend.h"
 #include "compute/VeloxRuntime.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "compute/VeloxBackend.h"
 #include "utils/Macros.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"

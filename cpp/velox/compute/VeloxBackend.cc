@@ -86,17 +86,13 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 }
 } // namespace
 
-void VeloxBackend::init(
-    std::unique_ptr<AllocationListener> listener,
-    const std::unordered_map<std::string, std::string>& conf) {
+void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
 
   // Register factories.
   MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);
   Runtime::registerFactory(kVeloxBackendKind, veloxRuntimeFactory, veloxRuntimeReleaser);
-
-  memoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener));
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
     LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigs());
@@ -180,7 +176,7 @@ void VeloxBackend::init(
 
   // Initialize Velox-side memory manager for current process. The memory manager
   // will be used during spill calls so we don't track it with Spark off-heap memory instead
-  // We rely on overhead memory. If we track it with off-heap, recursive reservations from
+  // we rely on overhead memory. If we track it with off-heap memory, recursive reservations from
   // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
   int64_t memoryManagerCapacity;
@@ -322,4 +318,41 @@ VeloxBackend* VeloxBackend::get() {
   return instance_.get();
 }
 
+namespace {
+class GlobalAllocationListener : public AllocationListener {
+ public:
+  void allocationChanged(int64_t diff) override {
+    VeloxBackend::get()->getGlobalAllocationListener()->allocationChanged(diff);
+    usedBytes_ += diff;
+    while (true) {
+      int64_t savedPeakBytes = peakBytes_;
+      int64_t savedUsedBytes = usedBytes_;
+      if (savedUsedBytes <= savedPeakBytes) {
+        break;
+      }
+      // usedBytes_ > savedPeakBytes, update peak
+      if (peakBytes_.compare_exchange_weak(savedPeakBytes, savedUsedBytes)) {
+        break;
+      }
+    }
+  }
+
+  int64_t currentBytes() override {
+    return usedBytes_;
+  }
+
+  int64_t peakBytes() override {
+    return peakBytes_;
+  }
+
+ private:
+  std::atomic_int64_t usedBytes_{0L};
+  std::atomic_int64_t peakBytes_{0L};
+};
+
+} // namespace
+
+std::unique_ptr<AllocationListener> VeloxBackend::newGlobalAllocationListener() {
+  return std::make_unique<GlobalAllocationListener>();
+}
 } // namespace gluten

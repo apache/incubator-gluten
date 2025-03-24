@@ -28,7 +28,7 @@
 #include "velox/common/config/Config.h"
 #include "velox/common/memory/MmapAllocator.h"
 
-#include "memory/VeloxMemoryManager.h"
+#include "memory/AllocationListener.h"
 
 namespace gluten {
 
@@ -57,14 +57,16 @@ class VeloxBackend {
 
   static VeloxBackend* get();
 
+  static std::unique_ptr<AllocationListener> newGlobalAllocationListener();
+
   facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
 
   std::shared_ptr<facebook::velox::config::ConfigBase> getBackendConf() const {
     return backendConf_;
   }
 
-  VeloxMemoryManager* getGlobalMemoryManager() const {
-    return memoryManager_.get();
+  AllocationListener* getGlobalAllocationListener() const {
+    return allocationListener_.get();
   }
 
   void tearDown() {
@@ -77,11 +79,12 @@ class VeloxBackend {
  private:
   explicit VeloxBackend(
       std::unique_ptr<AllocationListener> listener,
-      const std::unordered_map<std::string, std::string>& conf) {
-    init(std::move(listener), conf);
+      const std::unordered_map<std::string, std::string>& conf)
+      : allocationListener_(std::move(listener)) {
+    init(conf);
   }
 
-  void init(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf);
+  void init(const std::unordered_map<std::string, std::string>& conf);
   void initCache();
   void initConnector();
   void initUdf();
@@ -94,8 +97,8 @@ class VeloxBackend {
 
   static std::unique_ptr<VeloxBackend> instance_;
 
-  // A global memory manager for the current process.
-  std::unique_ptr<VeloxMemoryManager> memoryManager_;
+  // A global allocation listener for the current process.
+  std::unique_ptr<AllocationListener> allocationListener_;
   // Instance of AsyncDataCache used for all large allocations.
   std::shared_ptr<facebook::velox::cache::AsyncDataCache> asyncDataCache_;
 
