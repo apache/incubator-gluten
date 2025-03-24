@@ -60,6 +60,9 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
+
+  def enablePropagateIgnoreNullKeys: Boolean =
+    getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
 }
 
 object VeloxConfig {
@@ -520,4 +523,13 @@ object VeloxConfig {
       .internal()
       .stringConf
       .createWithDefault("")
+
+  val VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.propagateIgnoreNullKeys")
+      .doc(
+        "If enabled, we will identify aggregation followed by an inner join " +
+          "on the grouping keys, and mark the ignoreNullKeys flag to true to " +
+          "avoid unnecessary aggregation on null keys.")
+      .booleanConf
+      .createWithDefault(true)
 }
