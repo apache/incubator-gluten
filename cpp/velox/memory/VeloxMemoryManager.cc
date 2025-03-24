@@ -36,14 +36,6 @@ namespace gluten {
 using namespace facebook;
 
 namespace {
-
-static constexpr std::string_view kMemoryPoolInitialCapacity{"memory-pool-initial-capacity"};
-static constexpr uint64_t kDefaultMemoryPoolInitialCapacity{256 << 20};
-static constexpr std::string_view kMemoryPoolTransferCapacity{"memory-pool-transfer-capacity"};
-static constexpr uint64_t kDefaultMemoryPoolTransferCapacity{128 << 20};
-static constexpr std::string_view kMemoryReclaimMaxWaitMs{"memory-reclaim-max-wait-time"};
-static constexpr std::string_view kDefaultMemoryReclaimMaxWaitMs{"3600000ms"};
-
 template <typename T>
 T getConfig(
     const std::unordered_map<std::string, std::string>& configs,
@@ -58,7 +50,6 @@ T getConfig(
   }
   return defaultValue;
 }
-} // namespace
 
 /// We assume in a single Spark task. No thread-safety should be guaranteed.
 class ListenableArbitrator : public velox::memory::MemoryArbitrator {
@@ -187,48 +178,30 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   std::unordered_map<velox::memory::MemoryPool*, std::weak_ptr<velox::memory::MemoryPool>> candidates_;
 };
 
-class ArbitratorFactoryRegister {
- public:
-  explicit ArbitratorFactoryRegister(gluten::AllocationListener* listener) : listener_(listener) {
-    static std::atomic_uint32_t id{0UL};
-    kind_ = "GLUTEN_ARBITRATOR_FACTORY_" + std::to_string(id++);
-    velox::memory::MemoryArbitrator::registerFactory(
-        kind_,
-        [this](
-            const velox::memory::MemoryArbitrator::Config& config) -> std::unique_ptr<velox::memory::MemoryArbitrator> {
-          return std::make_unique<ListenableArbitrator>(config, listener_);
-        });
-  }
+} // namespace
 
-  virtual ~ArbitratorFactoryRegister() {
-    velox::memory::MemoryArbitrator::unregisterFactory(kind_);
-  }
+ArbitratorFactoryRegister::ArbitratorFactoryRegister(gluten::AllocationListener* listener) : listener_(listener) {
+  static std::atomic_uint32_t id{0UL};
+  kind_ = "GLUTEN_ARBITRATOR_FACTORY_" + std::to_string(id++);
+  velox::memory::MemoryArbitrator::registerFactory(
+      kind_,
+      [this](
+          const velox::memory::MemoryArbitrator::Config& config) -> std::unique_ptr<velox::memory::MemoryArbitrator> {
+        return std::make_unique<ListenableArbitrator>(config, listener_);
+      });
+}
 
-  const std::string& getKind() const {
-    return kind_;
-  }
-
- private:
-  std::string kind_;
-  gluten::AllocationListener* listener_;
-};
+ArbitratorFactoryRegister::~ArbitratorFactoryRegister() {
+  velox::memory::MemoryArbitrator::unregisterFactory(kind_);
+}
 
 VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener)
     : MemoryManager(kind), listener_(std::move(listener)) {
   auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
-  auto memInitCapacity =
-      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
-  auto memReclaimMaxWaitMs =
-      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
-
-  std::unordered_map<std::string, std::string> extraArbitratorConfigs;
-  extraArbitratorConfigs[std::string(kMemoryPoolInitialCapacity)] = folly::to<std::string>(memInitCapacity) + "B";
-  extraArbitratorConfigs[std::string(kMemoryPoolTransferCapacity)] = folly::to<std::string>(reservationBlockSize) + "B";
-  extraArbitratorConfigs[std::string(kMemoryReclaimMaxWaitMs)] = folly::to<std::string>(memReclaimMaxWaitMs) + "ms";
 
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
@@ -239,7 +212,7 @@ VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
-      .extraArbitratorConfigs = extraArbitratorConfigs};
+      .extraArbitratorConfigs = VeloxBackend::get()->getExtraArbitratorConfigs()};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(

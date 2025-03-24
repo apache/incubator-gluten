@@ -26,6 +26,21 @@
 
 namespace gluten {
 
+class ArbitratorFactoryRegister {
+ public:
+  explicit ArbitratorFactoryRegister(gluten::AllocationListener* listener);
+
+  virtual ~ArbitratorFactoryRegister();
+
+  const std::string& getKind() const {
+    return kind_;
+  }
+
+ private:
+  std::string kind_;
+  gluten::AllocationListener* listener_;
+};
+
 // Make sure the class is thread safe
 class VeloxMemoryManager final : public MemoryManager {
  public:
@@ -87,7 +102,7 @@ class VeloxMemoryManager final : public MemoryManager {
   std::vector<std::shared_ptr<facebook::velox::memory::MemoryPool>> heldVeloxPools_;
 };
 
-/// Not tracked by Spark and should only used in test or validation.
+/// Not tracked by Spark and should only be used in test or validation.
 inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
   static auto memoryManager =
       std::make_shared<gluten::VeloxMemoryManager>(gluten::kVeloxBackendKind, gluten::AllocationListener::noop());

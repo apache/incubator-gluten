@@ -17,6 +17,8 @@
 package org.apache.spark.memory
 
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
+import org.apache.gluten.memory.listener.ReservationListener
 
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.storage.BlockId
@@ -48,15 +50,46 @@ object GlobalOffHeapMemory {
     f
   }
 
-  def acquire(numBytes: Long): Boolean = {
-    memoryManager().acquireStorageMemory(
-      BlockId(s"test_${UUID.randomUUID()}"),
-      numBytes,
-      MemoryMode.OFF_HEAP)
+  def acquire(numBytes: Long): Unit = {
+    val mm = memoryManager()
+    val succeeded =
+      mm.acquireStorageMemory(BlockId(s"test_${UUID.randomUUID()}"), numBytes, MemoryMode.OFF_HEAP)
+
+    if (succeeded) {
+      return
+    }
+
+    // Throw OOM.
+    val offHeapMemoryTotal =
+      mm.maxOffHeapStorageMemory + mm.offHeapExecutionMemoryUsed
+    throw new GlutenException(
+      s"Spark off-heap memory is exhausted." +
+        s" Storage: ${mm.offHeapStorageMemoryUsed} / $offHeapMemoryTotal," +
+        s" execution: ${mm.offHeapExecutionMemoryUsed} / $offHeapMemoryTotal")
   }
 
   def release(numBytes: Long): Unit = {
     memoryManager().releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
+  }
+
+  def newReservationListener(): ReservationListener = {
+    new ReservationListener {
+      private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+
+      override def reserve(size: Long): Long = {
+        acquire(size)
+        recorder.inc(size)
+        size
+      }
+
+      override def unreserve(size: Long): Long = {
+        release(size)
+        recorder.inc(-size)
+        size
+      }
+
+      override def getUsedBytes: Long = recorder.current()
+    }
   }
 
   private def memoryManager(): MemoryManager = {

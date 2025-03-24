@@ -17,6 +17,7 @@
 package org.apache.gluten.init;
 
 import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.memory.listener.ReservationListener;
 import org.apache.gluten.utils.ConfigUtil;
 
 import org.apache.spark.util.SparkShutdownManagerUtil;
@@ -52,12 +53,11 @@ public final class NativeBackendInitializer {
   // In local mode, NativeBackendInitializer#initializeBackend will be invoked twice in same
   // thread, driver first then executor, initialized flag ensure only invoke initializeBackend once,
   // so there are no race condition here.
-  public void initialize(scala.collection.Map<String, String> conf) {
+  public void initialize(ReservationListener rl, scala.collection.Map<String, String> conf) {
     if (!initialized.compareAndSet(false, true)) {
-      // Already called.
-      return;
+      throw new IllegalStateException("Already initialized");
     }
-    initialize0(conf);
+    initialize0(rl, conf);
     SparkShutdownManagerUtil.addHook(
         () -> {
           shutdown();
@@ -65,17 +65,17 @@ public final class NativeBackendInitializer {
         });
   }
 
-  private void initialize0(scala.collection.Map<String, String> conf) {
+  private void initialize0(ReservationListener rl, scala.collection.Map<String, String> conf) {
     try {
       Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(backendName, conf);
-      initialize(ConfigUtil.serialize(nativeConfMap));
+      initialize(rl, ConfigUtil.serialize(nativeConfMap));
     } catch (Exception e) {
       LOG.error("Failed to call native backend's initialize method", e);
       throw e;
     }
   }
 
-  private native void initialize(byte[] configPlan);
+  private native void initialize(ReservationListener rl, byte[] configPlan);
 
   private native void shutdown();
 }

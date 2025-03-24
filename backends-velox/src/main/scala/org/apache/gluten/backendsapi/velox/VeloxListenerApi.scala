@@ -32,6 +32,7 @@ import org.apache.gluten.utils._
 import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.shuffle.{ColumnarShuffleDependency, LookupKey, ShuffleManagerRegistry}
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager
@@ -78,7 +79,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Overhead memory limits.
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY)
-    val desiredOverheadSize = (0.3 * offHeapSize).toLong.max(ByteUnit.MiB.toBytes(384))
+    val desiredOverheadSize = (0.15 * offHeapSize).toLong.max(ByteUnit.MiB.toBytes(192))
     if (!SparkResourceUtil.isMemoryOverheadSet(conf)) {
       // If memory overhead is not set by user, automatically set it according to off-heap settings.
       logInfo(
@@ -204,7 +205,9 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (isDriver && !inLocalMode(conf)) {
       parsed += (COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
     }
-    NativeBackendInitializer.forBackend(VeloxBackend.BACKEND_NAME).initialize(parsed)
+    NativeBackendInitializer
+      .forBackend(VeloxBackend.BACKEND_NAME)
+      .initialize(GlobalOffHeapMemory.newReservationListener(), parsed)
 
     // Inject backend-specific implementations to override spark classes.
     GlutenFormatFactory.register(new VeloxParquetWriterInjects)

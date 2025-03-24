@@ -86,11 +86,19 @@ void JNI_OnUnload(JavaVM* vm, void*) {
 JNIEXPORT void JNICALL Java_org_apache_gluten_init_NativeBackendInitializer_initialize( // NOLINT
     JNIEnv* env,
     jclass,
+    jobject jListener,
     jbyteArray conf) {
   JNI_METHOD_START
+  JavaVM* vm;
+  if (env->GetJavaVM(&vm) != JNI_OK) {
+    throw GlutenException("Unable to get JavaVM instance");
+  }
   auto safeArray = getByteArrayElementsSafe(env, conf);
+  // Create a global allocation listener that reserve global off-heap memory from Java-side GlobalOffHeapMemory utility
+  // class.
+  std::unique_ptr<AllocationListener> listener = std::make_unique<SparkAllocationListener>(vm, jListener);
   auto sparkConf = parseConfMap(env, safeArray.elems(), safeArray.length());
-  VeloxBackend::create(sparkConf);
+  VeloxBackend::create(std::move(listener), sparkConf);
   JNI_METHOD_END()
 }
 

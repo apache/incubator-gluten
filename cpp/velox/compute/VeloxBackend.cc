@@ -175,21 +175,40 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initUdf();
 
   // Initialize the global memory manager for current process.
-  auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
-  int64_t memoryManagerCapacity;
-  if (sparkOverhead.hasValue()) {
-    // 0.75 * total overhead memory is used for Velox global memory manager.
-    // FIXME: Make this configurable.
-    memoryManagerCapacity = sparkOverhead.value() * 0.75;
-  } else {
-    memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
-  }
-  LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
-  facebook::velox::memory::MemoryManager::initialize({.allocatorCapacity = memoryManagerCapacity});
+  ArbitratorFactoryRegister afr(listener_.get());
+
+  velox::memory::MemoryManagerOptions mmOptions{
+      .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
+      .trackDefaultUsage = true, // memory usage tracking
+      .checkUsageLeak = true, // leak check
+      .debugEnabled = false, // debug
+      .coreOnAllocationFailureEnabled = false,
+      .allocatorCapacity = velox::memory::kMaxMemory,
+      .arbitratorKind = afr.getKind(),
+      .extraArbitratorConfigs = getExtraArbitratorConfigs()};
+
+  facebook::velox::memory::MemoryManager::initialize(mmOptions);
+
+  LOG(INFO) << "Global Velox memory manager was set.";
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
   return asyncDataCache_.get();
+}
+
+std::unordered_map<std::string, std::string> VeloxBackend::getExtraArbitratorConfigs() const {
+  auto reservationBlockSize =
+      getBackendConf()->get<uint64_t>(kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
+  auto memInitCapacity = getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
+  auto memReclaimMaxWaitMs =
+      getBackendConf()->get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
+
+  std::unordered_map<std::string, std::string> extraArbitratorConfigs;
+  extraArbitratorConfigs[std::string(kMemoryPoolInitialCapacity)] = folly::to<std::string>(memInitCapacity) + "B";
+  extraArbitratorConfigs[std::string(kMemoryPoolTransferCapacity)] = folly::to<std::string>(reservationBlockSize) + "B";
+  extraArbitratorConfigs[std::string(kMemoryReclaimMaxWaitMs)] = folly::to<std::string>(memReclaimMaxWaitMs) + "ms";
+
+  return extraArbitratorConfigs;
 }
 
 // JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
@@ -301,8 +320,10 @@ void VeloxBackend::initUdf() {
 
 std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
 
-void VeloxBackend::create(const std::unordered_map<std::string, std::string>& conf) {
-  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(conf));
+void VeloxBackend::create(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
+  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(std::move(listener), conf));
 }
 
 VeloxBackend* VeloxBackend::get() {
