@@ -88,7 +88,9 @@ object GlobalOffHeapMemory {
         size
       }
 
-      override def getUsedBytes: Long = recorder.current()
+      override def getUsedBytes: Long = {
+        recorder.current()
+      }
     }
   }
 
