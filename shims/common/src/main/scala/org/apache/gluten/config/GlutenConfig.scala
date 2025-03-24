@@ -337,8 +337,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarPartialProject: Boolean = getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
 
-  def removeColumnarPartialProject: Boolean = getConf(REMOVE_COLUMNAR_PARTIAL_PROJECT)
-
   def enableCastAvgAggregateFunction: Boolean = getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
 
   def dynamicOffHeapSizingEnabled: Boolean =
@@ -1539,14 +1537,6 @@ object GlutenConfig {
           "evaluates the offload-able expressions in native, " +
           "phase two preserves the output from phase one and evaluates the remaining " +
           "non-offload-able expressions using vanilla Spark projections")
-      .booleanConf
-      .createWithDefault(true)
-
-  val REMOVE_COLUMNAR_PARTIAL_PROJECT =
-    buildConf("spark.gluten.sql.columnar.removePartialProject")
-      .doc(
-        "When true, Gluten will remove the ColumnarPartialProject when its followers " +
-          "don't support columnar, to avoid additional C2R and R2C.")
       .booleanConf
       .createWithDefault(true)
 
