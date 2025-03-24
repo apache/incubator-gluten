@@ -549,7 +549,7 @@ object VeloxConfig {
       .createWithDefault(true)
 
   val FLOATING_POINT_MODE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.FloatingPointMode")
+    buildConf("spark.gluten.sql.columnar.backend.velox.floatingPointMode")
       .doc(
         "Config used to control the tolerance of floating point operations alignment with Spark. " +
           "When the mode is set to strict, flushing is disabled for sum(float/double) and avg(float/double). " +
