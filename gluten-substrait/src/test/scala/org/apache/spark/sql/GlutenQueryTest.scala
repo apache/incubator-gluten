@@ -25,7 +25,7 @@ import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.execution.TransformSupport
 import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.SPARK_VERSION_SHORT
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -683,6 +683,11 @@ object GlutenQueryTest extends Assertions {
 }
 
 class QueryTestSuite extends QueryTest with test.SharedSparkSession {
+
+  override protected def sparkConf: SparkConf =
+    super.sparkConf
+      .set("spark.ui.enabled", "false")
+
   test("SPARK-16940: checkAnswer should raise TestFailedException for wrong results") {
     intercept[org.scalatest.exceptions.TestFailedException] {
       checkAnswer(sql("SELECT 1"), Row(2) :: Nil)
