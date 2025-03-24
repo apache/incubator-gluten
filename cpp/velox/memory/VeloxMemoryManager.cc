@@ -394,4 +394,12 @@ VeloxMemoryManager::~VeloxMemoryManager() {
 #endif
 }
 
+VeloxMemoryManager* getDefaultMemoryManager() {
+  return VeloxBackend::get()->getGlobalMemoryManager();
+}
+
+std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
+  return getDefaultMemoryManager()->getLeafMemoryPool();
+}
+
 } // namespace gluten

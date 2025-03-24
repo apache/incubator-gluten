@@ -96,7 +96,7 @@ void VeloxBackend::init(
   MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);
   Runtime::registerFactory(kVeloxBackendKind, veloxRuntimeFactory, veloxRuntimeReleaser);
 
-  memoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, listener);
+  memoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener));
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
     LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigs());

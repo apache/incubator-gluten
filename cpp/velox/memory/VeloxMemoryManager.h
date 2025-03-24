@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "compute/VeloxBackend.h"
 #include "memory/AllocationListener.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/MemoryManager.h"
@@ -112,12 +111,8 @@ class VeloxMemoryManager final : public MemoryManager {
 };
 
 /// Not tracked by Spark and should only be used in test or validation.
-inline gluten::VeloxMemoryManager* getDefaultMemoryManager() {
-  return VeloxBackend::get()->getGlobalMemoryManager();
-}
+VeloxMemoryManager* getDefaultMemoryManager();
 
-inline std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
-  return getDefaultMemoryManager()->getLeafMemoryPool();
-}
+std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool();
 
 } // namespace gluten

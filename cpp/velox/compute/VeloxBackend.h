@@ -28,7 +28,7 @@
 #include "velox/common/config/Config.h"
 #include "velox/common/memory/MmapAllocator.h"
 
-#include <memory/VeloxMemoryManager.h>
+#include "memory/VeloxMemoryManager.h"
 
 namespace gluten {
 
@@ -63,7 +63,7 @@ class VeloxBackend {
     return backendConf_;
   }
 
-  gluten::VeloxMemoryManager* getGlobalMemoryManager() const {
+  VeloxMemoryManager* getGlobalMemoryManager() const {
     return memoryManager_.get();
   }
 
@@ -95,7 +95,7 @@ class VeloxBackend {
   static std::unique_ptr<VeloxBackend> instance_;
 
   // A global memory manager for the current process.
-  std::unique_ptr<gluten::VeloxMemoryManager> memoryManager_;
+  std::unique_ptr<VeloxMemoryManager> memoryManager_;
   // Instance of AsyncDataCache used for all large allocations.
   std::shared_ptr<facebook::velox::cache::AsyncDataCache> asyncDataCache_;
 
