@@ -36,6 +36,8 @@ import java.util.UUID
  * BlockId to be extended by user, TestBlockId is chosen for the storage memory reservations.
  */
 object GlobalOffHeapMemory {
+  private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+
   private val FIELD_MEMORY_MANAGER: Field = {
     val f =
       try {
@@ -56,6 +58,7 @@ object GlobalOffHeapMemory {
       mm.acquireStorageMemory(BlockId(s"test_${UUID.randomUUID()}"), numBytes, MemoryMode.OFF_HEAP)
 
     if (succeeded) {
+      recorder.inc(numBytes)
       return
     }
 
@@ -70,6 +73,11 @@ object GlobalOffHeapMemory {
 
   def release(numBytes: Long): Unit = {
     memoryManager().releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
+    recorder.inc(-numBytes)
+  }
+
+  def currentBytes(): Long = {
+    recorder.current()
   }
 
   def newReservationListener(): ReservationListener = {
