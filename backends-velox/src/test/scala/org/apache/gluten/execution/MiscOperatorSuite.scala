@@ -722,13 +722,15 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
           "where l_orderkey < 100 group by l_orderkey") { _ => }
       checkLengthAndPlan(df, 27)
-      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxResizeBatchesExec => p }
-      assert(ops.size == 2)
+      val ops = collect(df.queryExecution.executedPlan) {
+        case ColumnarShuffleExchangeExec(_, p: VeloxResizeBatchesExec, _, _, _) => p
+      }
+      assert(ops.size == 1)
       val op = ops.head
       assert(op.minOutputBatchSize == minBatchSize)
       val metrics = op.metrics
       assert(metrics("numInputRows").value == 27)
-      assert(metrics("numInputBatches").value == 7)
+      assert(metrics("numInputBatches").value == 14)
       assert(metrics("numOutputRows").value == 27)
       assert(metrics("numOutputBatches").value == 2)
     }
@@ -741,7 +743,9 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
           "where l_orderkey < 100 group by l_orderkey") { _ => }
       checkLengthAndPlan(df, 27)
-      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxResizeBatchesExec => p }
+      val ops = collect(df.queryExecution.executedPlan) {
+        case ColumnarShuffleExchangeExec(_, p: VeloxResizeBatchesExec, _, _, _) => p
+      }
       assert(ops.size == 1)
       val op = ops.head
       assert(op.minOutputBatchSize == 1)
