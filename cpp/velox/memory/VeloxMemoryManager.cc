@@ -20,11 +20,12 @@
 #include <jemalloc/jemalloc.h>
 #endif
 
+#include "compute/VeloxBackend.h"
+
 #include "velox/common/memory/MallocAllocator.h"
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/exec/MemoryReclaimer.h"
 
-#include "compute/VeloxBackend.h"
 #include "config/VeloxConfig.h"
 #include "memory/ArrowMemoryPool.h"
 #include "utils/Exception.h"
@@ -35,13 +36,13 @@ namespace gluten {
 
 using namespace facebook;
 
-std::unordered_map<std::string, std::string> getExtraArbitratorConfigs() {
-  auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
+std::unordered_map<std::string, std::string> getExtraArbitratorConfigs(const facebook::velox::config::ConfigBase& backendConf) {
+  auto reservationBlockSize = backendConf.get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   auto memInitCapacity =
-      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
+      backendConf.get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
   auto memReclaimMaxWaitMs =
-      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
+      backendConf.get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
 
   std::unordered_map<std::string, std::string> extraArbitratorConfigs;
   extraArbitratorConfigs[std::string(kMemoryPoolInitialCapacity)] = folly::to<std::string>(memInitCapacity) + "B";
@@ -211,9 +212,9 @@ ArbitratorFactoryRegister::~ArbitratorFactoryRegister() {
   velox::memory::MemoryArbitrator::unregisterFactory(kind_);
 }
 
-VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener)
+VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener, const facebook::velox::config::ConfigBase& backendConf)
     : MemoryManager(kind), listener_(std::move(listener)) {
-  auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
+  auto reservationBlockSize = backendConf.get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
@@ -228,7 +229,7 @@ VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
-      .extraArbitratorConfigs = getExtraArbitratorConfigs()};
+      .extraArbitratorConfigs = getExtraArbitratorConfigs(backendConf)};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
@@ -395,9 +396,7 @@ VeloxMemoryManager::~VeloxMemoryManager() {
 }
 
 VeloxMemoryManager* getDefaultMemoryManager() {
-  static auto memoryManager =
-      std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, VeloxBackend::get()->newGlobalAllocationListener());
-  return memoryManager.get();
+  return VeloxBackend::get()->getGlobalMemoryManager();
 }
 
 std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {

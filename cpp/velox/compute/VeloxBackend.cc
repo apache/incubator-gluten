@@ -65,7 +65,7 @@ namespace gluten {
 
 namespace {
 MemoryManager* veloxMemoryManagerFactory(const std::string& kind, std::unique_ptr<AllocationListener> listener) {
-  return new VeloxMemoryManager(kind, std::move(listener));
+  return new VeloxMemoryManager(kind, std::move(listener), *VeloxBackend::get()->getBackendConf());
 }
 
 void veloxMemoryManagerReleaser(MemoryManager* memoryManager) {
@@ -86,9 +86,12 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 }
 } // namespace
 
-void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+void VeloxBackend::init(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
+
+  globalMemoryManager_ =
+      std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener), *backendConf_);
 
   // Register factories.
   MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);
@@ -316,43 +319,5 @@ VeloxBackend* VeloxBackend::get() {
     throw GlutenException("VeloxBackend instance is null.");
   }
   return instance_.get();
-}
-
-namespace {
-class GlobalAllocationListener : public AllocationListener {
- public:
-  void allocationChanged(int64_t diff) override {
-    VeloxBackend::get()->getGlobalAllocationListener()->allocationChanged(diff);
-    usedBytes_ += diff;
-    while (true) {
-      int64_t savedPeakBytes = peakBytes_;
-      int64_t savedUsedBytes = usedBytes_;
-      if (savedUsedBytes <= savedPeakBytes) {
-        break;
-      }
-      // usedBytes_ > savedPeakBytes, update peak
-      if (peakBytes_.compare_exchange_weak(savedPeakBytes, savedUsedBytes)) {
-        break;
-      }
-    }
-  }
-
-  int64_t currentBytes() override {
-    return usedBytes_;
-  }
-
-  int64_t peakBytes() override {
-    return peakBytes_;
-  }
-
- private:
-  std::atomic_int64_t usedBytes_{0L};
-  std::atomic_int64_t peakBytes_{0L};
-};
-
-} // namespace
-
-std::unique_ptr<AllocationListener> VeloxBackend::newGlobalAllocationListener() {
-  return std::make_unique<GlobalAllocationListener>();
 }
 } // namespace gluten
