@@ -164,6 +164,32 @@ object ExpressionConverter extends SQLConfHelper with Logging {
                 child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
                 i)
           }
+        } else if (objectName.endsWith("CharVarcharCodegenUtils")) {
+          val children = i.arguments
+          i.functionName match {
+            case "varcharTypeWriteSideCheck" =>
+              return GenericExpressionTransformer(
+                ExpressionNames.VARCHAR_TYPE_WRITE_SIDE_CHECK,
+                children
+                  .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+                  .toSeq,
+                i)
+            case "charTypeWriteSideCheck" =>
+              return GenericExpressionTransformer(
+                ExpressionNames.CHAR_TYPE_WRITE_SIDE_CHECK,
+                children
+                  .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+                  .toSeq,
+                i)
+            case "readSidePadding" =>
+              // println(s"enters readSidePadding")
+              return GenericExpressionTransformer(
+                ExpressionNames.READ_SIDE_PADDING,
+                children
+                  .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+                  .toSeq,
+                i)
+          }
         }
       case _ =>
     }
