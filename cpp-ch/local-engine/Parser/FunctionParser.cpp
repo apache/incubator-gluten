@@ -41,7 +41,8 @@ namespace local_engine
 {
 using namespace DB;
 
-FunctionParser::FunctionParser(ParserContextPtr ctx) : parser_context(ctx)
+FunctionParser::FunctionParser(ParserContextPtr ctx)
+    : parser_context(ctx)
 {
     expression_parser = std::make_unique<ExpressionParser>(parser_context);
 }
@@ -119,9 +120,10 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
 
     auto convert_type_if_needed = [&]()
     {
-        if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
+        auto result_type = TypeParser::parseType(output_type);
+        result_type = TypeParser::resolveNothingTypeNullability(func_node->result_type, result_type);
+        if (!result_type->equals(*func_node->result_type))
         {
-            auto result_type = TypeParser::parseType(substrait_func.output_type());
             if (DB::isDecimalOrNullableDecimal(result_type))
             {
                 return ActionsDAGUtil::convertNodeType(
@@ -135,13 +137,10 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
             }
             else
             {
-                return ActionsDAGUtil::convertNodeType(
-                    actions_dag,
-                    func_node,
-                    // as stated in isTypeMatched， currently we don't change nullability of the result type
-                    func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))
-                                                         : DB::removeNullable(TypeParser::parseType(output_type)),
-                    func_node->result_name);
+                // as stated in isTypeMatched， currently we don't change nullability of the result type
+                auto target_type = func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)
+                                                                        : local_engine::removeNullable(result_type);
+                return ActionsDAGUtil::convertNodeType(actions_dag, func_node, target_type, func_node->result_name);
             }
         }
         else

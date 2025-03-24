@@ -247,6 +247,7 @@ std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expr
         }
         case substrait::Expression_Literal::kNull: {
             type = TypeParser::parseType(literal.null());
+            type = TypeParser::tryWrapNullable(substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE, type);
             field = DB::Field{};
             break;
         }
