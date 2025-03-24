@@ -109,6 +109,66 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
+  private def replaceStaticInvokeWithExpressionTransformer(
+      i: StaticInvoke,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+    val objectName = i.staticObject.getName.stripSuffix("$")
+
+    if (objectName.endsWith("UrlCodec")) {
+      val child = i.arguments.head
+      i.functionName match {
+        case "decode" =>
+          GenericExpressionTransformer(
+            ExpressionNames.URL_DECODE,
+            child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+            i)
+        case "encode" =>
+          GenericExpressionTransformer(
+            ExpressionNames.URL_ENCODE,
+            child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+            i)
+        case _ =>
+          // This should not happen
+          throw new GlutenNotSupportException(
+            s"Not supported UrlCodec function: ${i.functionName} in $i")
+      }
+    } else if (objectName.endsWith("CharVarcharCodegenUtils")) {
+      val children = i.arguments
+      i.functionName match {
+        case "varcharTypeWriteSideCheck" =>
+          GenericExpressionTransformer(
+            ExpressionNames.VARCHAR_TYPE_WRITE_SIDE_CHECK,
+            children
+              .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+              .toSeq,
+            i)
+        case "charTypeWriteSideCheck" =>
+          GenericExpressionTransformer(
+            ExpressionNames.CHAR_TYPE_WRITE_SIDE_CHECK,
+            children
+              .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+              .toSeq,
+            i)
+        case "readSidePadding" =>
+          GenericExpressionTransformer(
+            ExpressionNames.READ_SIDE_PADDING,
+            children
+              .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+              .toSeq,
+            i)
+        case _ =>
+          // This should not happen as there are exactly 3 functions in CharVarcharCodegenUtils
+          throw new GlutenNotSupportException(
+            s"Not supported CharVarcharCodegenUtils function: ${i.functionName} in $i")
+      }
+    } else {
+      // We currently only support specific staticInvoke objects.
+      throw new GlutenNotSupportException(
+        s"Not supported staticInvoke call object: $objectName in $i")
+    }
+  }
+
   private def genRescaleDecimalTransformer(
       substraitName: String,
       b: BinaryArithmetic,
@@ -149,48 +209,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           expr,
           attributeSeq)
       case i: StaticInvoke =>
-        val objectName = i.staticObject.getName.stripSuffix("$")
-        if (objectName.endsWith("UrlCodec")) {
-          val child = i.arguments.head
-          i.functionName match {
-            case "decode" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.URL_DECODE,
-                child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-                i)
-            case "encode" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.URL_ENCODE,
-                child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-                i)
-          }
-        } else if (objectName.endsWith("CharVarcharCodegenUtils")) {
-          val children = i.arguments
-          i.functionName match {
-            case "varcharTypeWriteSideCheck" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.VARCHAR_TYPE_WRITE_SIDE_CHECK,
-                children
-                  .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
-                  .toSeq,
-                i)
-            case "charTypeWriteSideCheck" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.CHAR_TYPE_WRITE_SIDE_CHECK,
-                children
-                  .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
-                  .toSeq,
-                i)
-            case "readSidePadding" =>
-              // println(s"enters readSidePadding")
-              return GenericExpressionTransformer(
-                ExpressionNames.READ_SIDE_PADDING,
-                children
-                  .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
-                  .toSeq,
-                i)
-          }
-        }
+        return replaceStaticInvokeWithExpressionTransformer(i, attributeSeq, expressionsMap)
       case _ =>
     }
 
