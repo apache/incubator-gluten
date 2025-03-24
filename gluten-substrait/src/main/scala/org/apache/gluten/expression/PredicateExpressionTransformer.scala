@@ -17,6 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import org.apache.gluten.utils.SparkToJavaConverter
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -57,9 +58,11 @@ object InExpressionTransformer {
         // Sort elements for deterministic behaviours
         .sortBy(Literal(_, valueType).toString())
         .map(
-          value =>
+          value => {
+            val nodeType = ConverterUtils.getTypeNode(valueType, value == null)
             ExpressionBuilder
-              .makeLiteral(value, ConverterUtils.getTypeNode(valueType, value == null)))
+              .makeLiteral(SparkToJavaConverter.toJava(value, nodeType), nodeType)
+          })
         .asJava)
 
     ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)

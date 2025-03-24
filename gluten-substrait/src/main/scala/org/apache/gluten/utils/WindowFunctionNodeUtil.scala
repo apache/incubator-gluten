@@ -64,14 +64,13 @@ object WindowFunctionNodeUtil {
     val lowerBoundType = lowerBound.sql
     val upperBoundFoldable = upperBound.foldable
     val lowerBoundFoldable = lowerBound.foldable
-    var upperBoundOffset = 0L
-    var lowerBoundOffset = 0L
+    var upperBoundOffset = upperBound.eval(null).toString.toLong
+    var lowerBoundOffset = lowerBound.eval(null).toString.toLong
     var upperBoundRefNode: ExpressionNode = null
     var lowerBoundRefNode: ExpressionNode = null
     val isPreComputeRangeFrameUpperBound = upperBound.isInstanceOf[PreComputeRangeFrameBound]
     val isPreComputeRangeFrameLowerBound = lowerBound.isInstanceOf[PreComputeRangeFrameBound]
     if (isPreComputeRangeFrameUpperBound) {
-      upperBoundOffset = upperBound.eval(null).toString.toLong
       upperBoundRefNode = ExpressionConverter
         .replaceWithExpressionTransformer(
           upperBound.asInstanceOf[PreComputeRangeFrameBound].child.toAttribute,
@@ -80,7 +79,6 @@ object WindowFunctionNodeUtil {
         .doTransform(new util.HashMap[String, Long])
     }
     if (isPreComputeRangeFrameLowerBound) {
-      lowerBoundOffset = lowerBound.eval(null).toString.toLong
       lowerBoundRefNode = ExpressionConverter
         .replaceWithExpressionTransformer(
           lowerBound.asInstanceOf[PreComputeRangeFrameBound].child.toAttribute,

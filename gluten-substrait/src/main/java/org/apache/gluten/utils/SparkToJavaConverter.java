@@ -51,6 +51,7 @@ public class SparkToJavaConverter {
     }
     if ((nodeType instanceof BooleanTypeNode)
         || (nodeType instanceof I8TypeNode)
+        || (nodeType instanceof I16TypeNode)
         || (nodeType instanceof I32TypeNode)
         || (nodeType instanceof I64TypeNode)
         || (nodeType instanceof FP32TypeNode)
