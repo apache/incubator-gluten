@@ -26,6 +26,7 @@
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include "ExpressionParser.h"
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -122,6 +123,7 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
     {
         auto result_type = TypeParser::parseType(output_type);
         result_type = TypeParser::resolveNothingTypeNullability(func_node->result_type, result_type);
+        LOG_ERROR(getLogger("FunctionParser"), "xxx cast from {} to {}\n{}", func_node->result_type->getName(), result_type->getName(), substrait_func.DebugString());
         if (!result_type->equals(*func_node->result_type))
         {
             if (DB::isDecimalOrNullableDecimal(result_type))

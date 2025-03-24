@@ -231,6 +231,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
     else if (substrait_type.has_nothing())
     {
         ch_type = std::make_shared<DB::DataTypeNothing>();
+        ch_type = tryWrapNullable(substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE, ch_type);
     }
     else
         throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support type {}", substrait_type.DebugString());
