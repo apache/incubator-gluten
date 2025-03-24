@@ -45,8 +45,8 @@ namespace local_engine::iceberg
 std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
     const DB::ContextPtr & context,
     const DB::Block & data_file_header,
-    const substraitInputFile & file_,
-    const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+    const SubstraitInputFile & file_,
+    const google::protobuf::RepeatedPtrField<SubstraitIcebergDeleteFile> & delete_files,
     const std::vector<int> & position_delete_files,
     DB::Block & reader_header);
 

@@ -14,8 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.execution
-
-import org.apache.gluten.execution.HudiSuite
+package org.apache.gluten.execution
 
 class VeloxHudiSuite extends HudiSuite {}

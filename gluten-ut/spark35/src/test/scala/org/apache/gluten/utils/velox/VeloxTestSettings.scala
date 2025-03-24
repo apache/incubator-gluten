@@ -96,10 +96,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("data type casting")
     // Revised by setting timezone through config and commented unsupported cases.
     .exclude("cast string to timestamp")
+    .exclude("cast from timestamp II")
+    .exclude("SPARK-36286: invalid string cast to timestamp")
+    .exclude("SPARK-39749: cast Decimal to string")
   enableSuite[GlutenTryCastSuite]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    .exclude("cast from timestamp II") // Rewrite test for Gluten not supported with ANSI mode
     .exclude("ANSI mode: Throw exception on casting out-of-range value to byte type")
     .exclude("ANSI mode: Throw exception on casting out-of-range value to short type")
     .exclude("ANSI mode: Throw exception on casting out-of-range value to int type")

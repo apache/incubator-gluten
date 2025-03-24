@@ -87,6 +87,10 @@ extern const ServerSettingsUInt64 max_thread_pool_size;
 extern const ServerSettingsUInt64 thread_pool_queue_size;
 extern const ServerSettingsUInt64 max_io_thread_pool_size;
 extern const ServerSettingsUInt64 io_thread_pool_queue_size;
+extern const ServerSettingsString vector_similarity_index_cache_policy;
+extern const ServerSettingsUInt64 vector_similarity_index_cache_size;
+extern const ServerSettingsUInt64 vector_similarity_index_cache_max_entries;
+extern const ServerSettingsDouble vector_similarity_index_cache_size_ratio;
 }
 namespace Setting
 {
@@ -812,7 +816,15 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
         global_context->setIndexMarkCache(index_mark_cache_policy, index_mark_cache_size, index_mark_cache_size_ratio);
-        
+
+        String vector_similarity_index_cache_policy = server_settings[ServerSetting::vector_similarity_index_cache_policy];
+        size_t vector_similarity_index_cache_size = server_settings[ServerSetting::vector_similarity_index_cache_size];
+        size_t vector_similarity_index_cache_max_count = server_settings[ServerSetting::vector_similarity_index_cache_max_entries];
+        double vector_similarity_index_cache_size_ratio = server_settings[ServerSetting::vector_similarity_index_cache_size_ratio];
+        LOG_INFO(log, "Lowered vector similarity index cache size to {} because the system has limited RAM", formatReadableSizeWithBinarySuffix(vector_similarity_index_cache_size));
+
+        global_context->setVectorSimilarityIndexCache(vector_similarity_index_cache_policy, vector_similarity_index_cache_size, vector_similarity_index_cache_max_count, vector_similarity_index_cache_size_ratio);
+
         getMergeTreePrefixesDeserializationThreadPool().initialize(
             server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_size],
             server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_free_size],

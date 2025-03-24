@@ -145,8 +145,6 @@ trait BackendSettingsApi {
 
   def supportCartesianProductExecWithCondition(): Boolean = true
 
-  def supportBroadcastNestedLoopJoinExec(): Boolean = true
-
   def supportSampleExec(): Boolean = false
 
   def supportColumnarArrowUdf(): Boolean = false
@@ -154,5 +152,9 @@ trait BackendSettingsApi {
   def needPreComputeRangeFrameBoundary(): Boolean = false
 
   def supportCollectLimitExec(): Boolean = false
+
+  def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = false
+
+  def supportIcebergEqualityDeleteRead(): Boolean = true
 
 }

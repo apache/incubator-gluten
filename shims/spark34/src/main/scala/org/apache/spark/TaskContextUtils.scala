@@ -19,6 +19,7 @@ package org.apache.spark
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
 import org.apache.spark.metrics.MetricsSystem
+import org.apache.spark.storage.BlockManagerUtils
 
 import java.util.Properties
 
@@ -29,6 +30,7 @@ object TaskContextUtils {
     val conf = new SparkConf()
     conf.setAll(properties.asScala)
     val memoryManager = UnifiedMemoryManager(conf, 1)
+    BlockManagerUtils.setTestMemoryStore(conf, memoryManager, isDriver = false)
     new TaskContextImpl(
       -1,
       -1,

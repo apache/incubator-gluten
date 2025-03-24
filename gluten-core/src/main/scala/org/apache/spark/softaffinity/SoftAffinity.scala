@@ -22,6 +22,7 @@ import org.apache.gluten.softaffinity.{AffinityManager, SoftAffinityManager}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
+import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 
 abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with Logging {
@@ -79,9 +80,15 @@ abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with 
   }
 
   /** Update the RDD id to SoftAffinityManager */
-  def updateFilePartitionLocations(filePartition: FilePartition, rddId: Int): Unit = {
+  def updateFilePartitionLocations(
+      inputPartitions: Seq[Seq[Seq[InputPartition]]],
+      rddId: Int): Unit = {
     if (SoftAffinityManager.usingSoftAffinity && SoftAffinityManager.detectDuplicateReading) {
-      SoftAffinityManager.updatePartitionMap(filePartition, rddId)
+      inputPartitions.foreach(_.foreach(_.foreach {
+        case f: FilePartition =>
+          SoftAffinityManager.updatePartitionMap(f, rddId)
+        case _ =>
+      }))
     }
   }
 }
