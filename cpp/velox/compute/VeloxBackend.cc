@@ -274,6 +274,10 @@ void VeloxBackend::initConnector() {
   // read as UTC
   connectorConfMap[velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
 
+  // Maps table field names to file field names using names, not indices.
+  connectorConfMap[velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
+  connectorConfMap[velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
+
   // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
