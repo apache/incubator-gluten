@@ -18,6 +18,7 @@
 #include <arrow/c/abi.h>
 
 #include <jni/JniCommon.h>
+#include <iostream>
 #include "JniHashTable.h"
 #include "folly/String.h"
 #include "memory/ColumnarBatch.h"
@@ -26,7 +27,6 @@
 #include "substrait/type.pb.h"
 #include "velox/core/PlanNode.h"
 #include "velox/type/Type.h"
-#include <iostream>
 
 namespace gluten {
 
