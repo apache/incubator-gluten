@@ -63,6 +63,8 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def enablePropagateIgnoreNullKeys: Boolean =
     getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
+
+  def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
 }
 
 object VeloxConfig {
@@ -545,4 +547,15 @@ object VeloxConfig {
           "avoid unnecessary aggregation on null keys.")
       .booleanConf
       .createWithDefault(true)
+
+  val FLOATING_POINT_MODE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.FloatingPointMode")
+      .doc(
+        "Config used to control the tolerance of floating point operations alignment with Spark. " +
+          "When the mode is set to strict, flushing is disabled for sum(float/double) and avg(float/double). " +
+          "When set to loose, flushing will be enabled.")
+      .internal()
+      .stringConf
+      .checkValues(Set("loose", "strict"))
+      .createWithDefault("loose")
 }

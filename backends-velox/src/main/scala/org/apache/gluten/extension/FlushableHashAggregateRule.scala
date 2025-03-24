@@ -63,6 +63,10 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
   }
 
   private def aggregatesNotSupportFlush(aggExprs: Seq[AggregateExpression]): Boolean = {
+    if (VeloxConfig.get.floatingPointMode == "loose") {
+      return false
+    }
+
     def isFloatingPointType(dataType: DataType): Boolean = {
       dataType == DoubleType || dataType == FloatType
     }
