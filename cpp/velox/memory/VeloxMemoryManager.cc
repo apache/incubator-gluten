@@ -35,6 +35,22 @@ namespace gluten {
 
 using namespace facebook;
 
+std::unordered_map<std::string, std::string> getExtraArbitratorConfigs() {
+  auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
+      kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
+  auto memInitCapacity =
+      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
+  auto memReclaimMaxWaitMs =
+      VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
+
+  std::unordered_map<std::string, std::string> extraArbitratorConfigs;
+  extraArbitratorConfigs[std::string(kMemoryPoolInitialCapacity)] = folly::to<std::string>(memInitCapacity) + "B";
+  extraArbitratorConfigs[std::string(kMemoryPoolTransferCapacity)] = folly::to<std::string>(reservationBlockSize) + "B";
+  extraArbitratorConfigs[std::string(kMemoryReclaimMaxWaitMs)] = folly::to<std::string>(memReclaimMaxWaitMs) + "ms";
+
+  return extraArbitratorConfigs;
+}
+
 namespace {
 template <typename T>
 T getConfig(
@@ -212,7 +228,7 @@ VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
-      .extraArbitratorConfigs = VeloxBackend::get()->getExtraArbitratorConfigs()};
+      .extraArbitratorConfigs = getExtraArbitratorConfigs()};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(

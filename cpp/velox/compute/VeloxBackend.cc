@@ -86,13 +86,17 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 }
 } // namespace
 
-void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+void VeloxBackend::init(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
 
   // Register factories.
   MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);
   Runtime::registerFactory(kVeloxBackendKind, veloxRuntimeFactory, veloxRuntimeReleaser);
+
+  memoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, listener);
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
     LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigs());
@@ -174,41 +178,25 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   initUdf();
 
-  // Initialize the global memory manager for current process.
-  ArbitratorFactoryRegister afr(listener_.get());
-
-  velox::memory::MemoryManagerOptions mmOptions{
-      .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
-      .trackDefaultUsage = true, // memory usage tracking
-      .checkUsageLeak = true, // leak check
-      .debugEnabled = false, // debug
-      .coreOnAllocationFailureEnabled = false,
-      .allocatorCapacity = velox::memory::kMaxMemory,
-      .arbitratorKind = afr.getKind(),
-      .extraArbitratorConfigs = getExtraArbitratorConfigs()};
-
-  facebook::velox::memory::initializeMemoryManager(mmOptions);
-
-  LOG(INFO) << "Global Velox memory manager was set.";
+  // Initialize Velox-side memory manager for current process. The memory manager
+  // will be used during spill calls so we don't track it with Spark off-heap memory instead
+  // We rely on overhead memory. If we track it with off-heap, recursive reservations from
+  // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
+  auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
+  int64_t memoryManagerCapacity;
+  if (sparkOverhead.hasValue()) {
+    // 0.75 * total overhead memory is used for Velox global memory manager.
+    // FIXME: Make this configurable.
+    memoryManagerCapacity = sparkOverhead.value() * 0.75;
+  } else {
+    memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
+  }
+  LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
+  facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
   return asyncDataCache_.get();
-}
-
-std::unordered_map<std::string, std::string> VeloxBackend::getExtraArbitratorConfigs() const {
-  auto reservationBlockSize =
-      getBackendConf()->get<uint64_t>(kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
-  auto memInitCapacity = getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
-  auto memReclaimMaxWaitMs =
-      getBackendConf()->get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
-
-  std::unordered_map<std::string, std::string> extraArbitratorConfigs;
-  extraArbitratorConfigs[std::string(kMemoryPoolInitialCapacity)] = folly::to<std::string>(memInitCapacity) + "B";
-  extraArbitratorConfigs[std::string(kMemoryPoolTransferCapacity)] = folly::to<std::string>(reservationBlockSize) + "B";
-  extraArbitratorConfigs[std::string(kMemoryReclaimMaxWaitMs)] = folly::to<std::string>(memReclaimMaxWaitMs) + "ms";
-
-  return extraArbitratorConfigs;
 }
 
 // JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces

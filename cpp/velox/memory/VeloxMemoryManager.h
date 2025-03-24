@@ -26,6 +26,15 @@
 
 namespace gluten {
 
+constexpr std::string_view kMemoryPoolInitialCapacity{"memory-pool-initial-capacity"};
+constexpr uint64_t kDefaultMemoryPoolInitialCapacity{256 << 20};
+constexpr std::string_view kMemoryPoolTransferCapacity{"memory-pool-transfer-capacity"};
+constexpr uint64_t kDefaultMemoryPoolTransferCapacity{128 << 20};
+constexpr std::string_view kMemoryReclaimMaxWaitMs{"memory-reclaim-max-wait-time"};
+constexpr std::string_view kDefaultMemoryReclaimMaxWaitMs{"3600000ms"};
+
+std::unordered_map<std::string, std::string> getExtraArbitratorConfigs();
+
 class ArbitratorFactoryRegister {
  public:
   explicit ArbitratorFactoryRegister(gluten::AllocationListener* listener);
@@ -103,10 +112,8 @@ class VeloxMemoryManager final : public MemoryManager {
 };
 
 /// Not tracked by Spark and should only be used in test or validation.
-inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
-  static auto memoryManager =
-      std::make_shared<gluten::VeloxMemoryManager>(gluten::kVeloxBackendKind, gluten::AllocationListener::noop());
-  return memoryManager;
+inline gluten::VeloxMemoryManager* getDefaultMemoryManager() {
+  return VeloxBackend::get()->getGlobalMemoryManager();
 }
 
 inline std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {

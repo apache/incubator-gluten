@@ -258,7 +258,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     auto fileName = "velox_parquet_write.parquet";
 
     auto memoryManager = getDefaultMemoryManager();
-    auto runtime = Runtime::create(kVeloxBackendKind, memoryManager.get());
+    auto runtime = Runtime::create(kVeloxBackendKind, memoryManager);
     auto veloxPool = memoryManager->getAggregateMemoryPool();
 
     for (auto _ : state) {

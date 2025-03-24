@@ -26,19 +26,11 @@
 
 #include "velox/common/caching/AsyncDataCache.h"
 #include "velox/common/config/Config.h"
-#include "velox/common/memory/MemoryPool.h"
 #include "velox/common/memory/MmapAllocator.h"
 
-#include <memory/AllocationListener.h>
+#include <memory/VeloxMemoryManager.h>
 
 namespace gluten {
-
-constexpr std::string_view kMemoryPoolInitialCapacity{"memory-pool-initial-capacity"};
-constexpr uint64_t kDefaultMemoryPoolInitialCapacity{256 << 20};
-constexpr std::string_view kMemoryPoolTransferCapacity{"memory-pool-transfer-capacity"};
-constexpr uint64_t kDefaultMemoryPoolTransferCapacity{128 << 20};
-constexpr std::string_view kMemoryReclaimMaxWaitMs{"memory-reclaim-max-wait-time"};
-constexpr std::string_view kDefaultMemoryReclaimMaxWaitMs{"3600000ms"};
 
 // This kind string must be same with VeloxBackend#name in java side.
 inline static const std::string kVeloxBackendKind{"velox"};
@@ -71,7 +63,9 @@ class VeloxBackend {
     return backendConf_;
   }
 
-  std::unordered_map<std::string, std::string> getExtraArbitratorConfigs() const;
+  gluten::VeloxMemoryManager* getGlobalMemoryManager() const {
+    return memoryManager_.get();
+  }
 
   void tearDown() {
     // Destruct IOThreadPoolExecutor will join all threads.
@@ -83,12 +77,11 @@ class VeloxBackend {
  private:
   explicit VeloxBackend(
       std::unique_ptr<AllocationListener> listener,
-      const std::unordered_map<std::string, std::string>& conf)
-      : listener_(std::move(listener)) {
-    init(conf);
+      const std::unordered_map<std::string, std::string>& conf) {
+    init(std::move(listener), conf);
   }
 
-  void init(const std::unordered_map<std::string, std::string>& conf);
+  void init(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf);
   void initCache();
   void initConnector();
   void initUdf();
@@ -101,8 +94,8 @@ class VeloxBackend {
 
   static std::unique_ptr<VeloxBackend> instance_;
 
-  // A global allocation listener that is passed to Velox for global memory allocations under current process.
-  std::unique_ptr<AllocationListener> listener_;
+  // A global memory manager for the current process.
+  std::unique_ptr<gluten::VeloxMemoryManager> memoryManager_;
   // Instance of AsyncDataCache used for all large allocations.
   std::shared_ptr<facebook::velox::cache::AsyncDataCache> asyncDataCache_;
 
