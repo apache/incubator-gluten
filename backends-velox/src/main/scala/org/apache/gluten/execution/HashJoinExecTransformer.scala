@@ -197,7 +197,9 @@ case class BroadcastHashJoinExecTransformer(
         condition.isDefined,
         joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,
-        buildBroadcastTableId)
+        buildBroadcastTableId,
+        isNullAwareAntiJoin
+      )
     val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?
     streamedRDD :+ broadcastRDD

@@ -50,7 +50,7 @@ case class ColumnarBuildSideRelation(
     mode: BroadcastMode,
     numOfRows: Long = 0L,
     newBuildKeys: Seq[Expression] = Seq.empty,
-    hasNullKeyValues: Boolean = false)
+    isNullAware: Boolean = false)
   extends BuildSideRelation
   with Logging {
 
@@ -180,7 +180,7 @@ case class ColumnarBuildSideRelation(
             broadCastContext.isExistenceJoin,
             SubstraitUtil.toNameStruct(newOutput).toByteArray,
             broadCastContext.isNullAwareAntiJoin,
-            hasNullKeyValues
+            isNullAware
           )
 
         jniWrapper.close(serializeHandle)
