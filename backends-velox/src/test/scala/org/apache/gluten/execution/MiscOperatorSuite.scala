@@ -723,7 +723,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           "where l_orderkey < 100 group by l_orderkey") { _ => }
       checkLengthAndPlan(df, 27)
       val ops = collect(df.queryExecution.executedPlan) { case p: VeloxResizeBatchesExec => p }
-      assert(ops.size == 1)
+      assert(ops.size == 2)
       val op = ops.head
       assert(op.minOutputBatchSize == minBatchSize)
       val metrics = op.metrics
