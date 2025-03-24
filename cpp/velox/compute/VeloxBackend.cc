@@ -187,7 +187,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
       .arbitratorKind = afr.getKind(),
       .extraArbitratorConfigs = getExtraArbitratorConfigs()};
 
-  facebook::velox::memory::MemoryManager::initialize(mmOptions);
+  facebook::velox::memory::initializeMemoryManager(mmOptions);
 
   LOG(INFO) << "Global Velox memory manager was set.";
 }
