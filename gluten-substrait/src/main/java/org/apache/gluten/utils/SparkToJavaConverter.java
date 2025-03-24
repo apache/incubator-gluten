@@ -46,6 +46,9 @@ import java.util.Map;
 public class SparkToJavaConverter {
 
   public static Object toJava(Object obj, TypeNode nodeType) {
+    if (obj == null) {
+      return null;
+    }
     if ((nodeType instanceof BooleanTypeNode)
         || (nodeType instanceof I8TypeNode)
         || (nodeType instanceof I32TypeNode)
