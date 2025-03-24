@@ -684,6 +684,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
             wrapChild(union)
           case ordered: TakeOrderedAndProjectExecTransformer =>
             wrapChild(ordered)
+          case a2v: ArrowColumnarToVeloxColumnarExec =>
+            wrapChild(a2v)
           case other =>
             throw new GlutenNotSupportException(
               s"Not supported operator ${other.nodeName} for BroadcastRelation")
