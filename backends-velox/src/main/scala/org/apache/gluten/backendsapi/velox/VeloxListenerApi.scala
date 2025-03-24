@@ -79,7 +79,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Overhead memory limits.
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY)
-    val desiredOverheadSize = (0.15 * offHeapSize).toLong.max(ByteUnit.MiB.toBytes(192))
+    val desiredOverheadSize = (0.3 * offHeapSize).toLong.max(ByteUnit.MiB.toBytes(384))
     if (!SparkResourceUtil.isMemoryOverheadSet(conf)) {
       // If memory overhead is not set by user, automatically set it according to off-heap settings.
       logInfo(
