@@ -86,13 +86,6 @@ class GoogleBenchmarkColumnarToRow {
   virtual void operator()(benchmark::State& state) {}
 
  protected:
-  long setCpu(uint32_t cpuindex) {
-    cpu_set_t cs;
-    CPU_ZERO(&cs);
-    CPU_SET(cpuindex, &cs);
-    return sched_setaffinity(0, sizeof(cs), &cs);
-  }
-
   velox::VectorPtr recordBatch2RowVector(const arrow::RecordBatch& rb) {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
