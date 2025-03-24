@@ -728,7 +728,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       assert(op.minOutputBatchSize == minBatchSize)
       val metrics = op.metrics
       assert(metrics("numInputRows").value == 27)
-      assert(metrics("numInputBatches").value == 14)
+      assert(metrics("numInputBatches").value == 7)
       assert(metrics("numOutputRows").value == 27)
       assert(metrics("numOutputBatches").value == 2)
     }
