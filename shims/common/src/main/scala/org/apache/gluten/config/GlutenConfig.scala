@@ -361,6 +361,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
 
   def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
+
+  def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
 }
 
 object GlutenConfig {
@@ -1702,4 +1704,12 @@ object GlutenConfig {
       .doc("Enable or disable columnar range.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_COLLECT_LIMIT_ENABLED =
+    buildConf("spark.gluten.sql.columnar.collectLimit")
+      .internal()
+      .doc("Enable or disable columnar collectLimit.")
+      .booleanConf
+      .createWithDefault(true)
+
 }
