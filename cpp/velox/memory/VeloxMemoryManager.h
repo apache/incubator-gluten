@@ -34,7 +34,8 @@ constexpr uint64_t kDefaultMemoryPoolTransferCapacity{128 << 20};
 constexpr std::string_view kMemoryReclaimMaxWaitMs{"memory-reclaim-max-wait-time"};
 constexpr std::string_view kDefaultMemoryReclaimMaxWaitMs{"3600000ms"};
 
-std::unordered_map<std::string, std::string> getExtraArbitratorConfigs(const facebook::velox::config::ConfigBase& backendConf);
+std::unordered_map<std::string, std::string> getExtraArbitratorConfigs(
+    const facebook::velox::config::ConfigBase& backendConf);
 
 class ArbitratorFactoryRegister {
  public:
@@ -54,7 +55,10 @@ class ArbitratorFactoryRegister {
 // Make sure the class is thread safe
 class VeloxMemoryManager final : public MemoryManager {
  public:
-  VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener,  const facebook::velox::config::ConfigBase& backendConf);
+  VeloxMemoryManager(
+      const std::string& kind,
+      std::unique_ptr<AllocationListener> listener,
+      const facebook::velox::config::ConfigBase& backendConf);
 
   ~VeloxMemoryManager() override;
   VeloxMemoryManager(const VeloxMemoryManager&) = delete;

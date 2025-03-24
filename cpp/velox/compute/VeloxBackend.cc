@@ -86,12 +86,13 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 }
 } // namespace
 
-void VeloxBackend::init(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf) {
+void VeloxBackend::init(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
 
-  globalMemoryManager_ =
-      std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener), *backendConf_);
+  globalMemoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener), *backendConf_);
 
   // Register factories.
   MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);

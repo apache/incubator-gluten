@@ -36,13 +36,12 @@ namespace gluten {
 
 using namespace facebook;
 
-std::unordered_map<std::string, std::string> getExtraArbitratorConfigs(const facebook::velox::config::ConfigBase& backendConf) {
-  auto reservationBlockSize = backendConf.get<uint64_t>(
-      kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
-  auto memInitCapacity =
-      backendConf.get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
-  auto memReclaimMaxWaitMs =
-      backendConf.get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
+std::unordered_map<std::string, std::string> getExtraArbitratorConfigs(
+    const facebook::velox::config::ConfigBase& backendConf) {
+  auto reservationBlockSize =
+      backendConf.get<uint64_t>(kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
+  auto memInitCapacity = backendConf.get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
+  auto memReclaimMaxWaitMs = backendConf.get<uint64_t>(kVeloxMemReclaimMaxWaitMs, kVeloxMemReclaimMaxWaitMsDefault);
 
   std::unordered_map<std::string, std::string> extraArbitratorConfigs;
   extraArbitratorConfigs[std::string(kMemoryPoolInitialCapacity)] = folly::to<std::string>(memInitCapacity) + "B";
@@ -212,10 +211,13 @@ ArbitratorFactoryRegister::~ArbitratorFactoryRegister() {
   velox::memory::MemoryArbitrator::unregisterFactory(kind_);
 }
 
-VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener, const facebook::velox::config::ConfigBase& backendConf)
+VeloxMemoryManager::VeloxMemoryManager(
+    const std::string& kind,
+    std::unique_ptr<AllocationListener> listener,
+    const facebook::velox::config::ConfigBase& backendConf)
     : MemoryManager(kind), listener_(std::move(listener)) {
-  auto reservationBlockSize = backendConf.get<uint64_t>(
-      kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
+  auto reservationBlockSize =
+      backendConf.get<uint64_t>(kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
