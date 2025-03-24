@@ -3400,7 +3400,6 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       // check EliminateDeduplicateAggregateWithAnyJoin is effective
       def checkOnlyOneAggregate(df: DataFrame): Unit = {
-        logError(s"xxx plan\n${df.queryExecution.executedPlan}")
         val aggregates = collectWithSubqueries(df.queryExecution.executedPlan) {
           case e: HashAggregateExecBaseTransformer => e
         }
