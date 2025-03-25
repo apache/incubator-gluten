@@ -19,8 +19,9 @@ package org.apache.spark.memory
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
 import org.apache.gluten.memory.listener.ReservationListener
-import org.apache.spark.internal.Logging
+
 import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.internal.Logging
 import org.apache.spark.storage.BlockId
 
 import java.lang.reflect.Field
@@ -116,7 +117,8 @@ object GlobalOffHeapMemory extends Logging {
       // This may happen in test code that mocks the task context without booting up SparkEnv.
       return Some(FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager])
     }
-    logWarning("Memory manager not found because the code is unlikely be run in a Spark application")
+    logWarning(
+      "Memory manager not found because the code is unlikely be run in a Spark application")
     None
   }
 }
