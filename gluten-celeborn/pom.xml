@@ -14,9 +14,6 @@
   <packaging>jar</packaging>
   <name>Gluten Celeborn</name>
 
-  <properties>
-    <log4j.conf>file:src-celeborn/test/resources/log4j2.properties</log4j.conf>
-  </properties>
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
