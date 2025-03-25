@@ -116,7 +116,6 @@ class VeloxMemoryManager final : public MemoryManager {
   std::vector<std::shared_ptr<facebook::velox::memory::MemoryPool>> heldVeloxPools_;
 };
 
-/// Not tracked by Spark and should only be used in test or validation.
 VeloxMemoryManager* getDefaultMemoryManager();
 
 std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool();
