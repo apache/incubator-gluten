@@ -34,13 +34,6 @@ abstract class ColumnarCollectLimitBaseExec(
   override def outputPartitioning: Partitioning = SinglePartition
 
   override protected def doValidateInternal(): ValidationResult = {
-    val isSupported = BackendsApiManager.getSettings.supportCollectLimitExec()
-
-    if (!isSupported) {
-      return ValidationResult.failed(
-        s"CollectLimitExec is not supported by the current backend."
-      )
-    }
 
     if (
       (childPlan.supportsColumnar && GlutenConfig.get.enablePreferColumnar) &&

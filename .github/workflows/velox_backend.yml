@@ -85,6 +85,7 @@ jobs:
         run: |
           docker pull apache/gluten:vcpkg-centos-7
           docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
+            set -e
             yum install tzdata -y
             df -a
             cd /work
@@ -106,10 +107,12 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases/
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: .m2/repository/org/apache/arrow/
+          if-no-files-found: error
 
   run-tpc-test-ubuntu:
     needs: build-native-lib-centos-7
@@ -237,7 +240,7 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
-          yum install https://rpmfind.net/linux/almalinux/8.10/BaseOS/x86_64/os/Packages/tzdata-2024b-4.el8.noarch.rpm -y
+          yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           $SETUP install_maven
       - name: Set environment variables
         run: |
@@ -306,7 +309,11 @@ jobs:
             sed -i -e 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* || true
 
             # Setup java and maven
-            yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+            yum update -y && yum install -y java-1.8.0-openjdk-devel wget tzdata python3-pip
+          
+            # upgrade tzdata
+            pip3 install tzdata
+            cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
             
             wget -nv https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
             tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
@@ -622,14 +629,14 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.2.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg \
+          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Piceberg \
           -Pdelta -Phudi -DargLine="-Dspark.test.home=/opt/shims/spark32/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -664,7 +671,7 @@ jobs:
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi \
+          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Piceberg -Pdelta -Phudi \
           -DargLine="-Dspark.test.home=/opt/shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
         if: always()
@@ -693,14 +700,14 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.3.1 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark33/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -737,7 +744,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark33/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -750,7 +757,7 @@ jobs:
   run-spark-test-spark34:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -767,17 +774,20 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.4.4 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
+          yum install -y java-17-openjdk-devel
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/ ${EXTRA_FLAGS}" 
       - name: Upload test report
@@ -813,7 +823,7 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.4.4 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.4 (other tests)
@@ -823,7 +833,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-8 -Pbackends-velox -Pceleborn -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-8 -Pbackends-velox -Pdelta -Phudi -Pspark-ut \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" 
       - name: Upload test report
@@ -842,7 +852,7 @@ jobs:
   run-spark-test-spark34-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -859,8 +869,12 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_HOME=/opt/shims/spark34/spark_home/
+          yum install -y java-17-openjdk-devel
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/ ${EXTRA_FLAGS}" 
       - name: Upload test report
@@ -892,7 +906,7 @@ jobs:
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
           export SPARK_HOME=/opt/shims/spark34/spark_home/
           ls -l /opt/shims/spark34/spark_home/
-          $MVN_CMD clean test -Pspark-3.4 -Pjava-8 -Pbackends-velox -Pceleborn -Pdelta -Pspark-ut -Phudi \
+          $MVN_CMD clean test -Pspark-3.4 -Pjava-8 -Pbackends-velox -Pdelta -Pspark-ut -Phudi \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest \
           -DargLine="-Dspark.test.home=/opt/shims/spark34/spark_home/" 
       - name: Upload test report
@@ -922,14 +936,14 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -948,7 +962,7 @@ jobs:
   run-spark-test-spark35-jdk17:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8-jdk17
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -965,15 +979,18 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
+          yum install -y java-17-openjdk-devel
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
+          $MVN_CMD clean test -Pspark-3.5 -Pjava-17 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/  ${EXTRA_FLAGS}" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -1009,14 +1026,14 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
-          $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Pceleborn -Piceberg \
+          $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Piceberg \
           -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/shims/spark35-scala-2.13/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -1045,7 +1062,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -1075,14 +1092,14 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -1110,7 +1127,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
@@ -1139,14 +1156,14 @@ jobs:
         run: |
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
-          pip3 install setuptools && \
+          pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.sql.columnar.forceShuffledHashJoin=false" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload test report
@@ -1174,7 +1191,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=/opt/shims/spark35/spark_home/ -Dspark.gluten.sql.columnar.forceShuffledHashJoin=false" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report

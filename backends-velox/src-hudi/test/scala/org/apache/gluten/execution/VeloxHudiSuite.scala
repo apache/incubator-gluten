@@ -14,15 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.execution
 
-#include <Functions/SparkFunctionArrayToString.h>
-
-namespace local_engine
-{
-
-REGISTER_FUNCTION(SparkFunctionArrayToString)
-{
-    factory.registerFunction<local_eingine::SparkFunctionArrayToString>();
-}
-
-}
+class VeloxHudiSuite extends HudiSuite {}

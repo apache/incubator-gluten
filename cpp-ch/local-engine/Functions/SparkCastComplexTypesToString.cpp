@@ -14,8 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.execution
 
-import org.apache.gluten.execution.HudiSuite
+#include <Functions/SparkCastComplexTypesToString.h>
 
-class VeloxHudiSuite extends HudiSuite {}
+namespace local_engine
+{
+
+REGISTER_FUNCTION(SparkCastComplexTypesToString)
+{
+    factory.registerFunction<local_engine::SparkCastComplexTypesToString>();
+}
+
+}

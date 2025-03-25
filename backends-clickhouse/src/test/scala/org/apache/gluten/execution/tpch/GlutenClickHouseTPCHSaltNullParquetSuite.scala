@@ -3390,5 +3390,45 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_8343")
   }
 
+  test("GLUTEN-8995: Fix column not found in row_number") {
+    val select_sql =
+      "select  id from (select id ,row_number() over (partition by id order by id desc) as rank from range(1)) c1 where  rank =1"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+  }
+
+  test("GLUTEN-8974 accelerate join + aggregate by any join") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      // check EliminateDeduplicateAggregateWithAnyJoin is effective
+      def checkOnlyOneAggregate(df: DataFrame): Unit = {
+        val aggregates = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case e: HashAggregateExecBaseTransformer => e
+        }
+        assert(aggregates.size == 1)
+      }
+      val sql1 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_regionkey, n_nationkey from nation group by n_regionkey, n_nationkey) t2
+          |on t1.n_regionkey = t2.n_regionkey and t1.n_nationkey = t2.n_nationkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql1, true, checkOnlyOneAggregate)
+
+      val sql2 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_nationkey, n_regionkey from nation group by n_regionkey, n_nationkey) t2
+          |on t1.n_regionkey = t2.n_regionkey and t1.n_nationkey = t2.n_nationkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql2, true, checkOnlyOneAggregate)
+
+      val sql3 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_regionkey from nation group by n_regionkey) t2
+          |on t1.n_regionkey = t2.n_regionkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql3, true, checkOnlyOneAggregate)
+    }
+  }
 }
 // scalastyle:on line.size.limit

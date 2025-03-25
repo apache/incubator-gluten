@@ -501,6 +501,8 @@ class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook:
 
   void next(bool throwIfPastEnd) override;
 
+  size_t remainingSize() const override;
+
   std::shared_ptr<arrow::io::InputStream> in_;
   const facebook::velox::BufferPtr buffer_;
   uint64_t offset_ = -1;
@@ -546,14 +548,18 @@ VeloxRssSortShuffleReaderDeserializer::VeloxRssSortShuffleReaderDeserializer(
       batchSize_(batchSize),
       veloxCompressionType_(veloxCompressionType),
       serde_(getNamedVectorSerde(facebook::velox::VectorSerde::Kind::kPresto)),
-      deserializeTime_(deserializeTime) {
-  constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
-  auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
-  in_ = std::make_unique<VeloxInputStream>(std::move(in), std::move(buffer));
+      deserializeTime_(deserializeTime),
+      arrowIn_(in) {
   serdeOptions_ = {false, veloxCompressionType_};
 }
 
 std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
+  if (in_ == nullptr) {
+    constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
+    auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
+    in_ = std::make_unique<VeloxInputStream>(std::move(arrowIn_), std::move(buffer));
+  }
+
   if (!in_->hasNext()) {
     return nullptr;
   }
@@ -574,6 +580,10 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
   }
 
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+size_t VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::remainingSize() const {
+  return std::numeric_limits<unsigned long>::max();
 }
 
 VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(

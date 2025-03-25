@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.spark34.extensions;
 
-#include <Functions/SparkFunctionMapToString.h>
+import org.apache.iceberg.spark.extensions.TestSystemFunctionPushDownDQL;
 
-namespace local_engine
-{
+import java.util.Map;
 
-REGISTER_FUNCTION(SparkFunctionMapToString)
-{
-    factory.registerFunction<local_eingine::SparkFunctionMapToString>();
-}
-
+public class GlutenTestSystemFunctionPushDownDQL extends TestSystemFunctionPushDownDQL {
+    public GlutenTestSystemFunctionPushDownDQL(String catalogName, String implementation, Map<String, String> config) {
+        super(catalogName, implementation, config);
+    }
 }

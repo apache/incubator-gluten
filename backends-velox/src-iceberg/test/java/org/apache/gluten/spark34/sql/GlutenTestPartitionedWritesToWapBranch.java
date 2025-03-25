@@ -14,17 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.hive
+package org.apache.gluten.spark34.sql;
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.iceberg.spark.sql.TestPartitionedWritesToWapBranch;
 
-object HiveUdfUtil {
-  def isHiveUdf(expr: Expression): Boolean = expr match {
-    case _: HiveSimpleUDF => true
-    case _: HiveGenericUDF => true
-    case _: HiveUDAFFunction => true
-    case _: HiveGenericUDTF => true
-    case _ => false
-  }
+import java.util.Map;
 
+public class GlutenTestPartitionedWritesToWapBranch extends TestPartitionedWritesToWapBranch {
+    public GlutenTestPartitionedWritesToWapBranch(String catalogName, String implementation, Map<String, String> config) {
+        super(catalogName, implementation, config);
+    }
 }
