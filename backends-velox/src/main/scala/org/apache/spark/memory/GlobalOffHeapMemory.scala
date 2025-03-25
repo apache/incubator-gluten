@@ -52,28 +52,32 @@ object GlobalOffHeapMemory {
     f
   }
 
-  def acquire(numBytes: Long): Unit = {
-    val mm = memoryManager()
-    val succeeded =
-      mm.acquireStorageMemory(BlockId(s"test_${UUID.randomUUID()}"), numBytes, MemoryMode.OFF_HEAP)
+  def acquire(numBytes: Long): Unit = memoryManagerOption().foreach {
+    mm =>
+      val succeeded =
+        mm.acquireStorageMemory(
+          BlockId(s"test_${UUID.randomUUID()}"),
+          numBytes,
+          MemoryMode.OFF_HEAP)
 
-    if (succeeded) {
-      recorder.inc(numBytes)
-      return
-    }
+      if (succeeded) {
+        recorder.inc(numBytes)
+        return
+      }
 
-    // Throw OOM.
-    val offHeapMemoryTotal =
-      mm.maxOffHeapStorageMemory + mm.offHeapExecutionMemoryUsed
-    throw new GlutenException(
-      s"Spark off-heap memory is exhausted." +
-        s" Storage: ${mm.offHeapStorageMemoryUsed} / $offHeapMemoryTotal," +
-        s" execution: ${mm.offHeapExecutionMemoryUsed} / $offHeapMemoryTotal")
+      // Throw OOM.
+      val offHeapMemoryTotal =
+        mm.maxOffHeapStorageMemory + mm.offHeapExecutionMemoryUsed
+      throw new GlutenException(
+        s"Spark off-heap memory is exhausted." +
+          s" Storage: ${mm.offHeapStorageMemoryUsed} / $offHeapMemoryTotal," +
+          s" execution: ${mm.offHeapExecutionMemoryUsed} / $offHeapMemoryTotal")
   }
 
-  def release(numBytes: Long): Unit = {
-    memoryManager().releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
-    recorder.inc(-numBytes)
+  def release(numBytes: Long): Unit = memoryManagerOption().foreach {
+    mm =>
+      mm.releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
+      recorder.inc(-numBytes)
   }
 
   def currentBytes(): Long = {
@@ -103,16 +107,22 @@ object GlobalOffHeapMemory {
   }
 
   private def memoryManager(): MemoryManager = {
+    memoryManagerOption().getOrElse(
+      throw new GlutenException(
+        "Memory manager not found because the code is unlikely be run in a Spark application")
+    )
+  }
+
+  private def memoryManagerOption(): Option[MemoryManager] = {
     val env = SparkEnv.get
     if (env != null) {
-      return env.memoryManager
+      return Some(env.memoryManager)
     }
     val tc = TaskContext.get()
     if (tc != null) {
       // This may happen in test code that mocks the task context without booting up SparkEnv.
-      return FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager]
+      return Some(FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager])
     }
-    throw new GlutenException(
-      "Memory manager not found because the code is unlikely be run in a Spark application")
+    None
   }
 }
