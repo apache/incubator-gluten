@@ -45,39 +45,23 @@ RowVectorPtr makeRowVector(
 }
 } // namespace
 
-void VeloxColumnarBatch::doFlatten(std::shared_ptr<BaseVector>& child) {
-  facebook::velox::BaseVector::flattenVector(child);
-  if (child->isLazy()) {
-    child = child->as<facebook::velox::LazyVector>()->loadedVectorShared();
-    VELOX_DCHECK_NOT_NULL(child);
-  }
-  // In case of output from Limit, RowVector size can be smaller than its children size.
-  if (child->size() > rowVector_->size()) {
-    child = child->slice(0, rowVector_->size());
-  }
-}
-
 void VeloxColumnarBatch::ensureFlattened() {
   if (flattened_) {
     return;
   }
   ScopedTimer timer(&exportNanos_);
   for (auto& child : rowVector_->children()) {
-    doFlatten(child);
+    facebook::velox::BaseVector::flattenVector(child);
+    if (child->isLazy()) {
+      child = child->as<facebook::velox::LazyVector>()->loadedVectorShared();
+      VELOX_DCHECK_NOT_NULL(child);
+    }
+    // In case of output from Limit, RowVector size can be smaller than its children size.
+    if (child->size() > rowVector_->size()) {
+      child = child->slice(0, rowVector_->size());
+    }
   }
   flattened_ = true;
-}
-
-// Only flatten the columns specificed by columnIndices
-void VeloxColumnarBatch::ensurePartialFlattened(const std::vector<int32_t>& columnIndices) {
-  if (flattened_) {
-    return;
-  }
-  ScopedTimer timer(&exportNanos_);
-  for (auto indice : columnIndices) {
-    auto& child = rowVector_->children()[indice];
-    doFlatten(child);
-  }
 }
 
 std::shared_ptr<ArrowSchema> VeloxColumnarBatch::exportArrowSchema() {
@@ -105,11 +89,6 @@ velox::RowVectorPtr VeloxColumnarBatch::getRowVector() const {
 
 velox::RowVectorPtr VeloxColumnarBatch::getFlattenedRowVector() {
   ensureFlattened();
-  return rowVector_;
-}
-
-velox::RowVectorPtr VeloxColumnarBatch::getPartialFlattenedRowVector(const std::vector<int32_t>& columnIndices) {
-  ensurePartialFlattened(columnIndices);
   return rowVector_;
 }
 
@@ -168,7 +147,7 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::select(
   std::vector<VectorPtr> childVectors;
   childNames.reserve(columnIndices.size());
   childVectors.reserve(columnIndices.size());
-  auto vector = getPartialFlattenedRowVector(columnIndices);
+  auto vector = getFlattenedRowVector();
   auto type = facebook::velox::asRowType(vector->type());
 
   for (uint32_t i = 0; i < columnIndices.size(); i++) {
