@@ -14,20 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql.shims.spark32
+package org.apache.gluten.shims
 
 import org.apache.gluten.sql.shims.SparkShimDescriptor
 
 import org.scalatest.funsuite.AnyFunSuite
 
-class Spark32ShimsSuite extends AnyFunSuite {
+class SparkShimDescriptorSuite extends AnyFunSuite {
 
   test("Spark shims descriptor") {
     val descriptor: SparkShimDescriptor = SparkShimDescriptor.DESCRIPTOR
     assert(SparkShimDescriptor.DESCRIPTOR.matches(descriptor))
     assert(descriptor.matches(SparkShimDescriptor.DESCRIPTOR))
-    assert(descriptor == SparkShimDescriptor.DESCRIPTOR)
+    assert(descriptor === SparkShimDescriptor.DESCRIPTOR)
     assert(SparkShimDescriptor("3.2.2") === SparkShimDescriptor(3, 2, 2))
     assert(SparkShimDescriptor("3.2.2-SNAPSHOT") === SparkShimDescriptor(3, 2, 2))
+    assert(SparkShimDescriptor("3.3") === SparkShimDescriptor(3, 3, 0))
+    assert(SparkShimDescriptor("4.0.0-preview1") === SparkShimDescriptor(4, 0, 0))
+
   }
 }

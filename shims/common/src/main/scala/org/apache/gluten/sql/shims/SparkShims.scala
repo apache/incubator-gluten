@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.sql.shims
 
-import org.apache.gluten.expression.Sig
 import org.apache.gluten.GlutenBuildInfo.SPARK_COMPILE_VERSION
+import org.apache.gluten.expression.Sig
 
 import org.apache.spark.{SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
@@ -76,6 +76,7 @@ object SparkShimDescriptor {
         SparkShimDescriptor(major, minor, 0)
     }
   }
+
   // Default shim descriptor being detected from the Spark version at compile time
   val DESCRIPTOR: SparkShimDescriptor = SparkShimDescriptor(SPARK_COMPILE_VERSION)
 }
