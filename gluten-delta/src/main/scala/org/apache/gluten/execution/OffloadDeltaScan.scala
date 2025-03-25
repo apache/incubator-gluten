@@ -22,8 +22,8 @@ import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 
 case class OffloadDeltaScan() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case scan: FileSourceScanExec
-        if scan.relation.fileFormat.getClass.getName == "org.apache.spark.sql.delta.DeltaParquetFileFormat" =>
+    case scan: FileSourceScanExec if scan.relation.fileFormat.getClass.getName ==
+      "org.apache.spark.sql.delta.DeltaParquetFileFormat" =>
       DeltaScanTransformer(scan)
     case other => other
   }
