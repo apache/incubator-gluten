@@ -28,6 +28,7 @@ import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
+
 import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext, SparkEnv}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
@@ -41,6 +42,7 @@ import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjec
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
+
 import org.apache.commons.lang3.StringUtils
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -122,8 +124,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onDriverShutdown(): Unit = {
     if (!driverStopped.compareAndSet(false, true)) {
       // Make sure we call the static initializers only once.
-      logInfo(
-        "Skip rerunning shutdown hooks since they are only supposed to run once.")
+      logInfo("Skip rerunning shutdown hooks since they are only supposed to run once.")
       return
     }
     shutdown()
@@ -154,17 +155,15 @@ class VeloxListenerApi extends ListenerApi with Logging {
   }
 
   override def onExecutorShutdown(): Unit = {
-    if (!driverStopped.compareAndSet(false, true)) {
+    if (!executorStopped.compareAndSet(false, true)) {
       // Make sure we call the static initializers only once.
-      logInfo(
-        "Skip rerunning shutdown hooks since they are only supposed to run once.")
+      logInfo("Skip rerunning shutdown hooks since they are only supposed to run once.")
       return
     }
     if (inLocalMode(SparkEnv.get.conf)) {
       // Don't do static initializations from executor side in local mode.
       // Driver already did that.
-      logInfo(
-        "Gluten is running with Spark local mode. Skip running shutdown hooks for executor.")
+      logInfo("Gluten is running with Spark local mode. Skip running shutdown hooks for executor.")
       return
     }
     shutdown()
@@ -238,7 +237,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
   }
 
   private def shutdown(): Unit = {
-    NativeBackendInitializer.forBackend(VeloxBackend.BACKEND_NAME)
+    NativeBackendInitializer
+      .forBackend(VeloxBackend.BACKEND_NAME)
       .stop()
   }
 }
