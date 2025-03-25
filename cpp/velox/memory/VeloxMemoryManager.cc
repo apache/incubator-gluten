@@ -29,7 +29,7 @@
 #include "memory/ArrowMemoryPool.h"
 #include "utils/Exception.h"
 
-DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
+DECLARE_int32(gluten_velox_async_timeout_on_task_stopping);
 
 namespace gluten {
 
@@ -379,7 +379,7 @@ bool VeloxMemoryManager::tryDestructSafe() {
 }
 
 VeloxMemoryManager::~VeloxMemoryManager() {
-  static const uint32_t kWaitTimeoutMs = FLAGS_gluten_velox_aysnc_timeout_on_task_stopping; // 30s by default
+  static const uint32_t kWaitTimeoutMs = FLAGS_gluten_velox_async_timeout_on_task_stopping; // 30s by default
   uint32_t accumulatedWaitMs = 0UL;
   bool destructed = false;
   for (int32_t tryCount = 0; accumulatedWaitMs < kWaitTimeoutMs; tryCount++) {

@@ -56,8 +56,8 @@ DECLARE_bool(velox_ssd_odirect);
 DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
 DECLARE_int32(cache_prefetch_min_pct);
 
-DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
-DEFINE_int32(gluten_velox_aysnc_timeout_on_task_stopping, 30000, "Aysnc timout when task is being stopped");
+DECLARE_int32(gluten_velox_async_timeout_on_task_stopping);
+DEFINE_int32(gluten_velox_async_timeout_on_task_stopping, 30000, "Async timout when task is being stopped");
 
 using namespace facebook;
 
@@ -113,7 +113,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   google::InitGoogleLogging("gluten");
 
   // Allow growing buffer in another task through its memory pool.
-  FLAGS_velox_memory_pool_capacity_transfer_across_tasks = true;
+  FLAGS_velox_memory_pool_capacity_transfer_across_tasks =
+      backendConf_->get<bool>(kMemoryPoolCapacityTransferAcrossTasks, true);
 
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
@@ -130,7 +131,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   FLAGS_velox_memory_use_hugepages = backendConf_->get<bool>(kMemoryUseHugePages, kMemoryUseHugePagesDefault);
 
   // Async timeout.
-  FLAGS_gluten_velox_aysnc_timeout_on_task_stopping =
+  FLAGS_gluten_velox_async_timeout_on_task_stopping =
       backendConf_->get<int32_t>(kVeloxAsyncTimeoutOnTaskStopping, kVeloxAsyncTimeoutOnTaskStoppingDefault);
 
   // Setup and register.
