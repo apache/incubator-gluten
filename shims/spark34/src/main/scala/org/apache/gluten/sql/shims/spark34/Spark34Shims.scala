@@ -18,7 +18,7 @@ package org.apache.gluten.sql.shims.spark34
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.expression.ExpressionNames.KNOWN_NULLABLE
-import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
@@ -68,8 +68,6 @@ import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 import scala.reflect.ClassTag
 
 class Spark34Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
-
   override def getDistribution(
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression]): Seq[Distribution] = {

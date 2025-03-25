@@ -30,6 +30,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.apache.gluten</groupId>
+      <artifactId>gluten-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_${scala.binary.version}</artifactId>
       <scope>provided</scope>

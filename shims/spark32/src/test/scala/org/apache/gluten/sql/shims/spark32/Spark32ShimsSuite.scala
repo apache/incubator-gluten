@@ -16,20 +16,18 @@
  */
 package org.apache.gluten.sql.shims.spark32
 
-import org.apache.gluten.sql.shims.{SparkShimDescriptor, SparkShimLoader, SparkShims}
+import org.apache.gluten.sql.shims.SparkShimDescriptor
 
 import org.scalatest.funsuite.AnyFunSuite
 
 class Spark32ShimsSuite extends AnyFunSuite {
-  val descriptor: SparkShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   test("Spark shims descriptor") {
-    val sparkShims: SparkShims = new SparkShimProvider().createShim
-    assert(sparkShims.getShimDescriptor === descriptor)
-  }
-
-  test("Spark shims loader") {
-    val sparkShims: SparkShims = SparkShimLoader.getSparkShims
-    assert(sparkShims.getShimDescriptor === descriptor)
+    val descriptor: SparkShimDescriptor = SparkShimDescriptor.DESCRIPTOR
+    assert(SparkShimDescriptor.DESCRIPTOR.matches(descriptor))
+    assert(descriptor.matches(SparkShimDescriptor.DESCRIPTOR))
+    assert(descriptor == SparkShimDescriptor.DESCRIPTOR)
+    assert(SparkShimDescriptor("3.2.2") === SparkShimDescriptor(3, 2, 2))
+    assert(SparkShimDescriptor("3.2.2-SNAPSHOT") === SparkShimDescriptor(3, 2, 2))
   }
 }

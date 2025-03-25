@@ -64,8 +64,6 @@ import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 
 class Spark33Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
-
   override def getDistribution(
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression]): Seq[Distribution] = {

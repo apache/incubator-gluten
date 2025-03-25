@@ -71,7 +71,6 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   override def getDistribution(
       leftKeys: Seq[Expression],
