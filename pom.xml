@@ -157,6 +157,7 @@
       -Djdk.reflect.useDirectMethodHandle=false
       -Dio.netty.tryReflectionSetAccessible=true
     </extraJavaTestArgs>
+    <log4j.conf>file:src/test/resources/log4j2.properties</log4j.conf>
   </properties>
 
   <profiles>
@@ -1371,6 +1372,9 @@
             <testFailureIgnore>${maven.test.failure.ignore}</testFailureIgnore>
             <junitxml>.</junitxml>
             <argLine>${argLine} ${extraJavaTestArgs}</argLine>
+            <systemProperties>
+              <log4j.configurationFile>${log4j.conf}</log4j.configurationFile>
+            </systemProperties>
           </configuration>
           <executions>
             <execution>
