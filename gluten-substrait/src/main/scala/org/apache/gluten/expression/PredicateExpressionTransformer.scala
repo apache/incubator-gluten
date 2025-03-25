@@ -61,7 +61,7 @@ object InExpressionTransformer {
           value => {
             val nodeType = ConverterUtils.getTypeNode(valueType, value == null)
             ExpressionBuilder
-              .makeLiteral(SparkToJavaConverter.toJava(value, nodeType), nodeType)
+              .makeLiteral(SparkToJavaConverter.toJava(value, nodeType, valueType), nodeType)
           })
         .asJava)
 

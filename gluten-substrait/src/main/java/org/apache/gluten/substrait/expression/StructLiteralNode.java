@@ -16,7 +16,9 @@
  */
 package org.apache.gluten.substrait.expression;
 
-import org.apache.gluten.substrait.type.*;
+import org.apache.gluten.substrait.type.NothingNode;
+import org.apache.gluten.substrait.type.StructNode;
+import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
@@ -34,57 +36,11 @@ public class StructLiteralNode extends LiteralNodeWithValue<List<Object>> {
     if (value.get(index) == null) {
       return ExpressionBuilder.makeNullLiteral(type);
     }
-
-    if (type instanceof BooleanTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof I8TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof I16TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof I32TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof I64TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof FP32TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof FP64TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof DateTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof TimestampTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof StringTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof BinaryTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof DecimalTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof ListNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof MapNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
-    if (type instanceof StructNode) {
-      return ExpressionBuilder.makeLiteral(value.get(index), type);
-    }
     if (type instanceof NothingNode) {
       return ExpressionBuilder.makeNullLiteral(type);
     }
-    throw new UnsupportedOperationException(
-        type.toString() + " is not supported in getFieldLiteral.");
+
+    return ExpressionBuilder.makeLiteral(value.get(index), type);
   }
 
   @Override

@@ -34,8 +34,11 @@ import org.apache.gluten.substrait.type.TimestampTypeNode;
 import org.apache.gluten.substrait.type.TypeNode;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.UnsafeArrayData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
+import org.apache.spark.sql.types.ArrayType;
+import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 
 import java.util.ArrayList;
@@ -45,7 +48,11 @@ import java.util.Map;
 
 public class SparkToJavaConverter {
 
-  public static Object toJava(Object obj, TypeNode nodeType) {
+  private static Object toJava(Object obj, TypeNode nodeType) {
+    return toJava(obj, nodeType, null);
+  }
+
+  public static Object toJava(Object obj, TypeNode nodeType, DataType dataType) {
     if (obj == null) {
       return null;
     }
@@ -65,18 +72,22 @@ public class SparkToJavaConverter {
       return ((Decimal) obj).toJavaBigDecimal();
     } else if (nodeType instanceof ListNode) {
       ListNode listType = (ListNode) nodeType;
-      /**
-       * if (obj instanceof UnsafeArrayData) { UnsafeArrayData unsafeArray = (UnsafeArrayData) obj;
-       * List<Object> javaList = new ArrayList<>(unsafeArray.numElements()); for (Object elem :
-       * unsafeArray.array()) { javaList.add(toJava(elem, listType.getNestedType())); } return
-       * javaList; } else if (obj instanceof ArrayData) {
-       */
-      ArrayData array = (ArrayData) obj;
-      List<Object> javaList = new ArrayList<>(array.numElements());
-      for (Object elem : array.array()) {
-        javaList.add(toJava(elem, listType.getNestedType()));
+      if (obj instanceof UnsafeArrayData) {
+        UnsafeArrayData unsafeArray = (UnsafeArrayData) obj;
+        List<Object> javaList = new ArrayList<>(unsafeArray.numElements());
+        DataType elementType = ((ArrayType) dataType).elementType();
+        for (int i = 0; i < unsafeArray.numElements(); i++) {
+          javaList.add(toJava(unsafeArray.get(i, elementType), listType.getNestedType()));
+        }
+        return javaList;
+      } else {
+        ArrayData array = (ArrayData) obj;
+        List<Object> javaList = new ArrayList<>(array.numElements());
+        for (Object elem : array.array()) {
+          javaList.add(toJava(elem, listType.getNestedType()));
+        }
+        return javaList;
       }
-      return javaList;
     } else if (nodeType instanceof MapNode) {
       MapNode mapType = (MapNode) nodeType;
       MapData map = (MapData) obj;

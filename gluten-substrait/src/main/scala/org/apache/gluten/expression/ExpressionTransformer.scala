@@ -81,7 +81,9 @@ case class LiteralTransformer(original: Literal) extends LeafExpressionTransform
   override def substraitExprName: String = "literal"
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeLiteral(SparkToJavaConverter.toJava(original.value, typeNode), typeNode)
+    ExpressionBuilder.makeLiteral(
+      SparkToJavaConverter.toJava(original.value, typeNode, original.dataType),
+      typeNode)
   }
 }
 object LiteralTransformer {

@@ -30,7 +30,10 @@ import java.util
 class SparkToJavaConverterSuite extends AnyFunSuite {
   test("Convert decimal") {
     val decimal =
-      SparkToJavaConverter.toJava(new Decimal().set(11, 5, 3), new DecimalTypeNode(false, 5, 3))
+      SparkToJavaConverter.toJava(
+        new Decimal().set(11, 5, 3),
+        new DecimalTypeNode(false, 5, 3),
+        null)
     val result = new BigDecimal(BigInteger.valueOf(11), 3, new MathContext(5))
     assert(result.equals(decimal))
   }
@@ -38,7 +41,7 @@ class SparkToJavaConverterSuite extends AnyFunSuite {
   test("Convert binary") {
     val binary =
       SparkToJavaConverter
-        .toJava(Array[Byte](5, 6, 7), new BinaryTypeNode(false))
+        .toJava(Array[Byte](5, 6, 7), new BinaryTypeNode(false), null)
         .asInstanceOf[Array[Byte]]
     val result = Array[Byte](5, 6, 7)
     assert(result.sameElements(binary))
@@ -63,7 +66,7 @@ class SparkToJavaConverterSuite extends AnyFunSuite {
     fieldTypes.add(new MapNode(false, new StringTypeNode(false), new FP64TypeNode(false)))
     fieldTypes.add(new TimestampTypeNode(false))
     val javaRow =
-      SparkToJavaConverter.toJava(row, new StructNode(false, fieldTypes))
+      SparkToJavaConverter.toJava(row, new StructNode(false, fieldTypes), null)
     val result = new util.ArrayList[Object]()
     result.add(java.lang.Boolean.TRUE)
     result.add(java.lang.Integer.valueOf(777777))

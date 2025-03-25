@@ -39,6 +39,8 @@ case class ScalarSubqueryTransformer(substraitExprName: String, query: ScalarSub
     // before doing transform.
     val result = query.eval(InternalRow.empty)
     val typeNode = ConverterUtils.getTypeNode(query.dataType, result == null)
-    ExpressionBuilder.makeLiteral(SparkToJavaConverter.toJava(result, typeNode), typeNode)
+    ExpressionBuilder.makeLiteral(
+      SparkToJavaConverter.toJava(result, typeNode, query.dataType),
+      typeNode)
   }
 }
