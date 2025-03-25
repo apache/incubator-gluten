@@ -380,7 +380,9 @@ abstract class HashAggregateExecTransformer(
                     val nodeType = ConverterUtils.getTypeNode(lt.dataType, nullable = false)
                     childNodes.add(
                       ExpressionBuilder
-                        .makeLiteral(SparkToJavaConverter.toJava(lt.value, nodeType), nodeType))
+                        .makeLiteral(
+                          SparkToJavaConverter.toJava(lt.value, nodeType, lt.dataType),
+                          nodeType))
                   } else {
                     val sparkType = sparkTypes(adjustedIdx)
                     val attr = rewrittenInputAttributes(adjustedIdx)
