@@ -19,7 +19,7 @@ package org.apache.spark.memory
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
 import org.apache.gluten.memory.listener.ReservationListener
-
+import org.apache.spark.internal.Logging
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.storage.BlockId
 
@@ -35,7 +35,7 @@ import java.util.UUID
  * The utility internally relies on the Spark storage memory pool. As Spark doesn't expect trait
  * BlockId to be extended by user, TestBlockId is chosen for the storage memory reservations.
  */
-object GlobalOffHeapMemory {
+object GlobalOffHeapMemory extends Logging {
   private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
 
   private val FIELD_MEMORY_MANAGER: Field = {
@@ -106,13 +106,6 @@ object GlobalOffHeapMemory {
     }
   }
 
-  private def memoryManager(): MemoryManager = {
-    memoryManagerOption().getOrElse(
-      throw new GlutenException(
-        "Memory manager not found because the code is unlikely be run in a Spark application")
-    )
-  }
-
   private def memoryManagerOption(): Option[MemoryManager] = {
     val env = SparkEnv.get
     if (env != null) {
@@ -123,6 +116,7 @@ object GlobalOffHeapMemory {
       // This may happen in test code that mocks the task context without booting up SparkEnv.
       return Some(FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager])
     }
+    logWarning("Memory manager not found because the code is unlikely be run in a Spark application")
     None
   }
 }
