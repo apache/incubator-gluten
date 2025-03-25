@@ -28,7 +28,8 @@ import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
-import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext, SparkEnv}
+
+import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.GlobalOffHeapMemory
@@ -41,6 +42,7 @@ import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjec
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
+
 import org.apache.commons.lang3.StringUtils
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -119,15 +121,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     UdfJniWrapper.registerFunctionSignatures()
   }
 
-  override def onDriverShutdown(): Unit = {
-    if (!driverStopped.compareAndSet(false, true)) {
-      // Make sure we call the static initializers only once.
-      logInfo(
-        "Skip rerunning shutdown hooks since they are only supposed to run once.")
-      return
-    }
-    shutdown()
-  }
+  override def onDriverShutdown(): Unit = shutdown()
 
   override def onExecutorStart(pc: PluginContext): Unit = {
     val conf = pc.conf()
@@ -153,22 +147,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     initialize(conf, isDriver = false)
   }
 
-  override def onExecutorShutdown(): Unit = {
-    if (!driverStopped.compareAndSet(false, true)) {
-      // Make sure we call the static initializers only once.
-      logInfo(
-        "Skip rerunning shutdown hooks since they are only supposed to run once.")
-      return
-    }
-    if (inLocalMode(SparkEnv.get.conf)) {
-      // Don't do static initializations from executor side in local mode.
-      // Driver already did that.
-      logInfo(
-        "Gluten is running with Spark local mode. Skip running shutdown hooks for executor.")
-      return
-    }
-    shutdown()
-  }
+  override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Do row / batch type initializations.
@@ -238,8 +217,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
   }
 
   private def shutdown(): Unit = {
-    NativeBackendInitializer.forBackend(VeloxBackend.BACKEND_NAME)
-      .stop()
+    // TODO shutdown implementation in velox to release resources
   }
 }
 
@@ -247,9 +225,7 @@ object VeloxListenerApi {
   // TODO: Implement graceful shutdown and remove these flags.
   //  As spark conf may change when active Spark session is recreated.
   private val driverInitialized: AtomicBoolean = new AtomicBoolean(false)
-  private val driverStopped: AtomicBoolean = new AtomicBoolean(false)
   private val executorInitialized: AtomicBoolean = new AtomicBoolean(false)
-  private val executorStopped: AtomicBoolean = new AtomicBoolean(false)
   private val platformLibDir: String = {
     val osName = System.getProperty("os.name") match {
       case n if n.contains("Linux") => "linux"

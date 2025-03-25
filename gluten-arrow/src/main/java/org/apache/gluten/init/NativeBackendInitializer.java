@@ -36,7 +36,6 @@ public final class NativeBackendInitializer {
   private static final Map<String, NativeBackendInitializer> instances = new ConcurrentHashMap<>();
 
   private final AtomicBoolean initialized = new AtomicBoolean(false);
-  private final AtomicBoolean stopped = new AtomicBoolean(false);
   private final String backendName;
 
   private NativeBackendInitializer(String backendName) {
@@ -59,6 +58,11 @@ public final class NativeBackendInitializer {
       throw new IllegalStateException("Already initialized");
     }
     initialize0(rl, conf);
+    SparkShutdownManagerUtil.addHook(
+        () -> {
+          shutdown();
+          return BoxedUnit.UNIT;
+        });
   }
 
   private void initialize0(ReservationListener rl, scala.collection.Map<String, String> conf) {
@@ -72,13 +76,6 @@ public final class NativeBackendInitializer {
   }
 
   private native void initialize(ReservationListener rl, byte[] configPlan);
-
-  public void stop() {
-    if (!stopped.compareAndSet(false, true)) {
-      throw new IllegalStateException("Already stopped");
-    }
-    shutdown();
-  }
 
   private native void shutdown();
 }
