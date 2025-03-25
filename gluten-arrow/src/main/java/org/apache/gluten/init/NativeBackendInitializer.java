@@ -20,12 +20,15 @@ import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.memory.listener.ReservationListener;
 import org.apache.gluten.utils.ConfigUtil;
 
+import org.apache.spark.util.SparkShutdownManagerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import scala.runtime.BoxedUnit;
 
 // Initialize native backend before calling any native methods from Java side.
 public final class NativeBackendInitializer {
