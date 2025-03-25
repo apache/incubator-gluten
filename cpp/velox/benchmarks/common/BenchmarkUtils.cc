@@ -123,6 +123,8 @@ bool endsWith(const std::string& data, const std::string& suffix) {
 }
 
 void setCpu(uint32_t cpuIndex) {
+#ifdef __APPLE__
+#else
   static const auto kTotalCores = std::thread::hardware_concurrency();
   cpuIndex = cpuIndex % kTotalCores;
   cpu_set_t cs;
@@ -132,6 +134,7 @@ void setCpu(uint32_t cpuIndex) {
     LOG(WARNING) << "Error binding CPU " << std::to_string(cpuIndex);
     std::exit(EXIT_FAILURE);
   }
+#endif
 }
 
 void BenchmarkAllocationListener::allocationChanged(int64_t diff) {

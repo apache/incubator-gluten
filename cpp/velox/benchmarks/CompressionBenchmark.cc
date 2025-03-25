@@ -34,6 +34,7 @@
 #include <iostream>
 #include <utility>
 
+#include "common/BenchmarkUtils.h"
 #include "shuffle/ShuffleWriter.h"
 #include "utils/Compression.h"
 #include "utils/Macros.h"
@@ -218,13 +219,6 @@ class BenchmarkCompression {
   }
 
  protected:
-  long setCpu(uint32_t cpuindex) {
-    cpu_set_t cs;
-    CPU_ZERO(&cs);
-    CPU_SET(cpuindex, &cs);
-    return sched_setaffinity(0, sizeof(cs), &cs);
-  }
-
   virtual void doCompress(
       int64_t& elapseRead,
       int64_t& numBatches,

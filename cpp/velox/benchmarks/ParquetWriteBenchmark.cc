@@ -91,13 +91,6 @@ class GoogleBenchmarkParquetWrite {
   virtual void operator()(benchmark::State& state) {}
 
  protected:
-  long setCpu(uint32_t cpuindex) {
-    cpu_set_t cs;
-    CPU_ZERO(&cs);
-    CPU_SET(cpuindex, &cs);
-    return sched_setaffinity(0, sizeof(cs), &cs);
-  }
-
   std::shared_ptr<ColumnarBatch> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb) {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
