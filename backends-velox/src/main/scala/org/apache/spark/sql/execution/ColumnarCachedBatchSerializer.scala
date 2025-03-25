@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenConfig._
+import org.apache.gluten.config.GlutenStaticConfig._
 import org.apache.gluten.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -110,14 +112,13 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
     // `convertColumnarBatchToCachedBatch`, but the inside ColumnarBatch is not arrow-based.
     // See: `InMemoryRelation.apply()`.
     // So we should disallow columnar input if using vanilla Spark columnar scan.
-    val noVanillaSparkColumnarScan = glutenConf.getConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED) ||
-      !glutenConf.getConf(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED)
-    glutenConf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(
-      schema) && noVanillaSparkColumnarScan
+    val noVanillaSparkColumnarScan = glutenConf.getConf(COLUMNAR_FILESCAN_ENABLED) ||
+      !glutenConf.getConf(VANILLA_VECTORIZED_READERS_ENABLED)
+    glutenConf.getConf(GLUTEN_ENABLED) && validateSchema(schema) && noVanillaSparkColumnarScan
   }
 
   override def supportsColumnarOutput(schema: StructType): Boolean = {
-    glutenConf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(schema)
+    glutenConf.getConf(GLUTEN_ENABLED) && validateSchema(schema)
   }
 
   override def convertInternalRowToCachedBatch(
