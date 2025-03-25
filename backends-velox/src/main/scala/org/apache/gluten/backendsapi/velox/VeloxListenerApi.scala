@@ -123,7 +123,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
   override def onDriverShutdown(): Unit = {
     if (!driverStopped.compareAndSet(false, true)) {
-      // Make sure we call the static initializers only once.
+      // Make sure we call the shutdown hooks only once.
       logInfo("Skip rerunning shutdown hooks since they are only supposed to run once.")
       return
     }
@@ -156,12 +156,12 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
   override def onExecutorShutdown(): Unit = {
     if (!executorStopped.compareAndSet(false, true)) {
-      // Make sure we call the static initializers only once.
+      // Make sure we call the shutdown hooks only once.
       logInfo("Skip rerunning shutdown hooks since they are only supposed to run once.")
       return
     }
     if (inLocalMode(SparkEnv.get.conf)) {
-      // Don't do static initializations from executor side in local mode.
+      // Don't call shutdown hooks from executor side in local mode.
       // Driver already did that.
       logInfo("Gluten is running with Spark local mode. Skip running shutdown hooks for executor.")
       return
