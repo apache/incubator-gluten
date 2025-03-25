@@ -22,13 +22,13 @@ namespace local_engine
 {
 std::unordered_map<String, std::unordered_map<String, String>> convertToKVs(const String & advance);
 
-
 struct JoinOptimizationInfo
 {
     bool is_broadcast = false;
     bool is_smj = false;
     bool is_null_aware_anti_join = false;
     bool is_existence_join = false;
+    bool is_any_join = false;
     Int64 left_table_rows = -1;
     Int64 left_table_bytes = -1;
     Int64 right_table_rows = -1;

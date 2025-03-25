@@ -407,6 +407,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  def eliminateDeduplicateAggregateWithAnyJoin(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConfig.runtimeConfig("eliminate_deduplicate_aggregate_with_any_join"),
+      defaultValue = true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.get.enableNativeWriter.getOrElse(false)
   }
