@@ -45,7 +45,7 @@ RowVectorPtr makeRowVector(
 }
 } // namespace
 
-void VeloxColumnarBatch::doFlatten(VectorPtr& child) {
+void VeloxColumnarBatch::doFlatten(std::shared_ptr<BaseVector>& child) {
   facebook::velox::BaseVector::flattenVector(child);
   if (child->isLazy()) {
     child = child->as<facebook::velox::LazyVector>()->loadedVectorShared();
@@ -75,7 +75,7 @@ void VeloxColumnarBatch::ensurePartialFlattened(const std::vector<int32_t>& colu
   }
   ScopedTimer timer(&exportNanos_);
   for (auto indice : columnIndices) {
-    auto& child = rowVector_->childAt(indice);
+    auto& child = rowVector_->children()[indice];
     doFlatten(child);
   }
 }
