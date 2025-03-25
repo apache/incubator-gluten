@@ -17,8 +17,9 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.{ReadRelNode, SplitInfo}
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.connector.catalog.Table
@@ -27,6 +28,8 @@ import org.apache.spark.sql.connector.read.streaming.{MicroBatchStream, Offset}
 import org.apache.spark.sql.execution.datasources.v2.MicroBatchScanExec
 import org.apache.spark.sql.kafka010.GlutenStreamKafkaSourceUtil
 import org.apache.spark.sql.types.StructType
+
+import java.util.Objects
 
 /** Physical plan node for scanning a micro-batch of data from a data source. */
 case class MicroBatchScanExecTransformer(
@@ -48,6 +51,8 @@ case class MicroBatchScanExecTransformer(
   ) {
 
   // TODO: unify the equal/hashCode implementation for all data source v2 query plans.
+  override def hashCode(): Int = Objects.hashCode(this.stream)
+
   override def equals(other: Any): Boolean = other match {
     case other: MicroBatchScanExecTransformer => this.stream == other.stream
     case _ => false
@@ -93,7 +98,10 @@ case class MicroBatchScanExecTransformer(
 
 object MicroBatchScanExecTransformer {
   def apply(batch: MicroBatchScanExec): MicroBatchScanExecTransformer = {
-    val output = batch.output.filter(_.isInstanceOf[AttributeReference]).map(_.asInstanceOf[AttributeReference]).toSeq
+    val output = batch.output
+      .filter(_.isInstanceOf[AttributeReference])
+      .map(_.asInstanceOf[AttributeReference])
+      .toSeq
     if (output.size == batch.output.size) {
       new MicroBatchScanExecTransformer(
         output,

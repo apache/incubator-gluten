@@ -17,13 +17,13 @@
 package org.apache.spark.sql.kafka010
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.{SplitInfo, StreamKafkaSourceBuilder}
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
+
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 
 object GlutenStreamKafkaSourceUtil {
-  def genSplitInfo(
-      inputPartition: InputPartition): SplitInfo = inputPartition match {
+  def genSplitInfo(inputPartition: InputPartition): SplitInfo = inputPartition match {
     case batch: KafkaBatchInputPartition =>
       StreamKafkaSourceBuilder.makeStreamKafkaBatch(
         batch.offsetRange.topicPartition.topic(),

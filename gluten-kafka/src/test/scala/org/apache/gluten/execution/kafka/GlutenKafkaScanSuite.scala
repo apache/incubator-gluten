@@ -17,6 +17,7 @@
 package org.apache.gluten.execution.kafka
 
 import org.apache.gluten.execution.{MicroBatchScanExecTransformer, WholeStageTransformerSuite}
+
 import org.apache.spark.sql.execution.streaming.StreamingQueryWrapper
 import org.apache.spark.sql.functions.{col, split}
 import org.apache.spark.sql.streaming.Trigger
