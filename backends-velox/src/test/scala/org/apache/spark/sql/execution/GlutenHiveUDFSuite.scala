@@ -202,7 +202,7 @@ class GlutenHiveUDFSuite extends GlutenQueryTest with SQLTestUtils {
     }
   }
 
-  test("UDFMapping should prioritize over ColumnarPartialProject when both applicable") {
+  test("prioritize offloading supported hive udf in ColumnarPartialProject") {
     withTempFunction("udf_substr") {
       withTempFunction("udf_substr2") {
         withTempFunction("udf_sort_array") {
