@@ -23,6 +23,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions.{StringTrimBoth, _}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.expressions.ToPrettyString
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
 
@@ -106,6 +107,7 @@ object ExpressionMappings {
     Sig[UnBase64](UNBASE64),
     Sig[Base64](BASE64),
     Sig[FormatString](FORMAT_STRING),
+    Sig[ToPrettyString](TO_PRETTY_STRING),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
