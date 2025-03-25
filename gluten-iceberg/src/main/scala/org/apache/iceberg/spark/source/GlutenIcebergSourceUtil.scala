@@ -36,9 +36,10 @@ import scala.collection.JavaConverters._
 
 object GlutenIcebergSourceUtil {
 
-  def genSplitInfoForPartition(inputPartition: InputPartition,
-                    index: Int,
-                    readPartitionSchema: StructType): SplitInfo = inputPartition match {
+  def genSplitInfoForPartition(
+      inputPartition: InputPartition,
+      index: Int,
+      readPartitionSchema: StructType): SplitInfo = inputPartition match {
     case partition: SparkInputPartition =>
       val paths = new JArrayList[String]()
       val starts = new JArrayList[JLong]()
@@ -83,9 +84,10 @@ object GlutenIcebergSourceUtil {
       throw new UnsupportedOperationException("Only support iceberg SparkInputPartition.")
   }
 
-  def genSplitInfo(inputPartitions: Seq[InputPartition],
-                    index: Int,
-                    readPartitionSchema: StructType): SplitInfo = {
+  def genSplitInfo(
+      inputPartitions: Seq[InputPartition],
+      index: Int,
+      readPartitionSchema: StructType): SplitInfo = {
     val paths = new JArrayList[String]()
     val starts = new JArrayList[JLong]()
     val lengths = new JArrayList[JLong]()
@@ -117,18 +119,19 @@ object GlutenIcebergSourceUtil {
         }
         preferredLocs.addAll(partition.preferredLocations().toList.asJava)
     }
-  IcebergLocalFilesBuilder.makeIcebergLocalFiles(
-    index,
-    paths,
-    starts,
-    lengths,
-    partitionColumns,
-    fileFormat,
-    SoftAffinity.getFilePartitionLocations(
-      paths.asScala.toArray,
-      preferredLocs.asScala.toArray).toList.asJava,
-    deleteFilesList
-  )
+    IcebergLocalFilesBuilder.makeIcebergLocalFiles(
+      index,
+      paths,
+      starts,
+      lengths,
+      partitionColumns,
+      fileFormat,
+      SoftAffinity
+        .getFilePartitionLocations(paths.asScala.toArray, preferredLocs.asScala.toArray)
+        .toList
+        .asJava,
+      deleteFilesList
+    )
   }
 
   def getFileFormat(sparkScan: Scan): ReadFileFormat = sparkScan match {

@@ -22,11 +22,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
-import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
-import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
-import org.apache.iceberg.types.Type
-import org.apache.iceberg.types.Type.TypeID
-import org.apache.iceberg.types.Types.{ListType, MapType, NestedField}
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -34,6 +30,12 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
+
+import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
+import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
+import org.apache.iceberg.types.Type
+import org.apache.iceberg.types.Type.TypeID
+import org.apache.iceberg.types.Types.{ListType, MapType, NestedField}
 
 case class IcebergScanTransformer(
     override val output: Seq[AttributeReference],
@@ -63,27 +65,40 @@ case class IcebergScanTransformer(
 
     if (!BackendsApiManager.getSettings.supportIcebergEqualityDeleteRead()) {
       val notSupport = table match {
-        case t: SparkTable => t.table() match {
-          case t: BaseTable => t.operations().current().schema().columns().stream
-            .anyMatch(c => containsUuidOrFixedType(c.`type`()) || containsMetadataColumn(c))
-          case _ => false
-        }
+        case t: SparkTable =>
+          t.table() match {
+            case t: BaseTable =>
+              t.operations()
+                .current()
+                .schema()
+                .columns()
+                .stream
+                .anyMatch(c => containsUuidOrFixedType(c.`type`()) || containsMetadataColumn(c))
+            case _ => false
+          }
         case _ => false
       }
       if (notSupport) {
         return ValidationResult.failed("Contains not supported data type or metadata column")
       }
       // Delete from command read the _file metadata, which may be not successful.
-      val readMetadata = scan.readSchema().fieldNames.exists(f => MetadataColumns.isMetadataColumn(f))
+      val readMetadata =
+        scan.readSchema().fieldNames.exists(f => MetadataColumns.isMetadataColumn(f))
       if (readMetadata) {
         return ValidationResult.failed(s"Read the metadata column")
       }
       val containsEqualityDelete = table match {
-        case t: SparkTable => t.table() match {
-          case t: BaseTable => t.operations().current().currentSnapshot().summary()
-            .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0").toInt > 0
-          case _ => false
-        }
+        case t: SparkTable =>
+          t.table() match {
+            case t: BaseTable =>
+              t.operations()
+                .current()
+                .currentSnapshot()
+                .summary()
+                .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0")
+                .toInt > 0
+            case _ => false
+          }
         case _ => false
       }
       if (containsEqualityDelete) {
@@ -112,14 +127,20 @@ case class IcebergScanTransformer(
   }
 
   override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
-    val groupedPartitions = SparkShimLoader.getSparkShims.orderPartitions(
-      this,
-      scan,
-      keyGroupedPartitioning,
-      filteredPartitions,
-      outputPartitioning, commonPartitionValues, applyPartialClustering, replicatePartitions).flatten
+    val groupedPartitions = SparkShimLoader.getSparkShims
+      .orderPartitions(
+        this,
+        scan,
+        keyGroupedPartitioning,
+        filteredPartitions,
+        outputPartitioning,
+        commonPartitionValues,
+        applyPartialClustering,
+        replicatePartitions)
+      .flatten
     groupedPartitions.zipWithIndex.map {
-      case (p, index) => GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
+      case (p, index) =>
+        GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
     }
   }
 
