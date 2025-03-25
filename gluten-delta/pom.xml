@@ -120,8 +120,8 @@
               <file>${project.basedir}/../.scalafmt.conf</file>
             </scalafmt>
             <includes>
-              <include>src-delta/main/scala/**/*.scala</include>
-              <include>src-delta/test/scala/**/*.scala</include>
+              <include>src/main/scala/**/*.scala</include>
+              <include>src/test/scala/**/*.scala</include>
               <include>src-delta-${delta.binary.version}/main/scala/**/*.scala</include>
               <include>src-delta-${delta.binary.version}/test/scala/**/*.scala</include>
             </includes>
