@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.substrait.expression;
 
+import org.apache.gluten.substrait.type.DecimalTypeNode;
 import org.apache.gluten.substrait.type.TypeBuilder;
 import org.apache.gluten.substrait.type.TypeNode;
 
@@ -31,7 +32,8 @@ public class DecimalLiteralNode extends LiteralNodeWithValue<BigDecimal> {
   public DecimalLiteralNode(BigDecimal value, TypeNode typeNode) {
     super(value, typeNode);
     ExpressionBuilder.checkDecimalScale(value.scale());
-    this.valueBytes = ByteString.copyFrom(encodeDecimalIntoBytes(value, value.scale(), 16));
+    this.valueBytes =
+        ByteString.copyFrom(encodeDecimalIntoBytes(value, ((DecimalTypeNode) typeNode).scale, 16));
   }
 
   public DecimalLiteralNode(BigDecimal value) {
@@ -75,9 +77,10 @@ public class DecimalLiteralNode extends LiteralNodeWithValue<BigDecimal> {
 
   @Override
   protected void updateLiteralBuilder(Builder literalBuilder, BigDecimal value) {
+    DecimalTypeNode decimalTypeNode = (DecimalTypeNode) getTypeNode();
     Expression.Literal.Decimal.Builder decimalBuilder = Expression.Literal.Decimal.newBuilder();
-    decimalBuilder.setPrecision(value.precision());
-    decimalBuilder.setScale(value.scale());
+    decimalBuilder.setPrecision(decimalTypeNode.precision);
+    decimalBuilder.setScale(decimalTypeNode.scale);
     decimalBuilder.setValue(valueBytes);
 
     literalBuilder.setDecimal(decimalBuilder.build());
