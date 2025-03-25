@@ -114,7 +114,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   // Allow growing buffer in another task through its memory pool.
   FLAGS_velox_memory_pool_capacity_transfer_across_tasks =
-      backendConf_->get<int32_t>(kMemoryPoolCapacityTransferAcrossTasks, true);
+      backendConf_->get<bool>(kMemoryPoolCapacityTransferAcrossTasks, true);
 
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
