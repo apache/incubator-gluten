@@ -65,6 +65,7 @@ namespace DB
 namespace Setting
 {
 extern const SettingsUInt64 priority;
+extern const SettingsMilliseconds low_priority_query_wait_time_ms;
 }
 namespace ErrorCodes
 {
@@ -304,7 +305,8 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         "",
         0, // since we set a query to empty string, let's set hash to zero.
         parser_context->queryContext()->getClientInfo(),
-        priorities.insert(settings[Setting::priority]),
+        priorities.insert(
+            settings[Setting::priority], std::chrono::milliseconds(settings[Setting::low_priority_query_wait_time_ms].totalMilliseconds())),
         CurrentThread::getGroup(),
         IAST::QueryKind::Select,
         settings,
