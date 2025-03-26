@@ -85,6 +85,12 @@ public:
     convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column);
 };
 
+class TypeUtil
+{
+public:
+    static bool hasNothingType(DB::DataTypePtr data_type);
+};
+
 class PODArrayUtil
 {
 public:
