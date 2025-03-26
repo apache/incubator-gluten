@@ -40,6 +40,8 @@ import org.apache.spark.sql.catalyst.util.MapData;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.MapType;
+import org.apache.spark.sql.types.StructType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -72,40 +74,44 @@ public class SparkToJavaConverter {
       return ((Decimal) obj).toJavaBigDecimal();
     } else if (nodeType instanceof ListNode) {
       ListNode listType = (ListNode) nodeType;
+      DataType elementType = ((ArrayType) dataType).elementType();
       if (obj instanceof UnsafeArrayData) {
         UnsafeArrayData unsafeArray = (UnsafeArrayData) obj;
         List<Object> javaList = new ArrayList<>(unsafeArray.numElements());
-        DataType elementType = ((ArrayType) dataType).elementType();
         for (int i = 0; i < unsafeArray.numElements(); i++) {
-          javaList.add(toJava(unsafeArray.get(i, elementType), listType.getNestedType()));
+          javaList.add(
+              toJava(unsafeArray.get(i, elementType), listType.getNestedType(), elementType));
         }
         return javaList;
       } else {
         ArrayData array = (ArrayData) obj;
         List<Object> javaList = new ArrayList<>(array.numElements());
         for (Object elem : array.array()) {
-          javaList.add(toJava(elem, listType.getNestedType()));
+          javaList.add(toJava(elem, listType.getNestedType(), elementType));
         }
         return javaList;
       }
     } else if (nodeType instanceof MapNode) {
       MapNode mapType = (MapNode) nodeType;
       MapData map = (MapData) obj;
+      MapType mapDataType = (MapType) dataType;
       Map<Object, Object> javaMap = new HashMap<>(map.numElements());
       for (int i = 0; i < map.numElements(); i++) {
         javaMap.put(
-            toJava(map.keyArray().array()[i], mapType.getKeyType()),
-            toJava(map.valueArray().array()[i], mapType.getValueType()));
+            toJava(map.keyArray().array()[i], mapType.getKeyType(), mapDataType.keyType()),
+            toJava(map.valueArray().array()[i], mapType.getValueType(), mapDataType.valueType()));
       }
       return javaMap;
     } else if (nodeType instanceof StructNode) {
       StructNode structType = (StructNode) nodeType;
+      StructType structDataType = (StructType) dataType;
       InternalRow struct = (InternalRow) obj;
       List<Object> javaList = new ArrayList<>(struct.numFields());
       for (int i = 0; i < struct.numFields(); i++) {
         if (struct.isNullAt(i)) {
           javaList.add(i, null);
         } else {
+          DataType fieldDataType = structDataType.fields()[i].dataType();
           TypeNode fieldType = structType.getFieldTypes().get(i);
           if (fieldType instanceof BooleanTypeNode) {
             javaList.add(i, toJava(struct.getBoolean(i), fieldType));
@@ -135,13 +141,17 @@ public class SparkToJavaConverter {
                 i,
                 toJava(struct.getDecimal(i, decimalType.precision, decimalType.scale), fieldType));
           } else if (fieldType instanceof ListNode) {
-            javaList.add(i, toJava(struct.getArray(i), fieldType));
+            javaList.add(i, toJava(struct.getArray(i), fieldType, fieldDataType));
           } else if (fieldType instanceof MapNode) {
-            javaList.add(i, toJava(struct.getMap(i), fieldType));
+            javaList.add(i, toJava(struct.getMap(i), fieldType, fieldDataType));
           } else if (fieldType instanceof StructNode) {
             StructNode structFieldType = (StructNode) fieldType;
             javaList.add(
-                i, toJava(struct.getStruct(i, structFieldType.getFieldTypes().size()), fieldType));
+                i,
+                toJava(
+                    struct.getStruct(i, structFieldType.getFieldTypes().size()),
+                    fieldType,
+                    fieldDataType));
           } else {
             throw new UnsupportedOperationException(
                 fieldType + " is not supported in StructNodeType.");
