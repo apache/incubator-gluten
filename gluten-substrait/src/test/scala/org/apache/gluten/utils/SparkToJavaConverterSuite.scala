@@ -20,7 +20,7 @@ import org.apache.gluten.substrait.`type`._
 
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, GenericArrayData}
-import org.apache.spark.sql.types.Decimal
+import org.apache.spark.sql.types.{DataTypes, Decimal, StructField, StructType}
 
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -65,8 +65,18 @@ class SparkToJavaConverterSuite extends AnyFunSuite {
     fieldTypes.add(new ListNode(false, new FP64TypeNode(false)))
     fieldTypes.add(new MapNode(false, new StringTypeNode(false), new FP64TypeNode(false)))
     fieldTypes.add(new TimestampTypeNode(false))
+    val structFields = new Array[StructField](5)
+    structFields(0) = StructField("bool", DataTypes.BooleanType)
+    structFields(1) = StructField("date", DataTypes.DateType)
+    structFields(2) = StructField("array", DataTypes.createArrayType(DataTypes.DoubleType))
+    structFields(3) =
+      StructField("map", DataTypes.createMapType(DataTypes.StringType, DataTypes.DoubleType))
+    structFields(4) = StructField("time", DataTypes.TimestampType)
     val javaRow =
-      SparkToJavaConverter.toJava(row, new StructNode(false, fieldTypes), null)
+      SparkToJavaConverter.toJava(
+        row,
+        new StructNode(false, fieldTypes),
+        new StructType(structFields))
     val result = new util.ArrayList[Object]()
     result.add(java.lang.Boolean.TRUE)
     result.add(java.lang.Integer.valueOf(777777))
