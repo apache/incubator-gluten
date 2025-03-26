@@ -33,8 +33,8 @@ import org.apache.gluten.utils._
 import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.listener.VeloxGlutenSQLAppStatusListener
+import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.shuffle.{ColumnarShuffleDependency, LookupKey, ShuffleManagerRegistry}
