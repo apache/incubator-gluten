@@ -39,15 +39,6 @@ namespace local_engine
 DB::AggregateFunctionPtr createAggregateFunctionDVRoaringBitmap(
     const std::string & name, const DB::DataTypes & argument_types, const DB::Array & parameters, const DB::Settings *)
 {
-    DB::assertUnary(name, argument_types);
-    auto arg_type = argument_types[0]->getTypeId();
-    if (arg_type != DB::TypeIndex::Int64 && arg_type != DB::TypeIndex::UInt64)
-        throw DB::Exception(
-            DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
-            "Argument for aggregate function {} must be Int64 or UInt64, but it has type {}",
-            name,
-            argument_types[0]->getName());
-
     return DB::AggregateFunctionPtr(
         new AggregateFunctionDVRoaringBitmap<Int64, AggregateFunctionDVRoaringBitmapData>(argument_types, parameters));
 }
