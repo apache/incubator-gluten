@@ -173,86 +173,77 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
     isValid && leftKeys.forall(e => rightKeys.exists(_.semanticEquals(e)))
   }
 
-  // Only two tables join, both are aggregate
+  /**
+   * Rewrite the plan if it is a join between two aggregate tables. For example
+   * ```
+   *   select k1, k2, s1, s2 from (select k1, sum(a) as s1 from t1 group by k1) as t1
+   *   left join (select k2, sum(b) as s2 from t2 group by k2) as t2
+   *   on t1.k1 = t2.k2
+   * ```
+   * It's rewritten into
+   * ```
+   *   select k1, k2, s1, s2 from(
+   *     select k1, k2, s1, if(isNull(flag2), null, s2) as s2 from (
+   *        select k1, first(k2) as k2, sum(a) as s1, sum(b) as s2, first(flag1) as flag1,
+   *               first(flag2) as flag2
+   *        from (
+   *          select k1, null as k2, a as a, null as b, true as flag1, null as flag2 from t1
+   *          union all
+   *          select k2, k2, null as a, b as b, null as flag1, true as flag2 from t2
+   *        ) group by k1
+   *     ) where flag1 is not null
+   *   )
+   * ```
+   *
+   * The first query is easier to write, but not as efficient as the second one.
+   */
   def rewriteOnlyTwoAggregatesJoin(
       leftAggregate: Aggregate,
       rightAggregate: Aggregate,
       join: Join): Option[LogicalPlan] = {
     val (leftKeys, rightKeys) = extractJoinKeys(join)
     if (!leftKeys.isDefined || !rightKeys.isDefined) {
-      logDebug(s"xxx not valid join keys")
       return None
     }
-
-    val leftAggregateExpressions = extracAggregateExpressions(leftAggregate)
-    val rightAggregateExpressions = extracAggregateExpressions(rightAggregate)
-    val firstAggExpr =
-      leftAggregateExpressions.head.asInstanceOf[Alias].child.asInstanceOf[AggregateExpression]
-    logDebug(s"xxx aggregate mode ${firstAggExpr.mode}")
-    if (
-      !validateAggregateExpressions(leftAggregateExpressions) ||
-      !validateAggregateExpressions(rightAggregateExpressions)
-    ) {
-      logDebug(s"xxx not valid aggregate expressions")
-      return None
-    }
-
-    if (
-      !areSameKeys(
-        leftKeys.get.map(_.asInstanceOf[Expression]),
-        leftAggregate.groupingExpressions.map(_.asInstanceOf[Expression])) ||
-      !areSameKeys(
-        rightKeys.get.map(_.asInstanceOf[Expression]),
-        rightAggregate.groupingExpressions.map(_.asInstanceOf[Expression]))
-    ) {
-      logDebug(s"xxx not same keys")
-      return None
-    }
-
-    val leftAggregateInputs = collectAggregateExpressionsArguments(leftAggregateExpressions)
-    val rightAggregateInputs = collectAggregateExpressionsArguments(rightAggregateExpressions)
-    if (!leftAggregateInputs.isDefined || !rightAggregateInputs.isDefined) {
-      logDebug(s"xxx not valid aggregate inputs")
-      return None
-    }
-    logDebug(s"xxx left inputs\n$leftAggregateInputs\nright inputs\n$rightAggregateInputs")
-    logDebug(s"xxx all check passed. $join")
-
     val aggregates = Seq(leftAggregate, rightAggregate)
+    val joinKeys = Seq(leftKeys.get, rightKeys.get)
+    val aggregateExpressions = aggregates.map(extracAggregateExpressions)
+    if (aggregateExpressions.exists(!validateAggregateExpressions(_))) {
+      return None
+    }
 
-    val leftProject = buildExtendedProject(
-      leftAggregate.groupingExpressions,
-      leftAggregate.groupingExpressions.map(_.dataType).map(makeNullLiteral),
-      leftAggregateInputs.get,
-      rightAggregateInputs.get.map(_.dataType).map(makeNullLiteral),
-      Seq(makeFlagLiteral(), makeNullLiteral(BooleanType)),
-      leftAggregate.child
+    val keyPairs = joinKeys.zip(aggregates).map {
+      case (keys, aggregate) =>
+        (
+          keys.map(_.asInstanceOf[Expression]),
+          aggregate.groupingExpressions.map(_.asInstanceOf[Expression]))
+    }
+    if (keyPairs.exists(pair => !areSameKeys(pair._1, pair._2))) {
+      return None
+    }
+
+    val optionAggregateInputs = aggregateExpressions.map(collectAggregateExpressionsArguments)
+    if (optionAggregateInputs.exists(_.isEmpty)) {
+      return None
+    }
+    val aggregateInputs = optionAggregateInputs.map(_.get)
+
+    val extendProjects = buildExtendProjects(
+      aggregates.map(_.groupingExpressions),
+      aggregateInputs,
+      aggregates.map(_.child)
     )
-    val rightProject = buildExtendedProject(
-      rightAggregate.groupingExpressions,
-      rightAggregate.groupingExpressions,
-      leftAggregateInputs.get.map(_.dataType).map(makeNullLiteral),
-      rightAggregateInputs.get,
-      Seq(makeNullLiteral(BooleanType), makeFlagLiteral()),
-      rightAggregate.child
-    )
-    val union = buildUnionOnExtendedProjects(leftProject, rightProject)
+
+    val union = buildUnionOnExtendedProjects(extendProjects)
     val unionOutput = union.output
-    logDebug(s"xxx join outputs ${join.output}\nunion outputs ${union.output}")
-    val aggregateUnion =
-      buildAggregateOnUnion(union, leftAggregate, leftKeys.get, rightAggregate, rightKeys.get)
-    logDebug(s"xxx aggregate union\n$aggregateUnion")
-    logDebug(s"xxx aggregate outputs ${aggregateUnion.output}")
+    val aggregateUnion = buildAggregateOnUnion(union, aggregates, joinKeys)
     val filtAggregateUnion = buildPrimeKeysFilterOnAggregateUnion(aggregateUnion, aggregates)
-    logDebug(s"xxx filt aggregate union\n$filtAggregateUnion")
-    logDebug(s"xxx filt outputs ${filtAggregateUnion.output}")
     val fieldStartOffset =
-      leftAggregate.groupingExpressions.length * aggregates.length + leftAggregateExpressions.length
+      aggregates.map(_.groupingExpressions.length).sum + aggregateExpressions.head.length
     val setNullsProject = buildMakeNotMatchedRowsNullProject(
       filtAggregateUnion,
       fieldStartOffset,
       aggregates.slice(1, aggregates.length))
-    logDebug(s"xxx set nulls project\n$setNullsProject")
     val renameProject =
       buildRenameProject(setNullsProject, aggregates, Seq(leftKeys.get, rightKeys.get))
     logDebug(s"xxx rename project\n$renameProject")
@@ -273,10 +264,54 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
       .withNewChildren(newArguments)
       .asInstanceOf[AggregateFunction]
     val newAggregateExpression = aggregateExpression.copy(aggregateFunction = newAggregateFunction)
-    // val newAlias =
-    //  Alias(newAggregateExpression, alias.name)(alias.exprId, alias.qualifier, None, Seq.empty)
     val newAlias = makeNamedExpression(newAggregateExpression, alias.name)
     (inputOffset + arguments.length, newAlias)
+  }
+
+  def buildAggregateOnUnion(
+      union: LogicalPlan,
+      aggregates: Seq[Aggregate],
+      joinKeys: Seq[Seq[AttributeReference]]): LogicalPlan = {
+    val unionOutput = union.output
+    val keysNumber = joinKeys.head.length
+    val aggregateExpressions = ArrayBuffer[NamedExpression]()
+    val groupingKeys = unionOutput.slice(0, keysNumber).zip(joinKeys.head).map {
+      case (e, a) =>
+        makeNamedExpression(e, a.name)
+    }
+    aggregateExpressions ++= groupingKeys
+
+    var fieldIndex = keysNumber
+
+    for (i <- 1 until joinKeys.length) {
+      val keys = joinKeys(i)
+      keys.foreach {
+        key =>
+          val valueExpr = unionOutput(fieldIndex)
+          val firstValue = makeFirstAggregateExpression(valueExpr)
+          aggregateExpressions += makeNamedExpression(firstValue, key.name)
+          fieldIndex += 1
+      }
+    }
+
+    aggregates.foreach {
+      aggregate =>
+        val partialAggregateExpressions = extracAggregateExpressions(aggregate)
+        partialAggregateExpressions.foreach {
+          e =>
+            val (nextFieldIndex, newAggregateExpression) =
+              rebuildAggregateExpression(e, unionOutput, fieldIndex)
+            fieldIndex = nextFieldIndex
+            aggregateExpressions += newAggregateExpression
+        }
+    }
+    for (i <- fieldIndex until unionOutput.length) {
+      val valueExpr = unionOutput(i)
+      val firstValue = makeFirstAggregateExpression(valueExpr)
+      aggregateExpressions += makeNamedExpression(firstValue, valueExpr.name)
+    }
+
+    Aggregate(groupingKeys, aggregateExpressions.toSeq, union)
   }
 
   def buildAggregateOnUnion(
@@ -290,7 +325,6 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
     val aggregateExpressions = ArrayBuffer[NamedExpression]()
     val groupingKeys = unionOutput.slice(0, groupingKeysNumber).zip(leftKeys).map {
       case (e, a) =>
-        // Alias(e, a.name)(a.exprId, a.qualifier, Some(a.metadata), Seq.empty)
         makeNamedExpression(e, a.name)
     }
     aggregateExpressions ++= groupingKeys
@@ -303,7 +337,6 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
       .map {
         case (e, a) =>
           fieldIndex += 1
-          // Alias(e, a.name)(a.exprId, a.qualifier, Some(a.metadata), Seq.empty)
           makeNamedExpression(e, a.name)
       }
 
@@ -415,62 +448,68 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
   }
 
   def buildExtendProjectList(
-      leftGroupingkeys: Seq[Expression],
-      rightGroupingkeys: Seq[Expression],
-      leftInputs: Seq[Expression],
-      rightInputs: Seq[Expression],
-      flags: Seq[Expression]): Seq[NamedExpression] = {
+      groupingKeys: Seq[Seq[Expression]],
+      aggregateInputs: Seq[Seq[Expression]],
+      index: Int): Seq[NamedExpression] = {
     var fieldIndex = 0
-    val part1 = leftGroupingkeys.map {
-      e =>
-        fieldIndex += 1
-        makeNamedExpression(e, s"field$fieldIndex")
+    def nextFieldIndex(): Int = {
+      val res = fieldIndex
+      fieldIndex += 1
+      res
     }
-    val part2 = rightGroupingkeys.map {
-      e =>
-        fieldIndex += 1
-        makeNamedExpression(e, s"field$fieldIndex")
+
+    val projectList = ArrayBuffer[NamedExpression]()
+    val keys = groupingKeys(index)
+    projectList ++= keys.map(makeNamedExpression(_, s"key$nextFieldIndex"))
+    for (i <- 1 until groupingKeys.length) {
+      if (i == index) {
+        projectList ++= keys.map(makeNamedExpression(_, s"key$nextFieldIndex"))
+      } else {
+        projectList ++= keys
+          .map(_.dataType)
+          .map(makeNullLiteral)
+          .map(makeNamedExpression(_, s"key$nextFieldIndex"))
+      }
     }
-    val part3 = leftInputs.map {
-      e =>
-        fieldIndex += 1
-        makeNamedExpression(e, s"field$fieldIndex")
+
+    aggregateInputs.zipWithIndex.foreach {
+      case (inputs, i) =>
+        if (i == index) {
+          projectList ++= inputs.map(makeNamedExpression(_, s"agg$nextFieldIndex"))
+        } else {
+          projectList ++= inputs
+            .map(_.dataType)
+            .map(makeNullLiteral)
+            .map(makeNamedExpression(_, s"agg$nextFieldIndex"))
+        }
     }
-    val part4 = rightInputs.map {
-      e =>
-        fieldIndex += 1
-        makeNamedExpression(e, s"field$fieldIndex")
+
+    for (i <- 0 until groupingKeys.length) {
+      if (i == index) {
+        projectList += makeNamedExpression(makeFlagLiteral(), s"flag$nextFieldIndex")
+      } else {
+        projectList += makeNamedExpression(makeNullLiteral(BooleanType), s"flag$nextFieldIndex")
+      }
     }
-    val part5 = flags.map {
-      e =>
-        fieldIndex += 1
-        makeNamedExpression(e, s"field$fieldIndex")
-    }
-    part1 ++ part2 ++ part3 ++ part4 ++ part5
+
+    projectList.toSeq
   }
 
-  def buildExtendedProject(
-      leftGroupingkeys: Seq[Expression],
-      rightGroupingkeys: Seq[Expression],
-      leftInputs: Seq[Expression],
-      rightInputs: Seq[Expression],
-      flags: Seq[Expression],
-      child: LogicalPlan): LogicalPlan = {
-    val projectList =
-      buildExtendProjectList(leftGroupingkeys, rightGroupingkeys, leftInputs, rightInputs, flags)
-    Project(projectList, child)
+  def buildExtendProjects(
+      groupingKeys: Seq[Seq[Expression]],
+      aggregateInputs: Seq[Seq[Expression]],
+      children: Seq[LogicalPlan]
+  ): Seq[LogicalPlan] = {
+    val projects = ArrayBuffer[LogicalPlan]()
+    for (i <- 0 until children.length) {
+      val projectList = buildExtendProjectList(groupingKeys, aggregateInputs, i)
+      projects += Project(projectList, children(i))
+    }
+    projects.toSeq
   }
 
-
-  def buildUnionOnExtendedProjects1(plans: Seq[LogicalPlan]): LogicalPlan = {
+  def buildUnionOnExtendedProjects(plans: Seq[LogicalPlan]): LogicalPlan = {
     val union = Union(plans)
-    logDebug(s"xxx union\n$union")
-    union
-  }
-  def buildUnionOnExtendedProjects(
-      leftProject: LogicalPlan,
-      rightProject: LogicalPlan): LogicalPlan = {
-    val union = Union(Seq(leftProject, rightProject))
     logDebug(s"xxx union\n$union")
     union
   }
