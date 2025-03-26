@@ -16,18 +16,14 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.columnarbatch.VeloxColumnarBatches
+// import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.vectorized.CHNativeBlock
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ColumnarCollectLimitExec(
-    limit: Int,
-    child: SparkPlan,
-    offset: Int = 0
-) extends ColumnarCollectLimitBaseExec(limit, child, offset) {
+case class CHColumnarCollectLimitExec(limit: Int, offset: Int, child: SparkPlan)
+  extends ColumnarCollectLimitBaseExec(limit, child, offset) {
 
   /**
    * Returns an iterator that gives offset to limit rows in total from the input partitionIter.
@@ -80,10 +76,9 @@ case class ColumnarCollectLimitExec(
 
             val prunedBatch =
               if (startIndex == 0 && needed == batchSize) {
-                ColumnarBatches.retain(batch)
                 batch
               } else {
-                VeloxColumnarBatches.slice(batch, startIndex, needed)
+                CHNativeBlock.slice(batch, startIndex, needed)
               }
 
             rowsToCollect -= needed
@@ -95,6 +90,10 @@ case class ColumnarCollectLimitExec(
       }
     }
   }
+
+//  override protected def doValidateInternal(): ValidationResult = {
+//    ValidationResult.succeeded
+//  }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)

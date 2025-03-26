@@ -152,7 +152,7 @@ trait BackendSettingsApi {
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
 
-  def supportCollectLimitExec(): Boolean = false
+  def supportCollectLimitExec(): Boolean = true
 
   def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = false
 

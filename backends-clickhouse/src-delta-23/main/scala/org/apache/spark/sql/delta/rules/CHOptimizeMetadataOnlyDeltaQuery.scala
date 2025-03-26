@@ -30,7 +30,7 @@ import org.apache.spark.sql.delta.stats.DeltaScanGenerator
 
 import org.apache.hadoop.fs.Path
 
-class CHOptimizeMetadataOnlyDeltaQuery(protected val spark: SparkSession)
+case class CHOptimizeMetadataOnlyDeltaQuery(protected val spark: SparkSession)
   extends Rule[LogicalPlan]
   with DeltaLogging
   with SubqueryTransformerHelper
