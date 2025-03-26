@@ -77,6 +77,12 @@ public class CHNativeBlock {
     return nativeBlockStats(blockAddress, columnPosition);
   }
 
+  private native long nativeSlice(long blockAddress, int offset, int limit);
+
+  public long nativeSlice(int offset, int limit) {
+    return nativeSlice(blockAddress, offset, limit);
+  }
+
   public void close() {
     if (blockAddress != 0) {
       nativeClose(blockAddress);
@@ -104,5 +110,15 @@ public class CHNativeBlock {
           new CHColumnVector(CHExecUtil.inferSparkDataType(getTypeByPosition(i)), blockAddress, i);
     }
     return new ColumnarBatch(vectors, numRows);
+  }
+
+  public static ColumnarBatch slice(ColumnarBatch batch, int offset, int limit) {
+    if (limit >= batch.numRows()) {
+      return batch;
+    } else {
+      CHNativeBlock block = CHNativeBlock.fromColumnarBatch(batch);
+      long blockAddress = block.nativeSlice(offset, limit);
+      return new CHNativeBlock(blockAddress).toColumnarBatch();
+    }
   }
 }

@@ -16,16 +16,13 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.columnarbatch.VeloxColumnarBatches
+import org.apache.gluten.vectorized.CHNativeBlock
 
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ColumnarCollectLimitExec(
-    limit: Int,
-    child: SparkPlan
-) extends ColumnarCollectLimitBaseExec(limit, child) {
+case class CHColumnarCollectLimitExec(limit: Int, child: SparkPlan)
+  extends ColumnarCollectLimitBaseExec(limit, child) {
 
   /**
    * Returns an iterator that yields up to `limit` rows in total from the input partitionIter.
@@ -34,11 +31,11 @@ case class ColumnarCollectLimitExec(
    */
   override def collectLimitedRows(
       partitionIter: Iterator[ColumnarBatch],
-      limit: Int
-  ): Iterator[ColumnarBatch] = {
+      limit: Int): Iterator[ColumnarBatch] = {
     if (partitionIter.isEmpty) {
       return Iterator.empty
     }
+
     new Iterator[ColumnarBatch] {
 
       private var rowsCollected = 0
@@ -72,10 +69,9 @@ case class ColumnarCollectLimitExec(
 
         if (currentBatchRowCount <= remaining) {
           rowsCollected += currentBatchRowCount
-          ColumnarBatches.retain(currentBatch)
           nextBatch = Some(currentBatch)
         } else {
-          val prunedBatch = VeloxColumnarBatches.slice(currentBatch, 0, remaining)
+          val prunedBatch = CHNativeBlock.slice(currentBatch, 0, remaining)
           rowsCollected += remaining
           nextBatch = Some(prunedBatch)
         }

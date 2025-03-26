@@ -454,4 +454,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   }
 
   override def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = true
+
+  override def supportCollectLimitExec(): Boolean = true
 }
