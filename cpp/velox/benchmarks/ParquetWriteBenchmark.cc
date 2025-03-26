@@ -34,10 +34,10 @@
 #include <chrono>
 
 #include "benchmarks/common/BenchmarkUtils.h"
+#include "compute/VeloxBackend.h"
 #include "compute/VeloxRuntime.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "memory/VeloxMemoryManager.h"
 #include "utils/Macros.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
@@ -251,7 +251,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     auto fileName = "velox_parquet_write.parquet";
 
     auto memoryManager = getDefaultMemoryManager();
-    auto runtime = Runtime::create(kVeloxBackendKind, memoryManager.get());
+    auto runtime = Runtime::create(kVeloxBackendKind, memoryManager);
     auto veloxPool = memoryManager->getAggregateMemoryPool();
 
     for (auto _ : state) {

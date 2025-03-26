@@ -16,9 +16,6 @@
  */
 package org.apache.spark.sql.execution.unsafe
 
-import org.apache.gluten.exception.GlutenException
-
-import org.apache.spark.SparkEnv
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.GlobalOffHeapMemory
@@ -76,15 +73,7 @@ case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int]
     assert(bytesBuffer.length == bytesBufferLengths(index))
     // first to allocate underlying long array
     if (null == longArray && index == 0) {
-      if (!GlobalOffHeapMemory.acquire(allocatedBytes)) {
-        val memoryManager = SparkEnv.get.memoryManager
-        val offHeapMemoryTotal =
-          memoryManager.maxOffHeapStorageMemory + memoryManager.offHeapExecutionMemoryUsed
-        throw new GlutenException(
-          s"Spark off-heap memory is exhausted." +
-            s" Storage: ${memoryManager.offHeapStorageMemoryUsed} / $offHeapMemoryTotal," +
-            s" execution: ${memoryManager.offHeapExecutionMemoryUsed} / $offHeapMemoryTotal")
-      }
+      GlobalOffHeapMemory.acquire(allocatedBytes)
       longArray = new LongArray(MemoryAllocator.UNSAFE.allocate(allocatedBytes))
     }
 

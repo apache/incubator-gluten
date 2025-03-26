@@ -266,6 +266,10 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             if (!read.has_local_files())
                 read_rel_parser->setSplitInfo(nextSplitInfo());
         }
+        else if (read_rel_parser->isReadFromStreamKafka(read))
+        {
+            read_rel_parser->setSplitInfo(nextSplitInfo());
+        }
     }
 
     DB::QueryPlanPtr query_plan = rel_parser->parse(input_query_plans, rel, rel_stack);
