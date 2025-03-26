@@ -65,7 +65,7 @@ namespace gluten {
 
 namespace {
 MemoryManager* veloxMemoryManagerFactory(const std::string& kind, std::unique_ptr<AllocationListener> listener) {
-  return new VeloxMemoryManager(kind, std::move(listener));
+  return new VeloxMemoryManager(kind, std::move(listener), *VeloxBackend::get()->getBackendConf());
 }
 
 void veloxMemoryManagerReleaser(MemoryManager* memoryManager) {
@@ -86,9 +86,13 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 }
 } // namespace
 
-void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+void VeloxBackend::init(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
+
+  globalMemoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener), *backendConf_);
 
   // Register factories.
   MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);
@@ -175,7 +179,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   initUdf();
 
-  // Initialize the global memory manager for current process.
+  // Initialize Velox-side memory manager for current process. The memory manager
+  // will be used during spill calls so we don't track it with Spark off-heap memory instead
+  // we rely on overhead memory. If we track it with off-heap memory, recursive reservations from
+  // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
   int64_t memoryManagerCapacity;
   if (sparkOverhead.hasValue()) {
@@ -186,7 +193,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
-  facebook::velox::memory::MemoryManager::initialize({.allocatorCapacity = memoryManagerCapacity});
+  facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -306,8 +313,10 @@ void VeloxBackend::initUdf() {
 
 std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
 
-void VeloxBackend::create(const std::unordered_map<std::string, std::string>& conf) {
-  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(conf));
+void VeloxBackend::create(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
+  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(std::move(listener), conf));
 }
 
 VeloxBackend* VeloxBackend::get() {
@@ -317,5 +326,4 @@ VeloxBackend* VeloxBackend::get() {
   }
   return instance_.get();
 }
-
 } // namespace gluten

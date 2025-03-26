@@ -16,6 +16,9 @@
  */
 
 #include "SubstraitToVeloxPlan.h"
+
+#include "utils/StringUtil.h"
+
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
@@ -498,7 +501,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 }
 
 std::string makeUuid() {
-  return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
+  return generateUuid();
 }
 
 std::string compressionFileNameSuffix(common::CompressionKind kind) {
