@@ -247,6 +247,7 @@ std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expr
         }
         case substrait::Expression_Literal::kNull: {
             type = TypeParser::parseType(literal.null());
+            type = TypeParser::tryWrapNullable(substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE, type);
             field = DB::Field{};
             break;
         }
@@ -280,7 +281,6 @@ ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTyp
     }
     return res_node;
 }
-
 
 ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG & actions_dag, const substrait::Expression & rel) const
 {
@@ -374,7 +374,12 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             {
                 /// Common process: CAST(input, type)
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
-                result_node = toFunctionNode(actions_dag, "CAST", args);
+                if (TypeUtil::hasNothingType(args[0]->result_type))
+                {
+                    result_node = toFunctionNode(actions_dag, "accurateCastOrNull", args);
+                }
+                else
+                    result_node = toFunctionNode(actions_dag, "CAST", args);
             }
 
             actions_dag.addOrReplaceInOutputs(*result_node);

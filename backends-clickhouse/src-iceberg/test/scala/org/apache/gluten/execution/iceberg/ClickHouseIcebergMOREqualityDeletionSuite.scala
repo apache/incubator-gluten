@@ -27,7 +27,7 @@ class ClickHouseIcebergMOREqualityDeletionSuite extends GlutenClickHouseWholeSta
   protected val ICEBERG_GENERATED_PATH = "junit6640909127060857423"
   protected val ICEBERG_WAREHOUSE = s"/tmp/$ICEBERG_GENERATED_PATH"
   protected val equalityDeletedDataPath: String =
-    "../../../../gluten-iceberg/src-iceberg/test/resources"
+    "../../../../gluten-iceberg/src/test/resources"
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf

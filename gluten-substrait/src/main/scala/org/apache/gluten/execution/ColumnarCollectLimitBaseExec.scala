@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -34,15 +33,11 @@ abstract class ColumnarCollectLimitBaseExec(
   override def outputPartitioning: Partitioning = SinglePartition
 
   override protected def doValidateInternal(): ValidationResult = {
-
-    if (
-      (childPlan.supportsColumnar && GlutenConfig.get.enablePreferColumnar) &&
-      BackendsApiManager.getSettings.supportColumnarShuffleExec() &&
-      SparkShimLoader.getSparkShims.isColumnarLimitExecSupported()
-    ) {
-      return ValidationResult.succeeded
+    if (!SparkShimLoader.getSparkShims.isColumnarLimitExecSupported()) {
+      return ValidationResult.failed(
+        "Columnar collect-limit is unsupported under the current Spark version")
     }
-    ValidationResult.failed("Columnar shuffle not enabled or child does not support columnar.")
+    ValidationResult.succeeded
   }
 
   override protected def doExecute()

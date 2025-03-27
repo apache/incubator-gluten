@@ -40,7 +40,7 @@ std::unordered_map<std::string, std::string> defaultConf() {
 }
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
-  gluten::VeloxBackend::create(conf);
+  gluten::VeloxBackend::create(AllocationListener::noop(), conf);
 }
 
 void initVeloxBackend() {

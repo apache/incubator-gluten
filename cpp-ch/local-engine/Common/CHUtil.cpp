@@ -36,6 +36,7 @@
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
@@ -102,6 +103,7 @@ extern const SettingsBool query_plan_merge_filters;
 extern const SettingsBool compile_expressions;
 extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
 extern const SettingsUInt64 output_format_compression_level;
+extern const SettingsBool query_plan_optimize_lazy_materialization;
 }
 namespace ErrorCodes
 {
@@ -315,6 +317,32 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
 
     out.setColumns(std::move(columns));
     return out;
+}
+
+bool TypeUtil::hasNothingType(DB::DataTypePtr data_type)
+{
+    if (DB::isNothing(data_type))
+        return true;
+    else if (data_type->isNullable())
+        return hasNothingType(typeid_cast<const DB::DataTypeNullable *>(data_type.get())->getNestedType());
+    else if (DB::isArray(data_type))
+        return hasNothingType(typeid_cast<const DB::DataTypeArray *>(data_type.get())->getNestedType());
+    else if (DB::isMap(data_type))
+    {
+        const auto * type_map = typeid_cast<const DB::DataTypeMap *>(data_type.get());
+        return hasNothingType(type_map->getKeyType()) || hasNothingType(type_map->getValueType());
+    }
+    else if (DB::isTuple(data_type))
+    {
+        const auto * type_tuple = typeid_cast<const DB::DataTypeTuple *>(data_type.get());
+        for (size_t i = 0; i < type_tuple->getElements().size(); ++i)
+        {
+            if (hasNothingType(type_tuple->getElements()[i]))
+                return true;
+        }
+    }
+    return false;
+
 }
 
 size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
@@ -665,6 +693,11 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     /// output_format_compression_level is set to 3, which is wrong, since snappy does not support it.
     settings[Setting::output_format_compression_level] = arrow::util::kUseDefaultCompressionLevel;
 
+    /// 6. After https://github.com/ClickHouse/ClickHouse/pull/55518
+    /// We currently do not support lazy materialization.
+    /// "test 'order by' two keys" will failed if we enable it.
+    settings[Setting::query_plan_optimize_lazy_materialization] = false;
+    
     for (const auto & [key, value] : spark_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
