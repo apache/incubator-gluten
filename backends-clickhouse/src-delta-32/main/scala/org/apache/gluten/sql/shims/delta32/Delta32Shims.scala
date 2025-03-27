@@ -17,7 +17,6 @@
 package org.apache.gluten.sql.shims.delta32
 
 import org.apache.gluten.execution.GlutenPlan
-import org.apache.gluten.extension.{DeltaExpressionExtensionTransformer, ExpressionExtensionTrait}
 import org.apache.gluten.sql.shims.DeltaShims
 
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
@@ -41,9 +40,9 @@ class Delta32Shims extends DeltaShims {
     DeltaOptimizedWriterTransformer.from(plan)
   }
 
-  override def registerExpressionExtension(): Unit = {
-    ExpressionExtensionTrait.registerExpressionExtension(DeltaExpressionExtensionTransformer())
-  }
+//  override def registerExpressionExtension(): Unit = {
+//    ExpressionExtensionTrait.registerExpressionExtension(DeltaExpressionExtensionTransformer())
+//  }
 
   /**
    * decode ZeroMQ Base85 encoded file path
