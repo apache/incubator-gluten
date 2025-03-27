@@ -1249,4 +1249,14 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
     sql("DROP TABLE tbl_9050")
   }
+
+  test("Test array_sort without comparator") {
+    // default comparator with array elements not nullable guaranteed
+    val sql1 = "select array_sort(split(cast(id * 10 as string), '0')) from range(10)"
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    // default comparator without array elements not nullable guaranteed
+    val sql2 = "select array_sort(array(id+1, null, id+2)) from range(10)"
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+  }
 }

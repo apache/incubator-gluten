@@ -57,6 +57,7 @@ class GlutenSQLCollectLimitExecSuite extends GlutenSQLTestsTrait {
 
   test("ColumnarCollectLimitExec - basic limit test") {
     val df = spark.range(0, 1000, 1).toDF("id").limit(5)
+    df.explain(true)
     val expectedData = Seq(Row(0L), Row(1L), Row(2L), Row(3L), Row(4L))
 
     checkAnswer(df, expectedData)

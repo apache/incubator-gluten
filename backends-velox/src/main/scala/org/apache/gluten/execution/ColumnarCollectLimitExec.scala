@@ -36,8 +36,6 @@ case class ColumnarCollectLimitExec(
     offset: Int = 0
 ) extends ColumnarCollectLimitBaseExec(limit, child, offset) {
 
-  assert(limit >= 0 || (limit == -1 && offset > 0))
-
   override def batchType(): Convention.BatchType =
     BackendsApiManager.getSettings.primaryBatchType
 
