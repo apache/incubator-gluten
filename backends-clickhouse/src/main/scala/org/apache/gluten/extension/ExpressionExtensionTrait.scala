@@ -32,7 +32,7 @@ trait ExpressionExtensionTrait {
   def expressionSigList: Seq[Sig]
 
   /** Generate the extension expressions mapping map */
-  def extensionExpressionsMapping: Map[Class[_], String] =
+  lazy val extensionExpressionsMapping: Map[Class[_], String] =
     expressionSigList.map(s => (s.expClass, s.name)).toMap[Class[_], String]
 
   /** Replace extension expression to transformer. */
@@ -64,8 +64,7 @@ trait ExpressionExtensionTrait {
 }
 
 object ExpressionExtensionTrait {
-  private var expressionExtensionTransformers: Seq[ExpressionExtensionTrait] =
-    Seq.apply(DefaultExpressionExtensionTransformer())
+  private var expressionExtensionTransformers: Seq[ExpressionExtensionTrait] = Seq.apply()
 
   private var expressionExtensionSig = Seq.empty[Sig]
   def expressionExtensionSigList: Seq[Sig] = expressionExtensionSig
@@ -74,10 +73,18 @@ object ExpressionExtensionTrait {
     expressionExtensionTransformers.find(_.extensionExpressionsMapping.contains(clazz))
   }
 
-  def registerExpressionExtension(expressionExtension: ExpressionExtensionTrait): Unit = {
-    expressionExtensionTransformers = expressionExtensionTransformers :+ expressionExtension
-    expressionExtensionSig = expressionExtensionTransformers.flatMap(_.expressionSigList)
-  }
+  def registerExpressionExtension(expressionExtension: ExpressionExtensionTrait): Unit =
+    synchronized {
+      expressionExtensionTransformers.find(_.getClass == expressionExtension.getClass) match {
+        case Some(_) =>
+          throw new UnsupportedOperationException(
+            s"${expressionExtension.getClass} has been registered.")
+        case _ =>
+      }
+
+      expressionExtensionTransformers = expressionExtensionTransformers :+ expressionExtension
+      expressionExtensionSig = expressionExtensionTransformers.flatMap(_.expressionSigList)
+    }
 
   case class DefaultExpressionExtensionTransformer() extends ExpressionExtensionTrait with Logging {
 
