@@ -64,7 +64,8 @@
             "s3",
             "sts",
             "cognito-identity"
-          ]
+          ],
+          "version>=": "1.11.352"
         }
       ]
     },
