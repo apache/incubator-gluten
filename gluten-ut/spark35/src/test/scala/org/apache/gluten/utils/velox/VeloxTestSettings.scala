@@ -273,17 +273,14 @@ class VeloxTestSettings extends BackendTestSettings {
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
-    .exclude("Applying schemas")
   enableSuite[GlutenJsonV2Suite]
     // exception test
     .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
-    .exclude("Applying schemas")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
-    .exclude("Applying schemas")
   enableSuite[GlutenValidateRequirementsSuite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
