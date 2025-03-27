@@ -837,6 +837,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-27619: When spark.sql.legacy.allowHashOnMapType is true, hash can be used on Maptype")
     // https://github.com/apache/incubator-gluten/pull/9145.
     .exclude("SPARK-17515: CollectLimit.execute() should perform per-partition limits")
+    // https://github.com/apache/incubator-gluten/pull/9145.
     .exclude("SPARK-19650: An action on a Command should not trigger a Spark job")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
