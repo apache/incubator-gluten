@@ -45,6 +45,7 @@ import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
 
 import org.apache.commons.lang3.StringUtils
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 class VeloxListenerApi extends ListenerApi with Logging {
@@ -183,7 +184,14 @@ class VeloxListenerApi extends ListenerApi with Logging {
     UDFMappings.loadFromSparkConf(conf)
 
     // Initial library loader.
-    val loader = JniWorkspace.getDefault.libLoader
+    val loader =
+      JniWorkspace
+        .getDefault(
+          SparkDirectoryUtil.get
+            .namespace("jni")
+            .mkChildDirRandomly(UUID.randomUUID.toString)
+            .getAbsolutePath)
+        .libLoader
 
     // Load shared native libraries the backend libraries depend on.
     SharedLibraryLoader.load(conf, loader)
@@ -218,6 +226,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
   private def shutdown(): Unit = {
     // TODO shutdown implementation in velox to release resources
+    JniLibLoader.forceUnloadAll
   }
 }
 

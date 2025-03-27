@@ -20,7 +20,6 @@ import org.apache.gluten.exception.GlutenException;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
-import org.apache.spark.util.SparkDirectoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,19 +59,6 @@ public class JniWorkspace {
     }
   }
 
-  private static JniWorkspace createDefault() {
-    try {
-      final String tempRoot =
-          SparkDirectoryUtil.get()
-              .namespace("jni")
-              .mkChildDirRandomly(UUID.randomUUID().toString())
-              .getAbsolutePath();
-      return createOrGet(tempRoot);
-    } catch (Exception e) {
-      throw new GlutenException(e);
-    }
-  }
-
   public static void enableDebug(String debugDir) {
     // Preserve the JNI libraries even after process exits.
     // This is useful for debugging native code if the debug symbols were embedded in
@@ -99,10 +85,10 @@ public class JniWorkspace {
     }
   }
 
-  public static JniWorkspace getDefault() {
+  public static JniWorkspace getDefault(String rootDir) {
     synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
       if (DEFAULT_INSTANCE == null) {
-        DEFAULT_INSTANCE = createDefault();
+        DEFAULT_INSTANCE = createOrGet(rootDir);
       }
       Preconditions.checkNotNull(DEFAULT_INSTANCE);
       return DEFAULT_INSTANCE;
