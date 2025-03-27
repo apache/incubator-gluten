@@ -203,8 +203,6 @@ private:
 
 namespace SparkRowInfoJNI
 {
-void init(JNIEnv *);
-void destroy(JNIEnv *);
 jobject create(JNIEnv * env, const SparkRowInfo & spark_row_info);
 }
 

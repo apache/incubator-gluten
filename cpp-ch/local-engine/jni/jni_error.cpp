@@ -22,48 +22,30 @@
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
 
+#include <Resource/JVMClassReference.h>
+
 namespace local_engine
 {
-JniErrorsGlobalState & JniErrorsGlobalState::instance()
-{
-    static JniErrorsGlobalState instance;
-    return instance;
-}
 
-void JniErrorsGlobalState::destroy(JNIEnv * env)
+jclass JniErrorsGlobalState::getIOExceptionClass()
 {
-    if (env)
-    {
-        if (io_exception_class)
-        {
-            env->DeleteGlobalRef(io_exception_class);
-        }
-        if (runtime_exception_class)
-        {
-            env->DeleteGlobalRef(runtime_exception_class);
-        }
-        if (unsupportedoperation_exception_class)
-        {
-            env->DeleteGlobalRef(unsupportedoperation_exception_class);
-        }
-        if (illegal_access_exception_class)
-        {
-            env->DeleteGlobalRef(illegal_access_exception_class);
-        }
-        if (illegal_argument_exception_class)
-        {
-            env->DeleteGlobalRef(illegal_argument_exception_class);
-        }
-    }
+    return JVM_CLASS_REFERENCE(io_exception_class)();
 }
-
-void JniErrorsGlobalState::initialize(JNIEnv * env_)
+jclass JniErrorsGlobalState::getRuntimeExceptionClass()
 {
-    io_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/io/IOException;");
-    runtime_exception_class = CreateGlobalExceptionClassReference(env_, "Lorg/apache/gluten/exception/GlutenException;");
-    unsupportedoperation_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/lang/UnsupportedOperationException;");
-    illegal_access_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/lang/IllegalAccessException;");
-    illegal_argument_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/lang/IllegalArgumentException;");
+    return JVM_CLASS_REFERENCE(runtime_exception_class)();
+}
+jclass JniErrorsGlobalState::getUnsupportedOperationExceptionClass()
+{
+    return JVM_CLASS_REFERENCE(unsupportedoperation_exception_class)();
+}
+jclass JniErrorsGlobalState::getIllegalAccessExceptionClass()
+{
+    return JVM_CLASS_REFERENCE(illegal_access_exception_class)();
+}
+jclass JniErrorsGlobalState::getIllegalArgumentExceptionClass()
+{
+    return JVM_CLASS_REFERENCE(illegal_argument_exception_class)();
 }
 
 void JniErrorsGlobalState::throwException(JNIEnv * env, const DB::Exception & e)
@@ -93,7 +75,7 @@ void JniErrorsGlobalState::throwException(
 
 void JniErrorsGlobalState::throwRuntimeException(JNIEnv * env, const std::string & message, const std::string & stack_trace)
 {
-    throwException(env, runtime_exception_class, message, stack_trace);
+    throwException(env, JVM_CLASS_REFERENCE(runtime_exception_class)(), message, stack_trace);
 }
 
 
