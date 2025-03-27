@@ -66,6 +66,10 @@
             "cognito-identity"
           ],
           "version>=": "1.11.352"
+        },
+        {
+          "name": "aws-crt-cpp",
+          "version>=": "0.26.12"
         }
       ]
     },
