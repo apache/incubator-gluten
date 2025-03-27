@@ -889,7 +889,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       argument: ExpressionTransformer,
       function: ExpressionTransformer,
       expr: ArraySort): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+    CHArraySortTransformer(substraitExprName, argument, function, expr)
   }
 
   override def genDateAddTransformer(
