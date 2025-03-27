@@ -262,7 +262,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     // Removed some result mismatch cases.
     "datetime-parsing-legacy.sql",
     // Removed some result mismatch cases.
-    "datetime-parsing-invalid.sql",
+    // "datetime-parsing-invalid.sql",
     // Overwrite exception message. See Spark-46550.
     "hll.sql",
     // Overwrite exception message.

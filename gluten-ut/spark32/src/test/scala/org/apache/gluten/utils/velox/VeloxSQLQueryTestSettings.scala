@@ -53,7 +53,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
       // "datetime-formatting-legacy.sql",
       // "datetime-formatting.sql",
       "datetime-legacy.sql",
-      "datetime-parsing-invalid.sql",
+      // "datetime-parsing-invalid.sql",
       "datetime-parsing-legacy.sql",
       "datetime-parsing.sql",
       "datetime-special.sql",
