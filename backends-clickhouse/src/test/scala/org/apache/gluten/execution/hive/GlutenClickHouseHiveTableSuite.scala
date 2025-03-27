@@ -1672,14 +1672,32 @@ class GlutenClickHouseHiveTableSuite
              |SELECT 'prod1', 200
              |""".stripMargin
 
-        val selectSql = s"SELECT input_file_name(), input_file_block_start(), " +
+        val select1Sql = s"SELECT input_file_name() from $tableName"
+        val select2Sql = s"SELECT input_file_name(), input_file_block_start(), " +
           s"input_file_block_length() FROM $tableName"
+        s"input_file_block_length() FROM $tableName"
         val dropSql = s"DROP TABLE IF EXISTS $tableName"
 
         spark.sql(createTableSql)
         spark.sql(insertDataSql1)
         spark.sql(insertDataSql2)
-        compareResultsAgainstVanillaSpark(selectSql, compareResult = true, _ => {})
+
+        if (format.equals("textfile")) {
+          // When format is textfile, input_file_name() in vanilla returns paths like 'file:/xxx'
+          // But in gluten it returns paths like 'file:///xxx'.
+          val result = spark.sql(select1Sql)
+          result
+            .collect()
+            .foreach(
+              row => {
+                assert(!row.isNullAt(0) && row.getString(0).nonEmpty)
+              })
+        } else {
+          compareResultsAgainstVanillaSpark(select1Sql, compareResult = true, _ => {})
+        }
+
+        compareResultsAgainstVanillaSpark(select2Sql, compareResult = true, _ => {})
+
         spark.sql(dropSql)
     }
   }
