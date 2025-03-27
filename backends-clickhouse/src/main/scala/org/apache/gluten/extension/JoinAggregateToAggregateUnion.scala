@@ -229,6 +229,52 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
     }
   }
 
+  def visitPlan(plan: LogicalPlan): LogicalPlan = {
+    plan match {
+      case join: Join =>
+        if (join.joinType == LeftOuter && join.condition.isDefined) {
+          (join.left, join.right) match {
+            case (left, right) if isDirectAggregate(left) && isDirectAggregate(right) =>
+              val leftAggregate = extractDirectAggregate(left).get
+              val rightAggregate = extractDirectAggregate(right).get
+              logDebug(s"xxx case 1. left agg:\n$leftAggregate,\nright agg:\n$rightAggregate")
+              rewriteOnlyTwoAggregatesJoin(leftAggregate, rightAggregate, join) match {
+                case Some(newPlan) =>
+                  newPlan.withNewChildren(newPlan.children.map(visitPlan))
+                case _ =>
+                  plan.withNewChildren(plan.children.map(visitPlan))
+              }
+            case (left, right) if isDirectJoin(left) && isDirectAggregate(right) =>
+              logDebug(s"xxx case 2")
+              val analyzedAggregates = ArrayBuffer[JoinedAggregateAnalyzer]()
+              val remainedPlan = collectSameKeysJoinedAggregates(join, analyzedAggregates)
+              logDebug(s"xxx join left\n$remainedPlan")
+              logDebug(s"xxx analyzed aggregates number ${analyzedAggregates.length}")
+              val unionedAggregates = unionAllJoinedAggregates(analyzedAggregates.toSeq)
+              val finalPlan =
+                if (analyzedAggregates.length == 0) {
+                  join.copy(left = visitPlan(join.left), right = visitPlan(join.right))
+                } else if (analyzedAggregates.length == 1) {
+                  join.copy(left = visitPlan(join.left))
+                } else if (remainedPlan.isDefined) {
+                  val lastJoin = analyzedAggregates.last.join
+                  lastJoin.copy(left = visitPlan(lastJoin.left), right = unionedAggregates)
+                } else {
+                  buildPrimeKeysFilterOnAggregateUnion(unionedAggregates, analyzedAggregates)
+                }
+              logDebug(s"xxx final rewritten plan\n$finalPlan")
+              finalPlan
+            case _ =>
+              logDebug(s"xxx case 3.left\n${join.left}\nright\n${join.right}")
+              plan.withNewChildren(plan.children.map(visitPlan))
+          }
+        } else {
+          plan.withNewChildren(plan.children.map(visitPlan))
+        }
+      case _ => plan.withNewChildren(plan.children.map(visitPlan))
+    }
+  }
+
   /**
    * Rewrite the plan if it is a join between two aggregate tables. For example
    * ```
@@ -267,11 +313,6 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
       return None
     }
 
-    val aggregates = analyzers.map(_.getAggregate)
-    val joinKeys = analyzers.map(_.getKeys())
-    val aggregateExpressions = analyzers.map(_.getAggregateExpressions())
-    val aggregateExpressionArguments = analyzers.map(_.getAggregateExpressionArguments()).flatten
-
     val extendProjects = buildExtendProjects(analyzers)
 
     val union = buildUnionOnExtendedProjects(extendProjects)
@@ -294,6 +335,15 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
       .asInstanceOf[AggregateFunction]
     val newAggregateExpression = aggregateExpression.copy(aggregateFunction = newAggregateFunction)
     makeNamedExpression(newAggregateExpression, ne.name)
+  }
+
+  def unionAllJoinedAggregates(analyzedAggregates: Seq[JoinedAggregateAnalyzer]): LogicalPlan = {
+    val extendProjects = buildExtendProjects(analyzedAggregates)
+    val union = buildUnionOnExtendedProjects(extendProjects)
+    val aggregateUnion = buildAggregateOnUnion(union, analyzedAggregates)
+    val setNullsProject =
+      buildMakeNotMatchedRowsNullProject(aggregateUnion, analyzedAggregates, Set())
+    buildRenameProject(setNullsProject, analyzedAggregates)
   }
 
   def buildAggregateOnUnion(
@@ -383,7 +433,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
         }
     }
     val ifNullExpressions = aggregatesIfNullExpressions.flatten
-    val projectList = input.slice(0, aggregateExprsStart) ++ ifNullExpressions
+    val projectList = input.slice(0, aggregateExprsStart) ++ ifNullExpressions ++ flagExpressions
     Project(projectList, plan)
   }
 
@@ -422,6 +472,8 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
       }
     }
 
+    // Keep the flag columns
+    projectList ++= input.slice(input.length - analyzedAggregates.length, input.length)
     Project(projectList.toSeq, plan)
   }
 
@@ -524,29 +576,63 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
     }
   }
 
-  def visitPlan(plan: LogicalPlan): LogicalPlan = {
+  def isDirectJoin(plan: LogicalPlan): Boolean = {
     plan match {
-      case join: Join =>
-        if (join.joinType == LeftOuter && join.condition.isDefined) {
-          (join.left, join.right) match {
-            case (left, right) if isDirectAggregate(left) && isDirectAggregate(right) =>
-              val leftAggregate = extractDirectAggregate(left).get
-              val rightAggregate = extractDirectAggregate(right).get
-              logDebug(s"xxx case 1. left agg:\n$leftAggregate,\nright agg:\n$rightAggregate")
-              rewriteOnlyTwoAggregatesJoin(leftAggregate, rightAggregate, join) match {
-                case Some(newPlan) =>
-                  newPlan.withNewChildren(newPlan.children.map(visitPlan))
-                case _ =>
-                  plan.withNewChildren(plan.children.map(visitPlan))
-              }
-            case _ =>
-              logDebug(s"xxx case 2.left\n{join.left}\nright\n{join.right}")
-              plan.withNewChildren(plan.children.map(visitPlan))
-          }
-        } else {
-          plan.withNewChildren(plan.children.map(visitPlan))
-        }
-      case _ => plan.withNewChildren(plan.children.map(visitPlan))
+      case _: Join => true
+      case _ => false
     }
   }
+
+  def extractDirectJoin(plan: LogicalPlan): Option[Join] = {
+    plan match {
+      case join: Join => Some(join)
+      case _ => None
+    }
+  }
+
+  def collectSameKeysJoinedAggregates(
+      plan: LogicalPlan,
+      analyzedAggregates: ArrayBuffer[JoinedAggregateAnalyzer]): Option[LogicalPlan] = {
+    plan match {
+      case join: Join if join.joinType == LeftOuter && join.condition.isDefined =>
+        val optionAggregate = extractDirectAggregate(join.right)
+        if (optionAggregate.isEmpty) {
+          return Some(plan)
+        }
+        val rightAggregateAnalyzer = JoinedAggregateAnalyzer.build(join, optionAggregate.get)
+        if (rightAggregateAnalyzer.isEmpty) {
+          return Some(plan)
+        }
+
+        if (
+          analyzedAggregates.isEmpty ||
+          JoinedAggregateAnalyzer.haveSamePrimeKeys(
+            Seq(analyzedAggregates.head, rightAggregateAnalyzer.get))
+        ) {
+          analyzedAggregates += rightAggregateAnalyzer.get
+          collectSameKeysJoinedAggregates(join.left, analyzedAggregates)
+        } else {
+          Some(plan)
+        }
+      case _ if isDirectAggregate(plan) =>
+        val aggregate = extractDirectAggregate(plan).get
+        val lastJoin = analyzedAggregates.last.join
+        assert(lastJoin.left.equals(plan), "The node should be last join's left child")
+        val leftAggregateAnalyzer = JoinedAggregateAnalyzer.build(lastJoin, aggregate)
+        if (leftAggregateAnalyzer.isEmpty) {
+          return Some(plan)
+        }
+        if (
+          JoinedAggregateAnalyzer.haveSamePrimeKeys(
+            Seq(analyzedAggregates.head, leftAggregateAnalyzer.get))
+        ) {
+          analyzedAggregates += leftAggregateAnalyzer.get
+          None
+        } else {
+          Some(plan)
+        }
+      case _ => Some(plan)
+    }
+  }
+
 }
