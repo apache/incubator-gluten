@@ -45,6 +45,8 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import org.apache.hadoop.conf.Configuration
+
 import java.util.Locale
 
 import scala.util.control.Breaks.{break, breakable}
