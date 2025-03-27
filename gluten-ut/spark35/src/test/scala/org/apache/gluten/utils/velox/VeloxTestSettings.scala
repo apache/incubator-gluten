@@ -274,19 +274,16 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
     .exclude("Applying schemas")
-    .exclude("Loading a JSON dataset from a text file with SQL")
   enableSuite[GlutenJsonV2Suite]
     // exception test
     .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
     .exclude("Applying schemas")
-    .exclude("Loading a JSON dataset from a text file with SQL")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
     .exclude("Applying schemas")
-    .exclude("Loading a JSON dataset from a text file with SQL")
   enableSuite[GlutenValidateRequirementsSuite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
   enableSuite[GlutenOrcFilterSuite]
