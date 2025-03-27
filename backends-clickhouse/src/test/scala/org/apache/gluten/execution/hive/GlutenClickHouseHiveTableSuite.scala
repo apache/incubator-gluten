@@ -1644,4 +1644,44 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
+  test("test input_file_name() in different formats") {
+    val formats = Seq("textfile", "orc", "parquet")
+    val tableNamePrefix = "sales_"
+
+    formats.foreach {
+      format =>
+        val tableName = s"$tableNamePrefix${format.take(2)}"
+        val createTableSql =
+          s"""
+             |CREATE TABLE $tableName (
+             |  product_id STRING,
+             |  quantity INT
+             |) PARTITIONED BY (year STRING)
+             |STORED AS $format
+             |""".stripMargin
+
+        val insertDataSql1 =
+          s"""
+             |INSERT INTO $tableName PARTITION(year='2001')
+             |SELECT 'prod1', 100
+             |""".stripMargin
+
+        val insertDataSql2 =
+          s"""
+             |INSERT INTO $tableName PARTITION(year='2002')
+             |SELECT 'prod1', 200
+             |""".stripMargin
+
+        val selectSql = s"SELECT input_file_name(), input_file_block_start(), " +
+          s"input_file_block_length() FROM $tableName"
+        val dropSql = s"DROP TABLE IF EXISTS $tableName"
+
+        spark.sql(createTableSql)
+        spark.sql(insertDataSql1)
+        spark.sql(insertDataSql2)
+        compareResultsAgainstVanillaSpark(selectSql, compareResult = true, _ => {})
+        spark.sql(dropSql)
+    }
+  }
+
 }
