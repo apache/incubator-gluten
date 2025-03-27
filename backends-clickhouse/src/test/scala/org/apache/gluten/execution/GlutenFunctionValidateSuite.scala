@@ -1045,7 +1045,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-<<<<<<< HEAD
   test("GLUTEN-8723 fix slice unexpected exception") {
     val create_sql = "create table t_8723 (full_user_agent string) using orc"
     val insert_sql = "insert into t_8723 values(NULL)"
@@ -1233,8 +1232,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   }
 
   test("Test partition values with special characters") {
-    spark.sql(
-      """
+    spark.sql("""
       CREATE TABLE tbl_9050 (
         product_id STRING,
         quantity INT
