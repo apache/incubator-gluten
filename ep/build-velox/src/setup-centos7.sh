@@ -233,7 +233,10 @@ dnf_install ccache wget which libevent-devel \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
   curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel tzdata
 
-dnf_install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm
+# Update tzdata, required by Velox at runtime.
+dnf_install python3-pip
+pip3 install tzdata
+cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
 
 $SUDO dnf remove -y gflags
 
