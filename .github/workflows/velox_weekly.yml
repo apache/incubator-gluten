@@ -99,4 +99,4 @@ jobs:
           fi
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-          cd $GITHUB_WORKSPACE/ && ./dev/package.sh && echo "test"
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
