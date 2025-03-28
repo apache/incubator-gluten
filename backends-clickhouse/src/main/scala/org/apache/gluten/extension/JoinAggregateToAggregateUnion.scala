@@ -1,0 +1,838 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.gluten.extension
+
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.exception._
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.types._
+
+import scala.collection.mutable.ArrayBuffer
+
+private case class JoinKeys(
+    leftKeys: Seq[AttributeReference],
+    rightKeys: Seq[AttributeReference]) {}
+private object RuleExpressionHelper {
+
+  def extractLiteral(e: Expression): Option[Literal] = {
+    e match {
+      case literal: Literal => Some(literal)
+      case _ @Alias(literal: Literal, _) => Some(literal)
+      case _ => None
+    }
+  }
+
+  def makeFlagLiteral(): Literal = {
+    Literal.create(true, BooleanType)
+  }
+
+  def makeNullLiteral(dataType: DataType): Literal = {
+    Literal.create(null, dataType)
+  }
+
+  def makeNamedExpression(e: Expression, name: String): NamedExpression = {
+    Alias(e, name)()
+  }
+
+  def makeFirstAggregateExpression(e: Expression): AggregateExpression = {
+    val aggregateFunction = First(e, true)
+    AggregateExpression(aggregateFunction, Complete, false)
+  }
+
+  def extractJoinKeys(
+      joinCondition: Option[Expression],
+      leftAttributes: AttributeSet,
+      rightAttributes: AttributeSet): Option[JoinKeys] = {
+    val leftKeys = ArrayBuffer[AttributeReference]()
+    val rightKeys = ArrayBuffer[AttributeReference]()
+    def visitJoinExpression(e: Expression): Unit = {
+      e match {
+        case and: And =>
+          visitJoinExpression(and.left)
+          visitJoinExpression(and.right)
+        case equalTo @ EqualTo(left: AttributeReference, right: AttributeReference) =>
+          if (leftAttributes.contains(left)) {
+            leftKeys += left
+          }
+          if (leftAttributes.contains(right)) {
+            leftKeys += right
+          }
+          if (rightAttributes.contains(left)) {
+            rightKeys += left
+          }
+          if (rightAttributes.contains(right)) {
+            rightKeys += right
+          }
+        case _ =>
+          throw new GlutenException(s"Unsupported join condition $e")
+      }
+    }
+
+    joinCondition match {
+      case Some(condition) =>
+        try {
+          visitJoinExpression(condition)
+          if (leftKeys.length != rightKeys.length) {
+            return None
+          }
+          if (!leftKeys.forall(k => k.qualifier.equals(leftKeys.head.qualifier))) {
+            return None
+          }
+          Some(JoinKeys(leftKeys.toSeq, rightKeys.toSeq))
+        } catch {
+          case e: GlutenException =>
+            return None
+        }
+      case None =>
+        return None
+    }
+  }
+}
+
+trait AggregateFunctionAnalyzer {
+  def doValidate(): Boolean
+  def getArgumentExpressions(): Option[Seq[Expression]]
+  def ignoreNulls(): Boolean
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression
+}
+
+case class DefaultAggregateFunctionAnalyzer() extends AggregateFunctionAnalyzer {
+  override def doValidate(): Boolean = false
+  override def getArgumentExpressions(): Option[Seq[Expression]] = None
+  override def ignoreNulls(): Boolean = false
+  override def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    throw new GlutenException("Unsupported aggregate function")
+  }
+}
+
+case class SumAnalyzer(aggregateExpression: AggregateExpression) extends AggregateFunctionAnalyzer {
+  val sum = aggregateExpression.aggregateFunction.asInstanceOf[Sum]
+  override def doValidate(): Boolean = {
+    aggregateExpression.filter.isEmpty
+  }
+
+  override def getArgumentExpressions(): Option[Seq[Expression]] = {
+    Some(Seq(sum.child))
+  }
+
+  override def ignoreNulls(): Boolean = true
+
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newSum = sum.copy(child = arguments.head)
+    aggregateExpression.copy(aggregateFunction = newSum)
+  }
+}
+
+case class AverageAnalyzer(aggregateExpression: AggregateExpression)
+  extends AggregateFunctionAnalyzer {
+  val avg = aggregateExpression.aggregateFunction.asInstanceOf[Average]
+  override def doValidate(): Boolean = {
+    aggregateExpression.filter.isEmpty
+  }
+
+  override def getArgumentExpressions(): Option[Seq[Expression]] = {
+    Some(Seq(avg.child))
+  }
+
+  override def ignoreNulls(): Boolean = true
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newAvg = avg.copy(child = arguments.head)
+    aggregateExpression.copy(aggregateFunction = newAvg)
+  }
+}
+
+case class CountAnalyzer(aggregateExpression: AggregateExpression)
+  extends AggregateFunctionAnalyzer {
+  val count = aggregateExpression.aggregateFunction.asInstanceOf[Count]
+  override def doValidate(): Boolean = {
+    count.children.length == 1 && aggregateExpression.filter.isEmpty
+  }
+
+  override def getArgumentExpressions(): Option[Seq[Expression]] = {
+    Some(count.children)
+  }
+
+  override def ignoreNulls(): Boolean = false
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newCount = count.copy(children = arguments)
+    aggregateExpression.copy(aggregateFunction = newCount)
+  }
+}
+
+case class MinAnalyzer(aggregateExpression: AggregateExpression) extends AggregateFunctionAnalyzer {
+  val min = aggregateExpression.aggregateFunction.asInstanceOf[Min]
+  override def doValidate(): Boolean = {
+    aggregateExpression.filter.isEmpty
+  }
+
+  override def getArgumentExpressions(): Option[Seq[Expression]] = {
+    Some(Seq(min.child))
+  }
+
+  override def ignoreNulls(): Boolean = false
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newMin = min.copy(child = arguments.head)
+    aggregateExpression.copy(aggregateFunction = newMin)
+  }
+}
+
+case class MaxAnalyzer(aggregateExpression: AggregateExpression) extends AggregateFunctionAnalyzer {
+  val max = aggregateExpression.aggregateFunction.asInstanceOf[Max]
+  override def doValidate(): Boolean = {
+    aggregateExpression.filter.isEmpty
+  }
+
+  override def getArgumentExpressions(): Option[Seq[Expression]] = {
+    Some(Seq(max.child))
+  }
+
+  override def ignoreNulls(): Boolean = false
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newMax = max.copy(child = arguments.head)
+    aggregateExpression.copy(aggregateFunction = newMax)
+  }
+}
+
+object AggregateFunctionAnalyzer {
+  def apply(e: Expression): AggregateFunctionAnalyzer = {
+    val aggExpr = e match {
+      case alias @ Alias(aggregate: AggregateExpression, _) =>
+        Some(aggregate)
+      case aggregate: AggregateExpression =>
+        Some(aggregate)
+      case _ => None
+    }
+
+    aggExpr match {
+      case Some(agg) =>
+        agg.aggregateFunction match {
+          case sum: Sum => SumAnalyzer(agg)
+          case avg: Average => AverageAnalyzer(agg)
+          case count: Count => CountAnalyzer(agg)
+          case max: Max => MaxAnalyzer(agg)
+          case min: Min => MinAnalyzer(agg)
+          case _ => DefaultAggregateFunctionAnalyzer()
+        }
+      case _ => DefaultAggregateFunctionAnalyzer()
+    }
+  }
+}
+
+case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Logging {
+  def analysis(): Boolean = {
+    if (!extractAggregateQuery(subquery)) {
+      return false
+    }
+
+    if (!aggregate.groupingExpressions.forall(_.isInstanceOf[AttributeReference])) {
+      return false
+    }
+
+    if (!extractJoinKeys()) {
+      return false
+    }
+
+    if (
+      keys.length != aggregate.groupingExpressions.length ||
+      !keys.forall(k => aggregate.groupingExpressions.exists(_.semanticEquals(k)))
+    ) {
+      return false
+    }
+
+    aggregateExpressions =
+      aggregate.aggregateExpressions.filter(_.find(_.isInstanceOf[AggregateExpression]).isDefined)
+    aggregateFunctionAnalyzer = aggregateExpressions.map(AggregateFunctionAnalyzer(_))
+    if (
+      aggregateExpressions.zipWithIndex.exists {
+        case (_, i) => !aggregateFunctionAnalyzer(i).doValidate
+      }
+    ) {
+      return false
+    }
+
+    val arguments =
+      aggregateExpressions.zipWithIndex.map {
+        case (_, i) => aggregateFunctionAnalyzer(i).getArgumentExpressions
+      }
+    if (arguments.exists(_.isEmpty)) {
+      return false
+    }
+    aggregateExpressionArguments = arguments.map(_.get)
+
+    true
+  }
+
+  def extractAggregateQuery(plan: LogicalPlan): Boolean = {
+    plan match {
+      case _ @SubqueryAlias(_, agg: Aggregate) =>
+        aggregate = agg
+        true
+      case agg: Aggregate =>
+        aggregate = agg
+        true
+      case _ => false
+    }
+  }
+
+  def getPrimeKeys(): Seq[AttributeReference] = primeKeys
+  def getKeys(): Seq[AttributeReference] = keys
+  def getAggregate(): Aggregate = aggregate
+  def getAggregateExpressions(): Seq[NamedExpression] = aggregateExpressions
+  def getAggregateExpressionArguments(): Seq[Seq[Expression]] = aggregateExpressionArguments
+  def getAggregateFunctionAnalyzers(): Seq[AggregateFunctionAnalyzer] = aggregateFunctionAnalyzer
+
+  private var primeKeys: Seq[AttributeReference] = Seq.empty
+  private var keys: Seq[AttributeReference] = Seq.empty
+  private var aggregate: Aggregate = null
+  private var aggregateExpressions: Seq[NamedExpression] = Seq.empty
+  private var aggregateExpressionArguments: Seq[Seq[Expression]] = Seq.empty
+  private var aggregateFunctionAnalyzer = Seq.empty[AggregateFunctionAnalyzer]
+
+  private def extractJoinKeys(): Boolean = {
+    val leftJoinKeys = ArrayBuffer[AttributeReference]()
+    val subqueryKeys = ArrayBuffer[AttributeReference]()
+    val leftOutputSet = join.left.outputSet
+    val subqueryOutputSet = subquery.outputSet
+    def visitJoinExpression(e: Expression): Unit = {
+      e match {
+        case and: And =>
+          visitJoinExpression(and.left)
+          visitJoinExpression(and.right)
+        case equalTo @ EqualTo(left: AttributeReference, right: AttributeReference) =>
+          logDebug(s"xxx qualifier. left: ${left.qualifier}, right: ${right.qualifier}")
+          if (leftOutputSet.contains(left)) {
+            leftJoinKeys += left
+          }
+          if (subqueryOutputSet.contains(left)) {
+            subqueryKeys += left
+          }
+          if (leftOutputSet.contains(right)) {
+            leftJoinKeys += right
+          }
+          if (subqueryOutputSet.contains(right)) {
+            subqueryKeys += right
+          }
+        case _ =>
+          throw new GlutenException(s"Unsupported join condition $e")
+      }
+    }
+
+    // They must be the same sets or total different sets
+    if (
+      leftJoinKeys.length != subqueryKeys.length ||
+      !(leftJoinKeys.forall(key => subqueryKeys.exists(_.equals(key))) ||
+        leftJoinKeys.forall(key => !subqueryKeys.exists(_.equals(key))))
+    ) {
+      return false
+    }
+    join.condition match {
+      case Some(condition) =>
+        try {
+          visitJoinExpression(condition)
+        } catch {
+          case e: GlutenException =>
+            return false
+        }
+        keys = subqueryKeys.toSeq
+        primeKeys = leftJoinKeys.toSeq
+        true
+      case _ => false
+    }
+  }
+}
+
+object JoinedAggregateAnalyzer extends Logging {
+  def build(join: Join, subquery: LogicalPlan): Option[JoinedAggregateAnalyzer] = {
+    val analyzer = JoinedAggregateAnalyzer(join, subquery)
+    if (analyzer.analysis()) {
+      Some(analyzer)
+    } else {
+      None
+    }
+  }
+
+  def haveSamePrimeKeys(analzyers: Seq[JoinedAggregateAnalyzer]): Boolean = {
+    val primeKeys = analzyers.map(_.getPrimeKeys()).map(AttributeSet(_))
+    primeKeys
+      .slice(1, primeKeys.length)
+      .forall(keys => keys.equals(primeKeys.head))
+  }
+}
+
+/**
+ * ReorderJoinSubqueries is step before JoinAggregateToAggregateUnion. It will reorder the join
+ * subqueries to move the queries with the same prime keys, join keys and grouping keys together.
+ * For example
+ * ```
+ *  select t1.k1, t1.k2, s1, s2 from (
+ *    select k1, k2, count(v1) s1 from t1 group by k1, k2
+ *  ) t1 left join (
+ *    select * from t2
+ *  ) t2 on t1.k1 = t2.k1 and t1.k2 = t2.k2
+ *  left join (
+ *    select k1, k2, count(v2) s2 from t3 group by k1, k2
+ *  ) t3 on t1.k1 = t3.k1 and t1.k2 = t3.k2
+ * ```
+ * is rewritten into
+ * ```
+ *  select t1.k1, t1.k2, s1, s2 from (
+ *    select k1, k2, count(v1) s1 from t1 group by k1, k2
+ *  ) t1 left join (
+ *    select k1, k2, count(v2) s2 from t3 group by k1, k2
+ *  ) t3 on t1.k1 = t3.k1 and t1.k2 = t3.k2
+ *  ) left join (
+ *    select * from t2
+ *  ) t2 on t1.k1 = t2.k1 and t1.k2 = t2.k2
+ * ```
+ */
+case class ReorderJoinSubqueries() extends Logging {}
+
+case class JoinAggregateToAggregateUnion(spark: SparkSession)
+  extends Rule[LogicalPlan]
+  with Logging {
+  def isResolvedPlan(plan: LogicalPlan): Boolean = {
+    plan match {
+      case insert: InsertIntoStatement => insert.query.resolved
+      case _ => plan.resolved
+    }
+  }
+
+  override def apply(plan: LogicalPlan): LogicalPlan = {
+    if (
+      spark.conf
+        .get(CHBackendSettings.GLUTEN_JOIN_AGGREGATE_TO_AGGREGATE_UNION, "true")
+        .toBoolean && isResolvedPlan(plan)
+    ) {
+      val newPlan = visitPlan(plan)
+      logDebug(s"old plan\n$plan\nnew plan\n$newPlan")
+      newPlan
+    } else {
+      plan
+    }
+  }
+
+  /**
+   * Use wide-table aggregation to eliminate multi-table joins. For example
+   * ```
+   *   select k1, k2, s1, s2 from (select k1, sum(a) as s1 from t1 group by k1) as t1
+   *   left join (select k2, sum(b) as s2 from t2 group by k2) as t2
+   *   on t1.k1 = t2.k2
+   * ```
+   * It's rewritten into
+   * ```
+   *   select k1, k2, s1, s2 from(
+   *     select k1, k2, s1, if(isNull(flag2), null, s2) as s2 from (
+   *        select k1, first(k2) as k2, sum(a) as s1, sum(b) as s2, first(flag1) as flag1,
+   *               first(flag2) as flag2
+   *        from (
+   *          select k1, null as k2, a as a, null as b, true as flag1, null as flag2 from t1
+   *          union all
+   *          select k2, k2, null as a, b as b, null as flag1, true as flag2 from t2
+   *        ) group by k1
+   *     ) where flag1 is not null
+   *   )
+   * ```
+   *
+   * The first query is easier to write, but not as efficient as the second one.
+   */
+  def visitPlan(plan: LogicalPlan): LogicalPlan = {
+    plan match {
+      case join: Join =>
+        if (join.joinType == LeftOuter && join.condition.isDefined) {
+          val analyzedAggregates = ArrayBuffer[JoinedAggregateAnalyzer]()
+          val remainedPlan = collectSameKeysJoinedAggregates(join, analyzedAggregates)
+          if (analyzedAggregates.length == 0) {
+            join.copy(left = visitPlan(join.left), right = visitPlan(join.right))
+          } else if (analyzedAggregates.length == 1) {
+            join.copy(left = visitPlan(join.left))
+          } else {
+            val unionedAggregates = unionAllJoinedAggregates(analyzedAggregates.toSeq)
+            if (remainedPlan.isDefined) {
+              val lastJoin = analyzedAggregates.head.join
+              lastJoin.copy(left = visitPlan(lastJoin.left), right = unionedAggregates)
+            } else {
+              buildPrimeKeysFilterOnAggregateUnion(unionedAggregates, analyzedAggregates.toSeq)
+            }
+          }
+        } else {
+          plan.withNewChildren(plan.children.map(visitPlan))
+        }
+      case _ => plan.withNewChildren(plan.children.map(visitPlan))
+    }
+  }
+
+  def buildAggregateExpressionWithNewChildren(
+      ne: NamedExpression,
+      inputs: Seq[Attribute]): NamedExpression = {
+    val aggregateExpression =
+      ne.asInstanceOf[Alias].child.asInstanceOf[AggregateExpression]
+    val newAggregateFunction = aggregateExpression.aggregateFunction
+      .withNewChildren(inputs)
+      .asInstanceOf[AggregateFunction]
+    val newAggregateExpression = aggregateExpression.copy(aggregateFunction = newAggregateFunction)
+    RuleExpressionHelper.makeNamedExpression(newAggregateExpression, ne.name)
+  }
+
+  def unionAllJoinedAggregates(analyzedAggregates: Seq[JoinedAggregateAnalyzer]): LogicalPlan = {
+    val extendProjects = buildExtendProjects(analyzedAggregates)
+    val union = buildUnionOnExtendedProjects(extendProjects)
+    val aggregateUnion = buildAggregateOnUnion(union, analyzedAggregates)
+    val setNullsProject =
+      buildMakeNotMatchedRowsNullProject(aggregateUnion, analyzedAggregates, Set())
+    buildRenameProject(setNullsProject, analyzedAggregates)
+  }
+
+  def buildAggregateOnUnion(
+      union: LogicalPlan,
+      analyzedAggregates: Seq[JoinedAggregateAnalyzer]): LogicalPlan = {
+    val unionOutput = union.output
+    val keysNumber = analyzedAggregates.head.getKeys().length
+    val aggregateExpressions = ArrayBuffer[NamedExpression]()
+
+    val groupingKeys = unionOutput.slice(0, keysNumber).zip(analyzedAggregates.head.getKeys()).map {
+      case (e, a) =>
+        RuleExpressionHelper.makeNamedExpression(e, a.name)
+    }
+    aggregateExpressions ++= groupingKeys
+
+    for (i <- 1 until analyzedAggregates.length) {
+      val keys = analyzedAggregates(i).getKeys()
+      val fieldIndex = i * keysNumber
+      for (j <- 0 until keys.length) {
+        val key = keys(j)
+        val valueExpr = unionOutput(fieldIndex + j)
+        val firstValue = RuleExpressionHelper.makeFirstAggregateExpression(valueExpr)
+        aggregateExpressions += RuleExpressionHelper.makeNamedExpression(firstValue, key.name)
+      }
+    }
+
+    var fieldIndex = keysNumber * analyzedAggregates.length
+    for (i <- 0 until analyzedAggregates.length) {
+      val partialAggregateExpressions = analyzedAggregates(i).getAggregateExpressions()
+      val partialAggregateArguments = analyzedAggregates(i).getAggregateExpressionArguments()
+      val aggregateFunctionAnalyzers = analyzedAggregates(i).getAggregateFunctionAnalyzers()
+      for (j <- 0 until partialAggregateExpressions.length) {
+        val aggregateExpression = partialAggregateExpressions(j)
+        val arguments = partialAggregateArguments(j)
+        val aggregateFunctionAnalyzer = aggregateFunctionAnalyzers(j)
+        val newArguments = unionOutput.slice(fieldIndex, fieldIndex + arguments.length)
+        val flagExpr = unionOutput(unionOutput.length - analyzedAggregates.length + i)
+        val newAggregateExpression = aggregateFunctionAnalyzer
+          .buildUnionAggregateExpression(newArguments, flagExpr)
+        aggregateExpressions += RuleExpressionHelper.makeNamedExpression(
+          newAggregateExpression,
+          aggregateExpression.name)
+        fieldIndex += arguments.length
+      }
+    }
+
+    for (i <- fieldIndex until unionOutput.length) {
+      val valueExpr = unionOutput(i)
+      val firstValue = RuleExpressionHelper.makeFirstAggregateExpression(valueExpr)
+      aggregateExpressions += RuleExpressionHelper.makeNamedExpression(firstValue, valueExpr.name)
+    }
+
+    Aggregate(groupingKeys, aggregateExpressions.toSeq, union)
+  }
+
+  /**
+   * Some rows may come from the right tables which grouping keys are not in the prime keys set. We
+   * should remove them.
+   */
+  def buildPrimeKeysFilterOnAggregateUnion(
+      plan: LogicalPlan,
+      analyzedAggregates: Seq[JoinedAggregateAnalyzer]): LogicalPlan = {
+    val flagExpressions = plan.output(plan.output.length - analyzedAggregates.length)
+    val notNullExpr = IsNotNull(flagExpressions)
+    Filter(notNullExpr, plan)
+  }
+
+  /**
+   * When a row's grouping keys are not present in the related table, the related aggregate values
+   * are replaced with nulls.
+   */
+  def buildMakeNotMatchedRowsNullProject(
+      plan: LogicalPlan,
+      analyzedAggregates: Seq[JoinedAggregateAnalyzer],
+      ignoreAggregates: Set[Int]): LogicalPlan = {
+    val input = plan.output
+    val flagExpressions =
+      input.slice(plan.output.length - analyzedAggregates.length, plan.output.length)
+    val aggregateExprsStart = analyzedAggregates.length * analyzedAggregates.head.getKeys().length
+    var fieldIndex = aggregateExprsStart
+    val aggregatesIfNullExpressions = analyzedAggregates.zipWithIndex.map {
+      case (analyzedAggregate, i) =>
+        val flagExpr = flagExpressions(i)
+        val aggregateExpressions = analyzedAggregate.getAggregateExpressions()
+        val aggregateFunctionAnalyzers = analyzedAggregate.getAggregateFunctionAnalyzers()
+        aggregateExpressions.zipWithIndex.map {
+          case (e, i) =>
+            val valueExpr = input(fieldIndex)
+            fieldIndex += 1
+            if (ignoreAggregates(i) || aggregateFunctionAnalyzers(i).ignoreNulls()) {
+              valueExpr.asInstanceOf[NamedExpression]
+            } else {
+              val clearExpr = If(
+                IsNull(flagExpr),
+                RuleExpressionHelper.makeNullLiteral(valueExpr.dataType),
+                valueExpr)
+              RuleExpressionHelper.makeNamedExpression(clearExpr, valueExpr.name)
+            }
+        }
+    }
+    val ifNullExpressions = aggregatesIfNullExpressions.flatten
+    val projectList = input.slice(0, aggregateExprsStart) ++ ifNullExpressions ++ flagExpressions
+    Project(projectList, plan)
+  }
+
+  /**
+   * A final step, ensure the output attributes have the same name and exprId as the original join
+   */
+  def buildRenameProject(
+      plan: LogicalPlan,
+      analyzedAggregates: Seq[JoinedAggregateAnalyzer]): LogicalPlan = {
+    val input = plan.output
+    val joinKeys = analyzedAggregates.map(_.getKeys())
+    val projectList = ArrayBuffer[NamedExpression]()
+    val keysNum = analyzedAggregates.head.getKeys().length
+    var fieldIndex = 0
+    for (i <- 0 until analyzedAggregates.length) {
+      val keys = analyzedAggregates(i).getKeys()
+      for (j <- 0 until keys.length) {
+        val key = keys(j)
+        projectList += Alias(input(fieldIndex), key.name)(
+          key.exprId,
+          key.qualifier,
+          None,
+          Seq.empty)
+        fieldIndex += 1
+      }
+    }
+
+    for (i <- 0 until analyzedAggregates.length) {
+      val aggregateExpressions = analyzedAggregates(i).getAggregateExpressions()
+      for (j <- 0 until aggregateExpressions.length) {
+        val e = aggregateExpressions(j)
+        val valueExpr = input(fieldIndex)
+        projectList += Alias(valueExpr, e.name)(e.exprId, e.qualifier, None, Seq.empty)
+        fieldIndex += 1
+      }
+    }
+
+    // Keep the flag columns
+    projectList ++= input.slice(input.length - analyzedAggregates.length, input.length)
+    Project(projectList.toSeq, plan)
+  }
+
+  /**
+   * Build a extended project list, which contains three parts.
+   *   - The grouping keys of all tables.
+   *   - All required columns as arguments for the aggregate functions in every table.
+   *   - Flags for each table to indicate whether the row is in the table.
+   */
+  def buildExtendProjectList(
+      analyzedAggregates: Seq[JoinedAggregateAnalyzer],
+      index: Int): Seq[NamedExpression] = {
+    val projectList = ArrayBuffer[NamedExpression]()
+    projectList ++= analyzedAggregates(index).getKeys().zipWithIndex.map {
+      case (e, i) =>
+        RuleExpressionHelper.makeNamedExpression(e, s"key_0_$i")
+    }
+    for (i <- 1 until analyzedAggregates.length) {
+      val groupingKeys = analyzedAggregates(i).getKeys()
+      projectList ++= groupingKeys.zipWithIndex.map {
+        case (e, j) =>
+          if (i == index) {
+            RuleExpressionHelper.makeNamedExpression(e, s"key_${i}_$j")
+          } else {
+            RuleExpressionHelper.makeNamedExpression(
+              RuleExpressionHelper.makeNullLiteral(e.dataType),
+              s"key_${i}_$j")
+          }
+      }
+    }
+
+    for (i <- 0 until analyzedAggregates.length) {
+      val argsList = analyzedAggregates(i).getAggregateExpressionArguments()
+      argsList.zipWithIndex.foreach {
+        case (args, j) =>
+          projectList ++= args.zipWithIndex.map {
+            case (arg, k) =>
+              if (i == index) {
+                RuleExpressionHelper.makeNamedExpression(arg, s"arg_${i}_${j}_$k")
+              } else {
+                RuleExpressionHelper.makeNamedExpression(
+                  RuleExpressionHelper.makeNullLiteral(arg.dataType),
+                  s"arg_${i}_${j}_$k")
+              }
+          }
+      }
+    }
+
+    for (i <- 0 until analyzedAggregates.length) {
+      if (i == index) {
+        projectList += RuleExpressionHelper.makeNamedExpression(
+          RuleExpressionHelper.makeFlagLiteral(),
+          s"flag_$i")
+      } else {
+        projectList += RuleExpressionHelper.makeNamedExpression(
+          RuleExpressionHelper.makeNullLiteral(BooleanType),
+          s"flag_$i")
+      }
+    }
+
+    projectList.toSeq
+  }
+
+  def buildExtendProjects(analyzedAggregates: Seq[JoinedAggregateAnalyzer]): Seq[LogicalPlan] = {
+    val projects = ArrayBuffer[LogicalPlan]()
+    for (i <- 0 until analyzedAggregates.length) {
+      val projectList = buildExtendProjectList(analyzedAggregates, i)
+      projects += Project(projectList, analyzedAggregates(i).getAggregate().child)
+    }
+    projects.toSeq
+  }
+
+  def buildUnionOnExtendedProjects(plans: Seq[LogicalPlan]): LogicalPlan = {
+    val union = Union(plans)
+    union
+  }
+
+  def isDirectAggregate(plan: LogicalPlan): Boolean = {
+    plan match {
+      case _ @SubqueryAlias(_, aggregate: Aggregate) => true
+      case _: Aggregate => true
+      case _ => false
+    }
+  }
+
+  def transformDistinctToAggregate(distinct: Distinct): Aggregate = {
+    Aggregate(distinct.child.output, distinct.child.output, distinct.child)
+  }
+
+  def extractDirectAggregate(plan: LogicalPlan): Option[Aggregate] = {
+    plan match {
+      case _ @SubqueryAlias(_, aggregate: Aggregate) => Some(aggregate)
+      case project @ Project(projectList, aggregate: Aggregate) =>
+        if (projectList.forall(_.isInstanceOf[AttributeReference])) {
+          // Just a column prune projection, ignore it
+          Some(aggregate)
+        } else {
+          None
+        }
+      case _ @SubqueryAlias(_, distinct: Distinct) =>
+        Some(transformDistinctToAggregate(distinct))
+      case distinct: Distinct =>
+        Some(transformDistinctToAggregate(distinct))
+      case aggregate: Aggregate => Some(aggregate)
+      case _ => None
+    }
+  }
+
+  def isDirectJoin(plan: LogicalPlan): Boolean = {
+    plan match {
+      case _: Join => true
+      case _ => false
+    }
+  }
+
+  def extractDirectJoin(plan: LogicalPlan): Option[Join] = {
+    plan match {
+      case join: Join => Some(join)
+      case _ => None
+    }
+  }
+
+  def collectSameKeysJoinedAggregates(
+      plan: LogicalPlan,
+      analyzedAggregates: ArrayBuffer[JoinedAggregateAnalyzer]): Option[LogicalPlan] = {
+    plan match {
+      case join: Join if join.joinType == LeftOuter && join.condition.isDefined =>
+        val optionAggregate = extractDirectAggregate(join.right)
+        if (optionAggregate.isEmpty) {
+          return Some(plan)
+        }
+        val rightAggregateAnalyzer = JoinedAggregateAnalyzer.build(join, optionAggregate.get)
+        if (rightAggregateAnalyzer.isEmpty) {
+          return Some(plan)
+        }
+
+        if (
+          analyzedAggregates.isEmpty ||
+          JoinedAggregateAnalyzer.haveSamePrimeKeys(
+            Seq(analyzedAggregates.head, rightAggregateAnalyzer.get))
+        ) {
+          // left plan is pushed in front
+          analyzedAggregates.insert(0, rightAggregateAnalyzer.get)
+          collectSameKeysJoinedAggregates(join.left, analyzedAggregates)
+        } else {
+          Some(plan)
+        }
+      case _ if isDirectAggregate(plan) =>
+        val aggregate = extractDirectAggregate(plan).get
+        val lastJoin = analyzedAggregates.head.join
+        assert(lastJoin.left.equals(plan), "The node should be last join's left child")
+        val leftAggregateAnalyzer = JoinedAggregateAnalyzer.build(lastJoin, aggregate)
+        if (leftAggregateAnalyzer.isEmpty) {
+          return Some(plan)
+        }
+        if (
+          JoinedAggregateAnalyzer.haveSamePrimeKeys(
+            Seq(analyzedAggregates.head, leftAggregateAnalyzer.get))
+        ) {
+          analyzedAggregates.insert(0, leftAggregateAnalyzer.get)
+          None
+        } else {
+          Some(plan)
+        }
+      case _ => Some(plan)
+    }
+  }
+
+  def collectSameKeysJoinSubqueries(
+      plan: LogicalPlan,
+      groupedAggregates: ArrayBuffer[ArrayBuffer[JoinedAggregateAnalyzer]],
+      nonAggregates: ArrayBuffer[LogicalPlan]): Option[LogicalPlan] = {
+    plan match {
+      case join: Join if join.joinType == LeftOuter && join.condition.isDefined =>
+      case _ => Some(plan)
+    }
+    None
+  }
+
+}
