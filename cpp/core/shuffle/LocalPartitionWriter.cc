@@ -387,7 +387,8 @@ std::string LocalPartitionWriter::nextSpilledFileDir() {
 
 arrow::Result<std::shared_ptr<arrow::io::OutputStream>> LocalPartitionWriter::openFile(const std::string& file) {
   std::shared_ptr<arrow::io::FileOutputStream> fout;
-  auto fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  auto fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+  // Set the shuffle file permissions to 0644 to keep it consistent with the permissions of the built-in shuffler manager in Spark.
   fchmod(fd, 0644);
   ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(fd));
   if (options_.bufferedWrite) {
