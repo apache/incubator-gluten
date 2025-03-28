@@ -22,17 +22,18 @@ import org.apache.gluten.substrait.type.TypeNode;
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
 import io.substrait.proto.Type;
-import org.apache.spark.sql.catalyst.util.MapData;
 
-public class MapLiteralNode extends LiteralNodeWithValue<MapData> {
-  public MapLiteralNode(MapData map, TypeNode typeNode) {
+import java.util.Map;
+
+public class MapLiteralNode extends LiteralNodeWithValue<Map<Object, Object>> {
+  public MapLiteralNode(Map<Object, Object> map, TypeNode typeNode) {
     super(map, typeNode);
   }
 
   @Override
-  protected void updateLiteralBuilder(Builder literalBuilder, MapData map) {
-    Object[] keys = map.keyArray().array();
-    Object[] values = map.valueArray().array();
+  protected void updateLiteralBuilder(Builder literalBuilder, Map<Object, Object> map) {
+    Object[] keys = map.keySet().toArray();
+    Object[] values = map.values().toArray();
     TypeNode mapType = ((MapNode) getTypeNode()).getKeyType();
     TypeNode valueType = ((MapNode) getTypeNode()).getValueType();
 

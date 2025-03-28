@@ -16,6 +16,12 @@
  */
 package org.apache.gluten.substrait.rel;
 
+import org.apache.gluten.substrait.utils.SubstraitUtil;
+
+import com.google.protobuf.Any;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +41,15 @@ public class LocalFilesBuilder {
       List<String> preferredLocations,
       Map<String, String> properties,
       List<Map<String, Object>> otherMetadataColumns) {
+    List<Map<String, Any>> newOtherMetadataColumns = new ArrayList<>(otherMetadataColumns.size());
+    for (Map<String, Object> otherMetadataColumn : otherMetadataColumns) {
+      Map<String, Any> newOtherMetadataColumn = new HashMap<>();
+      for (Map.Entry<String, Object> entry : otherMetadataColumn.entrySet()) {
+        newOtherMetadataColumn.put(
+            entry.getKey(), SubstraitUtil.convertJavaObjectToAny(entry.getValue()));
+      }
+      newOtherMetadataColumns.add(newOtherMetadataColumn);
+    }
     return new LocalFilesNode(
         index,
         paths,
@@ -47,7 +62,7 @@ public class LocalFilesBuilder {
         fileFormat,
         preferredLocations,
         properties,
-        otherMetadataColumns);
+        newOtherMetadataColumns);
   }
 
   public static LocalFilesNode makeLocalFiles(String iterPath) {
