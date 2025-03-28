@@ -123,6 +123,7 @@ object CHRuleApi {
     injector.injectPostTransform(c => AddPreProjectionForHashJoin.apply(c.session))
     injector.injectPostTransform(c => ReplaceSubStringComparison.apply(c.session))
     injector.injectPostTransform(c => EliminateDeduplicateAggregateWithAnyJoin(c.session))
+    injector.injectPostTransform(c => CollapseNestedExpressions.apply(c.session))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(c => p => ExpandFallbackPolicy(c.caller.isAqe(), p))

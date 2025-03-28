@@ -109,6 +109,19 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
+  private def replaceCollapsedExpressionWithExpressionTransformer(
+      substraitName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+    val children =
+      expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+    BackendsApiManager.getSparkPlanExecApiInstance.genCollapsedExpressionTransformer(
+      substraitName,
+      children,
+      expr)
+  }
+
   private def genRescaleDecimalTransformer(
       substraitName: String,
       b: BinaryArithmetic,
@@ -742,6 +755,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           j)
+      case ce if BackendsApiManager.getSparkPlanExecApiInstance.expressionCollapseSupported(ce) =>
+        replaceCollapsedExpressionWithExpressionTransformer(
+          substraitExprName,
+          ce,
+          attributeSeq,
+          expressionsMap)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
