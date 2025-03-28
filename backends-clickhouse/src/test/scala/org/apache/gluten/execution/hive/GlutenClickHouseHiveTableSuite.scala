@@ -1673,7 +1673,7 @@ class GlutenClickHouseHiveTableSuite
              |""".stripMargin
 
         val select1Sql = s"SELECT input_file_name() from $tableName"
-        val select2Sql = s"SELECT input_file_name(), input_file_block_start(), " +
+        val select2Sql = s"SELECT input_file_block_start(), " +
           s"input_file_block_length() FROM $tableName"
         s"input_file_block_length() FROM $tableName"
         val dropSql = s"DROP TABLE IF EXISTS $tableName"
