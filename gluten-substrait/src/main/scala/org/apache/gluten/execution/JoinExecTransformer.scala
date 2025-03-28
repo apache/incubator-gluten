@@ -425,7 +425,7 @@ abstract class BroadcastHashJoinExecTransformerBase(
   override def genJoinParametersInternal(): (Int, Int, String) = {
     if (!glutenConf.enableColumnarBroadcastExchange) {
       (1, if (isNullAwareAntiJoin) 1 else 0, "-1")
-    } else{
+    } else {
       (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
     }
   }
