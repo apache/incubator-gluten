@@ -776,6 +776,8 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("enable_named_columns_in_function_tuple", false);
     settings.set("date_time_64_output_format_cut_trailing_zeros_align_to_groups_of_thousands", true);
     settings.set("input_format_orc_dictionary_as_low_cardinality", false); //after https://github.com/ClickHouse/ClickHouse/pull/69481
+    settings.set("input_format_parquet_bloom_filter_push_down", true);
+    settings.set("output_format_parquet_write_bloom_filter", true);
 
     if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
