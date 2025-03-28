@@ -387,7 +387,11 @@ std::string LocalPartitionWriter::nextSpilledFileDir() {
 
 arrow::Result<std::shared_ptr<arrow::io::OutputStream>> LocalPartitionWriter::openFile(const std::string& file) {
   std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(file));
+  auto fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC);
+  // Set the shuffle file permissions to 0644 to keep it consistent with the permissions of
+  // the built-in shuffler manager in Spark.
+  fchmod(fd, 0644);
+  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(fd));
   if (options_.bufferedWrite) {
     // The `shuffleFileBufferSize` bytes is a temporary allocation and will be freed with file close.
     // Use default memory pool and count treat the memory as executor memory overhead to avoid unnecessary spill.
