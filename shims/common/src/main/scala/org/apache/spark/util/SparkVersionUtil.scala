@@ -17,8 +17,12 @@
 package org.apache.spark.util
 
 object SparkVersionUtil {
-  def majorMinorVersion(): (Int, Int) = {
-    VersionUtils.majorMinorVersion(org.apache.spark.SPARK_VERSION)
+  def majorMinorVersion(version: String = org.apache.spark.SPARK_VERSION): (Int, Int) = {
+    VersionUtils.majorMinorVersion(version)
+  }
+
+  def majorMinorPatchVersion(version: String): Option[(Int, Int, Int)] = {
+    VersionUtils.majorMinorPatchVersion(version)
   }
 
   // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.

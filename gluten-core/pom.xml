@@ -132,6 +132,14 @@
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <directory>${project.build.directory}/generated-resources</directory>
+      </resource>
+    </resources>
     <plugins>
       <!-- compile proto buffer files using copied protoc binary -->
       <plugin>
@@ -151,6 +159,33 @@
               </protocArtifact>
               <protoSourceRoot>src/main/resources/org/apache/gluten/proto</protoSourceRoot>
               <clearOutputDirectory>false</clearOutputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>build-info</id>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <target>
+                <exec executable="bash" osfamily="unix">
+                  <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
+                  <arg value="true"/>
+                  <arg value="--version"/><arg value="${project.version}"/>
+                  <arg value="--java "/><arg value="${java.version}"/>
+                  <arg value="--scala"/><arg value="${scala.version}"/>
+                  <arg value="--spark"/><arg value="${spark.version}"/>
+                  <arg value="--hadoop"/><arg value="${hadoop.version}"/>
+                  <arg value="--revision"/><arg value="true"/>
+                </exec>
+              </target>
             </configuration>
           </execution>
         </executions>
