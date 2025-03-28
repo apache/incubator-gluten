@@ -132,7 +132,6 @@ class CHListenerApi extends ListenerApi with Logging {
   private def shutdown(): Unit = {
     CHBroadcastBuildSideCache.cleanAll()
     CHNativeExpressionEvaluator.finalizeNative()
-    JniLibLoader.forceUnloadAll
   }
 }
 
