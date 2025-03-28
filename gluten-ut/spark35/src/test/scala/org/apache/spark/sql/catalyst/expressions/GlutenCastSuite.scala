@@ -275,4 +275,12 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
     checkEvaluation(cast(d, TimestampType), new Timestamp(c.getTimeInMillis))
   }
 
+  testGluten("cast from timestamp II") {
+    checkEvaluationWithFallback(cast(Double.NaN, TimestampType), null)
+    checkEvaluationWithFallback(cast(1.0 / 0.0, TimestampType), null)
+    checkEvaluationWithFallback(cast(Float.NaN, TimestampType), null)
+    checkEvaluationWithFallback(cast(1.0f / 0.0f, TimestampType), null)
+    checkEvaluationWithFallback(cast(Literal(Long.MaxValue), TimestampType), Long.MaxValue)
+    checkEvaluationWithFallback(cast(Literal(Long.MinValue), TimestampType), Long.MinValue)
+  }
 }
