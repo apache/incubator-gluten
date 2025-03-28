@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.config.{GlutenConfig, ReservedKeys, VeloxConfig}
-import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
+import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
@@ -28,6 +28,7 @@ import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSeria
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -63,7 +64,7 @@ import java.util.Locale
 
 import scala.collection.mutable.ArrayBuffer
 
-class VeloxSparkPlanExecApi extends SparkPlanExecApi {
+class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemTransformer(
@@ -637,6 +638,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         (Seq.empty, false)
     }
 
+    var offload = true
     val (newChild, newOutput, newBuildKeys) =
       if (
         buildKeys
@@ -660,12 +662,20 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
             }
         }
 
-        def wrapChild(child: SparkPlan): WholeStageTransformer = {
+        def wrapChild(child: SparkPlan): SparkPlan = {
           val childWithAdapter = ColumnarCollapseTransformStages.wrapInputIteratorTransformer(child)
-          WholeStageTransformer(
-            ProjectExecTransformer(child.output ++ appendedProjections, childWithAdapter))(
-            ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
-          )
+          val projectExecTransformer =
+            ProjectExecTransformer(child.output ++ appendedProjections, childWithAdapter)
+          val validationResult = projectExecTransformer.doValidate()
+          if (validationResult.ok()) {
+            WholeStageTransformer(
+              ProjectExecTransformer(child.output ++ appendedProjections, childWithAdapter))(
+              ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
+            )
+          } else {
+            offload = false
+            child
+          }
         }
 
         val newChild = child match {
@@ -687,32 +697,26 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           case a2v: ArrowColumnarToVeloxColumnarExec =>
             wrapChild(a2v)
           case other =>
-            throw new GlutenNotSupportException(
-              s"Not supported operator ${other.nodeName} for BroadcastRelation")
+            offload = false
+            logWarning(
+              "Not supported operator" + other.nodeName +
+                " for BroadcastRelation and fallback to shuffle hash join")
+            child
         }
-        (newChild, (child.output ++ appendedProjections).map(_.toAttribute), preProjectionBuildKeys)
+
+        if (offload) {
+          (
+            newChild,
+            (child.output ++ appendedProjections).map(_.toAttribute),
+            preProjectionBuildKeys)
+        } else {
+          (child, child.output, Seq.empty[Expression])
+        }
       }
 
-    // find the key index in the output
-    val keyColumnIndex = if (isNullAware) {
-      def findKeyOrdinal(key: Expression, output: Seq[Attribute]): Int = {
-        key match {
-          case b: BoundReference => b.ordinal
-          case n: NamedExpression =>
-            output.indexWhere(o => (o.name.equals(n.name) && o.exprId == n.exprId))
-          case _ => throw new GlutenException(s"Cannot find $key in the child's output: $output")
-        }
-      }
-      if (newBuildKeys.isEmpty) {
-        findKeyOrdinal(buildKeys(0), newOutput)
-      } else {
-        findKeyOrdinal(newBuildKeys(0), newOutput)
-      }
-    } else {
-      0
-    }
     val useOffheapBroadcastBuildRelation =
       VeloxConfig.get.enableBroadcastBuildRelationInOffheap
+
     val serialized: Array[ColumnarBatchSerializeResult] = newChild
       .executeColumnar()
       .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
@@ -731,7 +735,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         new UnsafeColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
       }
     } else {
-      ColumnarBuildSideRelation(newOutput, serialized.map(_.getSerialized), mode, -1, newBuildKeys)
+      ColumnarBuildSideRelation(
+        newOutput,
+        serialized.map(_.getSerialized),
+        mode,
+        -1,
+        newBuildKeys,
+        isNullAware,
+        offload)
     }
   }
 

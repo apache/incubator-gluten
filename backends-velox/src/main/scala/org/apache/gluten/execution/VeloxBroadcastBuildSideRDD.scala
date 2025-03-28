@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.iterator.Iterators
 
 import org.apache.spark.{broadcast, SparkContext}
+import org.apache.spark.sql.execution.ColumnarBuildSideRelation
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -30,7 +31,8 @@ case class VeloxBroadcastBuildSideRDD(
   extends BroadcastBuildSideRDD(sc, broadcasted) {
 
   override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
-    val output = if (isBNL) {
+    val offload = broadcasted.value.asReadOnlyCopy().asInstanceOf[ColumnarBuildSideRelation].offload
+    val output = if (isBNL || !offload) {
       val relation = broadcasted.value.asReadOnlyCopy()
       Iterators
         .wrap(relation.deserialized)

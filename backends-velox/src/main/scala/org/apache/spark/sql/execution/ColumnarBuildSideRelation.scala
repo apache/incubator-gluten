@@ -50,7 +50,8 @@ case class ColumnarBuildSideRelation(
     mode: BroadcastMode,
     numOfRows: Long = 0L,
     newBuildKeys: Seq[Expression] = Seq.empty,
-    isNullAware: Boolean = false)
+    isNullAware: Boolean = false,
+    offload: Boolean = false)
   extends BuildSideRelation
   with Logging {
 

@@ -62,7 +62,8 @@ case class UnsafeColumnarBuildSideRelation(
     var mode: BroadcastMode,
     numOfRows: Long = 0L,
     newBuildKeys: Seq[Expression] = Seq.empty,
-    hasNullKeyValues: Boolean = false)
+    hasNullKeyValues: Boolean = false,
+    offload: Boolean = false)
   extends BuildSideRelation
   with Externalizable
   with Logging
