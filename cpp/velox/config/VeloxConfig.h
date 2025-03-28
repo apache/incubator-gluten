@@ -52,6 +52,7 @@ const std::string kCompressionKind = "spark.io.compression.codec";
 const std::string kSpillCompressionKind = "spark.gluten.sql.columnar.backend.velox.spillCompressionCodec";
 const std::string kMaxPartialAggregationMemoryRatio =
     "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
+const std::string kMaxPartialAggregationMemory = "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory";
 const std::string kMaxExtendedPartialAggregationMemoryRatio =
     "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
 const std::string kAbandonPartialAggregationMinPct =
