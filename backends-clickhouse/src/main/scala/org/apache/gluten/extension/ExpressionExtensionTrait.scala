@@ -64,8 +64,20 @@ trait ExpressionExtensionTrait {
 }
 
 object ExpressionExtensionTrait {
-  var expressionExtensionTransformer: ExpressionExtensionTrait =
-    DefaultExpressionExtensionTransformer()
+  private var expressionExtensionTransformers: Seq[ExpressionExtensionTrait] =
+    Seq.apply(DefaultExpressionExtensionTransformer())
+
+  private var expressionExtensionSig = Seq.empty[Sig]
+  def expressionExtensionSigList: Seq[Sig] = expressionExtensionSig
+
+  def findExpressionExtension(clazz: Class[_]): Option[ExpressionExtensionTrait] = {
+    expressionExtensionTransformers.find(_.extensionExpressionsMapping.contains(clazz))
+  }
+
+  def registerExpressionExtension(expressionExtension: ExpressionExtensionTrait): Unit = {
+    expressionExtensionTransformers = expressionExtensionTransformers :+ expressionExtension
+    expressionExtensionSig = expressionExtensionTransformers.flatMap(_.expressionSigList)
+  }
 
   case class DefaultExpressionExtensionTransformer() extends ExpressionExtensionTrait with Logging {
 

@@ -41,7 +41,7 @@ std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
 {
     assert(!position_delete_files.empty());
 
-    std::unique_ptr<DeltaDVRoaringBitmapArray> result = std::make_unique<DeltaDVRoaringBitmapArray>(context);
+    std::unique_ptr<DeltaDVRoaringBitmapArray> result = std::make_unique<DeltaDVRoaringBitmapArray>();
 
     for (auto deleteIndex : position_delete_files)
     {
