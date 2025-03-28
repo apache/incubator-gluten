@@ -60,9 +60,6 @@ object CHRuleApi {
       (spark, parserInterface) => new GlutenCacheFilesSqlParser(spark, parserInterface))
     injector.injectParser(
       (spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
-    injector.injectResolutionRule(spark => new CoalesceAggregationUnion(spark))
-    injector.injectResolutionRule(spark => new CoalesceProjectionUnion(spark))
-    injector.injectResolutionRule(spark => new JoinAggregateToAggregateUnion(spark))
     injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
     injector.injectResolutionRule(spark => new RewriteDateTimestampComparisonRule(spark))
     injector.injectResolutionRule(spark => new CollapseGetJsonObjectExpressionRule(spark))
@@ -72,6 +69,12 @@ object CHRuleApi {
     injector.injectOptimizerRule(spark => new SimplifySumRule(spark))
     injector.injectOptimizerRule(spark => new ExtendedColumnPruning(spark))
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
+    //  JoinAggregateToAggregateUnion need to be applied on optimized plans
+    injector.injectOptimizerRule(spark => new JoinAggregateToAggregateUnion(spark))
+    // CoalesceAggregationUnion and CoalesceProjectionUnion should follows
+    // JoinAggregateToAggregateUnion
+    injector.injectOptimizerRule(spark => new CoalesceAggregationUnion(spark))
+    injector.injectOptimizerRule(spark => new CoalesceProjectionUnion(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
     injector.injectPreCBORule(spark => new CHOptimizeMetadataOnlyDeltaQuery(spark))
