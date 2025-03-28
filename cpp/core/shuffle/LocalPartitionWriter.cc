@@ -618,32 +618,6 @@ arrow::Status LocalPartitionWriter::sortEvict(
   return arrow::Status::OK();
 }
 
-// FIXME: Remove this code path for local partition writer.
-arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) {
-  rawPartitionLengths_[partitionId] += blockPayload->rawSize();
-
-  if (lastEvictPid_ != -1 && partitionId < lastEvictPid_) {
-    RETURN_NOT_OK(finishSpill(true));
-    lastEvictPid_ = -1;
-  }
-  RETURN_NOT_OK(requestSpill(stop));
-
-  if (!stop) {
-    RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
-  } else {
-    if (spills_.size() > 0) {
-      for (auto pid = lastEvictPid_ + 1; pid <= partitionId; ++pid) {
-        auto bytesEvicted = totalBytesEvicted_;
-        RETURN_NOT_OK(mergeSpills(pid));
-        partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
-      }
-    }
-    RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
-  }
-  lastEvictPid_ = partitionId;
-  return arrow::Status::OK();
-}
-
 arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actual) {
   // Finish last spiller.
   RETURN_NOT_OK(finishSpill(true));
