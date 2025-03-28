@@ -30,22 +30,41 @@ import org.apache.spark.sql.types._
 
 import scala.collection.mutable.ArrayBuffer
 
+private object RuleExpressionHelper {
+
+  def extractLiteral(e: Expression): Option[Literal] = {
+    e match {
+      case literal: Literal => Some(literal)
+      case _ @Alias(literal: Literal, _) => Some(literal)
+      case _ => None
+    }
+  }
+}
+
 trait AggregateFunctionAnalyzer {
   def doValidate(): Boolean
   def getArgumentExpressions(): Option[Seq[Expression]]
   def ignoreNulls(): Boolean
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression
 }
 
 case class DefaultAggregateFunctionAnalyzer() extends AggregateFunctionAnalyzer {
   override def doValidate(): Boolean = false
   override def getArgumentExpressions(): Option[Seq[Expression]] = None
   override def ignoreNulls(): Boolean = false
+  override def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    throw new GlutenException("Unsupported aggregate function")
+  }
 }
 
-case class SumAnalyzer(aggExpr: AggregateExpression) extends AggregateFunctionAnalyzer {
-  val sum = aggExpr.aggregateFunction.asInstanceOf[Sum]
+case class SumAnalyzer(aggregateExpression: AggregateExpression) extends AggregateFunctionAnalyzer {
+  val sum = aggregateExpression.aggregateFunction.asInstanceOf[Sum]
   override def doValidate(): Boolean = {
-    !sum.child.isInstanceOf[Literal]
+    aggregateExpression.filter.isEmpty
   }
 
   override def getArgumentExpressions(): Option[Seq[Expression]] = {
@@ -53,25 +72,40 @@ case class SumAnalyzer(aggExpr: AggregateExpression) extends AggregateFunctionAn
   }
 
   override def ignoreNulls(): Boolean = true
+
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newSum = sum.copy(child = arguments.head)
+    aggregateExpression.copy(aggregateFunction = newSum)
+  }
 }
 
-case class AverageAnalyzer(aggExpr: AggregateExpression) extends AggregateFunctionAnalyzer {
-  val sum = aggExpr.aggregateFunction.asInstanceOf[Sum]
+case class AverageAnalyzer(aggregateExpression: AggregateExpression)
+  extends AggregateFunctionAnalyzer {
+  val avg = aggregateExpression.aggregateFunction.asInstanceOf[Average]
   override def doValidate(): Boolean = {
-    !sum.child.isInstanceOf[Literal]
+    aggregateExpression.filter.isEmpty
   }
 
   override def getArgumentExpressions(): Option[Seq[Expression]] = {
-    Some(Seq(sum.child))
+    Some(Seq(avg.child))
   }
 
   override def ignoreNulls(): Boolean = true
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newAvg = avg.copy(child = arguments.head)
+    aggregateExpression.copy(aggregateFunction = newAvg)
+  }
 }
 
-case class CountAnalyzer(aggExpr: AggregateExpression) extends AggregateFunctionAnalyzer {
-  val count = aggExpr.aggregateFunction.asInstanceOf[Count]
+case class CountAnalyzer(aggregateExpression: AggregateExpression)
+  extends AggregateFunctionAnalyzer {
+  val count = aggregateExpression.aggregateFunction.asInstanceOf[Count]
   override def doValidate(): Boolean = {
-    count.children.length == 1 && !count.children.head.isInstanceOf[Literal]
+    count.children.length == 1 && aggregateExpression.filter.isEmpty
   }
 
   override def getArgumentExpressions(): Option[Seq[Expression]] = {
@@ -79,7 +113,50 @@ case class CountAnalyzer(aggExpr: AggregateExpression) extends AggregateFunction
   }
 
   override def ignoreNulls(): Boolean = false
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newCount = count.copy(children = arguments)
+    aggregateExpression.copy(aggregateFunction = newCount)
+  }
+}
 
+case class MinAnalyzer(aggregateExpression: AggregateExpression) extends AggregateFunctionAnalyzer {
+  val min = aggregateExpression.aggregateFunction.asInstanceOf[Min]
+  override def doValidate(): Boolean = {
+    aggregateExpression.filter.isEmpty
+  }
+
+  override def getArgumentExpressions(): Option[Seq[Expression]] = {
+    Some(Seq(min.child))
+  }
+
+  override def ignoreNulls(): Boolean = false
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newMin = min.copy(child = arguments.head)
+    aggregateExpression.copy(aggregateFunction = newMin)
+  }
+}
+
+case class MaxAnalyzer(aggregateExpression: AggregateExpression) extends AggregateFunctionAnalyzer {
+  val max = aggregateExpression.aggregateFunction.asInstanceOf[Max]
+  override def doValidate(): Boolean = {
+    aggregateExpression.filter.isEmpty
+  }
+
+  override def getArgumentExpressions(): Option[Seq[Expression]] = {
+    Some(Seq(max.child))
+  }
+
+  override def ignoreNulls(): Boolean = false
+  def buildUnionAggregateExpression(
+      arguments: Seq[Expression],
+      flag: Expression): AggregateExpression = {
+    val newMax = max.copy(child = arguments.head)
+    aggregateExpression.copy(aggregateFunction = newMax)
+  }
 }
 
 object AggregateFunctionAnalyzer {
@@ -98,6 +175,8 @@ object AggregateFunctionAnalyzer {
           case sum: Sum => SumAnalyzer(agg)
           case avg: Average => AverageAnalyzer(agg)
           case count: Count => CountAnalyzer(agg)
+          case max: Max => MaxAnalyzer(agg)
+          case min: Min => MinAnalyzer(agg)
           case _ => DefaultAggregateFunctionAnalyzer()
         }
       case _ => DefaultAggregateFunctionAnalyzer()
@@ -237,7 +316,6 @@ object JoinedAggregateAnalyzer extends Logging {
 case class JoinAggregateToAggregateUnion(spark: SparkSession)
   extends Rule[LogicalPlan]
   with Logging {
-  val JOIN_FILTER_FLAG_NAME = "_left_flag_"
   def isResolvedPlan(plan: LogicalPlan): Boolean = {
     plan match {
       case insert: InsertIntoStatement => insert.query.resolved
@@ -289,8 +367,6 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
         if (join.joinType == LeftOuter && join.condition.isDefined) {
           val analyzedAggregates = ArrayBuffer[JoinedAggregateAnalyzer]()
           val remainedPlan = collectSameKeysJoinedAggregates(join, analyzedAggregates)
-          logDebug(s"xxx join left\n$remainedPlan")
-          logDebug(s"xxx analyzed aggregates number ${analyzedAggregates.length}")
           if (analyzedAggregates.length == 0) {
             join.copy(left = visitPlan(join.left), right = visitPlan(join.right))
           } else if (analyzedAggregates.length == 1) {
@@ -301,7 +377,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
               val lastJoin = analyzedAggregates.head.join
               lastJoin.copy(left = visitPlan(lastJoin.left), right = unionedAggregates)
             } else {
-              buildPrimeKeysFilterOnAggregateUnion(unionedAggregates, analyzedAggregates)
+              buildPrimeKeysFilterOnAggregateUnion(unionedAggregates, analyzedAggregates.toSeq)
             }
           }
         } else {
@@ -360,13 +436,18 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
     for (i <- 0 until analyzedAggregates.length) {
       val partialAggregateExpressions = analyzedAggregates(i).getAggregateExpressions()
       val partialAggregateArguments = analyzedAggregates(i).getAggregateExpressionArguments()
+      val aggregateFunctionAnalyzers = analyzedAggregates(i).getAggregateFunctionAnalyzers()
       for (j <- 0 until partialAggregateExpressions.length) {
         val aggregateExpression = partialAggregateExpressions(j)
         val arguments = partialAggregateArguments(j)
+        val aggregateFunctionAnalyzer = aggregateFunctionAnalyzers(j)
         val newArguments = unionOutput.slice(fieldIndex, fieldIndex + arguments.length)
-        aggregateExpressions += buildAggregateExpressionWithNewChildren(
-          aggregateExpression,
-          newArguments)
+        val flagExpr = unionOutput(unionOutput.length - analyzedAggregates.length + i)
+        val newAggregateExpression = aggregateFunctionAnalyzer
+          .buildUnionAggregateExpression(newArguments, flagExpr)
+        aggregateExpressions += makeNamedExpression(
+          newAggregateExpression,
+          aggregateExpression.name)
         fieldIndex += arguments.length
       }
     }
@@ -381,8 +462,8 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
   }
 
   /**
-   * If the grouping keys is in the right table but not in the left table, remove the row from the
-   * result.
+   * Some rows may come from the right tables which grouping keys are not in the prime keys set. We
+   * should remove them.
    */
   def buildPrimeKeysFilterOnAggregateUnion(
       plan: LogicalPlan,
@@ -392,7 +473,10 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
     Filter(notNullExpr, plan)
   }
 
-  /** Make the aggregate result be null if the grouping keys is not in the most left table. */
+  /**
+   * When a row's grouping keys are not present in the related table, the related aggregate values
+   * are replaced with nulls.
+   */
   def buildMakeNotMatchedRowsNullProject(
       plan: LogicalPlan,
       analyzedAggregates: Seq[JoinedAggregateAnalyzer],
@@ -425,8 +509,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
   }
 
   /**
-   * Build a project to make the output attributes have the same name and exprId as the original
-   * join output attributes.
+   * A final step, ensure the output attributes have the same name and exprId as the original join
    */
   def buildRenameProject(
       plan: LogicalPlan,
@@ -484,7 +567,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
   /**
    * Build a extended project list, which contains three parts.
    *   - The grouping keys of all tables.
-   *   - All required columns for aggregate functions in every table.
+   *   - All required columns as arguments for the aggregate functions in every table.
    *   - Flags for each table to indicate whether the row is in the table.
    */
   def buildExtendProjectList(
