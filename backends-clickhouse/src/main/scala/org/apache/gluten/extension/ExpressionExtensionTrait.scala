@@ -63,7 +63,7 @@ trait ExpressionExtensionTrait {
   }
 }
 
-object ExpressionExtensionTrait {
+object ExpressionExtensionTrait extends Logging {
   private var expressionExtensionTransformers: Seq[ExpressionExtensionTrait] = Seq.apply()
 
   private var expressionExtensionSig = Seq.empty[Sig]
@@ -77,13 +77,11 @@ object ExpressionExtensionTrait {
     synchronized {
       expressionExtensionTransformers.find(_.getClass == expressionExtension.getClass) match {
         case Some(_) =>
-          throw new UnsupportedOperationException(
-            s"${expressionExtension.getClass} has been registered.")
+          logWarning(s"${expressionExtension.getClass} has been registered. It will be ignore.")
         case _ =>
+          expressionExtensionTransformers = expressionExtensionTransformers :+ expressionExtension
+          expressionExtensionSig = expressionExtensionTransformers.flatMap(_.expressionSigList)
       }
-
-      expressionExtensionTransformers = expressionExtensionTransformers :+ expressionExtension
-      expressionExtensionSig = expressionExtensionTransformers.flatMap(_.expressionSigList)
     }
 
   case class DefaultExpressionExtensionTransformer() extends ExpressionExtensionTrait with Logging {
