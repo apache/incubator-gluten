@@ -260,6 +260,11 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
       joinParams.isBHJ = true
     }
 
+    var planID = "-1"
+    if (glutenConf.enableColumnarBroadcastExchange) {
+      planID = buildPlan.id.toString
+    }
+
     val joinRel = JoinUtils.createJoinRel(
       streamedKeyExprs,
       buildKeyExprs,
@@ -274,7 +279,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
       inputBuildOutput,
       context,
       operatorId,
-      buildPlan.id.toString
+      planID
     )
 
     context.registerJoinParam(operatorId, joinParams)
@@ -418,6 +423,10 @@ abstract class BroadcastHashJoinExecTransformerBase(
   lazy val buildHashTableId: String = "BuiltHashTable-" + buildPlan.id
 
   override def genJoinParametersInternal(): (Int, Int, String) = {
-    (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
+    if (!glutenConf.enableColumnarBroadcastExchange) {
+      (1, if (isNullAwareAntiJoin) 1 else 0, "-1")
+    } else{
+      (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
+    }
   }
 }
