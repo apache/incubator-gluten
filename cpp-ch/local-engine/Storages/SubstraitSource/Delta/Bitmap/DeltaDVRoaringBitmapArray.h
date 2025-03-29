@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include <IO/ReadBuffer.h>
 #include <Interpreters/Context_fwd.h>
 #include <base/types.h>
 #include <boost/core/noncopyable.hpp>
@@ -31,7 +32,6 @@ class DeltaDVRoaringBitmapArray : private boost::noncopyable
 {
     static constexpr Int64 MAX_REPRESENTABLE_VALUE
         = (static_cast<UInt64>(INT32_MAX - 1) << 32) | (static_cast<UInt64>(INT32_MIN) & 0xFFFFFFFFL);
-    DB::ContextPtr context;
     std::vector<roaring::Roaring> roaring_bitmap_array;
 
     static std::pair<UInt32, UInt32> decompose_high_low_bytes(UInt64 value);
@@ -40,17 +40,20 @@ class DeltaDVRoaringBitmapArray : private boost::noncopyable
     void rb_shrink_bitmaps(Int32 new_length);
 
 public:
-    explicit DeltaDVRoaringBitmapArray(const DB::ContextPtr & context_);
+    explicit DeltaDVRoaringBitmapArray();
     ~DeltaDVRoaringBitmapArray() = default;
     bool operator==(const DeltaDVRoaringBitmapArray & other) const;
     UInt64 rb_size() const;
-    void rb_read(const String & file_path, Int32 offset, Int32 data_size);
+    void rb_read(const String & file_path, Int32 offset, Int32 data_size, DB::ContextPtr context);
     bool rb_contains(Int64 x) const;
     bool rb_is_empty() const;
     void rb_clear();
     void rb_add(Int64 value);
     void rb_merge(const DeltaDVRoaringBitmapArray & that);
     void rb_or(const DeltaDVRoaringBitmapArray & that);
+    String serialize() const;
+    void deserialize(DB::ReadBuffer & buf);
+    std::optional<Int64> last();
 };
 
 }

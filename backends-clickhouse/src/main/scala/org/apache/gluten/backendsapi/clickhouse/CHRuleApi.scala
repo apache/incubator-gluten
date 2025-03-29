@@ -189,7 +189,8 @@ object CHRuleApi {
         // case s: SerializeFromObjectExec => true
         // case d: DeserializeToObjectExec => true
         // case o: ObjectHashAggregateExec => true
-        case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
+//        case rddScanExec: RDDScanExec if rddScanExec.no
+        //        deName.contains("Delta Table State") => true
         case f: FileSourceScanExec if includedDeltaOperator(f) => true
         case v2CommandExec: V2CommandExec => true
         case commandResultExec: CommandResultExec => true
