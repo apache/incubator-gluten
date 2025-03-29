@@ -139,6 +139,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       throw new GlutenNotSupportException(
         s"Not supported $objName function: ${i.functionName} in $i")
     }
+    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(exprName.get, i)) {
+      throw new GlutenNotSupportException(
+        s"Not supported to map current ${i.getClass} call on function: ${i.functionName}.")
+    }
 
     // Special handling for UrlCodec which only takes 1st argument
     if (objName == "UrlCodec") {
