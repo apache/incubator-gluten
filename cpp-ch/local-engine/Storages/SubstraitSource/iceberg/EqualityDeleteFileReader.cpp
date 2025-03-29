@@ -122,7 +122,7 @@ ExpressionActionsPtr EqualityDeleteActionBuilder::finish()
 }
 
 EqualityDeleteFileReader::EqualityDeleteFileReader(
-    const ContextPtr & context, const Block & read_header, const substraitIcebergDeleteFile & deleteFile)
+    const ContextPtr & context, const Block & read_header, const SubstraitIcebergDeleteFile & deleteFile)
     : context_(context), deleteFile_(deleteFile)
 {
     assert(deleteFile_.recordcount() > 0);
@@ -163,7 +163,7 @@ void EqualityDeleteFileReader::readDeleteValues(EqualityDeleteActionBuilder & ex
 ExpressionActionsPtr EqualityDeleteFileReader::createDeleteExpr(
     const ContextPtr & context,
     const Block & data_file_header,
-    const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+    const google::protobuf::RepeatedPtrField<SubstraitIcebergDeleteFile> & delete_files,
     const std::vector<int> & equality_delete_files,
     Block & reader_header)
 {

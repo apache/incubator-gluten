@@ -17,19 +17,48 @@
 
 #pragma once
 
-#include "compute/VeloxBackend.h"
 #include "memory/AllocationListener.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/MemoryManager.h"
 #include "velox/common/memory/Memory.h"
 #include "velox/common/memory/MemoryPool.h"
 
+#include <velox/common/config/Config.h>
+
 namespace gluten {
+
+constexpr std::string_view kMemoryPoolInitialCapacity{"memory-pool-initial-capacity"};
+constexpr uint64_t kDefaultMemoryPoolInitialCapacity{256 << 20};
+constexpr std::string_view kMemoryPoolTransferCapacity{"memory-pool-transfer-capacity"};
+constexpr uint64_t kDefaultMemoryPoolTransferCapacity{128 << 20};
+constexpr std::string_view kMemoryReclaimMaxWaitMs{"memory-reclaim-max-wait-time"};
+constexpr std::string_view kDefaultMemoryReclaimMaxWaitMs{"3600000ms"};
+
+std::unordered_map<std::string, std::string> getExtraArbitratorConfigs(
+    const facebook::velox::config::ConfigBase& backendConf);
+
+class ArbitratorFactoryRegister {
+ public:
+  explicit ArbitratorFactoryRegister(gluten::AllocationListener* listener);
+
+  virtual ~ArbitratorFactoryRegister();
+
+  const std::string& getKind() const {
+    return kind_;
+  }
+
+ private:
+  std::string kind_;
+  gluten::AllocationListener* listener_;
+};
 
 // Make sure the class is thread safe
 class VeloxMemoryManager final : public MemoryManager {
  public:
-  VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener);
+  VeloxMemoryManager(
+      const std::string& kind,
+      std::unique_ptr<AllocationListener> listener,
+      const facebook::velox::config::ConfigBase& backendConf);
 
   ~VeloxMemoryManager() override;
   VeloxMemoryManager(const VeloxMemoryManager&) = delete;
@@ -87,15 +116,8 @@ class VeloxMemoryManager final : public MemoryManager {
   std::vector<std::shared_ptr<facebook::velox::memory::MemoryPool>> heldVeloxPools_;
 };
 
-/// Not tracked by Spark and should only used in test or validation.
-inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
-  static auto memoryManager =
-      std::make_shared<gluten::VeloxMemoryManager>(gluten::kVeloxBackendKind, gluten::AllocationListener::noop());
-  return memoryManager;
-}
+VeloxMemoryManager* getDefaultMemoryManager();
 
-inline std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
-  return getDefaultMemoryManager()->getLeafMemoryPool();
-}
+std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool();
 
 } // namespace gluten

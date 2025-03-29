@@ -270,3 +270,35 @@ case class CHStringSplitTransformer(
   // In Spark: split return Array(String), while Array is nullable
   // In CH: splitByXXX return Array(Nullable(String))
 }
+
+case class CHArraySortTransformer(
+    substraitExprName: String,
+    argument: ExpressionTransformer,
+    function: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = {
+    def comparatorNotNull(left: Expression, right: Expression): Expression = {
+      val lit0 = Literal(0)
+      val lit1 = Literal(1)
+      val litm1 = Literal(-1)
+      If(LessThan(left, right), litm1, If(GreaterThan(left, right), lit1, lit0))
+    }
+
+    // Check if original.function is default comparator
+    // If it is, we only transform the argument and it is good for performance in CH backend.
+    // Otherwise, we transform both argument and function
+    val functionExpr = original.asInstanceOf[ArraySort].function.asInstanceOf[LambdaFunction]
+    val defaultComparatorNotNull =
+      comparatorNotNull(functionExpr.children(1), functionExpr.children(2))
+    val defaultComparor = ArraySort.comparator(functionExpr.children(1), functionExpr.children(2))
+    val isDefaultComparator = functionExpr.function.semanticEquals(defaultComparatorNotNull) ||
+      functionExpr.function.semanticEquals(defaultComparor)
+
+    if (isDefaultComparator) {
+      Seq(argument)
+    } else {
+      Seq(argument, function)
+    }
+  }
+}

@@ -60,6 +60,9 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
+
+  def enablePropagateIgnoreNullKeys: Boolean =
+    getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
 }
 
 object VeloxConfig {
@@ -111,6 +114,13 @@ object VeloxConfig {
       .doc("The max time in ms to wait for memory reclaim.")
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefault(TimeUnit.MINUTES.toMillis(60))
+
+  val COLUMNAR_VELOX_MEMORY_POOL_CAPACITY_TRANSFER_ACROSS_TASKS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks")
+      .internal()
+      .doc("Whether to allow memory capacity transfer between memory pools from different tasks.")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
@@ -520,4 +530,13 @@ object VeloxConfig {
       .internal()
       .stringConf
       .createWithDefault("")
+
+  val VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.propagateIgnoreNullKeys")
+      .doc(
+        "If enabled, we will identify aggregation followed by an inner join " +
+          "on the grouping keys, and mark the ignoreNullKeys flag to true to " +
+          "avoid unnecessary aggregation on null keys.")
+      .booleanConf
+      .createWithDefault(true)
 }

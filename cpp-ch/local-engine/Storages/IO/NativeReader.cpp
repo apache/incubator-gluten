@@ -130,7 +130,7 @@ static void readNormalSimpleData(DB::ReadBuffer &in, DB::ColumnPtr & column, siz
     ISerialization::DeserializeBinaryBulkStatePtr state;
 
     column_parse_util.serializer->deserializeBinaryBulkStatePrefix(settings, state, nullptr);
-    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(column, rows, settings, state, nullptr);
+    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(column, 0, rows, settings, state, nullptr);
 }
 
 // May not efficient.
@@ -147,7 +147,7 @@ readNormalComplexData(DB::ReadBuffer & in, DB::ColumnPtr & column, size_t rows, 
 
     DB::ColumnPtr new_col = column->cloneResized(0);
     column_parse_util.serializer->deserializeBinaryBulkStatePrefix(settings, state ,nullptr);
-    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(new_col, rows, settings, state, nullptr);
+    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(new_col, 0, rows, settings, state, nullptr);
     column->assumeMutable()->insertRangeFrom(*new_col, 0, new_col->size());
 }
 

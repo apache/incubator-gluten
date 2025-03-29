@@ -232,16 +232,13 @@ abstract class WholeStageTransformerSuite
    * spark environment with gluten disabled config.
    *
    * @param sql
-   * @param f
    * @return
    */
-  protected def runAndCompare(sql: String)(f: => Unit): DataFrame = {
+  protected def runAndCompare(sql: String): DataFrame = {
     var expected: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
-      f
       expected = spark.sql(sql).collect()
     }
-    f
     val df = spark.sql(sql)
     checkAnswer(df, expected)
     df

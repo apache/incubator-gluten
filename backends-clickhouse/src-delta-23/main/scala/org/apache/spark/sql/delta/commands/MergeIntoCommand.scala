@@ -49,9 +49,7 @@ import org.apache.spark.sql.types.{DataTypes, LongType, StructType}
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 2.3.0. It is modified to overcome the following issues:
- *   1. In Clickhouse backend, we can't implement input_file_name() correctly, we can only implement
- *      it so that it return a a list of filenames (concated by ',').
+ * This file is copied from Delta 2.3.0.
  */
 
 case class MergeDataSizes(

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.sql.shims
 
+import org.apache.gluten.GlutenBuildInfo.SPARK_COMPILE_VERSION
 import org.apache.gluten.expression.Sig
 
 import org.apache.spark.{SparkContext, TaskContext}
@@ -47,6 +48,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
+import org.apache.spark.util.SparkVersionUtil
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
@@ -57,17 +59,29 @@ import java.util.{Map => JMap, Properties}
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-sealed abstract class ShimDescriptor
-
-case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimDescriptor {
+case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) {
   override def toString(): String = s"$major.$minor.$patch"
 
-  def toMajorMinorVersion: String = s"$major.$minor"
+  def matches(other: SparkShimDescriptor): Boolean = {
+    major == other.major && minor == other.minor
+  }
+}
+
+object SparkShimDescriptor {
+  def apply(version: String): SparkShimDescriptor = {
+    SparkVersionUtil.majorMinorPatchVersion(version) match {
+      case Some((major, minor, patch)) => SparkShimDescriptor(major, minor, patch)
+      case None =>
+        val (major, minor) = SparkVersionUtil.majorMinorVersion(version)
+        SparkShimDescriptor(major, minor, 0)
+    }
+  }
+
+  // Default shim descriptor being detected from the Spark version at compile time
+  val DESCRIPTOR: SparkShimDescriptor = SparkShimDescriptor(SPARK_COMPILE_VERSION)
 }
 
 trait SparkShims {
-  def getShimDescriptor: ShimDescriptor
-
   // for this purpose, change HashClusteredDistribution to ClusteredDistribution
   // https://github.com/apache/spark/pull/32875
   def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]

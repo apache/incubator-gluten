@@ -19,10 +19,11 @@
 #include <Core/Settings.h>
 #include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
-#include <Parser/InputFileNameParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
+#include <Processors/QueryPlan/ExpressionStep.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
+#include <Storages/SubstraitSource/FormatFile.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <google/protobuf/wrappers.pb.h>
@@ -73,33 +74,18 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     merge_tree_table.snapshot_id = "";
     auto storage = merge_tree_table.restoreStorage(QueryContext::globalMutableContext());
 
-    InputFileNameParser input_file_name_parser;
     DB::Block input;
     DB::Block original_input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
     {
         input = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-        if (InputFileNameParser::hasInputFileNameColumn(input))
+        if (input.findByName(FileMetaColumns::INPUT_FILE_NAME) != nullptr)
         {
-            std::vector<String> parts;
-            for (const auto & part : merge_tree_table.parts)
-            {
-                parts.push_back(merge_tree_table.absolute_path + "/" + part.name);
-            }
-            auto name = Poco::cat<String>(",", parts.begin(), parts.end());
-            input_file_name_parser.setFileName(name);
+            // mergetree use concat(path, _part) instead of input_file_name
+            input.insert(ColumnWithTypeAndName(ColumnWithTypeAndName(std::make_shared<DataTypeString>(), VIRTUAL_COLUMN_PART)));
         }
-        if (InputFileNameParser::hasInputFileBlockStartColumn(input))
-        {
-            // mergetree doesn't support block start
-            input_file_name_parser.setBlockStart(0);
-        }
-        if (InputFileNameParser::hasInputFileBlockLengthColumn(input))
-        {
-            // mergetree doesn't support block length
-            input_file_name_parser.setBlockLength(0);
-        }
-        input = InputFileNameParser::removeInputFileColumn(input);
+        // remove input_file_name, input_file_block_start, input_file_block_size due to mergetree doesn't have them
+        input = FileMetaColumns::removeVirtualColumns(input);
 
         SparkSQLConfig sql_config = SparkSQLConfig::loadFromContext(context);
         // case_insensitive_matching
@@ -186,10 +172,65 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
             "Rename MergeTree Output"));
     }
 
-    if (auto step = input_file_name_parser.addInputFileProjectStep(*query_plan); step.has_value())
+    // add virtual columns step
+    if (auto step = MergeTreeRelParser::addVirtualColumnsProjectStep(*query_plan, rel, merge_tree_table.absolute_path); step.has_value())
         steps.emplace_back(step.value());
     return query_plan;
 }
+
+std::optional<DB::IQueryPlanStep *> MergeTreeRelParser::addVirtualColumnsProjectStep(DB::QueryPlan & plan, const substrait::ReadRel & rel, const std::string & path)
+{
+    if (!rel.has_base_schema() || rel.base_schema().names_size() < 1)
+        return std::nullopt;
+    bool contains_input_file_name = false;
+    bool contains_input_file_block_start = false;
+    bool contains_input_file_block_length = false;
+    for (const auto & name : rel.base_schema().names())
+    {
+        if (name == FileMetaColumns::INPUT_FILE_NAME)
+            contains_input_file_name = true;
+        if (name == FileMetaColumns::INPUT_FILE_BLOCK_START)
+            contains_input_file_block_start = true;
+        if (name == FileMetaColumns::INPUT_FILE_BLOCK_LENGTH)
+            contains_input_file_block_length = true;
+    }
+    if (!contains_input_file_name && !contains_input_file_block_start && !contains_input_file_block_length)
+        return std::nullopt;
+
+    const auto & header = plan.getCurrentHeader();
+    DB::ActionsDAG actions_dag(header.getNamesAndTypesList());
+    if (contains_input_file_name)
+    {
+        auto concat_func = FunctionFactory::instance().get("concat", context);
+        DB::ActionsDAG::NodeRawConstPtrs args;
+        const auto string_type = std::make_shared<DB::DataTypeString>();
+        const auto * path_node = &actions_dag.addColumn(DB::ColumnWithTypeAndName(string_type->createColumnConst(1, path + "/"), string_type, "path"));
+        args.emplace_back(path_node);
+        const auto & part_name = actions_dag.findInOutputs(VIRTUAL_COLUMN_PART);
+        args.emplace_back(&part_name);
+        actions_dag.addOrReplaceInOutputs(actions_dag.addFunction(concat_func, args, FileMetaColumns::INPUT_FILE_NAME));
+    }
+    if (contains_input_file_block_start)
+    {
+        const auto int64_type = std::make_shared<DB::DataTypeInt64>();
+        actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(DB::ColumnWithTypeAndName(int64_type->createColumnConst(1, -1), int64_type, FileMetaColumns::INPUT_FILE_BLOCK_START)));
+    }
+    if (contains_input_file_block_length)
+    {
+        const auto int64_type = std::make_shared<DB::DataTypeInt64>();
+        actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(DB::ColumnWithTypeAndName(int64_type->createColumnConst(1, -1), int64_type, FileMetaColumns::INPUT_FILE_BLOCK_LENGTH)));
+    }
+
+    if (contains_input_file_name)
+        actions_dag.removeUnusedResult(VIRTUAL_COLUMN_PART);
+    auto step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(actions_dag));
+    step->setStepDescription("Add virtual columns");
+    std::optional<DB::IQueryPlanStep *> result = step.get();
+    plan.addStep(std::move(step));
+    return result;
+}
+
+
 
 PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expression & rel, const Block & input)
 {

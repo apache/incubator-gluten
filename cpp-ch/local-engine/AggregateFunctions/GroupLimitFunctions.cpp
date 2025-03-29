@@ -271,7 +271,6 @@ private:
                     DB::ErrorCodes::BAD_ARGUMENTS, "Not found column {} in tuple {}", ident_name, argument_types[0]->getName());
             }
             field.pos = std::distance(tuple_element_names.begin(), name_pos);
-
             fields.push_back(field);
         }
         return fields;

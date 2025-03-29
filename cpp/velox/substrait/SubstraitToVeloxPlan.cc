@@ -16,6 +16,9 @@
  */
 
 #include "SubstraitToVeloxPlan.h"
+
+#include "utils/StringUtil.h"
+
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
@@ -343,6 +346,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_LEFT:
       joinType = core::JoinType::kLeft;
       break;
+    case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_OUTER:
+      joinType = core::JoinType::kFull;
+      break;
     default:
       VELOX_NYI("Unsupported Join type: {}", std::to_string(crossRel.type()));
   }
@@ -413,6 +419,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "isStreaming=")) {
     preGroupingExprs.reserve(veloxGroupingExprs.size());
     preGroupingExprs.insert(preGroupingExprs.begin(), veloxGroupingExprs.begin(), veloxGroupingExprs.end());
+  }
+
+  if (aggRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "ignoreNullKeys=")) {
+    ignoreNullKeys = true;
   }
 
   // Get the output names of Aggregation.
@@ -490,7 +501,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 }
 
 std::string makeUuid() {
-  return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
+  return generateUuid();
 }
 
 std::string compressionFileNameSuffix(common::CompressionKind kind) {

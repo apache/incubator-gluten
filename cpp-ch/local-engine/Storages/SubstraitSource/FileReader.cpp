@@ -28,6 +28,7 @@
 #include <Common/Exception.h>
 #include <Common/GlutenStringUtils.h>
 #include <Parser/SubstraitParserUtils.h>
+#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
 #include <Storages/SubstraitSource/Delta/DeltaReader.h>
 
 namespace DB
@@ -292,19 +293,22 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
     if (!input_format)
         return nullptr;
 
-    if (file->getFileInfo().other_const_metadata_columns_size())
+    // when there is a '__delta_internal_is_row_deleted' column, it needs to use DeltaReader to read data and add column
+    if (DeltaParquetVirtualMeta::hasMetaColumns(to_read_header_))
     {
         String row_index_ids_encoded;
         String row_index_filter_type;
-        for (const auto & column : file->getFileInfo().other_const_metadata_columns())
+        if (file->getFileInfo().other_const_metadata_columns_size())
         {
-            if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_ID_ENCODED)
-                row_index_ids_encoded = toString(column.value());
-            if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_TYPE)
-                row_index_filter_type = toString(column.value());
+            for (const auto & column : file->getFileInfo().other_const_metadata_columns())
+            {
+                if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_ID_ENCODED)
+                    row_index_ids_encoded = toString(column.value());
+                if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_TYPE)
+                    row_index_filter_type = toString(column.value());
+            }
         }
-        if (!row_index_ids_encoded.empty() && !row_index_filter_type.empty())
-            return delta::DeltaReader::create(file, to_read_header_, output_header_, input_format, row_index_ids_encoded, row_index_filter_type);
+        return delta::DeltaReader::create(file, to_read_header_, output_header_, input_format, row_index_ids_encoded, row_index_filter_type);
     }
 
     return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);

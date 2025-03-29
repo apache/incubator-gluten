@@ -18,9 +18,10 @@ package org.apache.spark.sql.execution.unsafe
 
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
+import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.unsafe.Platform
 import org.apache.spark.unsafe.array.LongArray
+import org.apache.spark.unsafe.memory.MemoryAllocator
 
 /**
  * Used to store broadcast variable off-heap memory for broadcast variable. The underlying data
@@ -35,14 +36,8 @@ import org.apache.spark.unsafe.array.LongArray
  */
 // scalastyle:off no.finalize
 @Experimental
-case class UnsafeBytesBufferArray(
-    arraySize: Int,
-    bytesBufferLengths: Array[Int],
-    totalBytes: Long,
-    tmm: TaskMemoryManager)
-  extends MemoryConsumer(tmm, MemoryMode.OFF_HEAP)
-  with Logging {
-
+case class UnsafeBytesBufferArray(arraySize: Int, bytesBufferLengths: Array[Int], totalBytes: Long)
+  extends Logging {
   {
     assert(
       arraySize == bytesBufferLengths.length,
@@ -50,6 +45,7 @@ case class UnsafeBytesBufferArray(
         "not equal to buffer lengths!")
     assert(totalBytes >= 0, "Unsafe buffer array total bytes can't be negative!")
   }
+  private val allocatedBytes = (totalBytes + 7) / 8 * 8
 
   /**
    * A single array to store all bytesBufferArray's value, it's inited once when first time get
@@ -64,8 +60,6 @@ case class UnsafeBytesBufferArray(
     bytesBufferLengths.init.scanLeft(0)(_ + _)
   }
 
-  override def spill(l: Long, memoryConsumer: MemoryConsumer): Long = 0L
-
   /**
    * Put bytesBuffer at specified array index.
    *
@@ -79,7 +73,8 @@ case class UnsafeBytesBufferArray(
     assert(bytesBuffer.length == bytesBufferLengths(index))
     // first to allocate underlying long array
     if (null == longArray && index == 0) {
-      longArray = allocateArray((totalBytes + 7) / 8)
+      GlobalOffHeapMemory.acquire(allocatedBytes)
+      longArray = new LongArray(MemoryAllocator.UNSAFE.allocate(allocatedBytes))
     }
 
     Platform.copyMemory(
@@ -132,8 +127,8 @@ case class UnsafeBytesBufferArray(
   override def finalize(): Unit = {
     try {
       if (longArray != null) {
-        freeArray(longArray)
         longArray = null
+        GlobalOffHeapMemory.release(allocatedBytes)
       }
     } finally {
       super.finalize()

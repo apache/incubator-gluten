@@ -32,6 +32,7 @@ import org.apache.gluten.utils._
 import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.shuffle.{ColumnarShuffleDependency, LookupKey, ShuffleManagerRegistry}
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager
@@ -204,7 +205,9 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (isDriver && !inLocalMode(conf)) {
       parsed += (COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
     }
-    NativeBackendInitializer.forBackend(VeloxBackend.BACKEND_NAME).initialize(parsed)
+    NativeBackendInitializer
+      .forBackend(VeloxBackend.BACKEND_NAME)
+      .initialize(GlobalOffHeapMemory.newReservationListener(), parsed)
 
     // Inject backend-specific implementations to override spark classes.
     GlutenFormatFactory.register(new VeloxParquetWriterInjects)

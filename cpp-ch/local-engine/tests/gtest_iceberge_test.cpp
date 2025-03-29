@@ -321,9 +321,9 @@ protected:
     std::unique_ptr<BaseReader> makeIcebergSplit(
         const std::string& dataFilePath,
         const DB::Block & sampleBlock,
-        const std::vector<substraitIcebergDeleteFile>& deleteFiles = {})
+        const std::vector<SubstraitIcebergDeleteFile>& deleteFiles = {})
     {
-        substraitInputFile file_info = makeInputFile(dataFilePath, deleteFiles);
+        SubstraitInputFile file_info = makeInputFile(dataFilePath, deleteFiles);
         const Poco::URI file_uri{file_info.uri_file()};
 
         ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context_);
@@ -334,12 +334,12 @@ protected:
 
     std::unique_ptr<BaseReader> makeIcebergSplit(
         const std::string& dataFilePath,
-        const std::vector<substraitIcebergDeleteFile>& deleteFiles = {})
+        const std::vector<SubstraitIcebergDeleteFile>& deleteFiles = {})
     {
         return makeIcebergSplit(dataFilePath, toSampleBlock(readParquetSchema(dataFilePath, getFormatSettings(context_))), deleteFiles);
     }
 
-    substraitIcebergDeleteFile makeDeleteFile(
+    SubstraitIcebergDeleteFile makeDeleteFile(
         FileContent file_content,
         const std::string & _path,
         uint64_t _recordCount,
@@ -348,7 +348,7 @@ protected:
         std::unordered_map<int32_t, std::string> _lowerBounds = {},
         std::unordered_map<int32_t, std::string> _upperBounds = {} )
     {
-        substraitIcebergDeleteFile deleteFile;
+        SubstraitIcebergDeleteFile deleteFile;
         deleteFile.set_filecontent(file_content);
         deleteFile.set_filepath("file://" + _path);
         deleteFile.set_recordcount(_recordCount);
@@ -362,9 +362,9 @@ protected:
         return deleteFile;
     }
 
-    substraitInputFile makeInputFile(const std::string & _path, const std::vector<substraitIcebergDeleteFile> & _deleteFiles)
+    SubstraitInputFile makeInputFile(const std::string & _path, const std::vector<SubstraitIcebergDeleteFile> & _deleteFiles)
     {
-        substraitInputFile file;
+        SubstraitInputFile file;
         file.set_uri_file("file://" + _path);
         file.set_start(0);
         file.set_length(std::filesystem::file_size(_path));
@@ -486,7 +486,7 @@ public:
             std::string baseFileName = dataFile.first;
             std::string baseFilePath = dataFile.second->string();
 
-            std::vector<substraitIcebergDeleteFile> deleteFiles;
+            std::vector<SubstraitIcebergDeleteFile> deleteFiles;
 
             for (auto const& deleteFile : deleteFilesForBaseDatafiles) {
                 std::string deleteFileName = deleteFile.first;
@@ -499,7 +499,7 @@ public:
                     auto deleteFilePath =
                         deleteFilePaths[deleteFileName].second->string();
 
-                    substraitIcebergDeleteFile icebergDeleteFile = makeDeleteFile(
+                    SubstraitIcebergDeleteFile icebergDeleteFile = makeDeleteFile(
                         IcebergReadOptions::POSITION_DELETES,
                         deleteFilePath,
                         deleteFilePaths[deleteFileName].first,
@@ -606,7 +606,7 @@ public:
         std::shared_ptr<TempFilePath> dataFilePath =
             writeDataFiles(rowCount, numDataColumns)[0];
 
-        std::vector<substraitIcebergDeleteFile> deleteFiles;
+        std::vector<SubstraitIcebergDeleteFile> deleteFiles;
         std::string predicates = "";
         unsigned long numDeletedValues = 0;
 

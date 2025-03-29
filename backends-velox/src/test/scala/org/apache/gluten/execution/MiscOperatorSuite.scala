@@ -24,6 +24,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -1988,6 +1989,55 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("support null type in aggregate") {
     runQueryAndCompare("SELECT max(null), min(null) from range(10)".stripMargin) {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+  }
+
+  test("FullOuter in BroadcastNestLoopJoin") {
+    withTable("t1", "t2") {
+      spark.range(10).write.format("parquet").saveAsTable("t1")
+      spark.range(10).write.format("parquet").saveAsTable("t2")
+
+      // with join condition should fallback.
+      withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
+        runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2 ON t1.id < t2.id") {
+          checkSparkOperatorMatch[BroadcastNestedLoopJoinExec]
+        }
+
+        // without join condition should offload to gluten operator.
+        runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2") {
+          checkGlutenOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
+        }
+      }
+    }
+  }
+
+  test("test get_struct_field with scalar function as input") {
+    withSQLConf("spark.sql.json.enablePartialResults" -> "true") {
+      withTable("t") {
+        withTempPath {
+          path =>
+            Seq[String](
+              "{\"a\":1,\"b\":[10, 11, 12]}",
+              "{\"a\":2,\"b\":[20, 21, 22]}"
+            ).toDF("json_str").write.parquet(path.getCanonicalPath)
+            spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+
+            val query =
+              """
+                | select
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').a,
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').b
+                | from t
+                |""".stripMargin
+
+            runQueryAndCompare(query)(
+              df => {
+                val executedPlan = getExecutedPlan(df)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExecTransformer]) == 1)
+              })
+        }
+      }
     }
   }
 }

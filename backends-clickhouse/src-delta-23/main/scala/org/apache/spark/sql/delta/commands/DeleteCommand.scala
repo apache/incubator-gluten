@@ -35,15 +35,13 @@ import org.apache.spark.sql.catalyst.plans.logical.{DeltaDelete, LogicalPlan}
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.metric.SQLMetrics.{createMetric, createTimingMetric}
-import org.apache.spark.sql.functions.{col, explode, input_file_name, split}
+import org.apache.spark.sql.functions.input_file_name
 import org.apache.spark.sql.types.LongType
 
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 2.3.0. It is modified to overcome the following issues:
- *   1. In Clickhouse backend, we can't implement input_file_name() correctly, we can only implement
- *      it so that it return a a list of filenames (concated by ',').
+ * This file is copied from Delta 2.3.0.
  */
 
 trait DeleteCommandMetrics { self: LeafRunnableCommand =>
@@ -293,7 +291,6 @@ case class DeleteCommand(
                   data.filter(new Column(cond))
                     .select(input_file_name().as("input_files"))
                     .filter(deletedRowUdf())
-                    .select(explode(split(col("input_files"), ",")))
                     .distinct()
                     .as[String]
                     .collect()

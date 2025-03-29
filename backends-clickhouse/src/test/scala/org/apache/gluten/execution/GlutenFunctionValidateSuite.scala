@@ -507,6 +507,19 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test str2map, regular expression") {
+    val sql1 =
+      """
+        |select str_to_map('ab', '', ''),
+        | str_to_map('a:b,c:d'),
+        | str_to_map('ab', '', ':'),
+        | str_to_map('a:,c:d,e', ',', ''),
+        | str_to_map('a,b', ',', ''),
+        | str_to_map('a:c|b:c', '\\|', ':')
+        |""".stripMargin
+    runQueryAndCompare(sql1, true, false)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test parse_url") {
     val sql1 =
       """
@@ -1218,4 +1231,32 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("Test partition values with special characters") {
+    spark.sql("""
+      CREATE TABLE tbl_9050 (
+        product_id STRING,
+        quantity INT
+      ) using parquet
+      PARTITIONED BY (year STRING)
+    """)
+
+    sql("INSERT INTO tbl_9050 PARTITION(year='%s') SELECT 'prod1', 1")
+    sql("INSERT INTO tbl_9050 PARTITION(year='%%s') SELECT 'prod2', 2")
+    sql("INSERT INTO tbl_9050 PARTITION(year='%25s') SELECT 'prod3', 3")
+    sql("INSERT INTO tbl_9050 PARTITION(year=' s') SELECT 'prod3', 4")
+
+    compareResultsAgainstVanillaSpark("select *, input_file_name() from tbl_9050", true, { _ => })
+
+    sql("DROP TABLE tbl_9050")
+  }
+
+  test("Test array_sort without comparator") {
+    // default comparator with array elements not nullable guaranteed
+    val sql1 = "select array_sort(split(cast(id * 10 as string), '0')) from range(10)"
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    // default comparator without array elements not nullable guaranteed
+    val sql2 = "select array_sort(array(id+1, null, id+2)) from range(10)"
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+  }
 }

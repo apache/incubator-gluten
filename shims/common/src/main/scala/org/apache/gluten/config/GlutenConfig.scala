@@ -359,6 +359,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
 
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
+
+  def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
+
+  def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
 }
 
 object GlutenConfig {
@@ -492,7 +496,12 @@ object GlutenConfig {
       "spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds",
       "spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes",
       "spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp",
-      "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig"
+      "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig",
+      "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace",
+      "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
+      "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
+      "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
+      "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -1693,5 +1702,19 @@ object GlutenConfig {
       .intConf
       .checkValue(_ > 0, s"must be positive.")
       .createWithDefault(10)
+
+  val COLUMNAR_RANGE_ENABLED =
+    buildConf("spark.gluten.sql.columnar.range")
+      .internal()
+      .doc("Enable or disable columnar range.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_COLLECT_LIMIT_ENABLED =
+    buildConf("spark.gluten.sql.columnar.collectLimit")
+      .internal()
+      .doc("Enable or disable columnar collectLimit.")
+      .booleanConf
+      .createWithDefault(true)
 
 }

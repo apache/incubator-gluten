@@ -17,7 +17,7 @@
 package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
-import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
@@ -71,7 +71,6 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   override def getDistribution(
       leftKeys: Seq[Expression],
@@ -91,7 +90,8 @@ class Spark35Shims extends SparkShims {
       Sig[RoundFloor](ExpressionNames.FLOOR),
       Sig[RoundCeil](ExpressionNames.CEIL),
       Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT),
-      Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT)
+      Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT),
+      Sig[ArrayAppend](ExpressionNames.ARRAY_APPEND)
     )
   }
 

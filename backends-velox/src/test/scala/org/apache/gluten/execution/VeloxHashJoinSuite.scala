@@ -21,7 +21,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
 import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarSubqueryBroadcastExec, InputIteratorTransformer}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
 
@@ -194,5 +194,72 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
             assert(buildKeysAttrs.exists(_.size > 1))
           }
         })
+  }
+
+  test("pull out duplicate projections for HashProbe and FilterProject") {
+    withTable("t1", "t2", "t3") {
+      Seq((1, 1), (2, 2)).toDF("c1", "c2").write.saveAsTable("t1")
+      Seq(1, 2, 3).toDF("c1").write.saveAsTable("t2")
+      Seq(1, 2, 3).toDF("c1").write.saveAsTable("t3")
+      // test HashProbe, pull out `c2 as a,c2 as b`.
+      val q1 =
+        """
+          |select tt1.* from
+          |(select c1,c2, c2 as a,c2 as b from t1) tt1
+          |left join t2
+          |on tt1.c1 = t2.c1
+          |""".stripMargin
+      val q2 =
+        """
+          |select tt1.* from
+          |(select c1, c2 as a,c2 as b from t1) tt1
+          |left join t2
+          |on tt1.c1 = t2.c1
+          |limit 1
+          |""".stripMargin
+      val q3 =
+        """
+          |select tt1.* from
+          |(select c1, c2 as a,c2 as b from t1) tt1
+          |left join t2
+          |on tt1.c1 = t2.c1
+          |left join t3
+          |on tt1.c1 = t3.c1
+          |""".stripMargin
+      Seq(q1, q2, q3).foreach {
+        runQueryAndCompare(_) {
+          df =>
+            {
+              val executedPlan = getExecutedPlan(df)
+              val projects = executedPlan.collect {
+                case p @ ProjectExecTransformer(_, _: BroadcastHashJoinExecTransformer) => p
+              }
+              assert(projects.nonEmpty)
+              val aliases = projects.last.projectList.collect { case a: Alias => a }
+              assert(aliases.size == 2)
+            }
+        }
+      }
+
+      // test FilterProject, only pull out `c2 as b`.
+      val q4 =
+        """
+          |select c1, c2, a, b from
+          |(select c1, c2, c2 as a, c2 as b, rand() as c from t1) tt1
+          |where c > -1 and b > 1
+          |""".stripMargin
+      runQueryAndCompare(q4) {
+        df =>
+          {
+            val executedPlan = getExecutedPlan(df)
+            val projects = executedPlan.collect {
+              case p @ ProjectExecTransformer(_, _: FilterExecTransformer) => p
+            }
+            assert(projects.nonEmpty)
+            val aliases = projects.last.projectList.collect { case a: Alias => a }
+            assert(aliases.size == 1)
+          }
+      }
+    }
   }
 }

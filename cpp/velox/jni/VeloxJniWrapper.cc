@@ -42,6 +42,9 @@ using namespace gluten;
 using namespace facebook;
 
 namespace {
+jclass infoCls;
+jmethodID infoClsInitMethod;
+
 jclass blockStripesClass;
 jmethodID blockStripesConstructor;
 } // namespace
@@ -60,6 +63,9 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   getJniErrorState()->ensureInitialized(env);
   initVeloxJniFileSystem(env);
   initVeloxJniUDF(env);
+
+  infoCls = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/validate/NativePlanValidationInfo;");
+  infoClsInitMethod = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
 
   blockStripesClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
@@ -86,11 +92,19 @@ void JNI_OnUnload(JavaVM* vm, void*) {
 JNIEXPORT void JNICALL Java_org_apache_gluten_init_NativeBackendInitializer_initialize( // NOLINT
     JNIEnv* env,
     jclass,
+    jobject jListener,
     jbyteArray conf) {
   JNI_METHOD_START
+  JavaVM* vm;
+  if (env->GetJavaVM(&vm) != JNI_OK) {
+    throw GlutenException("Unable to get JavaVM instance");
+  }
   auto safeArray = getByteArrayElementsSafe(env, conf);
+  // Create a global allocation listener that reserves global off-heap memory from Java-side GlobalOffHeapMemory utility
+  // class.
+  std::unique_ptr<AllocationListener> listener = std::make_unique<SparkAllocationListener>(vm, jListener);
   auto sparkConf = parseConfMap(env, safeArray.elems(), safeArray.length());
-  VeloxBackend::create(sparkConf);
+  VeloxBackend::create(std::move(listener), sparkConf);
   JNI_METHOD_END()
 }
 
@@ -116,14 +130,14 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
     jobject wrapper,
     jbyteArray planArray) {
   JNI_METHOD_START
-  auto ctx = getRuntime(env, wrapper);
-  auto safeArray = getByteArrayElementsSafe(env, planArray);
-  auto planData = safeArray.elems();
-  auto planSize = env->GetArrayLength(planArray);
-  auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
+  const auto ctx = getRuntime(env, wrapper);
+  const auto safeArray = getByteArrayElementsSafe(env, planArray);
+  const auto planData = safeArray.elems();
+  const auto planSize = env->GetArrayLength(planArray);
+  const auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
   if (runtime->debugModeEnabled()) {
     try {
-      auto jsonPlan = substraitFromPbToJson("Plan", planData, planSize, std::nullopt);
+      const auto jsonPlan = substraitFromPbToJson("Plan", planData, planSize, std::nullopt);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan: for validation";
       LOG(INFO) << jsonPlan;
     } catch (const std::exception& e) {
@@ -131,37 +145,22 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
     }
   }
 
+  const auto pool = defaultLeafVeloxMemoryPool().get();
+  SubstraitToVeloxPlanValidator planValidator(pool);
   ::substrait::Plan subPlan;
   parseProtobuf(planData, planSize, &subPlan);
 
-  // A query context with dummy configs. Used for function validation.
-  std::unordered_map<std::string, std::string> configs{
-      {velox::core::QueryConfig::kSparkPartitionId, "0"}, {velox::core::QueryConfig::kSessionTimezone, "GMT"}};
-  auto queryCtx = velox::core::QueryCtx::create(nullptr, velox::core::QueryConfig(configs));
-  auto pool = defaultLeafVeloxMemoryPool().get();
-  // An execution context used for function validation.
-  velox::core::ExecCtx execCtx(pool, queryCtx.get());
-
-  SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
-  jclass infoCls = env->FindClass("Lorg/apache/gluten/validate/NativePlanValidationInfo;");
-  if (infoCls == nullptr) {
-    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for NativePlanValidationInfo";
-    throw GlutenException(errorMessage);
-  }
-  jmethodID method = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
   try {
-    auto isSupported = planValidator.validate(subPlan);
-    auto logs = planValidator.getValidateLog();
+    const auto isSupported = planValidator.validate(subPlan);
+    const auto logs = planValidator.getValidateLog();
     std::string concatLog;
     for (int i = 0; i < logs.size(); i++) {
       concatLog += logs[i] + "@";
     }
-    return env->NewObject(infoCls, method, isSupported, env->NewStringUTF(concatLog.c_str()));
+    return env->NewObject(infoCls, infoClsInitMethod, isSupported, env->NewStringUTF(concatLog.c_str()));
   } catch (std::invalid_argument& e) {
     LOG(INFO) << "Failed to validate substrait plan because " << e.what();
-    // return false;
-    auto isSupported = false;
-    return env->NewObject(infoCls, method, isSupported, env->NewStringUTF(""));
+    return env->NewObject(infoCls, infoClsInitMethod, false, env->NewStringUTF(""));
   }
   JNI_METHOD_END(nullptr)
 }

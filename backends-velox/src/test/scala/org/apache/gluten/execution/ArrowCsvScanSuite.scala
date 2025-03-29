@@ -32,7 +32,7 @@ class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuiteBase {
   }
 
   test("csv scan v1") {
-    val df = runAndCompare("select * from student")()
+    val df = runAndCompare("select * from student")
     val plan = df.queryExecution.executedPlan
     assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
     assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
@@ -46,7 +46,7 @@ class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuiteBase {
   }
 
   test("csv scan with schema v1") {
-    val df = runAndCompare("select * from student_option_schema")()
+    val df = runAndCompare("select * from student_option_schema")
     val plan = df.queryExecution.executedPlan
     assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
     val scan = plan.find(_.isInstanceOf[BaseArrowScanExec])
@@ -69,7 +69,7 @@ class ArrowCsvScanSuiteV2 extends ArrowCsvScanSuite {
   }
 
   test("csv scan") {
-    runAndCompare("select * from student")()
+    runAndCompare("select * from student")
   }
 }
 
@@ -97,14 +97,14 @@ class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
 abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
 
   test("csv scan with option string as null") {
-    val df = runAndCompare("select * from student_option_str")()
+    val df = runAndCompare("select * from student_option_str")
     val plan = df.queryExecution.executedPlan
     assert(plan.find(_.isInstanceOf[ColumnarToRowExec]).isDefined)
     assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
   }
 
   test("csv scan with option delimiter") {
-    val df = runAndCompare("select * from student_option")()
+    val df = runAndCompare("select * from student_option")
     val plan = df.queryExecution.executedPlan
     assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
     assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
@@ -112,26 +112,26 @@ abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
 
   test("csv scan with missing columns") {
     val df =
-      runAndCompare("select languagemissing, language, id_new_col from student_option_schema_lm")()
+      runAndCompare("select languagemissing, language, id_new_col from student_option_schema_lm")
     val plan = df.queryExecution.executedPlan
     assert(plan.find(s => s.isInstanceOf[VeloxColumnarToRowExec]).isDefined)
     assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
   }
 
   test("csv scan with different name") {
-    val df = runAndCompare("select * from student_option_schema")()
+    val df = runAndCompare("select * from student_option_schema")
     val plan = df.queryExecution.executedPlan
     assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
     assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
 
-    val df2 = runAndCompare("select * from student_option_schema")()
+    val df2 = runAndCompare("select * from student_option_schema")
     val plan2 = df2.queryExecution.executedPlan
     assert(plan2.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
     assert(plan2.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
   }
 
   test("csv scan with filter") {
-    val df = runAndCompare("select * from student where Name = 'Peter'")()
+    val df = runAndCompare("select * from student where Name = 'Peter'")
     assert(df.queryExecution.executedPlan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
     assert(
       df.queryExecution.executedPlan

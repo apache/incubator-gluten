@@ -36,6 +36,7 @@
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
@@ -87,6 +88,10 @@ extern const ServerSettingsUInt64 max_thread_pool_size;
 extern const ServerSettingsUInt64 thread_pool_queue_size;
 extern const ServerSettingsUInt64 max_io_thread_pool_size;
 extern const ServerSettingsUInt64 io_thread_pool_queue_size;
+extern const ServerSettingsString vector_similarity_index_cache_policy;
+extern const ServerSettingsUInt64 vector_similarity_index_cache_size;
+extern const ServerSettingsUInt64 vector_similarity_index_cache_max_entries;
+extern const ServerSettingsDouble vector_similarity_index_cache_size_ratio;
 }
 namespace Setting
 {
@@ -98,6 +103,7 @@ extern const SettingsBool query_plan_merge_filters;
 extern const SettingsBool compile_expressions;
 extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
 extern const SettingsUInt64 output_format_compression_level;
+extern const SettingsBool query_plan_optimize_lazy_materialization;
 }
 namespace ErrorCodes
 {
@@ -311,6 +317,32 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
 
     out.setColumns(std::move(columns));
     return out;
+}
+
+bool TypeUtil::hasNothingType(DB::DataTypePtr data_type)
+{
+    if (DB::isNothing(data_type))
+        return true;
+    else if (data_type->isNullable())
+        return hasNothingType(typeid_cast<const DB::DataTypeNullable *>(data_type.get())->getNestedType());
+    else if (DB::isArray(data_type))
+        return hasNothingType(typeid_cast<const DB::DataTypeArray *>(data_type.get())->getNestedType());
+    else if (DB::isMap(data_type))
+    {
+        const auto * type_map = typeid_cast<const DB::DataTypeMap *>(data_type.get());
+        return hasNothingType(type_map->getKeyType()) || hasNothingType(type_map->getValueType());
+    }
+    else if (DB::isTuple(data_type))
+    {
+        const auto * type_tuple = typeid_cast<const DB::DataTypeTuple *>(data_type.get());
+        for (size_t i = 0; i < type_tuple->getElements().size(); ++i)
+        {
+            if (hasNothingType(type_tuple->getElements()[i]))
+                return true;
+        }
+    }
+    return false;
+
 }
 
 size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
@@ -661,6 +693,11 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     /// output_format_compression_level is set to 3, which is wrong, since snappy does not support it.
     settings[Setting::output_format_compression_level] = arrow::util::kUseDefaultCompressionLevel;
 
+    /// 6. After https://github.com/ClickHouse/ClickHouse/pull/55518
+    /// We currently do not support lazy materialization.
+    /// "test 'order by' two keys" will failed if we enable it.
+    settings[Setting::query_plan_optimize_lazy_materialization] = false;
+    
     for (const auto & [key, value] : spark_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
@@ -739,6 +776,8 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("enable_named_columns_in_function_tuple", false);
     settings.set("date_time_64_output_format_cut_trailing_zeros_align_to_groups_of_thousands", true);
     settings.set("input_format_orc_dictionary_as_low_cardinality", false); //after https://github.com/ClickHouse/ClickHouse/pull/69481
+    settings.set("input_format_parquet_bloom_filter_push_down", true);
+    settings.set("output_format_parquet_write_bloom_filter", true);
 
     if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
@@ -812,7 +851,15 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
         global_context->setIndexMarkCache(index_mark_cache_policy, index_mark_cache_size, index_mark_cache_size_ratio);
-        
+
+        String vector_similarity_index_cache_policy = server_settings[ServerSetting::vector_similarity_index_cache_policy];
+        size_t vector_similarity_index_cache_size = server_settings[ServerSetting::vector_similarity_index_cache_size];
+        size_t vector_similarity_index_cache_max_count = server_settings[ServerSetting::vector_similarity_index_cache_max_entries];
+        double vector_similarity_index_cache_size_ratio = server_settings[ServerSetting::vector_similarity_index_cache_size_ratio];
+        LOG_INFO(log, "Lowered vector similarity index cache size to {} because the system has limited RAM", formatReadableSizeWithBinarySuffix(vector_similarity_index_cache_size));
+
+        global_context->setVectorSimilarityIndexCache(vector_similarity_index_cache_policy, vector_similarity_index_cache_size, vector_similarity_index_cache_max_count, vector_similarity_index_cache_size_ratio);
+
         getMergeTreePrefixesDeserializationThreadPool().initialize(
             server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_size],
             server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_free_size],

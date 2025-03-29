@@ -44,15 +44,11 @@ int main(int argc, char** argv) {
   std::unordered_map<std::string, std::string> conf;
   conf.insert({kDebugModeEnabled, "true"});
   initVeloxBackend(conf);
-  std::unordered_map<std::string, std::string> configs{{core::QueryConfig::kSparkPartitionId, "0"}};
-  auto queryCtx = core::QueryCtx::create(nullptr, core::QueryConfig(configs));
   auto pool = defaultLeafVeloxMemoryPool().get();
-  core::ExecCtx execCtx(pool, queryCtx.get());
+  SubstraitToVeloxPlanValidator planValidator(pool);
 
   ::substrait::Plan subPlan;
   parseProtobuf(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), &subPlan);
-
-  SubstraitToVeloxPlanValidator planValidator(pool, &execCtx);
   try {
     if (!planValidator.validate(subPlan)) {
       auto reason = planValidator.getValidateLog();

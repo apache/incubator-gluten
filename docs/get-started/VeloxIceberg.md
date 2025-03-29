@@ -42,17 +42,40 @@ INSERT INTO local.db.table SELECT id, data FROM source WHERE length(data) = 1;
 ````
 
 ## Reading
-Offload
+### Read data
+Offload/Fallback
+
+| Table Type  | No Delete       | Position Delete | Equality Delete |
+|-------------|-----------------|-----------------|-----------------|
+| unpartition | Offload         | Offload         | Fallback        |
+| partition   | Fallback mostly | Fallback mostly | Fallback        |
+| metadata    | Fallback        |                 |                 |
+
+Offload the simple query.
 ````
 SELECT count(1) as count, data
 FROM local.db.table
 GROUP BY data;
 ````
 
+If delete by Spark and copy on read, will generate position delete file, the query may offload.
+
+If delete by Flink, may generate the equality delete file, fallback in tht case.
+
+Now we only offload the simple query, for partition table, many operators are fallback by Expression
+StaticInvoke such as BucketFunction, wait to be supported.
+
 DataFrame reads are supported and can now reference tables by name using spark.table:
+
 ````
 val df = spark.table("local.db.table")
 df.count()
+````
+
+### Read metadata
+Fallback
+````
+SELECT data, _file FROM local.db.table;
 ````
 
 ## DataType

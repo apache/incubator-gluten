@@ -107,6 +107,7 @@ object Constants {
         "VeloxResizeBatchesExec" -> Set("selfTime"),
         "ColumnarShuffleExchangeExec" -> Set(
           "splitTime",
+          "sortTime",
           "shuffleWallTime",
           "fetchWaitTime",
           "decompressTime",

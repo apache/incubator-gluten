@@ -127,6 +127,8 @@ const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQu
 const std::string kMaxCoalescedDistance = "spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance";
 const std::string kMaxCoalescedBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes";
 const std::string kCachePrefetchMinPct = "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct";
+const std::string kMemoryPoolCapacityTransferAcrossTasks =
+    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks";
 
 // write fies
 const std::string kMaxPartitions = "spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession";

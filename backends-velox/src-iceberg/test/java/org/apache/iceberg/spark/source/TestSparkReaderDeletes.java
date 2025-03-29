@@ -16,6 +16,7 @@
  */
 package org.apache.iceberg.spark.source;
 
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.spark34.TestConfUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -403,6 +404,25 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
 
     assertThat(actual).as("Table should contain expected row").isEqualTo(expected);
     checkDeleteCount(3L);
+    // TODO, the query fallbacks because not supports equality delete.
+    // Error Source: RUNTIME
+    //Error Code: NOT_IMPLEMENTED
+    //Retriable: False
+    //Context: Split [Hive: /var/folders/63/845y6pk53dx_83hpw8ztdchw0000gn/T/junit-17345315326614809092/junit4173952394189821024.tmp 4 - 647] Task Gluten_Stage_5_TID_5_VTID_1
+    //Additional Context: Operator: TableScan[0] 0
+    //Function: prepareSplit
+    //File: /Users/chengchengjin/code/gluten/ep/build-velox/build/velox_ep/velox/connectors/hive/iceberg/IcebergSplitReader.cpp
+    //Line: 95
+    //Stack trace:
+    // Check the table query data because above query is fallback by column _deleted.
+    // This query is fallback by equality delete files, remove this check after equality reader is supported.
+    StructLikeSet actualWithoutMetadata =
+            rowSet(tableName, PROJECTION_SCHEMA_WITHOUT_DELETED.asStruct(), "id", "data");
+    spark.conf().set(GlutenConfig.GLUTEN_ENABLED().key(), "false");
+    StructLikeSet  expectWithoutMetadata =
+            rowSet(tableName, PROJECTION_SCHEMA_WITHOUT_DELETED.asStruct(), "id", "data");
+    assertThat(actualWithoutMetadata).as("Table should contain expected row").isEqualTo(expectWithoutMetadata);
+    spark.conf().set(GlutenConfig.GLUTEN_ENABLED().key(), "true");
   }
 
   @TestTemplate
@@ -602,6 +622,11 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
           required(1, "id", Types.IntegerType.get()),
           required(2, "data", Types.StringType.get()),
           MetadataColumns.IS_DELETED);
+
+  private static final Schema PROJECTION_SCHEMA_WITHOUT_DELETED =
+          new Schema(
+                  required(1, "id", Types.IntegerType.get()),
+                  required(2, "data", Types.StringType.get()));
 
   private static StructLikeSet expectedRowSet(int... idsToRemove) {
     return expectedRowSet(false, false, idsToRemove);

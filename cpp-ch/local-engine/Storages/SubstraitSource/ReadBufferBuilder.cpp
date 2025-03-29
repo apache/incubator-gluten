@@ -309,7 +309,7 @@ public:
                     config,
                     read_settings,
                     /* read_until_position */ 0,
-                    /* use_external_buffer */ true,
+                    /* use_external_buffer */ false,
                     file_size);
 
             if (use_async_prefetch)
@@ -329,8 +329,7 @@ public:
                     hdfs_file_path,
                     config,
                     read_settings,
-                    /* read_until_position */ 0,
-                    /* use_external_buffer */ true);
+                    /* read_until_position */ 0);
                 file_size = tmp_read_buffer->getFileSize();
             }
 
@@ -352,7 +351,7 @@ public:
             if (*file_size > 0)
                 buffer_size = std::min(*file_size, buffer_size);
             auto cache_hdfs_read = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-                std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false, buffer_size);
+                std::move(cache_creator), stored_objects, read_settings, /* use_external_buffer */ false, buffer_size);
             read_buffer = std::move(cache_hdfs_read);
         }
 
@@ -436,7 +435,7 @@ public:
 
         DB::StoredObjects stored_objects{DB::StoredObject{pathKey, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true, 0);
+            std::move(cache_creator), stored_objects, read_settings, /* use_external_buffer */ true, 0);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
         size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);

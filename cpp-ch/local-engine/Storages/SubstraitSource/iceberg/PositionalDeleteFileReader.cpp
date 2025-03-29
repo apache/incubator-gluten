@@ -34,8 +34,8 @@ using namespace google::protobuf;
 std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
     const ContextPtr & context,
     const Block & /*data_file_header*/,
-    const substraitInputFile & file_,
-    const RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+    const SubstraitInputFile & file_,
+    const RepeatedPtrField<SubstraitIcebergDeleteFile> & delete_files,
     const std::vector<int> & position_delete_files,
     Block & reader_header)
 {

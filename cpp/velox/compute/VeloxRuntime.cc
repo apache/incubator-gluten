@@ -34,6 +34,11 @@
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
+DECLARE_bool(velox_exception_user_stacktrace_enabled);
+DECLARE_bool(velox_memory_use_hugepages);
+DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
+DECLARE_int32(cache_prefetch_min_pct);
+
 #ifdef ENABLE_HDFS
 #include "operators/writer/VeloxParquetDataSourceHDFS.h"
 #endif
@@ -65,6 +70,14 @@ VeloxRuntime::VeloxRuntime(
   debugModeEnabled_ = veloxCfg_->get<bool>(kDebugModeEnabled, false);
   FLAGS_minloglevel = veloxCfg_->get<uint32_t>(kGlogSeverityLevel, FLAGS_minloglevel);
   FLAGS_v = veloxCfg_->get<uint32_t>(kGlogVerboseLevel, FLAGS_v);
+  FLAGS_velox_exception_user_stacktrace_enabled =
+      veloxCfg_->get<bool>(kEnableUserExceptionStacktrace, FLAGS_velox_exception_user_stacktrace_enabled);
+  FLAGS_velox_exception_system_stacktrace_enabled =
+      veloxCfg_->get<bool>(kEnableSystemExceptionStacktrace, FLAGS_velox_exception_system_stacktrace_enabled);
+  FLAGS_velox_memory_use_hugepages = veloxCfg_->get<bool>(kMemoryUseHugePages, FLAGS_velox_memory_use_hugepages);
+  FLAGS_cache_prefetch_min_pct = veloxCfg_->get<bool>(kCachePrefetchMinPct, FLAGS_cache_prefetch_min_pct);
+  FLAGS_velox_memory_pool_capacity_transfer_across_tasks = veloxCfg_->get<bool>(
+      kMemoryPoolCapacityTransferAcrossTasks, FLAGS_velox_memory_pool_capacity_transfer_across_tasks);
 }
 
 void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {

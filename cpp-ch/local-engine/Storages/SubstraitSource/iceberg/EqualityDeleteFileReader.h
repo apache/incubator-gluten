@@ -58,19 +58,19 @@ public:
 class EqualityDeleteFileReader
 {
     const DB::ContextPtr & context_;
-    const substraitIcebergDeleteFile & deleteFile_;
+    const SubstraitIcebergDeleteFile & deleteFile_;
     DB::Block data_file_schema_for_delete_;
 
 public:
     static DB::ExpressionActionsPtr createDeleteExpr(
         const DB::ContextPtr & context,
         const DB::Block & data_file_header,
-        const google::protobuf::RepeatedPtrField<substraitIcebergDeleteFile> & delete_files,
+        const google::protobuf::RepeatedPtrField<SubstraitIcebergDeleteFile> & delete_files,
         const std::vector<int> & equality_delete_files,
         DB::Block & reader_header);
 
     explicit EqualityDeleteFileReader(
-        const DB::ContextPtr & context, const DB::Block & read_header, const substraitIcebergDeleteFile & deleteFile);
+        const DB::ContextPtr & context, const DB::Block & read_header, const SubstraitIcebergDeleteFile & deleteFile);
     ~EqualityDeleteFileReader() = default;
     void readDeleteValues(EqualityDeleteActionBuilder & expressionInputs) const;
 };

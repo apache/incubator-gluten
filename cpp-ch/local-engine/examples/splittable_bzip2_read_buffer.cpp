@@ -39,7 +39,8 @@ int main()
     String hdfs_file_path = "/path/to/bzip2/file";
     ConfigurationPtr config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
     ReadSettings read_settings;
-    std::unique_ptr<SeekableReadBuffer> in = std::make_unique<ReadBufferFromHDFS>(hdfs_uri, hdfs_file_path, *config, read_settings, 0, true);
+    std::unique_ptr<SeekableReadBuffer> in
+        = std::make_unique<ReadBufferFromHDFS>(hdfs_uri, hdfs_file_path, *config, read_settings, 0, false);
 
     std::unique_ptr<SeekableReadBuffer> bounded_in = std::make_unique<BoundedReadBuffer>(std::move(in));
     size_t start = 0;

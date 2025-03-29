@@ -14,10 +14,6 @@
     <packaging>jar</packaging>
     <name>Gluten Kafka</name>
 
-    <properties>
-        <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.apache.gluten</groupId>
@@ -94,11 +90,6 @@
     <build>
         <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
         <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
-        <resources>
-            <resource>
-                <directory>${resource.dir}</directory>
-            </resource>
-        </resources>
         <plugins>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>

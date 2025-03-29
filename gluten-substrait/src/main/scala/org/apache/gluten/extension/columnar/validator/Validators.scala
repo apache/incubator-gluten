@@ -186,6 +186,8 @@ object Validators {
           if !(glutenConf.enableColumnarSample && BackendsApiManager.getSettings
             .supportSampleExec()) =>
         fail(p)
+      case p: RangeExec if !glutenConf.enableColumnarRange => fail(p)
+      case p: CollectLimitExec if !glutenConf.enableColumnarCollectLimit => fail(p)
       case _ => pass()
     }
   }

@@ -93,13 +93,13 @@ Currently, Gluten is using a [forked Velox](https://github.com/oap-project/velox
 ## compile Gluten java module and create package jar
 cd /path/to/gluten
 # For spark3.2.x
-mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.2 -DskipTests
+mvn clean package -Pbackends-velox -Pspark-3.2 -DskipTests
 # For spark3.3.x
-mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.3 -DskipTests
+mvn clean package -Pbackends-velox -Pspark-3.3 -DskipTests
 # For spark3.4.x
-mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.4 -DskipTests
+mvn clean package -Pbackends-velox -Pspark-3.4 -DskipTests
 # For spark3.5.x
-mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.5 -DskipTests
+mvn clean package -Pbackends-velox -Pspark-3.5 -DskipTests
 ```
 
 Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox. The recommended minimal memory size is 64G.

@@ -123,6 +123,55 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithSpecifiedSparkVersion("Test array_append function - INT", Some("3.4")) {
+    withTempPath {
+      path =>
+        Seq[(Array[Int], Int)](
+          (Array(2, 1), 0),
+          (Array(1), 1),
+          (Array(), 0),
+          (Array(1, 2, null.asInstanceOf[Int]), 1),
+          (Array(null.asInstanceOf[Int]), 1),
+          (Array(null.asInstanceOf[Int]), null.asInstanceOf[Int]),
+          (Array(), null.asInstanceOf[Int]),
+          (null.asInstanceOf[Array[Int]], 1)
+        )
+          .toDF("arr", "num")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select arr, num, array_append(arr, num) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  testWithSpecifiedSparkVersion("Test array_append function - STRING", Some("3.4")) {
+    withTempPath {
+      path =>
+        Seq[(Array[String], String)](
+          (Array("a", "b"), "c"),
+          (Array("a"), "b"),
+          (Array(), "a"),
+          (Array("a", "b", null.asInstanceOf[String]), "c"),
+          (Array(null.asInstanceOf[String]), "a"),
+          (Array(null.asInstanceOf[String]), null.asInstanceOf[String]),
+          (Array(), null.asInstanceOf[String])
+        )
+          .toDF("arr", "txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select arr, txt, array_append(arr, txt) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test round function") {
     runQueryAndCompare(
       "SELECT round(cast(l_orderkey as int), 2)" +

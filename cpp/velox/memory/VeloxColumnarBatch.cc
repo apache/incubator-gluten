@@ -147,17 +147,16 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::select(
   std::vector<VectorPtr> childVectors;
   childNames.reserve(columnIndices.size());
   childVectors.reserve(columnIndices.size());
-  auto vector = getFlattenedRowVector();
-  auto type = facebook::velox::asRowType(vector->type());
+  auto type = facebook::velox::asRowType(rowVector_->type());
 
   for (uint32_t i = 0; i < columnIndices.size(); i++) {
     auto index = columnIndices[i];
-    auto child = vector->childAt(index);
+    auto child = rowVector_->childAt(index);
     childNames.push_back(type->nameOf(index));
     childVectors.push_back(child);
   }
 
-  auto rowVector = makeRowVector(pool, numRows(), std::move(childNames), vector->nulls(), std::move(childVectors));
+  auto rowVector = makeRowVector(pool, numRows(), std::move(childNames), rowVector_->nulls(), std::move(childVectors));
   return std::make_shared<VeloxColumnarBatch>(rowVector);
 }
 

@@ -83,7 +83,7 @@ public:
     }
     ///
 
-    explicit FileMetaColumns(const substraitInputFile & file);
+    explicit FileMetaColumns(const SubstraitInputFile & file);
     DB::ColumnPtr createMetaColumn(const String & columnName, const DB::DataTypePtr & type, size_t rows) const;
 
     bool virtualColumn(const std::string & column_name) const { return metadata_columns_map.contains(column_name); }
@@ -92,7 +92,7 @@ protected:
     static std::map<std::string, std::function<DB::Field(const std::string &)>> BASE_METADATA_EXTRACTORS;
 
     /// InputFileName, InputFileBlockStart and InputFileBlockLength,
-    static std::map<std::string, std::function<DB::Field(const substraitInputFile &)>> INPUT_FUNCTION_EXTRACTORS;
+    static std::map<std::string, std::function<DB::Field(const SubstraitInputFile &)>> INPUT_FUNCTION_EXTRACTORS;
 
     std::unordered_map<String, DB::Field> metadata_columns_map;
 };
@@ -108,6 +108,7 @@ public:
 
     public:
         virtual ~InputFormat() = default;
+
         DB::IInputFormat & inputFormat() const { return *input; }
         void cancel() const noexcept { input->cancel(); }
         virtual DB::Chunk generate() { return input->generate(); }
@@ -119,7 +120,7 @@ public:
 
     using InputFormatPtr = std::shared_ptr<InputFormat>;
 
-    FormatFile(DB::ContextPtr context_, const substraitInputFile & file_info_, const ReadBufferBuilderPtr & read_buffer_builder_);
+    FormatFile(DB::ContextPtr context_, const SubstraitInputFile & file_info_, const ReadBufferBuilderPtr & read_buffer_builder_);
     virtual ~FormatFile() = default;
 
     /// Create a new input format for reading this file
@@ -145,14 +146,14 @@ public:
     size_t getStartOffset() const { return file_info.start(); }
     const FileMetaColumns & fileMetaColumns() const { return meta_columns; }
 
-    const substraitInputFile & getFileInfo() const { return file_info; }
+    const SubstraitInputFile & getFileInfo() const { return file_info; }
     const DB::ContextPtr & getContext() const { return context; }
 
     const DB::Block & getFileSchema() const { return file_schema; }
 
 protected:
     DB::ContextPtr context;
-    const substraitInputFile file_info;
+    const SubstraitInputFile file_info;
     ReadBufferBuilderPtr read_buffer_builder;
     std::map<String, String> partition_values;
     /// partition keys are normalized to lower cases for partition column case-insensitive matching

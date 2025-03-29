@@ -26,8 +26,7 @@ import org.apache.spark.util.ThreadUtils
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 
-class GlutenCastSuite extends CastSuiteBase with GlutenTestsTrait {
-  override protected def evalMode: EvalMode.Value = EvalMode.LEGACY
+class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
 
   override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): Cast = {
     v match {
@@ -266,4 +265,14 @@ class GlutenCastSuite extends CastSuiteBase with GlutenTestsTrait {
         }
     }
   }
+
+  testGluten("cast decimal to timestamp") {
+    val tz = TimeZone.getTimeZone(TimeZone.getDefault.getID)
+    val c = Calendar.getInstance(tz)
+    c.set(2015, 0, 1, 0, 0, 0)
+    c.set(Calendar.MILLISECOND, 123)
+    val d = Decimal(c.getTimeInMillis.toDouble / 1000)
+    checkEvaluation(cast(d, TimestampType), new Timestamp(c.getTimeInMillis))
+  }
+
 }

@@ -187,7 +187,7 @@
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
           <execution>
-            <id>build-info</id>
+            <id>build-info-with-backends</id>
             <goals>
               <goal>run</goal>
             </goals>
@@ -196,14 +196,10 @@
               <target>
                 <exec executable="bash" osfamily="unix">
                   <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
+                  <arg value="false"/>
+                  <arg value="--backend"/>
                   <arg value="${backend.type}"/>
                   <arg value="${backend.home}"/>
-                  <arg value="${project.build.directory}/generated-resources"/>
-                  <arg value="${project.version}"/>
-                  <arg value="${java.version}"/>
-                  <arg value="${scala.version}"/>
-                  <arg value="${spark.version}"/>
-                  <arg value="${hadoop.version}"/>
                 </exec>
               </target>
             </configuration>

@@ -18,6 +18,7 @@ package org.apache.spark.shuffle
 
 import org.apache.spark.{Partitioner, ShuffleDependency, SparkConf, TaskContext}
 import org.apache.spark.internal.config.SHUFFLE_MANAGER
+import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.rdd.EmptyRDD
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.sql.test.SharedSparkSession
@@ -28,10 +29,10 @@ import scala.collection.mutable
 
 class GlutenShuffleManagerSuite extends SharedSparkSession {
   import GlutenShuffleManagerSuite._
-  override protected def sparkConf: SparkConf = {
+  override protected def sparkConf: SparkConf =
     super.sparkConf
       .set(SHUFFLE_MANAGER.key, classOf[GlutenShuffleManager].getName)
-  }
+      .set(UI_ENABLED, false)
 
   override protected def beforeEach(): Unit = {
     val registry = ShuffleManagerRegistry.get()

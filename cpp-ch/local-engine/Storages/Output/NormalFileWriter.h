@@ -68,6 +68,8 @@ OutputFormatFilePtr createOutputFormatFile(
 struct DeltaStats
 {
     size_t row_count;
+    // TODO Support delta.dataSkippingStatsColumns, detail see https://docs.databricks.com/aws/en/delta/data-skipping
+    size_t n_stats_cols;
     std::vector<DB::Field> min;
     std::vector<DB::Field> max;
     std::vector<Int64> null_count;
@@ -91,23 +93,55 @@ struct DeltaStats
 
         assert(partition_index.size() == partition.size());
 
+        size_t num_stats_cols = numStatsCols(output.columns() - partition.size());
         auto appendBase = [&](const std::string & prefix)
         {
-            for (const auto & column : output.getColumnsWithTypeAndName())
+            for (size_t i = 0, n = 0; i < output.columns() && n < num_stats_cols; i++)
+            {
+                const auto & column = output.getByPosition(i);
                 if (!partition_index.contains(column.name))
+                {
                     statsHeaderBase.emplace_back(wrapNullableType(column.type), prefix + column.name);
+                    ++n;
+                }
+            }
         };
         appendBase("min_");
         appendBase("max_");
-        for (const auto & column : output.getColumnsWithTypeAndName())
+        for (size_t i = 0, n = 0; i < output.columns() && n < num_stats_cols; i++)
+        {
+            const auto & column = output.getByPosition(i);
             if (!partition_index.contains(column.name))
+            {
                 statsHeaderBase.emplace_back(BIGINT(), "null_count_" + column.name);
+                ++n;
+            }
+        }
 
         return DB::Block{statsHeaderBase};
     }
 
+    static size_t numStatsCols(size_t origin)
+    {
+        if (DB::CurrentThread::isInitialized())
+        {
+            const DB::ContextPtr query_context = DB::CurrentThread::get().getQueryContext();
+            if (query_context)
+            {
+                SparkSQLConfig config = SparkSQLConfig::loadFromContext(query_context);
+                return std::min(config.deltaDataSkippingNumIndexedCols, origin);
+            }
+        }
+        return origin;
+    }
+
     explicit DeltaStats(size_t size, const std::set<size_t> & partition_index_ = {})
-        : row_count(0), min(size), max(size), null_count(size, 0), partition_index(partition_index_)
+        : row_count(0)
+        , n_stats_cols(numStatsCols(size))
+        , min(n_stats_cols)
+        , max(n_stats_cols)
+        , null_count(n_stats_cols, 0)
+        , partition_index(partition_index_)
     {
         assert(size > 0);
     }
@@ -118,8 +152,8 @@ struct DeltaStats
     {
         assert(chunk.getNumRows() > 0);
         const auto & columns = chunk.getColumns();
-        assert(columns.size() == min.size() + partition_index.size());
-        for (size_t i = 0, col = 0; col < columns.size(); ++col)
+        assert(columns.size() - partition_index.size() >= n_stats_cols);
+        for (size_t i = 0, col = 0; i < n_stats_cols && col < columns.size(); ++col)
         {
             if (partition_index.contains(col))
                 continue;
@@ -134,10 +168,7 @@ struct DeltaStats
             this->null_count[i] += null_count;
 
             DB::Field min_value, max_value;
-            if (const auto * column_nullable = typeid_cast<const DB::ColumnNullable *>(column.get()))
-                column_nullable->getExtremesNullLast(min_value, max_value);
-            else
-                column->getExtremes(min_value, max_value);
+            column->getExtremes(min_value, max_value);
 
             assert(min[i].isNull() || min_value.getType() == min[i].getType());
             assert(max[i].isNull() || max_value.getType() == max[i].getType());
@@ -160,10 +191,10 @@ struct DeltaStats
 
     void merge(const DeltaStats & right)
     {
-        assert(min.size() == right.min.size());
+        assert(n_stats_cols == right.n_stats_cols);
         assert(partition_index == right.partition_index);
 
-        for (size_t i = 0; i < min.size(); ++i)
+        for (size_t i = 0; i < n_stats_cols; ++i)
         {
             null_count[i] += right.null_count[i];
             min[i] = std::min(min[i], right.min[i]);
@@ -247,9 +278,8 @@ public:
     void collectStats(const String & filename, const String & partition_dir, const DeltaStats & stats) const
     {
         const std::string & partition = partition_dir.empty() ? WriteStatsBase::NO_PARTITION_ID : partition_dir;
-        size_t columnSize = stats.min.size();
+        size_t columnSize = stats.n_stats_cols;
         assert(columns_.size() == stats_column_start + columnSize * 3);
-        assert(stats.min.size() == stats.max.size() && stats.min.size() == stats.null_count.size());
 
         columns_[ColumnIndex::filename]->insertData(filename.c_str(), filename.size());
         columns_[partition_id]->insertData(partition.c_str(), partition.size());

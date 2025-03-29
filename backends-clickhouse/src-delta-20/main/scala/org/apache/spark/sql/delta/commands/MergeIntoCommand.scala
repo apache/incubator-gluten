@@ -49,8 +49,6 @@ import scala.collection.mutable
  * Gluten overwrite Delta:
  *
  * This file is copied from Delta 2.2.0. It is modified to overcome the following issues:
- *   1. In Clickhouse backend, we can't implement input_file_name() correctly, we can only implement
- *      it so that it return a a list of filenames (concated by ',').
  */
 
 case class MergeDataSizes(

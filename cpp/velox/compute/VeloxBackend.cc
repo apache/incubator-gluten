@@ -56,8 +56,8 @@ DECLARE_bool(velox_ssd_odirect);
 DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
 DECLARE_int32(cache_prefetch_min_pct);
 
-DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
-DEFINE_int32(gluten_velox_aysnc_timeout_on_task_stopping, 30000, "Aysnc timout when task is being stopped");
+DECLARE_int32(gluten_velox_async_timeout_on_task_stopping);
+DEFINE_int32(gluten_velox_async_timeout_on_task_stopping, 30000, "Async timout when task is being stopped");
 
 using namespace facebook;
 
@@ -65,7 +65,7 @@ namespace gluten {
 
 namespace {
 MemoryManager* veloxMemoryManagerFactory(const std::string& kind, std::unique_ptr<AllocationListener> listener) {
-  return new VeloxMemoryManager(kind, std::move(listener));
+  return new VeloxMemoryManager(kind, std::move(listener), *VeloxBackend::get()->getBackendConf());
 }
 
 void veloxMemoryManagerReleaser(MemoryManager* memoryManager) {
@@ -86,9 +86,13 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 }
 } // namespace
 
-void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+void VeloxBackend::init(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
+
+  globalMemoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener), *backendConf_);
 
   // Register factories.
   MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);
@@ -113,7 +117,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   google::InitGoogleLogging("gluten");
 
   // Allow growing buffer in another task through its memory pool.
-  FLAGS_velox_memory_pool_capacity_transfer_across_tasks = true;
+  FLAGS_velox_memory_pool_capacity_transfer_across_tasks =
+      backendConf_->get<bool>(kMemoryPoolCapacityTransferAcrossTasks, true);
 
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
@@ -130,7 +135,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   FLAGS_velox_memory_use_hugepages = backendConf_->get<bool>(kMemoryUseHugePages, kMemoryUseHugePagesDefault);
 
   // Async timeout.
-  FLAGS_gluten_velox_aysnc_timeout_on_task_stopping =
+  FLAGS_gluten_velox_async_timeout_on_task_stopping =
       backendConf_->get<int32_t>(kVeloxAsyncTimeoutOnTaskStopping, kVeloxAsyncTimeoutOnTaskStoppingDefault);
 
   // Setup and register.
@@ -174,7 +179,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   initUdf();
 
-  // Initialize the global memory manager for current process.
+  // Initialize Velox-side memory manager for current process. The memory manager
+  // will be used during spill calls so we don't track it with Spark off-heap memory instead
+  // we rely on overhead memory. If we track it with off-heap memory, recursive reservations from
+  // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
   int64_t memoryManagerCapacity;
   if (sparkOverhead.hasValue()) {
@@ -185,7 +193,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
-  facebook::velox::memory::MemoryManager::initialize({.allocatorCapacity = memoryManagerCapacity});
+  facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -274,6 +282,10 @@ void VeloxBackend::initConnector() {
   // read as UTC
   connectorConfMap[velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
 
+  // Maps table field names to file field names using names, not indices.
+  connectorConfMap[velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
+  connectorConfMap[velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
+
   // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
@@ -301,8 +313,10 @@ void VeloxBackend::initUdf() {
 
 std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
 
-void VeloxBackend::create(const std::unordered_map<std::string, std::string>& conf) {
-  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(conf));
+void VeloxBackend::create(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
+  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(std::move(listener), conf));
 }
 
 VeloxBackend* VeloxBackend::get() {
@@ -312,5 +326,4 @@ VeloxBackend* VeloxBackend::get() {
   }
   return instance_.get();
 }
-
 } // namespace gluten

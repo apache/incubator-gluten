@@ -244,41 +244,43 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
 
   // Don't support isIntervalYearMonth.
   if (fromType->isIntervalYearMonth() || toType->isIntervalYearMonth()) {
-    LOG_VALIDATION_MSG("Casting involving INTERVAL_YEAR_MONTH is not supported.");
     return false;
   }
 
   // Limited support for DATE to X.
   if (fromType->isDate() && !toType->isTimestamp() && !toType->isVarchar()) {
-    LOG_VALIDATION_MSG("Casting from DATE to " + toType->toString() + " is not supported.");
     return false;
   }
 
   // Limited support for Timestamp to X.
   if (fromType->isTimestamp() && !(toType->isDate() || toType->isVarchar())) {
-    LOG_VALIDATION_MSG(
-        "Casting from TIMESTAMP to " + toType->toString() + " is not supported or has incorrect result.");
     return false;
   }
 
   // Limited support for X to Timestamp.
   if (toType->isTimestamp()) {
+    if (fromType->isDecimal()) {
+      return false;
+    }
     if (fromType->isDate()) {
       return true;
     }
     if (fromType->isVarchar()) {
       return true;
     }
-    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint()) {
+    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
+        fromType->isDouble() || fromType->isReal()) {
       return true;
     }
-    LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " to TIMESTAMP is not supported.");
     return false;
   }
 
   // Limited support for Complex types.
-  if (fromType->isArray() || fromType->isMap() || fromType->isRow() || fromType->isVarbinary()) {
-    LOG_VALIDATION_MSG("Casting from " + fromType->toString() + " is not currently supported.");
+  if (fromType->isArray() || fromType->isMap() || fromType->isRow()) {
+    return false;
+  }
+
+  if (fromType->isVarbinary() && !toType->isVarchar()) {
     return false;
   }
 
@@ -299,6 +301,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     return true;
   }
 
+  LOG_VALIDATION_MSG("Casting from " + input->type()->toString() + " to " + toType->toString() + " is not supported.");
   return false;
 }
 
@@ -550,7 +553,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ExpandRel& expan
       if (rowType) {
         // Try to compile the expressions. If there is any unregistered
         // function or mismatched type, exception will be thrown.
-        exec::ExprSet exprSet(std::move(expressions), execCtx_);
+        exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
       }
     } else {
       LOG_VALIDATION_MSG("Only SwitchingField is supported in ExpandRel.");
@@ -664,7 +667,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   }
   // Try to compile the expressions. If there is any unregistred funciton or
   // mismatched type, exception will be thrown.
-  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
 
   // Validate Sort expression
   const auto& sorts = windowRel.sorts();
@@ -687,7 +690,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
         LOG_VALIDATION_MSG("in windowRel, the sorting key in Sort Operator only support field.");
         return false;
       }
-      exec::ExprSet exprSet1({std::move(expression)}, execCtx_);
+      exec::ExprSet exprSet1({std::move(expression)}, execCtx_.get());
     }
   }
 
@@ -735,7 +738,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimit
   }
   // Try to compile the expressions. If there is any unregistered function or
   // mismatched type, exception will be thrown.
-  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
   // Validate Sort expression
   const auto& sorts = windowGroupLimitRel.sorts();
   for (const auto& sort : sorts) {
@@ -757,7 +760,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowGroupLimit
         LOG_VALIDATION_MSG("in windowGroupLimitRel, the sorting key in Sort Operator only support field.");
         return false;
       }
-      exec::ExprSet exprSet1({std::move(expression)}, execCtx_);
+      exec::ExprSet exprSet1({std::move(expression)}, execCtx_.get());
     }
   }
 
@@ -859,7 +862,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
         LOG_VALIDATION_MSG("in SortRel, the sorting key in Sort Operator only support field.");
         return false;
       }
-      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+      exec::ExprSet exprSet({std::move(expression)}, execCtx_.get());
     }
   }
 
@@ -906,7 +909,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ProjectRel& proj
   }
   // Try to compile the expressions. If there is any unregistered function or
   // mismatched type, exception will be thrown.
-  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
   return true;
 }
 
@@ -945,7 +948,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
   expressions.emplace_back(exprConverter_->toVeloxExpr(filterRel.condition(), rowType));
   // Try to compile the expressions. If there is any unregistered function
   // or mismatched type, exception will be thrown.
-  exec::ExprSet exprSet(std::move(expressions), execCtx_);
+  exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
   return true;
 }
 
@@ -1019,7 +1022,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
 
   if (joinRel.has_post_join_filter()) {
     auto expression = exprConverter_->toVeloxExpr(joinRel.post_join_filter(), rowType);
-    exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+    exec::ExprSet exprSet({std::move(expression)}, execCtx_.get());
   }
   return true;
 }
@@ -1045,6 +1048,13 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
       break;
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
+      if (crossRel.has_expression()) {
+        LOG_VALIDATION_MSG("Full outer join type with condition is not supported in CrossRel");
+        return false;
+      } else {
+        break;
+      }
     default:
       LOG_VALIDATION_MSG("Unsupported Join type in CrossRel");
       return false;
@@ -1068,7 +1078,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
 
   if (crossRel.has_expression()) {
     auto expression = exprConverter_->toVeloxExpr(crossRel.expression(), rowType);
-    exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+    exec::ExprSet exprSet({std::move(expression)}, execCtx_.get());
   }
 
   return true;
@@ -1294,7 +1304,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
     expressions.emplace_back(exprConverter_->toVeloxExpr(readRel.filter(), rowType));
     // Try to compile the expressions. If there is any unregistered function
     // or mismatched type, exception will be thrown.
-    exec::ExprSet exprSet(std::move(expressions), execCtx_);
+    exec::ExprSet exprSet(std::move(expressions), execCtx_.get());
   }
 
   return true;

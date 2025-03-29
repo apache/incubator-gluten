@@ -110,11 +110,12 @@ void ListenableMemoryAllocator::updateUsage(int64_t size) {
   usedBytes_ += size;
   while (true) {
     int64_t savedPeakBytes = peakBytes_;
-    if (usedBytes_ <= savedPeakBytes) {
+    int64_t savedUsedBytes = usedBytes_;
+    if (savedUsedBytes <= savedPeakBytes) {
       break;
     }
     // usedBytes_ > savedPeakBytes, update peak
-    if (peakBytes_.compare_exchange_weak(savedPeakBytes, usedBytes_)) {
+    if (peakBytes_.compare_exchange_weak(savedPeakBytes, savedUsedBytes)) {
       break;
     }
   }

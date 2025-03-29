@@ -41,16 +41,16 @@ class ExpressionParser
 {
 public:
     using NodeRawConstPtr = const DB::ActionsDAG::Node *;
-    ExpressionParser(const std::shared_ptr<const ParserContext> & context_) : context(context_) { }
+    explicit ExpressionParser(const std::shared_ptr<const ParserContext> & context_) : context(context_) { }
     ~ExpressionParser() = default;
 
     /// Append a counter-suffix to name
     String getUniqueName(const String & name) const;
 
-    NodeRawConstPtr addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr type, const DB::Field & field) const;
+    NodeRawConstPtr addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const;
 
     /// Parse expr and add an expression node in actions_dag
-    NodeRawConstPtr parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & expr) const;
+    NodeRawConstPtr parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel) const;
     /// Build an actions dag that contains expressions. header is used as input columns for the actions dag.
     DB::ActionsDAG expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header) const;
 
