@@ -156,8 +156,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarShuffle: Boolean = getConf(COLUMNAR_SHUFFLE_ENABLED)
 
-  def enablePreferColumnar: Boolean = getConf(COLUMNAR_PREFER_ENABLED)
-
   def physicalJoinOptimizationThrottle: Integer =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
@@ -962,13 +960,6 @@ object GlutenConfig {
         "shuffle will be used if the number of columns is greater than this threshold.")
       .intConf
       .createWithDefault(100000)
-
-  val COLUMNAR_PREFER_ENABLED =
-    buildConf("spark.gluten.sql.columnar.preferColumnar")
-      .internal()
-      .doc("Prefer to use columnar operators if set to true.")
-      .booleanConf
-      .createWithDefault(true)
 
   val COLUMNAR_TABLE_CACHE_ENABLED =
     buildConf("spark.gluten.sql.columnar.tableCache")
