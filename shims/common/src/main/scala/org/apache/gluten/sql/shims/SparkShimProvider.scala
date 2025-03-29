@@ -20,11 +20,16 @@ import org.apache.spark.internal.Logging
 
 /** Provider interface for matching and retrieving the Shims of a specific Spark version */
 trait SparkShimProvider extends Logging {
-  def matches(version: String): Boolean
-  def createShim: SparkShims
-
-  protected def extractMajorAndMinorVersion(version: String): String = {
-    val Array(major, minor, _) = version.split('.')
-    s"$major.$minor"
+  def matches(version: String): Boolean = {
+    val expectedDescRuntime = SparkShimDescriptor(version)
+    val matches = SparkShimDescriptor.DESCRIPTOR.matches(expectedDescRuntime)
+    if (matches && SparkShimDescriptor.DESCRIPTOR != expectedDescRuntime) {
+      logWarning(
+        s"Spark runtime version $version is not matched with Gluten's fully" +
+          s" tested version ${SparkShimDescriptor.DESCRIPTOR.toString()}")
+    }
+    matches
   }
+
+  def createShim: SparkShims
 }

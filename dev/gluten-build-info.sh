@@ -19,36 +19,71 @@
 
 GLUTEN_ROOT=$(cd $(dirname -- $0)/..; pwd -P)
 
-BACKEND_TYPE="$1"
-BACKEND_HOME="$2"
-EXTRA_RESOURCE_DIR="$3"
-mkdir -p "$EXTRA_RESOURCE_DIR"
+EXTRA_RESOURCE_DIR=$GLUTEN_ROOT/gluten-core/target/generated-resources
 BUILD_INFO="$EXTRA_RESOURCE_DIR"/gluten-build-info.properties
+DO_REMOVAL="$1" && shift
+if [ "true" = "$DO_REMOVAL" ]; then
+  rm -rf "$BUILD_INFO"
+fi
+mkdir -p "$EXTRA_RESOURCE_DIR"
 
-echo_build_properties() {
-  echo gluten_version="$4"
-  echo backend_type="$BACKEND_TYPE"
-  echo java_version="$5"
-  echo scala_version="$6"
-  echo spark_version="$7"
-  echo hadoop_version="$8"
+function echo_revision_info() {
   echo branch=$(git rev-parse --abbrev-ref HEAD)
   echo revision=$(git rev-parse HEAD)
   echo revision_time=$(git show -s --format=%ci HEAD)
   echo date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   echo url=$(git config --get remote.origin.url)
-
-  if [ "$BACKEND_TYPE" = "velox" ]; then
-      echo gcc_version=$(strings $GLUTEN_ROOT/cpp/build/releases/libgluten.so | grep "GCC:" | head -n 1)
-      echo velox_branch=$(git -C $BACKEND_HOME rev-parse --abbrev-ref HEAD)
-      echo velox_revision=$(git -C $BACKEND_HOME rev-parse HEAD)
-      echo velox_revision_time=$(git -C $BACKEND_HOME show -s --format=%ci HEAD)
-  fi
-  if [ "$BACKEND_TYPE" = "ch"  ]; then
-      echo ch_org=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_ORG=).*')
-      echo ch_branch=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_BRANCH=).*')
-      echo ch_commit=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_COMMIT=).*')
-  fi
 }
 
-echo_build_properties "$@" > "$BUILD_INFO"
+function echo_velox_revision_info() {
+  BACKEND_HOME=$1
+  echo gcc_version=$(strings $GLUTEN_ROOT/cpp/build/releases/libgluten.so | grep "GCC:" | head -n 1)
+  echo velox_branch=$(git -C $BACKEND_HOME rev-parse --abbrev-ref HEAD)
+  echo velox_revision=$(git -C $BACKEND_HOME rev-parse HEAD)
+  echo velox_revision_time=$(git -C $BACKEND_HOME show -s --format=%ci HEAD)
+}
+
+function echo_clickhouse_revision_info() {
+  echo ch_org=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_ORG=).*')
+  echo ch_branch=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_BRANCH=).*')
+  echo ch_commit=$(cat $GLUTEN_ROOT/cpp-ch/clickhouse.version | grep -oP '(?<=^CH_COMMIT=).*')
+}
+
+while (( "$#" )); do
+  echo "$1"
+  case $1 in
+    --version)
+      echo gluten_version="$2" >> "$BUILD_INFO"
+      ;;
+    --backend)
+      echo backend_type="$2" >> "$BUILD_INFO"
+      if [ "velox" = "$2" ]; then
+        echo_velox_revision_info "$3" >> "$BUILD_INFO"
+      elif [ "ch" = "$2" ]; then
+        echo_clickhouse_revision_info >> "$BUILD_INFO"
+      fi
+      shift
+      ;;
+    --java)
+      echo java_version="$2" >> "$BUILD_INFO"
+      ;;
+    --scala)
+      echo scala_version="$2" >> "$BUILD_INFO"
+      ;;
+    --spark)
+      echo spark_version="$2" >> "$BUILD_INFO"
+      ;;
+    --hadoop)
+      echo hadoop_version="$2" >> "$BUILD_INFO"
+      ;;
+    --revision)
+      if [ "true" = "$2" ]; then
+        echo_revision_info >> "$BUILD_INFO"
+      fi
+      ;;
+    *)
+      echo "Error: $1 is not supported"
+      ;;
+  esac
+  shift 2
+done
