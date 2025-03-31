@@ -485,7 +485,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
     .exclude("binary overlay function")
-    .exclude("string parse_url function")
     .exclude("string / binary length function")
     .exclude("SPARK-36751: add octet length api for scala")
     .exclude("SPARK-36751: add bit length api for scala")
