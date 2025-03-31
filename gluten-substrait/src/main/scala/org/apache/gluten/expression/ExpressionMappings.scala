@@ -109,8 +109,6 @@ object ExpressionMappings {
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
-    Sig[UrlDecode](URL_ENCODE),
-    Sig[UrlDecode](URL_DECODE),
 
     // SparkSQL Math functions
     Sig[Abs](ABS),

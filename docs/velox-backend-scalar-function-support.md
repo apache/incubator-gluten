@@ -1,13 +1,13 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 229 functions and partially supports 13 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 228 functions and partially supports 17 functions.**
 
 ## Array Functions
 
 | Spark Functions   | Spark Expressions   | Status   | Restrictions   |
 |-------------------|---------------------|----------|----------------|
 | array             | CreateArray         | S        |                |
-| array_append      | ArrayAppend         |          |                |
+| array_append      | ArrayAppend         | S        |                |
 | array_compact     | ArrayCompact        |          |                |
 | array_contains    | ArrayContains       | S        |                |
 | array_distinct    | ArrayDistinct       | S        |                |
@@ -21,7 +21,7 @@
 | array_prepend     | ArrayPrepend        |          |                |
 | array_remove      | ArrayRemove         | S        |                |
 | array_repeat      | ArrayRepeat         | S        |                |
-| array_union       | ArrayUnion          |          |                |
+| array_union       | ArrayUnion          | S        |                |
 | arrays_overlap    | ArraysOverlap       | S        |                |
 | arrays_zip        | ArraysZip           | S        |                |
 | flatten           | Flatten             | S        |                |
@@ -51,7 +51,7 @@
 |-------------------|---------------------|----------|----------------|
 | array_size        | ArraySize           |          |                |
 | cardinality       | Size                | S        |                |
-| concat            | Concat              | S        |                |
+| concat            | Concat              | PS       |                |
 | reverse           | Reverse             | S        |                |
 | size              | Size                | S        |                |
 
@@ -110,7 +110,7 @@
 | date_from_unix_date | DateFromUnixDate                     | S        |                |
 | date_part           | DatePartExpressionBuilder            |          |                |
 | date_sub            | DateSub                              | S        |                |
-| date_trunc          | TruncTimestamp                       | S        |                |
+| date_trunc          | TruncTimestamp                       |          |                |
 | dateadd             | DateAdd                              | S        |                |
 | datediff            | DateDiff                             | S        |                |
 | datepart            | DatePartExpressionBuilder            |          |                |
@@ -177,7 +177,7 @@
 
 | Spark Functions   | Spark Expressions   | Status   | Restrictions   |
 |-------------------|---------------------|----------|----------------|
-| from_json         | JsonToStructs       |          |                |
+| from_json         | JsonToStructs       | S        |                |
 | get_json_object   | GetJsonObject       | S        |                |
 | json_array_length | LengthOfJsonArray   | S        |                |
 | json_object_keys  | JsonObjectKeys      |          |                |
@@ -194,7 +194,7 @@
 | exists            | ArrayExists         | S        |                |
 | filter            | ArrayFilter         | S        |                |
 | forall            | ArrayForAll         | S        |                |
-| map_filter        | MapFilter           |          |                |
+| map_filter        | MapFilter           | S        |                |
 | map_zip_with      | MapZipWith          | S        |                |
 | reduce            | ArrayAggregate      | S        |                |
 | transform         | ArrayTransform      | S        |                |
@@ -208,7 +208,7 @@
 |-------------------|---------------------|----------|----------------|
 | element_at        | ElementAt           | S        |                |
 | map               | CreateMap           | PS       |                |
-| map_concat        | MapConcat           |          |                |
+| map_concat        | MapConcat           | S        |                |
 | map_contains_key  | MapContainsKey      |          |                |
 | map_entries       | MapEntries          | S        |                |
 | map_from_arrays   | MapFromArrays       | S        |                |
@@ -256,7 +256,7 @@
 | hex               | Hex                    | S        |                |
 | hypot             | Hypot                  | S        |                |
 | least             | Least                  | S        |                |
-| ln                | Log                    | S        |                |
+| ln                | Log                    |          |                |
 | log               | Logarithm              | S        |                |
 | log10             | Log10                  | S        |                |
 | log1p             | Log1p                  | S        |                |
@@ -280,9 +280,9 @@
 | signum            | Signum                 | S        |                |
 | sin               | Sin                    | S        |                |
 | sinh              | Sinh                   | S        |                |
-| sqrt              | Sqrt                   | S        |                |
+| sqrt              | Sqrt                   |          |                |
 | tan               | Tan                    | S        |                |
-| tanh              | Tanh                   | S        |                |
+| tanh              | Tanh                   |          |                |
 | try_add           | TryAdd                 | PS       |                |
 | try_divide        | TryDivide              |          |                |
 | try_multiply      | TryMultiply            |          |                |
@@ -357,21 +357,21 @@
 | ascii              | Ascii                       | S        |                        |
 | base64             | Base64                      | S        |                        |
 | bit_length         | BitLength                   | S        |                        |
-| btrim              | StringTrimBoth              |          |                        |
+| btrim              | StringTrimBoth              | S        |                        |
 | char               | Chr                         | S        |                        |
 | char_length        | Length                      | S        |                        |
 | character_length   | Length                      | S        |                        |
 | chr                | Chr                         | S        |                        |
 | concat_ws          | ConcatWs                    | S        |                        |
-| contains           | ContainsExpressionBuilder   | S        |                        |
+| contains           | ContainsExpressionBuilder   | PS       | BinaryType unsupported |
 | decode             | Decode                      |          |                        |
 | elt                | Elt                         |          |                        |
 | encode             | Encode                      |          |                        |
-| endswith           | EndsWithExpressionBuilder   |          |                        |
+| endswith           | EndsWithExpressionBuilder   | PS       | BinaryType unsupported |
 | find_in_set        | FindInSet                   | S        |                        |
 | format_number      | FormatNumber                |          |                        |
-| format_string      | FormatString                | S        |                        |
-| initcap            | InitCap                     | S        |                        |
+| format_string      | FormatString                |          |                        |
+| initcap            | InitCap                     |          |                        |
 | instr              | StringInstr                 | S        |                        |
 | lcase              | Lower                       | S        |                        |
 | left               | Left                        | S        |                        |
@@ -380,14 +380,14 @@
 | levenshtein        | Levenshtein                 | S        |                        |
 | locate             | StringLocate                | S        |                        |
 | lower              | Lower                       | S        |                        |
-| lpad               | LPadExpressionBuilder       | S        |                        |
+| lpad               | LPadExpressionBuilder       | PS       | BinaryType unsupported |
 | ltrim              | StringTrimLeft              | S        |                        |
 | luhn_check         | Luhncheck                   |          |                        |
 | mask               | MaskExpressionBuilder       | S        |                        |
 | octet_length       | OctetLength                 |          |                        |
 | overlay            | Overlay                     | S        |                        |
 | position           | StringLocate                | S        |                        |
-| printf             | FormatString                | S        |                        |
+| printf             | FormatString                |          |                        |
 | regexp_count       | RegExpCount                 |          |                        |
 | regexp_extract     | RegExpExtract               | PS       | Lookaround unsupported |
 | regexp_extract_all | RegExpExtractAll            | PS       | Lookaround unsupported |
@@ -397,14 +397,14 @@
 | repeat             | StringRepeat                | S        |                        |
 | replace            | StringReplace               | S        |                        |
 | right              | Right                       |          |                        |
-| rpad               | RPadExpressionBuilder       | S        |                        |
+| rpad               | RPadExpressionBuilder       | PS       | BinaryType unsupported |
 | rtrim              | StringTrimRight             | S        |                        |
 | sentences          | Sentences                   |          |                        |
 | soundex            | SoundEx                     | S        |                        |
 | space              | StringSpace                 | S        |                        |
 | split              | StringSplit                 | S        |                        |
 | split_part         | SplitPart                   | S        |                        |
-| startswith         | StartsWithExpressionBuilder |          |                        |
+| startswith         | StartsWithExpressionBuilder | PS       | BinaryType unsupported |
 | substr             | Substring                   | S        |                        |
 | substring          | Substring                   | S        |                        |
 | substring_index    | SubstringIndex              | S        |                        |
@@ -432,8 +432,8 @@
 | Spark Functions   | Spark Expressions   | Status   | Restrictions   |
 |-------------------|---------------------|----------|----------------|
 | parse_url         | ParseUrl            |          |                |
-| url_decode        | UrlDecode           | PS       |                |
-| url_encode        | UrlEncode           | PS       |                |
+| url_decode        | UrlDecode           | S        |                |
+| url_encode        | UrlEncode           | S        |                |
 
 ## XML Functions
 
