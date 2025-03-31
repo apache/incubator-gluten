@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -25,10 +27,17 @@ import org.apache.spark.sql.catalyst.rules.Rule
 // Rule1: sum(if(cond, expr, 0)) -> sum(expr) FILTER (WHERE cond)
 // Rule2: func(if(cond, expr, null)) -> func(expr) FILTER (WHERE cond)
 case class AggregateIfToFilterRule(spark: SparkSession) extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = plan.transform {
-    case agg @ Aggregate(groupingExpressions, aggregateExpressions, child) =>
-      val newAggregateExpressions = aggregateExpressions.map(transformExpression)
-      agg.copy(aggregateExpressions = newAggregateExpressions.map(_.asInstanceOf[NamedExpression]))
+  override def apply(plan: LogicalPlan): LogicalPlan = {
+    if (!CHBackendSettings.enableAggregateIfToFilter || !plan.resolved) {
+      plan
+    } else {
+      plan.transform {
+        case agg @ Aggregate(groupingExpressions, aggregateExpressions, child) =>
+          val newAggregateExpressions = aggregateExpressions.map(transformExpression)
+          agg.copy(aggregateExpressions =
+            newAggregateExpressions.map(_.asInstanceOf[NamedExpression]))
+      }
+    }
   }
 
   private def transformExpression(expr: Expression): Expression = expr match {
