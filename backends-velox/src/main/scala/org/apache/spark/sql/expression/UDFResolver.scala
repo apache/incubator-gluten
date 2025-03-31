@@ -32,12 +32,11 @@ import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
-import org.apache.spark.util.{SparkDirectoryUtil, Utils}
+import org.apache.spark.util.Utils
 
 import java.io.File
 import java.net.URI
 import java.nio.file.{Files, FileVisitOption, Paths}
-import java.util.UUID
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 import scala.collection.mutable
@@ -312,14 +311,7 @@ object UDFResolver extends Logging {
             // Download or copy absolute paths to JniWorkspace.
             val uri = Utils.resolveURI(f)
             val name = file.getName
-            val jniWorkspace = new File(
-              JniWorkspace
-                .getDefault(
-                  SparkDirectoryUtil.get
-                    .namespace("jni")
-                    .mkChildDirRandomly(UUID.randomUUID.toString)
-                    .getAbsolutePath)
-                .getWorkDir)
+            val jniWorkspace = new File(JniWorkspace.getDefault.getWorkDir)
             if (!file.isDirectory && !f.endsWith(LIB_EXTENSION)) {
               val source = Utils
                 .doFetchFile(uri.toString, Utils.createTempDir(), name, sparkConf, hadoopConf)

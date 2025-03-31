@@ -116,7 +116,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     SparkDirectoryUtil.init(conf)
-    UDFResolver.resolveUdfConf(conf, isDriver = true)
     initialize(conf, isDriver = true)
     UdfJniWrapper.registerFunctionSignatures()
   }
@@ -143,13 +142,19 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     SparkDirectoryUtil.init(conf)
-    UDFResolver.resolveUdfConf(conf, isDriver = false)
     initialize(conf, isDriver = false)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
+    JniWorkspace.intializeDefault(
+      SparkDirectoryUtil.get
+        .namespace("jni")
+        .mkChildDirRandomly(UUID.randomUUID.toString)
+        .getAbsolutePath)
+    UDFResolver.resolveUdfConf(conf, isDriver)
+
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
     ArrowJavaBatch.ensureRegistered()
@@ -183,14 +188,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     UDFMappings.loadFromSparkConf(conf)
 
     // Initial library loader.
-    val loader =
-      JniWorkspace
-        .getDefault(
-          SparkDirectoryUtil.get
-            .namespace("jni")
-            .mkChildDirRandomly(UUID.randomUUID.toString)
-            .getAbsolutePath)
-        .libLoader
+    val loader = JniWorkspace.getDefault.libLoader
 
     // Load shared native libraries the backend libraries depend on.
     SharedLibraryLoader.load(conf, loader)
