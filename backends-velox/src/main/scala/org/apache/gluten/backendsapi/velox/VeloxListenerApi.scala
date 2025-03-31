@@ -149,7 +149,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
-    JniWorkspace.intializeDefault(
+    JniWorkspace.initializeDefault(
       SparkDirectoryUtil.get
         .namespace("jni")
         .mkChildDirRandomly(UUID.randomUUID.toString)
