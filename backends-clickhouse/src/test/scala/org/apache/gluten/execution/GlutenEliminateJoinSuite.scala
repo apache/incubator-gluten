@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -25,7 +26,7 @@ import org.apache.spark.sql.types._
 
 import java.nio.file.Files
 
-class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuite {
+class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuite with Logging {
 
   protected val tablesPath: String = basePath + "/tpch-data"
   protected val tpchQueries: String =
@@ -187,9 +188,9 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
       })
   }
 
-  test("Left two joins uneliminable") {
+  test("reorder join orders 1") {
     val sql = """
-        select t1.k1, t1.k2, s1, s2 from (
+        select t1.k1, t1.k2, t2.k1, s1, s2 from (
           select k1, k2, count(v1) s1 from (
             select * from t2 where k1 != 1
           )group by k1, k2
@@ -201,7 +202,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
             select * from t3 where k1 != 3
           )group by k1, k2
         ) t3 on t1.k1 = t3.k1 and t1.k2 = t3.k2
-        order by t1.k1, t1.k2, s1, s2
+        order by t1.k1, t1.k2, t2.k1, s1, s2
     """.stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
@@ -211,8 +212,38 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 2)
+          assert(joins.length == 1)
       })
+  }
+
+  test("reorder join orders 2") {
+    val sql = """
+        select t1.k1, t2.k1, s1, s2 from (
+          select k1, k2, count(v1) s1 from (
+            select * from t2 where k1 != 1
+          )group by k1, k2
+        ) t1 left join (
+          select k1, count(v2) as s3 from t1 where k1 != 1
+          group by k1
+        ) t2 on t1.k1 = t2.k1
+        left join (
+          select k1, k2, count(v2) s2 from (
+            select * from t3 where k1 != 3
+          )group by k1, k2
+        ) t3 on t1.k1 = t3.k1 and t1.k2 = t3.k2
+        order by t1.k1, t2.k1, s1, s2
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.length == 1)
+      }
+    )
   }
 
   test("aggregate literal") {
@@ -362,6 +393,80 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           }
           assert(joins.length == 1)
       })
+  }
 
+  test("not attribute grouping keys 1") {
+    val sql = """
+        select t1.k1, t2.k2, s1 from (
+          select k1 + 1 as k1, count(v1) as s1 from (
+            select * from t1 where k1 != 1
+          )group by k1 + 1
+        ) t1 left join (
+          select distinct k2 from (
+            select * from t2 where k1 != 3
+          ) t2
+        ) t2 on t1.k1 = t2.k2
+        order by t1.k1, t2.k2, s1
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.length == 0)
+      })
+  }
+
+  test("not attribute grouping keys 2") {
+    val sql = """
+        select t1.k1, t2.k2, s1 from (
+          select k1 + 1 as k1, count(v1) as s1 from (
+            select * from t1 where k1 != 1
+          )group by 1
+        ) t1 left join (
+          select distinct k2 from (
+            select * from t2 where k1 != 3
+          ) t2
+        ) t2 on t1.k1 = t2.k2
+        order by t1.k1, t2.k2, s1
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.length == 0)
+      })
+  }
+
+  test("const expression aggregate expression") {
+    val sql = """
+        select t1.k1, t2.k1, s1 from (
+          select k1 + 1 as k1, 1 as s1 from (
+            select * from t1 where k1 != 1
+          )group by 1
+        ) t1 left join (
+          select distinct k1 from (
+            select * from t2 where k1 != 3
+          ) t2
+        ) t2 on t1.k1 = t2.k1
+        order by t1.k1, t2.k1, s1
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.length == 1)
+      })
   }
 }
