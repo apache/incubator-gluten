@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 228 functions and partially supports 17 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 215 functions and partially supports 20 functions.**
 
 ## Array Functions
 
@@ -26,7 +26,7 @@
 | arrays_zip        | ArraysZip           | S        |                |
 | flatten           | Flatten             | S        |                |
 | get               | Get                 |          |                |
-| sequence          | Sequence            | S        |                |
+| sequence          | Sequence            |          |                |
 | shuffle           | Shuffle             | S        |                |
 | slice             | Slice               | S        |                |
 | sort_array        | SortArray           | S        |                |
@@ -41,7 +41,7 @@
 | bit_get            | BitwiseGet          | S        |                |
 | getbit             | BitwiseGet          | S        |                |
 | shiftright         | ShiftRight          | S        |                |
-| shiftrightunsigned | ShiftRightUnsigned  | S        |                |
+| shiftrightunsigned | ShiftRightUnsigned  |          |                |
 | &#124;             | BitwiseOr           | S        |                |
 | ~                  | BitwiseNot          | S        |                |
 
@@ -133,7 +133,7 @@
 | make_ym_interval    | MakeYMInterval                       | S        |                |
 | minute              | Minute                               | S        |                |
 | month               | Month                                | S        |                |
-| months_between      | MonthsBetween                        | S        |                |
+| months_between      | MonthsBetween                        |          |                |
 | next_day            | NextDay                              | S        |                |
 | now                 | Now                                  |          |                |
 | quarter             | Quarter                              | S        |                |
@@ -146,7 +146,7 @@
 | to_timestamp        | ParseToTimestamp                     |          |                |
 | to_timestamp_ltz    | ParseToTimestampLTZExpressionBuilder |          |                |
 | to_timestamp_ntz    | ParseToTimestampNTZExpressionBuilder |          |                |
-| to_unix_timestamp   | ToUnixTimestamp                      | S        |                |
+| to_unix_timestamp   | ToUnixTimestamp                      | PS       |                |
 | to_utc_timestamp    | ToUTCTimestamp                       | S        |                |
 | trunc               | TruncDate                            |          |                |
 | try_to_timestamp    | TryToTimestampExpressionBuilder      |          |                |
@@ -208,10 +208,10 @@
 |-------------------|---------------------|----------|----------------|
 | element_at        | ElementAt           | S        |                |
 | map               | CreateMap           | PS       |                |
-| map_concat        | MapConcat           | S        |                |
+| map_concat        | MapConcat           | PS       |                |
 | map_contains_key  | MapContainsKey      |          |                |
 | map_entries       | MapEntries          | S        |                |
-| map_from_arrays   | MapFromArrays       | S        |                |
+| map_from_arrays   | MapFromArrays       |          |                |
 | map_from_entries  | MapFromEntries      |          |                |
 | map_keys          | MapKeys             | S        |                |
 | map_values        | MapValues           | S        |                |
@@ -237,7 +237,7 @@
 | atanh             | Atanh                  | S        |                |
 | bin               | Bin                    | S        |                |
 | bround            | BRound                 |          |                |
-| cbrt              | Cbrt                   | S        |                |
+| cbrt              | Cbrt                   |          |                |
 | ceil              | CeilExpressionBuilder  | PS       |                |
 | ceiling           | CeilExpressionBuilder  | PS       |                |
 | conv              | Conv                   | S        |                |
@@ -250,7 +250,7 @@
 | e                 | EulerNumber            | S        |                |
 | exp               | Exp                    | S        |                |
 | expm1             | Expm1                  | S        |                |
-| factorial         | Factorial              | S        |                |
+| factorial         | Factorial              |          |                |
 | floor             | FloorExpressionBuilder | PS       |                |
 | greatest          | Greatest               | S        |                |
 | hex               | Hex                    | S        |                |
@@ -268,7 +268,7 @@
 | positive          | UnaryPositive          | S        |                |
 | pow               | Pow                    | S        |                |
 | power             | Pow                    | S        |                |
-| radians           | ToRadians              | S        |                |
+| radians           | ToRadians              |          |                |
 | rand              | Rand                   | S        |                |
 | randn             | Randn                  |          |                |
 | random            | Rand                   | S        |                |
@@ -278,10 +278,10 @@
 | shiftleft         | ShiftLeft              | S        |                |
 | sign              | Signum                 | S        |                |
 | signum            | Signum                 | S        |                |
-| sin               | Sin                    | S        |                |
+| sin               | Sin                    |          |                |
 | sinh              | Sinh                   | S        |                |
 | sqrt              | Sqrt                   |          |                |
-| tan               | Tan                    | S        |                |
+| tan               | Tan                    |          |                |
 | tanh              | Tanh                   |          |                |
 | try_add           | TryAdd                 | PS       |                |
 | try_divide        | TryDivide              |          |                |
@@ -401,12 +401,12 @@
 | rtrim              | StringTrimRight             | S        |                        |
 | sentences          | Sentences                   |          |                        |
 | soundex            | SoundEx                     | S        |                        |
-| space              | StringSpace                 | S        |                        |
+| space              | StringSpace                 |          |                        |
 | split              | StringSplit                 | S        |                        |
 | split_part         | SplitPart                   | S        |                        |
 | startswith         | StartsWithExpressionBuilder | PS       | BinaryType unsupported |
-| substr             | Substring                   | S        |                        |
-| substring          | Substring                   | S        |                        |
+| substr             | Substring                   | PS       |                        |
+| substring          | Substring                   | PS       |                        |
 | substring_index    | SubstringIndex              | S        |                        |
 | to_binary          | ToBinary                    |          |                        |
 | to_char            | ToCharacter                 |          |                        |

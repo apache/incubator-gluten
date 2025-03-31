@@ -582,10 +582,10 @@ FUNCTION_GROUPS = {'scalar': SCALAR_FUNCTION_GROUPS,
 
 FUNCTION_SUITE_PACKAGE = 'org.apache.spark.sql.'
 FUNCTION_SUITES = {
-    'scalar': {'GlutenSQLQueryTestSuite', 'MiscFunctionSuite', 'DataFrameSessionWindowingSuite', 'MiscFunctionsSuite',
-               'DataFrameTimeWindowingSuite', 'DateFunctionsSuite', 'DataFrameFunctionsSuite',
-               'BitmapExpressionsQuerySuite', 'MathFunctionsSuite', 'ColumnExpressionSuite', 'StringFunctionsSuite',
-               'XPathFunctionsSuite', 'SQLQuerySuite'},
+    'scalar': {'GlutenSQLQueryTestSuite', 'GlutenDataFrameSessionWindowingSuite', 'GlutenDataFrameTimeWindowingSuite',
+               'GlutenMiscFunctionsSuite', 'GlutenDateFunctionsSuite', 'GlutenDataFrameFunctionsSuite',
+               'GlutenBitmapExpressionsQuerySuite', 'GlutenMathFunctionsSuite', 'GlutenColumnExpressionSuite',
+               'GlutenStringFunctionsSuite', 'GlutenXPathFunctionsSuite', 'GlutenSQLQuerySuite'},
     'aggregate': {'GlutenSQLQueryTestSuite', 'GlutenApproxCountDistinctForIntervalsQuerySuite',
                   'GlutenBitmapExpressionsQuerySuite',
                   'GlutenDataFrameAggregateSuite'},
