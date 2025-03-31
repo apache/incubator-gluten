@@ -380,6 +380,17 @@ struct SparkExtractURLHost
         if (userinfo_delim_pos && userinfo_delim_pos < end)
         {
             host = DB::getURLHost(userinfo_delim_pos + 1, end - userinfo_delim_pos);
+            /// url pattern like 'protocol://[username:password@]hostname[:port]/path[?query][#fragment]', when host return empty,
+            /// we can get the first delimiter of path, the sub-string between user info and path delimiter is the host string.
+            if (host.empty())
+            {
+                DB::Pos first_path_delim_pos = find_first_symbols<'/'>(userinfo_delim_pos + 1, end);
+                if (first_path_delim_pos && first_path_delim_pos - userinfo_delim_pos - 1 > 0)
+                {
+                    DB::Pos host_port_delim_pos = find_first_symbols<':'>(userinfo_delim_pos + 1, first_path_delim_pos);
+                    host = std::string_view(userinfo_delim_pos + 1, host_port_delim_pos - userinfo_delim_pos - 1);
+                }
+            }
         }
         else
         {
