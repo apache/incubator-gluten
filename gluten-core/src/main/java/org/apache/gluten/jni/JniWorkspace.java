@@ -85,12 +85,17 @@ public class JniWorkspace {
     }
   }
 
-  public static JniWorkspace getDefault(String rootDir) {
+  public static void initializeDefault(String rootDir) {
     synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
       if (DEFAULT_INSTANCE == null) {
         DEFAULT_INSTANCE = createOrGet(rootDir);
       }
-      Preconditions.checkNotNull(DEFAULT_INSTANCE);
+    }
+  }
+
+  public static JniWorkspace getDefault() {
+    synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
+      Preconditions.checkNotNull(DEFAULT_INSTANCE, "Not call initializeDefault yet");
       return DEFAULT_INSTANCE;
     }
   }
