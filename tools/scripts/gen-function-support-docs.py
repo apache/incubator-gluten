@@ -582,7 +582,10 @@ FUNCTION_GROUPS = {'scalar': SCALAR_FUNCTION_GROUPS,
 
 FUNCTION_SUITE_PACKAGE = 'org.apache.spark.sql.'
 FUNCTION_SUITES = {
-    'scalar': {'GlutenSQLQueryTestSuite'},
+    'scalar': {'GlutenSQLQueryTestSuite', 'MiscFunctionSuite', 'DataFrameSessionWindowingSuite', 'MiscFunctionsSuite',
+               'DataFrameTimeWindowingSuite', 'DateFunctionsSuite', 'DataFrameFunctionsSuite',
+               'BitmapExpressionsQuerySuite', 'MathFunctionsSuite', 'ColumnExpressionSuite', 'StringFunctionsSuite',
+               'XPathFunctionsSuite', 'SQLQuerySuite'},
     'aggregate': {'GlutenSQLQueryTestSuite', 'GlutenApproxCountDistinctForIntervalsQuerySuite',
                   'GlutenBitmapExpressionsQuerySuite',
                   'GlutenDataFrameAggregateSuite'},
@@ -679,8 +682,7 @@ def parse_logs(log_file):
 
         # Filter validation logs.
         for l in lines:
-            if (l.startswith(' - ') and 'ProjectExecTransformer' in l and 'Native validation failed:' not in l or
-                    l.startswith('   |- ')):
+            if l.startswith(' - ') and 'Native validation failed:' not in l or l.startswith('   |- '):
                 validation_logs.append(l)
 
         # Extract fallback reasons.
@@ -726,6 +728,7 @@ def parse_logs(log_file):
 
     for r in filter_fallback_reasons():
         ############## Scalar functions ##############
+        # Not supported: Expression not in ExpressionMappings.
         if 'Not supported to map spark function name to substrait function name' in r:
             pattern = r"class name: ([\w0-9]+)."
 
@@ -747,6 +750,39 @@ def parse_logs(log_file):
             else:
                 function_not_found(r)
 
+        # Not supported: Function not registered in Velox.
+        elif 'Scalar function name not registered:' in r:
+            pattern = r"Scalar function name not registered:\s+([\w0-9]+)"
+
+            # Extract the function name
+            match = re.search(pattern, r)
+
+            if match:
+                function_name = match.group(1)
+                if function_name in all_function_names:
+                    support_list['scalar']['unsupported'].add(function_name_tuple(function_name))
+                else:
+                    support_list['scalar']['unknown'].add(function_name_tuple(function_name))
+            else:
+                function_not_found(r)
+
+        # Partially supported: Function registered in Velox but not registered with specific arguments.
+        elif 'not registered with arguments:' in r:
+            pattern = r"Scalar function ([\w0-9]+) not registered with arguments:"
+
+            # Extract the function name
+            match = re.search(pattern, r)
+
+            if match:
+                function_name = match.group(1)
+                if function_name in all_function_names:
+                    support_list['scalar']['partial'].add(function_name_tuple(function_name))
+                else:
+                    support_list['scalar']['unknown'].add(function_name_tuple(function_name))
+            else:
+                function_not_found(r)
+
+        # Not supported: Special case for unsupported expressions.
         elif 'Not support expression' in r:
             pattern = r"Not support expression ([\w0-9]+)"
 
@@ -768,21 +804,7 @@ def parse_logs(log_file):
             else:
                 function_not_found(r)
 
-        elif 'Scalar function name not registered:' in r:
-            pattern = r"Scalar function name not registered:\s+([\w0-9]+)"
-
-            # Extract the function name
-            match = re.search(pattern, r)
-
-            if match:
-                function_name = match.group(1)
-                if function_name in all_function_names:
-                    support_list['scalar']['unsupported'].add(function_name_tuple(function_name))
-                else:
-                    support_list['scalar']['unknown'].add(function_name_tuple(function_name))
-            else:
-                function_not_found(r)
-
+        # Not supported: Special case for unsupported functions.
         elif 'Function is not supported:' in r:
             pattern = r"Function is not supported:\s+([\w0-9]+)"
 
@@ -793,21 +815,6 @@ def parse_logs(log_file):
                 function_name = match.group(1)
                 if function_name in all_function_names:
                     support_list['scalar']['unsupported'].add(function_name_tuple(function_name))
-                else:
-                    support_list['scalar']['unknown'].add(function_name_tuple(function_name))
-            else:
-                function_not_found(r)
-
-        elif 'not registered with arguments:' in r:
-            pattern = r"Scalar function ([\w0-9]+) not registered with arguments:"
-
-            # Extract the function name
-            match = re.search(pattern, r)
-
-            if match:
-                function_name = match.group(1)
-                if function_name in all_function_names:
-                    support_list['scalar']['partial'].add(function_name_tuple(function_name))
                 else:
                     support_list['scalar']['unknown'].add(function_name_tuple(function_name))
             else:
