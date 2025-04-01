@@ -5,7 +5,7 @@
 -- select to_timestamp('294248', 'y'); -- out of year value range [0, 294247]
 
 -- disable since https://github.com/facebookincubator/velox/pull/12694
--- select to_timestamp('1234567', 'yyyyyyy'); -- the length of 'y' pattern must be less than 7
+select to_timestamp('1234567', 'yyyyyyy'); -- the length of 'y' pattern must be less than 7
 
 -- in java 8 this case is invalid, but valid in java 11, disabled for jenkins
 -- select to_timestamp('100', 'DD');
