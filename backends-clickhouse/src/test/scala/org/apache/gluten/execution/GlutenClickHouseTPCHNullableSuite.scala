@@ -204,18 +204,16 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
   }
 
   test("test 'GLUTEN-5016'") {
-    withSQLConf(("spark.gluten.sql.columnar.preferColumnar", "false")) {
-      val sql =
-        """
-          |SELECT
-          |   sum(l_quantity) AS sum_qty
-          |FROM
-          |   lineitem
-          |WHERE
-          |   l_shipdate <= date'1998-09-02'
-          |""".stripMargin
-      runSql(sql, noFallBack = true) { _ => }
-    }
+    val sql =
+      """
+        |SELECT
+        |   sum(l_quantity) AS sum_qty
+        |FROM
+        |   lineitem
+        |WHERE
+        |   l_shipdate <= date'1998-09-02'
+        |""".stripMargin
+    runSql(sql, noFallBack = true) { _ => }
   }
 
   test("test rewrite date conversion") {
