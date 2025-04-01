@@ -153,6 +153,8 @@ trait BackendSettingsApi {
 
   def supportCollectLimitExec(): Boolean = false
 
+  def supportCollectTailExec(): Boolean = false
+
   def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = false
 
   def supportIcebergEqualityDeleteRead(): Boolean = true
