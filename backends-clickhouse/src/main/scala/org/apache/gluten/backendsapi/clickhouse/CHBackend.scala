@@ -414,6 +414,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  def enableSimplifySum(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConfig.runtimeConfig("enable_simplify_sum"),
+      defaultValue = true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.get.enableNativeWriter.getOrElse(false)
   }
