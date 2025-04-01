@@ -1047,7 +1047,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  <<<<<<<.HEAD(test("GLUTEN-8723 fix slice unexpected exception") {
+  test("GLUTEN-8723 fix slice unexpected exception") {
     val create_sql = "create table t_8723 (full_user_agent string) using orc"
     val insert_sql = "insert into t_8723 values(NULL)"
     val select1_sql = "select " +
@@ -1060,7 +1060,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     compareResultsAgainstVanillaSpark(select1_sql, true, { _ => })
     compareResultsAgainstVanillaSpark(select2_sql, true, { _ => })
     spark.sql(drop_sql)
-  })
+  }
 
   test("GLUTEN-8715 nan semantics") {
     withTable("test_8715") {
