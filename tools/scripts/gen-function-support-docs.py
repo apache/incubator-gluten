@@ -896,7 +896,7 @@ if __name__ == '__main__':
     if not args.skip_run_test_suite:
         run_GlutenSQLQueryTestSuite()
 
-    gluten_jar = os.path.join(gluten_home, 'package', 'target', 'gluten-package-1.4.0-SNAPSHOT.jar')
+    gluten_jar = os.path.join(gluten_home, 'package', 'target', 'gluten-package-1.5.0-SNAPSHOT.jar')
     if not os.path.exists(gluten_jar):
         raise Exception(f"Gluten jar not found at {gluten_jar}")
 
