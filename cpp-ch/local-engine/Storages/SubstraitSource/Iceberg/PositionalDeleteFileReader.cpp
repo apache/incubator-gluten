@@ -20,8 +20,8 @@
 #include <Functions/FunctionFactory.h>
 #include <Storages/Parquet/ParquetMeta.h>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
-#include <Storages/SubstraitSource/iceberg/IcebergMetadataColumn.h>
-#include <Storages/SubstraitSource/iceberg/SimpleParquetReader.h>
+#include <Storages/SubstraitSource/Iceberg/IcebergMetadataColumn.h>
+#include <Storages/SubstraitSource/Iceberg/SimpleParquetReader.h>
 #include <Common/BlockTypeUtils.h>
 
 using namespace DB;

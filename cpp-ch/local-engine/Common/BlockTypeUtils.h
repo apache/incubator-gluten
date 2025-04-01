@@ -133,7 +133,7 @@ inline DB::NamesWithAliases buildNamesWithAliases(const DB::Block & input, const
     return aliases;
 }
 
-// begion of CppToDataType
+// begin of CppToDataType
 template <typename T>
 struct CppToDataType;
 

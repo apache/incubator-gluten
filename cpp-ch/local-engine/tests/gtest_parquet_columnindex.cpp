@@ -349,12 +349,12 @@ local_engine::ColumnIndexStore buildTestColumnIndexStore()
 local_engine::RowType buildTestRowType()
 {
     local_engine::RowType result;
-    result.emplace_back(toAnotherFieldType(d1));
-    result.emplace_back(toAnotherFieldType(d2));
-    result.emplace_back(toAnotherFieldType(d3));
-    result.emplace_back(toAnotherFieldType(d4));
-    result.emplace_back(toAnotherFieldType(d5));
-    result.emplace_back(toAnotherFieldType(d6));
+    result.emplace_back(toNameTypePair(d1));
+    result.emplace_back(toNameTypePair(d2));
+    result.emplace_back(toNameTypePair(d3));
+    result.emplace_back(toNameTypePair(d4));
+    result.emplace_back(toNameTypePair(d5));
+    result.emplace_back(toNameTypePair(d6));
     return result;
 }
 

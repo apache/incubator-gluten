@@ -38,7 +38,7 @@ class LocalExecutor;
 }
 using BlockRowType = DB::ColumnsWithTypeAndName;
 using BlockFieldType = DB::ColumnWithTypeAndName;
-using AnotherFieldType = DB::NameAndTypePair;
+using FieldType = DB::NameAndTypePair;
 
 namespace parquet
 {
@@ -98,7 +98,7 @@ inline std::string replaceLocalFilesWithTPCH(const std::string_view haystack)
     return boost::replace_all_copy(std::string{haystack}, wildcard, replaced);
 }
 
-inline AnotherFieldType toAnotherFieldType(const parquet::ColumnDescriptor & type)
+inline FieldType toNameTypePair(const parquet::ColumnDescriptor & type)
 {
     return {type.name(), local_engine::test::toDataType(type)};
 }
@@ -112,6 +112,14 @@ inline local_engine::RowType toRowType(const DB::Block & header)
         types.push_back(DB::NameAndTypePair(column->name, column->type));
     }
     return types;
+}
+
+inline local_engine::RowType ROW(std::vector<std::string> && input, std::vector<DB::DataTypePtr> && type)
+{
+    DB::NamesAndTypesList result;
+    for (size_t i = 0; i < input.size(); ++i)
+        result.emplace_back(input[i], type[i]);
+    return result;
 }
 
 template <class Predicate>
