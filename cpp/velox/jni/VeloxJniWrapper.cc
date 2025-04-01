@@ -79,7 +79,8 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
 void JNI_OnUnload(JavaVM* vm, void*) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
-
+  std::cout <<"unload the velox JNI_OnUnload"<< std::endl;
+  std::cerr <<"unload the velox JNI_OnUnload"<< std::endl;
   env->DeleteGlobalRef(blockStripesClass);
 
   finalizeVeloxJniUDF(env);

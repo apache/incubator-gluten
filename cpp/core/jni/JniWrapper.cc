@@ -254,6 +254,9 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
 
+  std::cout <<"unload the core JNI_OnUnload"<< std::endl;
+  std::cerr <<"unload the core JNI_OnUnload"<< std::endl;
+
   getJniErrorState()->close();
   getJniCommonState()->close();
 }
