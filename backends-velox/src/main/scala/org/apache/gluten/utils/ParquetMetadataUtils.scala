@@ -21,6 +21,8 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.ParquetReadFormat
 
+import org.apache.spark.util.SerializableConfiguration
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, Path, RemoteIterator}
 
@@ -36,27 +38,29 @@ object ParquetMetadataUtils {
    *   File format, e.g., `ParquetReadFormat`
    * @param rootPaths
    *   List of file paths to scan
-   * @param hadoopConf
-   *   Hadoop configuration
+   * @param serializableHadoopConf
+   *   Optional Hadoop configuration
    * @return
    *   [[ValidationResult]] validation success or failure
    */
   def validateEncryption(
       format: ReadFileFormat,
       rootPaths: Seq[String],
-      hadoopConf: Configuration,
+      serializableHadoopConf: Option[SerializableConfiguration],
       fileLimit: Int
   ): ValidationResult = {
     if (format != ParquetReadFormat || rootPaths.isEmpty) {
       return ValidationResult.succeeded
     }
 
+    val conf = serializableHadoopConf.map(_.value).getOrElse(new Configuration())
+
     rootPaths.foreach {
       rootPath =>
-        val fs = new Path(rootPath).getFileSystem(hadoopConf)
+        val fs = new Path(rootPath).getFileSystem(conf)
         try {
           val encryptionDetected =
-            checkForEncryptionWithLimit(fs, new Path(rootPath), hadoopConf, fileLimit = fileLimit)
+            checkForEncryptionWithLimit(fs, new Path(rootPath), conf, fileLimit = fileLimit)
           if (encryptionDetected) {
             return ValidationResult.failed("Encrypted Parquet file detected.")
           }
