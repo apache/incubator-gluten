@@ -1644,4 +1644,62 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
+  test("test input_file_name() in different formats") {
+    val formats = Seq("textfile", "orc", "parquet")
+    val tableNamePrefix = "sales_"
+
+    formats.foreach {
+      format =>
+        val tableName = s"$tableNamePrefix${format.take(2)}"
+        val createTableSql =
+          s"""
+             |CREATE TABLE $tableName (
+             |  product_id STRING,
+             |  quantity INT
+             |) PARTITIONED BY (year STRING)
+             |STORED AS $format
+             |""".stripMargin
+
+        val insertDataSql1 =
+          s"""
+             |INSERT INTO $tableName PARTITION(year='2001')
+             |SELECT 'prod1', 100
+             |""".stripMargin
+
+        val insertDataSql2 =
+          s"""
+             |INSERT INTO $tableName PARTITION(year='2002')
+             |SELECT 'prod1', 200
+             |""".stripMargin
+
+        val select1Sql = s"SELECT input_file_name() from $tableName"
+        val select2Sql = s"SELECT input_file_block_start(), " +
+          s"input_file_block_length() FROM $tableName"
+        s"input_file_block_length() FROM $tableName"
+        val dropSql = s"DROP TABLE IF EXISTS $tableName"
+
+        spark.sql(createTableSql)
+        spark.sql(insertDataSql1)
+        spark.sql(insertDataSql2)
+
+        if (format.equals("textfile")) {
+          // When format is textfile, input_file_name() in vanilla returns paths like 'file:/xxx'
+          // But in gluten it returns paths like 'file:///xxx'.
+          val result = spark.sql(select1Sql)
+          result
+            .collect()
+            .foreach(
+              row => {
+                assert(!row.isNullAt(0) && row.getString(0).nonEmpty)
+              })
+        } else {
+          compareResultsAgainstVanillaSpark(select1Sql, compareResult = true, _ => {})
+        }
+
+        compareResultsAgainstVanillaSpark(select2Sql, compareResult = true, _ => {})
+
+        spark.sql(dropSql)
+    }
+  }
+
 }
