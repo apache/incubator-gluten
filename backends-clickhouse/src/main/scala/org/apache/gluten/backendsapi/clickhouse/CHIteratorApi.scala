@@ -25,7 +25,7 @@ import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.sql.shims.{DeltaShimLoader, SparkShimLoader}
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
-import org.apache.gluten.substrait.rel.LocalFilesNode.{ReadFileFormat, SchemaField}
+import org.apache.gluten.substrait.rel.LocalFilesNode.{FileSchema, ReadFileFormat, SchemaField}
 import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
@@ -55,7 +55,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
-  private def getFileSchema(schema: StructType, names: Seq[String]): java.util.List[SchemaField] = {
+  private def getFileSchema(schema: StructType, names: Seq[String]): FileSchema = {
     val dataSchema = ArrayBuffer[SchemaField]()
     schema.foreach {
       field =>
@@ -72,7 +72,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         }
         dataSchema += newField
     }
-    dataSchema.asJava
+    new FileSchema(dataSchema.asJava)
   }
 
   private def createNativeIterator(

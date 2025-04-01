@@ -63,9 +63,21 @@ public class LocalFilesNode implements SplitInfo {
     }
   }
 
+  public static class FileSchema {
+    private final List<SchemaField> fields;
+
+    public FileSchema(List<SchemaField> fields) {
+      this.fields = fields;
+    }
+
+    public List<SchemaField> getFields() {
+      return fields;
+    }
+  }
+
   protected ReadFileFormat fileFormat = ReadFileFormat.UnknownFormat;
   private Boolean iterAsInput = false;
-  private List<SchemaField> fileSchema;
+  private FileSchema fileSchema;
   private Map<String, String> fileReadProperties;
 
   LocalFilesNode(
@@ -110,7 +122,7 @@ public class LocalFilesNode implements SplitInfo {
     paths.addAll(newPaths);
   }
 
-  public void setFileSchema(List<SchemaField> schema) {
+  public void setFileSchema(FileSchema schema) {
     this.fileSchema = schema;
   }
 
@@ -119,7 +131,7 @@ public class LocalFilesNode implements SplitInfo {
 
     if (fileSchema != null) {
       Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-      for (SchemaField field : fileSchema) {
+      for (SchemaField field : fileSchema.fields) {
         structBuilder.addTypes(field.type.toProtobuf());
         namedStructBuilder.addNames(field.name);
       }
