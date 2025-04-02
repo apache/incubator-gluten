@@ -50,18 +50,17 @@ function wget_and_untar {
   local URL=$1
   local BIN=$2
   local DIR=$3
-  local FILE="${DIR}/${BIN}"
 
   mkdir -p "${DIR}"
 
-  if [[ -f "${FILE}" ]]; then
-    if tar -tzf "${FILE}" > /dev/null 2>&1; then
-      echo "Using cached ${FILE}"
-      tar -xzf "${FILE}" -C "${DIR}" --strip-components=1
+  if [[ -f "${BIN}" ]]; then
+    if tar -tzf "${BIN}" > /dev/null 2>&1; then
+      echo "Using cached ${BIN}"
+      tar -xzf "${BIN}" -C "${DIR}" --strip-components=1
       return 0
     else
-      echo "${FILE} is not a valid tar file. Removing it."
-      rm -f "${FILE}"
+      echo "${BIN} is not a valid tar file. Removing it."
+      rm -f "${BIN}"
     fi
   fi
 
