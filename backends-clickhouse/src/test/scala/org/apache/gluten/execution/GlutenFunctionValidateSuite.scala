@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.CHConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
 import org.apache.spark.sql.catalyst.expressions._
@@ -1258,5 +1260,27 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     // default comparator without array elements not nullable guaranteed
     val sql2 = "select array_sort(array(id+1, null, id+2)) from range(10)"
     compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+  }
+
+  test("Test SimplifySumRule for sum simplification") {
+    val sql = "select sum(id / 3), sum(id * 7), sum(7 * id) from range(10)"
+
+    def checkSimplifiedSum(df: DataFrame): Unit = {
+      val projects = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case project: ProjectExecTransformer
+            if project.child.isInstanceOf[CHHashAggregateExecTransformer] =>
+          project
+      }
+
+      assert(projects.size == 1)
+      assert(projects.head.projectList.size == 3)
+      assert(projects.head.projectList(0).asInstanceOf[Alias].child.isInstanceOf[Divide])
+      assert(projects.head.projectList(1).asInstanceOf[Alias].child.isInstanceOf[Multiply])
+      assert(projects.head.projectList(2).asInstanceOf[Alias].child.isInstanceOf[Multiply])
+    }
+
+    withSQLConf((CHConfig.runtimeConfig("enable_simplify_sum"), "true")) {
+      compareResultsAgainstVanillaSpark(sql, compareResult = true, checkSimplifiedSum)
+    }
   }
 }

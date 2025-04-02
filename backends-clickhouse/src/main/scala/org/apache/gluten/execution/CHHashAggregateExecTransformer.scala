@@ -127,7 +127,7 @@ case class CHHashAggregateExecTransformer(
   lazy val aggregateResultAttributes =
     getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
 
-  protected val modes: Seq[AggregateMode] = aggregateExpressions.map(_.mode).distinct
+  val modes: Seq[AggregateMode] = aggregateExpressions.map(_.mode).distinct
 
   override protected def checkType(dataType: DataType): Boolean = {
     dataType match {
