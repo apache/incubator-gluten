@@ -246,7 +246,7 @@ object Ras {
       override def hashCode(): Int = ras.planModel.hashCode(self)
       override def equals(other: Any): Boolean = {
         other match {
-          case that: UnsafeHashKeyImpl[T] => ras.planModel.equals(self, that.self)
+          case that: UnsafeHashKeyImpl[T @unchecked] => ras.planModel.equals(self, that.self)
           case _ => false
         }
       }

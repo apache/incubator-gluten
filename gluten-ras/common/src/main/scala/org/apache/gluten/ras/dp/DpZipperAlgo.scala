@@ -603,7 +603,8 @@ object DpZipperAlgo {
     override def hashCode(): Int = id.hashCode()
     override def equals(obj: Any): Boolean = {
       obj match {
-        case other: XKey[X, Y, XOutput, YOutput] => id == other.id
+        case other: XKey[X @unchecked, Y @unchecked, XOutput @unchecked, YOutput @unchecked] =>
+          id == other.id
         case _ => false
       }
     }
@@ -625,7 +626,8 @@ object DpZipperAlgo {
     override def hashCode(): Int = id.hashCode()
     override def equals(obj: Any): Boolean = {
       obj match {
-        case other: YKey[X, Y, XOutput, YOutput] => id == other.id
+        case other: YKey[X @unchecked, Y @unchecked, XOutput @unchecked, YOutput @unchecked] =>
+          id == other.id
         case _ => false
       }
     }

@@ -248,7 +248,7 @@ object ArrowCSVFileFormat {
           reader.loadNextBatch()
         }
 
-        override def next: ColumnarBatch = {
+        override def next(): ColumnarBatch = {
           val root = reader.getVectorSchemaRoot
           val unloader = new VectorUnloader(root)
 

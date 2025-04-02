@@ -186,7 +186,7 @@ case class UnsafeColumnarBuildSideRelation(
           batchId < batches.arraySize
         }
 
-        override def next: ColumnarBatch = {
+        override def next(): ColumnarBatch = {
           val (offset, length) =
             batches.getBytesBufferOffsetAndLength(batchId)
           batchId += 1
@@ -276,7 +276,7 @@ case class UnsafeColumnarBuildSideRelation(
                 rowId < rows
               }
 
-              override def next: UnsafeRow = {
+              override def next(): UnsafeRow = {
                 if (rowId >= rows) throw new NoSuchElementException
                 if (rowId == baseLength + info.lengths.length) {
                   baseLength += info.lengths.length

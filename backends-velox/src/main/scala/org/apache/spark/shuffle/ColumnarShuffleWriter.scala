@@ -281,6 +281,6 @@ class ColumnarShuffleWriter[K, V](
     }
   }
 
-  def getPartitionLengths: Array[Long] = partitionLengths
+  def getPartitionLengths(): Array[Long] = partitionLengths
 
 }

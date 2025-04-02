@@ -78,7 +78,7 @@ case class ColumnarBuildSideRelation(
           batchId < batches.length
         }
 
-        override def next: ColumnarBatch = {
+        override def next(): ColumnarBatch = {
           val handle =
             jniWrapper
               .deserialize(serializeHandle, batches(batchId))
@@ -172,7 +172,7 @@ case class ColumnarBuildSideRelation(
                 rowId < rows
               }
 
-              override def next: UnsafeRow = {
+              override def next(): UnsafeRow = {
                 if (rowId >= rows) throw new NoSuchElementException
                 if (rowId == baseLength + info.lengths.length) {
                   baseLength += info.lengths.length

@@ -172,7 +172,7 @@ object VeloxColumnarToRowExec {
             rowId < rows
           }
 
-          override def next: UnsafeRow = {
+          override def next(): UnsafeRow = {
             if (rowId == baseLength + info.lengths.length) {
               baseLength += info.lengths.length
               val before = System.currentTimeMillis()

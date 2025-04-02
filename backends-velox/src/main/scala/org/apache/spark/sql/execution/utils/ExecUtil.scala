@@ -60,7 +60,7 @@ object ExecUtil {
           rowId < batch.numRows()
         }
 
-        override def next: UnsafeRow = {
+        override def next(): UnsafeRow = {
           if (rowId >= batch.numRows()) throw new NoSuchElementException
           if (rowId == baseLength + info.lengths.length) {
             baseLength += info.lengths.length

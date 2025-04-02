@@ -102,7 +102,7 @@ trait BackendSettingsApi {
 
   def excludeScanExecFromCollapsedStage(): Boolean = false
 
-  def rescaleDecimalArithmetic: Boolean = false
+  def rescaleDecimalArithmetic(): Boolean = false
 
   def allowDecimalArithmetic: Boolean = true
 
