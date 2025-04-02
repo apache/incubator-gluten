@@ -238,11 +238,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   // Temporary solution to avoid unnecessary serialization of hadoop conf, using @transient will
   // cause OOM failure for unknown reasons in GlutenHashExpressionsSuite of Spark 3.5.
-  val serializableHadoopConf: Option[SerializableConfiguration] =
+  val serializableHadoopConf: SerializableConfiguration =
     if (GlutenConfig.get.enableHdfsViewfs) {
-      Some(new SerializableConfiguration(sparkContext.hadoopConfiguration))
+      new SerializableConfiguration(sparkContext.hadoopConfiguration)
     } else {
-      None
+      null
     }
 
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.get.numaBindingInfo
@@ -406,7 +406,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
               val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
                 splitInfo.getPaths.asScala.toSeq,
                 viewfsToHdfsCache,
-                serializableHadoopConf.get.value)
+                serializableHadoopConf.value)
               splitInfo.setPaths(newPaths.asJava)
           }
       }
@@ -469,7 +469,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
           val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
             splitInfo.getPaths.asScala.toSeq,
             viewfsToHdfsCache,
-            serializableHadoopConf.get.value)
+            serializableHadoopConf.value)
           splitInfo.setPaths(newPaths.asJava)
       }
     }
