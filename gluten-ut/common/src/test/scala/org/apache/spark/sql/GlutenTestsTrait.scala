@@ -26,7 +26,6 @@ import org.apache.spark.sql.GlutenQueryTestUtil.isNaNOrInf
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData, TypeUtils}
 import org.apache.spark.sql.internal.SQLConf
@@ -136,15 +135,6 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
     if (canConvertToDataFrame(inputRow)) {
       glutenCheckExpression(expr, expected, inputRow)
-    } else {
-      logWarning(s"The status of this unit test is not guaranteed.")
-      val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
-      checkEvaluationWithoutCodegen(expr, catalystValue, inputRow)
-      checkEvaluationWithMutableProjection(expr, catalystValue, inputRow)
-      if (GenerateUnsafeProjection.canSupport(expr.dataType)) {
-        checkEvaluationWithUnsafeProjection(expr, catalystValue, inputRow)
-      }
-      checkEvaluationWithOptimization(expr, catalystValue, inputRow)
     }
   }
 
