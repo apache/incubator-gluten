@@ -64,12 +64,13 @@ function wget_and_untar {
     fi
   fi
 
-  wget -q --max-redirect 3 -O - "${URL}${BIN}" | tar -xz -C "${DIR}" --strip-components=1
+  wget -q --max-redirect 3 -O "${BIN}" "${URL}"
+  tar -xz "${BIN}" -C "${DIR}" --strip-components=1
 }
 
 function install_cmake {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://cmake.org/files/v3.28/ cmake-3.28.3.tar.gz cmake-3
+  wget_and_untar https://cmake.org/files/v3.28/cmake-3.28.3.tar.gz cmake-3.28.3.tar.gz cmake-3
   cd cmake-3
   ./bootstrap --prefix=/usr/local
   make -j$(nproc)
@@ -88,7 +89,7 @@ function install_ninja {
 
 function install_folly {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/facebook/folly/archive/refs/tags/ ${FB_OS_VERSION}.tar.gz folly
+  wget_and_untar https://github.com/facebook/folly/archive/refs/tags/${FB_OS_VERSION}.tar.gz ${FB_OS_VERSION}.tar.gz folly
   cmake_install folly -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON
 }
 
@@ -102,7 +103,7 @@ function install_conda {
 
 function install_openssl {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/ OpenSSL_1_1_1s.tar.gz openssl
+  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz OpenSSL_1_1_1s.tar.gz openssl
   cd openssl
   ./config no-shared
   make depend
@@ -112,25 +113,25 @@ function install_openssl {
 
 function install_gflags {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/gflags/gflags/archive/ v2.2.2.tar.gz gflags
+  wget_and_untar https://github.com/gflags/gflags/archive/v2.2.2.tar.gz gflags-2.2.2.tar.gz gflags
   cmake_install gflags -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON -DLIB_SUFFIX=64 -DCMAKE_INSTALL_PREFIX:PATH=/usr/local
 }
 
 function install_glog {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/google/glog/archive/ v0.5.0.tar.gz glog
+  wget_and_untar https://github.com/google/glog/archive/v0.5.0.tar.gz glog-0.5.0.tar.gz glog
   cmake_install glog -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DCMAKE_INSTALL_PREFIX:PATH=/usr/local
 }
 
 function install_snappy {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/google/snappy/archive/ 1.1.8.tar.gz snappy
+  wget_and_untar https://github.com/google/snappy/archive/1.1.8.tar.gz snappy-1.1.8.tar.gz snappy
   cmake_install snappy -DSNAPPY_BUILD_TESTS=OFF
 }
 
 function install_dwarf {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/davea42/libdwarf-code/archive/refs/tags/ 20210528.tar.gz dwarf
+  wget_and_untar https://github.com/davea42/libdwarf-code/archive/refs/tags/20210528.tar.gz dwarf-20210528.tar.gz dwarf
   cd dwarf
   #local URL=https://github.com/davea42/libdwarf-code/releases/download/v0.5.0/libdwarf-0.5.0.tar.xz
   #local DIR=dwarf
@@ -146,14 +147,14 @@ function install_dwarf {
 
 function install_re2 {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/google/re2/archive/refs/tags/ 2023-03-01.tar.gz re2
+  wget_and_untar https://github.com/google/re2/archive/refs/tags/2023-03-01.tar.gz re2-2023-03-01.tar.gz re2
   cd re2
   $SUDO make install
 }
 
 function install_flex {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/westes/flex/releases/download/v2.6.4/ flex-2.6.4.tar.gz flex
+  wget_and_untar https://github.com/westes/flex/releases/download/v2.6.4/flex-2.6.4.tar.gz flex-2.6.4.tar.gz flex
   cd flex
   ./autogen.sh
   ./configure
@@ -162,7 +163,7 @@ function install_flex {
 
 function install_lzo {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar http://www.oberhumer.com/opensource/lzo/download/ lzo-2.10.tar.gz lzo
+  wget_and_untar http://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz lzo-2.10.tar.gz lzo
   cd lzo
   ./configure --prefix=/usr/local --enable-shared --disable-static --docdir=/usr/local/share/doc/lzo-2.10
   make "-j$(nproc)"
@@ -174,7 +175,7 @@ function install_boost {
   sudo rm -f /usr/local/lib/libboost_* /usr/lib64/libboost_* /opt/rh/devtoolset-11/root/usr/lib64/dyninst/libboost_*
   sudo rm -rf "${DEPENDENCY_DIR}"/boost/ /usr/local/include/boost/ /usr/local/lib/cmake/Boost-1.72.0/
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/boostorg/boost/releases/download/boost-1.84.0/ boost-1.84.0.tar.gz boost
+  wget_and_untar https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz boost-1.84.0.tar.gz boost
   cd boost
   ./bootstrap.sh --prefix=/usr/local --with-python=/usr/bin/python3 --with-python-root=/usr/lib/python3.6 --without-libraries=python
   $SUDO ./b2 "-j$(nproc)" -d0 install threading=multi
@@ -182,7 +183,7 @@ function install_boost {
 
 function install_protobuf {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/protocolbuffers/protobuf/releases/download/v21.4/ protobuf-all-21.4.tar.gz protobuf
+  wget_and_untar https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz protobuf-all-21.4.tar.gz protobuf
   cd protobuf
   ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local
   make "-j$(nproc)"
@@ -191,7 +192,7 @@ function install_protobuf {
 
 function install_gtest {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/google/googletest/archive/refs/tags/ release-1.12.1.tar.gz googletest-release-1.12.1
+  wget_and_untar https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz googletest-release-1.12.1.tar.gz googletest-release-1.12.1
   cd googletest-release-1.12.1
   mkdir -p build && cd build && cmake -DBUILD_GTEST=ON -DBUILD_GMOCK=ON -DINSTALL_GTEST=ON -DINSTALL_GMOCK=ON -DBUILD_SHARED_LIBS=ON ..
   make "-j$(nproc)"
@@ -203,14 +204,14 @@ function install_fmt {
   rm -rf /usr/local/lib64/cmake/fmt
   rm -rf  /usr/local/include/fmt
   rm -rf fmt
-  wget_and_untar https://github.com/fmtlib/fmt/archive/ 10.1.1.tar.gz fmt
+  wget_and_untar https://github.com/fmtlib/fmt/archive/10.1.1.tar.gz fmt-10.1.1.tar.gz fmt
   cmake_install fmt -DFMT_TEST=OFF
 }
 
 function install_duckdb {
   if $BUILD_DUCKDB ; then
     echo 'Building DuckDB'
-    wget_and_untar https://github.com/duckdb/duckdb/archive/refs/tags/ v0.8.1.tar.gz duckdb
+    wget_and_untar https://github.com/duckdb/duckdb/archive/refs/tags/v0.8.1.tar.gz duckdb-0.8.1.tar.gz duckdb
     cmake_install duckdb -DBUILD_UNITTESTS=OFF -DENABLE_SANITIZER=OFF -DENABLE_UBSAN=OFF -DBUILD_SHELL=OFF -DEXPORT_DLL_SYMBOLS=OFF -DCMAKE_BUILD_TYPE=Release
   fi
 }
