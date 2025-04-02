@@ -583,7 +583,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       Sig[CollectSet](ExpressionNames.COLLECT_SET),
       Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID)
     ) ++
-      ExpressionExtensionTrait.expressionExtensionTransformer.expressionSigList ++
+      ExpressionExtensionTrait.expressionExtensionSigList ++
       SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
   }
 
@@ -592,12 +592,12 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       substraitExprName: String,
       expr: Expression,
       attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] = expr match {
-    case e
-        if ExpressionExtensionTrait.expressionExtensionTransformer.extensionExpressionsMapping
-          .contains(e.getClass) =>
+    case e if ExpressionExtensionTrait.findExpressionExtension(e.getClass).nonEmpty =>
       // Use extended expression transformer to replace custom expression first
       Some(
-        ExpressionExtensionTrait.expressionExtensionTransformer
+        ExpressionExtensionTrait
+          .findExpressionExtension(e.getClass)
+          .get
           .replaceWithExtensionExpressionTransformer(substraitExprName, e, attributeSeq))
     case _ => None
   }

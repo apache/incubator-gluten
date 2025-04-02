@@ -67,6 +67,7 @@ object CHRuleApi {
     injector.injectResolutionRule(spark => new CollapseGetJsonObjectExpressionRule(spark))
     injector.injectResolutionRule(spark => new RepalceFromJsonWithGetJsonObject(spark))
     injector.injectOptimizerRule(spark => new CommonSubexpressionEliminateRule(spark))
+    injector.injectOptimizerRule(spark => new SimplifySumRule(spark))
     injector.injectOptimizerRule(spark => new ExtendedColumnPruning(spark))
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
@@ -189,7 +190,8 @@ object CHRuleApi {
         // case s: SerializeFromObjectExec => true
         // case d: DeserializeToObjectExec => true
         // case o: ObjectHashAggregateExec => true
-        case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
+//        case rddScanExec: RDDScanExec if rddScanExec.no
+        //        deName.contains("Delta Table State") => true
         case f: FileSourceScanExec if includedDeltaOperator(f) => true
         case v2CommandExec: V2CommandExec => true
         case commandResultExec: CommandResultExec => true
