@@ -42,7 +42,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
 import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
@@ -236,15 +235,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   val sparkConf: SparkConf = sparkContext.getConf
 
-  // Temporary solution to avoid unnecessary serialization of hadoop conf, using @transient will
-  // cause OOM failure for unknown reasons in GlutenHashExpressionsSuite of Spark 3.5.
-  val serializableHadoopConf: SerializableConfiguration =
-    if (GlutenConfig.get.enableHdfsViewfs) {
-      new SerializableConfiguration(sparkContext.hadoopConfiguration)
-    } else {
-      null
-    }
-
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   @transient
@@ -399,6 +389,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
     if (GlutenConfig.get.enableHdfsViewfs) {
       val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
+      val hadoopConf = sparkContext.hadoopConfiguration
       allSplitInfos.foreach {
         splitInfos =>
           splitInfos.foreach {
@@ -406,7 +397,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
               val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
                 splitInfo.getPaths.asScala.toSeq,
                 viewfsToHdfsCache,
-                serializableHadoopConf.value)
+                hadoopConf)
               splitInfo.setPaths(newPaths.asJava)
           }
       }
@@ -464,12 +455,13 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     }
     if (GlutenConfig.get.enableHdfsViewfs) {
       val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
+      val hadoopConf = sparkContext.hadoopConfiguration
       allSplitInfos.foreach {
         case splitInfo: LocalFilesNode =>
           val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
             splitInfo.getPaths.asScala.toSeq,
             viewfsToHdfsCache,
-            serializableHadoopConf.value)
+            hadoopConf)
           splitInfo.setPaths(newPaths.asJava)
       }
     }
