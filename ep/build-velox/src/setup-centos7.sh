@@ -89,7 +89,7 @@ function install_ninja {
 
 function install_folly {
   cd "${DEPENDENCY_DIR}"
-  wget_and_untar https://github.com/facebook/folly/archive/refs/tags/${FB_OS_VERSION}.tar.gz ${FB_OS_VERSION}.tar.gz folly
+  wget_and_untar https://github.com/facebook/folly/archive/refs/tags/${FB_OS_VERSION}.tar.gz folly-${FB_OS_VERSION}.tar.gz folly
   cmake_install folly -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON
 }
 
