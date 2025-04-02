@@ -404,6 +404,10 @@ object GlutenConfig {
   val SPARK_S3_RETRY_MAX_ATTEMPTS: String = HADOOP_PREFIX + S3_RETRY_MAX_ATTEMPTS
   val S3_CONNECTION_MAXIMUM = "fs.s3a.connection.maximum"
   val SPARK_S3_CONNECTION_MAXIMUM: String = HADOOP_PREFIX + S3_CONNECTION_MAXIMUM
+  val S3_ENDPOINT_REGION = "fs.s3a.endpoint.region"
+  val SPARK_S3_ENDPOINT_REGION: String = HADOOP_PREFIX + S3_ENDPOINT_REGION
+  val S3_CREDENTIALS_PROVIDER = "fs.s3a.aws.credentials.provider"
+  val SPARK_S3_CREDENTIALS_PROVIDER: String = HADOOP_PREFIX + S3_CREDENTIALS_PROVIDER
 
   // ABFS config
   val ABFS_PREFIX = "fs.azure."
@@ -483,9 +487,14 @@ object GlutenConfig {
       SPARK_S3_IAM_SESSION_NAME,
       SPARK_S3_RETRY_MAX_ATTEMPTS,
       SPARK_S3_CONNECTION_MAXIMUM,
+      SPARK_S3_ENDPOINT_REGION,
+      SPARK_S3_CREDENTIALS_PROVIDER,
       "spark.gluten.velox.fs.s3a.connect.timeout",
       "spark.gluten.velox.fs.s3a.retry.mode",
       "spark.gluten.velox.awsSdkLogLevel",
+      "spark.gluten.velox.s3UseProxyFromEnv",
+      "spark.gluten.velox.s3PayloadSigningPolicy",
+      "spark.gluten.velox.s3LogLocation",
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
       SPARK_GCS_AUTH_TYPE,
@@ -593,7 +602,9 @@ object GlutenConfig {
       ("spark.sql.orc.compression.codec", "snappy"),
       ("spark.sql.decimalOperations.allowPrecisionLoss", "true"),
       ("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled", "false"),
-      ("spark.gluten.velox.awsSdkLogLevel", "FATAL")
+      ("spark.gluten.velox.awsSdkLogLevel", "FATAL"),
+      ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
+      ("spark.gluten.velox.s3PayloadSigningPolicy", "Never")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
