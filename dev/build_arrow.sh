@@ -83,9 +83,9 @@ function build_arrow_java() {
 
     pushd $ARROW_PREFIX/java
     # Because arrow-bom module need the -DprocessAllModules
-    mvn versions:set -DnewVersion=15.0.0-gluten -DprocessAllModules
+    mvn versions:set -DnewVersion=18.0.0 -DprocessAllModules
 
-    mvn clean install -pl bom,maven/module-info-compiler-maven-plugin,vector -am \
+    mvn clean install -pl bom,vector -am \
           -DskipTests -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -Dassembly.skipAssembly
 
     # Arrow C Data Interface CPP libraries
@@ -109,5 +109,5 @@ echo "Start to build Arrow"
 prepare_arrow_build
 build_arrow_cpp
 echo "Finished building arrow CPP"
-build_arrow_java
-echo "Finished building arrow Java"
+#build_arrow_java
+#echo "Finished building arrow Java"
