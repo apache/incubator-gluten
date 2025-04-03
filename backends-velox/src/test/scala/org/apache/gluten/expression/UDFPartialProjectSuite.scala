@@ -17,9 +17,14 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.execution.{ColumnarPartialProjectExec, WholeStageTransformerSuite}
+import org.apache.gluten.extension.PartialProjectRule
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
+import org.apache.spark.sql.catalyst.plans.logical.Project
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.udf
 
 import java.io.File
@@ -203,5 +208,20 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
                          |""".stripMargin) {
       checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
+  }
+
+  test("PartialProjectRule should handle ProjectExec with row child") {
+    val rule = PartialProjectRule(spark)
+    val project = ProjectExec(
+      Seq(Alias(Literal(1), "one")()),
+      spark.sessionState
+        .executePlan(
+          Project(Seq(Alias(Literal(1), "one")()), spark.emptyDataFrame.queryExecution.logical))
+        .executedPlan
+    )
+    val transformedPlan = rule.apply(project)
+
+    assert(transformedPlan.isInstanceOf[ProjectExec])
+    assert(transformedPlan == project)
   }
 }
