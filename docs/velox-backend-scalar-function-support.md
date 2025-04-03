@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 215 functions and partially supports 20 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 220 functions and partially supports 20 functions.**
 
 ## Array Functions
 
@@ -319,25 +319,25 @@
 | user                        | CurrentUser               |          |                |
 | uuid                        | Uuid                      | S        |                |
 | version                     | SparkVersion              | S        |                |
-| &#124;&#124;                |                           |          |                |
+| &#124;&#124;                |                           | S        |                |
 
 ## Predicate Functions
 
 | Spark Functions   | Spark Expressions   | Status   | Restrictions           |
 |-------------------|---------------------|----------|------------------------|
 | !                 | Not                 | S        |                        |
-| !=                |                     |          |                        |
+| !=                |                     | S        |                        |
 | <                 | LessThan            | S        |                        |
 | <=                | LessThanOrEqual     | S        |                        |
 | <=>               | EqualNullSafe       | S        |                        |
-| <>                |                     |          |                        |
+| <>                |                     | S        |                        |
 | =                 | EqualTo             | S        |                        |
 | ==                | EqualTo             | S        |                        |
 | >                 | GreaterThan         | S        |                        |
 | >=                | GreaterThanOrEqual  | S        |                        |
 | and               | And                 | S        |                        |
-| between           |                     |          |                        |
-| case              |                     |          |                        |
+| between           |                     | S        |                        |
+| case              |                     | S        |                        |
 | ilike             | ILike               |          |                        |
 | in                | In                  | PS       |                        |
 | isnan             | IsNaN               | S        |                        |

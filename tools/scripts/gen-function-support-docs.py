@@ -660,6 +660,14 @@ def generate_function_list():
 
 
 def parse_logs(log_file):
+    # "<>", "!=", "between", "case", and "||" are hard coded in spark and there's no corresponding functions.
+    builtin_functions = ['<>', '!=', 'between', 'case', '||']
+    function_names = all_function_names.copy()
+    for f in builtin_functions:
+        function_names.remove(f)
+
+    print(function_names)
+
     generator_functions = ['explode', 'explode_outer', 'inline', 'inline_outer', 'posexplode',
                            'posexplode_outer', 'stack']
 
@@ -719,7 +727,8 @@ def parse_logs(log_file):
             for f in functions[category]:
                 # TODO: Remove this filter as it may exclude supported expressions, such as
                 #  RuntimeReplaceable and Builder.
-                if f not in gluten_expressions.values() and function_to_classname[f] not in gluten_expressions.keys():
+                if f not in builtin_functions and f not in gluten_expressions.values() and function_to_classname[
+                    f] not in gluten_expressions.keys():
                     logging.log(logging.WARNING, f"Function not found in gluten expressions: {f}")
                     support_list[category]['unsupported'].add(function_name_tuple(f))
 
@@ -739,7 +748,7 @@ def parse_logs(log_file):
                 class_name = match.group(1)
                 if class_name in classname_to_function:
                     function_name = classname_to_function[class_name]
-                    if function_name in all_function_names:
+                    if function_name in function_names:
                         support_list['scalar']['unsupported'].add((function_name, class_name))
                     else:
                         support_list['scalar']['unknown'].add((function_name, class_name))
@@ -759,7 +768,7 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                if function_name in all_function_names:
+                if function_name in function_names:
                     support_list['scalar']['unsupported'].add(function_name_tuple(function_name))
                 else:
                     support_list['scalar']['unknown'].add(function_name_tuple(function_name))
@@ -775,7 +784,7 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                if function_name in all_function_names:
+                if function_name in function_names:
                     support_list['scalar']['partial'].add(function_name_tuple(function_name))
                 else:
                     support_list['scalar']['unknown'].add(function_name_tuple(function_name))
@@ -793,7 +802,7 @@ def parse_logs(log_file):
                 class_name = match.group(1)
                 if class_name in classname_to_function:
                     function_name = classname_to_function[class_name]
-                    if function_name in all_function_names:
+                    if function_name in function_names:
                         support_list['scalar']['unsupported'].add((function_name, class_name))
                     else:
                         support_list['scalar']['unknown'].add((function_name, class_name))
@@ -813,7 +822,7 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                if function_name in all_function_names:
+                if function_name in function_names:
                     support_list['scalar']['unsupported'].add(function_name_tuple(function_name))
                 else:
                     support_list['scalar']['unknown'].add(function_name_tuple(function_name))
@@ -829,7 +838,7 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                if function_name in all_function_names:
+                if function_name in function_names:
                     support_list['aggregate']['unsupported'].add(function_name_tuple(function_name))
                 else:
                     support_list['aggregate']['unknown'].add(function_name_tuple(function_name))
@@ -844,7 +853,7 @@ def parse_logs(log_file):
 
             if match:
                 function_name = match.group(1)
-                if function_name in all_function_names:
+                if function_name in function_names:
                     support_list['aggregate']['partial'].add(function_name_tuple(function_name))
                 else:
                     support_list['aggregate']['unknown'].add(function_name_tuple(function_name))
@@ -1049,8 +1058,9 @@ if __name__ == '__main__':
 
     spark_function_map = create_spark_function_map()
 
-    support_list, unresolved = parse_logs(
-        os.path.join(gluten_home, 'gluten-ut', 'spark35', 'target', 'gen-function-support-docs-tests.log'))
+    # support_list, unresolved = parse_logs(
+    #     os.path.join(gluten_home, 'gluten-ut', 'spark35', 'target', 'gen-function-support-docs-tests.log'))
+    support_list, unresolved = parse_logs('/Users/rong/workspace/log/tmp5.log')
 
     for category in args.categories.split(','):
         generate_function_doc(category,
