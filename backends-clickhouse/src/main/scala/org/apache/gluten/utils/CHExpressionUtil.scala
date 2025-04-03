@@ -206,6 +206,9 @@ object CHExpressionUtil {
     WIDTH_BUCKET -> DefaultValidator(),
     MAKE_DATE -> DefaultValidator(),
     MAP_CONCAT -> DefaultValidator(),
-    ARRAY_APPEND -> DefaultValidator()
+    ARRAY_APPEND -> DefaultValidator(),
+    VARCHAR_TYPE_WRITE_SIDE_CHECK -> DefaultValidator(),
+    CHAR_TYPE_WRITE_SIDE_CHECK -> DefaultValidator(),
+    READ_SIDE_PADDING -> DefaultValidator()
   )
 }

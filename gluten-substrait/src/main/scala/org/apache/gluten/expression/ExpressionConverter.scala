@@ -109,6 +109,59 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
+  private def replaceStaticInvokeWithExpressionTransformer(
+      i: StaticInvoke,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
+    val objectName = i.staticObject.getName.stripSuffix("$")
+    // Add staticInvokeMap here to map the StaticInvoke calls to the expression name
+    val staticInvokeMap = Map(
+      "UrlCodec" -> Map(
+        "decode" -> ExpressionNames.URL_DECODE,
+        "encode" -> ExpressionNames.URL_ENCODE
+      ),
+      "CharVarcharCodegenUtils" -> Map(
+        "varcharTypeWriteSideCheck" -> ExpressionNames.VARCHAR_TYPE_WRITE_SIDE_CHECK,
+        "charTypeWriteSideCheck" -> ExpressionNames.CHAR_TYPE_WRITE_SIDE_CHECK,
+        "readSidePadding" -> ExpressionNames.READ_SIDE_PADDING
+      )
+    )
+
+    val transformer = staticInvokeMap.find { case (objName, _) => objectName.endsWith(objName) }
+    if (transformer.isEmpty) {
+      throw new GlutenNotSupportException(
+        s"Not supported staticInvoke call object: $objectName in $i")
+    }
+
+    val (objName, functionMap) = transformer.get
+    val exprName = functionMap.get(i.functionName)
+    if (exprName.isEmpty) {
+      throw new GlutenNotSupportException(
+        s"Not supported $objName function: ${i.functionName} in $i")
+    }
+    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(exprName.get, i)) {
+      throw new GlutenNotSupportException(
+        s"Not supported to map current ${i.getClass} call on function: ${i.functionName}.")
+    }
+
+    // Special handling for UrlCodec which only takes 1st argument
+    if (objName == "UrlCodec") {
+      val child = i.arguments.head
+      GenericExpressionTransformer(
+        exprName.get,
+        child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+        i)
+    } else {
+      // For other objects, pass all arguments
+      GenericExpressionTransformer(
+        exprName.get,
+        i.arguments
+          .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+          .toSeq,
+        i)
+    }
+  }
+
   private def genRescaleDecimalTransformer(
       substraitName: String,
       b: BinaryArithmetic,
@@ -149,22 +202,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           expr,
           attributeSeq)
       case i: StaticInvoke =>
-        val objectName = i.staticObject.getName.stripSuffix("$")
-        if (objectName.endsWith("UrlCodec")) {
-          val child = i.arguments.head
-          i.functionName match {
-            case "decode" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.URL_DECODE,
-                child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-                i)
-            case "encode" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.URL_ENCODE,
-                child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-                i)
-          }
-        }
+        return replaceStaticInvokeWithExpressionTransformer(i, attributeSeq, expressionsMap)
       case _ =>
     }
 
