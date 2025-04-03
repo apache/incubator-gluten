@@ -22,7 +22,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 /** Since https://github.com/apache/incubator-gluten/pull/6049. */
 case class OffloadHudiScan() extends OffloadSingleNode {
-  override def offload0(plan: SparkPlan): SparkPlan = {
+  override def offload(plan: SparkPlan): SparkPlan = {
     plan match {
       // Hudi has multiple file format definitions whose names end with "HoodieParquetFileFormat".
       case scan: org.apache.spark.sql.execution.FileSourceScanExec

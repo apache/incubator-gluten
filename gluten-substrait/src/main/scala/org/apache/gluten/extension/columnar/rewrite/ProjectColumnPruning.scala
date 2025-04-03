@@ -23,11 +23,11 @@ import org.apache.spark.sql.execution.{ProjectExec, SparkPlan, UnaryExecNode}
  * consumed by the parent. These columns will be removed by this rewrite rule.
  */
 object ProjectColumnPruning extends RewriteSingleNode {
-  override def isRewritable0(plan: SparkPlan): Boolean = {
+  override def isRewritable(plan: SparkPlan): Boolean = {
     RewriteEligibility.isRewritable(plan)
   }
 
-  override def rewrite0(plan: SparkPlan): SparkPlan = plan match {
+  override def rewrite(plan: SparkPlan): SparkPlan = plan match {
     case parent: UnaryExecNode if parent.child.isInstanceOf[ProjectExec] =>
       val project = parent.child.asInstanceOf[ProjectExec]
       val unusedAttribute = project.outputSet -- (parent.references ++ parent.outputSet)

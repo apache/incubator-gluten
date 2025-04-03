@@ -23,7 +23,6 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ExpressionNames.MONOTONICALLY_INCREASING_ID
 import org.apache.gluten.extension.ExpressionExtensionTrait
-import org.apache.gluten.extension.columnar.SingleNodeOps
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
@@ -272,10 +271,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     }
   }
 
-  override def genColumnarShuffleExchange(originalShuffle: ShuffleExchangeExec): SparkPlan = {
-    // CH backend needs to conditionally offload shuffle exchange based on children's information.
-    // So we call the restore API to get back the original plan.
-    val shuffle = SingleNodeOps.restoreHiddenChildren(originalShuffle)
+  override def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan = {
     val child = shuffle.child
     if (CHValidatorApi.supportShuffleWithProject(shuffle.outputPartitioning, child)) {
       val (projectColumnNumber, newPartitioning, newChild) =

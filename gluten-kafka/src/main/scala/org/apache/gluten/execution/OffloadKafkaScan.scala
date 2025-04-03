@@ -26,7 +26,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, MicroBatchScanExec}
 
 case class OffloadKafkaScan() extends OffloadSingleNode {
-  override def offload0(plan: SparkPlan): SparkPlan = plan match {
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
     case scan: MicroBatchScanExec if MicroBatchScanExecTransformer.supportsBatchScan(scan.scan) =>
       MicroBatchScanExecTransformer(scan)
     case other => other
