@@ -23,6 +23,7 @@ import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.BooleanType;
 import io.github.zhztheplayer.velox4j.type.IntegerType;
+import io.github.zhztheplayer.velox4j.type.RowType;
 import io.github.zhztheplayer.velox4j.type.Type;
 import io.github.zhztheplayer.velox4j.type.VarCharType;
 import io.github.zhztheplayer.velox4j.variant.BigIntValue;
@@ -77,6 +78,7 @@ public class RexNodeConverter {
                 .collect(Collectors.toList());
     }
 
+    // TODO: use LogicalRelDataTypeConverter
     public static Type toType(RelDataType relDataType) {
         switch (relDataType.getSqlTypeName()) {
             case BOOLEAN:
@@ -87,6 +89,13 @@ public class RexNodeConverter {
                 return new BigIntType();
             case VARCHAR:
                 return new VarCharType();
+            case ROW:
+                List<Type> children = relDataType.getFieldList().stream()
+                        .map(
+                                field ->
+                                        toType(field.getType())
+                        ).collect(Collectors.toList());
+                return new RowType(relDataType.getFieldNames(), children);
             default:
                 throw new RuntimeException("Unsupported type: " + relDataType.getSqlTypeName());
         }

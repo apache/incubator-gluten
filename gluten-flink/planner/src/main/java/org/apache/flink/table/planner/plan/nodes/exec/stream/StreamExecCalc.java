@@ -121,10 +121,13 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
                 inputType,
                 new ExternalStreamTableHandle("connector-external-stream"),
                 List.of());
-        PlanNode filter = new FilterNode(
+        PlanNode filter = null;
+        if (condition != null) {
+            filter = new FilterNode(
                 String.valueOf(getId()),
                 List.of(mockInput),
                 RexNodeConverter.toTypedExpr(condition, inNames));
+        }
         List<TypedExpr> projectExprs = RexNodeConverter.toTypedExpr(projection, inNames);
         PlanNode project = new ProjectNode(
                 String.valueOf(ExecNodeContext.newNodeId()),

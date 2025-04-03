@@ -22,6 +22,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import java.util.List;
@@ -45,6 +46,8 @@ public class LogicalTypeConverter {
             return new io.github.zhztheplayer.velox4j.type.BigIntType();
         } else if (logicalType instanceof VarCharType) {
             return new io.github.zhztheplayer.velox4j.type.VarCharType();
+        } else if (logicalType instanceof TimestampType) {
+            return new io.github.zhztheplayer.velox4j.type.TimestampType();
         } else {
             throw new RuntimeException("Unsupported logical type: " + logicalType);
         }
