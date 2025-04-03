@@ -33,7 +33,7 @@ import scala.collection.mutable.ArrayBuffer
  * when a fallback occurs.
  */
 object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
-  override def isRewritable(plan: SparkPlan): Boolean = {
+  override def isRewritable0(plan: SparkPlan): Boolean = {
     RewriteEligibility.isRewritable(plan)
   }
 
@@ -74,7 +74,7 @@ object PullOutPostProject extends RewriteSingleNode with PullOutProjectHelper {
     }
   }
 
-  override def rewrite(plan: SparkPlan): SparkPlan = plan match {
+  override def rewrite0(plan: SparkPlan): SparkPlan = plan match {
     case agg: BaseAggregateExec if supportedAggregate(agg) && needsPostProjection(agg) =>
       val pullOutHelper =
         BackendsApiManager.getSparkPlanExecApiInstance.genHashAggregateExecPullOutHelper(

@@ -39,7 +39,7 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 // Exchange transformation.
 case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
-  override def offload(plan: SparkPlan): SparkPlan = plan match {
+  override def offload0(plan: SparkPlan): SparkPlan = plan match {
     case p if FallbackTags.nonEmpty(p) =>
       p
     case s: ShuffleExchangeExec =>
@@ -55,7 +55,7 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
 
 // Join transformation.
 case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
-  override def offload(plan: SparkPlan): SparkPlan = {
+  override def offload0(plan: SparkPlan): SparkPlan = {
     if (FallbackTags.nonEmpty(plan)) {
       logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
       return plan
@@ -177,7 +177,7 @@ case class OffloadOthers() extends OffloadSingleNode with LogLevelUtil {
   import OffloadOthers._
   private val replace = new ReplaceSingleNode
 
-  override def offload(plan: SparkPlan): SparkPlan = replace.doReplace(plan)
+  override def offload0(plan: SparkPlan): SparkPlan = replace.doReplace(plan)
 }
 
 object OffloadOthers {

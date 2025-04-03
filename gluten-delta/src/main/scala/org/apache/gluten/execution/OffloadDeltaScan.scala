@@ -21,7 +21,7 @@ import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 
 case class OffloadDeltaScan() extends OffloadSingleNode {
-  override def offload(plan: SparkPlan): SparkPlan = plan match {
+  override def offload0(plan: SparkPlan): SparkPlan = plan match {
     case scan: FileSourceScanExec
         if scan.relation.fileFormat.getClass.getName ==
           "org.apache.spark.sql.delta.DeltaParquetFileFormat" =>

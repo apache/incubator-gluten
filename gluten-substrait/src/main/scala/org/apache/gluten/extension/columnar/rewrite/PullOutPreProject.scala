@@ -37,7 +37,7 @@ import scala.collection.mutable
  * execution by the native engine.
  */
 object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
-  override def isRewritable(plan: SparkPlan): Boolean = {
+  override def isRewritable0(plan: SparkPlan): Boolean = {
     RewriteEligibility.isRewritable(plan)
   }
 
@@ -122,7 +122,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
     }
   }
 
-  override def rewrite(plan: SparkPlan): SparkPlan = plan match {
+  override def rewrite0(plan: SparkPlan): SparkPlan = plan match {
     case sort: SortExec if needsPreProject(sort) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
       val newSortOrder = getNewSortOrder(sort.sortOrder, expressionMap)

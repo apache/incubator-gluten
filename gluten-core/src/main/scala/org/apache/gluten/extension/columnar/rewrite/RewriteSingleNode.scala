@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.rewrite
 
+import org.apache.gluten.extension.columnar.SingleNodeOps._
+
 import org.apache.spark.sql.execution.SparkPlan
 
 /**
@@ -30,6 +32,8 @@ import org.apache.spark.sql.execution.SparkPlan
  * TODO: Ideally for such API we'd better to allow multiple alternative outputs.
  */
 trait RewriteSingleNode {
-  def isRewritable(plan: SparkPlan): Boolean
-  def rewrite(plan: SparkPlan): SparkPlan
+  final def isRewritable(plan: SparkPlan): Boolean = isRewritable0(hideChildren(plan))
+  protected[RewriteSingleNode] def isRewritable0(plan: SparkPlan): Boolean
+  final def rewrite(plan: SparkPlan): SparkPlan = plan.applyOnNode(rewrite0)
+  protected[RewriteSingleNode] def rewrite0(plan: SparkPlan): SparkPlan
 }

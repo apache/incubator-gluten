@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.offload
 
+import org.apache.gluten.extension.columnar.SingleNodeOps._
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -27,5 +29,6 @@ import org.apache.spark.sql.execution.SparkPlan
  * the children node. Tree-walking is done by caller of this trait.
  */
 trait OffloadSingleNode extends Logging {
-  def offload(plan: SparkPlan): SparkPlan
+  final def offload(plan: SparkPlan): SparkPlan = plan.applyOnNode(offload0)
+  protected[OffloadSingleNode] def offload0(plan: SparkPlan): SparkPlan
 }

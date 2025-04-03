@@ -22,7 +22,7 @@ import org.apache.gluten.sql.shims.DeltaShimLoader
 import org.apache.spark.sql.execution.SparkPlan
 
 case class OffloadDeltaNode() extends OffloadSingleNode {
-  override def offload(plan: SparkPlan): SparkPlan = plan match {
+  override def offload0(plan: SparkPlan): SparkPlan = plan match {
     case plan if DeltaShimLoader.getDeltaShims.supportDeltaOptimizedWriterExec(plan) =>
       DeltaShimLoader.getDeltaShims.offloadDeltaOptimizedWriterExec(plan)
     case other => other
