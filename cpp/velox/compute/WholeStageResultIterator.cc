@@ -491,8 +491,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       // FIXME this uses process-wise off-heap memory which is not for task
       // partial aggregation memory config
       auto offHeapMemory = veloxCfg_->get<int64_t>(kSparkTaskOffHeapMemory, facebook::velox::memory::kMaxMemory);
-      auto maxPartialAggregationMemory =
-          static_cast<long>((veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
+      auto maxPartialAggregationMemory = veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).has_value()
+          ? veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).value()
+          : static_cast<int64_t>((veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
       auto maxExtendedPartialAggregationMemory =
           static_cast<long>((veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
