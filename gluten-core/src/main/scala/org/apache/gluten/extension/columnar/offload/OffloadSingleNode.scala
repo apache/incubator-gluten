@@ -45,8 +45,8 @@ object OffloadSingleNode {
     /**
      * Converts the [[OffloadSingleNode]] rule to a strict version.
      *
-     * In the strict version of the rule, all children of the input query plan node will be replaced with
-     * 'DummyLeafExec' nodes so they are not accessible from the rule body.
+     * In the strict version of the rule, all children of the input query plan node will be replaced
+     * with 'DummyLeafExec' nodes so they are not accessible from the rule body.
      */
     def toStrcitRule(): OffloadSingleNode = {
       new StrictRule(rule);
@@ -69,9 +69,7 @@ object OffloadSingleNode {
       plan.withNewChildren(plan.children.map(child => new DummyLeafExec(child))).asInstanceOf[T]
     }
 
-    /**
-     * Restores hidden children from the replaced 'DummyLeafExec' nodes.
-     */
+    /** Restores hidden children from the replaced 'DummyLeafExec' nodes. */
     private def restoreHiddenChildren[T <: SparkPlan](plan: T): T = {
       plan
         .transformDown {
