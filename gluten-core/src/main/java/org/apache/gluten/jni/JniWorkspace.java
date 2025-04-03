@@ -31,6 +31,7 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public class JniWorkspace {
   private static final Logger LOG = LoggerFactory.getLogger(JniWorkspace.class);
@@ -85,19 +86,17 @@ public class JniWorkspace {
     }
   }
 
-  public static void initializeDefault(String rootDir) {
+  public static void initializeDefault(Supplier<String> rootDir) {
     synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
       if (DEFAULT_INSTANCE == null) {
-        DEFAULT_INSTANCE = createOrGet(rootDir);
+        DEFAULT_INSTANCE = createOrGet(rootDir.get());
       }
     }
   }
 
   public static JniWorkspace getDefault() {
-    synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
-      Preconditions.checkNotNull(DEFAULT_INSTANCE, "Not call initializeDefault yet");
-      return DEFAULT_INSTANCE;
-    }
+    Preconditions.checkNotNull(DEFAULT_INSTANCE, "Not call initializeDefault yet");
+    return DEFAULT_INSTANCE;
   }
 
   private static JniWorkspace createOrGet(String rootDir) {

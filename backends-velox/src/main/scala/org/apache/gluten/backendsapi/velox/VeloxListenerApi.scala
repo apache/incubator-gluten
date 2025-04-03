@@ -149,11 +149,19 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
+    // Sets this configuration only once, since not undoable.
+    // DebugInstance should be created first.
+    if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
+      val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
+      JniWorkspace.enableDebug(debugDir)
+    }
     JniWorkspace.initializeDefault(
-      SparkDirectoryUtil.get
-        .namespace("jni")
-        .mkChildDirRandomly(UUID.randomUUID.toString)
-        .getAbsolutePath)
+      () =>
+        SparkDirectoryUtil.get
+          .namespace("jni")
+          .mkChildDirRandomly(UUID.randomUUID.toString)
+          .getAbsolutePath)
+
     UDFResolver.resolveUdfConf(conf, isDriver)
 
     // Do row / batch type initializations.
@@ -174,12 +182,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
         },
         classOf[ColumnarShuffleManager].getName
       )
-
-    // Sets this configuration only once, since not undoable.
-    if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
-      val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
-      JniWorkspace.enableDebug(debugDir)
-    }
 
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.
