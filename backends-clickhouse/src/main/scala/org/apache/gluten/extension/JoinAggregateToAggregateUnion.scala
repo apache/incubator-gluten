@@ -36,7 +36,7 @@ private case class JoinKeys(
     leftKeys: Seq[AttributeReference],
     rightKeys: Seq[AttributeReference]) {}
 
-private object RulePlanHeler {
+private object RulePlanHelper {
   def transformDistinctToAggregate(distinct: Distinct): Aggregate = {
     Aggregate(distinct.child.output, distinct.child.output, distinct.child)
   }
@@ -562,8 +562,8 @@ case class ReorderJoinSubqueries() extends Logging {
               if (index != sameJoinKeysPlansList.length - 1) {}
               val sameJoinKeysPlans = sameJoinKeysPlansList.remove(index)
               if (
-                RulePlanHeler.extractDirectAggregate(newRight).isDefined ||
-                RulePlanHeler.extractDirectAggregate(sameJoinKeysPlans.plans.last._1).isEmpty
+                RulePlanHelper.extractDirectAggregate(newRight).isDefined ||
+                RulePlanHelper.extractDirectAggregate(sameJoinKeysPlans.plans.last._1).isEmpty
               ) {
                 sameJoinKeysPlans.plans += Tuple2(newRight, join)
               } else {
@@ -577,9 +577,9 @@ case class ReorderJoinSubqueries() extends Logging {
             val joinRight = visitPlan(join.right)
             join.copy(left = joinLeft, right = joinRight)
         }
-      case subquery: SubqueryAlias if RulePlanHeler.extractDirectAggregate(subquery).isDefined =>
+      case subquery: SubqueryAlias if RulePlanHelper.extractDirectAggregate(subquery).isDefined =>
         val newAggregate = visitPlan(subquery.child)
-        val groupingKeys = RulePlanHeler.extractDirectAggregate(subquery).get.groupingExpressions
+        val groupingKeys = RulePlanHelper.extractDirectAggregate(subquery).get.groupingExpressions
         if (groupingKeys.forall(_.isInstanceOf[AttributeReference])) {
           val keys = groupingKeys.map(_.asInstanceOf[AttributeReference])
           val index = findSameJoinKeysPlansIndex()(sameJoinKeysPlansList, keys)
@@ -928,7 +928,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
       analyzedAggregates: ArrayBuffer[JoinedAggregateAnalyzer]): Option[LogicalPlan] = {
     plan match {
       case join: Join if join.joinType == LeftOuter && join.condition.isDefined =>
-        val optionAggregate = RulePlanHeler.extractDirectAggregate(join.right)
+        val optionAggregate = RulePlanHelper.extractDirectAggregate(join.right)
         if (optionAggregate.isEmpty) {
           return Some(plan)
         }
@@ -948,8 +948,8 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
         } else {
           Some(plan)
         }
-      case _ if RulePlanHeler.extractDirectAggregate(plan).isDefined =>
-        val aggregate = RulePlanHeler.extractDirectAggregate(plan).get
+      case _ if RulePlanHelper.extractDirectAggregate(plan).isDefined =>
+        val aggregate = RulePlanHelper.extractDirectAggregate(plan).get
         val lastJoin = analyzedAggregates.head.join
         assert(lastJoin.left.equals(plan), "The node should be last join's left child")
         val leftAggregateAnalyzer = JoinedAggregateAnalyzer.build(lastJoin, aggregate)
