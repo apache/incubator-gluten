@@ -28,7 +28,6 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.types._
 
-// import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 
@@ -317,21 +316,27 @@ object AggregateFunctionAnalyzer {
 case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Logging {
   def analysis(): Boolean = {
     if (!extractAggregateQuery(subquery)) {
+      logDebug(s"xxx Not found aggregate query")
       return false
     }
 
     if (!extractGroupingKeys()) {
+      logDebug(s"xxx Not found grouping keys")
       return false
     }
 
     if (!extractJoinKeys()) {
+      logDebug(s"xxx Not found join keys")
       return false
     }
 
     if (
-      keys.length != aggregate.groupingExpressions.length ||
-      !keys.forall(k => outputGroupingKeys.exists(_.semanticEquals(k)))
+      joinKeys.length != aggregate.groupingExpressions.length ||
+      !joinKeys.forall(k => outputGroupingKeys.exists(_.semanticEquals(k)))
     ) {
+      logError(
+        s"xxx Join keys and grouping keys are not matched. joinKeys: $joinKeys" +
+          s" outputGroupingKeys: $outputGroupingKeys")
       return false
     }
 
@@ -340,7 +345,8 @@ case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Lo
     aggregateFunctionAnalyzer = aggregateExpressions.map(AggregateFunctionAnalyzer(_))
 
     // If there is any const value in the aggregate expressions, return false
-    if (aggregateExpressions.length + keys.length != aggregate.aggregateExpressions.length) {
+    if (aggregateExpressions.length + joinKeys.length != aggregate.aggregateExpressions.length) {
+      logDebug(s"xxx Have const expression in aggregate expressions")
       return false
     }
     if (
@@ -348,6 +354,7 @@ case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Lo
         case (e, i) => !aggregateFunctionAnalyzer(i).doValidate
       }
     ) {
+      logDebug(s"xxx Have invalid aggregate function in aggregate expressions")
       return false
     }
 
@@ -356,6 +363,7 @@ case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Lo
         case (_, i) => aggregateFunctionAnalyzer(i).getArgumentExpressions
       }
     if (arguments.exists(_.isEmpty)) {
+      logDebug(s"xxx Get aggregate function arguments failed")
       return false
     }
     aggregateExpressionArguments = arguments.map(_.get)
@@ -375,8 +383,8 @@ case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Lo
     }
   }
 
-  def getPrimeKeys(): Seq[AttributeReference] = primeKeys
-  def getKeys(): Seq[AttributeReference] = keys
+  def getPrimeJoinKeys(): Seq[AttributeReference] = primeJoinKeys
+  def getJoinKeys(): Seq[AttributeReference] = joinKeys
   def getAggregate(): Aggregate = aggregate
   def getGroupingKeys(): Seq[Attribute] = outputGroupingKeys
   def getGroupingExpressions(): Seq[NamedExpression] = groupingExpressions
@@ -384,8 +392,8 @@ case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Lo
   def getAggregateExpressionArguments(): Seq[Seq[Expression]] = aggregateExpressionArguments
   def getAggregateFunctionAnalyzers(): Seq[AggregateFunctionAnalyzer] = aggregateFunctionAnalyzer
 
-  private var primeKeys: Seq[AttributeReference] = Seq.empty
-  private var keys: Seq[AttributeReference] = Seq.empty
+  private var primeJoinKeys: Seq[AttributeReference] = Seq.empty
+  private var joinKeys: Seq[AttributeReference] = Seq.empty
   private var aggregate: Aggregate = null
   private var groupingExpressions: Seq[NamedExpression] = null
   private var outputGroupingKeys: Seq[Attribute] = null
@@ -398,13 +406,13 @@ case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Lo
     val subqueryKeys = ArrayBuffer[AttributeReference]()
     val leftOutputSet = join.left.outputSet
     val subqueryOutputSet = subquery.outputSet
-    val joinKeys =
+    val joinKeysPair =
       RuleExpressionHelper.extractJoinKeys(join.condition, leftOutputSet, subqueryOutputSet)
-    if (joinKeys.isEmpty) {
+    if (joinKeysPair.isEmpty) {
       false
     } else {
-      primeKeys = joinKeys.get.leftKeys
-      keys = joinKeys.get.rightKeys
+      primeJoinKeys = joinKeysPair.get.leftKeys
+      joinKeys = joinKeysPair.get.rightKeys
       true
     }
   }
@@ -462,8 +470,8 @@ object JoinedAggregateAnalyzer extends Logging {
     }
   }
 
-  def haveSamePrimeKeys(analzyers: Seq[JoinedAggregateAnalyzer]): Boolean = {
-    val primeKeys = analzyers.map(_.getPrimeKeys()).map(AttributeSet(_))
+  def haveSamePrimeJoinKeys(analzyers: Seq[JoinedAggregateAnalyzer]): Boolean = {
+    val primeKeys = analzyers.map(_.getPrimeJoinKeys()).map(AttributeSet(_))
     primeKeys
       .slice(1, primeKeys.length)
       .forall(keys => keys.equals(primeKeys.head))
@@ -673,7 +681,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
               val lastJoin = analyzedAggregates.head.join
               lastJoin.copy(left = visitPlan(lastJoin.left), right = unionedAggregates)
             } else {
-              buildPrimeKeysFilterOnAggregateUnion(unionedAggregates, analyzedAggregates.toSeq)
+              buildPrimeJoinKeysFilterOnAggregateUnion(unionedAggregates, analyzedAggregates.toSeq)
             }
           }
         } else {
@@ -763,7 +771,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
    * Some rows may come from the right tables which grouping keys are not in the prime keys set. We
    * should remove them.
    */
-  def buildPrimeKeysFilterOnAggregateUnion(
+  def buildPrimeJoinKeysFilterOnAggregateUnion(
       plan: LogicalPlan,
       analyzedAggregates: Seq[JoinedAggregateAnalyzer]): LogicalPlan = {
     val flagExpressions = plan.output(plan.output.length - analyzedAggregates.length)
@@ -934,18 +942,23 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
         }
         val rightAggregateAnalyzer = JoinedAggregateAnalyzer.build(join, optionAggregate.get)
         if (rightAggregateAnalyzer.isEmpty) {
+          logDebug(s"xxx Not a valid aggregate query")
           return Some(plan)
         }
 
         if (
           analyzedAggregates.isEmpty ||
-          JoinedAggregateAnalyzer.haveSamePrimeKeys(
+          JoinedAggregateAnalyzer.haveSamePrimeJoinKeys(
             Seq(analyzedAggregates.head, rightAggregateAnalyzer.get))
         ) {
           // left plan is pushed in front
           analyzedAggregates.insert(0, rightAggregateAnalyzer.get)
           collectSameKeysJoinedAggregates(join.left, analyzedAggregates)
         } else {
+          logError(
+            s"xxx Not have same keys. join keys:" +
+              s"${analyzedAggregates.head.getPrimeJoinKeys()} vs. " +
+              s"${rightAggregateAnalyzer.get.getPrimeJoinKeys()}")
           Some(plan)
         }
       case _ if RulePlanHelper.extractDirectAggregate(plan).isDefined =>
@@ -957,7 +970,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
           return Some(plan)
         }
         if (
-          JoinedAggregateAnalyzer.haveSamePrimeKeys(
+          JoinedAggregateAnalyzer.haveSamePrimeJoinKeys(
             Seq(analyzedAggregates.head, leftAggregateAnalyzer.get))
         ) {
           analyzedAggregates.insert(0, leftAggregateAnalyzer.get)
