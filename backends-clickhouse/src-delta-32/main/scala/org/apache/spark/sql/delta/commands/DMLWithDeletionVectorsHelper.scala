@@ -38,7 +38,7 @@ import org.apache.spark.paths.SparkPath
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
-import org.apache.spark.sql.execution.ColumnarDeletionVectorWriteExec
+import org.apache.spark.sql.execution.DeletionVectorWriteTransformer
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.FileFormat.{FILE_PATH, METADATA_NAME}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
@@ -328,7 +328,7 @@ object DeletionVectorBitmapGenerator {
       if (spark.conf
         .get(GlutenConfig.GLUTEN_ENABLED.key, GlutenConfig.GLUTEN_ENABLED.defaultValueString)
         .toBoolean) {
-        ColumnarDeletionVectorWriteExec.replace(aggregated, targetDeltaLog.dataPath, deltaTxn, spark)
+        DeletionVectorWriteTransformer.replace(aggregated, targetDeltaLog.dataPath, deltaTxn, spark)
       } else {
         import DeletionVectorResult.encoder
         val rowIndexData = aggregated.as[DeletionVectorData]

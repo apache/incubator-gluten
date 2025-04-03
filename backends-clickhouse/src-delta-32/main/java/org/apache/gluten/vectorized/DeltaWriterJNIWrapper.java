@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.spark.sql.execution.ColumnarDeletionVectorWriteExec;
+import org.apache.spark.sql.execution.DeletionVectorWriteTransformer;
 
 public class DeltaWriterJNIWrapper {
 
@@ -29,10 +29,10 @@ public class DeltaWriterJNIWrapper {
     public static native long deletionVectorWrite(long address, String tablePath, int prefix_length, long packingTargetSize);
 
     public static String encodeUUID(String uuid, String randomPrefix) {
-        return ColumnarDeletionVectorWriteExec.encodeUUID(uuid, randomPrefix);
+        return DeletionVectorWriteTransformer.encodeUUID(uuid, randomPrefix);
     }
 
     public static String decodeUUID(String encodedUuid) {
-        return ColumnarDeletionVectorWriteExec.decodeUUID(encodedUuid);
+        return DeletionVectorWriteTransformer.decodeUUID(encodedUuid);
     }
 }

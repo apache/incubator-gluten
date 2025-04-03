@@ -39,7 +39,7 @@ import org.apache.hadoop.fs.Path
 
 import java.util.UUID
 
-case class ColumnarDeletionVectorWriteExec(
+case class DeletionVectorWriteTransformer(
     child: SparkPlan,
     table: Path,
     deltaTxn: OptimisticTransaction)
@@ -49,7 +49,7 @@ case class ColumnarDeletionVectorWriteExec(
     AttributeReference("filePath", StringType, nullable = false)(),
     AttributeReference(
       "deletionVector",
-      ColumnarDeletionVectorWriteExec.deletionVectorType,
+      DeletionVectorWriteTransformer.deletionVectorType,
       nullable = false
     )(),
     AttributeReference("matchedRowCount", LongType, nullable = false)()
@@ -95,7 +95,7 @@ case class ColumnarDeletionVectorWriteExec(
   }
 
   override protected def withNewChildInternal(
-      newChild: SparkPlan): ColumnarDeletionVectorWriteExec = copy(child = newChild)
+      newChild: SparkPlan): DeletionVectorWriteTransformer = copy(child = newChild)
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
@@ -104,8 +104,8 @@ case class ColumnarDeletionVectorWriteExec(
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
 }
 
-object ColumnarDeletionVectorWriteExec {
-  val deletionVectorType: StructType = StructType.apply(
+object DeletionVectorWriteTransformer {
+  private val deletionVectorType: StructType = StructType.apply(
     Seq(
       StructField.apply("storageType", StringType, nullable = false),
       StructField.apply("pathOrInlineDv", StringType, nullable = false),
@@ -113,13 +113,6 @@ object ColumnarDeletionVectorWriteExec {
       StructField.apply("sizeInBytes", IntegerType, nullable = false),
       StructField.apply("cardinality", LongType, nullable = false),
       StructField.apply("maxRowIndex", LongType, nullable = true)
-    ))
-
-  val DeletionVectorResultType = StructType.apply(
-    Seq(
-      StructField.apply("filePath", StringType, nullable = false),
-      StructField.apply("deletionVector", deletionVectorType, nullable = false),
-      StructField.apply("matchedRowCount", IntegerType, nullable = true)
     ))
 
   def encodeUUID(uuid: String, randomPrefix: String): String = {
@@ -141,7 +134,7 @@ object ColumnarDeletionVectorWriteExec {
       deltaTxn: OptimisticTransaction,
       spark: SparkSession): Seq[DeletionVectorResult] = {
     val queryExecution = aggregated.queryExecution
-    val new_e = ColumnarDeletionVectorWriteExec(queryExecution.sparkPlan, tablePath, deltaTxn)
+    val new_e = DeletionVectorWriteTransformer(queryExecution.sparkPlan, tablePath, deltaTxn)
 
     val result = CallTransformer(spark, new_e).executedPlan.executeCollect()
 
