@@ -84,7 +84,6 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       {S3Config::Keys::kIamRole, std::make_pair("iam.role", std::nullopt)},
       {S3Config::Keys::kIamRoleSessionName, std::make_pair("iam.role.session.name", "gluten-session")},
       {S3Config::Keys::kEndpointRegion, std::make_pair("endpoint.region", std::nullopt)},
-      {S3Config::Keys::kCredentialsProvider, std::make_pair("aws.credentials.provider", std::nullopt)},
   };
 
   // get Velox S3 config key from Spark Suffix.
@@ -138,7 +137,6 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   setConfigIfPresent(S3Config::Keys::kMaxConnections);
   setConfigIfPresent(S3Config::Keys::kConnectTimeout);
   setConfigIfPresent(S3Config::Keys::kEndpointRegion);
-  setConfigIfPresent(S3Config::Keys::kCredentialsProvider);
 
   hiveConfMap[S3Config::kS3LogLevel] = conf->get<std::string>(kVeloxAwsSdkLogLevel, kVeloxAwsSdkLogLevelDefault);
   hiveConfMap[S3Config::baseConfigKey(S3Config::Keys::kUseProxyFromEnv)] =

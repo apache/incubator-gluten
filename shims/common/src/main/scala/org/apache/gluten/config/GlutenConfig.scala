@@ -406,8 +406,6 @@ object GlutenConfig {
   val SPARK_S3_CONNECTION_MAXIMUM: String = HADOOP_PREFIX + S3_CONNECTION_MAXIMUM
   val S3_ENDPOINT_REGION = "fs.s3a.endpoint.region"
   val SPARK_S3_ENDPOINT_REGION: String = HADOOP_PREFIX + S3_ENDPOINT_REGION
-  val S3_CREDENTIALS_PROVIDER = "fs.s3a.aws.credentials.provider"
-  val SPARK_S3_CREDENTIALS_PROVIDER: String = HADOOP_PREFIX + S3_CREDENTIALS_PROVIDER
 
   // ABFS config
   val ABFS_PREFIX = "fs.azure."
@@ -488,7 +486,6 @@ object GlutenConfig {
       SPARK_S3_RETRY_MAX_ATTEMPTS,
       SPARK_S3_CONNECTION_MAXIMUM,
       SPARK_S3_ENDPOINT_REGION,
-      SPARK_S3_CREDENTIALS_PROVIDER,
       "spark.gluten.velox.fs.s3a.connect.timeout",
       "spark.gluten.velox.fs.s3a.retry.mode",
       "spark.gluten.velox.awsSdkLogLevel",
