@@ -67,6 +67,7 @@ object CHRuleApi {
     injector.injectResolutionRule(spark => new CollapseGetJsonObjectExpressionRule(spark))
     injector.injectResolutionRule(spark => new RepalceFromJsonWithGetJsonObject(spark))
     injector.injectOptimizerRule(spark => new CommonSubexpressionEliminateRule(spark))
+    injector.injectOptimizerRule(spark => new AggregateIfToFilterRule(spark))
     injector.injectOptimizerRule(spark => new SimplifySumRule(spark))
     injector.injectOptimizerRule(spark => new ExtendedColumnPruning(spark))
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))

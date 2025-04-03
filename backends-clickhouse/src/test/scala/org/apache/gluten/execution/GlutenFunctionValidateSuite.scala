@@ -21,6 +21,7 @@ import org.apache.gluten.backendsapi.clickhouse.CHConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
 import org.apache.spark.sql.execution._
@@ -286,6 +287,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           }
       }
     }
+
     def checkPlan(plan: LogicalPlan, path: String): Boolean = plan match {
       case p: Project =>
         p.projectList.exists(x => checkExpression(x, path)) || checkPlan(p.child, path)
@@ -298,9 +300,11 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           plan.children.exists(c => checkPlan(c, path))
         }
     }
+
     def checkGetJsonObjectPath(df: DataFrame, path: String): Boolean = {
       checkPlan(df.queryExecution.analyzed, path)
     }
+
     withSQLConf(("spark.gluten.sql.collapseGetJsonObject.enabled", "true")) {
       runQueryAndCompare(
         "select get_json_object(get_json_object(string_field1, '$.a'), '$.y') " +
@@ -857,27 +861,29 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   }
 
   test("test issue: https://github.com/apache/incubator-gluten/issues/6561") {
-    val sql = """
-                |select
-                | map_from_arrays(
-                |   transform(map_keys(map('t1',id,'t2',id+1)), v->v),
-                |   array('a','b')) as b from range(10)
-                |""".stripMargin
+    val sql =
+      """
+        |select
+        | map_from_arrays(
+        |   transform(map_keys(map('t1',id,'t2',id+1)), v->v),
+        |   array('a','b')) as b from range(10)
+        |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test function format_string") {
-    val sql = """
-                | SELECT
-                |  format_string(
-                |    'hello world %d %d %s %f',
-                |    id,
-                |    id,
-                |    CAST(id AS STRING),
-                |    CAST(id AS float)
-                |  )
-                |FROM range(10)
-                |""".stripMargin
+    val sql =
+      """
+        | SELECT
+        |  format_string(
+        |    'hello world %d %d %s %f',
+        |    id,
+        |    id,
+        |    CAST(id AS STRING),
+        |    CAST(id AS float)
+        |  )
+        |FROM range(10)
+        |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
@@ -891,64 +897,69 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   }
 
   test("test functions unix_seconds/unix_date/unix_millis/unix_micros") {
-    val sql = """
-                |SELECT
-                |  id,
-                |  unix_seconds(cast(concat('2024-09-03 17:23:1',
-                |     cast(id as string)) as timestamp)),
-                |  unix_date(cast(concat('2024-09-1', cast(id as string)) as date)),
-                |  unix_millis(cast(concat('2024-09-03 17:23:10.11',
-                |     cast(id as string)) as timestamp)),
-                |  unix_micros(cast(concat('2024-09-03 17:23:10.12345',
-                |     cast(id as string)) as timestamp))
-                |FROM range(10)
-                |""".stripMargin
+    val sql =
+      """
+        |SELECT
+        |  id,
+        |  unix_seconds(cast(concat('2024-09-03 17:23:1',
+        |     cast(id as string)) as timestamp)),
+        |  unix_date(cast(concat('2024-09-1', cast(id as string)) as date)),
+        |  unix_millis(cast(concat('2024-09-03 17:23:10.11',
+        |     cast(id as string)) as timestamp)),
+        |  unix_micros(cast(concat('2024-09-03 17:23:10.12345',
+        |     cast(id as string)) as timestamp))
+        |FROM range(10)
+        |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test function arrays_zip") {
-    val sql = """
-                |SELECT arrays_zip(array(id, id+1, id+2), array(id, id-1, id-2))
-                |FROM range(10)
-                |""".stripMargin
+    val sql =
+      """
+        |SELECT arrays_zip(array(id, id+1, id+2), array(id, id-1, id-2))
+        |FROM range(10)
+        |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test function timestamp_seconds/timestamp_millis/timestamp_micros") {
-    val sql = """
-                |SELECT
-                |  id,
-                |  timestamp_seconds(1725453790 + id) as ts_seconds,
-                |  timestamp_millis(1725453790123 + id) as ts_millis,
-                |  timestamp_micros(1725453790123456 + id) as ts_micros
-                |from range(10);
-                |""".stripMargin
+    val sql =
+      """
+        |SELECT
+        |  id,
+        |  timestamp_seconds(1725453790 + id) as ts_seconds,
+        |  timestamp_millis(1725453790123 + id) as ts_millis,
+        |  timestamp_micros(1725453790123456 + id) as ts_micros
+        |from range(10);
+        |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-7426 get_json_object") {
-    val sql = """
-                |select
-                |get_json_object(a, '$.a b'),
-                |get_json_object(a, '$.a b '),
-                |get_json_object(a, '$.a b c'),
-                |get_json_object(a, '$.a 1 c'),
-                |get_json_object(a, '$.1 '),
-                |get_json_object(a, '$.1 2'),
-                |get_json_object(a, '$.1 2 c')
-                |from values('{"a b":1}'), ('{"a b ":1}'), ('{"a b c":1}')
-                |, ('{"a 1 c":1}'), ('{"1 ":1}'), ('{"1 2":1}'), ('{"1 2 c":1}')
-                |as data(a)
+    val sql =
+      """
+        |select
+        |get_json_object(a, '$.a b'),
+        |get_json_object(a, '$.a b '),
+        |get_json_object(a, '$.a b c'),
+        |get_json_object(a, '$.a 1 c'),
+        |get_json_object(a, '$.1 '),
+        |get_json_object(a, '$.1 2'),
+        |get_json_object(a, '$.1 2 c')
+        |from values('{"a b":1}'), ('{"a b ":1}'), ('{"a b c":1}')
+        |, ('{"a 1 c":1}'), ('{"1 ":1}'), ('{"1 2":1}'), ('{"1 2 c":1}')
+        |as data(a)
     """.stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-7432 get_json_object returns array") {
-    val sql = """
-                |select
-                |get_json_object(a, '$.a[*].x')
-                |from values('{"a":[{"x":1}, {"x":5}]}'), ('{"a":[{"x":1}]}')
-                |as data(a)
+    val sql =
+      """
+        |select
+        |get_json_object(a, '$.a[*].x')
+        |from values('{"a":[{"x":1}, {"x":5}]}'), ('{"a":[{"x":1}]}')
+        |as data(a)
     """.stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
@@ -997,19 +1008,20 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   }
 
   test("Test transform_keys/transform_values") {
-    val sql = """
-                |select id, sort_array(map_entries(m1)), sort_array(map_entries(m2)) from(
-                |select id, first(m1) as m1, first(m2) as m2 from(
-                |select
-                |  id,
-                |  transform_keys(map_from_arrays(array(id+1, id+2, id+3),
-                |    array(1, id+2, 3)), (k, v) -> k + 1) as m1,
-                |  transform_values(map_from_arrays(array(id+1, id+2, id+3),
-                |    array(1, id+2, 3)), (k, v) -> v + 1) as m2
-                |from range(10)
-                |) group by id
-                |) order by id
-                |""".stripMargin
+    val sql =
+      """
+        |select id, sort_array(map_entries(m1)), sort_array(map_entries(m2)) from(
+        |select id, first(m1) as m1, first(m2) as m2 from(
+        |select
+        |  id,
+        |  transform_keys(map_from_arrays(array(id+1, id+2, id+3),
+        |    array(1, id+2, 3)), (k, v) -> k + 1) as m1,
+        |  transform_values(map_from_arrays(array(id+1, id+2, id+3),
+        |    array(1, id+2, 3)), (k, v) -> v + 1) as m2
+        |from range(10)
+        |) group by id
+        |) order by id
+        |""".stripMargin
 
     def checkProjects(df: DataFrame): Unit = {
       val projects = collectWithSubqueries(df.queryExecution.executedPlan) {
@@ -1017,6 +1029,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       }
       assert(projects.size >= 1)
     }
+
     compareResultsAgainstVanillaSpark(sql, true, checkProjects, false)
   }
 
@@ -1281,6 +1294,31 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
     withSQLConf((CHConfig.runtimeConfig("enable_simplify_sum"), "true")) {
       compareResultsAgainstVanillaSpark(sql, compareResult = true, checkSimplifiedSum)
+    }
+  }
+
+  test("Test rewrite aggregate if to aggregate with filter") {
+    val sql = "select sum(if(id % 2=0, id, null)), count(if(id % 2 = 0, 1, null)), " +
+      "avg(if(id % 2 = 0, id, null)), sum(if(id % 3 = 0, id, 0)) from range(10)"
+
+    def checkAggregateWithFilter(df: DataFrame): Unit = {
+      val aggregates = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case agg: CHHashAggregateExecTransformer if agg.modes.contains(Partial) => agg
+      }
+
+      assert(aggregates.nonEmpty, "No aggregate operations found in the execution plan")
+      aggregates.foreach {
+        agg =>
+          agg.aggregateExpressions.foreach {
+            expr =>
+              assert(expr.isInstanceOf[AggregateExpression], "AggregateExpression should be used")
+              assert(expr.filter.isDefined, "AggregateExpression filter should not be None")
+          }
+      }
+    }
+
+    withSQLConf((CHConfig.runtimeConfig("enable_aggregate_if_to_filter"), "true")) {
+      compareResultsAgainstVanillaSpark(sql, compareResult = true, checkAggregateWithFilter)
     }
   }
 }

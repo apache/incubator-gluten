@@ -421,6 +421,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  def enableAggregateIfToFilter(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConfig.runtimeConfig("enable_aggregate_if_to_filter"),
+      defaultValue = true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.get.enableNativeWriter.getOrElse(false)
   }
