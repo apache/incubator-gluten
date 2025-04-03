@@ -47,13 +47,14 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   // Split out all the IsNotNulls from condition.
-  private val (notNullPreds, _) = splitConjunctivePredicates(cond).partition {
+  protected val (notNullPreds, _) = splitConjunctivePredicates(cond).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
     case _ => false
   }
 
   // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
-  private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+  protected val notNullAttributes: Seq[ExprId] =
+    notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)

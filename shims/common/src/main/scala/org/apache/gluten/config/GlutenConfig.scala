@@ -355,12 +355,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def autoAdjustStageFallenNodeThreshold: Double =
     getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
-
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
-
   def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
-
   def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
+  def getSupportedFlattenedExpressions: String = getConf(GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS)
 }
 
 object GlutenConfig {
@@ -694,6 +692,13 @@ object GlutenConfig {
     .doc("Supported scala udf names.")
     .stringConf
     .createWithDefault("")
+
+  val GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS =
+    buildConf("spark.gluten.sql.supported.flattenNestedFunctions")
+      .internal()
+      .doc("Flatten nested functions as one for optimization.")
+      .stringConf
+      .createWithDefault("and,or");
 
   val GLUTEN_SOFT_AFFINITY_ENABLED =
     buildConf("spark.gluten.soft-affinity.enabled")

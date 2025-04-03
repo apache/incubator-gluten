@@ -581,7 +581,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     List(
       Sig[CollectList](ExpressionNames.COLLECT_LIST),
       Sig[CollectSet](ExpressionNames.COLLECT_SET),
-      Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID)
+      Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
+      CHFlattenedExpression.sigAnd,
+      CHFlattenedExpression.sigOr
     ) ++
       ExpressionExtensionTrait.expressionExtensionSigList ++
       SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
@@ -947,4 +949,19 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec =
     CHRangeExecTransformer(start, end, step, numSlices, numElements, outputAttributes, child)
+
+  override def expressionFlattenSupported(expr: Expression): Boolean = expr match {
+    case ca: FlattenedAnd => CHFlattenedExpression.supported(ca.name)
+    case co: FlattenedOr => CHFlattenedExpression.supported(co.name)
+    case _ => false
+  }
+
+  override def genFlattenedExpressionTransformer(
+      substraitName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = expr match {
+    case ce: FlattenedAnd => GenericExpressionTransformer(ce.name, children, ce)
+    case co: FlattenedOr => GenericExpressionTransformer(co.name, children, co)
+    case _ => super.genFlattenedExpressionTransformer(substraitName, children, expr)
+  }
 }
