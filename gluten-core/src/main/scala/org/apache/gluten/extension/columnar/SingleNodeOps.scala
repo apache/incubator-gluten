@@ -18,6 +18,7 @@ package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.Convention
+
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -68,9 +69,7 @@ object SingleNodeOps {
    * query planner doesn't allow a rule to access the child plan nodes from the input query plan
    * node.
    */
-  private case class DummyLeafExec(hiddenPlan: SparkPlan)
-    extends LeafExecNode
-    with GlutenPlan {
+  private case class DummyLeafExec(hiddenPlan: SparkPlan) extends LeafExecNode with GlutenPlan {
     private lazy val conv: Convention = Convention.get(hiddenPlan)
 
     override def batchType(): Convention.BatchType = conv.batchType
