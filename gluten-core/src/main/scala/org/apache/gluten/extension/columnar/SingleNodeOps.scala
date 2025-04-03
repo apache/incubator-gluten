@@ -71,7 +71,7 @@ object SingleNodeOps {
   private case class DummyLeafExec(hiddenPlan: SparkPlan)
     extends LeafExecNode
     with GlutenPlan {
-    private val conv: Convention = Convention.get(hiddenPlan)
+    private lazy val conv: Convention = Convention.get(hiddenPlan)
 
     override def batchType(): Convention.BatchType = conv.batchType
     override def rowType0(): Convention.RowType = conv.rowType
