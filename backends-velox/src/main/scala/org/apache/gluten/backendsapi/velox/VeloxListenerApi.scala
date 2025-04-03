@@ -154,13 +154,14 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
       val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
       JniWorkspace.enableDebug(debugDir)
+    } else {
+      JniWorkspace.initializeDefault(
+        () =>
+          SparkDirectoryUtil.get
+            .namespace("jni")
+            .mkChildDirRandomly(UUID.randomUUID.toString)
+            .getAbsolutePath)
     }
-    JniWorkspace.initializeDefault(
-      () =>
-        SparkDirectoryUtil.get
-          .namespace("jni")
-          .mkChildDirRandomly(UUID.randomUUID.toString)
-          .getAbsolutePath)
 
     UDFResolver.resolveUdfConf(conf, isDriver)
 
