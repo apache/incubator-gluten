@@ -3405,6 +3405,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         }
         assert(aggregates.size == 1)
       }
+
       val sql1 =
         """
           |select t1.*, t2.* from nation as t1
@@ -3429,6 +3430,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
           |""".stripMargin
       compareResultsAgainstVanillaSpark(sql3, true, checkOnlyOneAggregate)
     }
+  }
+
+  test("GLUTEN-9177: Fix diff of parse_url") {
+    val create_tbl_sql = "create table test_9177(id bigint, s string) using parquet"
+    val insert_data_sql = "insert into test_9177 values(1, 'http://user:pass@locahost')," +
+      "(2, 'http://user:pass@localhost/a/b/c'), (3, 'http://user:pass@localhost:10010/a/b/c')"
+    val select_sql = "select id, parse_url(s, 'HOST') from test_9177"
+    spark.sql(create_tbl_sql)
+    spark.sql(insert_data_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_9177")
   }
 }
 // scalastyle:on line.size.limit
