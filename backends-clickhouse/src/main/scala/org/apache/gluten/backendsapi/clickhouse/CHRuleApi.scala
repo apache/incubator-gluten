@@ -60,6 +60,9 @@ object CHRuleApi {
       (spark, parserInterface) => new GlutenCacheFilesSqlParser(spark, parserInterface))
     injector.injectParser(
       (spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
+    injector.injectResolutionRule(spark => new JoinAggregateToAggregateUnion(spark))
+    // CoalesceAggregationUnion and CoalesceProjectionUnion should follows
+    // JoinAggregateToAggregateUnion
     injector.injectResolutionRule(spark => new CoalesceAggregationUnion(spark))
     injector.injectResolutionRule(spark => new CoalesceProjectionUnion(spark))
     injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
