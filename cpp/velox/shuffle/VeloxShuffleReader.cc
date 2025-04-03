@@ -317,13 +317,13 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
         auto arrowBuffers,
         BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, deserializeTime_, decompressTime_));
     if (arrowBuffers.empty()) {
-      // Reach EOS.
+      reachEos();
       return nullptr;
     }
     return makeColumnarBatch(rowType_, numRows, std::move(arrowBuffers), veloxPool_, deserializeTime_);
   }
 
-  if (reachEos_) {
+  if (reachedEos_) {
     if (merged_) {
       return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
     }
@@ -337,7 +337,7 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
         arrowBuffers,
         BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, deserializeTime_, decompressTime_));
     if (arrowBuffers.empty()) {
-      reachEos_ = true;
+      reachEos();
       break;
     }
     if (!merged_) {
@@ -356,7 +356,7 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   }
 
   // Reach EOS.
-  if (reachEos_ && !merged_) {
+  if (reachedEos_ && !merged_) {
     return nullptr;
   }
 
@@ -367,6 +367,11 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
     merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, std::move(arrowBuffers));
   }
   return columnarBatch;
+}
+
+void VeloxHashShuffleReaderDeserializer::reachEos() {
+  reachedEos_ = true;
+  in_.reset();
 }
 
 VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
@@ -410,7 +415,7 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
         BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, deserializeTime_, decompressTime_));
 
     if (arrowBuffers.empty()) {
-      reachedEos_ = true;
+      reachEos();
       if (cachedRows_ > 0) {
         return deserializeToBatch();
       }
@@ -493,6 +498,11 @@ void VeloxSortShuffleReaderDeserializer::readLargeRow(std::vector<std::shared_pt
   cachedRows_++;
 }
 
+void VeloxSortShuffleReaderDeserializer::reachEos() {
+  reachedEos_ = true;
+  in_.reset();
+}
+
 class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::GlutenByteInputStream {
  public:
   VeloxInputStream(std::shared_ptr<arrow::io::InputStream> input, facebook::velox::BufferPtr buffer);
@@ -561,6 +571,7 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
   }
 
   if (!in_->hasNext()) {
+    reachEos();
     return nullptr;
   }
 
@@ -580,6 +591,10 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
   }
 
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+void VeloxRssSortShuffleReaderDeserializer::reachEos() {
+  in_.reset();
 }
 
 size_t VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::remainingSize() const {
