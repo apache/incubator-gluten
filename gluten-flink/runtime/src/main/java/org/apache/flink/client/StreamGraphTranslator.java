@@ -87,7 +87,6 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
 
     private JobGraph mergeGlutenOperators(JobGraph jobGraph) {
         for (JobVertex vertex : jobGraph.getVertices()) {
-            Map<Integer, StreamConfig> nodesCanMerge = new HashMap<>();
             StreamConfig streamConfig = new StreamConfig(vertex.getConfiguration());
             buildGlutenChains(streamConfig);
         }
@@ -130,6 +129,8 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
                         taskConfig.setTransitiveChainedTaskConfigs(
                                 outTask.getTransitiveChainedTaskConfigs(userClassloader));
                         taskConfig.setChainedOutputs(outTask.getChainedOutputs(userClassloader));
+                        taskConfig.setOperatorNonChainedOutputs(
+                                outTask.getOperatorNonChainedOutputs(userClassloader));
                         taskConfig.serializeAllConfigs();
                     } else {
                         break;
