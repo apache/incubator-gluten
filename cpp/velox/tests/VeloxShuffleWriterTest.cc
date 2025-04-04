@@ -69,28 +69,33 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
   for (const auto& compression : compressions) {
-    for (const auto compressionBufferSize : {4, 56, 32 * 1024}) {
-      for (auto useRadixSort : {true, false}) {
-        params.push_back(ShuffleTestParams{
-            .shuffleWriterType = ShuffleWriterType::kSortShuffle,
-            .partitionWriterType = PartitionWriterType::kLocal,
-            .compressionType = compression,
-            .compressionBufferSize = compressionBufferSize,
-            .useRadixSort = useRadixSort});
+    for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
+      for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
+        for (auto useRadixSort : {true, false}) {
+          params.push_back(
+              ShuffleTestParams{
+                  .shuffleWriterType = ShuffleWriterType::kSortShuffle,
+                  .partitionWriterType = partitionWriterType,
+                  .compressionType = compression,
+                  .diskWriteBufferSize = diskWriteBufferSize,
+                  .useRadixSort = useRadixSort});
+        }
       }
     }
     params.push_back(ShuffleTestParams{ShuffleWriterType::kRssSortShuffle, PartitionWriterType::kRss, compression});
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
-        params.push_back(ShuffleTestParams{
-            ShuffleWriterType::kHashShuffle,
-            PartitionWriterType::kLocal,
-            compression,
-            compressionThreshold,
-            mergeBufferSize});
+        params.push_back(
+            ShuffleTestParams{
+                ShuffleWriterType::kHashShuffle,
+                PartitionWriterType::kLocal,
+                compression,
+                compressionThreshold,
+                mergeBufferSize});
       }
-      params.push_back(ShuffleTestParams{
-          ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold});
+      params.push_back(
+          ShuffleTestParams{
+              ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold});
     }
   }
 
@@ -168,11 +173,7 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeFlatVector<int32_t>(
           4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
-          4,
-          [](vector_size_t row) {
-            return Timestamp{row % 2, 0};
-          },
-          nullEvery(5)),
+          4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5)),
   });
 
   auto rowType = facebook::velox::asRowType(vector->type());
