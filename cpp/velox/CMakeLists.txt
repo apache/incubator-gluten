@@ -340,6 +340,15 @@ if(BUILD_EXAMPLES)
   add_subdirectory(udf/examples)
 endif()
 
+if(ENABLE_GPU)
+  import_library(
+    facebook::velox::velox_cudf_exec
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
+
+  target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_exec)
+  target_link_libraries(velox PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so)
+endif()
+
 add_custom_command(
   TARGET velox
   POST_BUILD
