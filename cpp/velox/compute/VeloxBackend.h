@@ -87,7 +87,7 @@ class VeloxBackend {
   void initCache();
   void initConnector();
   void initUdf();
-  std::unique_ptr<facebook::velox::cache::SsdCache> initSsdCache(uint64 ssdSize);
+  std::unique_ptr<facebook::velox::cache::SsdCache> initSsdCache(uint64_t ssdSize);
 
   void initJolFilesystem();
 
