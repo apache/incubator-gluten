@@ -1,6 +1,6 @@
 FROM ghcr.io/facebookincubator/velox-dev:adapters
 RUN yum install -y sudo patch maven perl
-# After the base docker image updated, don;t need to install cmake
+# After the base docker image updated, don't need to install cmake
 RUN pip install cmake==3.30.4 && ln -s /usr/local/bin/cmake /usr/bin
 
 RUN git clone -b cudf --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
