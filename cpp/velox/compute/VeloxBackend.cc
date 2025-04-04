@@ -215,7 +215,7 @@ std::unique_ptr<facebook::velox::cache::SsdCache> VeloxBackend::initSsdCache(uin
   int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
   int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
   std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
-  uint64_t ssdCheckpointIntervalSize = backendConf_->get<int32_t>(kVeloxSsdCheckpointIntervalBytes, 0);
+  uint64_t ssdCheckpointIntervalSize = backendConf_->get<uint64_t>(kVeloxSsdCheckpointIntervalBytes, 0);
   bool disableFileCow = backendConf_->get<bool>(kVeloxSsdDisableFileCow, false);
   bool checksumEnabled = backendConf_->get<bool>(kVeloxSsdCheckSumEnabled, false);
   bool checksumReadVerificationEnabled = backendConf_->get<bool>(kVeloxSsdCheckSumReadVerificationEnabled, false);
@@ -241,6 +241,7 @@ std::unique_ptr<facebook::velox::cache::SsdCache> VeloxBackend::initSsdCache(uin
         "not enough space for ssd cache in " + ssdCachePath + " cache size: " + std::to_string(ssdCacheSize) +
         "free space: " + std::to_string(si.available));
   }
+  LOG(INFO) << "Initializing SSD cache with: " << config.toString();
   return ssd;
 }
 
@@ -258,14 +259,12 @@ void VeloxBackend::initCache() {
       asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get());
     } else {
       // TODO: this is not tracked by Spark.
-      auto ssd = InitSsdCache(ssdCacheSize);
+      auto ssd = initSsdCache(ssdCacheSize);
       asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get(), std::move(ssd));
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()));
-    LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
-              << ", ssdCache prefix: " << ssdCachePath << ", ssdCache size: " << ssdCacheSize
-              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads;
+    LOG(INFO) << "AsyncDataCache is ready";
   }
 }
 
