@@ -163,7 +163,7 @@ bool StdMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSize, void
 
 bool StdMemoryAllocator::reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) {
   GLUTEN_CHECK(p != nullptr, "reallocate with nullptr");
-  if (newSize <= 0) {
+  if (newSize < 0) {
     return false;
   }
   if (newSize <= size) {
