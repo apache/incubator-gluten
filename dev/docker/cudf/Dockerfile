@@ -3,7 +3,7 @@ RUN yum install -y sudo patch maven perl
 # After the base docker image updated, don;t need to install cmake
 RUN pip install cmake==3.30.4 && ln -s /usr/local/bin/cmake /usr/bin
 
-RUN git clone -b cudf --depth=1 https://github.com/jinchengchenghh/gluten /opt/gluten
+RUN git clone -b cudf --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
 
 # Install spark to folder /opt
 RUN cd /opt/gluten/.github/workflows/util/ && ./install_spark_resources.sh 3.4
