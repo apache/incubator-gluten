@@ -17,14 +17,64 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.optimizer.{BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.JoinRel
+
+object JoinTypeTransform {
+
+  // ExistenceJoin is introduced in #SPARK-14781. It returns all rows from the left table with
+  // a new column to indecate whether the row is matched in the right table.
+  // Indeed, the ExistenceJoin is transformed into left any join in CH.
+  // We don't have left any join in substrait, so use left semi join instead.
+  // and isExistenceJoin is set to true to indicate that it is an existence join.
+  def toSubstraitJoinType(sparkJoin: JoinType, buildRight: Boolean): JoinRel.JoinType =
+    sparkJoin match {
+      case _: InnerLike =>
+        JoinRel.JoinType.JOIN_TYPE_INNER
+      case FullOuter =>
+        JoinRel.JoinType.JOIN_TYPE_OUTER
+      case LeftOuter =>
+        if (!buildRight) {
+          JoinRel.JoinType.JOIN_TYPE_RIGHT
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_LEFT
+        }
+      case RightOuter =>
+        if (!buildRight) {
+          JoinRel.JoinType.JOIN_TYPE_LEFT
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_RIGHT
+        }
+      case LeftSemi =>
+        if (!buildRight) {
+          JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+        }
+      case LeftAnti =>
+        if (!buildRight) {
+          JoinRel.JoinType.JOIN_TYPE_RIGHT_ANTI
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_LEFT_ANTI
+        }
+      case ExistenceJoin(_) =>
+        if (!buildRight) {
+          throw new IllegalArgumentException("Existence join should not switch children")
+        }
+        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+      case _ =>
+        // TODO: Support cross join with Cross Rel
+        JoinRel.JoinType.UNRECOGNIZED
+    }
+
+}
 
 case class ShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -99,6 +149,9 @@ case class BroadcastHashJoinExecTransformer(
     right,
     isNullAwareAntiJoin) {
 
+  // Unique ID for builded table
+  lazy val buildBroadcastTableId: String = buildPlan.id.toString
+
   override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
     case _: InnerLike =>
       JoinRel.JoinType.JOIN_TYPE_INNER
@@ -125,9 +178,40 @@ case class BroadcastHashJoinExecTransformer(
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val streamedRDD = getColumnarInputRDDs(streamedPlan)
+    val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
+    if (executionId != null) {
+      GlutenDriverEndpoint.collectResources(executionId, buildBroadcastTableId)
+    } else {
+      logWarning(
+        s"Can't not trace broadcast table data $buildBroadcastTableId" +
+          s" because execution id is null." +
+          s" Will clean up until expire time.")
+    }
+
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
-    val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast)
+    val context =
+      BroadCastHashJoinContext(
+        buildKeyExprs,
+        joinType,
+        buildSide == BuildRight,
+        condition.isDefined,
+        joinType.isInstanceOf[ExistenceJoin],
+        buildPlan.output,
+        buildBroadcastTableId,
+        isNullAwareAntiJoin
+      )
+    val broadcastRDD = VeloxBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?
     streamedRDD :+ broadcastRDD
   }
 }
+
+case class BroadCastHashJoinContext(
+    buildSideJoinKeys: Seq[Expression],
+    joinType: JoinType,
+    buildRight: Boolean,
+    hasMixedFiltCondition: Boolean,
+    isExistenceJoin: Boolean,
+    buildSideStructure: Seq[Attribute],
+    buildHashTableId: String,
+    isNullAwareAntiJoin: Boolean = false)
