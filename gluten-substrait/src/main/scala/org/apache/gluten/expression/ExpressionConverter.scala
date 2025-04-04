@@ -161,23 +161,16 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         return BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(
           expr,
           attributeSeq)
-      case i: StaticInvoke =>
-        val objectName = i.staticObject.getName.stripSuffix("$")
-        if (objectName.endsWith("UrlCodec")) {
-          val child = i.arguments.head
-          i.functionName match {
-            case "decode" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.URL_DECODE,
-                child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-                i)
-            case "encode" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.URL_ENCODE,
-                child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-                i)
-          }
-        }
+      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _)
+          if i.objectName.endsWith("UrlCodec") =>
+        return GenericExpressionTransformer(
+          "url_" + i.functionName,
+          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
+          i)
+      case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
+        throw new GlutenNotSupportException(
+          s"Not supported to transform StaticInvoke with object: ${clz.getName}, " +
+            s"function: $functionName")
       case _ =>
     }
 
