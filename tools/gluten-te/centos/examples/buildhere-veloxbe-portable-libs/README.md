@@ -4,7 +4,7 @@ The folder contains script code to build `libvelox.so` and `libgluten.so` in doc
 
 ## Prerequisites
 
-1. X86 CPU architecture
+1. X86_64 CPU architecture
 2. Host machine with Linux operating system
 3. Docker
 
