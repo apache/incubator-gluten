@@ -17,13 +17,18 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, Transitions}
+import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, Convention, Transitions}
+import org.apache.gluten.extension.columnar.transition.Convention.BatchType
 import org.apache.gluten.utils.PlanUtil
 
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftSemi}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec}
@@ -181,6 +186,50 @@ object MiscColumnarRules {
           case BuildLeft => right
           case BuildRight => left
         }
+    }
+  }
+
+  // Because of the hard-coded C2R removal code in
+  // org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible
+  // from Spark, This rule can be used when we have to make sure the columnar query plan
+  // inside the C2R is recognizable by the user-specified columnar batch serializer.
+  case class PreventBatchTypeMismatchInTableCache(
+      isCalledByTableCachePlaning: Boolean,
+      allowedBatchTypes: Set[BatchType])
+    extends Rule[SparkPlan] {
+    import PreventColumnarTypeMismatchInTableCache._
+    override def apply(plan: SparkPlan): SparkPlan = {
+      if (!isCalledByTableCachePlaning) {
+        return plan
+      }
+      plan match {
+        case c2r @ ColumnarToRowLike(columnarPlan: SparkPlan)
+            if !allowedBatchTypes.contains(Convention.get(columnarPlan).batchType) =>
+          // If the output batch type of 'columnarPlan' is not allowed (usually because it's not
+          // supported by a user-specified columnar batch serializer),
+          // We add a transparent row-based unary node to prevent the C2R from being removed by
+          // Spark code in
+          // org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible.
+          ColumnarToRowRemovalGuard(c2r)
+        case other => other
+      }
+    }
+
+    private object PreventColumnarTypeMismatchInTableCache {
+      // Having this unary node on the top of the query plan would prevent the c2r from being
+      // removed by Spark code in
+      // org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible.
+      case class ColumnarToRowRemovalGuard(c2r: SparkPlan) extends UnaryExecNode {
+        override def supportsColumnar: Boolean = false
+        override protected def doExecute(): RDD[InternalRow] = c2r.execute()
+        override def doExecuteBroadcast[T](): Broadcast[T] = c2r.executeBroadcast()
+        override def output: Seq[Attribute] = c2r.output
+        override def outputPartitioning: Partitioning = c2r.outputPartitioning
+        override def outputOrdering: Seq[SortOrder] = c2r.outputOrdering
+        override def child: SparkPlan = c2r
+        override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+          copy(c2r = newChild)
+      }
     }
   }
 }
