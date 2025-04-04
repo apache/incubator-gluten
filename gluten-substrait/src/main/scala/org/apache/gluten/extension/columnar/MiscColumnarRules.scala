@@ -190,9 +190,9 @@ object MiscColumnarRules {
   }
 
   // Because of the hard-coded C2R removal code in
-  // org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible from Spark,
-  // This rule can be used when we have to make sure the columnar query plan inside the C2R is recognizable
-  // by the user-specified columnar batch serializer.
+  // org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible
+  // from Spark, This rule can be used when we have to make sure the columnar query plan
+  // inside the C2R is recognizable by the user-specified columnar batch serializer.
   case class PreventBatchTypeMismatchInTableCache(
       isCalledByTableCachePlaning: Boolean,
       allowedBatchTypes: Set[BatchType])
@@ -205,8 +205,10 @@ object MiscColumnarRules {
       plan match {
         case c2r @ ColumnarToRowLike(columnarPlan: SparkPlan)
             if !allowedBatchTypes.contains(Convention.get(columnarPlan).batchType) =>
-          // If the output batch type of 'columnarPlan' is not allowed (usually because it's not supported by a user-specified columnar batch serializer),
-          // We add a transparent row-based unary node to prevent the C2R from being removed by Spark code in
+          // If the output batch type of 'columnarPlan' is not allowed (usually because it's not
+          // supported by a user-specified columnar batch serializer),
+          // We add a transparent row-based unary node to prevent the C2R from being removed by
+          // Spark code in
           // org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible.
           ColumnarToRowRemovalGuard(c2r)
         case other => other
@@ -214,7 +216,8 @@ object MiscColumnarRules {
     }
 
     private object PreventColumnarTypeMismatchInTableCache {
-      // Having this unary node on the top of the query plan would prevent the c2r from being removed by Spark code in
+      // Having this unary node on the top of the query plan would prevent the c2r from being
+      // removed by Spark code in
       // org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible.
       case class ColumnarToRowRemovalGuard(c2r: SparkPlan) extends UnaryExecNode {
         override def supportsColumnar: Boolean = false
