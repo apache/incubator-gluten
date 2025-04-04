@@ -157,7 +157,7 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(false)
 
-  val COLUMNAR_VELOX_SSD_CHCEKPOINT_DISABLE_FILE_COW=
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_DISABLE_FILE_COW =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdDisableFileCow")
       .internal()
       .doc("True if copy on write should be disabled.")
