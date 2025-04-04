@@ -39,7 +39,6 @@ object OffloadKafkaScan {
     injector.gluten.legacy.injectTransform {
       c =>
         val offload = Seq(OffloadKafkaScan())
-          .map(_.toStrcitRule())
         HeuristicTransform.Simple(
           Validators.newValidator(c.glutenConf, offload),
           offload
