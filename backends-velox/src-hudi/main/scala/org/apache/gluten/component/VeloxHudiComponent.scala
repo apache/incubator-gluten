@@ -36,7 +36,7 @@ class VeloxHudiComponent extends Component {
     val ras = injector.gluten.ras
     legacy.injectTransform {
       c =>
-        val offload = Seq(OffloadHudiScan())
+        val offload = Seq(OffloadHudiScan()).map(_.toStrcitRule())
         HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
     }
     ras.injectRasRule {
