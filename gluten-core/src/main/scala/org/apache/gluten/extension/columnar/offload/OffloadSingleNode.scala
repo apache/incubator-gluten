@@ -66,13 +66,16 @@ object OffloadSingleNode {
      * when the children plan nodes can be dropped because not interested.
      */
     private def hideChildren[T <: SparkPlan](plan: T): T = {
-      plan.withNewChildren(
-        plan.children.map { child =>
-          val dummyLeaf = DummyLeafExec(child)
-          child.logicalLink.foreach(dummyLeaf.setLogicalLink)
-          dummyLeaf
-        }
-      ).asInstanceOf[T]
+      plan
+        .withNewChildren(
+          plan.children.map {
+            child =>
+              val dummyLeaf = DummyLeafExec(child)
+              child.logicalLink.foreach(dummyLeaf.setLogicalLink)
+              dummyLeaf
+          }
+        )
+        .asInstanceOf[T]
     }
 
     /** Restores hidden children from the replaced 'DummyLeafExec' nodes. */
