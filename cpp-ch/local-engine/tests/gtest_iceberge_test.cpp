@@ -1000,13 +1000,6 @@ TEST_F(IcebergTest, basic_utils_test)
     }
 
     {
-        std::string file
-        = third_party_data("benchmark/column_index/lineitem/part-00000-9395e12a-3620-4085-9677-c63b920353f4-c000.snappy.parquet");
-         auto y = runClickhouseSQL(fmt::format("select count(*), count(distinct l_orderkey), min(l_orderkey), max(l_orderkey) from file('{}')", file));
-        headBlock(y, 100 , 100);
-    }
-
-    {
         std::shared_ptr<TempFilePath> dataFilePath = writeDataFiles(rowCount, 4)[0];
 
         runClickhouseSQL(fmt::format("select count(*) from file('{}')", dataFilePath->string()));
