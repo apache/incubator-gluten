@@ -45,6 +45,7 @@ import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
 
 import org.apache.commons.lang3.StringUtils
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 class VeloxListenerApi extends ListenerApi with Logging {
@@ -116,7 +117,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     SparkDirectoryUtil.init(conf)
-    UDFResolver.resolveUdfConf(conf, isDriver = true)
     initialize(conf, isDriver = true)
     UdfJniWrapper.registerFunctionSignatures()
   }
@@ -143,13 +143,28 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     SparkDirectoryUtil.init(conf)
-    UDFResolver.resolveUdfConf(conf, isDriver = false)
     initialize(conf, isDriver = false)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
+    // Sets this configuration only once, since not undoable.
+    // DebugInstance should be created first.
+    if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
+      val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
+      JniWorkspace.enableDebug(debugDir)
+    } else {
+      JniWorkspace.initializeDefault(
+        () =>
+          SparkDirectoryUtil.get
+            .namespace("jni")
+            .mkChildDirRandomly(UUID.randomUUID.toString)
+            .getAbsolutePath)
+    }
+
+    UDFResolver.resolveUdfConf(conf, isDriver)
+
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
     ArrowJavaBatch.ensureRegistered()
@@ -168,12 +183,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
         },
         classOf[ColumnarShuffleManager].getName
       )
-
-    // Sets this configuration only once, since not undoable.
-    if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
-      val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
-      JniWorkspace.enableDebug(debugDir)
-    }
 
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.
@@ -218,6 +227,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
   private def shutdown(): Unit = {
     // TODO shutdown implementation in velox to release resources
+    JniLibLoader.forceUnloadAll
   }
 }
 
