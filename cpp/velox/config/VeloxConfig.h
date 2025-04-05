@@ -139,6 +139,12 @@ const uint32_t kGlogVerboseLevelMaximum = 99;
 const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
 const uint32_t kGlogSeverityLevelDefault = 1;
 
+// cudf
+#ifdef GLUTEN_ENABLE_GPU
+const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
+const bool kCudfEnabledDefault = "true";
+#endif
+
 // Query trace
 /// Enable query tracing flag.
 const std::string kQueryTraceEnabled = "spark.gluten.sql.columnar.backend.velox.queryTraceEnabled";
