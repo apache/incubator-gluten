@@ -12,10 +12,11 @@ Now gluten supports Ubuntu20.04, Ubuntu22.04, centos8, centos7 and macOS.
 
 ## JDK
 
-Currently, Gluten supports JDK-8 for Spark 3.2/3.3/3.4/3.5. And for Spark 3.3 and higher versions, Gluten
-supports JDK 11/17. Please note Spark-4.0 only supports JDK 11 and 17. So we recommend Velox backend users
-to use higher JDK version to ease the migration for deploying Gluten with Spark-4.0 in the future. And we
-may probably upgrade Arrow from 15.0.0 to some higher version, which also requires using JDK-11 or JDK-17.
+Currently, Gluten supports JDK 8 for Spark 3.2/3.3/3.4/3.5. For Spark 3.3 and higher versions, Gluten
+supports JDK 11 and 17. Please note since Spark 4.0, JDK 8 will not be supported. So we recommend Velox
+backend users to use higher JDK version now to ease the migration for deploying Gluten with Spark-4.0
+in the future. And we may probably upgrade Arrow from 15.0.0 to some higher version, which also requires
+JDK 11 is the minimum version.
 
 ### JDK 8
 
