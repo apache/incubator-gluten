@@ -650,7 +650,10 @@ class VeloxTestSettings extends BackendTestSettings {
       // for ObjectHashAggregateExec will fail.
       "SPARK-22223: ObjectHashAggregate should not introduce unnecessary shuffle",
       "SPARK-31620: agg with subquery (whole-stage-codegen = true)",
-      "SPARK-31620: agg with subquery (whole-stage-codegen = false)"
+      "SPARK-31620: agg with subquery (whole-stage-codegen = false)",
+      // The below test just verifies Spark's scala code. The involved toString
+      // implementation has different result on Java 17.
+      "SPARK-24788: RelationalGroupedDataset.toString with unresolved exprs should not fail"
     )
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
@@ -739,6 +742,10 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
+    // The below two tests just verify Spark's scala code. The involved toString
+    // implementation has different result on Java 17.
+    .exclude("Check RelationalGroupedDataset toString: Single data")
+    .exclude("Check RelationalGroupedDataset toString: over length schema ")
   enableSuite[GlutenDateFunctionsSuite]
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")
