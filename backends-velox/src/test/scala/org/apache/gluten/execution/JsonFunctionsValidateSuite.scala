@@ -341,7 +341,8 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
           ("""{"k1": [1, 2, {"key": 5}], "k2": {"key2": [1, 2]}}"""),
           ("""[1, 2, 3]"""),
           ("""{[1,2]}"""),
-          ("""{"key": 45, "random_string"}""")
+          ("""{"key": 45, "random_string"}"""),
+          (null.asInstanceOf[String])
         )
           .toDF("txt")
           .write
@@ -351,12 +352,6 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
 
         runQueryAndCompare("select txt, json_object_keys(txt) from tbl") {
           checkSparkOperatorMatch[ProjectExecTransformer]
-        }
-
-        runQueryAndCompare(
-          "SELECT json_object_keys(null) " +
-            "from datatab limit 1;") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
   }
