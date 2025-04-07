@@ -176,6 +176,7 @@ object JoinUtils {
       inputBuildOutput: Seq[Attribute],
       substraitContext: SubstraitContext,
       operatorId: java.lang.Long,
+      hashTableId: String = "",
       validation: Boolean = false): RelNode = {
     // scalastyle:on argcount
     // Create pre-projection for build/streamed plan. Append projected keys to each side.
@@ -227,6 +228,7 @@ object JoinUtils {
       joinExpressionNode,
       postJoinFilter.orNull,
       createJoinExtensionNode(joinParameters, streamedOutput ++ buildOutput),
+      hashTableId,
       substraitContext,
       operatorId
     )
