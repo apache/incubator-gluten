@@ -117,7 +117,9 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
   test("ColumnarBuildSideRelation transform support multiple key columns") {
     Seq("true", "false").foreach(
       enabledOffheapBroadcast =>
-        withSQLConf(VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key -> enabledOffheapBroadcast) {
+        withSQLConf(
+          VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key ->
+            enabledOffheapBroadcast) {
           withTable("t1", "t2") {
             val df1 =
               (0 until 50)
