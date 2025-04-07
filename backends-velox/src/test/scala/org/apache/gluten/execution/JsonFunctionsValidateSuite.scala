@@ -30,10 +30,20 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
 
-    runQueryAndCompare(
-      "SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
-        "from lineitem limit 1;") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+    withTempPath {
+      path =>
+        Seq[(String)](
+          ("""{"a":"b"}""")
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select get_json_object(txt, '$.a') from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
 
     // Invalid UTF-8 encoding.
@@ -51,12 +61,10 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare(
       s"select *, json_array_length(string_field1) " +
         s"from datatab limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, json_array_length('[1,2,3,4]') " +
-        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
     withTempPath {
       path =>
         Seq[(String)](
+          ("[1,2,3,4]"),
           (null.asInstanceOf[String])
         )
           .toDF("txt")

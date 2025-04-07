@@ -762,9 +762,20 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
 
   test("Test sequence function optimized by Spark constant folding") {
     withSQLConf(("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)) {
-      runQueryAndCompare("""SELECT sequence(1, 5), l_orderkey
-                           | from lineitem limit 100""".stripMargin) {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
+      withTempPath {
+        path =>
+          Seq[(Integer, Integer)](
+            (1, 5)
+          )
+            .toDF("val1", "val2")
+            .write
+            .parquet(path.getCanonicalPath)
+
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+          runQueryAndCompare("SELECT sequence(val1, val2) from tbl") {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
       }
     }
   }
@@ -813,8 +824,20 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("Test sum/count function") {
-    runQueryAndCompare("""SELECT sum(2),count(2) from lineitem""".stripMargin) {
-      checkGlutenOperatorMatch[BatchScanExecTransformer]
+    withTempPath {
+      path =>
+        Seq[(Integer, Integer)](
+          (2, 2)
+        )
+          .toDF("val1", "val2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("SELECT sum(val1),count(val2) from tbl") {
+          checkGlutenOperatorMatch[BatchScanExecTransformer]
+        }
     }
   }
 
@@ -830,9 +853,20 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   testWithSpecifiedSparkVersion("Test width_bucket function", Some("3.4")) {
-    runQueryAndCompare("""SELECT width_bucket(2, 0, 4, 3), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+    withTempPath {
+      path =>
+        Seq[(Integer, Integer, Integer, Integer)](
+          (2, 0, 4, 3)
+        )
+          .toDF("val1", "val2", "val3", "val4")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("SELECT width_bucket(val1, val2, val3, val4) from tbl") {
+          checkGlutenOperatorMatch[BatchScanExecTransformer]
+        }
     }
   }
 
