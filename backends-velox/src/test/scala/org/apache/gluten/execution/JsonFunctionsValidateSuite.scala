@@ -54,9 +54,21 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare(
       s"select l_orderkey, json_array_length('[1,2,3,4]') " +
         s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, json_array_length(null) " +
-        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    withTempPath {
+      path =>
+        Seq[(String)](
+          (null.asInstanceOf[String])
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select json_array_length(txt) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
   }
 
   testWithSpecifiedSparkVersion("from_json function bool", Some("3.4")) {

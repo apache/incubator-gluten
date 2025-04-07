@@ -187,8 +187,20 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   testWithSpecifiedSparkVersion("null input for array_size", Some("3.3")) {
-    runQueryAndCompare("SELECT array_size(null)") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+    withTempPath {
+      path =>
+        Seq[(String)](
+          (null.asInstanceOf[String])
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select array_size(txt) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
