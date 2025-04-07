@@ -210,17 +210,19 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDateExpressionsSuite]
     // Rewrite because Spark collect causes long overflow.
     .exclude("TIMESTAMP_MICROS")
-    // Velox doesn't support timezones like UTC.
+    // Replaced by a gluten test to pass timezone through config.
     .exclude("unix_timestamp")
-    // Velox doesn't support timezones like UTC.
+    // Replaced by a gluten test to pass timezone through config.
     .exclude("to_unix_timestamp")
-    // Velox doesn't support timezones like UTC.
+    // Replaced by a gluten test to pass timezone through config.
     .exclude("Hour")
     // Unsupported format: yyyy-MM-dd HH:mm:ss.SSS
     .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("DateFormat")
     // Legacy mode is not supported, assuming this mode is not commonly used.
     .exclude("to_timestamp exception mode")
-    // Velox doesn't support timezones like UTC.
+    // Replaced by a gluten test to pass timezone through config.
     .exclude("from_unixtime")
     // https://github.com/facebookincubator/velox/pull/10563/files#diff-140dc50e6dac735f72d29014da44b045509df0dd1737f458de1fe8cfd33d8145
     .excludeGlutenTest("from_unixtime")
