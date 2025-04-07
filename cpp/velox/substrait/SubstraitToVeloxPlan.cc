@@ -19,6 +19,7 @@
 
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
+#include "jni/JniHashTable.h"
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/HiveDataSink.h"
 #include "velox/exec/TableWriter.h"
@@ -26,6 +27,7 @@
 
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxWriterUtils.h"
+#include "utils/ObjectStore.h"
 
 #include "config.pb.h"
 #include "config/GlutenConfig.h"
@@ -343,6 +345,29 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         rightNode,
         getJoinOutputType(leftNode, rightNode, joinType));
 
+  } else if (
+      sJoin.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(sJoin.advanced_extension(), "isBHJ=")) {
+    std::string hashTableId = sJoin.hashtableid();
+    void* hashJoinBuilder = nullptr;
+    try {
+      hashJoinBuilder = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(getJoin(hashTableId)).get();
+    } catch (gluten::GlutenException& err) {
+      hashJoinBuilder = nullptr;
+    }
+
+    // Create HashJoinNode node
+    return std::make_shared<core::HashJoinNode>(
+        nextPlanNodeId(),
+        joinType,
+        isNullAwareAntiJoin,
+        leftKeys,
+        rightKeys,
+        filter,
+        leftNode,
+        rightNode,
+        getJoinOutputType(leftNode, rightNode, joinType),
+        hashJoinBuilder);
   } else {
     // Create HashJoinNode node
     return std::make_shared<core::HashJoinNode>(
