@@ -18,7 +18,6 @@ package org.apache.gluten.jni;
 
 import org.apache.gluten.exception.GlutenException;
 
-import org.apache.spark.util.SparkShutdownManagerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,21 +39,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
-import scala.runtime.BoxedUnit;
-
 public class JniLibLoader {
   private static final Logger LOG = LoggerFactory.getLogger(JniLibLoader.class);
 
   private static final Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
   private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
-
-  static {
-    SparkShutdownManagerUtil.addHookForLibUnloading(
-        () -> {
-          forceUnloadAll();
-          return BoxedUnit.UNIT;
-        });
-  }
 
   private final String workDir;
   private final Set<String> loadedLibraries = new HashSet<>();

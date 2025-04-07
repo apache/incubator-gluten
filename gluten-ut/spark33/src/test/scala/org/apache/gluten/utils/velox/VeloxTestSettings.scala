@@ -551,8 +551,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
-    // ColumnarShuffleExchangeExec does not support SORT_BEFORE_REPARTITION
-    .exclude("SPARK-23207: Make repartition() generate consistent output")
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenReplaceHashWithSortAggSuite]
@@ -652,7 +650,10 @@ class VeloxTestSettings extends BackendTestSettings {
       // for ObjectHashAggregateExec will fail.
       "SPARK-22223: ObjectHashAggregate should not introduce unnecessary shuffle",
       "SPARK-31620: agg with subquery (whole-stage-codegen = true)",
-      "SPARK-31620: agg with subquery (whole-stage-codegen = false)"
+      "SPARK-31620: agg with subquery (whole-stage-codegen = false)",
+      // The below test just verifies Spark's scala code. The involved toString
+      // implementation has different result on Java 17.
+      "SPARK-24788: RelationalGroupedDataset.toString with unresolved exprs should not fail"
     )
   enableSuite[GlutenDataFrameAsOfJoinSuite]
   enableSuite[GlutenDataFrameComplexTypeSuite]
@@ -741,6 +742,10 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
+    // The below two tests just verify Spark's scala code. The involved toString
+    // implementation has different result on Java 17.
+    .exclude("Check RelationalGroupedDataset toString: Single data")
+    .exclude("Check RelationalGroupedDataset toString: over length schema ")
   enableSuite[GlutenDateFunctionsSuite]
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")
@@ -790,6 +795,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
     // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
     .exclude("File source v2: support partition pruning")
+    // https://github.com/apache/incubator-gluten/pull/9145.
+    .excludeGlutenTest("SPARK-25237 compute correct input metrics in FileScanRDD")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenInjectRuntimeFilterSuite]
@@ -830,9 +837,10 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
-    // Need to support MAP<NullType, NullType>
-    .exclude(
-      "SPARK-27619: When spark.sql.legacy.allowHashOnMapType is true, hash can be used on Maptype")
+    // https://github.com/apache/incubator-gluten/pull/9145.
+    .exclude("SPARK-17515: CollectLimit.execute() should perform per-partition limits")
+    // https://github.com/apache/incubator-gluten/pull/9145.
+    .exclude("SPARK-19650: An action on a Command should not trigger a Spark job")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
     .exclude("SPARK-33687: analyze all tables in a specific database")

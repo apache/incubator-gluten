@@ -17,6 +17,7 @@
 package org.apache.gluten.sql.shims.delta32
 
 import org.apache.gluten.execution.GlutenPlan
+import org.apache.gluten.extension.{DeltaExpressionExtensionTransformer, ExpressionExtensionTrait}
 import org.apache.gluten.sql.shims.DeltaShims
 
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
@@ -38,6 +39,10 @@ class Delta32Shims extends DeltaShims {
 
   override def offloadDeltaOptimizedWriterExec(plan: SparkPlan): GlutenPlan = {
     DeltaOptimizedWriterTransformer.from(plan)
+  }
+
+  override def registerExpressionExtension(): Unit = {
+    ExpressionExtensionTrait.registerExpressionExtension(DeltaExpressionExtensionTransformer())
   }
 
   /**

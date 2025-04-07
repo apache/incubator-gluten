@@ -36,7 +36,7 @@ import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.v1._
 import org.apache.spark.sql.utils.ExpressionUtil
-import org.apache.spark.util.SparkDirectoryUtil
+import org.apache.spark.util.{SparkDirectoryUtil, SparkShutdownManagerUtil}
 
 import org.apache.commons.lang3.StringUtils
 
@@ -53,7 +53,7 @@ class CHListenerApi extends ListenerApi with Logging {
       pc.conf.get(GlutenConfig.EXTENDED_EXPRESSION_TRAN_CONF.key, "")
     )
     if (expressionExtensionTransformer != null) {
-      ExpressionExtensionTrait.expressionExtensionTransformer = expressionExtensionTransformer
+      ExpressionExtensionTrait.registerExpressionExtension(expressionExtensionTransformer)
     }
   }
 
@@ -87,6 +87,7 @@ class CHListenerApi extends ListenerApi with Logging {
       val executorLibPath = conf.get(GlutenConfig.GLUTEN_EXECUTOR_LIB_PATH.key, libPath)
       JniLibLoader.loadFromPath(executorLibPath, true)
     }
+    CHListenerApi.addShutdownHook
     // Add configs
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._
     conf.setCHConfig(
@@ -131,5 +132,19 @@ class CHListenerApi extends ListenerApi with Logging {
   private def shutdown(): Unit = {
     CHBroadcastBuildSideCache.cleanAll()
     CHNativeExpressionEvaluator.finalizeNative()
+  }
+}
+
+object CHListenerApi {
+  var initialized = false
+
+  def addShutdownHook: Unit = {
+    if (!initialized) {
+      initialized = true
+      SparkShutdownManagerUtil.addHookForLibUnloading(
+        () => {
+          JniLibLoader.forceUnloadAll
+        })
+    }
   }
 }

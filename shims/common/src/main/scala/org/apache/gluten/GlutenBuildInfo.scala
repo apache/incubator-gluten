@@ -16,8 +16,6 @@
  */
 package org.apache.gluten
 
-import org.apache.gluten.exception.GlutenException
-
 import java.util.Properties
 
 import scala.util.Try
@@ -29,7 +27,7 @@ object GlutenBuildInfo {
     Thread.currentThread().getContextClassLoader.getResourceAsStream(buildFile)
 
   if (buildFileStream == null) {
-    throw new GlutenException(s"Can not load the core build file: $buildFile")
+    throw new RuntimeException(s"Can not load the core build file: $buildFile")
   }
 
   private val unknown = "<unknown>"

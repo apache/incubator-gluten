@@ -18,8 +18,7 @@ package org.apache.spark.sql
 
 import org.apache.gluten.exception.GlutenException
 
-import org.apache.spark.SparkContext
-import org.apache.spark.TestUtils
+import org.apache.spark.{SparkContext, TestUtils}
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.sql.test.SQLTestUtils
 

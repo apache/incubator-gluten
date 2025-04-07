@@ -160,6 +160,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     CHConfig.prefixOf("enable.coalesce.aggregation.union")
   val GLUTEN_ENABLE_COALESCE_PROJECT_UNION: String =
     CHConfig.prefixOf("enable.coalesce.project.union")
+  val GLUTEN_JOIN_AGGREGATE_TO_AGGREGATE_UNION: String =
+    CHConfig.prefixOf("join.aggregate.to.aggregate.union")
 
   def affinityMode: String = {
     SparkEnv.get.conf
@@ -410,6 +412,20 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def eliminateDeduplicateAggregateWithAnyJoin(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConfig.runtimeConfig("eliminate_deduplicate_aggregate_with_any_join"),
+      defaultValue = true
+    )
+  }
+
+  def enableSimplifySum(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConfig.runtimeConfig("enable_simplify_sum"),
+      defaultValue = true
+    )
+  }
+
+  def enableAggregateIfToFilter(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConfig.runtimeConfig("enable_aggregate_if_to_filter"),
       defaultValue = true
     )
   }

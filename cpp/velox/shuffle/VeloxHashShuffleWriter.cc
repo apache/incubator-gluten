@@ -1124,9 +1124,8 @@ arrow::Status VeloxHashShuffleWriter::reclaimFixedSize(int64_t size, int64_t* ac
 
   int64_t reclaimed = 0;
   if (reclaimed < size) {
-    auto before = partitionBufferPool_->bytes_allocated();
     ARROW_ASSIGN_OR_RAISE(auto cached, evictCachedPayload(size - reclaimed));
-    reclaimed += cached + (before - partitionBufferPool_->bytes_allocated());
+    reclaimed += cached;
   }
   if (reclaimed < size && shrinkPartitionBuffersAfterSpill()) {
     ARROW_ASSIGN_OR_RAISE(auto shrunken, shrinkPartitionBuffersMinSize(size - reclaimed));
