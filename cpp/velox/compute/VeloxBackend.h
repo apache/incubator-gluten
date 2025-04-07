@@ -28,6 +28,7 @@
 #include "velox/common/config/Config.h"
 #include "velox/common/memory/MmapAllocator.h"
 
+#include "jni/JniHashTable.h"
 #include "memory/VeloxMemoryManager.h"
 
 namespace gluten {
