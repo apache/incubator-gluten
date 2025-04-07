@@ -83,7 +83,7 @@ trait BackendSettingsApi {
     GlutenConfig.get.enableColumnarShuffle
   }
 
-  def enableJoinKeysRewrite(): Boolean = true
+  def enableHashTableBuildOncePerExecutor(): Boolean = true
 
   def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     case _: InnerLike | RightOuter | FullOuter => true
