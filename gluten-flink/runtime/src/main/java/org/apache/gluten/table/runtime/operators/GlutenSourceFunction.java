@@ -24,7 +24,9 @@ import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
-import io.github.zhztheplayer.velox4j.iterator.UpIterator;
+import io.github.zhztheplayer.velox4j.data.RowVector;
+import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
+import io.github.zhztheplayer.velox4j.iterator.UpIterators;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
@@ -75,7 +77,8 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
         allocator = new RootAllocator(Long.MAX_VALUE);
 
         while (isRunning) {
-            UpIterator result = session.queryOps().execute(query);
+            CloseableIterator<RowVector> result =
+                    UpIterators.asJavaIterator(session.queryOps().execute(query));
             if (result.hasNext()) {
                 List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
                         result.next(),
