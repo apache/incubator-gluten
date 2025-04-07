@@ -231,7 +231,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
     else if (substrait_type.has_nothing())
     {
         ch_type = std::make_shared<DB::DataTypeNothing>();
-        ch_type = tryWrapNullable(substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE, ch_type);
+        // ch_type = tryWrapNullable(substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE, ch_type);
     }
     else
         throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support type {}", substrait_type.DebugString());
@@ -336,5 +336,72 @@ DB::DataTypePtr TypeParser::tryWrapNullable(substrait::Type_Nullability nullable
     if (nullable == substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE && !nested_type->isNullable())
         return std::make_shared<DB::DataTypeNullable>(nested_type);
     return nested_type;
+}
+
+DB::DataTypePtr TypeParser::resolveNothingTypeNullability(DB::DataTypePtr parsed_result_type, DB::DataTypePtr output_type)
+{
+    if (parsed_result_type->getTypeId() == output_type->getTypeId())
+    {
+        if (DB::isArray(parsed_result_type))
+        {
+            return std::make_shared<DB::DataTypeArray>(resolveNothingTypeNullability(
+                typeid_cast<const DB::DataTypeArray *>(parsed_result_type.get())->getNestedType(),
+                typeid_cast<const DB::DataTypeArray *>(output_type.get())->getNestedType()));
+        }
+        else if (DB::isMap(parsed_result_type))
+        {
+            const auto * from_map = typeid_cast<const DB::DataTypeMap *>(parsed_result_type.get());
+            const auto * target_map = typeid_cast<const DB::DataTypeMap *>(output_type.get());
+            auto from_key = from_map->getKeyType();
+            auto target_key = target_map->getKeyType();
+            auto from_value = from_map->getValueType();
+            auto target_value = target_map->getValueType();
+            auto key_type = resolveNothingTypeNullability(from_key, target_key);
+            auto value_type = resolveNothingTypeNullability(from_value, target_value);
+            return std::make_shared<DB::DataTypeMap>(key_type, value_type);
+        }
+        else if (DB::isTuple(parsed_result_type))
+        {
+            const auto * from_tuple = typeid_cast<const DB::DataTypeTuple *>(parsed_result_type.get());
+            const auto * target_tuple = typeid_cast<const DB::DataTypeTuple *>(output_type.get());
+            size_t from_size = from_tuple->getElements().size();
+            size_t target_size = target_tuple->getElements().size();
+            if (from_size != target_size)
+                return output_type;
+
+            DB::DataTypes elements(target_size);
+            for (size_t i = 0; i < from_size; ++i)
+            {
+                elements[i] = resolveNothingTypeNullability(from_tuple->getElements()[i], target_tuple->getElements()[i]);
+            }
+            if (target_tuple->haveExplicitNames())
+            {
+                const auto & names = target_tuple->getElementNames();
+                return std::make_shared<DB::DataTypeTuple>(elements, names);
+            }
+            else
+                return std::make_shared<DB::DataTypeTuple>(elements);
+        }
+        else if (parsed_result_type->isNullable() && output_type->isNullable())
+        {
+            auto from_nested = typeid_cast<const DB::DataTypeNullable *>(parsed_result_type.get())->getNestedType();
+            auto target_nested = typeid_cast<const DB::DataTypeNullable *>(output_type.get())->getNestedType();
+            return std::make_shared<DB::DataTypeNullable>(resolveNothingTypeNullability(from_nested, target_nested));
+        }
+    }
+    else if (parsed_result_type->isNullable() && !output_type->isNullable())
+    {
+        auto nested_type = typeid_cast<const DB::DataTypeNullable *>(parsed_result_type.get())->getNestedType();
+        if (DB::isNothing(nested_type) && DB::isNothing(output_type))
+            return std::make_shared<DB::DataTypeNullable>(output_type);
+        else
+            return resolveNothingTypeNullability(nested_type, output_type);
+    }
+    else if (!parsed_result_type->isNullable() && output_type->isNullable())
+    {
+        auto nested_type = typeid_cast<const DB::DataTypeNullable *>(output_type.get())->getNestedType();
+        return std::make_shared<DB::DataTypeNullable>(resolveNothingTypeNullability(parsed_result_type, nested_type));
+    }
+    return output_type;
 }
 }

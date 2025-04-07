@@ -19,6 +19,8 @@
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/IDataType.h>
 #include <Parser/FunctionParser.h>
+#include <Parser/TypeParser.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -53,6 +55,13 @@ public:
         {
             const auto * array_reduce_node = toFunctionNode(actions_dag, "arrayReduce", {func_const_node, arr_arg});
             return convertNodeTypeIfNeeded(substrait_func, array_reduce_node, actions_dag);
+        }
+
+        if (arr_arg->column != nullptr && arr_arg->column->isConst() && arr_arg->column->isNullAt(0))
+        {
+            auto result_type = TypeParser::parseType(substrait_func.output_type());
+            const auto * null_node = addColumnToActionsDAG(actions_dag, makeNullable(result_type), Field{});
+            return convertNodeTypeIfNeeded(substrait_func, null_node, actions_dag);
         }
 
         const auto * arr_is_null_node = toFunctionNode(actions_dag, "isNull", {arr_arg});

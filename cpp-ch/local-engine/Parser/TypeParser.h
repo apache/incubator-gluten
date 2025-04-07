@@ -51,6 +51,8 @@ namespace local_engine
         static bool isTypeMatched(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type, bool ignore_nullability = true);
         static DB::DataTypePtr tryWrapNullable(substrait::Type_Nullability nullable, DB::DataTypePtr nested_type);
 
+        static DB::DataTypePtr resolveNothingTypeNullability(DB::DataTypePtr parsed_result_type, DB::DataTypePtr output_type);
+
     private:
         /// Mapping spark type names to CH type names.
         static std::unordered_map<String, String> type_names_mapping;
