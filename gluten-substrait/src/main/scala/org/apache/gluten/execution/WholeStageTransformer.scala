@@ -235,6 +235,8 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   val sparkConf: SparkConf = sparkContext.getConf
 
+  @transient private val hadoopConfig = sparkContext.hadoopConfiguration
+
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   @transient
@@ -389,7 +391,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
     if (GlutenConfig.get.enableHdfsViewfs) {
       val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
-      val hadoopConf = sparkContext.hadoopConfiguration
       allSplitInfos.foreach {
         splitInfos =>
           splitInfos.foreach {
@@ -397,7 +398,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
               val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
                 splitInfo.getPaths.asScala.toSeq,
                 viewfsToHdfsCache,
-                hadoopConf)
+                hadoopConfig)
               splitInfo.setPaths(newPaths.asJava)
           }
       }
@@ -455,13 +456,12 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     }
     if (GlutenConfig.get.enableHdfsViewfs) {
       val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
-      val hadoopConf = sparkContext.hadoopConfiguration
       allSplitInfos.foreach {
         case splitInfo: LocalFilesNode =>
           val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
             splitInfo.getPaths.asScala.toSeq,
             viewfsToHdfsCache,
-            hadoopConf)
+            hadoopConfig)
           splitInfo.setPaths(newPaths.asJava)
       }
     }
