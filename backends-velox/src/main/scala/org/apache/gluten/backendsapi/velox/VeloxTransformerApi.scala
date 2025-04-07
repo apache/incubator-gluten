@@ -29,6 +29,7 @@ import org.apache.gluten.utils.InputPartitionsUtil
 import org.apache.gluten.vectorized.PlanEvaluatorJniWrapper
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
@@ -100,6 +101,10 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   }
 
   override def packPBMessage(message: Message): Any = Any.pack(message, "")
+
+  override def invalidateSQLExecutionResource(executionId: String): Unit = {
+    GlutenDriverEndpoint.invalidateResourceRelation(executionId)
+  }
 
   override def genWriteParameters(write: WriteFilesExecTransformer): Any = {
     write.fileFormat match {
