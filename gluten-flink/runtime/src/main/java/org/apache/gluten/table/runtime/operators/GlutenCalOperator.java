@@ -19,18 +19,19 @@ package org.apache.gluten.table.runtime.operators;
 
 import io.github.zhztheplayer.velox4j.connector.ExternalStream;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
-import io.github.zhztheplayer.velox4j.iterator.DownIterator;
-import io.github.zhztheplayer.velox4j.iterator.UpIterator;
+import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
+import io.github.zhztheplayer.velox4j.iterator.DownIterators;
+import io.github.zhztheplayer.velox4j.iterator.UpIterators;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
-import org.apache.gluten.vectorized.VLVectorIterator;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
+import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
@@ -44,6 +45,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /** Calculate operator in gluten, which will call Velox to run. */
 public class GlutenCalOperator extends TableStreamOperator<RowData>
@@ -58,7 +61,7 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
 
     private Session session;
     private Query query;
-    private VLVectorIterator inputIterator;
+    private BlockingQueue<RowVector> inputQueue;
     BufferAllocator allocator;
 
     public GlutenCalOperator(String plan, String id, String inputType, String outputType) {
@@ -74,8 +77,9 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
         outElement = new StreamRecord(null);
         session = Velox4j.newSession(MemoryManager.create(AllocationListener.NOOP));
 
-        inputIterator = new VLVectorIterator();
-        ExternalStream es = session.externalStreamOps().bind(new DownIterator(inputIterator));
+        inputQueue = new LinkedBlockingQueue<>();
+        ExternalStream es =
+                session.externalStreamOps().bind(DownIterators.fromBlockingQueue(inputQueue));
         List<BoundSplit> splits = List.of(
                 new BoundSplit(
                         id,
@@ -89,13 +93,14 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
 
     @Override
     public void processElement(StreamRecord<RowData> element) {
-        inputIterator.addRow(
+        inputQueue.add(
                 FlinkRowToVLVectorConvertor.fromRowData(
                         element.getValue(),
                         allocator,
                         session,
                         Serde.fromJson(inputType, RowType.class)));
-        UpIterator result = session.queryOps().execute(query);
+        CloseableIterator<RowVector> result =
+                UpIterators.asJavaIterator(session.queryOps().execute(query));
         if (result.hasNext()) {
             List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
                     result.next(),
@@ -110,6 +115,7 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
 
     @Override
     public PlanNode getPlanNode() {
+        // TODO: support wartermark operator
         if (glutenPlan == "Watermark") {
             return null;
         }
