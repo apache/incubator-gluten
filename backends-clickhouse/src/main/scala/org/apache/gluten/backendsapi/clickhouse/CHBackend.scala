@@ -160,6 +160,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     CHConfig.prefixOf("enable.coalesce.aggregation.union")
   val GLUTEN_ENABLE_COALESCE_PROJECT_UNION: String =
     CHConfig.prefixOf("enable.coalesce.project.union")
+  val GLUTEN_JOIN_AGGREGATE_TO_AGGREGATE_UNION: String =
+    CHConfig.prefixOf("join.aggregate.to.aggregate.union")
 
   def affinityMode: String = {
     SparkEnv.get.conf
