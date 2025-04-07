@@ -22,13 +22,16 @@ import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.BooleanType;
+import io.github.zhztheplayer.velox4j.type.DecimalType;
 import io.github.zhztheplayer.velox4j.type.IntegerType;
 import io.github.zhztheplayer.velox4j.type.RowType;
+import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 import io.github.zhztheplayer.velox4j.type.VarCharType;
 import io.github.zhztheplayer.velox4j.variant.BigIntValue;
 import io.github.zhztheplayer.velox4j.variant.BooleanValue;
 import io.github.zhztheplayer.velox4j.variant.DoubleValue;
+import io.github.zhztheplayer.velox4j.variant.HugeIntValue;
 import io.github.zhztheplayer.velox4j.variant.IntegerValue;
 import io.github.zhztheplayer.velox4j.variant.SmallIntValue;
 import io.github.zhztheplayer.velox4j.variant.TinyIntValue;
@@ -37,10 +40,12 @@ import io.github.zhztheplayer.velox4j.variant.VarCharValue;
 import io.github.zhztheplayer.velox4j.variant.Variant;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -67,8 +72,13 @@ public class RexNodeConverter {
             return FieldAccessTypedExpr.create(
                     toType(inputRef.getType()),
                     inNames.get(inputRef.getIndex()));
+        } else if (rexNode instanceof RexFieldAccess) {
+            RexFieldAccess fieldAccess = (RexFieldAccess) rexNode;
+            return FieldAccessTypedExpr.create(
+                    toType(fieldAccess.getType()),
+                    fieldAccess.getField().getName());
         } else {
-            throw new RuntimeException("Unrecognized RexNode: " + rexNode);
+            throw new RuntimeException("Unrecognized RexNode: " + rexNode.getClass().getName());
         }
     }
 
@@ -96,6 +106,10 @@ public class RexNodeConverter {
                                         toType(field.getType())
                         ).collect(Collectors.toList());
                 return new RowType(relDataType.getFieldNames(), children);
+            case TIMESTAMP:
+                return new TimestampType();
+            case DECIMAL:
+                return new DecimalType(relDataType.getPrecision(), relDataType.getScale());
             default:
                 throw new RuntimeException("Unsupported type: " + relDataType.getSqlTypeName());
         }
@@ -119,6 +133,14 @@ public class RexNodeConverter {
                 return new VarCharValue(literal.getValue().toString());
             case BINARY:
                 return new VarBinaryValue(literal.getValue().toString());
+            case DECIMAL:
+                // TODO: fix precision check
+                BigDecimal bigDecimal = literal.getValueAs(BigDecimal.class);
+                if (bigDecimal.precision() <= 18) {
+                    return new BigIntValue(bigDecimal.unscaledValue().longValueExact());
+                } else {
+                    return new HugeIntValue(bigDecimal.unscaledValue());
+                }
             default:
                 throw new RuntimeException(
                         "Unsupported rex node type: " + literal.getType().getSqlTypeName());

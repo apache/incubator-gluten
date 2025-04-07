@@ -112,7 +112,11 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
                         GlutenOperator outOperator = getGlutenOperator(outTask);
                         PlanNode outNode = outOperator.getPlanNode();
                         GlutenOperator sourceOperator = getGlutenOperator(taskConfig);
-                        outNode.setSources(List.of(sourceOperator.getPlanNode()));
+                        if (outNode != null) {
+                            outNode.setSources(List.of(sourceOperator.getPlanNode()));
+                        } else {
+                            outNode = sourceOperator.getPlanNode();
+                        }
                         if (sourceOperator instanceof GlutenStreamSource) {
                             taskConfig.setStreamOperator(
                                     new GlutenStreamSource(

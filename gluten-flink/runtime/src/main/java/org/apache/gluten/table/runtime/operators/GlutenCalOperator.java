@@ -110,6 +110,9 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
 
     @Override
     public PlanNode getPlanNode() {
+        if (glutenPlan == "Watermark") {
+            return null;
+        }
         return Serde.fromJson(glutenPlan, PlanNode.class);
     }
 

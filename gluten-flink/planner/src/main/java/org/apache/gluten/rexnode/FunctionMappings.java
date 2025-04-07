@@ -27,6 +27,10 @@ public class FunctionMappings {
             // TODO: support more functions.
             put(">", "greaterthan");
             put("<", "lessthan");
+            put("=", "equalto");
+            put("CAST", "cast");
+            put("CASE", "case");
+            put("*", "multiply");
         }
     };
 

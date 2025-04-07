@@ -112,10 +112,10 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        // add a mock input as velox not allow the source is empty.
-        // TODO: remove it.
         Type inputType = LogicalTypeConverter.toVLType(inputEdge.getOutputType());
         List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
+        // add a mock input as velox not allow the source is empty.
+        // TODO: remove mock table scan.
         PlanNode mockInput = new TableScanNode(
                 String.valueOf(ExecNodeContext.newNodeId()),
                 inputType,
@@ -131,7 +131,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
         List<TypedExpr> projectExprs = RexNodeConverter.toTypedExpr(projection, inNames);
         PlanNode project = new ProjectNode(
                 String.valueOf(ExecNodeContext.newNodeId()),
-                List.of(filter),
+                filter == null ? List.of() : List.of(filter),
                 Utils.getNamesFromRowType(getOutputType()),
                 projectExprs);
         // TODO: velo4j not support serializable now.

@@ -19,6 +19,7 @@ package org.apache.gluten.util;
 import io.github.zhztheplayer.velox4j.type.IntegerType;
 import io.github.zhztheplayer.velox4j.type.Type;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -47,7 +48,13 @@ public class LogicalTypeConverter {
         } else if (logicalType instanceof VarCharType) {
             return new io.github.zhztheplayer.velox4j.type.VarCharType();
         } else if (logicalType instanceof TimestampType) {
+            // TODO: may need precision
             return new io.github.zhztheplayer.velox4j.type.TimestampType();
+        } else if (logicalType instanceof DecimalType) {
+            DecimalType decimalType = (DecimalType) logicalType;
+            return new io.github.zhztheplayer.velox4j.type.DecimalType(
+                    decimalType.getPrecision(),
+                    decimalType.getScale());
         } else {
             throw new RuntimeException("Unsupported logical type: " + logicalType);
         }
