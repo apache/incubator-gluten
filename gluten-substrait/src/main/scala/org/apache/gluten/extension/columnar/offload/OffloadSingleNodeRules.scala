@@ -184,7 +184,7 @@ object OffloadOthers {
   // Utility to replace single node within transformed Gluten node.
   // Children will be preserved as they are as children of the output node.
   //
-  // Do not look up on children on the input node in this rule. Otherwise
+  // Do not look up on children on the input node in this rule. Otherwise,
   // it may break RAS which would group all the possible input nodes to
   // search for validate candidates.
   private class ReplaceSingleNode extends LogLevelUtil with Logging {
