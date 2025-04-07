@@ -41,7 +41,7 @@ import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
-import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, SparkShutdownManagerUtil}
 
 import org.apache.commons.lang3.StringUtils
 
@@ -149,6 +149,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
+    addShutdownHook
     // Sets this configuration only once, since not undoable.
     // DebugInstance should be created first.
     if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
@@ -249,5 +250,12 @@ object VeloxListenerApi {
 
   private def inLocalMode(conf: SparkConf): Boolean = {
     SparkResourceUtil.isLocalMaster(conf)
+  }
+
+  private def addShutdownHook: Unit = {
+    SparkShutdownManagerUtil.addHookForLibUnloading(
+      () => {
+        JniLibLoader.forceUnloadAll
+      })
   }
 }
