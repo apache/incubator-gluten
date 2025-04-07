@@ -1337,16 +1337,35 @@ JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_removeFiles
     LOCAL_ENGINE_JNI_METHOD_END(env, );
 }
 
-JNIEXPORT jlong Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWrite(
-    JNIEnv * env, jclass, jlong blockAddress, jstring table_path_, jint prefix_length_, jlong packingTargetSize_)
+JNIEXPORT jlong Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_createDeletionVectorWriter(
+    JNIEnv * env, jclass, jstring table_path_, jint prefix_length_, jlong packingTargetSize_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto * block = reinterpret_cast<DB::Block *>(blockAddress);
     auto table_path = jstring2string(env, table_path_);
 
     const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
-    local_engine::delta::DeltaWriter writer(query_context);
-    DB::Block * column_batch = writer.writeDeletionVector(*block, table_path, prefix_length_, packingTargetSize_);
+    auto writer = new local_engine::delta::DeltaWriter(query_context, table_path, prefix_length_, packingTargetSize_);
+    return reinterpret_cast<jlong>(writer);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1);
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWrite(
+    JNIEnv * env, jclass, jlong writer_address_, jlong blockAddress)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto * block = reinterpret_cast<DB::Block *>(blockAddress);
+    auto * writer = reinterpret_cast<local_engine::delta::DeltaWriter *>(writer_address_);
+    writer->writeDeletionVector(*block);
+    LOCAL_ENGINE_JNI_METHOD_END(env, );
+}
+
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWriteFinalize(JNIEnv * env, jclass, jlong writer_address_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto * writer = reinterpret_cast<local_engine::delta::DeltaWriter *>(writer_address_);
+    auto * column_batch = writer->finalize();
+    delete writer;
     return reinterpret_cast<UInt64>(column_batch);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1);
 }

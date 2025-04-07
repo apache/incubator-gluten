@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.ValidatablePlan
 import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock, DeltaWriterJNIWrapper}
+import org.apache.gluten.vectorized.{CHNativeBlock, DeltaWriterJNIWrapper}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -34,10 +34,12 @@ import org.apache.spark.sql.delta.util.{Codec, Utils => DeltaUtils}
 import org.apache.spark.sql.execution.datasources.CallTransformer
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 case class DeletionVectorWriteTransformer(
     child: SparkPlan,
@@ -65,37 +67,31 @@ case class DeletionVectorWriteTransformer(
     child.executeColumnar().mapPartitions {
       blockIterator =>
         val res = new Iterator[ColumnarBatch] {
-          private var last_block: Long = 0
-
+          var writer: Long = 0
           override def hasNext: Boolean = {
-            if (last_block != 0) {
-              CHBlockConverterJniWrapper.freeBlock(last_block)
-              last_block = 0
-            }
-            blockIterator.hasNext
+            blockIterator.hasNext && writer == 0
           }
 
           override def next(): ColumnarBatch = {
-            val n = blockIterator.next()
-            val last_block_address = CHNativeBlock.fromColumnarBatch(n).blockAddress()
+            writer = DeltaWriterJNIWrapper
+              .createDeletionVectorWriter(tablePathString, prefixLen, packingTargetSize)
+            while (blockIterator.hasNext) {
+              val n = blockIterator.next()
+              val block_address =
+                CHNativeBlock.fromColumnarBatch(n).blockAddress()
+              DeltaWriterJNIWrapper.deletionVectorWrite(writer, block_address)
+            }
 
-            val address = DeltaWriterJNIWrapper
-              .deletionVectorWrite(
-                last_block_address,
-                tablePathString,
-                prefixLen,
-                packingTargetSize)
-
+            val address = DeltaWriterJNIWrapper.deletionVectorWriteFinalize(writer)
             new CHNativeBlock(address).toColumnarBatch
           }
         }
         res
     }
-
   }
 
-  override protected def withNewChildInternal(
-      newChild: SparkPlan): DeletionVectorWriteTransformer = copy(child = newChild)
+  override protected def withNewChildInternal(newChild: SparkPlan): DeletionVectorWriteTransformer =
+    copy(child = newChild)
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
@@ -105,6 +101,8 @@ case class DeletionVectorWriteTransformer(
 }
 
 object DeletionVectorWriteTransformer {
+  val COUNTER = new AtomicLong(0)
+
   private val deletionVectorType: StructType = StructType.apply(
     Seq(
       StructField.apply("storageType", StringType, nullable = false),
@@ -133,6 +131,10 @@ object DeletionVectorWriteTransformer {
       tablePath: Path,
       deltaTxn: OptimisticTransaction,
       spark: SparkSession): Seq[DeletionVectorResult] = {
+    if (Utils.isTesting) {
+      COUNTER.incrementAndGet()
+    }
+
     val queryExecution = aggregated.queryExecution
     val new_e = DeletionVectorWriteTransformer(queryExecution.sparkPlan, tablePath, deltaTxn)
 
