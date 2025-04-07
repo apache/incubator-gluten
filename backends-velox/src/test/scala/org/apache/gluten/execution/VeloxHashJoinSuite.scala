@@ -22,8 +22,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference}
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarSubqueryBroadcastExec, InputIteratorTransformer}
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec}
+import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, InputIteratorTransformer}
 
 class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet"
@@ -118,7 +117,9 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
   test("ColumnarBuildSideRelation transform support multiple key columns") {
     Seq("true", "false").foreach(
       enabledOffheapBroadcast =>
-        withSQLConf(VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key -> enabledOffheapBroadcast) {
+        withSQLConf(
+          VeloxConfig.VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP.key ->
+            enabledOffheapBroadcast) {
           withTable("t1", "t2") {
             val df1 =
               (0 until 50)
