@@ -92,7 +92,7 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
     {
         const auto file_path = file_path_columns.column->getDataAt(row_idx);
         auto bitmap = bitmap_columns.column->getDataAt(row_idx);
-        auto cardinality = cardinality_src_columns.column->get64(0); // alisa deletedRowIndexCount
+        auto cardinality = cardinality_src_columns.column->get64(row_idx); // alisa deletedRowIndexCount
 
         if (size_of_current_bin > 0 && bitmap.size + size_of_current_bin > packing_target_size)
         {
