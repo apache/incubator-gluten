@@ -94,7 +94,6 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
         auto bitmap = bitmap_columns.column->getDataAt(row_idx);
         auto cardinality = cardinality_src_columns.column->get64(0); // alisa deletedRowIndexCount
 
-        std::cout << "packing_target_size:" << packing_target_size << ", current:" << size_of_current_bin << ", bitmap size:" << bitmap.size << ", cardinality:" << cardinality << std::endl;
         if (size_of_current_bin > 0 && bitmap.size + size_of_current_bin > packing_target_size)
         {
             write_buffer->finalize();
