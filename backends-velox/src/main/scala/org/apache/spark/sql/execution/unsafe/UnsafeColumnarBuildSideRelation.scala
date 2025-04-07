@@ -18,12 +18,14 @@ package org.apache.spark.sql.execution.unsafe
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.execution.BroadCastHashJoinContext
+import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
-import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, HashJoinBuilder, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
@@ -44,7 +46,9 @@ import org.apache.arrow.c.ArrowSchema
 
 import java.io.{Externalizable, ObjectInput, ObjectOutput}
 
+import scala.collection.JavaConverters._
 import scala.collection.JavaConverters.asScalaIteratorConverter
+import scala.collection.mutable.ArrayBuffer
 
 object UnsafeColumnarBuildSideRelation {
   // Keep constructors with BroadcastMode for compatibility
@@ -98,7 +102,9 @@ object UnsafeColumnarBuildSideRelation {
 case class UnsafeColumnarBuildSideRelation(
     private var output: Seq[Attribute],
     private var batches: UnsafeBytesBufferArray,
-    var safeBroadcastMode: SafeBroadcastMode)
+    var safeBroadcastMode: SafeBroadcastMode,
+    newBuildKeys: Seq[Expression] = Seq.empty,
+    offload: Boolean = false)
   extends BuildSideRelation
   with Externalizable
   with Logging
@@ -123,6 +129,30 @@ case class UnsafeColumnarBuildSideRelation(
   def this(
       output: Seq[Attribute],
       bytesBufferArray: Array[Array[Byte]],
+      safeMode: SafeBroadcastMode,
+      newBuildKeys: Seq[Expression],
+      offload: Boolean) = {
+    this(
+      output,
+      UnsafeBytesBufferArray(
+        bytesBufferArray.length,
+        bytesBufferArray.map(_.length),
+        bytesBufferArray.map(_.length.toLong).sum
+      ),
+      mode,
+      newBuildKeys,
+      offload
+    )
+    val batchesSize = bytesBufferArray.length
+    for (i <- 0 until batchesSize) {
+      // copy the bytes to off-heap memory.
+      batches.putBytesBuffer(i, bytesBufferArray(i))
+    }
+  }
+
+  def this(
+      output: Seq[Attribute],
+      bytesBufferArray: Array[Array[Byte]],
       safeMode: SafeBroadcastMode
   ) = {
     this(
@@ -139,6 +169,85 @@ case class UnsafeColumnarBuildSideRelation(
       // copy the bytes to off-heap memory.
       batches.putBytesBuffer(i, bytesBufferArray(i))
     }
+  }
+
+  private var hashTableData: Long = 0L
+
+  def buildHashTable(broadCastContext: BroadCastHashJoinContext): (Long, BuildSideRelation) =
+    synchronized {
+      if (hashTableData == 0) {
+        val runtime = Runtimes.contextInstance(
+          BackendsApiManager.getBackendName,
+          "UnsafeColumnarBuildSideRelation#buildHashTable")
+        val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
+        val serializeHandle: Long = {
+          val allocator = ArrowBufferAllocators.contextInstance()
+          val cSchema = ArrowSchema.allocateNew(allocator)
+          val arrowSchema = SparkArrowUtil.toArrowSchema(
+            SparkShimLoader.getSparkShims.structFromAttributes(output),
+            SQLConf.get.sessionLocalTimeZone)
+          ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+          val handle = jniWrapper
+            .init(cSchema.memoryAddress())
+          cSchema.close()
+          handle
+        }
+
+        val batchArray = new ArrayBuffer[Long]
+
+        var batchId = 0
+        while (batchId < batches.arraySize) {
+          val (offset, length) = batches.getBytesBufferOffsetAndLength(batchId)
+          batchArray.append(jniWrapper.deserializeDirect(serializeHandle, offset, length))
+          batchId += 1
+        }
+
+        logDebug(
+          s"BHJ value size: " +
+            s"${broadCastContext.buildHashTableId} = ${batches.arraySize}")
+
+        val (keys, newOutput) = if (newBuildKeys.isEmpty) {
+          (
+            broadCastContext.buildSideJoinKeys.asJava,
+            broadCastContext.buildSideStructure.asJava
+          )
+        } else {
+          (
+            newBuildKeys.asJava,
+            output.asJava
+          )
+        }
+
+        val joinKey = keys.asScala
+          .map {
+            key =>
+              val attr = ConverterUtils.getAttrFromExpr(key)
+              ConverterUtils.genColumnNameWithExprId(attr)
+          }
+          .mkString(",")
+
+        // Build the hash table
+        hashTableData = HashJoinBuilder
+          .nativeBuild(
+            broadCastContext.buildHashTableId,
+            batchArray.toArray,
+            joinKey,
+            broadCastContext.substraitJoinType.ordinal(),
+            broadCastContext.hasMixedFiltCondition,
+            broadCastContext.isExistenceJoin,
+            SubstraitUtil.toNameStruct(newOutput).toByteArray,
+            broadCastContext.isNullAwareAntiJoin
+          )
+
+        jniWrapper.close(serializeHandle)
+        (hashTableData, this)
+      } else {
+        (HashJoinBuilder.cloneHashTable(hashTableData), null)
+      }
+    }
+
+  def reset(): Unit = synchronized {
+    hashTableData = 0
   }
 
   override def writeExternal(out: ObjectOutput): Unit = Utils.tryOrIOException {

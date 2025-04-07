@@ -18,13 +18,16 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.execution.BroadCastHashJoinContext
+import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
-import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
+import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, HashJoinBuilder, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSeq, BindReferences, BoundReference, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
@@ -36,7 +39,9 @@ import org.apache.spark.task.TaskResources
 
 import org.apache.arrow.c.ArrowSchema
 
+import scala.collection.JavaConverters._
 import scala.collection.JavaConverters.asScalaIteratorConverter
+import scala.collection.mutable.ArrayBuffer
 
 object ColumnarBuildSideRelation {
   // Keep constructor with BroadcastMode for compatibility
@@ -60,8 +65,11 @@ object ColumnarBuildSideRelation {
 case class ColumnarBuildSideRelation(
     output: Seq[Attribute],
     batches: Array[Array[Byte]],
-    safeBroadcastMode: SafeBroadcastMode)
-  extends BuildSideRelation {
+    safeBroadcastMode: SafeBroadcastMode,
+    newBuildKeys: Seq[Expression] = Seq.empty,
+    offload: Boolean = false)
+  extends BuildSideRelation
+  with Logging {
 
   // Rebuild the real BroadcastMode on demand; never serialize it.
   @transient override lazy val mode: BroadcastMode =
@@ -132,6 +140,85 @@ case class ColumnarBuildSideRelation(
   }
 
   override def asReadOnlyCopy(): ColumnarBuildSideRelation = this
+
+  private var hashTableData: Long = 0L
+
+  def buildHashTable(
+      broadCastContext: BroadCastHashJoinContext): (Long, ColumnarBuildSideRelation) =
+    synchronized {
+      if (hashTableData == 0) {
+        val runtime = Runtimes.contextInstance(
+          BackendsApiManager.getBackendName,
+          "ColumnarBuildSideRelation#buildHashTable")
+        val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
+        val serializeHandle: Long = {
+          val allocator = ArrowBufferAllocators.contextInstance()
+          val cSchema = ArrowSchema.allocateNew(allocator)
+          val arrowSchema = SparkArrowUtil.toArrowSchema(
+            SparkShimLoader.getSparkShims.structFromAttributes(output),
+            SQLConf.get.sessionLocalTimeZone)
+          ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+          val handle = jniWrapper
+            .init(cSchema.memoryAddress())
+          cSchema.close()
+          handle
+        }
+
+        val batchArray = new ArrayBuffer[Long]
+
+        var batchId = 0
+        while (batchId < batches.size) {
+          batchArray.append(jniWrapper.deserialize(serializeHandle, batches(batchId)))
+          batchId += 1
+        }
+
+        logDebug(
+          s"BHJ value size: " +
+            s"${broadCastContext.buildHashTableId} = ${batches.length}")
+
+        val (keys, newOutput) = if (newBuildKeys.isEmpty) {
+          (
+            broadCastContext.buildSideJoinKeys.asJava,
+            broadCastContext.buildSideStructure.asJava
+          )
+        } else {
+          (
+            newBuildKeys.asJava,
+            output.asJava
+          )
+        }
+
+        val joinKey = keys.asScala
+          .map {
+            key =>
+              val attr = ConverterUtils.getAttrFromExpr(key)
+              ConverterUtils.genColumnNameWithExprId(attr)
+          }
+          .mkString(",")
+
+        // Build the hash table
+        hashTableData = HashJoinBuilder
+          .nativeBuild(
+            broadCastContext.buildHashTableId,
+            batchArray.toArray,
+            joinKey,
+            broadCastContext.substraitJoinType.ordinal(),
+            broadCastContext.hasMixedFiltCondition,
+            broadCastContext.isExistenceJoin,
+            SubstraitUtil.toNameStruct(newOutput).toByteArray,
+            broadCastContext.isNullAwareAntiJoin
+          )
+
+        jniWrapper.close(serializeHandle)
+        (hashTableData, this)
+      } else {
+        (HashJoinBuilder.cloneHashTable(hashTableData), null)
+      }
+    }
+
+  def reset(): Unit = synchronized {
+    hashTableData = 0
+  }
 
   /**
    * Transform columnar broadcast value to Array[InternalRow] by key.
