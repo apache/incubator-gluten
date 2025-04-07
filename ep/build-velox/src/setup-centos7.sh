@@ -46,13 +46,6 @@ function yum_install {
   $SUDO yum install -y "$@"
 }
 
-function wget_and_untar {
-  local URL=$1
-  local DIR=$2
-  mkdir -p "${DIR}"
-  wget -q --max-redirect 3 -O - "${URL}" | tar -xz -C "${DIR}" --strip-components=1
-}
-
 function install_cmake {
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://cmake.org/files/v3.28/cmake-3.28.3.tar.gz cmake-3
