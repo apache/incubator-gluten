@@ -27,13 +27,11 @@ object CHExpressions {
   // Since https://github.com/apache/incubator-gluten/pull/1937.
   def createAggregateFunction(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    if (
-      ExpressionExtensionTrait.expressionExtensionTransformer.extensionExpressionsMapping.contains(
-        aggregateFunc.getClass)
-    ) {
+    val expressionExtensionTransformer =
+      ExpressionExtensionTrait.findExpressionExtension(aggregateFunc.getClass)
+    if (expressionExtensionTransformer.nonEmpty) {
       val (substraitAggFuncName, inputTypes) =
-        ExpressionExtensionTrait.expressionExtensionTransformer.buildCustomAggregateFunction(
-          aggregateFunc)
+        expressionExtensionTransformer.get.buildCustomAggregateFunction(aggregateFunc)
       assert(substraitAggFuncName.isDefined)
       return ExpressionBuilder.newScalarFunction(
         functionMap,
