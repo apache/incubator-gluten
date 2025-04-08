@@ -155,7 +155,6 @@ void VeloxBackend::init(
 #endif
 
   initJolFilesystem();
-  initCache();
   initConnector();
 
   velox::dwio::common::registerFileSinks();
@@ -194,6 +193,10 @@ void VeloxBackend::init(
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
   facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
+
+  // local cache persistent relies on the cache pool from root memory pool so we need to init this
+  // after the memory manager instanced
+  initCache();
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
