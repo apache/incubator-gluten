@@ -390,7 +390,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_r2", Some("3.3")) {
+  testWithMinSparkVersion("regr_r2", "3.3") {
     runQueryAndCompare("""
                          |select regr_r2(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -409,7 +409,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_slope", Some("3.4")) {
+  testWithMinSparkVersion("regr_slope", "3.4") {
     runQueryAndCompare("""
                          |select regr_slope(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -428,7 +428,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_intercept", Some("3.4")) {
+  testWithMinSparkVersion("regr_intercept", "3.4") {
     runQueryAndCompare("""
                          |select regr_intercept(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -447,7 +447,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_sxy regr_sxx regr_syy", Some("3.4")) {
+  testWithMinSparkVersion("regr_sxy regr_sxx regr_syy", "3.4") {
     runQueryAndCompare("""
                          |select regr_sxy(l_quantity, l_tax) from lineitem;
                          |""".stripMargin) {
