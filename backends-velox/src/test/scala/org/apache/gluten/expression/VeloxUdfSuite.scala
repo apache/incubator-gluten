@@ -90,6 +90,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.ui.enabled", "false")
   }
 
   // Aggregate result can be flaky.
