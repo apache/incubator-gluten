@@ -189,10 +189,12 @@ DB::ColumnTuple::MutablePtr DeltaWriter::createDeletionVectorDescriptorColumn()
 
 String DeltaWriter::assembleDeletionVectorPath(const String & table_path, const String & prefix, const String & uuid) const
 {
-    if (prefix.empty())
-        return table_path + "/" + std::format(DELETION_VECTOR_FILE_NAME, uuid);
+    String path = table_path + "/";
+    if (!prefix.empty())
+        path += prefix + "/";
 
-    return table_path + "/" + prefix + "/" + std::format(DELETION_VECTOR_FILE_NAME, uuid);
+    path += DELETION_VECTOR_FILE_NAME_CORE + "_" + uuid + ".bin";
+    return path;
 }
 
 std::unique_ptr<DB::WriteBuffer> DeltaWriter::createWriteBuffer(const String & table_path, const String & prefix, const String & uuid) const

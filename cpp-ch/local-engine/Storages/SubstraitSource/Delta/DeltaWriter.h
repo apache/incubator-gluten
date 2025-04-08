@@ -35,7 +35,6 @@ class DeltaWriter
 {
     static constexpr String UUID_DV_MARKER = "u";
     static constexpr String DELETION_VECTOR_FILE_NAME_CORE = "deletion_vector";
-    static constexpr String DELETION_VECTOR_FILE_NAME = DELETION_VECTOR_FILE_NAME_CORE + "_{}.bin";
 
 public:
     explicit DeltaWriter(
