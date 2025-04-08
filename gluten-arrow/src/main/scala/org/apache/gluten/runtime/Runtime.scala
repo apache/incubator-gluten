@@ -47,7 +47,7 @@ object Runtime {
       nmm.getHandle(),
       ConfigUtil.serialize(
         GlutenConfig
-          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(getConf)))
+          .getNativeSessionConf(backendName, GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
     )
 
     private val released: AtomicBoolean = new AtomicBoolean(false)
@@ -68,11 +68,5 @@ object Runtime {
     override def priority(): Int = 20
 
     override def resourceName(): String = s"runtime"
-
-    private def getConf: Map[String, String] = {
-      val sqlConf = SQLConf.get
-      sqlConf.getAllConfs + (SQLConf.SESSION_LOCAL_TIMEZONE.key -> sqlConf.getConf(
-        SQLConf.SESSION_LOCAL_TIMEZONE))
-    }
   }
 }

@@ -461,7 +461,6 @@ object GlutenConfig {
       COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       COLUMNAR_MAX_BATCH_SIZE.key,
       SHUFFLE_WRITER_BUFFER_SIZE.key,
-      SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE.key,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
@@ -516,7 +515,8 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
-      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString)
+      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
@@ -595,7 +595,8 @@ object GlutenConfig {
       ("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled", "false"),
       ("spark.gluten.velox.awsSdkLogLevel", "FATAL"),
       ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
-      ("spark.gluten.velox.s3PayloadSigningPolicy", "Never")
+      ("spark.gluten.velox.s3PayloadSigningPolicy", "Never"),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -609,7 +610,6 @@ object GlutenConfig {
       COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key,
       COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       SPARK_OFFHEAP_ENABLED,
-      SESSION_LOCAL_TIMEZONE.key,
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX,
       LEGACY_TIME_PARSER_POLICY.key
