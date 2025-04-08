@@ -277,7 +277,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     def checkExpression(expr: Expression, path: String): Boolean = {
       expr match {
         case g: GetJsonObject
-          if g.path.isInstanceOf[Literal] && g.path.dataType.isInstanceOf[StringType] =>
+            if g.path.isInstanceOf[Literal] && g.path.dataType.isInstanceOf[StringType] =>
           g.path.asInstanceOf[Literal].value.toString.equals(path) || g.children.exists(
             c => checkExpression(c, path))
         case _ =>
@@ -302,56 +302,93 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         }
     }
 
-    def checkGetJsonObjectPath(df: DataFrame, path: String): Boolean = {
-      checkPlan(df.queryExecution.analyzed, path)
+    def checkGetJsonObjectPath(
+        df: DataFrame,
+        path: String,
+        collapsedGetJsonObjectEnabled: Boolean): Boolean = {
+      if (collapsedGetJsonObjectEnabled) {
+        checkPlan(df.queryExecution.analyzed, path)
+      } else {
+        true
+      }
     }
 
-    withSQLConf(("spark.gluten.sql.collapseGetJsonObject.enabled", "true")) {
+    def runCheck(collapseGetJsonObjectEnabled: Boolean): Unit = {
       runQueryAndCompare(
         "select get_json_object(get_json_object(string_field1, '$.a'), '$.y') " +
           " from json_test where int_field1 = 6") {
-        x => assert(checkGetJsonObjectPath(x, "$.a.y"))
+        x => assert(checkGetJsonObjectPath(x, "$.a.y", collapseGetJsonObjectEnabled))
       }
       runQueryAndCompare(
         "select get_json_object(get_json_object(string_field1, '$[a]'), '$[y]') " +
           " from json_test where int_field1 = 6") {
-        x => assert(checkGetJsonObjectPath(x, "$[a][y]"))
+        x => assert(checkGetJsonObjectPath(x, "$[a][y]", collapseGetJsonObjectEnabled))
       }
       runQueryAndCompare(
         "select get_json_object(get_json_object(get_json_object(string_field1, " +
           "'$.a'), '$.y'), '$.z') from json_test where int_field1 = 6") {
-        x => assert(checkGetJsonObjectPath(x, "$.a.y.z"))
+        x => assert(checkGetJsonObjectPath(x, "$.a.y.z", collapseGetJsonObjectEnabled))
       }
       runQueryAndCompare(
         "select get_json_object(get_json_object(get_json_object(string_field1, '$.a')," +
           " string_field1), '$.z') from json_test where int_field1 = 6",
         noFallBack = false
-      )(x => assert(checkGetJsonObjectPath(x, "$.a") && checkGetJsonObjectPath(x, "$.z")))
+      )(
+        x =>
+          assert(
+            checkGetJsonObjectPath(
+              x,
+              "$.a",
+              collapseGetJsonObjectEnabled) && checkGetJsonObjectPath(
+              x,
+              "$.z",
+              collapseGetJsonObjectEnabled)))
       runQueryAndCompare(
         "select get_json_object(get_json_object(get_json_object(string_field1, " +
           " string_field1), '$.a'), '$.z') from json_test where int_field1 = 6",
         noFallBack = false
-      )(x => assert(checkGetJsonObjectPath(x, "$.a.z")))
+      )(x => assert(checkGetJsonObjectPath(x, "$.a.z", collapseGetJsonObjectEnabled)))
       runQueryAndCompare(
         "select get_json_object(get_json_object(get_json_object(" +
           " substring(string_field1, 10), '$.a'), '$.z'), string_field1) " +
           " from json_test where int_field1 = 6",
         noFallBack = false
-      )(x => assert(checkGetJsonObjectPath(x, "$.a.z")))
+      )(x => assert(checkGetJsonObjectPath(x, "$.a.z", collapseGetJsonObjectEnabled)))
       runQueryAndCompare(
         "select get_json_object(get_json_object(string_field1, '$.a[0]'), '$.y') " +
           " from json_test where int_field1 = 7") {
-        x => assert(checkGetJsonObjectPath(x, "$.a[0].y"))
+        x => assert(checkGetJsonObjectPath(x, "$.a[0].y", collapseGetJsonObjectEnabled))
       }
       runQueryAndCompare(
         "select get_json_object(get_json_object(get_json_object(string_field1, " +
           " '$.a[1]'), '$.z[1]'), '$.n') from json_test where int_field1 = 7") {
-        x => assert(checkGetJsonObjectPath(x, "$.a[1].z[1].n"))
+        x => assert(checkGetJsonObjectPath(x, "$.a[1].z[1].n", collapseGetJsonObjectEnabled))
       }
       runQueryAndCompare(
         "select * from json_test where " +
           " get_json_object(get_json_object(get_json_object(string_field1, '$.a'), " +
-          "'$.y'), '$.z') != null")(x => assert(checkGetJsonObjectPath(x, "$.a.y.z")))
+          "'$.y'), '$.z') != null")(
+        x => assert(checkGetJsonObjectPath(x, "$.a.y.z", collapseGetJsonObjectEnabled)))
+    }
+
+    runQueryAndCompare(
+      "select get_json_object(get_json_object(get_json_object(string_field1, " +
+        " '$.a[1]'), '$.z[1]'), '$.n') from json_test where int_field1 = 7 or int_field1 = 5") {
+      _ =>
+    }
+
+    runQueryAndCompare(
+      "select get_json_object(get_json_object(get_json_object(string_field1, " +
+        " '$.a[1]'), '$.z[1]'), '$.n') from json_test where int_field1 > 3 and int_field1 != 5 " +
+        " or int_field1 < 2") { _ => }
+
+    withSQLConf(
+      ("spark.gluten.sql.collapseGetJsonObject.enabled", "true"),
+      ("spark.gluten.sql.supported.flattenNestedFunctions", "")) {
+      runCheck(true)
+    }
+    withSQLConf(("spark.gluten.sql.supported.flattenNestedFunctions", "get_json_object,and,or")) {
+      runCheck(false)
     }
   }
 
@@ -757,7 +794,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   test("test common subexpression eliminate") {
     def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
-                                                                             tag: ClassTag[T]): Unit = {
+        tag: ClassTag[T]): Unit = {
       if (spark33) {
         assert(
           getExecutedPlan(df).count(
@@ -1321,7 +1358,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     def checkSimplifiedSum(df: DataFrame): Unit = {
       val projects = collectWithSubqueries(df.queryExecution.executedPlan) {
         case project: ProjectExecTransformer
-          if project.child.isInstanceOf[CHHashAggregateExecTransformer] =>
+            if project.child.isInstanceOf[CHHashAggregateExecTransformer] =>
           project
       }
 

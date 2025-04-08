@@ -62,10 +62,17 @@ case class FlattenedOr(
     nullable: Boolean)
   extends CHFlattenedExpression(children, name) {}
 
+case class FlattenedGetJsonObject(
+    dataType: DataType,
+    children: Seq[Expression],
+    name: String,
+    nullable: Boolean)
+  extends CHFlattenedExpression(children, name) {}
 object CHFlattenedExpression {
 
   def sigAnd: Sig = Sig[FlattenedAnd]("FlattenedAnd")
   def sigOr: Sig = Sig[FlattenedOr]("FlattenedOr")
+  def sigGetJsonObject: Sig = Sig[FlattenedGetJsonObject]("FlattenedGetJsonObject")
 
   def supported(name: String): Boolean = {
     GlutenConfig.get.getSupportedFlattenedExpressions.split(",").exists(p => p.equals(name))
@@ -78,6 +85,8 @@ object CHFlattenedExpression {
       nullable: Boolean): Option[CHFlattenedExpression] = name match {
     case "and" => Option.apply(FlattenedAnd(dataType, children, name, nullable))
     case "or" => Option.apply(FlattenedOr(dataType, children, name, nullable))
+    case "get_json_object" =>
+      Option.apply(FlattenedGetJsonObject(dataType, children, name, nullable))
     case _ => Option.empty
   }
 

@@ -76,13 +76,5 @@ object UDFMappings extends Logging {
       parseStringToMap(strScalaUDFs, scalaUDFMap)
       logDebug(s"loaded scala udf mappings:${scalaUDFMap.toString}")
     }
-
-    val strCollapsedFunctions = conf.get(
-      GlutenConfig.GLUTEN_SUPPORTED_COLLAPSED_FUNCTIONS.key,
-      GlutenConfig.GLUTEN_SUPPORTED_COLLAPSED_FUNCTIONS.defaultValue.getOrElse(""))
-    if (!StringUtils.isBlank(strCollapsedFunctions)) {
-      parseStringToMap(strCollapsedFunctions, collapsedFunctionsMap)
-      logDebug(s"loaded collapsed function mappings: ${collapsedFunctionsMap.toString}")
-    }
   }
 }

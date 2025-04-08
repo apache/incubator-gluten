@@ -583,7 +583,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       Sig[CollectSet](ExpressionNames.COLLECT_SET),
       Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
       CHFlattenedExpression.sigAnd,
-      CHFlattenedExpression.sigOr
+      CHFlattenedExpression.sigOr,
+      CHFlattenedExpression.sigGetJsonObject
     ) ++
       ExpressionExtensionTrait.expressionExtensionSigList ++
       SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
