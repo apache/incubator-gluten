@@ -44,7 +44,8 @@ import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.util.SerializableConfiguration
+
+import org.apache.hadoop.conf.Configuration
 
 import java.util.Locale
 
@@ -177,7 +178,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       fields: Array[StructField],
       rootPaths: Seq[String],
       properties: Map[String, String],
-      serializableHadoopConf: Option[SerializableConfiguration] = None): ValidationResult = {
+      hadoopConf: Configuration): ValidationResult = {
 
     // Validate if all types are supported.
     def hasComplexType: Boolean = {

@@ -48,8 +48,8 @@ import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, Pa
 import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.util.SerializableConfiguration
 
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import scala.util.control.Breaks.breakable
@@ -103,7 +103,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       fields: Array[StructField],
       rootPaths: Seq[String],
       properties: Map[String, String],
-      serializableHadoopConf: Option[SerializableConfiguration] = None): ValidationResult = {
+      hadoopConf: Configuration): ValidationResult = {
 
     def validateScheme(): Option[String] = {
       val filteredRootPaths = distinctRootPaths(rootPaths)
@@ -187,11 +187,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
       val fileLimit = GlutenConfig.get.parquetEncryptionValidationFileLimit
       val encryptionResult =
-        ParquetMetadataUtils.validateEncryption(
-          format,
-          rootPaths,
-          serializableHadoopConf,
-          fileLimit)
+        ParquetMetadataUtils.validateEncryption(format, rootPaths, hadoopConf, fileLimit)
       if (encryptionResult.ok()) {
         None
       } else {
