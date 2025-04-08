@@ -349,8 +349,8 @@ object ColumnarPartialProjectExec {
       p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
     }
     val partialProject =
-      ColumnarPartialProjectExec(original, original.projectList, original.child)
-    (replacedAliasUdf.toSeq)
+      ColumnarPartialProjectExec(original, original.projectList, original.child)(
+        replacedAliasUdf.toSeq)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }
