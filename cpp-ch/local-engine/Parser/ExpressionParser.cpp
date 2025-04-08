@@ -247,7 +247,6 @@ std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expr
         }
         case substrait::Expression_Literal::kNull: {
             type = TypeParser::parseType(literal.null());
-            type = TypeParser::tryWrapNullable(substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE, type);
             field = DB::Field{};
             break;
         }
@@ -373,20 +372,8 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             else
             {
                 /// Common process: CAST(input, type)
-                #if 0
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
-                if (TypeUtil::hasNothingType(args[0]->result_type))
-                {
-                    result_node = toFunctionNode(actions_dag, "accurateCastOrNull", args);
-                }
-                else
-                    result_node = toFunctionNode(actions_dag, "CAST", args);
-                #else
-                auto real_output_type = TypeParser::resolveNothingTypeNullability(args[0]->result_type, output_type);
-                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), real_output_type->getName()));
-                // LOG_DEBUG(getLogger("ExpressionParser"), "xxx {} cast from {} to {}/{}", __LINE__, args[0]->result_type->getName(), output_type->getName(), real_output_type->getName());
                 result_node = toFunctionNode(actions_dag, "CAST", args);
-                #endif
             }
 
             actions_dag.addOrReplaceInOutputs(*result_node);
@@ -659,13 +646,6 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::toFunctionNode(
         std::string args_name = join(args, ',');
         result_name = ch_function_name + "(" + args_name + ")";
     }
-    #if 0
-    LOG_DEBUG(getLogger("ExpressionParser"), "xxx {} action dag\n{}\nfunction: {}", __LINE__, actions_dag.dumpDAG(), ch_function_name);
-    for (const auto & arg : args)
-    {
-        LOG_DEBUG(getLogger("ExpressionParser"), "xxx {} arg {}, {}", __LINE__, arg->result_name, arg->result_type->getName());
-    }
-    #endif
     const auto * res_node = &actions_dag.addFunction(function_builder, args, result_name);
     if (reuseCSE())
     {

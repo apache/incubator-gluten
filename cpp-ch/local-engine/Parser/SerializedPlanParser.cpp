@@ -148,7 +148,6 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
             const auto & origin_column = origin_columns[i];
             const auto & origin_type = origin_column.type;
             auto final_type = TypeParser::parseType(output_schema.types(i));
-            final_type = TypeParser::resolveNothingTypeNullability(origin_type, final_type);
 
             /// Intermediate aggregate data is special, no check here.
             if (typeid_cast<const DataTypeAggregateFunction *>(origin_column.type.get()) || origin_type->equals(*final_type))
@@ -204,24 +203,16 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     const substrait::Rel & first_read_rel = writePipeline ? root_rel.root().input().write().input() : root_rel.root().input();
 
     std::list<const substrait::Rel *> rel_stack;
-    try
-    {
-        auto query_plan = parseOp(first_read_rel, rel_stack);
-        if (!writePipeline)
-            adjustOutput(query_plan, plan);
+    auto query_plan = parseOp(first_read_rel, rel_stack);
+    if (!writePipeline)
+        adjustOutput(query_plan, plan);
 
 #ifndef NDEBUG
     PlanUtil::checkOuputType(*query_plan);
 #endif
 
-        debug::dumpPlan(*query_plan);
-        return query_plan;
-    }
-    catch (...)
-    {
-        debug::dumpMessage(plan, "substrait::Plan", true);
-        throw;
-    }
+    debug::dumpPlan(*query_plan);
+    return query_plan;
 }
 
 std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const substrait::Plan & plan)

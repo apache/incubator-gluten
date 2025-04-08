@@ -120,7 +120,6 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
 
     auto convert_type_if_needed = [&]()
     {
-        #if 0
         if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
         {
             auto result_type = TypeParser::parseType(output_type);
@@ -145,33 +144,6 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
         }
         else
             return func_node;
-        #else
-        auto result_type = TypeParser::parseType(output_type);
-        result_type = TypeParser::resolveNothingTypeNullability(func_node->result_type, result_type);
-        if (!result_type->equals(*func_node->result_type))
-        {
-            if (DB::isDecimalOrNullableDecimal(result_type))
-            {
-                return ActionsDAGUtil::convertNodeType(
-                    actions_dag,
-                    func_node,
-                    // as stated in isTypeMatched， currently we don't change nullability of the result type
-                    func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)
-                                                         : local_engine::removeNullable(result_type),
-                    func_node->result_name,
-                    CastType::accurateOrNull);
-            }
-            else
-            {
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                auto target_type = func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)
-                                                                        : local_engine::removeNullable(result_type);
-                return ActionsDAGUtil::convertNodeType(actions_dag, func_node, target_type, func_node->result_name);
-            }
-        }
-        else
-            return func_node;
-        #endif
     };
     result_node = convert_type_if_needed();
 
