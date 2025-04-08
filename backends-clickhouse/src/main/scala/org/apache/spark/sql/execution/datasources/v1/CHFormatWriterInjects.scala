@@ -23,6 +23,7 @@ import org.apache.gluten.utils.SubstraitUtil
 import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.orc.OrcUtils
 import org.apache.spark.sql.types.StructType
@@ -92,14 +93,14 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
 class CHRowSplitter extends GlutenRowSplitter {
   override def splitBlockByPartitionAndBucket(
-      row: FakeRow,
+      row: InternalRow,
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
       reserve_partition_columns: Boolean = false): CHBlockStripes = {
     // splitBlockByPartitionAndBucket called before createOutputWriter in case of
     // writing partitioned table, so we need to register a new thread group here
     CHThreadGroup.registerNewThreadGroup()
-    val col = row.batch.column(0).asInstanceOf[CHColumnVector]
+    val col = row.asInstanceOf[FakeRow].batch.column(0).asInstanceOf[CHColumnVector]
     new CHBlockStripes(
       CHDatasourceJniWrapper
         .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))

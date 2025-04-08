@@ -16,22 +16,39 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import org.apache.gluten.backendsapi.BackendsApiManager
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
+import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
+
 trait IFakeRowAdaptor
 
-class FakeRow(val batch: ColumnarBatch) extends InternalRow {
+class FakeRow(@transient var batch: ColumnarBatch) extends InternalRow with Serializable {
   override def numFields: Int = throw new UnsupportedOperationException()
 
   override def setNullAt(i: Int): Unit = throw new UnsupportedOperationException()
 
   override def update(i: Int, value: Any): Unit = throw new UnsupportedOperationException()
 
-  override def copy(): InternalRow = throw new UnsupportedOperationException()
+  override def copy(): InternalRow = {
+    val copied = BackendsApiManager.getSparkPlanExecApiInstance.copyColumnarBatch(batch)
+    new FakeRow(copied)
+  }
+
+  @throws(classOf[IOException])
+  private def writeObject(output: ObjectOutputStream): Unit = {
+    BackendsApiManager.getSparkPlanExecApiInstance.serializeColumnarBatch(output, batch)
+  }
+
+  @throws(classOf[IOException])
+  private def readObject(input: ObjectInputStream): Unit = {
+    batch = BackendsApiManager.getSparkPlanExecApiInstance.deserializeColumnarBatch(input)
+  }
 
   override def isNullAt(ordinal: Int): Boolean = throw new UnsupportedOperationException()
 
