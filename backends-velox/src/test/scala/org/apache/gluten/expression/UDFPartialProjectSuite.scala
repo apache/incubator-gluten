@@ -85,7 +85,7 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
 
   test("test subquery") {
     runQueryAndCompare(
-      "select plus_two(" +
+      "select plus_one(" +
         "(select plus_one(count(*)) from (values (1)) t0(inner_c))) as col " +
         "from (values (2),(3)) t1(outer_c)") {
       checkGlutenOperatorMatch[ColumnarPartialProjectExec]
