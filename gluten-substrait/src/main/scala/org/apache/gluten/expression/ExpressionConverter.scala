@@ -25,7 +25,7 @@ import org.apache.gluten.utils.DecimalArithmeticUtil
 import org.apache.spark.{SPARK_REVISION, SPARK_VERSION_SHORT}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{StringTrimBoth, _}
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
@@ -108,23 +108,17 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         throw new GlutenNotSupportException(s"Not supported scala udf: $udf.")
     }
   }
-
-  private def replaceCollapsedExpressionWithExpressionTransformer(
-      udf: ScalaUDF,
+  private def replaceFlattenedExpressionWithExpressionTransformer(
+      substraitName: String,
+      expr: Expression,
       attributeSeq: Seq[Attribute],
       expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
-    if (udf.udfName.isEmpty) {
-      throw new GlutenNotSupportException("UDF name is not found!")
-    }
-    udf.udfName match {
-      case Some(name) if CollapsedExpressionMappings.supported(name) =>
-        GenericExpressionTransformer(
-          name,
-          udf.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-          udf)
-      case _ =>
-        throw new GlutenNotSupportException(s"Not supported scala udf: $udf.")
-    }
+    val children =
+      expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+    BackendsApiManager.getSparkPlanExecApiInstance.genFlattenedExpressionTransformer(
+      substraitName,
+      children,
+      expr)
   }
 
   private def genRescaleDecimalTransformer(
@@ -160,31 +154,22 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     expr match {
       case p: PythonUDF =>
         return replacePythonUDFWithExpressionTransformer(p, attributeSeq, expressionsMap)
-      case s: ScalaUDF if CollapsedExpressionMappings.supported(s.udfName.getOrElse("")) =>
-        return replaceCollapsedExpressionWithExpressionTransformer(s, attributeSeq, expressionsMap)
       case s: ScalaUDF =>
         return replaceScalaUDFWithExpressionTransformer(s, attributeSeq, expressionsMap)
       case _ if HiveUDFTransformer.isHiveUDF(expr) =>
         return BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(
           expr,
           attributeSeq)
-      case i: StaticInvoke =>
-        val objectName = i.staticObject.getName.stripSuffix("$")
-        if (objectName.endsWith("UrlCodec")) {
-          val child = i.arguments.head
-          i.functionName match {
-            case "decode" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.URL_DECODE,
-                child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-                i)
-            case "encode" =>
-              return GenericExpressionTransformer(
-                ExpressionNames.URL_ENCODE,
-                child.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-                i)
-          }
-        }
+      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _)
+          if i.objectName.endsWith("UrlCodec") =>
+        return GenericExpressionTransformer(
+          "url_" + i.functionName,
+          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
+          i)
+      case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
+        throw new GlutenNotSupportException(
+          s"Not supported to transform StaticInvoke with object: ${clz.getName}, " +
+            s"function: $functionName")
       case _ =>
     }
 
@@ -374,6 +359,16 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
           .toSeq ++
           Seq(replaceWithExpressionTransformer0(srcStr, attributeSeq, expressionsMap))
+        GenericExpressionTransformer(
+          substraitExprName,
+          children,
+          s
+        )
+      case s: StringTrimBoth =>
+        val children = s.trimStr
+          .map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
+          .toSeq ++
+          Seq(replaceWithExpressionTransformer0(s.srcStr, attributeSeq, expressionsMap))
         GenericExpressionTransformer(
           substraitExprName,
           children,
@@ -747,6 +742,17 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(ss.limit, attributeSeq, expressionsMap),
           ss
         )
+      case j: JsonToStructs =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genFromJsonTransformer(
+          substraitExprName,
+          expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+          j)
+      case ce if BackendsApiManager.getSparkPlanExecApiInstance.expressionFlattenSupported(ce) =>
+        replaceFlattenedExpressionWithExpressionTransformer(
+          substraitExprName,
+          ce,
+          attributeSeq,
+          expressionsMap)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
@@ -756,21 +762,26 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
-  private def getAndCheckSubstraitName(expr: Expression, expressionsMap: Map[Class[_], String]) = {
+  private def getAndCheckSubstraitName(
+      expr: Expression,
+      expressionsMap: Map[Class[_], String]): String = {
     TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
-    val substraitExprNameOpt = expressionsMap.get(expr.getClass)
-    if (substraitExprNameOpt.isEmpty) {
-      throw new GlutenNotSupportException(
-        s"Not supported to map spark function name" +
-          s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
-    }
-    val substraitExprName = substraitExprNameOpt.get
-    // Check whether each backend supports this expression
-    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
-      throw new GlutenNotSupportException(s"Not supported: $expr.")
-    }
-    substraitExprName
+    expressionsMap
+      .get(expr.getClass)
+      .flatMap {
+        name =>
+          if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(name, expr)) {
+            None
+          } else {
+            Some(name)
+          }
+      }
+      .getOrElse {
+        throw new GlutenNotSupportException(
+          s"Not supported to map spark function name" +
+            s" to substrait function name: $expr, class name: ${expr.getClass.getSimpleName}.")
+      }
   }
 
   private def bindGetStructField(

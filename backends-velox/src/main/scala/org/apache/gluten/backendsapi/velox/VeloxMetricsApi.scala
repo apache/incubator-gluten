@@ -336,7 +336,11 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of memory allocations"),
+      "spilledBytes" -> SQLMetrics.createSizeMetric(sparkContext, "bytes written for spilling"),
+      "spilledRows" -> SQLMetrics.createMetric(sparkContext, "total rows written for spilling"),
+      "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "total spilled partitions"),
+      "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files")
     )
 
   override def genWindowTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =

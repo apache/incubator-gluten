@@ -100,6 +100,8 @@ case class CHShuffledHashJoinExecTransformer(
     left,
     right,
     isSkewJoin) {
+  // `any join` is used to accelerate the case when the right table is the aggregate result.
+  var isAnyJoin = false
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
       newRight: SparkPlan): CHShuffledHashJoinExecTransformer =
@@ -138,6 +140,9 @@ case class CHShuffledHashJoinExecTransformer(
       .append("\n")
       .append("isExistenceJoin=")
       .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
+      .append("\n")
+      .append("isAnyJoin=")
+      .append(if (isAnyJoin) 1 else 0)
       .append("\n")
 
     CHAQEUtil.getShuffleQueryStageStats(streamedPlan) match {

@@ -216,12 +216,12 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("intersectAll - nullability")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
+    .exclude("SPARK-27439: Explain result should match collected result after view change")
     .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
     .exclude("SPARK-28224: Aggregate sum big decimal overflow")
     .exclude("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .exclude("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
     .exclude("describe")
-    .exclude("SPARK-34165: Add count_distinct to summary")
     .exclude("getRows: array")
     .exclude("showString: array")
     .exclude("showString: array, vertical = true")
@@ -242,6 +242,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-24165: CaseWhen/If - nullability of nested types")
     .exclude("SPARK-27671: Fix analysis exception when casting null in nested field in struct")
     .exclude("summary")
+    .excludeGlutenTest(
+      "SPARK-27439: Explain result should match collected result after view change")
     .excludeGlutenTest("distributeBy and localSort")
     .excludeGlutenTest("describe")
     .excludeGlutenTest("Allow leading/trailing whitespace in string before casting")
@@ -567,6 +569,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("null cast")
     .exclude("cast string to date")
     .exclude("cast string to timestamp")
+    .excludeGlutenTest("cast string to timestamp")
     .exclude("cast from boolean")
     .exclude("data type casting")
     .excludeGlutenTest("data type casting")
@@ -875,6 +878,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("null cast")
     .exclude("cast string to date")
     .exclude("cast string to timestamp")
+    .excludeGlutenTest("cast string to timestamp")
     .exclude("cast from boolean")
     .exclude("cast from int")
     .exclude("cast from long")

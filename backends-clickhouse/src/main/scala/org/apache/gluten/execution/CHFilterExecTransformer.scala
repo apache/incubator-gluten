@@ -16,7 +16,9 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.{And, Expression}
+import org.apache.gluten.expression.CHFlattenedExpression
+
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, ExprId, IsNotNull}
 import org.apache.spark.sql.execution.SparkPlan
 
 case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
@@ -48,4 +50,13 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   override protected def getRemainingCondition: Expression = condition
   override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
     copy(child = newChild)
+  override protected val notNullAttributes: Seq[ExprId] = condition match {
+    case s: CHFlattenedExpression =>
+      val (notNullPreds, _) = s.children.partition {
+        case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
+        case _ => false
+      }
+      notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+    case _ => notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+  }
 }

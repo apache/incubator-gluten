@@ -51,12 +51,9 @@ case class GlutenCacheFilesCommand(
     AttributeReference("reason", StringType, nullable = false)())
 
   override def run(session: SparkSession): Seq[Row] = {
-    if (
-      !session.sparkContext.getConf.getBoolean(
-        CHConfig.runtimeConfig("gluten_cache.local.enabled"),
-        defaultValue = false)
-    ) {
-      return Seq(Row(false, "Config `gluten_cache.local.enabled` is disabled."))
+    if (!CHConfig.get.enableGlutenLocalFileCache) {
+      return Seq(
+        Row(false, s"Config `${CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key}` is disabled."))
     }
 
     val targetFile = new Path(filePath)
@@ -124,7 +121,8 @@ case class GlutenCacheFilesCommand(
             new JArrayList[JMap[String, String]](),
             ReadFileFormat.ParquetReadFormat, // ignore format in backend
             new JArrayList[String](),
-            new JHashMap[String, String]()
+            new JHashMap[String, String](),
+            new JArrayList[JMap[String, Object]]()
           )
 
           (executorId, localFile)

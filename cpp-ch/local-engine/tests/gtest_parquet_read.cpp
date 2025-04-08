@@ -42,7 +42,7 @@
 #include <gtest/gtest.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/level_conversion.h>
-#include <tests/gluten_test_util.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/DebugUtils.h>
 
@@ -146,19 +146,19 @@ TEST(ParquetRead, ReadSchema)
 TEST(ParquetRead, VerifyPageindexReaderSupport)
 {
     EXPECT_FALSE(
-        ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("alltypes/alltypes_notnull.parquet")))));
+        ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("alltypes/alltypes_notnull.parquet")))));
     EXPECT_FALSE(
-        ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("alltypes/alltypes_null.parquet")))));
+        ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("alltypes/alltypes_null.parquet")))));
 
 
-    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("array.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("date.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("datetime64.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("decimal.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("iris.parquet")))));
-    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("map.parquet")))));
-    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("sample.parquet")))));
-    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toBlockRowType(test::readParquetSchema(test::gtest_data("struct.parquet")))));
+    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("array.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("date.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("datetime64.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("decimal.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("iris.parquet")))));
+    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("map.parquet")))));
+    EXPECT_TRUE(ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("sample.parquet")))));
+    EXPECT_FALSE(ParquetFormatFile::onlyHasFlatType(toSampleBlock(test::readParquetSchema(test::gtest_data("struct.parquet")))));
 }
 
 TEST(ParquetRead, ReadDataNotNull)
@@ -355,7 +355,7 @@ TEST(ParquetRead, ArrowRead)
     EXPECT_EQ(table->num_rows(), 20);
     EXPECT_EQ(table->num_columns(), 2);
 
-    auto columns = toBlockRowType(test::readParquetSchema(sample));
+    auto columns = toSampleBlock(test::readParquetSchema(sample));
 
     Block header(columns);
     ArrowColumnToCHColumn converter(
@@ -425,7 +425,7 @@ TEST(ParquetRead, VectorizedColumnReader)
     ReadBufferFromFile in(sample);
 
     ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
-    metaBuilder.build(&in, &blockHeader, nullptr, [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+    metaBuilder.build(in, blockHeader);
     ColumnIndexRowRangesProvider provider{metaBuilder};
     VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
 

@@ -28,6 +28,7 @@ const uint32_t kSpillThreadNumDefaultValue = 0;
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
+const std::string kWindowSpillEnabled = "spark.gluten.sql.columnar.backend.velox.windowSpillEnabled";
 
 // spill config
 // refer to
@@ -126,6 +127,8 @@ const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQu
 const std::string kMaxCoalescedDistance = "spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance";
 const std::string kMaxCoalescedBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes";
 const std::string kCachePrefetchMinPct = "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct";
+const std::string kMemoryPoolCapacityTransferAcrossTasks =
+    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks";
 
 // write fies
 const std::string kMaxPartitions = "spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession";

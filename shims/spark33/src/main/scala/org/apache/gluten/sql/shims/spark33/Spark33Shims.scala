@@ -19,7 +19,7 @@ package org.apache.gluten.sql.shims.spark33
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.expression.ExpressionNames.{CEIL, FLOOR, KNOWN_NULLABLE, TIMESTAMP_ADD}
-import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
@@ -64,8 +64,6 @@ import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 
 class Spark33Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
-
   override def getDistribution(
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression]): Seq[Distribution] = {
@@ -288,7 +286,8 @@ class Spark33Shims extends SparkShims {
 
   override def supportDuplicateReadingTracking: Boolean = true
 
-  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
+  def getFileStatus(partition: PartitionDirectory): Seq[(FileStatus, Map[String, Any])] =
+    partition.files.map(f => (f, Map.empty[String, Any]))
 
   def isFileSplittable(
       relation: HadoopFsRelation,
@@ -305,7 +304,8 @@ class Spark33Shims extends SparkShims {
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
-      partitionValues: InternalRow): Seq[PartitionedFile] = {
+      partitionValues: InternalRow,
+      metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile] = {
     PartitionedFileUtil.splitFiles(
       sparkSession,
       file,
@@ -332,8 +332,6 @@ class Spark33Shims extends SparkShims {
   override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = {
     batchScan.keyGroupedPartitioning
   }
-  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
-    null
 
   override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
     exp match {
@@ -395,5 +393,7 @@ class Spark33Shims extends SparkShims {
         false
     }
   }
+
+  override def isColumnarLimitExecSupported(): Boolean = true
 
 }

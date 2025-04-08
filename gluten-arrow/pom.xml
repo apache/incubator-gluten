@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>org.apache.gluten</groupId>
-    <version>1.4.0-SNAPSHOT</version>
+    <version>1.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -52,9 +52,9 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>io.glutenproject</groupId>
+      <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${custom.protobuf.version}</version>
+      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>

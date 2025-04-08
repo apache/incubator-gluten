@@ -127,7 +127,7 @@ case class CHHashAggregateExecTransformer(
   lazy val aggregateResultAttributes =
     getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
 
-  protected val modes: Seq[AggregateMode] = aggregateExpressions.map(_.mode).distinct
+  val modes: Seq[AggregateMode] = aggregateExpressions.map(_.mode).distinct
 
   override protected def checkType(dataType: DataType): Boolean = {
     dataType match {
@@ -277,12 +277,24 @@ case class CHHashAggregateExecTransformer(
         val childrenNodeList = new util.ArrayList[ExpressionNode]()
         val childrenNodes = aggExpr.mode match {
           case Partial | Complete =>
-            aggregateFunc.children.toList.map(
+            val nodes = aggregateFunc.children.toList.map(
               expr => {
                 ExpressionConverter
                   .replaceWithExpressionTransformer(expr, childOutput)
                   .doTransform(args)
               })
+
+            val extraNodes = aggregateFunc match {
+              case hll: HyperLogLogPlusPlus =>
+                val relativeSDLiteral = Literal(hll.relativeSD)
+                Seq(
+                  ExpressionConverter
+                    .replaceWithExpressionTransformer(relativeSDLiteral, child.output)
+                    .doTransform(args))
+              case _ => Seq.empty
+            }
+
+            nodes ++ extraNodes
           case PartialMerge if distinct_modes.contains(Partial) =>
             // this is the case where PartialMerge co-exists with Partial
             // so far, it only happens in a three-stage count distinct case
@@ -347,12 +359,11 @@ case class CHHashAggregateExecTransformer(
     } else {
       val aggExpr = aggExpressions(columnIndex - groupingExprs.length)
       val aggregateFunc = aggExpr.aggregateFunction
+      val expressionExtensionTransformer =
+        ExpressionExtensionTrait.findExpressionExtension(aggregateFunc.getClass)
       var aggFunctionName =
-        if (
-          ExpressionExtensionTrait.expressionExtensionTransformer.extensionExpressionsMapping
-            .contains(aggregateFunc.getClass)
-        ) {
-          ExpressionExtensionTrait.expressionExtensionTransformer
+        if (expressionExtensionTransformer.nonEmpty) {
+          expressionExtensionTransformer.get
             .buildCustomAggregateFunction(aggregateFunc)
             ._1
             .get
@@ -445,6 +456,12 @@ case class CHHashAggregateExecTransformer(
               fields = fields :+ (
                 percentile.percentageExpression.dataType,
                 percentile.percentageExpression.nullable)
+              (makeStructType(fields), attr.nullable)
+            case hllpp: HyperLogLogPlusPlus =>
+              var fields = Seq[(DataType, Boolean)]()
+              fields = fields :+ (hllpp.child.dataType, hllpp.child.nullable)
+              val relativeSDLiteral = Literal(hllpp.relativeSD)
+              fields = fields :+ (relativeSDLiteral.dataType, false)
               (makeStructType(fields), attr.nullable)
             case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
@@ -553,12 +570,11 @@ case class CHHashAggregateExecPullOutHelper(
       index: Int): Int = {
     var resIndex = index
     val aggregateFunc = exp.aggregateFunction
+    val expressionExtensionTransformer =
+      ExpressionExtensionTrait.findExpressionExtension(aggregateFunc.getClass)
     // First handle the custom aggregate functions
-    if (
-      ExpressionExtensionTrait.expressionExtensionTransformer.extensionExpressionsMapping.contains(
-        aggregateFunc.getClass)
-    ) {
-      ExpressionExtensionTrait.expressionExtensionTransformer
+    if (expressionExtensionTransformer.nonEmpty) {
+      expressionExtensionTransformer.get
         .getAttrsIndexForExtensionAggregateExpr(
           aggregateFunc,
           exp.mode,

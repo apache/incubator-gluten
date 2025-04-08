@@ -36,7 +36,7 @@ import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.v1._
 import org.apache.spark.sql.utils.ExpressionUtil
-import org.apache.spark.util.SparkDirectoryUtil
+import org.apache.spark.util.{SparkDirectoryUtil, SparkShutdownManagerUtil}
 
 import org.apache.commons.lang3.StringUtils
 
@@ -53,7 +53,7 @@ class CHListenerApi extends ListenerApi with Logging {
       pc.conf.get(GlutenConfig.EXTENDED_EXPRESSION_TRAN_CONF.key, "")
     )
     if (expressionExtensionTransformer != null) {
-      ExpressionExtensionTrait.expressionExtensionTransformer = expressionExtensionTransformer
+      ExpressionExtensionTrait.registerExpressionExtension(expressionExtensionTransformer)
     }
   }
 
@@ -87,12 +87,20 @@ class CHListenerApi extends ListenerApi with Logging {
       val executorLibPath = conf.get(GlutenConfig.GLUTEN_EXECUTOR_LIB_PATH.key, libPath)
       JniLibLoader.loadFromPath(executorLibPath, true)
     }
+    CHListenerApi.addShutdownHook
     // Add configs
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._
     conf.setCHConfig(
       "timezone" -> conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID),
       "local_engine.settings.log_processors_profiles" -> "true")
     conf.setCHSettings("spark_version", SPARK_VERSION)
+    if (!conf.contains(RuntimeSettings.ENABLE_MEMORY_SPILL_SCHEDULER.key)) {
+      // Enable adaptive memory spill scheduler for native by default
+      conf.set(
+        RuntimeSettings.ENABLE_MEMORY_SPILL_SCHEDULER.key,
+        RuntimeSettings.ENABLE_MEMORY_SPILL_SCHEDULER.defaultValueString)
+    }
+
     // add memory limit for external sort
     if (conf.getLong(RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT.key, -1) < 0) {
       if (conf.getBoolean("spark.memory.offHeap.enabled", defaultValue = false)) {
@@ -126,5 +134,22 @@ class CHListenerApi extends ListenerApi with Logging {
   private def shutdown(): Unit = {
     CHBroadcastBuildSideCache.cleanAll()
     CHNativeExpressionEvaluator.finalizeNative()
+  }
+}
+
+object CHListenerApi {
+  var initialized = false
+
+  def addShutdownHook: Unit = {
+    if (!initialized) {
+      initialized = true
+      SparkShutdownManagerUtil.addHookForLibUnloading(
+        () => {
+          // Due to the changes in the JNI OnUnLoad calling mechanism of the JDK17,
+          // it needs to manually call the destroy native function
+          // to release ch resources and avoid core dump
+          CHNativeExpressionEvaluator.destroyNative()
+        })
+    }
   }
 }

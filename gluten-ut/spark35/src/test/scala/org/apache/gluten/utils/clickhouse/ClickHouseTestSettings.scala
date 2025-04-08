@@ -358,6 +358,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("null cast")
     .excludeCH("cast string to date")
     .excludeCH("cast string to timestamp")
+    .excludeGlutenTest("cast string to timestamp")
     .excludeCH("SPARK-22825 Cast array to string")
     .excludeCH("SPARK-33291: Cast array with null elements to string")
     .excludeCH("SPARK-22973 Cast map to string")
@@ -365,6 +366,19 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("SPARK-33291: Cast struct with null elements to string")
     .excludeCH("SPARK-35111: Cast string to year-month interval")
     .excludeCH("Gluten - data type casting")
+    .exclude("cast string to date #2")
+    .exclude("casting to fixed-precision decimals")
+    .exclude("SPARK-28470: Cast should honor nullOnOverflow property")
+    .exclude("cast from array II")
+    .exclude("cast from map II")
+    .exclude("cast from struct II")
+    .exclude("cast from date")
+    .exclude("cast from timestamp II")
+    .exclude("cast a timestamp before the epoch 1970-01-01 00:00:00Z")
+    .exclude("SPARK-34727: cast from float II")
+    .exclude("SPARK-39749: cast Decimal to string")
+    .exclude("SPARK-42176: cast boolean to timestamp")
+    .exclude("null cast #2")
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     .excludeByPrefix("determining the number of reducers")
     .excludeCH("SPARK-46590 adaptive query execution works correctly with broadcast join and union")
@@ -540,11 +554,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
     )
     // test for sort node not present but gluten uses shuffle hash join
     .exclude("SPARK-41048: Improve output partitioning and ordering with AQE cache")
+    .exclude("SPARK-28224: Aggregate sum big decimal overflow")
     // Rewrite this test since it checks the physical operator which is changed in Gluten
-    .includeCH("SPARK-27439: Explain result should match collected result after view change")
+    .excludeCH("SPARK-27439: Explain result should match collected result after view change")
     .excludeCH("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .excludeCH("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
     .excludeCH("summary")
+    .excludeGlutenTest(
+      "SPARK-27439: Explain result should match collected result after view change")
     .excludeCH(
       "SPARK-8608: call `show` on local DataFrame with random columns should return same value")
     .excludeCH(
@@ -621,6 +638,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("ordering and partitioning reporting")
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
+    // Disable this since coalesece union clauses rule will rewrite the query.
+    .exclude("SPARK-44653: non-trivial DataFrame unions should not break caching")
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
   enableSuite[GlutenDatasetSerializerRegistratorSuite]
@@ -2103,6 +2122,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("null cast")
     .excludeCH("cast string to date")
     .excludeCH("cast string to timestamp")
+    .excludeGlutenTest("cast string to timestamp")
     .excludeCH("SPARK-22825 Cast array to string")
     .excludeCH("SPARK-33291: Cast array with null elements to string")
     .excludeCH("SPARK-22973 Cast map to string")

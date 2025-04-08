@@ -31,7 +31,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.util.SerializableConfiguration
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.NamedStruct
@@ -63,7 +62,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def getProperties: Map[String, String] = Map.empty
 
   /** Returns the split infos that will be processed by the underlying native engine. */
-  def getSplitInfos(): Seq[SplitInfo] = {
+  override def getSplitInfos: Seq[SplitInfo] = {
     getSplitInfosFromPartitions(getPartitions)
   }
 
@@ -74,12 +73,9 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
           _,
           getPartitionSchema,
           fileFormat,
-          getMetadataColumns.map(_.name),
+          getMetadataColumns().map(_.name),
           getProperties))
   }
-
-  val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
-    sparkContext.hadoopConfiguration)
 
   override protected def doValidateInternal(): ValidationResult = {
     var fields = schema.fields
@@ -100,7 +96,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         fields,
         getRootFilePaths,
         getProperties,
-        Some(serializableHadoopConf))
+        sparkContext.hadoopConfiguration)
     if (!validationResult.ok()) {
       return validationResult
     }

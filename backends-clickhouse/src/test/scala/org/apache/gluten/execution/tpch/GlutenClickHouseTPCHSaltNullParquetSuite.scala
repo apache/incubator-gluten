@@ -2168,6 +2168,19 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_3149")
   }
 
+  test("GLUTEN-3289: Fix convert float to string") {
+    val tbl_create_sql = "create table test_tbl_3289(id bigint, a float) using parquet"
+    val tbl_insert_sql = "insert into test_tbl_3289 values(1, 2.0), (2, 2.1), (3, 2.2)"
+    val select_sql_1 = "select cast(a as string), cast(a * 1.0f as string) from test_tbl_3289"
+    val select_sql_2 =
+      "select cast(cast(a as double) as string), cast(cast(a * 1.0f as double) as string) from test_tbl_3289"
+    spark.sql(tbl_create_sql)
+    spark.sql(tbl_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
+    spark.sql("drop table test_tbl_3289")
+  }
+
   test("test in-filter contains null value (bigint)") {
     val sql = "select s_nationkey from supplier where s_nationkey in (null, 1, 2)"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
@@ -3377,5 +3390,45 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_8343")
   }
 
+  test("GLUTEN-8995: Fix column not found in row_number") {
+    val select_sql =
+      "select  id from (select id ,row_number() over (partition by id order by id desc) as rank from range(1)) c1 where  rank =1"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+  }
+
+  test("GLUTEN-8974 accelerate join + aggregate by any join") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      // check EliminateDeduplicateAggregateWithAnyJoin is effective
+      def checkOnlyOneAggregate(df: DataFrame): Unit = {
+        val aggregates = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case e: HashAggregateExecBaseTransformer => e
+        }
+        assert(aggregates.size == 1)
+      }
+      val sql1 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_regionkey, n_nationkey from nation group by n_regionkey, n_nationkey) t2
+          |on t1.n_regionkey = t2.n_regionkey and t1.n_nationkey = t2.n_nationkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql1, true, checkOnlyOneAggregate)
+
+      val sql2 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_nationkey, n_regionkey from nation group by n_regionkey, n_nationkey) t2
+          |on t1.n_regionkey = t2.n_regionkey and t1.n_nationkey = t2.n_nationkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql2, true, checkOnlyOneAggregate)
+
+      val sql3 =
+        """
+          |select t1.*, t2.* from nation as t1
+          |left join (select n_regionkey from nation group by n_regionkey) t2
+          |on t1.n_regionkey = t2.n_regionkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql3, true, checkOnlyOneAggregate)
+    }
+  }
 }
 // scalastyle:on line.size.limit

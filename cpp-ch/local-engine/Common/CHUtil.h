@@ -18,6 +18,7 @@
 #pragma once
 #include <unordered_set>
 #include <Core/Block.h>
+#include <Core/Block_fwd.h>
 #include <Core/Joins.h>
 #include <Functions/CastOverloadResolver.h>
 #include <Interpreters/ActionsDAG.h>
@@ -62,7 +63,6 @@ public:
     static DB::Chunk buildRowCountChunk(UInt64 rows);
     static DB::Block buildRowCountBlock(UInt64 rows);
 
-    static DB::Block buildHeader(const DB::NamesAndTypesList & names_types_list);
 
     static constexpr UInt64 FLAT_STRUCT = 1;
     static constexpr UInt64 FLAT_NESTED_TABLE = 2;
@@ -83,6 +83,12 @@ public:
     /// and the nullability also could be different, with TPCDS-Q1 as an example.
     static DB::ColumnWithTypeAndName
     convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column);
+};
+
+class TypeUtil
+{
+public:
+    static bool hasNothingType(DB::DataTypePtr data_type);
 };
 
 class PODArrayUtil
@@ -170,6 +176,7 @@ public:
     inline static const std::string HADOOP_S3_SECRET_KEY = "fs.s3a.secret.key";
     inline static const std::string HADOOP_S3_ENDPOINT = "fs.s3a.endpoint";
     inline static const std::string HADOOP_S3_ASSUMED_ROLE = "fs.s3a.assumed.role.arn";
+    inline static const std::string HADOOP_S3_PATH_STYLE_ACCESS = "fs.s3a.path.style.access";
     inline static const std::string HADOOP_S3_ASSUMED_SESSION_NAME = "fs.s3a.assumed.role.session.name";
     // not hadoop official
     inline static const std::string HADOOP_S3_ASSUMED_EXTERNAL_ID = "fs.s3a.assumed.role.externalId";
@@ -181,8 +188,6 @@ public:
     inline static const std::string SPARK_SESSION_TIME_ZONE = "spark.sql.session.timeZone";
 
     inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
-
-    inline static const String GLUTEN_LOCAL_CACHE_PREFIX = "gluten_cache.local.";
 
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.

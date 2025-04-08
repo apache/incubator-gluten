@@ -22,6 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeRef
 import org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{DeserializeToObjectExec, LeafExecNode, ProjectExec, SerializeFromObjectExec, SparkPlan, UnionExec}
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 import scala.collection.mutable
 
@@ -116,6 +117,14 @@ object PushDownInputFileExpression {
       case p @ ProjectExec(projectList, child: FileSourceScanExecTransformer)
           if projectList.exists(containsInputFileRelatedExpr) =>
         child.copy(output = p.output)
+      case p @ ProjectExec(projectList, child: HiveTableScanExecTransformer)
+          if projectList.exists(containsInputFileRelatedExpr) =>
+        child.copy(
+          requestedAttributes = p.output,
+          relation = child.relation,
+          partitionPruningPred = child.partitionPruningPred,
+          prunedOutput = child.prunedOutput
+        )(child.session)
       case p @ ProjectExec(projectList, child: BatchScanExecTransformer)
           if projectList.exists(containsInputFileRelatedExpr) =>
         child.copy(output = p.output.asInstanceOf[Seq[AttributeReference]])

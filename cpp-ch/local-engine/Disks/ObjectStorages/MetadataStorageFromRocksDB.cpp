@@ -117,6 +117,11 @@ bool MetadataStorageFromRocksDB::supportsStat() const
     return false;
 }
 
+bool MetadataStorageFromRocksDB::supportsPartitionCommand(const DB::PartitionCommand & command) const
+{
+    return false;
+}
+
 std::vector<std::string> MetadataStorageFromRocksDB::listDirectory(const std::string & path) const
 {
     return listKeys(getRocksDB(), path);

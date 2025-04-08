@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.tpch
 
+import org.apache.gluten.backendsapi.clickhouse.CHConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 import org.apache.gluten.execution.{CHNativeCacheManager, FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
@@ -23,7 +24,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import org.apache.commons.io.IOUtils
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileUtil, Path}
 
 import java.nio.charset.Charset
 
@@ -36,7 +37,6 @@ class GlutenClickHouseHDFSSuite
     rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
-  private val hdfsCachePath = "/tmp/gluten_hdfs_cache/"
   private val cache_name = "gluten_cache"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
@@ -49,11 +49,15 @@ class GlutenClickHouseHDFSSuite
       .set("spark.sql.adaptive.enabled", "true")
       .setCHConfig("use_local_format", true)
       .set(prefixOf("shuffle.hash.algorithm"), "sparkMurmurHash3_32")
-      .setCHConfig("gluten_cache.local.enabled", "true")
+      .set(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key, "true")
       .setCHConfig("gluten_cache.local.name", cache_name)
-      .setCHConfig("gluten_cache.local.path", hdfsCachePath)
+      .setCHConfig("gluten_cache.local.path", LOCAL_CACHE_PATH)
       .setCHConfig("gluten_cache.local.max_size", "10Gi")
-      .setCHConfig("reuse_disk_cache", "false")
+      // If reuse_disk_cache is set to false,the cache will be deleted in JNI_OnUnload
+      // but CacheManager and JobScheduler of backend are static global variables
+      // and is destroyed at the end of the program which causes backend reporting logical errors.
+      // TODO: fix reuse_disk_cache
+      .setCHConfig("reuse_disk_cache", "true")
       .set("spark.sql.adaptive.enabled", "false")
 
     // TODO: spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm =>
@@ -66,6 +70,23 @@ class GlutenClickHouseHDFSSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    val targetFile = new Path(s"$tablesPath/lineitem")
+    val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
+    val existed = fs.exists(targetFile)
+    // If the 'lineitem' directory doesn't exist in HDFS,
+    // upload the 'lineitem' data from the local system.
+    if (!existed) {
+      val localDataDir = new Path(s"$absoluteParquetPath/lineitem")
+      val localFs = localDataDir.getFileSystem(spark.sessionState.newHadoopConf())
+      FileUtil.copy(
+        localFs,
+        localDataDir,
+        fs,
+        targetFile,
+        false,
+        true,
+        spark.sessionState.newHadoopConf())
+    }
   }
 
   override protected def beforeEach(): Unit = {

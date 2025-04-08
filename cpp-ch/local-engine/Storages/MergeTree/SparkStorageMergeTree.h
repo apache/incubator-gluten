@@ -50,7 +50,7 @@ class SparkStorageMergeTree : public DB::MergeTreeData
 {
     friend class MergeSparkMergeTreeTask;
 
-    struct SparkMutationsSnapshot : public IMutationsSnapshot
+    struct SparkMutationsSnapshot : public MutationsSnapshotBase
     {
         SparkMutationsSnapshot() = default;
 
@@ -61,6 +61,8 @@ class SparkStorageMergeTree : public DB::MergeTreeData
         }
 
         DB::NameSet getAllUpdatedColumns() const override { return {}; }
+
+        bool hasMetadataMutations() const override { return params.min_part_metadata_version < params.metadata_version; }
     };
 
 public:
@@ -110,6 +112,7 @@ protected:
     void movePartitionToTable(const DB::StoragePtr & dest_table, const DB::ASTPtr & partition, DB::ContextPtr context) override;
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
+    DB::MutationCounters getMutationCounters() const override { throw std::runtime_error("not implement"); }
 
 public:
     MutationsSnapshotPtr getMutationsSnapshot(const IMutationsSnapshot::Params & /*params*/) const override

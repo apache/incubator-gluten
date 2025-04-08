@@ -18,6 +18,7 @@
 
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Parsers/ASTExpressionList.h>
@@ -114,7 +115,7 @@ doBuildMetadata(const DB::NamesAndTypesList & columns, const ContextPtr & contex
 
     setSecondaryIndex(columns, context, table, metadata);
 
-    metadata->partition_key.expression_list_ast = std::make_shared<ASTExpressionList>();
+    metadata->partition_key = KeyDescription::buildEmptyKey();
     metadata->sorting_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context, true);
     if (table.primary_key.empty())
         if (table.order_by_key != MergeTreeTable::TUPLE)
@@ -211,9 +212,7 @@ MergeTreeTableInstance::MergeTreeTableInstance(const std::string & info) : Merge
     while (!in.eof())
     {
         MergeTreePart part;
-        std::string encoded_name;
-        readString(encoded_name, in);
-        Poco::URI::decode(encoded_name, part.name);
+        readString(part.name, in);
         assertChar('\n', in);
         readIntText(part.begin, in);
         assertChar('\n', in);

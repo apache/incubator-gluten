@@ -159,6 +159,13 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  def genFromJsonTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: JsonToStructs): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
   /** Transform GetArrayItem to Substrait. */
   def genGetArrayItemTransformer(
       substraitExprName: String,
@@ -199,7 +206,7 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       original: TryEval): ExpressionTransformer = {
-    throw new GlutenNotSupportException("try_eval is not supported")
+    throw new GlutenNotSupportException(s"try_eval(${original.child.prettyName}) is not supported")
   }
 
   def genArithmeticTransformer(
@@ -318,6 +325,7 @@ trait SparkPlanExecApi {
    *
    * childOutputAttributes may be different from outputAttributes, for example, the
    * childOutputAttributes include additional shuffle key columns
+   *
    * @return
    */
   // scalastyle:off argcount
@@ -468,7 +476,6 @@ trait SparkPlanExecApi {
       windowExpressionNodes: JList[WindowFunctionNode],
       originalInputAttributes: Seq[Attribute],
       args: JMap[String, JLong]): Unit = {
-
     windowExpression.map {
       windowExpr =>
         val aliasExpr = windowExpr.asInstanceOf[Alias]
@@ -695,6 +702,8 @@ trait SparkPlanExecApi {
       original: StringSplit): ExpressionTransformer =
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
 
+  def genColumnarCollectLimitExec(limit: Int, plan: SparkPlan): ColumnarCollectLimitBaseExec
+
   def genColumnarRangeExec(
       start: Long,
       end: Long,
@@ -704,4 +713,11 @@ trait SparkPlanExecApi {
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec
 
+  def expressionFlattenSupported(expr: Expression): Boolean = false
+
+  def genFlattenedExpressionTransformer(
+      substraitName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer =
+    GenericExpressionTransformer(substraitName, children, expr)
 }

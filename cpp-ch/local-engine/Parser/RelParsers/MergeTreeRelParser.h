@@ -36,6 +36,8 @@ namespace local_engine
 class MergeTreeRelParser : public RelParser
 {
 public:
+    inline static const std::string VIRTUAL_COLUMN_PART = "_part";
+
     explicit MergeTreeRelParser(ParserContextPtr parser_context_, const DB::ContextPtr & context_)
         : RelParser(parser_context_), context(context_)
     {
@@ -55,6 +57,8 @@ public:
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "MergeTreeRelParser can't call getSingleInput().");
     }
+
+    std::optional<DB::IQueryPlanStep *> addVirtualColumnsProjectStep(DB::QueryPlan & plan, const substrait::ReadRel & rel, const std::string & path);
 
     String filterRangesOnDriver(const substrait::ReadRel & read_rel);
 

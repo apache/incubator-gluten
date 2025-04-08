@@ -387,7 +387,11 @@ std::string LocalPartitionWriter::nextSpilledFileDir() {
 
 arrow::Result<std::shared_ptr<arrow::io::OutputStream>> LocalPartitionWriter::openFile(const std::string& file) {
   std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(file));
+  auto fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0000);
+  // Set the shuffle file permissions to 0644 to keep it consistent with the permissions of
+  // the built-in shuffler manager in Spark.
+  fchmod(fd, 0644);
+  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(fd));
   if (options_.bufferedWrite) {
     // The `shuffleFileBufferSize` bytes is a temporary allocation and will be freed with file close.
     // Use default memory pool and count treat the memory as executor memory overhead to avoid unnecessary spill.
@@ -609,32 +613,6 @@ arrow::Status LocalPartitionWriter::sortEvict(
       }
     }
     RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
-  }
-  lastEvictPid_ = partitionId;
-  return arrow::Status::OK();
-}
-
-// FIXME: Remove this code path for local partition writer.
-arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) {
-  rawPartitionLengths_[partitionId] += blockPayload->rawSize();
-
-  if (lastEvictPid_ != -1 && partitionId < lastEvictPid_) {
-    RETURN_NOT_OK(finishSpill(true));
-    lastEvictPid_ = -1;
-  }
-  RETURN_NOT_OK(requestSpill(stop));
-
-  if (!stop) {
-    RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
-  } else {
-    if (spills_.size() > 0) {
-      for (auto pid = lastEvictPid_ + 1; pid <= partitionId; ++pid) {
-        auto bytesEvicted = totalBytesEvicted_;
-        RETURN_NOT_OK(mergeSpills(pid));
-        partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
-      }
-    }
-    RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
   }
   lastEvictPid_ = partitionId;
   return arrow::Status::OK();

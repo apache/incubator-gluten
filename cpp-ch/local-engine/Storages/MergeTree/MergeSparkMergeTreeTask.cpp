@@ -57,7 +57,7 @@ bool MergeSparkMergeTreeTask::executeStep()
     std::optional<ThreadGroupSwitcher> switcher;
     if (merge_list_entry)
     {
-        switcher.emplace((*merge_list_entry)->thread_group);
+        switcher.emplace((*merge_list_entry)->thread_group, "", /*allow_existing_group*/ true);
     }
 
     switch (state)

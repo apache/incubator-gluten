@@ -35,6 +35,7 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Poco/Logger.h>
 #include <Common/BlockTypeUtils.h>
@@ -246,6 +247,7 @@ std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expr
         }
         case substrait::Expression_Literal::kNull: {
             type = TypeParser::parseType(literal.null());
+            type = TypeParser::tryWrapNullable(substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE, type);
             field = DB::Field{};
             break;
         }
@@ -265,7 +267,7 @@ bool ExpressionParser::reuseCSE() const
 }
 
 ExpressionParser::NodeRawConstPtr
-ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr type, const DB::Field & field) const
+ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
 {
     String name = toString(field).substr(0, 10);
     name = getUniqueName(name);
@@ -280,7 +282,6 @@ ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTyp
     return res_node;
 }
 
-
 ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG & actions_dag, const substrait::Expression & rel) const
 {
     switch (rel.rex_type_case())
@@ -293,10 +294,11 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
         }
 
         case substrait::Expression::RexTypeCase::kSelection: {
-            if (!rel.selection().has_direct_reference() || !rel.selection().direct_reference().has_struct_field())
+            auto field_index = SubstraitParserUtils::getStructFieldIndex(rel);
+            if (!field_index)
                 throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Can only have direct struct references in selections");
 
-            const auto * field = actions_dag.getInputs()[rel.selection().direct_reference().struct_field().field()];
+            const auto * field = actions_dag.getInputs()[*field_index];
             return field;
         }
 
@@ -335,29 +337,23 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                 String function_name = "sparkCastFloatTo" + denull_output_type->getName();
                 result_node = toFunctionNode(actions_dag, function_name, args);
             }
+            else if (isFloat(denull_input_type) && isString(denull_output_type))
+                result_node = toFunctionNode(actions_dag, "sparkCastFloatToString", args);
             else if ((isDecimal(denull_input_type) || isNativeNumber(denull_input_type)) && substrait_type.has_decimal())
             {
-                int decimal_precision = substrait_type.decimal().precision();
-                if (decimal_precision)
+                int precision = substrait_type.decimal().precision();
+                int scale = substrait_type.decimal().scale();
+                if (precision)
                 {
-                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), decimal_precision));
-                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().scale()));
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision));
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale));
                     result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
                 }
             }
-            else if (isMap(denull_input_type) && isString(denull_output_type))
+            else if ((isMap(denull_input_type) || isArray(denull_input_type) || isTuple(denull_input_type)) && isString(denull_output_type))
             {
-                // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
-                auto map_input_type = std::static_pointer_cast<const DataTypeMap>(denull_input_type);
-                args.emplace_back(addConstColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
-                args.emplace_back(
-                    addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
-                result_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
-            }
-            else if (isArray(denull_input_type) && isString(denull_output_type))
-            {
-                // ISSUE-7602: spark cast(array to string) has different result with CH cast(array to string)
-                result_node = toFunctionNode(actions_dag, "sparkCastArrayToString", args);
+                /// https://github.com/apache/incubator-gluten/issues/9049
+                result_node = toFunctionNode(actions_dag, "sparkCastComplexTypesToString", args);
             }
             else if (isString(denull_input_type) && substrait_type.has_bool_())
             {
@@ -369,7 +365,7 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             {
                 /// Spark cast(x as INT) if x is String -> CH cast(trim(x) as INT)
                 /// Refer to https://github.com/apache/incubator-gluten/issues/4956 and https://github.com/apache/incubator-gluten/issues/8598
-                auto trim_str_arg = addConstColumn(actions_dag, std::make_shared<DataTypeString>(), " \t\n\r\f");
+                const auto * trim_str_arg = addConstColumn(actions_dag, std::make_shared<DataTypeString>(), " \t\n\r\f");
                 args[0] = toFunctionNode(actions_dag, "trimBothSpark", {args[0], trim_str_arg});
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
                 result_node = toFunctionNode(actions_dag, "CAST", args);
@@ -378,7 +374,12 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
             {
                 /// Common process: CAST(input, type)
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
-                result_node = toFunctionNode(actions_dag, "CAST", args);
+                if (TypeUtil::hasNothingType(args[0]->result_type))
+                {
+                    result_node = toFunctionNode(actions_dag, "accurateCastOrNull", args);
+                }
+                else
+                    result_node = toFunctionNode(actions_dag, "CAST", args);
             }
 
             actions_dag.addOrReplaceInOutputs(*result_node);
@@ -520,10 +521,9 @@ ExpressionParser::expressionsToActionsDAG(const std::vector<substrait::Expressio
 
     for (const auto & expr : expressions)
     {
-        if (expr.has_selection())
+        if (auto field_index = SubstraitParserUtils::getStructFieldIndex(expr))
         {
-            auto position = expr.selection().direct_reference().struct_field().field();
-            auto col_name = header.getByPosition(position).name;
+            auto col_name = header.getByPosition(*field_index).name;
             const DB::ActionsDAG::Node * field = actions_dag.tryFindInOutputs(col_name);
             if (!field)
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found {} in actions dag's output", col_name);
@@ -817,7 +817,7 @@ ExpressionParser::parseArrayJoin(const substrait::Expression_ScalarFunction & fu
             const auto * key_node = add_tuple_element(item_node, 1);
 
             /// value = arrayJoin(arg_not_null).2.2
-            const auto val_node = add_tuple_element(item_node, 2);
+            const auto * val_node = add_tuple_element(item_node, 2);
 
             actions_dag.addOrReplaceInOutputs(*pos_node);
             actions_dag.addOrReplaceInOutputs(*key_node);
@@ -858,7 +858,7 @@ ExpressionParser::parseJsonTuple(const substrait::Expression_ScalarFunction & fu
     const auto * extract_expr_node = addConstColumn(actions_dag, std::make_shared<DB::DataTypeString>(), write_buffer.str());
     auto json_extract_builder = DB::FunctionFactory::instance().get("JSONExtract", context->queryContext());
     auto json_extract_result_name = "JSONExtract(" + json_expr_node->result_name + ", " + extract_expr_node->result_name + ")";
-    const auto json_extract_node
+    const auto * json_extract_node
         = &actions_dag.addFunction(json_extract_builder, {json_expr_node, extract_expr_node}, json_extract_result_name);
     auto tuple_element_builder = DB::FunctionFactory::instance().get("sparkTupleElement", context->queryContext());
     auto tuple_index_type = std::make_shared<DB::DataTypeUInt32>();

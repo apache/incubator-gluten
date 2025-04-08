@@ -135,8 +135,7 @@ static void signalHandler(int sig, siginfo_t * info, void * context) noexcept
     DB::writePODBinary(stack_trace, out);
     DB::writeBinary(static_cast<UInt32>(getThreadId()), out);
     DB::writePODBinary(DB::current_thread, out);
-
-    out.next();
+    out.finalize();
 
     if (sig != SIGTSTP) /// This signal is used for debugging.
     {

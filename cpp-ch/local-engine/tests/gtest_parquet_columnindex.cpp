@@ -17,13 +17,13 @@
 #include "config.h"
 #if USE_PARQUET
 #include <charconv>
+#include <future>
 #include <ranges>
 #include <string>
 #include <Columns/ColumnString.h>
 #include <IO/ReadBufferFromFile.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/ExpressionActions.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
@@ -36,7 +36,7 @@
 #include <parquet/page_index.h>
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
-#include <tests/gluten_test_util.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/QueryContext.h>
 
@@ -346,15 +346,15 @@ local_engine::ColumnIndexStore buildTestColumnIndexStore()
     return result;
 }
 
-AnotherRowType buildTestRowType()
+local_engine::RowType buildTestRowType()
 {
-    AnotherRowType result;
-    result.emplace_back(toAnotherFieldType(d1));
-    result.emplace_back(toAnotherFieldType(d2));
-    result.emplace_back(toAnotherFieldType(d3));
-    result.emplace_back(toAnotherFieldType(d4));
-    result.emplace_back(toAnotherFieldType(d5));
-    result.emplace_back(toAnotherFieldType(d6));
+    local_engine::RowType result;
+    result.emplace_back(toNameTypePair(d1));
+    result.emplace_back(toNameTypePair(d2));
+    result.emplace_back(toNameTypePair(d3));
+    result.emplace_back(toNameTypePair(d4));
+    result.emplace_back(toNameTypePair(d5));
+    result.emplace_back(toNameTypePair(d6));
     return result;
 }
 
@@ -395,7 +395,7 @@ void assertRows(const local_engine::RowRanges & ranges, const std::vector<size_t
 
 local_engine::RowRanges calculateRowRangesForTest(const std::string & exp)
 {
-    static const AnotherRowType name_and_types = buildTestRowType();
+    static const local_engine::RowType name_and_types = buildTestRowType();
     static const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
     const local_engine::ColumnIndexFilter filter(
         local_engine::test::parseFilter(exp, name_and_types).value(), local_engine::QueryContext::globalContext());
@@ -550,7 +550,7 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
 
     {
         // COLUMN5 is not found in the column_index_store,
-        const AnotherRowType upper_name_and_types{{"COLUMN5", BIGINT()}};
+        const RowType upper_name_and_types{{"COLUMN5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_upper(
             local_engine::test::parseFilter("COLUMN5 in (7, 20)", upper_name_and_types).value(),
             local_engine::QueryContext::globalContext());
@@ -560,7 +560,7 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
     }
 
     {
-        const AnotherRowType lower_name_and_types{{"column5", BIGINT()}};
+        const RowType lower_name_and_types{{"column5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_lower(
             local_engine::test::parseFilter("column5 in (7, 20)", lower_name_and_types).value(),
             local_engine::QueryContext::globalContext());
@@ -1124,7 +1124,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     const FormatSettings format_settings{};
 
 
-    static const AnotherRowType name_and_types{{"11", BIGINT()}};
+    static const RowType name_and_types{{"11", BIGINT()}};
     const auto filterAction = test::parseFilter("`11` = 10 or `11` = 50", name_and_types);
     auto column_index_filter = std::make_shared<ColumnIndexFilter>(filterAction.value(), local_engine::QueryContext::globalContext());
 
@@ -1133,7 +1133,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     ReadBufferFromFilePRead in(filename);
 
     ParquetMetaBuilder metaBuilder{.collectPageIndex = true};
-    metaBuilder.build(&in, &blockHeader, column_index_filter.get(), [](UInt64 /*midpoint_offset*/) -> bool { return true; });
+    metaBuilder.build(in, blockHeader, column_index_filter.get());
     ColumnIndexRowRangesProvider provider{metaBuilder};
 
     VectorizedParquetRecordReader recordReader(blockHeader, format_settings);
