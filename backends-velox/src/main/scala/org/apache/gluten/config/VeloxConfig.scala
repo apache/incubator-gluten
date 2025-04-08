@@ -183,8 +183,8 @@ object VeloxConfig {
       .internal()
       .doc("Checkpoint after every 'checkpointIntervalBytes' for SSD cache. " +
         "0 means no checkpointing.")
-      .booleanConf
-      .createWithDefault(false)
+      .intConf
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
