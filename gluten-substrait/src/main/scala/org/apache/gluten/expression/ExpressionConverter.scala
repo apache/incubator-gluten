@@ -754,6 +754,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           ce,
           attributeSeq,
           expressionsMap)
+      case s: Sequence =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genSequenceTransformer(
+          substraitExprName,
+          expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+          s
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

@@ -702,6 +702,29 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  override def genSequenceTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Sequence): ExpressionTransformer = {
+
+    def isDateTimeType(dataType: DataType): Boolean = dataType match {
+      case DateType | TimestampType => true
+      case _ => false
+    }
+
+    if (expr.stepOpt.exists(_.dataType == CalendarIntervalType)) {
+      throw new GlutenNotSupportException(
+        s"'sequence' with interval type is not supported in Velox")
+    }
+
+    if (isDateTimeType(expr.start.dataType)) {
+      throw new GlutenNotSupportException(
+        s"'sequence' with date/timestamp type is not supported in Velox")
+    }
+    val newExpr = Sequence(expr.start, expr.stop, expr.stepOpt)
+    GenericExpressionTransformer(substraitExprName, children, newExpr)
+  }
+
   /** Generate an expression transformer to transform JsonToStructs to Substrait. */
   override def genFromJsonTransformer(
       substraitExprName: String,
