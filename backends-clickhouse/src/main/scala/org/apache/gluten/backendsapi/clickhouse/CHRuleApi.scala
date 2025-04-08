@@ -60,6 +60,9 @@ object CHRuleApi {
       (spark, parserInterface) => new GlutenCacheFilesSqlParser(spark, parserInterface))
     injector.injectParser(
       (spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
+    injector.injectResolutionRule(spark => new JoinAggregateToAggregateUnion(spark))
+    // CoalesceAggregationUnion and CoalesceProjectionUnion should follows
+    // JoinAggregateToAggregateUnion
     injector.injectResolutionRule(spark => new CoalesceAggregationUnion(spark))
     injector.injectResolutionRule(spark => new CoalesceProjectionUnion(spark))
     injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
@@ -67,6 +70,8 @@ object CHRuleApi {
     injector.injectResolutionRule(spark => new CollapseGetJsonObjectExpressionRule(spark))
     injector.injectResolutionRule(spark => new RepalceFromJsonWithGetJsonObject(spark))
     injector.injectOptimizerRule(spark => new CommonSubexpressionEliminateRule(spark))
+    injector.injectOptimizerRule(spark => new AggregateIfToFilterRule(spark))
+    injector.injectOptimizerRule(spark => new SimplifySumRule(spark))
     injector.injectOptimizerRule(spark => new ExtendedColumnPruning(spark))
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
@@ -123,6 +128,7 @@ object CHRuleApi {
     injector.injectPostTransform(c => AddPreProjectionForHashJoin.apply(c.session))
     injector.injectPostTransform(c => ReplaceSubStringComparison.apply(c.session))
     injector.injectPostTransform(c => EliminateDeduplicateAggregateWithAnyJoin(c.session))
+    injector.injectPostTransform(c => FlattenNestedExpressions.apply(c.session))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(c => p => ExpandFallbackPolicy(c.caller.isAqe(), p))
@@ -189,7 +195,8 @@ object CHRuleApi {
         // case s: SerializeFromObjectExec => true
         // case d: DeserializeToObjectExec => true
         // case o: ObjectHashAggregateExec => true
-        case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
+//        case rddScanExec: RDDScanExec if rddScanExec.no
+        //        deName.contains("Delta Table State") => true
         case f: FileSourceScanExec if includedDeltaOperator(f) => true
         case v2CommandExec: V2CommandExec => true
         case commandResultExec: CommandResultExec => true

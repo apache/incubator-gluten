@@ -73,7 +73,7 @@ void FunctionExecutor::buildHeader()
 
 void FunctionExecutor::parseExpression()
 {
-    DB::ActionsDAG actions_dag{blockToNameAndTypeList(header)};
+    DB::ActionsDAG actions_dag{blockToRowType(header)};
     /// Notice keep_result must be true, because result_node of current function must be output node in actions_dag
     const auto * node = expression_parser->parseFunction(expression.scalar_function(), actions_dag, true);
     result_name = node->result_name;

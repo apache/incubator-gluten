@@ -25,17 +25,16 @@
 #include <Storages/Output/NormalFileWriter.h>
 #include <Storages/SubstraitSource/FileReader.h>
 #include <Storages/SubstraitSource/FormatFile.h>
+#include <Storages/SubstraitSource/Iceberg/EqualityDeleteFileReader.h>
+#include <Storages/SubstraitSource/Iceberg/IcebergMetadataColumn.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <Storages/SubstraitSource/iceberg/EqualityDeleteFileReader.h>
-#include <Storages/SubstraitSource/iceberg/IcebergMetadataColumn.h>
 #include <gtest/gtest.h>
+#include <tests/utils/QueryAssertions.h>
 #include <tests/utils/ReaderTestBase.h>
 #include <tests/utils/TempFilePath.h>
-#include <utils/QueryAssertions.h>
-#include <utils/gluten_test_util.h>
+#include <tests/utils/gluten_test_util.h>
 #include <Common/DebugUtils.h>
-#include <Common/QueryContext.h>
 
 namespace local_engine
 {
@@ -969,7 +968,7 @@ TEST_F(IcebergTest, positionalDeletesMultipleSplits)
     assertMultipleSplits({}, 10, 3);
 }
 
-TEST_F(IcebergTest, tmp2)
+TEST_F(IcebergTest, basic_utils_test)
 {
 
     {
@@ -999,7 +998,6 @@ TEST_F(IcebergTest, tmp2)
 
         context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", DB::Field(false));
     }
-
 
     {
         std::shared_ptr<TempFilePath> dataFilePath = writeDataFiles(rowCount, 4)[0];

@@ -23,7 +23,7 @@
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
-#include <Storages/SubstraitSource/iceberg/SimpleParquetReader.h>
+#include <Storages/SubstraitSource/Iceberg/SimpleParquetReader.h>
 #include <Common/BlockTypeUtils.h>
 using namespace DB;
 

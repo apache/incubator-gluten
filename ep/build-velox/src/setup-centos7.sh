@@ -46,13 +46,6 @@ function yum_install {
   $SUDO yum install -y "$@"
 }
 
-function wget_and_untar {
-  local URL=$1
-  local DIR=$2
-  mkdir -p "${DIR}"
-  wget -q --max-redirect 3 -O - "${URL}" | tar -xz -C "${DIR}" --strip-components=1
-}
-
 function install_cmake {
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://cmake.org/files/v3.28/cmake-3.28.3.tar.gz cmake-3
@@ -158,7 +151,7 @@ function install_lzo {
 function install_boost {
   # Remove old version.
   sudo rm -f /usr/local/lib/libboost_* /usr/lib64/libboost_* /opt/rh/devtoolset-11/root/usr/lib64/dyninst/libboost_*
-  sudo rm -rf /tmp/velox-deps/boost/ /usr/local/include/boost/ /usr/local/lib/cmake/Boost-1.72.0/
+  sudo rm -rf "${DEPENDENCY_DIR}"/boost/ /usr/local/include/boost/ /usr/local/lib/cmake/Boost-1.72.0/
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz boost
   cd boost
@@ -233,7 +226,10 @@ dnf_install ccache wget which libevent-devel \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
   curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel tzdata
 
-dnf_install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm
+# Update tzdata, required by Velox at runtime.
+dnf_install python3-pip
+pip3 install tzdata
+cp /usr/local/lib/python3.6/site-packages/tzdata/zoneinfo/Factory /usr/share/zoneinfo/
 
 $SUDO dnf remove -y gflags
 

@@ -48,13 +48,20 @@ Note that `spark.hadoop.fs.s3a.iam.role.session.name` is optional.
 ## Log granularity of AWS C++ SDK in velox
 
 You can change log granularity of AWS C++ SDK by setting the `spark.gluten.velox.awsSdkLogLevel` configuration. The Allowed values are:
-* OFF
-* FATAL
-* ERROR
-* WARN
-* INFO
-* DEBUG
-* TRACE
+ "OFF", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE".
+
+## Configuring Whether To Use Proxy From Env for S3 C++ Client
+You can change whether to use proxy from env for S3 C++ client by setting the `spark.gluten.velox.s3UseProxyFromEnv` configuration. The Allowed values are:
+ "false", "true".
+
+## Configuring S3 Payload Signing Policy
+You can change the S3 payload signing policy by setting the `spark.gluten.velox.s3PayloadSigningPolicy` configuration. The Allowed values are:
+ "Always", "RequestDependent", "Never".  
+- When set to "Always", the payload checksum is included in the signature calculation.  
+- When set to "RequestDependent", the payload checksum is included based on the value returned by "AmazonWebServiceRequest::SignBody()".  
+
+## Configuring S3 Log Location
+You can set the log location by setting the `spark.gluten.velox.s3LogLocation` configuration.
 
 # Local Caching support
 

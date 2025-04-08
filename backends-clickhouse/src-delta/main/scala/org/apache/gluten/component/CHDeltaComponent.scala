@@ -21,6 +21,7 @@ import org.apache.gluten.execution.OffloadDeltaNode
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
+import org.apache.gluten.sql.shims.DeltaShimLoader
 
 class CHDeltaComponent extends Component {
   override def name(): String = "ch-delta"
@@ -34,5 +35,7 @@ class CHDeltaComponent extends Component {
         val offload = Seq(OffloadDeltaNode())
         HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
     }
+
+    DeltaShimLoader.getDeltaShims.registerExpressionExtension()
   }
 }

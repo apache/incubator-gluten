@@ -20,8 +20,8 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <Storages/Parquet/ParquetMeta.h>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
-#include <Storages/SubstraitSource/iceberg/EqualityDeleteFileReader.h>
-#include <Storages/SubstraitSource/iceberg/PositionalDeleteFileReader.h>
+#include <Storages/SubstraitSource/Iceberg/EqualityDeleteFileReader.h>
+#include <Storages/SubstraitSource/Iceberg/PositionalDeleteFileReader.h>
 #include <Common/BlockTypeUtils.h>
 
 using namespace DB;
@@ -60,14 +60,11 @@ std::unique_ptr<IcebergReader> IcebergReader::create(
         ? nullptr
         : EqualityDeleteFileReader::createDeleteExpr(context, file_->getFileSchema(), delete_files, it_equal->second, new_header);
 
+    auto input = input_format_callback(new_header);
+    if (!input)
+        return nullptr;
     return std::make_unique<IcebergReader>(
-        file_,
-        new_header,
-        output_header_,
-        input_format_callback(new_header),
-        delete_expr,
-        std::move(delete_bitmap_array),
-        to_read_header_.columns());
+        file_, new_header, output_header_, input, delete_expr, std::move(delete_bitmap_array), to_read_header_.columns());
 }
 
 IcebergReader::IcebergReader(

@@ -20,8 +20,8 @@
 #include <Functions/FunctionFactory.h>
 #include <Storages/Parquet/ParquetMeta.h>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
-#include <Storages/SubstraitSource/iceberg/IcebergMetadataColumn.h>
-#include <Storages/SubstraitSource/iceberg/SimpleParquetReader.h>
+#include <Storages/SubstraitSource/Iceberg/IcebergMetadataColumn.h>
+#include <Storages/SubstraitSource/Iceberg/SimpleParquetReader.h>
 #include <Common/BlockTypeUtils.h>
 
 using namespace DB;
@@ -41,7 +41,7 @@ std::unique_ptr<DeltaDVRoaringBitmapArray> createBitmapExpr(
 {
     assert(!position_delete_files.empty());
 
-    std::unique_ptr<DeltaDVRoaringBitmapArray> result = std::make_unique<DeltaDVRoaringBitmapArray>(context);
+    std::unique_ptr<DeltaDVRoaringBitmapArray> result = std::make_unique<DeltaDVRoaringBitmapArray>();
 
     for (auto deleteIndex : position_delete_files)
     {

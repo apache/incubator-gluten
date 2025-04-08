@@ -47,7 +47,10 @@ class LocalPartitionWriter : public PartitionWriter {
       std::shared_ptr<arrow::Buffer> compressed,
       bool isFinal) override;
 
-  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override;
+  // This code path is not used by LocalPartitionWriter, Not implement it by default.
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override {
+    return arrow::Status::NotImplemented("Invalid code path for local shuffle writer.");
+  }
 
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.

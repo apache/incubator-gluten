@@ -19,8 +19,13 @@ package org.apache.spark.gluten.delta
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.catalyst.expressions.aggregation.BitmapAggregator
+import org.apache.spark.sql.delta.deletionvectors.RoaringBitmapArrayFormat
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
+import org.apache.spark.sql.functions.col
 
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -178,6 +183,84 @@ class GlutenDeltaParquetDeletionVectorSuite
       case f: FileSourceScanExecTransformer => f
     }
     assert(scanExec.nonEmpty)
+  }
+
+  test("test ObjectHashAggregateExec(bitmapaggregator) no fallback") {
+    val table_name = "dv_fallback"
+    withTable(table_name) {
+      withSQLConf("spark.sql.adaptive.enabled" -> "false") {
+        spark.sql(s"""
+                     |CREATE TABLE IF NOT EXISTS $table_name
+                     |($q1SchemaString)
+                     |USING delta
+                     |TBLPROPERTIES (delta.enableDeletionVectors='true')
+                     |LOCATION '$basePath/$table_name'
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     | insert into table $table_name select * from lineitem
+                     |""".stripMargin)
+
+        def createBitmapSetAggregator(indexColumn: Column): Column = {
+          val func = new BitmapAggregator(indexColumn.expr, RoaringBitmapArrayFormat.Portable)
+          new Column(func.toAggregateExpression(isDistinct = false))
+        }
+
+        val aggColumns = Seq(createBitmapSetAggregator(col("l_orderkey")))
+
+        val aggregated = sql(s"select l_orderkey,l_shipdate from $table_name")
+          .groupBy(col("l_shipdate"))
+          .agg(aggColumns.head, aggColumns.tail: _*)
+          .select("*")
+          .toDF()
+        aggregated.collect()
+        val bitMapAggregator = aggregated.queryExecution.executedPlan.collect {
+          case agg: ObjectHashAggregateExec => agg
+        }
+        assert(bitMapAggregator.isEmpty)
+      }
+    }
+  }
+
+  test("test delta DV write") {
+    val table_name = "dv_write_test"
+    withTable(table_name) {
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS $table_name
+                   |($q1SchemaString)
+                   |USING delta
+                   |TBLPROPERTIES (delta.enableDeletionVectors='true')
+                   |LOCATION '$basePath/$table_name'
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   | insert into table $table_name select * from lineitem
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   | delete from $table_name
+                   | where mod(l_orderkey, 3) = 1 and l_orderkey < 100
+                   |""".stripMargin)
+
+      val df = spark.sql(s"""
+                            | select sum(l_linenumber) from $table_name
+                            |""".stripMargin)
+      val result = df.collect()
+      assertResult(1802335)(result.apply(0).get(0))
+
+      spark.sql(s"""
+                   | update $table_name
+                   | set l_orderkey = 1 where l_orderkey > 0
+                   |""".stripMargin)
+
+      spark.sql(s""" select count(*) from $table_name """.stripMargin).show()
+
+      val df2 = spark.sql(s"""
+                             | select sum(l_orderkey) from $table_name
+                             |""".stripMargin)
+      val result2 = df2.collect()
+      assertResult(600536)(result2.apply(0).get(0))
+    }
   }
 
   test("test parquet partition table delete with the delta DV") {

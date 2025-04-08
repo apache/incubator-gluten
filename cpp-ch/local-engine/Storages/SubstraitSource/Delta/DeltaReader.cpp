@@ -81,8 +81,8 @@ DeltaReader::DeltaReader(
 {
     if (bitmap_config)
     {
-        bitmap_array = std::make_unique<DeltaDVRoaringBitmapArray>(file->getContext());
-        bitmap_array->rb_read(bitmap_config->path_or_inline_dv, bitmap_config->offset, bitmap_config->size_in_bytes);
+        bitmap_array = std::make_unique<DeltaDVRoaringBitmapArray>();
+        bitmap_array->rb_read(bitmap_config->path_or_inline_dv, bitmap_config->offset, bitmap_config->size_in_bytes, file->getContext());
     }
 }
 
