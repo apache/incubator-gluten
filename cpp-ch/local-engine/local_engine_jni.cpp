@@ -166,25 +166,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
 JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 {
-    LOG_INFO(&Poco::Logger::get("jni"), "start jni onUnload");
-    local_engine::BackendFinalizerUtil::finalizeGlobally();
-
-    JNIEnv * env;
-    vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
-
-    local_engine::JniErrorsGlobalState::instance().destroy(env);
-    local_engine::BroadCastJoinBuilder::destroy(env);
-    local_engine::SparkMergeTreeWriterJNI::destroy(env);
-    local_engine::SparkRowInfoJNI::destroy(env);
-
-    env->DeleteGlobalRef(block_stripes_class);
-    env->DeleteGlobalRef(split_result_class);
-    env->DeleteGlobalRef(block_stats_class);
-    env->DeleteGlobalRef(local_engine::ShuffleReader::input_stream_class);
-    env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
-    env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
-    env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
-    env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
+    // manually destroy native in 'nativeDestroyNative' method
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
@@ -205,6 +187,26 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::BackendFinalizerUtil::finalizeSessionally();
     LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeDestroyNative(JNIEnv * env, jclass)
+{
+    LOG_INFO(&Poco::Logger::get("jni"), "start destroy native");
+    local_engine::BackendFinalizerUtil::finalizeGlobally();
+
+    local_engine::JniErrorsGlobalState::instance().destroy(env);
+    local_engine::BroadCastJoinBuilder::destroy(env);
+    local_engine::SparkMergeTreeWriterJNI::destroy(env);
+    local_engine::SparkRowInfoJNI::destroy(env);
+
+    env->DeleteGlobalRef(block_stripes_class);
+    env->DeleteGlobalRef(split_result_class);
+    env->DeleteGlobalRef(block_stats_class);
+    env->DeleteGlobalRef(local_engine::ShuffleReader::input_stream_class);
+    env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
+    env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
+    env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
+    env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
 }
 
 /// Set settings for the current query. It assumes that all parameters are started with `CH_RUNTIME_SETTINGS_PREFIX` prefix,

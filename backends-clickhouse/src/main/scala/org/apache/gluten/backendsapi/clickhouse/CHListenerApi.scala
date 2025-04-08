@@ -143,7 +143,10 @@ object CHListenerApi {
       initialized = true
       SparkShutdownManagerUtil.addHookForLibUnloading(
         () => {
-          JniLibLoader.forceUnloadAll
+          // Due to the changes in the JNI OnUnLoad calling mechanism of the JDK17,
+          // it needs to manually call the destroy native function
+          // to release ch resources and avoid core dump
+          CHNativeExpressionEvaluator.destroyNative()
         })
     }
   }
