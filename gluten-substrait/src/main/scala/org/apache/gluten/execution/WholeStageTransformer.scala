@@ -42,7 +42,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
 import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
@@ -236,15 +235,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   val sparkConf: SparkConf = sparkContext.getConf
 
-  // Temporary solution to avoid unnecessary serialization of hadoop conf, using @transient will
-  // cause OOM failure for unknown reasons in GlutenHashExpressionsSuite of Spark 3.5.
-  val serializableHadoopConf: Option[SerializableConfiguration] =
-    if (GlutenConfig.get.enableHdfsViewfs) {
-      Some(new SerializableConfiguration(sparkContext.hadoopConfiguration))
-    } else {
-      None
-    }
-
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   @transient
@@ -397,7 +387,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     val allInputPartitions = leafTransformers.map(_.getPartitions)
     val allSplitInfos = getSplitInfosFromPartitions(leafTransformers)
 
-    if (serializableHadoopConf.nonEmpty) {
+    if (GlutenConfig.get.enableHdfsViewfs) {
       val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
       allSplitInfos.foreach {
         splitInfos =>
@@ -406,7 +396,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
               val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
                 splitInfo.getPaths.asScala.toSeq,
                 viewfsToHdfsCache,
-                serializableHadoopConf.get.value)
+                sparkContext.hadoopConfiguration)
               splitInfo.setPaths(newPaths.asJava)
           }
       }
@@ -462,14 +452,14 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       throw new GlutenException(
         "The partition length of all the leaf transformer are not the same.")
     }
-    if (serializableHadoopConf.nonEmpty) {
+    if (GlutenConfig.get.enableHdfsViewfs) {
       val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
       allSplitInfos.foreach {
         case splitInfo: LocalFilesNode =>
           val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
             splitInfo.getPaths.asScala.toSeq,
             viewfsToHdfsCache,
-            serializableHadoopConf.get.value)
+            sparkContext.hadoopConfiguration)
           splitInfo.setPaths(newPaths.asJava)
       }
     }
