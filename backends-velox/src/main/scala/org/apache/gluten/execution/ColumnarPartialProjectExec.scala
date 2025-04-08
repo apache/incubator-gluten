@@ -47,15 +47,17 @@ import scala.collection.mutable.ListBuffer
  * @param original
  *   extract the ScalaUDF from original project list as Alias in UnsafeProjection and
  *   AttributeReference in ColumnarPartialProjectExec output
- * @param projectList The project output, with this argument in case class, function
- *                    QueryPlan.expressions can return the Expression list correctly,
- *                    then the function executeQuery can find the SubQuery from Expression
+ * @param projectList
+ *   The project output, with this argument in case class, function QueryPlan.expressions can return
+ *   the Expression list correctly, then the function executeQuery can find the SubQuery from
+ *   Expression
  * @param child
  *   child plan
  */
-case class ColumnarPartialProjectExec(original: ProjectExec, projectList: Seq[NamedExpression],
-                                      child: SparkPlan)(
-    replacedAliasUdf: Seq[Alias])
+case class ColumnarPartialProjectExec(
+    original: ProjectExec,
+    projectList: Seq[NamedExpression],
+    child: SparkPlan)(replacedAliasUdf: Seq[Alias])
   extends UnaryExecNode
   with ValidatablePlan {
 
@@ -347,7 +349,8 @@ object ColumnarPartialProjectExec {
       p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
     }
     val partialProject =
-      ColumnarPartialProjectExec(original, original.projectList, original.child)(replacedAliasUdf.toSeq)
+      ColumnarPartialProjectExec(original, original.projectList, original.child)
+    (replacedAliasUdf.toSeq)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }
