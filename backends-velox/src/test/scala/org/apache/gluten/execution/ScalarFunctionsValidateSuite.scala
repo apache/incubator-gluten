@@ -189,8 +189,8 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithSpecifiedSparkVersion("null input for array_size", Some("3.3")) {
     withTempPath {
       path =>
-        Seq[(String)](
-          (null.asInstanceOf[String])
+        Seq[(Array[Int])](
+          (null.asInstanceOf[Array[Int]])
         )
           .toDF("txt")
           .write
@@ -762,20 +762,9 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
 
   test("Test sequence function optimized by Spark constant folding") {
     withSQLConf(("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)) {
-      withTempPath {
-        path =>
-          Seq[(Integer, Integer)](
-            (1, 5)
-          )
-            .toDF("val1", "val2")
-            .write
-            .parquet(path.getCanonicalPath)
-
-          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
-
-          runQueryAndCompare("SELECT sequence(val1, val2) from tbl") {
-            checkGlutenOperatorMatch[ProjectExecTransformer]
-          }
+      runQueryAndCompare("""SELECT sequence(1, 5), l_orderkey
+                           | from lineitem limit 100""".stripMargin) {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
       }
     }
   }
