@@ -47,6 +47,11 @@ import org.apache.spark.sql.functions.{col, lit}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{SerializableConfiguration, Utils => SparkUtils}
 
+/**
+ * Gluten overwrite Delta:
+ *
+ * This file is copied from Delta 3.2.1.
+ */
 
 /**
  * Contains utility classes and method for performing DML operations with Deletion Vectors.
@@ -326,6 +331,7 @@ object DeletionVectorBitmapGenerator {
         .agg(aggColumns.head, aggColumns.tail: _*)
         .select(outputColumns: _*)
 
+      // --- modified start
       if (spark.conf
         .get(GlutenConfig.GLUTEN_ENABLED.key, GlutenConfig.GLUTEN_ENABLED.defaultValueString)
         .toBoolean) {
@@ -336,6 +342,7 @@ object DeletionVectorBitmapGenerator {
         val storedResults = rowIndexData.mapPartitions(bitmapStorageMapper())
         storedResults.as[DeletionVectorResult].collect()
       }
+      // --- modified end
     }
 
     protected def aggColumns: Seq[Column] = {

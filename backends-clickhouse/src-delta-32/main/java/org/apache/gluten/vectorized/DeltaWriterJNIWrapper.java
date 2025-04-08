@@ -32,10 +32,12 @@ public class DeltaWriterJNIWrapper {
 
     public static native long deletionVectorWriteFinalize(long writer_address);
 
+    // call from native
     public static String encodeUUID(String uuid, String randomPrefix) {
         return DeletionVectorWriteTransformer.encodeUUID(uuid, randomPrefix);
     }
 
+    // call from native
     public static String decodeUUID(String encodedUuid) {
         return DeletionVectorWriteTransformer.decodeUUID(encodedUuid);
     }
