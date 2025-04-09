@@ -24,11 +24,14 @@
 
 namespace local_engine
 {
+
+static constexpr auto DV_FILE_FORMAT_VERSION_ID_V1 = std::byte{1};
+
 /**
   * Roaring bitmap data.
   * For a description of the roaring_bitmap_t, see: https://github.com/RoaringBitmap/CRoaring
   */
-class DeltaDVRoaringBitmapArray : private boost::noncopyable
+class DeltaDVRoaringBitmapArray
 {
     static constexpr Int64 MAX_REPRESENTABLE_VALUE
         = (static_cast<UInt64>(INT32_MAX - 1) << 32) | (static_cast<UInt64>(INT32_MIN) & 0xFFFFFFFFL);
@@ -43,13 +46,14 @@ public:
     explicit DeltaDVRoaringBitmapArray();
     ~DeltaDVRoaringBitmapArray() = default;
     bool operator==(const DeltaDVRoaringBitmapArray & other) const;
-    UInt64 rb_size() const;
+    UInt64 cardinality() const;
     void rb_read(const String & file_path, Int32 offset, Int32 data_size, DB::ContextPtr context);
     bool rb_contains(Int64 x) const;
     bool rb_is_empty() const;
     void rb_clear();
     void rb_add(Int64 value);
     void rb_merge(const DeltaDVRoaringBitmapArray & that);
+    void merge(const String & that);
     void rb_or(const DeltaDVRoaringBitmapArray & that);
     String serialize() const;
     void deserialize(DB::ReadBuffer & buf);

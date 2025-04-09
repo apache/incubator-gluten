@@ -81,6 +81,7 @@ void JNI_OnUnload(JavaVM* vm, void*) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
 
   env->DeleteGlobalRef(blockStripesClass);
+  env->DeleteGlobalRef(infoCls);
 
   finalizeVeloxJniUDF(env);
   finalizeVeloxJniFileSystem(env);

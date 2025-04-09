@@ -46,6 +46,8 @@
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/NormalFileWriter.h>
+#include <Storages/SubstraitSource/Delta/DeltaWriter.h>
+#include <Storages/SubstraitSource/Delta/DeltaUtil.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
@@ -198,6 +200,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     local_engine::BroadCastJoinBuilder::destroy(env);
     local_engine::SparkMergeTreeWriterJNI::destroy(env);
     local_engine::SparkRowInfoJNI::destroy(env);
+    local_engine::delta::DeltaUtil::releaseJavaCallerReference(env);
 
     env->DeleteGlobalRef(block_stripes_class);
     env->DeleteGlobalRef(split_result_class);
@@ -1331,6 +1334,46 @@ JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_removeFiles
     auto cache_name = jstring2string(env, cache_name_);
 
     local_engine::CacheManager::removeFiles(file, cache_name);
+    LOCAL_ENGINE_JNI_METHOD_END(env, );
+}
+
+JNIEXPORT jlong Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_createDeletionVectorWriter(
+    JNIEnv * env, jclass, jstring table_path_, jint prefix_length_, jlong packingTargetSize_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto table_path = jstring2string(env, table_path_);
+
+    const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
+    auto writer = new local_engine::delta::DeltaWriter(query_context, table_path, prefix_length_, packingTargetSize_);
+    return reinterpret_cast<jlong>(writer);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1);
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWrite(
+    JNIEnv * env, jclass, jlong writer_address_, jlong blockAddress)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto * block = reinterpret_cast<DB::Block *>(blockAddress);
+    auto * writer = reinterpret_cast<local_engine::delta::DeltaWriter *>(writer_address_);
+    writer->writeDeletionVector(*block);
+    LOCAL_ENGINE_JNI_METHOD_END(env, );
+}
+
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWriteFinalize(JNIEnv * env, jclass, jlong writer_address_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto * writer = reinterpret_cast<local_engine::delta::DeltaWriter *>(writer_address_);
+    auto * column_batch = writer->finalize();
+    delete writer;
+    return reinterpret_cast<UInt64>(column_batch);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1);
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_registerNativeReference(JNIEnv * env, jclass)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::delta::DeltaUtil::initJavaCallerReference(env);
     LOCAL_ENGINE_JNI_METHOD_END(env, );
 }
 
