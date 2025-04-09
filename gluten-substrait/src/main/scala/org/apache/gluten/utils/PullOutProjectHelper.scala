@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction,Complete, Partial}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Complete, Partial}
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.types.{ByteType, DateType, IntegerType, LongType, ShortType}
