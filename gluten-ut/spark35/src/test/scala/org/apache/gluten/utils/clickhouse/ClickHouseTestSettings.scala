@@ -2145,7 +2145,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // Rewrite with NaN test cases excluded.
     .exclude("cases when literal is max")
   enableSuite[GlutenUrlFunctionsSuite]
-    .excludeCH("url parse_url function")
     .excludeCH("url encode/decode function")
   enableSuite[GlutenV1WriteCommandSuite]
     // Rewrite to match SortExecTransformer.
