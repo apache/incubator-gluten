@@ -100,28 +100,24 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   }
 
   private def getProjectIndexInChildOutput(exprs: Seq[Expression]): Unit = {
-    exprs.forall {
+    exprs.foreach {
       case a: AttributeReference =>
         val index = child.output.indexWhere(s => s.exprId.equals(a.exprId))
         // Some child operator as HashAggregateTransformer will not have udf child column
         if (index < 0) {
           UDFAttrNotExists = true
           log.debug(s"Expression $a should exist in child output ${child.output}")
-          false
         } else if (
           BackendsApiManager.getValidatorApiInstance.doSchemaValidate(a.dataType).isDefined
         ) {
           hasUnsupportedDataType = true
           log.debug(s"Expression $a contains unsupported data type ${a.dataType}")
-          false
         } else if (!projectIndexInChild.contains(index)) {
           projectAttributes.append(a.toAttribute)
           projectIndexInChild.append(index)
-          true
-        } else true
+        }
       case p =>
         getProjectIndexInChildOutput(p.children)
-        true
     }
   }
 
@@ -269,7 +265,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
 
 object ColumnarPartialProjectExec {
 
-  val projectPrefix = "_SparkPartialProject"
+  private val projectPrefix = "_SparkPartialProject"
 
   /** Check if it's a hive udf but not transformable */
   private def containsUnsupportedHiveUDF(h: Expression): Boolean = {
