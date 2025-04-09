@@ -461,7 +461,6 @@ object GlutenConfig {
       COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       COLUMNAR_MAX_BATCH_SIZE.key,
       SHUFFLE_WRITER_BUFFER_SIZE.key,
-      GLUTEN_DEFAULT_SESSION_TIMEZONE.key,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
@@ -654,13 +653,6 @@ object GlutenConfig {
         "to the Spark web UI.")
     .booleanConf
     .createWithDefault(true)
-
-  val GLUTEN_DEFAULT_SESSION_TIMEZONE = buildConf("spark.gluten.sql.session.timeZone.default")
-    .doc(
-      "used to hold default session timezone and will be really used by Gluten only if " +
-        "`spark.sql.session.timeZone` is not set.")
-    .stringConf
-    .createWithDefaultString(SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
 
   val GLUTEN_LOAD_LIB_OS =
     buildConf("spark.gluten.loadLibOS")

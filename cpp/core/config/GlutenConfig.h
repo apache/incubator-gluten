@@ -37,8 +37,6 @@ const std::string kAllowPrecisionLoss = "spark.sql.decimalOperations.allowPrecis
 
 const std::string kIgnoreMissingFiles = "spark.sql.files.ignoreMissingFiles";
 
-const std::string kDefaultSessionTimezone = "spark.gluten.sql.session.timeZone.default";
-
 const std::string kSparkOverheadMemory = "spark.gluten.memoryOverhead.size.in.bytes";
 
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
