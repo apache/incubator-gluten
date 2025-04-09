@@ -18,6 +18,7 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
 import org.apache.gluten.utils.BackendTestUtils
+
 import org.apache.spark.SparkConf
 
 class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
@@ -62,7 +63,7 @@ class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
     )
   }
 
-  test("GLUTEN-XXXX - Pull out project avoid invalid reference binding") {
+  test("GLUTEN-9279 - Not Pull out expression to avoid invalid reference binding") {
     withTable("t") {
       sql("CREATE TABLE t(f1 String, f2 String, f3 String, f4 String) USING CSV")
       sql("INSERT INTO t values ('1', '2', '3', '4'), ('11' ,'22', '33', '4')")
