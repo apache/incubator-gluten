@@ -18,7 +18,6 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
 import org.apache.gluten.utils.BackendTestUtils
-
 import org.apache.spark.SparkConf
 
 class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
@@ -61,5 +60,17 @@ class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
         case _ => false
       }
     )
+  }
+
+  test("GLUTEN-XXXX - Pull out project avoid invalid reference binding") {
+    withTable("t") {
+      sql("CREATE TABLE t(f1 String, f2 String, f3 String, f4 String) USING CSV")
+      sql("INSERT INTO t values ('1', '2', '3', '4'), ('11' ,'22', '33', '4')")
+      val df = sql(
+        """
+          |SELECT SUM(f1) / COUNT(DISTINCT f2, f3) FROM t GROUP BY f4;
+          |""".stripMargin)
+      assert(df.collect()(0).getDouble(0) == 6)
+    }
   }
 }
