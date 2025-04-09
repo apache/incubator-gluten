@@ -289,9 +289,9 @@ trait MergeIntoMaterializeSource extends DeltaLogging with DeltaSparkPlanUtils {
 
     // --- modified start
     val originalRemoveTopmostC2R = CHRemoveTopmostColumnarToRow.isRemoveTopmostC2R(spark)
-//    spark.sparkContext.setLocalProperty(
-//      CHRemoveTopmostColumnarToRow.REMOVE_TOPMOST_COLUMNAR_TO_ROW,
-//      "true")
+    spark.sparkContext.setLocalProperty(
+      CHRemoveTopmostColumnarToRow.REMOVE_TOPMOST_COLUMNAR_TO_ROW,
+      "true")
     // --- modified end
 
     if (!materialize) {
