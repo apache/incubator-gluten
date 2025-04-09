@@ -510,18 +510,41 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
     cb.push_back(ObjectStore::retrieve<ColumnarBatch>(handle));
   }
 
-  auto hashTableHandler = nativeHashTableBuild(
-      hashJoinKey,
-      names,
-      veloxTypeList,
-      joinType,
-      hasMixedJoinCondition,
-      isExistenceJoin,
-      isNullAwareAntiJoin,
-      cb,
-      defaultLeafVeloxMemoryPool());
+  std::vector<std::thread> threads;
+  std::vector<std::shared_ptr<facebook::velox::exec::HashTableBuilder>> hashTableBuilders;
+  std::mutex buildersMutex;
+  for (int i = 0; i < handleCount; ++i) {
+    std::vector<std::shared_ptr<gluten::ColumnarBatch>> batchVector = {cb[i]};
+    threads.emplace_back([&, i, batchVector]() mutable {
+      auto builder = nativeHashTableBuild(
+          hashJoinKey,
+          names,
+          veloxTypeList,
+          joinType,
+          hasMixedJoinCondition,
+          isExistenceJoin,
+          isNullAwareAntiJoin,
+          batchVector,
+          defaultLeafVeloxMemoryPool());
+      {
+        std::lock_guard<std::mutex> lock(buildersMutex);
+        hashTableBuilders.emplace_back(std::move(builder));
+      }
+    });
+  }
 
-  return gluten::hashTableObjStore->save(hashTableHandler);
+  // Join all threads
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  for (int i = 1; i < handleCount; i++) {
+    auto baseHashTable = hashTableBuilders[i]->hashTable();
+    hashTableBuilders[0]->setOtherTables(baseHashTable);
+    gluten::hashTableObjStore->save(hashTableBuilders[i]);
+  }
+
+  return gluten::hashTableObjStore->save(hashTableBuilders[0]);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 

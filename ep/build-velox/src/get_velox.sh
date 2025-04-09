@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/JkSelf/velox.git
-VELOX_BRANCH=bhj-optimization-1
+VELOX_BRANCH=bhj-optimization-1-concurrent1
 VELOX_HOME=""
 
 OS=`uname -s`
