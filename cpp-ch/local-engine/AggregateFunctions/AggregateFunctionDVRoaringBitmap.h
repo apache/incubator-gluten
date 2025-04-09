@@ -99,7 +99,6 @@ public:
         auto & to_tuple = assert_cast<DB::ColumnTuple &>(to);
         auto & cardinality = assert_cast<DB::ColumnInt64 &>(to_tuple.getColumn(0));
         auto & last = assert_cast<DB::ColumnInt64 &>(to_tuple.getColumn(1));
-        auto a = to_tuple.getColumn(2).getDataType();
         auto & bitmap = assert_cast<DB::ColumnString &>(to_tuple.getColumn(2));
         this->data(place).insertResultInto(cardinality, last, bitmap);
     }
