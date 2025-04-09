@@ -12,7 +12,7 @@ ENV PATH=$SPARK_HOME/bin:$PATH
 ENV CUDA_ARCHITECTURES=70
 
 WORKDIR /opt/gluten
-RUN ./dev/buildbundle-veloxbe.sh--run_setup_script=ON --build_arrow=ON --spark_version=3.4 --enable_gpu=ON && \
+RUN ./dev/buildbundle-veloxbe.sh --run_setup_script=ON --build_arrow=ON --spark_version=3.4 --enable_gpu=ON && \
     touch cudf.sql && echo "select o_orderkey from orders order by o_orderkey;" > cudf.sql
 
 # You can try the data in folder backends-velox/src/test/resources/tpch-data-parquet
