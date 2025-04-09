@@ -16,9 +16,6 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.jni.JniLibLoader
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
