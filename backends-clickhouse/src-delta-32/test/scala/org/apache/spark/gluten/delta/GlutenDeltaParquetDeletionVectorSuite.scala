@@ -21,11 +21,17 @@ import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHo
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.aggregation.BitmapAggregator
+import org.apache.spark.sql.delta.DeltaConfigs
+import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.delta.deletionvectors.RoaringBitmapArrayFormat
 import org.apache.spark.sql.delta.files.TahoeFileIndex
+import org.apache.spark.sql.delta.sources.DeltaSQLConf
+import org.apache.spark.sql.execution.DeletionVectorWriteTransformer
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
 import org.apache.spark.sql.functions.col
+
+import org.apache.hadoop.fs.Path
 
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -52,7 +58,6 @@ class GlutenDeltaParquetDeletionVectorSuite
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
-      // .setCHConfig("use_local_format", true)
       .set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
   }
 
@@ -260,6 +265,117 @@ class GlutenDeltaParquetDeletionVectorSuite
                              |""".stripMargin)
       val result2 = df2.collect()
       assertResult(600536)(result2.apply(0).get(0))
+    }
+  }
+
+  def testBasic(prefix: Boolean = false)(deleteCallback: => Unit)(updateCallback: => Unit): Unit = {
+    val prefix_str = if (prefix) {
+      ", delta.randomizeFilePrefixes=true"
+    } else {
+      ""
+    }
+
+    val tableName = "dv_write_test"
+    withTable(tableName) {
+      withTempDir {
+        dirName =>
+          spark.sql(s"""
+                       |CREATE TABLE IF NOT EXISTS $tableName
+                       |($q1SchemaString)
+                       |USING delta
+                       |TBLPROPERTIES (delta.enableDeletionVectors='true' $prefix_str)
+                       |LOCATION '$dirName/$tableName'
+                       |""".stripMargin)
+
+          spark.sql(s"""insert into table $tableName select * from lineitem """.stripMargin)
+
+          spark.sql(s"""
+                       | delete from $tableName
+                       | where mod(l_orderkey, 3) = 1 and l_orderkey < 100
+                       |""".stripMargin)
+
+          deleteCallback
+
+          val df = spark.sql(s"""select sum(l_linenumber) from $tableName """.stripMargin)
+          val result = df.collect()
+          assertResult(1802335)(result.apply(0).get(0))
+
+          spark.sql(s"""update $tableName set l_orderkey = 1 where l_orderkey > 0 """.stripMargin)
+
+          updateCallback
+          val df2 = spark.sql(s"""select sum(l_orderkey) from $tableName""".stripMargin)
+          val result2 = df2.collect()
+          assertResult(600536)(result2.apply(0).get(0))
+      }
+    }
+  }
+
+  test("test delta DV write use native writer") {
+    var counter = DeletionVectorWriteTransformer.COUNTER.get()
+    testBasic() {
+      counter = DeletionVectorWriteTransformer.COUNTER.get()
+      assertResult(true)(counter > 0)
+    } {
+      assertResult(true)(DeletionVectorWriteTransformer.COUNTER.get() > counter)
+    }
+  }
+
+  test("test delta DV write use native writer with prefix") {
+    var counter = DeletionVectorWriteTransformer.COUNTER.get()
+    testBasic(prefix = true) {
+      counter = DeletionVectorWriteTransformer.COUNTER.get()
+      assertResult(true)(counter > 0)
+    } {
+      assertResult(true)(DeletionVectorWriteTransformer.COUNTER.get() > counter)
+    }
+  }
+
+  for (targetDVFileSize <- Seq(2, 200, 2000000)) {
+    test(
+      s"DELETE with DVs - packing multiple DVs into one file: target max DV file " +
+        s"size=$targetDVFileSize") {
+      withSQLConf(
+        DeltaConfigs.ENABLE_DELETION_VECTORS_CREATION.defaultTablePropertyKey -> "true",
+        DeltaSQLConf.DELETE_USE_PERSISTENT_DELETION_VECTORS.key -> "true",
+        DeltaSQLConf.DELETION_VECTOR_PACKING_TARGET_SIZE.key -> targetDVFileSize.toString,
+        "spark.sql.shuffle.partitions" -> "1"
+      ) {
+        withTempDir {
+          dirName =>
+            // Create table with 100 files of 2 rows each.
+            val numFiles = 100
+            val path = dirName.getAbsolutePath
+            spark.range(0, 200, step = 1, numPartitions = numFiles).write.format("delta").save(path)
+            val tableName = s"delta.`$path`"
+            val numFilesWithDVs = 10
+            val numDeletedRows = numFilesWithDVs * 1
+            spark.sql(s"DELETE FROM $tableName WHERE id % 2 = 0 AND id < 20")
+
+            // Verify the expected number of AddFiles with DVs
+            val allFiles = DeltaLog.forTable(spark, path).unsafeVolatileSnapshot.allFiles.collect()
+            assert(allFiles.length === numFiles)
+            val addFilesWithDV = allFiles.filter(_.deletionVector != null)
+            assert(addFilesWithDV.length === numFilesWithDVs)
+            assert(addFilesWithDV.map(_.deletionVector.cardinality).sum == numDeletedRows)
+
+            var expectedDVFileCount = 0
+            targetDVFileSize match {
+              // Each AddFile will have its own DV file
+              case 2 => expectedDVFileCount = numFilesWithDVs
+              // Each DV size is about 34bytes according the latest format.
+              case 200 => expectedDVFileCount = numFilesWithDVs / (200 / 34).floor.toInt
+              // Expect all DVs in one file
+              case 2000000 => expectedDVFileCount = 1
+              case default =>
+                throw new IllegalStateException(s"Unknown target DV file size: $default")
+            }
+            // Expect all DVs are written in one file
+            assert(
+              addFilesWithDV.map(_.deletionVector.absolutePath(new Path(path))).toSet.size ===
+                expectedDVFileCount
+            )
+        }
+      }
     }
   }
 

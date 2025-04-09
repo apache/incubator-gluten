@@ -36,7 +36,7 @@ struct AggregateFunctionDVRoaringBitmapData
 
     void insertResultInto(DB::ColumnInt64 & cardinality, DB::ColumnInt64 & last, DB::ColumnString & bitmap)
     {
-        cardinality.getData().push_back(roaring_bitmap_array.rb_size());
+        cardinality.getData().push_back(roaring_bitmap_array.cardinality());
         auto last_value = roaring_bitmap_array.last();
         if (last_value.has_value())
             last.getData().push_back(last_value.value());
