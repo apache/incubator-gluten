@@ -276,7 +276,9 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   }
 
   // Limited support for Complex types.
-  if (fromType->isArray() || fromType->isMap() || fromType->isRow()) {
+  if ((fromType->isArray() && !toType->isArray()) ||
+        (fromType->isMap() && !toType->isMap()) ||
+        (fromType->isRow() && !toType->isRow())) {
     return false;
   }
 

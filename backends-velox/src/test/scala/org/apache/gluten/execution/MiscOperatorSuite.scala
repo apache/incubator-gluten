@@ -2040,4 +2040,67 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
   }
+
+  test("Test cast complex type") {
+    withTable("complex_tyep_table") {
+      val schema = StructType(
+        Seq(
+          StructField("id", IntegerType),
+          StructField("map_col", MapType(StringType, ArrayType(IntegerType))),
+          StructField("array_col", ArrayType(StringType)),
+          StructField(
+            "struct_col",
+            StructType(
+              Seq(
+                StructField("name", StringType),
+                StructField("scores", ArrayType(DoubleType))
+              ))),
+          StructField("array_map_col", ArrayType(MapType(StringType, StringType)))
+        ))
+
+      val testData = Seq(
+        Row(
+          1,
+          Map("k1" -> Array(1, 2), "k2" -> null),
+          Array("1", "2"),
+          Row("Alice", Array(90.5, null)),
+          Array(Map("a" -> "1"), null)
+        ),
+        Row(
+          2,
+          Map("k3" -> Array(3), "k4" -> Array.empty),
+          Array("3", "4"),
+          Row("Bob", null),
+          Array(null, Map("b" -> "2"))
+        )
+      )
+
+      val df = spark.createDataFrame(
+        spark.sparkContext.parallelize(testData),
+        schema
+      )
+
+      df.write
+        .mode("overwrite")
+        .format("parquet")
+        .saveAsTable("complex_type_table")
+
+      val testQuery =
+        """
+          |SELECT
+          |  id,
+          |  -- identity cast
+          |  cast(map_col AS MAP<STRING, ARRAY<INTEGER>>) AS map_col,
+          |  -- map<string, array<integer>> to map<string, array<string>>
+          |  cast(map_col AS MAP<STRING, ARRAY<STRING>>) AS map_col2,
+          |  -- array<string> to array<integer>
+          |  cast(array_col AS ARRAY<INTEGER>) AS array_col,
+          |  cast(struct_col AS STRUCT<name:STRING, scores:ARRAY<DOUBLE>>) AS struct_col,
+          |  cast(array_map_col AS ARRAY<MAP<STRING,INTEGER>>) AS array_map_col
+          |FROM complex_type_table
+          |""".stripMargin
+
+      runQueryAndCompare(testQuery)(df => checkGlutenOperatorMatch[ProjectExecTransformer](df))
+    }
+  }
 }
