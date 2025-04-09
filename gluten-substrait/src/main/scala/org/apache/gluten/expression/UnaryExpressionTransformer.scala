@@ -47,8 +47,8 @@ case class CastTransformer(substraitExprName: String, child: ExpressionTransform
     val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
     ExpressionBuilder.makeCast(
       typeNode,
-      child.doTransform(context),
-      SparkShimLoader.getSparkShims.withAnsiEvalMode(original))
+      child.doTransform(args),
+      SparkShimLoader.getSparkShims.withTryEvalMode(original))
   }
 }
 
