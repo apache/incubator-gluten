@@ -59,7 +59,7 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
       GlutenDriverEndpoint.collectResources(executionId, buildBroadcastTableId)
     } else {
       logWarning(
-        s"Can't not trace broadcast table data $buildBroadcastTableId" +
+        s"Can not trace broadcast table data $buildBroadcastTableId" +
           s" because execution id is null." +
           s" Will clean up until expire time.")
     }
@@ -101,7 +101,7 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
       .append("isBHJ=")
       .append(1)
       .append("\n")
-      .append("buildHashTableId=")
+      .append("buildBroadcastTableId=")
       .append(buildBroadcastTableId)
       .append("\n")
     val message = StringValue
