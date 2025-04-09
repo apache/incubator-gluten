@@ -954,6 +954,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   override def expressionFlattenSupported(expr: Expression): Boolean = expr match {
     case ca: FlattenedAnd => CHFlattenedExpression.supported(ca.name)
     case co: FlattenedOr => CHFlattenedExpression.supported(co.name)
+    case cg: FlattenedGetJsonObject => CHFlattenedExpression.supported(cg.name)
     case _ => false
   }
 
@@ -963,6 +964,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       expr: Expression): ExpressionTransformer = expr match {
     case ce: FlattenedAnd => GenericExpressionTransformer(ce.name, children, ce)
     case co: FlattenedOr => GenericExpressionTransformer(co.name, children, co)
+    case cg: FlattenedGetJsonObject => GenericExpressionTransformer(cg.name, children, cg)
     case _ => super.genFlattenedExpressionTransformer(substraitName, children, expr)
   }
 }

@@ -31,7 +31,6 @@ object UDFMappings extends Logging {
   val hiveUDFMap: Map[String, String] = Map()
   val pythonUDFMap: Map[String, String] = Map()
   val scalaUDFMap: Map[String, String] = Map()
-  val collapsedFunctionsMap: Map[String, String] = Map()
 
   private def appendKVToMap(key: String, value: String, res: Map[String, String]): Unit = {
     if (key.isEmpty || value.isEmpty()) {
