@@ -71,7 +71,7 @@ concurrency:
 
 jobs:
   build-native-lib-centos-7:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
@@ -140,7 +140,7 @@ jobs:
             java: java-17
           - os: ubuntu:22.04
             java: java-11
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -211,7 +211,7 @@ jobs:
             java: java-17
           - os: centos:7
             java: java-11
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -285,7 +285,7 @@ jobs:
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Download All Native Artifacts
@@ -349,7 +349,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: [ "spark-3.2" ]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Maximize build disk space
         shell: bash
@@ -464,7 +464,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: [ "spark-3.2" ]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Maximize build disk space
         shell: bash
@@ -518,7 +518,7 @@ jobs:
         spark: [ "spark-3.2" ]
         uniffle: [ "0.9.2" ]
         hadoop: [ "2.8.5" ]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -568,7 +568,7 @@ jobs:
       matrix:
         spark: [ "spark-3.2" ]
         celeborn: [ "celeborn-0.5.4", "celeborn-0.4.3"]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -617,7 +617,7 @@ jobs:
 
   spark-test-spark32:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -664,7 +664,7 @@ jobs:
 
   spark-test-spark32-slow:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -698,7 +698,7 @@ jobs:
 
   spark-test-spark33:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -751,7 +751,7 @@ jobs:
 
   spark-test-spark33-slow:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -791,7 +791,7 @@ jobs:
 
   spark-test-spark34:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -846,7 +846,7 @@ jobs:
 
   spark-test-spark34-slow:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -887,7 +887,7 @@ jobs:
 
   spark-test-spark35:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -940,7 +940,7 @@ jobs:
 
   spark-test-spark35-scala213:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -987,7 +987,7 @@ jobs:
 
   spark-test-spark35-slow:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1026,7 +1026,7 @@ jobs:
 
   spark-test-spark35-ras:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1072,7 +1072,7 @@ jobs:
 
   spark-test-spark35-slow-ras:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1110,7 +1110,7 @@ jobs:
 
   spark-test-spark35-smj:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1156,7 +1156,7 @@ jobs:
 
   spark-test-spark35-slow-smj:
     needs: build-native-lib-centos-7
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
@@ -1193,7 +1193,7 @@ jobs:
           path: "**/target/*.log"
 
   cpp-test-udf-test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
