@@ -417,10 +417,6 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
 
   while (cachedRows_ < batchSize_) {
     GLUTEN_ASSIGN_OR_THROW(auto bytes, in_->Read(sizeof(RowSizeType), &lastRowSize_));
-    bytesRead_ += sizeof(RowSizeType);
-
-    GLUTEN_CHECK(lastRowSize_ <= kMaxReadBufferSize, "Row size exceeds max read buffer size");
-
     if (bytes == 0) {
       reachedEos_ = true;
       if (cachedRows_ > 0) {
@@ -428,6 +424,9 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
       }
       return nullptr;
     }
+
+    GLUTEN_CHECK(
+        lastRowSize_ <= kMaxReadBufferSize, "Row size exceeds max read buffer size: " + std::to_string(lastRowSize_));
 
     if (lastRowSize_ + bytesRead_ > kMaxReadBufferSize) {
       return deserializeToBatch();
