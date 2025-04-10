@@ -49,7 +49,8 @@ class LocalPartitionWriter::LocalSpiller {
         codec_(codec),
         diskSpill_(std::make_unique<Spill>()) {
     if (codec_ != nullptr) {
-      GLUTEN_ASSIGN_OR_THROW(compressedOs_, ShuffleCompressedOutputStream::Make(codec_, os, arrow::default_memory_pool()));
+      GLUTEN_ASSIGN_OR_THROW(
+          compressedOs_, ShuffleCompressedOutputStream::Make(codec_, os, arrow::default_memory_pool()));
     }
   }
 

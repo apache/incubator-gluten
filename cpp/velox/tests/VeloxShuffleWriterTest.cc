@@ -68,9 +68,9 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<int32_t> compressionThresholds = {-1, 0, 3, 4, 10, 4096};
   std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
-  for (const auto& compression : compressions) {
-    for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
-      for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
+  for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
+    for (const auto& compression : compressions) {
+      for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
         for (auto useRadixSort : {true, false}) {
           params.push_back(
               ShuffleTestParams{
@@ -83,6 +83,7 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
       }
     }
     params.push_back(ShuffleTestParams{ShuffleWriterType::kRssSortShuffle, PartitionWriterType::kRss, compression});
+
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
         params.push_back(

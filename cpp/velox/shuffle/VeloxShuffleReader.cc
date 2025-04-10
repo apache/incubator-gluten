@@ -394,7 +394,7 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
   GLUTEN_ASSIGN_OR_THROW(
       auto bufferedIn, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
   if (codec_ != nullptr) {
-    GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::CompressedInputStream::Make(codec_.get(), bufferedIn, arrowPool_));
+    GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::CompressedInputStream::Make(codec_.get(), bufferedIn, memoryPool));
   } else {
     in_ = bufferedIn;
   }
