@@ -963,8 +963,7 @@ arrow::Status VeloxHashShuffleWriter::evictBuffers(
     bool reuseBuffers) {
   if (!buffers.empty()) {
     auto payload = std::make_unique<InMemoryPayload>(numRows, &isValidityBuffer_, std::move(buffers), hasComplexType_);
-    RETURN_NOT_OK(
-        partitionWriter_->hashEvict(partitionId, std::move(payload), Evict::kCache, reuseBuffers));
+    RETURN_NOT_OK(partitionWriter_->hashEvict(partitionId, std::move(payload), Evict::kCache, reuseBuffers));
   }
   return arrow::Status::OK();
 }
