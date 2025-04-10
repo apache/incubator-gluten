@@ -62,7 +62,6 @@ env:
                 --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
                 --add-opens=java.base/sun.security.action=ALL-UNNAMED
                 --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
-                --add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
                 -Djdk.reflect.useDirectMethodHandle=false
                 -Dio.netty.tryReflectionSetAccessible=true"
 
@@ -1195,7 +1194,7 @@ jobs:
 
   cpp-test-udf-test:
     runs-on: ubuntu-22.04
-    container: apache/gluten:centos-8-jdk8
+    container: apache/gluten:centos-8-jdk17
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache

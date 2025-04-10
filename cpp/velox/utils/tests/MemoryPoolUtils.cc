@@ -24,7 +24,11 @@ arrow::Status LimitedMemoryPool::Allocate(int64_t size, int64_t alignment, uint8
     return arrow::Status::OutOfMemory("malloc of size ", size, " failed");
   }
   RETURN_NOT_OK(pool_->Allocate(size, alignment, out));
+#if ARROW_VERSION_MAJOR >= 18
   stats_.DidAllocateBytes(size);
+#else
+  stats_.UpdateAllocatedBytes(-size);
+#endif
   return arrow::Status::OK();
 }
 
@@ -33,13 +37,21 @@ arrow::Status LimitedMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, in
     return arrow::Status::OutOfMemory("malloc of size ", newSize, " failed");
   }
   RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, alignment, ptr));
+#if ARROW_VERSION_MAJOR >= 18
   stats_.DidAllocateBytes(newSize - oldSize);
+#else
+  stats_.UpdateAllocatedBytes(newSize - oldSize);
+#endif
   return arrow::Status::OK();
 }
 
 void LimitedMemoryPool::Free(uint8_t* buffer, int64_t size, int64_t alignment) {
   pool_->Free(buffer, size, alignment);
+#if ARROW_VERSION_MAJOR >= 18
   stats_.DidAllocateBytes(-size);
+#else
+  stats_.UpdateAllocatedBytes(-size);
+#endif
 }
 
 int64_t LimitedMemoryPool::bytes_allocated() const {
