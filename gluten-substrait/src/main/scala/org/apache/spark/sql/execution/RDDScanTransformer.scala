@@ -20,10 +20,13 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.ValidatablePlan
 import org.apache.gluten.extension.columnar.transition.Convention
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 
 abstract class RDDScanTransformer(
-    outputAttributes: Seq[Attribute]
+    outputAttributes: Seq[Attribute],
+    override val outputPartitioning: Partitioning = UnknownPartitioning(0),
+    override val outputOrdering: Seq[SortOrder]
 ) extends ValidatablePlan {
 
   override def rowType0(): Convention.RowType = Convention.RowType.None

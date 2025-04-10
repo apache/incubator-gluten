@@ -21,7 +21,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{BlockStripes, OutputWriter}
+import org.apache.spark.sql.execution.datasources.{BlockStripes, FakeRow, OutputWriter}
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.FileStatus
@@ -50,7 +50,7 @@ trait GlutenFormatWriterInjects {
 
 trait GlutenRowSplitter {
   def splitBlockByPartitionAndBucket(
-      row: InternalRow,
+      row: FakeRow,
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
       reserve_partition_columns: Boolean = false): BlockStripes
