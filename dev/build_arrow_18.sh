@@ -20,7 +20,7 @@ set -exu
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 export SUDO=sudo
 source ${CURRENT_DIR}/build_helper_functions.sh
-VELOX_ARROW_BUILD_VERSION=15.0.0
+VELOX_ARROW_BUILD_VERSION=18.0.0
 ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
 BUILD_TYPE=Release
 
@@ -28,8 +28,6 @@ function prepare_arrow_build() {
   mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && sudo rm -rf arrow_ep/
   wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
   cd arrow_ep
-  patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
-  patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
   popd
 }
 
@@ -83,9 +81,9 @@ function build_arrow_java() {
 
     pushd $ARROW_PREFIX/java
     # Because arrow-bom module need the -DprocessAllModules
-    mvn versions:set -DnewVersion=15.0.0-gluten -DprocessAllModules
+    mvn versions:set -DnewVersion=18.0.0 -DprocessAllModules
 
-    mvn clean install -pl bom,maven/module-info-compiler-maven-plugin,vector -am \
+    mvn clean install -pl bom,vector -am \
           -DskipTests -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -Dassembly.skipAssembly
 
     # Arrow C Data Interface CPP libraries
@@ -109,5 +107,5 @@ echo "Start to build Arrow"
 prepare_arrow_build
 build_arrow_cpp
 echo "Finished building arrow CPP"
-build_arrow_java
-echo "Finished building arrow Java"
+#build_arrow_java
+#echo "Finished building arrow Java"

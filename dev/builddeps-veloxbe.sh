@@ -195,8 +195,13 @@ fi
 concat_velox_param
 
 function build_arrow {
+  JAVAVERSION=`java -version 2>&1 >/dev/null | grep 'version' | awk '{print $3}'`
   cd $GLUTEN_DIR/dev
-  ./build_arrow.sh
+  if [[ $JAVAVERSION == *"1.8.0"* ]]; then
+    ./build_arrow.sh
+  else
+    ./build_arrow_18.sh
+  fi
 }
 
 function build_velox {
