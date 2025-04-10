@@ -79,7 +79,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     }
   }
 
-  testWithSpecifiedSparkVersion("input row", Some("3.2")) {
+  testWithMinSparkVersion("input row", "3.2") {
     withTable("t") {
       sql("CREATE TABLE t USING json AS SELECT * FROM values(1, 'a', (2, 'b'), (3, 'c'))")
       runQueryAndCompare("SELECT * FROM t", cache = true) {
@@ -102,7 +102,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
   }
 
   // See issue https://github.com/apache/incubator-gluten/issues/8497.
-  testWithSpecifiedSparkVersion("Input fallen back vanilla Spark columnar scan", Some("3.3")) {
+  testWithMinSparkVersion("Input fallen back vanilla Spark columnar scan", "3.3") {
     def withId(id: Int): Metadata =
       new MetadataBuilder().putLong("parquet.field.id", id).build()
 

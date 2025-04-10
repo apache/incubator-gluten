@@ -79,7 +79,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function bool", Some("3.4")) {
+  testWithMinSparkVersion("from_json function bool", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -101,7 +101,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function small int", Some("3.4")) {
+  testWithMinSparkVersion("from_json function small int", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -123,7 +123,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function int", Some("3.4")) {
+  testWithMinSparkVersion("from_json function int", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -145,7 +145,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function big int", Some("3.4")) {
+  testWithMinSparkVersion("from_json function big int", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -167,7 +167,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function float", Some("3.4")) {
+  testWithMinSparkVersion("from_json function float", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -191,7 +191,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function double", Some("3.4")) {
+  testWithMinSparkVersion("from_json function double", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -215,7 +215,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function string", Some("3.4")) {
+  testWithMinSparkVersion("from_json function string", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -237,7 +237,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function array", Some("3.4")) {
+  testWithMinSparkVersion("from_json function array", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -257,7 +257,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function map", Some("3.4")) {
+  testWithMinSparkVersion("from_json function map", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -279,7 +279,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function row", Some("3.4")) {
+  testWithMinSparkVersion("from_json function row", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](
@@ -319,7 +319,7 @@ class JsonFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("from_json function duplicate key", Some("3.4")) {
+  testWithMinSparkVersion("from_json function duplicate key", "3.4") {
     withTempPath {
       path =>
         Seq[(String)](

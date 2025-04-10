@@ -47,7 +47,7 @@ class GlutenExpressionMappingSuite
     conf
   }
 
-  testWithSpecifiedSparkVersion("test expression blacklist", Some("3.2")) {
+  testWithMinSparkVersion("test expression blacklist", "3.2") {
     val names = ExpressionMappings.expressionsMap.values.toSet
     assert(names.contains("regexp_replace"))
     assert(names.contains("regexp_extract"))
@@ -68,7 +68,7 @@ class GlutenExpressionMappingSuite
     }
   }
 
-  testWithSpecifiedSparkVersion("test blacklisting regexp expressions", Some("3.2")) {
+  testWithMinSparkVersion("test blacklisting regexp expressions", "3.2") {
     val names = ExpressionMappings.expressionsMap.values.toSet
     assert(names.contains("rlike"))
     assert(names.contains("regexp_replace"))
@@ -94,9 +94,9 @@ class GlutenExpressionMappingSuite
     }
   }
 
-  testWithSpecifiedSparkVersion(
+  testWithMinSparkVersion(
     "GLUTEN-7213: Check fallback reason with CheckOverflowInTableInsert",
-    Some("3.4")) {
+    "3.4") {
     withSQLConf(GlutenConfig.RAS_ENABLED.key -> "false") {
       withTable("t1", "t2") {
         sql("create table t1 (a float) using parquet")
