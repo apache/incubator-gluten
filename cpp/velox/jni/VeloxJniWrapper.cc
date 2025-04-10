@@ -544,7 +544,12 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
     gluten::hashTableObjStore->save(hashTableBuilders[i]);
   }
 
-  return gluten::hashTableObjStore->save(hashTableBuilders[0]);
+  if (handleCount > 0) {
+    return gluten::hashTableObjStore->save(hashTableBuilders[0]);
+  } else {
+    return gluten::hashTableObjStore->save(nullptr);
+  }
+
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -564,7 +569,9 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_clearHa
     jlong tableHandler) {
   JNI_METHOD_START
   auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(tableHandler);
-  hashTableHandler->clear();
+  if (hashTableHandler) {
+    hashTableHandler->clear();
+  }
   ObjectStore::release(tableHandler);
   JNI_METHOD_END()
 }
