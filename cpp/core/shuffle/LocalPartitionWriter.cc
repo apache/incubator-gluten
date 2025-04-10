@@ -15,25 +15,19 @@
  * limitations under the License.
  */
 
+#include "shuffle/LocalPartitionWriter.h"
+
+#include <glog/logging.h>
 #include <filesystem>
 #include <random>
 #include <thread>
 
-#include <boost/stacktrace.hpp>
-#include <glog/logging.h>
-#include "shuffle/LocalPartitionWriter.h"
-
-#include <folly/compression/Compression.h>
-#include <parquet/platform.h>
-#include <utils/Timer.h>
-
 #include "shuffle/Payload.h"
 #include "shuffle/Spill.h"
 #include "shuffle/Utils.h"
+#include "utils/Timer.h"
 
 namespace gluten {
-namespace {} // namespace
-
 class LocalPartitionWriter::LocalSpiller {
  public:
   LocalSpiller(
