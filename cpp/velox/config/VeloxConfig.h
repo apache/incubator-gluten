@@ -103,6 +103,12 @@ const uint32_t kVeloxSsdCacheShardsDefault = 1;
 const std::string kVeloxSsdCacheIOThreads = "spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads";
 const uint32_t kVeloxSsdCacheIOThreadsDefault = 1;
 const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.velox.ssdODirect";
+const std::string kVeloxSsdCheckpointIntervalBytes =
+    "spark.gluten.sql.columnar.backend.velox.ssdCheckpointIntervalBytes";
+const std::string kVeloxSsdDisableFileCow = "spark.gluten.sql.columnar.backend.velox.ssdDisableFileCow";
+const std::string kVeloxSsdCheckSumEnabled = "spark.gluten.sql.columnar.backend.velox.ssdChecksumEnabled";
+const std::string kVeloxSsdCheckSumReadVerificationEnabled =
+    "spark.gluten.sql.columnar.backend.velox.ssdChecksumReadVerificationEnabled";
 
 // async
 const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";

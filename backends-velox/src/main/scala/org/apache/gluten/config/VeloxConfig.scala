@@ -159,6 +159,35 @@ object VeloxConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_DISABLE_FILE_COW =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdDisableFileCow")
+      .internal()
+      .doc("True if copy on write should be disabled.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_CHECKSUM_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdChecksumEnabled")
+      .internal()
+      .doc("If true, checksum write to SSD is enabled.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_CHECKSUM_READ_VERIFICATION_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdChecksumReadVerificationEnabled")
+      .internal()
+      .doc("If true, checksum read verification from SSD is enabled.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_INTERVAL_SIZE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCheckpointIntervalBytes")
+      .internal()
+      .doc("Checkpoint after every 'checkpointIntervalBytes' for SSD cache. " +
+        "0 means no checkpointing.")
+      .intConf
+      .createWithDefault(0)
+
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()

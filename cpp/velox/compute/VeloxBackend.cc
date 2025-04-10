@@ -155,7 +155,6 @@ void VeloxBackend::init(
 #endif
 
   initJolFilesystem();
-  initCache();
   initConnector();
 
   velox::dwio::common::registerFileSinks();
@@ -194,6 +193,10 @@ void VeloxBackend::init(
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
   facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
+
+  // local cache persistent relies on the cache pool from root memory pool so we need to init this
+  // after the memory manager instanced
+  initCache();
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -210,30 +213,45 @@ void VeloxBackend::initJolFilesystem() {
   registerJolFileSystem(maxSpillFileSize);
 }
 
+std::unique_ptr<facebook::velox::cache::SsdCache> VeloxBackend::initSsdCache(uint64_t ssdCacheSize) {
+  FLAGS_velox_ssd_odirect = backendConf_->get<bool>(kVeloxSsdODirectEnabled, false);
+  int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
+  int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
+  std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
+  uint64_t ssdCheckpointIntervalSize = backendConf_->get<uint64_t>(kVeloxSsdCheckpointIntervalBytes, 0);
+  bool disableFileCow = backendConf_->get<bool>(kVeloxSsdDisableFileCow, false);
+  bool checksumEnabled = backendConf_->get<bool>(kVeloxSsdCheckSumEnabled, false);
+  bool checksumReadVerificationEnabled = backendConf_->get<bool>(kVeloxSsdCheckSumReadVerificationEnabled, false);
+
+  cachePathPrefix_ = ssdCachePathPrefix;
+  cacheFilePrefix_ = getCacheFilePrefix();
+  std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
+  ssdCacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ssdCacheIOThreads);
+  const cache::SsdCache::Config config(
+      ssdCachePath,
+      ssdCacheSize,
+      ssdCacheShards,
+      ssdCacheExecutor_.get(),
+      ssdCheckpointIntervalSize,
+      disableFileCow,
+      checksumEnabled,
+      checksumReadVerificationEnabled);
+  auto ssd = std::make_unique<velox::cache::SsdCache>(config);
+  std::error_code ec;
+  const std::filesystem::space_info si = std::filesystem::space(ssdCachePathPrefix, ec);
+  if (si.available < ssdCacheSize) {
+    VELOX_FAIL(
+        "not enough space for ssd cache in " + ssdCachePath + " cache size: " + std::to_string(ssdCacheSize) +
+        "free space: " + std::to_string(si.available));
+  }
+  LOG(INFO) << "Initializing SSD cache with: " << config.toString();
+  return ssd;
+}
+
 void VeloxBackend::initCache() {
   if (backendConf_->get<bool>(kVeloxCacheEnabled, false)) {
-    FLAGS_velox_ssd_odirect = backendConf_->get<bool>(kVeloxSsdODirectEnabled, false);
-
     uint64_t memCacheSize = backendConf_->get<uint64_t>(kVeloxMemCacheSize, kVeloxMemCacheSizeDefault);
     uint64_t ssdCacheSize = backendConf_->get<uint64_t>(kVeloxSsdCacheSize, kVeloxSsdCacheSizeDefault);
-    int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
-    int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
-    std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
-
-    cachePathPrefix_ = ssdCachePathPrefix;
-    cacheFilePrefix_ = getCacheFilePrefix();
-    std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
-    ssdCacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ssdCacheIOThreads);
-    const cache::SsdCache::Config config(ssdCachePath, ssdCacheSize, ssdCacheShards, ssdCacheExecutor_.get());
-    auto ssd = std::make_unique<velox::cache::SsdCache>(config);
-
-    std::error_code ec;
-    const std::filesystem::space_info si = std::filesystem::space(ssdCachePathPrefix, ec);
-    if (si.available < ssdCacheSize) {
-      VELOX_FAIL(
-          "not enough space for ssd cache in " + ssdCachePath + " cache size: " + std::to_string(ssdCacheSize) +
-          "free space: " + std::to_string(si.available));
-    }
 
     velox::memory::MmapAllocator::Options options;
     options.capacity = memCacheSize;
@@ -244,13 +262,12 @@ void VeloxBackend::initCache() {
       asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get());
     } else {
       // TODO: this is not tracked by Spark.
+      auto ssd = initSsdCache(ssdCacheSize);
       asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get(), std::move(ssd));
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()));
-    LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
-              << ", ssdCache prefix: " << ssdCachePath << ", ssdCache size: " << ssdCacheSize
-              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads;
+    LOG(INFO) << "AsyncDataCache is ready";
   }
 }
 
