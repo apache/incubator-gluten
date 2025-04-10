@@ -703,7 +703,7 @@ object GlutenConfig {
       .internal()
       .doc("Flatten nested functions as one for optimization.")
       .stringConf
-      .createWithDefault("and,or");
+      .createWithDefault("and,or,get_json_object");
 
   val GLUTEN_SOFT_AFFINITY_ENABLED =
     buildConf("spark.gluten.soft-affinity.enabled")

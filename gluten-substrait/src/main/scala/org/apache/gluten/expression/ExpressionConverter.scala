@@ -108,7 +108,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         throw new GlutenNotSupportException(s"Not supported scala udf: $udf.")
     }
   }
-
   private def replaceFlattenedExpressionWithExpressionTransformer(
       substraitName: String,
       expr: Expression,
