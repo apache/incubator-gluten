@@ -1973,6 +1973,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenRuntimeNullChecksV2Writes]
   enableSuite[GlutenSQLAggregateFunctionSuite]
+    .excludeGlutenTest("Return NaN or null when dividing by zero")
   enableSuite[GlutenSQLQuerySuite]
     // Decimal precision exceeds.
     .includeCH("should be able to resolve a persistent view")
