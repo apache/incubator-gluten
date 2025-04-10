@@ -365,7 +365,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         std::move(codec),
         veloxCompressionType,
         rowType,
-        std::numeric_limits<int32_t>::max(),
+        kDefaultBatchSize,
         kDefaultReadBufferSize,
         defaultArrowMemoryPool().get(),
         pool_,
