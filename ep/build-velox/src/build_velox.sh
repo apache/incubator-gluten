@@ -26,6 +26,8 @@ ENABLE_GCS=OFF
 ENABLE_HDFS=OFF
 # Enable ABFS connector.
 ENABLE_ABFS=OFF
+
+ENABLE_GPU=OFF
 # CMake build type for Velox.
 BUILD_TYPE=release
 # May be deprecated in Gluten build.
@@ -62,6 +64,10 @@ for arg in "$@"; do
     ;;
   --enable_abfs=*)
     ENABLE_ABFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_gpu=*)
+    ENABLE_GPU=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --build_type=*)
@@ -120,6 +126,9 @@ function compile {
   else
     echo "ENABLE_BENCHMARK is ON. Disabling Tests, GCS and ABFS connectors if enabled."
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_BENCHMARKS=ON"
+  fi
+  if [ $ENABLE_GPU == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GPU=ON -DVELOX_ENABLE_CUDF=ON"
   fi
   if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
