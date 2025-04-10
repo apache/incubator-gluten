@@ -315,7 +315,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       condition,
       left,
       right,
-      isSkewJoin)
+      isSkewJoin,
+      false)
   }
 
   /** Generate BroadcastHashJoinExecTransformer. */

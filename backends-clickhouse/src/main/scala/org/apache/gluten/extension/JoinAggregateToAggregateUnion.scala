@@ -334,7 +334,7 @@ case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Lo
       joinKeys.length != aggregate.groupingExpressions.length ||
       !joinKeys.forall(k => outputGroupingKeys.exists(_.semanticEquals(k)))
     ) {
-      logError(
+      logDebug(
         s"xxx Join keys and grouping keys are not matched. joinKeys: $joinKeys" +
           s" outputGroupingKeys: $outputGroupingKeys")
       return false
@@ -955,7 +955,7 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
           analyzedAggregates.insert(0, rightAggregateAnalyzer.get)
           collectSameKeysJoinedAggregates(join.left, analyzedAggregates)
         } else {
-          logError(
+          logDebug(
             s"xxx Not have same keys. join keys:" +
               s"${analyzedAggregates.head.getPrimeJoinKeys()} vs. " +
               s"${rightAggregateAnalyzer.get.getPrimeJoinKeys()}")

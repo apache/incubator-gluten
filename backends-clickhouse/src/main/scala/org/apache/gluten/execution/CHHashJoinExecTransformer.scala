@@ -90,7 +90,8 @@ case class CHShuffledHashJoinExecTransformer(
     condition: Option[Expression],
     left: SparkPlan,
     right: SparkPlan,
-    isSkewJoin: Boolean)
+    isSkewJoin: Boolean,
+    isAnyJoin: Boolean)
   extends ShuffledHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
@@ -100,8 +101,6 @@ case class CHShuffledHashJoinExecTransformer(
     left,
     right,
     isSkewJoin) {
-  // `any join` is used to accelerate the case when the right table is the aggregate result.
-  var isAnyJoin = false
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
       newRight: SparkPlan): CHShuffledHashJoinExecTransformer =
