@@ -24,6 +24,7 @@ import org.apache.gluten.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution.datasources.FakeRow
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -31,8 +32,9 @@ case class CHRDDScanTransformer(
     outputAttributes: Seq[Attribute],
     rdd: RDD[InternalRow],
     name: String,
+    override val outputPartitioning: Partitioning = UnknownPartitioning(0),
     override val outputOrdering: Seq[SortOrder]
-) extends RDDScanTransformer(outputAttributes) {
+) extends RDDScanTransformer(outputAttributes, outputPartitioning, outputOrdering) {
 
   override protected def doValidateInternal(): ValidationResult = {
     output
@@ -117,10 +119,15 @@ case class CHRDDScanTransformer(
   }
 
   override protected def withNewChildrenInternal(newChildren: IndexedSeq[SparkPlan]): SparkPlan =
-    copy(outputAttributes, rdd, name, outputOrdering)
+    copy(outputAttributes, rdd, name, outputPartitioning, outputOrdering)
 }
 
 object CHRDDScanTransformer {
   def replace(rdd: RDDScanExec): RDDScanTransformer =
-    CHRDDScanTransformer(rdd.output, rdd.inputRDD, rdd.nodeName, rdd.outputOrdering)
+    CHRDDScanTransformer(
+      rdd.output,
+      rdd.inputRDD,
+      rdd.nodeName,
+      rdd.outputPartitioning,
+      rdd.outputOrdering)
 }
