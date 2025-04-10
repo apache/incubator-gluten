@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.SparkRowIterator
 import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
 import org.apache.spark.rdd.RDD
@@ -32,6 +33,12 @@ case class CHRDDScanTransformer(
     name: String,
     override val outputOrdering: Seq[SortOrder]
 ) extends RDDScanTransformer(outputAttributes) {
+
+  override protected def doValidateInternal(): ValidationResult = {
+    output
+      .foreach(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+    ValidationResult.succeeded
+  }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val localSchema = this.schema
