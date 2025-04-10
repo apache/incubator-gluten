@@ -73,6 +73,7 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
+          wget https://patch-diff.githubusercontent.com/raw/apache/incubator-gluten/pull/9294.diff && git apply 9294.diff
           ./dev/package.sh
 
   build-on-ubuntu:
@@ -99,4 +100,4 @@ jobs:
           fi
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-          cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+          cd $GITHUB_WORKSPACE/ && ./dev/package.sh && echo "For test"
