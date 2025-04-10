@@ -537,13 +537,21 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
   for (auto& thread : threads) {
     thread.join();
   }
-
+  
+  auto joinHashNullsKey = false;
   for (int i = 1; i < handleCount; i++) {
     auto baseHashTable = hashTableBuilders[i]->hashTable();
     hashTableBuilders[0]->setOtherTables(baseHashTable);
+    if (hashTableBuilders[i]->joinHasNullKeys()) {
+      joinHashNullsKey = true;
+    }
     gluten::hashTableObjStore->save(hashTableBuilders[i]);
   }
 
+  if (joinHashNullsKey) {
+    hashTableBuilders[0]->setJoinHasNullKeys(true);
+  }
+  
   if (handleCount > 0) {
     return gluten::hashTableObjStore->save(hashTableBuilders[0]);
   } else {
