@@ -21,6 +21,9 @@
 #include <filesystem>
 #include <random>
 #include <thread>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 #include "shuffle/Payload.h"
 #include "shuffle/Spill.h"

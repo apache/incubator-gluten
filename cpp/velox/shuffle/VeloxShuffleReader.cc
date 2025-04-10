@@ -387,14 +387,14 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
       codec_(codec),
       rowType_(rowType),
       batchSize_(batchSize),
-      arrowPool_(memoryPool),
       veloxPool_(veloxPool),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
   GLUTEN_ASSIGN_OR_THROW(
       auto bufferedIn, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
   if (codec_ != nullptr) {
-    GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::CompressedInputStream::Make(codec_.get(), bufferedIn, memoryPool));
+    GLUTEN_ASSIGN_OR_THROW(
+        in_, arrow::io::CompressedInputStream::Make(codec_.get(), bufferedIn, arrow::default_memory_pool()));
   } else {
     in_ = bufferedIn;
   }

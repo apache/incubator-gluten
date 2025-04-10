@@ -91,7 +91,6 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
   facebook::velox::RowTypePtr rowType_;
   uint32_t batchSize_;
 
-  arrow::MemoryPool* arrowPool_;
   facebook::velox::memory::MemoryPool* veloxPool_;
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
