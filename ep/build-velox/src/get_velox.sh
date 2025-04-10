@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/zhli1142015/velox.git
-VELOX_BRANCH=test_spark_try_cast
+VELOX_BRANCH=2025_04_09
 VELOX_HOME=""
 
 OS=`uname -s`
