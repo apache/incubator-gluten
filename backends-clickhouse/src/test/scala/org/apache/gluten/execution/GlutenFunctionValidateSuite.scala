@@ -24,7 +24,7 @@ import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
@@ -825,8 +825,28 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                             |FROM (select id, cast(id as string) name from range(10))
                             |GROUP BY name
                             |""".stripMargin) {
-        df => checkOperatorCount[ProjectExecTransformer](3)(df)
+        df => checkOperatorCount[ProjectExecTransformer](4)(df)
       }
+
+      runQueryAndCompare(
+        s"""
+           |select id % 2, max(hash(id)), min(hash(id)) from range(10) group by id % 2
+           |""".stripMargin)(
+        df => {
+          df.queryExecution.optimizedPlan.collect {
+            case Aggregate(_, aggregateExpressions, _) =>
+              val result =
+                aggregateExpressions
+                  .map(a => a.asInstanceOf[Alias].child)
+                  .filter(_.isInstanceOf[AggregateExpression])
+                  .map(expr => expr.asInstanceOf[AggregateExpression].aggregateFunction)
+                  .filter(aggFunc => aggFunc.children.head.isInstanceOf[AttributeReference])
+                  .map(aggFunc => aggFunc.children.head.asInstanceOf[AttributeReference].name)
+                  .distinct
+              assertResult(1)(result.size)
+          }
+          checkOperatorCount[ProjectExecTransformer](1)(df)
+        })
     }
   }
 
