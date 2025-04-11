@@ -21,8 +21,6 @@
 
 namespace gluten {
 
-Spill::Spill(Spill::SpillType type) : type_(type) {}
-
 Spill::~Spill() {
   if (is_) {
     static_cast<void>(is_->Close());
@@ -75,10 +73,6 @@ void Spill::openForRead(uint64_t shuffleFileBufferSize) {
     GLUTEN_ASSIGN_OR_THROW(is_, MmapFileStream::open(spillFile_, shuffleFileBufferSize));
     rawIs_ = is_.get();
   }
-}
-
-Spill::SpillType Spill::type() const {
-  return type_;
 }
 
 void Spill::setSpillFile(const std::string& spillFile) {

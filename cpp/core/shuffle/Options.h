@@ -30,7 +30,7 @@ static constexpr int64_t kDefaultSortBufferThreshold = 64 << 20;
 static constexpr int64_t kDefaultPushMemoryThreshold = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
-static constexpr int32_t kDefaultSortEvictBufferSize = 32 * 1024;
+static constexpr int32_t kDefaultDiskWriteBufferSize = 32 * 1024; // TODO: compare performance with 1M (spark default)
 static const std::string kDefaultCompressionTypeStr = "lz4";
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
@@ -65,9 +65,9 @@ struct ShuffleWriterOptions {
   ShuffleWriterType shuffleWriterType = kHashShuffle;
 
   // Sort shuffle writer.
-  int32_t sortBufferInitialSize = kDefaultSortBufferSize;
-  int32_t sortEvictBufferSize = kDefaultSortEvictBufferSize;
-  bool useRadixSort = kDefaultUseRadixSort;
+  int32_t initialSortBufferSize = kDefaultSortBufferSize; // spark.shuffle.sort.initialBufferSize
+  int32_t diskWriteBufferSize = kDefaultDiskWriteBufferSize; // spark.shuffle.spill.diskWriteBufferSize
+  bool useRadixSort = kDefaultUseRadixSort; // spark.shuffle.sort.useRadixSort
 };
 
 struct PartitionWriterOptions {

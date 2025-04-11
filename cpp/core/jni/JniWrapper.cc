@@ -825,10 +825,10 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     jstring codecJstr,
     jstring codecBackendJstr,
     jint compressionLevel,
-    jint sortEvictBufferSize,
+    jint diskWriteBufferSize,
     jint compressionThreshold,
     jstring compressionModeJstr,
-    jint sortBufferInitialSize,
+    jint initialSortBufferSize,
     jboolean useRadixSort,
     jstring dataFileJstr,
     jint numSubDirs,
@@ -856,8 +856,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .taskAttemptId = static_cast<int64_t>(taskAttemptId),
       .startPartitionId = startPartitionId,
       .shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
-      .sortBufferInitialSize = sortBufferInitialSize,
-      .sortEvictBufferSize = sortEvictBufferSize,
+      .initialSortBufferSize = initialSortBufferSize,
+      .diskWriteBufferSize = diskWriteBufferSize,
       .useRadixSort = static_cast<bool>(useRadixSort)};
 
   // Build PartitionWriterOptions.
