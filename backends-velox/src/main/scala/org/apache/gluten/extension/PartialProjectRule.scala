@@ -43,19 +43,6 @@ case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
           transformer
         } else plan
       // case 2: This case handles the scenario where a ProjectExec's child is
-      // Row and its parent is Columnar.
-      // RowToColumnar
-      //   ProjectExec
-      //     row
-      case plan @ RowToVeloxColumnarExec(p: ProjectExec) =>
-        val transformer = ColumnarPartialProjectExec.create(p)
-        if (
-          transformer.doValidate().ok() &&
-          transformer.child.asInstanceOf[ColumnarPartialProjectExec].doValidate().ok()
-        ) {
-          transformer
-        } else plan
-      // case 3: This case handles the scenario where a ProjectExec's child is
       // a VeloxColumnarToRowExec.
       //   ProjectExec
       //     ColumnarToRow
@@ -69,7 +56,7 @@ case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
             transformer
           ) // ensure the output is Row, which is the same as ProjectExec
         } else plan
-      // case 4:
+      // case 3:
       //   ProjectExec
       //     row
       // case p: ProjectExec => p // we don't need to do anything for this case
