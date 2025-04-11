@@ -526,6 +526,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
             wrapChild(union)
           case ordered: TakeOrderedAndProjectExecTransformer =>
             wrapChild(ordered)
+          case rddScan: CHRDDScanTransformer =>
+            wrapChild(rddScan)
           case other =>
             throw new GlutenNotSupportException(
               s"Not supported operator ${other.nodeName} for BroadcastRelation")

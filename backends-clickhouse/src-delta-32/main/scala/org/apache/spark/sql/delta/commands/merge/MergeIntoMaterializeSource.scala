@@ -290,85 +290,87 @@ trait MergeIntoMaterializeSource extends DeltaLogging with DeltaSparkPlanUtils {
 
     // --- modified start
     val originalRemoveTopmostC2R = CHRemoveTopmostColumnarToRow.isRemoveTopmostC2R(spark)
-    spark.sparkContext.setLocalProperty(
-      CHRemoveTopmostColumnarToRow.REMOVE_TOPMOST_COLUMNAR_TO_ROW,
-      "true")
-    // --- modified end
+    try{
+      spark.sparkContext.setLocalProperty(
+        CHRemoveTopmostColumnarToRow.REMOVE_TOPMOST_COLUMNAR_TO_ROW,
+        "true")
+      // --- modified end
 
-    if (!materialize) {
-      // Does not materialize, simply return the dataframe from source plan
+      if (!materialize) {
+        // Does not materialize, simply return the dataframe from source plan
+        mergeSource = Some(
+          MergeSource(
+            df = Dataset.ofRows(spark, source),
+            isMaterialized = false,
+            materializeReason = materializeReason
+          )
+        )
+        return
+      }
+
+      val referencedSourceColumns =
+        getReferencedSourceColumns(source, condition, matchedClauses, notMatchedClauses)
+      // When we materialize the source, we want to make sure that columns got pruned before caching.
+      val sourceWithSelectedColumns = Project(referencedSourceColumns, source)
+      val baseSourcePlanDF = Dataset.ofRows(spark, sourceWithSelectedColumns)
+
+      // Caches the source in RDD cache using localCheckpoint, which cuts away the RDD lineage,
+      // which shall ensure that the source cannot be recomputed and thus become inconsistent.
+      val checkpointedSourcePlanDF = baseSourcePlanDF
+        // Set eager=false for now, even if we should be doing eager, so that we can set the storage
+        // level before executing.
+        .localCheckpoint(eager = false)
+
+      // We have to reach through the crust and into the plan of the checkpointed DF
+      // to get the RDD that was actually checkpointed, to be able to unpersist it later...
+      var checkpointedPlan = checkpointedSourcePlanDF.queryExecution.analyzed
+      val rdd = checkpointedPlan.asInstanceOf[LogicalRDD].rdd
+      materializedSourceRDD = Some(rdd)
+      rdd.setName("mergeMaterializedSource")
+
+      // We should still keep the hints from the input plan.
+      checkpointedPlan = addHintsToPlan(source, checkpointedPlan)
+
       mergeSource = Some(
         MergeSource(
-          df = Dataset.ofRows(spark, source),
-          isMaterialized = false,
+          df = Dataset.ofRows(spark, checkpointedPlan),
+          isMaterialized = true,
           materializeReason = materializeReason
         )
       )
-      return
-    }
 
-    val referencedSourceColumns =
-      getReferencedSourceColumns(source, condition, matchedClauses, notMatchedClauses)
-    // When we materialize the source, we want to make sure that columns got pruned before caching.
-    val sourceWithSelectedColumns = Project(referencedSourceColumns, source)
-    val baseSourcePlanDF = Dataset.ofRows(spark, sourceWithSelectedColumns)
-
-    // Caches the source in RDD cache using localCheckpoint, which cuts away the RDD lineage,
-    // which shall ensure that the source cannot be recomputed and thus become inconsistent.
-    val checkpointedSourcePlanDF = baseSourcePlanDF
-      // Set eager=false for now, even if we should be doing eager, so that we can set the storage
-      // level before executing.
-      .localCheckpoint(eager = false)
-
-    // We have to reach through the crust and into the plan of the checkpointed DF
-    // to get the RDD that was actually checkpointed, to be able to unpersist it later...
-    var checkpointedPlan = checkpointedSourcePlanDF.queryExecution.analyzed
-    val rdd = checkpointedPlan.asInstanceOf[LogicalRDD].rdd
-    materializedSourceRDD = Some(rdd)
-    rdd.setName("mergeMaterializedSource")
-
-    // We should still keep the hints from the input plan.
-    checkpointedPlan = addHintsToPlan(source, checkpointedPlan)
-
-    mergeSource = Some(
-      MergeSource(
-        df = Dataset.ofRows(spark, checkpointedPlan),
-        isMaterialized = true,
-        materializeReason = materializeReason
+      // Sets appropriate StorageLevel
+      val storageLevel = StorageLevel.fromString(
+        if (attempt == 1) {
+          spark.conf.get(DeltaSQLConf.MERGE_MATERIALIZE_SOURCE_RDD_STORAGE_LEVEL)
+        } else {
+          // If it failed the first time, potentially use a different storage level on retry.
+          spark.conf.get(DeltaSQLConf.MERGE_MATERIALIZE_SOURCE_RDD_STORAGE_LEVEL_RETRY)
+        }
       )
-    )
+      rdd.persist(storageLevel)
 
-    // --- modified start
-    CHRemoveTopmostColumnarToRow.setRemoveTopmostC2R(originalRemoveTopmostC2R, spark)
-    // --- modified end
-
-    // Sets appropriate StorageLevel
-    val storageLevel = StorageLevel.fromString(
-      if (attempt == 1) {
-        spark.conf.get(DeltaSQLConf.MERGE_MATERIALIZE_SOURCE_RDD_STORAGE_LEVEL)
-      } else {
-        // If it failed the first time, potentially use a different storage level on retry.
-        spark.conf.get(DeltaSQLConf.MERGE_MATERIALIZE_SOURCE_RDD_STORAGE_LEVEL_RETRY)
+      // WARNING: if eager == false, the source used during the first Spark Job that uses this may
+      // still be inconsistent with source materialized afterwards.
+      // This is because doCheckpoint that finalizes the lazy checkpoint is called after the Job
+      // that triggered the lazy checkpointing finished.
+      // If blocks were lost during that job, they may still get recomputed and changed compared
+      // to how they were used during the execution of the job.
+      if (spark.conf.get(DeltaSQLConf.MERGE_MATERIALIZE_SOURCE_EAGER)) {
+        // Force the evaluation of the `rdd`, since we cannot access `doCheckpoint()` from here.
+        rdd
+          .mapPartitions(_ => Iterator.empty.asInstanceOf[Iterator[InternalRow]])
+          .foreach((_: InternalRow) => ())
+        assert(rdd.isCheckpointed)
       }
-    )
-    rdd.persist(storageLevel)
 
-    // WARNING: if eager == false, the source used during the first Spark Job that uses this may
-    // still be inconsistent with source materialized afterwards.
-    // This is because doCheckpoint that finalizes the lazy checkpoint is called after the Job
-    // that triggered the lazy checkpointing finished.
-    // If blocks were lost during that job, they may still get recomputed and changed compared
-    // to how they were used during the execution of the job.
-    if (spark.conf.get(DeltaSQLConf.MERGE_MATERIALIZE_SOURCE_EAGER)) {
-      // Force the evaluation of the `rdd`, since we cannot access `doCheckpoint()` from here.
-      rdd
-        .mapPartitions(_ => Iterator.empty.asInstanceOf[Iterator[InternalRow]])
-        .foreach((_: InternalRow) => ())
-      assert(rdd.isCheckpointed)
+      logDebug(s"Materializing MERGE with pruned columns $referencedSourceColumns.")
+      logDebug(s"Materialized MERGE source plan:\n${getMergeSource.df.queryExecution}")
+    } finally {
+      // --- modified start
+      CHRemoveTopmostColumnarToRow.setRemoveTopmostC2R(originalRemoveTopmostC2R, spark)
+      // --- modified end
     }
-
-    logDebug(s"Materializing MERGE with pruned columns $referencedSourceColumns.")
-    logDebug(s"Materialized MERGE source plan:\n${getMergeSource.df.queryExecution}")
   }
 
   /** Returns the prepared merge source. */
