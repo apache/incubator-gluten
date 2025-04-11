@@ -63,6 +63,11 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
+
+  def enablePropagateIgnoreNullKeys: Boolean =
+    getConf(VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED)
+
+  def floatingPointMode: String = getConf(FLOATING_POINT_MODE)
 }
 
 object VeloxConfig {
@@ -115,6 +120,13 @@ object VeloxConfig {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefault(TimeUnit.MINUTES.toMillis(60))
 
+  val COLUMNAR_VELOX_MEMORY_POOL_CAPACITY_TRANSFER_ACROSS_TASKS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks")
+      .internal()
+      .doc("Whether to allow memory capacity transfer between memory pools from different tasks.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
       .internal()
@@ -149,6 +161,35 @@ object VeloxConfig {
       .doc("The O_DIRECT flag for cache writing")
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_DISABLE_FILE_COW =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdDisableFileCow")
+      .internal()
+      .doc("True if copy on write should be disabled.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_CHECKSUM_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdChecksumEnabled")
+      .internal()
+      .doc("If true, checksum write to SSD is enabled.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_CHECKSUM_READ_VERIFICATION_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdChecksumReadVerificationEnabled")
+      .internal()
+      .doc("If true, checksum read verification from SSD is enabled.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_VELOX_SSD_CHCEKPOINT_INTERVAL_SIZE =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCheckpointIntervalBytes")
+      .internal()
+      .doc("Checkpoint after every 'checkpointIntervalBytes' for SSD cache. " +
+        "0 means no checkpointing.")
+      .intConf
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
@@ -329,6 +370,19 @@ object VeloxConfig {
       )
       .booleanConf
       .createWithDefault(true)
+
+  val MAX_PARTIAL_AGGREGATION_MEMORY =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory")
+      .internal()
+      .doc(
+        "Set the max memory of partial aggregation in bytes. When this option is set to a " +
+          "value greater than 0, it will override spark.gluten.sql.columnar.backend.velox." +
+          "maxPartialAggregationMemoryRatio. Note: this option only works when flushable " +
+          "partial aggregation is enabled. Ignored when spark.gluten.sql.columnar.backend." +
+          "velox.flushablePartialAggregation=false."
+      )
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
 
   val MAX_PARTIAL_AGGREGATION_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio")
@@ -546,4 +600,24 @@ object VeloxConfig {
       .internal()
       .stringConf
       .createWithDefault("")
+
+  val VELOX_PROPAGATE_IGNORE_NULL_KEYS_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.propagateIgnoreNullKeys")
+      .doc(
+        "If enabled, we will identify aggregation followed by an inner join " +
+          "on the grouping keys, and mark the ignoreNullKeys flag to true to " +
+          "avoid unnecessary aggregation on null keys.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val FLOATING_POINT_MODE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.floatingPointMode")
+      .doc(
+        "Config used to control the tolerance of floating point operations alignment with Spark. " +
+          "When the mode is set to strict, flushing is disabled for sum(float/double)" +
+          "and avg(float/double). When set to loose, flushing will be enabled.")
+      .internal()
+      .stringConf
+      .checkValues(Set("loose", "strict"))
+      .createWithDefault("loose")
 }

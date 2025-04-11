@@ -32,7 +32,7 @@ class VeloxParquetReadSuite extends VeloxWholeStageTransformerSuite {
       .set(VeloxConfig.LOAD_QUANTUM.key, "256m")
   }
 
-  testWithSpecifiedSparkVersion("read example parquet files", Some("3.5"), Some("3.5")) {
+  testWithMinSparkVersion("read example parquet files", "3.5") {
     withTable("test_table") {
       val dir = new File(getClass.getResource(resourcePath).getFile)
       val files = dir.listFiles

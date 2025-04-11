@@ -90,7 +90,8 @@ case class CHShuffledHashJoinExecTransformer(
     condition: Option[Expression],
     left: SparkPlan,
     right: SparkPlan,
-    isSkewJoin: Boolean)
+    isSkewJoin: Boolean,
+    isAnyJoin: Boolean)
   extends ShuffledHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
@@ -138,6 +139,9 @@ case class CHShuffledHashJoinExecTransformer(
       .append("\n")
       .append("isExistenceJoin=")
       .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
+      .append("\n")
+      .append("isAnyJoin=")
+      .append(if (isAnyJoin) 1 else 0)
       .append("\n")
 
     CHAQEUtil.getShuffleQueryStageStats(streamedPlan) match {

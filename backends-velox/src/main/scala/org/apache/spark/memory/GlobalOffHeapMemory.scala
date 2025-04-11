@@ -17,8 +17,11 @@
 package org.apache.spark.memory
 
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
+import org.apache.gluten.memory.listener.ReservationListener
 
 import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.internal.Logging
 import org.apache.spark.storage.BlockId
 
 import java.lang.reflect.Field
@@ -33,7 +36,9 @@ import java.util.UUID
  * The utility internally relies on the Spark storage memory pool. As Spark doesn't expect trait
  * BlockId to be extended by user, TestBlockId is chosen for the storage memory reservations.
  */
-object GlobalOffHeapMemory {
+object GlobalOffHeapMemory extends Logging {
+  private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+
   private val FIELD_MEMORY_MANAGER: Field = {
     val f =
       try {
@@ -48,28 +53,72 @@ object GlobalOffHeapMemory {
     f
   }
 
-  def acquire(numBytes: Long): Boolean = {
-    memoryManager().acquireStorageMemory(
-      BlockId(s"test_${UUID.randomUUID()}"),
-      numBytes,
-      MemoryMode.OFF_HEAP)
+  def acquire(numBytes: Long): Unit = memoryManagerOption().foreach {
+    mm =>
+      val succeeded =
+        mm.acquireStorageMemory(
+          BlockId(s"test_${UUID.randomUUID()}"),
+          numBytes,
+          MemoryMode.OFF_HEAP)
+
+      if (succeeded) {
+        recorder.inc(numBytes)
+        return
+      }
+
+      // Throw OOM.
+      val offHeapMemoryTotal =
+        mm.maxOffHeapStorageMemory + mm.offHeapExecutionMemoryUsed
+      throw new GlutenException(
+        s"Spark off-heap memory is exhausted." +
+          s" Storage: ${mm.offHeapStorageMemoryUsed} / $offHeapMemoryTotal," +
+          s" execution: ${mm.offHeapExecutionMemoryUsed} / $offHeapMemoryTotal")
   }
 
-  def release(numBytes: Long): Unit = {
-    memoryManager().releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
+  def release(numBytes: Long): Unit = memoryManagerOption().foreach {
+    mm =>
+      mm.releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
+      recorder.inc(-numBytes)
   }
 
-  private def memoryManager(): MemoryManager = {
+  def currentBytes(): Long = {
+    recorder.current()
+  }
+
+  def newReservationListener(): ReservationListener = {
+    new ReservationListener {
+      private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+
+      override def reserve(size: Long): Long = {
+        acquire(size)
+        recorder.inc(size)
+        size
+      }
+
+      override def unreserve(size: Long): Long = {
+        release(size)
+        recorder.inc(-size)
+        size
+      }
+
+      override def getUsedBytes: Long = {
+        recorder.current()
+      }
+    }
+  }
+
+  private def memoryManagerOption(): Option[MemoryManager] = {
     val env = SparkEnv.get
     if (env != null) {
-      return env.memoryManager
+      return Some(env.memoryManager)
     }
     val tc = TaskContext.get()
     if (tc != null) {
       // This may happen in test code that mocks the task context without booting up SparkEnv.
-      return FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager]
+      return Some(FIELD_MEMORY_MANAGER.get(tc.taskMemoryManager()).asInstanceOf[MemoryManager])
     }
-    throw new GlutenException(
+    logWarning(
       "Memory manager not found because the code is unlikely be run in a Spark application")
+    None
   }
 }

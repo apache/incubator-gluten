@@ -43,9 +43,7 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
     case p if FallbackTags.nonEmpty(p) =>
       p
-    case s: ShuffleExchangeExec
-        if (s.child.supportsColumnar || GlutenConfig.get.enablePreferColumnar) &&
-          BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
+    case s: ShuffleExchangeExec =>
       logDebug(s"Columnar Processing for ${s.getClass} is currently supported.")
       BackendsApiManager.getSparkPlanExecApiInstance.genColumnarShuffleExchange(s)
     case b: BroadcastExchangeExec =>
@@ -189,7 +187,7 @@ object OffloadOthers {
   // Utility to replace single node within transformed Gluten node.
   // Children will be preserved as they are as children of the output node.
   //
-  // Do not look up on children on the input node in this rule. Otherwise
+  // Do not look up on children on the input node in this rule. Otherwise,
   // it may break RAS which would group all the possible input nodes to
   // search for validate candidates.
   private class ReplaceSingleNode extends LogLevelUtil with Logging {

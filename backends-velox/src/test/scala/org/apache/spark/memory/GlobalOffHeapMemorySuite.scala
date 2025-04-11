@@ -17,6 +17,7 @@
 package org.apache.spark.memory;
 
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.memtarget.{Spillers, TreeMemoryTarget}
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers
 
@@ -24,7 +25,6 @@ import org.apache.spark.TaskContext
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.task.TaskResources
 
-import org.junit.Assert
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -51,14 +51,14 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
             TreeMemoryTarget.CAPACITY_UNLIMITED,
             Spillers.NOOP,
             Collections.emptyMap())
-      Assert.assertEquals(300, consumer.borrow(300))
-      Assert.assertTrue(GlobalOffHeapMemory.acquire(50))
-      Assert.assertTrue(GlobalOffHeapMemory.acquire(40))
-      Assert.assertFalse(GlobalOffHeapMemory.acquire(30))
-      Assert.assertFalse(GlobalOffHeapMemory.acquire(11))
-      Assert.assertTrue(GlobalOffHeapMemory.acquire(10))
-      Assert.assertTrue(GlobalOffHeapMemory.acquire(0))
-      Assert.assertFalse(GlobalOffHeapMemory.acquire(1))
+      assert(consumer.borrow(300) == 300)
+      GlobalOffHeapMemory.acquire(50)
+      GlobalOffHeapMemory.acquire(40)
+      assertThrows[GlutenException](GlobalOffHeapMemory.acquire(30))
+      assertThrows[GlutenException](GlobalOffHeapMemory.acquire(11))
+      GlobalOffHeapMemory.acquire(10)
+      GlobalOffHeapMemory.acquire(0)
+      assertThrows[GlutenException](GlobalOffHeapMemory.acquire(1))
     }
   }
 
@@ -74,10 +74,10 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
             TreeMemoryTarget.CAPACITY_UNLIMITED,
             Spillers.NOOP,
             Collections.emptyMap())
-      Assert.assertTrue(GlobalOffHeapMemory.acquire(200))
-      Assert.assertEquals(100, consumer.borrow(100))
-      Assert.assertEquals(100, consumer.borrow(200))
-      Assert.assertEquals(0, consumer.borrow(50))
+      GlobalOffHeapMemory.acquire(200)
+      assert(consumer.borrow(100) == 100)
+      assert(consumer.borrow(200) == 100)
+      assert(consumer.borrow(50) == 0)
     }
   }
 
@@ -93,10 +93,10 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
             TreeMemoryTarget.CAPACITY_UNLIMITED,
             Spillers.NOOP,
             Collections.emptyMap())
-      Assert.assertTrue(GlobalOffHeapMemory.acquire(300))
-      Assert.assertEquals(100, consumer.borrow(200))
+      GlobalOffHeapMemory.acquire(300)
+      assert(consumer.borrow(200) == 100)
       GlobalOffHeapMemory.release(10)
-      Assert.assertEquals(10, consumer.borrow(50))
+      assert(consumer.borrow(50) == 10)
     }
   }
 
@@ -112,10 +112,10 @@ class GlobalOffHeapMemorySuite extends AnyFunSuite with BeforeAndAfterAll {
             TreeMemoryTarget.CAPACITY_UNLIMITED,
             Spillers.NOOP,
             Collections.emptyMap())
-      Assert.assertEquals(300, consumer.borrow(300))
-      Assert.assertFalse(GlobalOffHeapMemory.acquire(200))
-      Assert.assertEquals(100, consumer.repay(100))
-      Assert.assertTrue(GlobalOffHeapMemory.acquire(200))
+      assert(consumer.borrow(300) == 300)
+      assertThrows[GlutenException](GlobalOffHeapMemory.acquire(200))
+      assert(consumer.repay(100) == 100)
+      GlobalOffHeapMemory.acquire(200)
     }
   }
 }

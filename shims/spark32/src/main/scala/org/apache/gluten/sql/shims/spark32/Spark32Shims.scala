@@ -18,7 +18,7 @@ package org.apache.gluten.sql.shims.spark32
 
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.{ExpressionNames, Sig}
-import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark.{ShuffleUtils, SparkContext, TaskContext, TaskContextUtils}
@@ -61,7 +61,6 @@ import org.apache.parquet.schema.MessageType
 import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 
 class Spark32Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   override def getDistribution(
       leftKeys: Seq[Expression],

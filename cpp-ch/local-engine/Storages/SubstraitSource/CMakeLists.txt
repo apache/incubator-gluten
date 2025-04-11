@@ -18,7 +18,7 @@ set(ARROW_INCLUDE_DIR "${ClickHouse_SOURCE_DIR}/contrib/arrow/cpp/src")
 add_headers_and_sources(substrait_source .)
 add_headers_and_sources(substrait_source Delta)
 add_headers_and_sources(substrait_source Delta/Bitmap)
-add_headers_and_sources(substrait_source iceberg)
+add_headers_and_sources(substrait_source Iceberg)
 
 add_library(substrait_source ${substrait_source_sources})
 target_compile_options(

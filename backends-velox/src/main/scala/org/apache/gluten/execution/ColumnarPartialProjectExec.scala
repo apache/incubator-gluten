@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.hive.HiveUdfUtil
+import org.apache.spark.sql.hive.{HiveUDFTransformer, VeloxHiveUDFTransformer}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 import scala.collection.mutable.ListBuffer
@@ -44,13 +44,14 @@ import scala.collection.mutable.ListBuffer
  * (a, b, c) ColumnarPartialProjectExec (a, b, c, myudf(a) as _SparkPartialProject1),
  * ProjectExecTransformer(_SparkPartialProject1 + b + hash(c))
  *
- * @param original
- *   extract the ScalaUDF from original project list as Alias in UnsafeProjection and
- *   AttributeReference in ColumnarPartialProjectExec output
+ * @param projectList
+ *   The project output, with this argument in case class, function QueryPlan.expressions can return
+ *   the Expression list correctly, then the function executeQuery can find the SubQuery from
+ *   Expression
  * @param child
  *   child plan
  */
-case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
+case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: SparkPlan)(
     replacedAliasUdf: Seq[Alias])
   extends UnaryExecNode
   with ValidatablePlan {
@@ -74,11 +75,11 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   override def output: Seq[Attribute] = child.output ++ replacedAliasUdf.map(_.toAttribute)
 
   override def doCanonicalize(): ColumnarPartialProjectExec = {
-    val canonicalized = original.canonicalized.asInstanceOf[ProjectExec]
-    this.copy(
-      original = canonicalized,
-      child = child.canonicalized
-    )(replacedAliasUdf.map(QueryPlan.normalizeExpressions(_, child.output)))
+    super
+      .doCanonicalize()
+      .asInstanceOf[ColumnarPartialProjectExec]
+      .copy()(replacedAliasUdf =
+        replacedAliasUdf.map(QueryPlan.normalizeExpressions(_, child.output)))
   }
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
@@ -135,21 +136,20 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     if (projectAttributes.size == child.output.size) {
       return ValidationResult.failed("UDF need all the columns in child output")
     }
-    if (original.output.isEmpty) {
-      return ValidationResult.failed("Project fallback because output is empty")
-    }
     if (replacedAliasUdf.isEmpty) {
       return ValidationResult.failed("No UDF")
     }
-    if (replacedAliasUdf.size > original.output.size) {
+    if (replacedAliasUdf.size > projectList.size) {
       // e.g. udf1(col) + udf2(col), it will introduce 2 cols for a2c
       return ValidationResult.failed("Number of RowToColumn columns is more than ProjectExec")
     }
-    if (!original.projectList.forall(validateExpression(_))) {
+    if (!projectList.forall(validateExpression(_))) {
       return ValidationResult.failed("Contains expression not supported")
     }
     if (
-      ExpressionUtils.hasComplexExpressions(original, GlutenConfig.get.fallbackExpressionsThreshold)
+      ExpressionUtils.hasComplexExpressions(
+        projectList,
+        GlutenConfig.get.fallbackExpressionsThreshold)
     ) {
       return ValidationResult.failed("Fallback by complex expression")
     }
@@ -271,11 +271,16 @@ object ColumnarPartialProjectExec {
 
   val projectPrefix = "_SparkPartialProject"
 
+  /** Check if it's a hive udf but not transformable */
+  private def containsUnsupportedHiveUDF(h: Expression): Boolean = {
+    HiveUDFTransformer.isHiveUDF(h) && !VeloxHiveUDFTransformer.isSupportedHiveUDF(h)
+  }
+
   private def containsUDF(expr: Expression): Boolean = {
     if (expr == null) return false
     expr match {
       case _: ScalaUDF => true
-      case h if HiveUdfUtil.isHiveUdf(h) => true
+      case h if containsUnsupportedHiveUDF(h) => true
       case p => p.children.exists(c => containsUDF(c))
     }
   }
@@ -306,7 +311,7 @@ object ColumnarPartialProjectExec {
     expr match {
       case u: ScalaUDF =>
         replaceByAlias(u, replacedAliasUdf)
-      case h if HiveUdfUtil.isHiveUdf(h) =>
+      case h if containsUnsupportedHiveUDF(h) =>
         replaceByAlias(h, replacedAliasUdf)
       case au @ Alias(_: ScalaUDF, _) =>
         val replaceIndex = replacedAliasUdf.indexWhere(r => r.exprId == au.exprId)
@@ -338,7 +343,7 @@ object ColumnarPartialProjectExec {
       p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
     }
     val partialProject =
-      ColumnarPartialProjectExec(original, original.child)(replacedAliasUdf.toSeq)
+      ColumnarPartialProjectExec(original.projectList, original.child)(replacedAliasUdf.toSeq)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }

@@ -46,7 +46,7 @@ const std::string kLocalReadBytes = "localReadBytes";
 const std::string kRamReadBytes = "ramReadBytes";
 const std::string kPreloadSplits = "readyPreloadedSplits";
 const std::string kNumWrittenFiles = "numWrittenFiles";
-const std::string kWriteIOTime = "writeIOTime";
+const std::string kWriteIOTime = "writeIOWallNanos";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -477,12 +477,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   configs[velox::core::QueryConfig::kMaxOutputBatchRows] =
       std::to_string(veloxCfg_->get<uint32_t>(kSparkBatchSize, 4096));
   try {
-    if (veloxCfg_->valueExists(kDefaultSessionTimezone)) {
-      configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
-    }
-    if (veloxCfg_->valueExists(kSessionTimezone)) {
-      configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
-    }
+    configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
 
@@ -491,8 +486,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       // FIXME this uses process-wise off-heap memory which is not for task
       // partial aggregation memory config
       auto offHeapMemory = veloxCfg_->get<int64_t>(kSparkTaskOffHeapMemory, facebook::velox::memory::kMaxMemory);
-      auto maxPartialAggregationMemory =
-          static_cast<long>((veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
+      auto maxPartialAggregationMemory = veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).has_value()
+          ? veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).value()
+          : static_cast<int64_t>((veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
       auto maxExtendedPartialAggregationMemory =
           static_cast<long>((veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
@@ -571,6 +567,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     } else {
       configs[velox::core::QueryConfig::kThrowExceptionOnDuplicateMapKeys] = "false";
     }
+
+    configs[velox::core::QueryConfig::kSparkLegacyStatisticalAggregate] =
+        std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
       const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);

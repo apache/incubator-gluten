@@ -22,7 +22,7 @@
 
 namespace local_engine
 {
-DB::Block toSampleBlock(const DB::NamesAndTypesList & type)
+DB::Block toSampleBlock(const RowType & type)
 {
     DB::ColumnsWithTypeAndName result;
     result.reserve(type.size());
@@ -31,9 +31,9 @@ DB::Block toSampleBlock(const DB::NamesAndTypesList & type)
     return result;
 }
 
-DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header)
+RowType blockToRowType(const DB::Block & header)
 {
-    DB::NamesAndTypesList types;
+    RowType types;
     for (const auto & name : header.getNames())
     {
         const auto * column = header.findByName(name);

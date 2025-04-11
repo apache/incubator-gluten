@@ -52,6 +52,7 @@ const std::string kCompressionKind = "spark.io.compression.codec";
 const std::string kSpillCompressionKind = "spark.gluten.sql.columnar.backend.velox.spillCompressionCodec";
 const std::string kMaxPartialAggregationMemoryRatio =
     "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
+const std::string kMaxPartialAggregationMemory = "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory";
 const std::string kMaxExtendedPartialAggregationMemoryRatio =
     "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
 const std::string kAbandonPartialAggregationMinPct =
@@ -102,6 +103,12 @@ const uint32_t kVeloxSsdCacheShardsDefault = 1;
 const std::string kVeloxSsdCacheIOThreads = "spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads";
 const uint32_t kVeloxSsdCacheIOThreadsDefault = 1;
 const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.velox.ssdODirect";
+const std::string kVeloxSsdCheckpointIntervalBytes =
+    "spark.gluten.sql.columnar.backend.velox.ssdCheckpointIntervalBytes";
+const std::string kVeloxSsdDisableFileCow = "spark.gluten.sql.columnar.backend.velox.ssdDisableFileCow";
+const std::string kVeloxSsdCheckSumEnabled = "spark.gluten.sql.columnar.backend.velox.ssdChecksumEnabled";
+const std::string kVeloxSsdCheckSumReadVerificationEnabled =
+    "spark.gluten.sql.columnar.backend.velox.ssdChecksumReadVerificationEnabled";
 
 // async
 const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";
@@ -127,6 +134,8 @@ const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQu
 const std::string kMaxCoalescedDistance = "spark.gluten.sql.columnar.backend.velox.maxCoalescedDistance";
 const std::string kMaxCoalescedBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes";
 const std::string kCachePrefetchMinPct = "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct";
+const std::string kMemoryPoolCapacityTransferAcrossTasks =
+    "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks";
 
 // write fies
 const std::string kMaxPartitions = "spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession";

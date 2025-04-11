@@ -69,7 +69,8 @@ FormatFile::InputFormatPtr ORCFormatFile::createInputFormat(const DB::Block & he
         const String mapped_timezone = DateTimeUtil::convertTimeZone(config_timezone);
         format_settings.orc.reader_time_zone_name = mapped_timezone;
     }
-    auto input_format = std::make_shared<DB::NativeORCBlockInputFormat>(*read_buffer, header, format_settings);
+    //TODO: support prefetch
+    auto input_format = std::make_shared<DB::NativeORCBlockInputFormat>(*read_buffer, header, format_settings, false, 0);
     return std::make_shared<InputFormat>(std::move(read_buffer), input_format);
 }
 

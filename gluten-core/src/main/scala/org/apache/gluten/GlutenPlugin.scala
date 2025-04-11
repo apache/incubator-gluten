@@ -171,10 +171,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
           s"and set '$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize")
     }
 
-    // Session's local time zone must be set. If not explicitly set by user, its default
-    // value (detected for the platform) is used, consistent with spark.
-    conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
-
     // Task slots.
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)
     conf.set(NUM_TASK_SLOTS_PER_EXECUTOR.key, taskSlots.toString)

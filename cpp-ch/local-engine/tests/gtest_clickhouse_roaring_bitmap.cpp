@@ -138,8 +138,8 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     const std::string file_uri(test::gtest_uri("deletion_vector_multiple.bin"));
     const std::string file_uri1(test::gtest_uri("deletion_vector_only_one.bin"));
 
-    DeltaDVRoaringBitmapArray bitmap_array(context);
-    bitmap_array.rb_read(file_uri, 426433, 426424);
+    DeltaDVRoaringBitmapArray bitmap_array{};
+    bitmap_array.rb_read(file_uri, 426433, 426424, context);
     EXPECT_TRUE(bitmap_array.rb_contains(5));
     EXPECT_TRUE(bitmap_array.rb_contains(3618));
     EXPECT_TRUE(bitmap_array.rb_contains(155688));
@@ -157,8 +157,8 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     bitmap_array.rb_add(10000000000);
     EXPECT_TRUE(bitmap_array.rb_contains(10000000000));
 
-    DeltaDVRoaringBitmapArray bitmap_array1(context);
-    bitmap_array1.rb_read(file_uri1, 1, 539);
+    DeltaDVRoaringBitmapArray bitmap_array1{};
+    bitmap_array1.rb_read(file_uri1, 1, 539, context);
     EXPECT_TRUE(bitmap_array1.rb_contains(0));
     EXPECT_TRUE(bitmap_array1.rb_contains(1003));
     EXPECT_TRUE(bitmap_array1.rb_contains(880));
@@ -173,10 +173,10 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
 
     const std::string file_uri2(test::gtest_uri("deletion_vector_long_values.bin"));
 
-    DeltaDVRoaringBitmapArray bitmap_array2(context);
-    bitmap_array2.rb_read(file_uri2, 1, 4047);
+    DeltaDVRoaringBitmapArray bitmap_array2{};
+    bitmap_array2.rb_read(file_uri2, 1, 4047, context);
     EXPECT_FALSE(bitmap_array2.rb_is_empty());
-    EXPECT_EQ(2098, bitmap_array2.rb_size());
+    EXPECT_EQ(2098, bitmap_array2.cardinality());
     EXPECT_TRUE(bitmap_array2.rb_contains(0));
     EXPECT_TRUE(bitmap_array2.rb_contains(1003));
     EXPECT_TRUE(bitmap_array2.rb_contains(880));
@@ -212,7 +212,7 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     bitmap_array2.rb_clear();
     EXPECT_TRUE(bitmap_array2.rb_is_empty());
 
-    DeltaDVRoaringBitmapArray bitmap_array3(context);
+    DeltaDVRoaringBitmapArray bitmap_array3{};
     bitmap_array3.rb_add(3000000000);
     bitmap_array3.rb_add(5000000000);
     bitmap_array3.rb_add(10000000000);
