@@ -28,6 +28,7 @@
 #include "velox/common/config/Config.h"
 #include "velox/common/memory/MmapAllocator.h"
 
+#include "jni/JniHashTable.h"
 #include "memory/VeloxMemoryManager.h"
 
 namespace gluten {
@@ -57,6 +58,7 @@ class VeloxBackend {
   }
 
   void tearDown() {
+    gluten::hashTableObjStore.reset();
     // Destruct IOThreadPoolExecutor will join all threads.
     // On threads exit, thread local variables can be constructed with referencing global variables.
     // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
