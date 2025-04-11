@@ -109,7 +109,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select array() as x union all select array(123) as x
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing array: convert nullable to nullable 1") {
@@ -117,7 +117,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select array() as x union all select array(123, null) as x
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing array: convert nullable to nullable 2") {
@@ -125,7 +125,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select array() as x union all select array(null) as x
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing array: null array") {
@@ -133,7 +133,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select array(null)
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing map: convert nullable to non-nullable") {
@@ -141,7 +141,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select map() as x union all select map(123, 456) as x
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing map: convert nullable to nullable 1") {
@@ -149,7 +149,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select map() as x union all select map(1, null, 2, 23) as x
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing array in map 1") {
@@ -157,7 +157,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select map(1, null) as x union all select map(1, array(456)) as x
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing array in map 2") {
@@ -165,7 +165,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select map(1, array()) as x union all select map(1, array(456)) as x
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing array in map 3") {
@@ -173,7 +173,7 @@ class GlutenNothingValueCheck extends GlutenClickHouseWholeStageTransformerSuite
       """
         |select map(1, array()) as x union all select map(1, array(456, null)) as x
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("nothing array in shuffle") {

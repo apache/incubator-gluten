@@ -1788,6 +1788,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
+    .excludeCH("SPARK-36866: filter pushdown - year-month interval")
   // avoid Velox compile error
   enableSuite(
     "org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2"
@@ -1809,6 +1810,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
+    .excludeCH("SPARK-36866: filter pushdown - year-month interval")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .excludeCH("Various partition value types")
     .excludeCH("Various inferred partition value types")
@@ -2049,6 +2051,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("store and retrieve column stats in different time zones")
     .excludeCH("SPARK-42777: describe column stats (min, max) for timestamp_ntz column")
     .excludeCH("Gluten - store and retrieve column stats in different time zones")
+    .excludeCH("statistics collection of a table with zero column")
   enableSuite[GlutenStringExpressionsSuite]
     .excludeCH("StringComparison")
     .excludeCH("Substring")
