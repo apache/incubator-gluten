@@ -73,10 +73,11 @@ function install_folly {
 
 function install_conda {
   cd "${DEPENDENCY_DIR}"
-  mkdir -p conda && cd conda
+  mkdir -p conda && pushd conda
   wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
   MINICONDA_PATH=/opt/miniconda-for-velox
   bash Miniconda3-latest-Linux-x86_64.sh -b -u $MINICONDA_PATH
+  popd
 }
 
 function install_openssl {
@@ -181,11 +182,10 @@ function install_gtest {
 }
 
 function install_fmt {
+  wget_and_untar https://github.com/fmtlib/fmt/archive/10.1.1.tar.gz fmt
   rm -rf /usr/local/lib64/libfmt.a
   rm -rf /usr/local/lib64/cmake/fmt
   rm -rf  /usr/local/include/fmt
-  rm -rf fmt
-  wget_and_untar https://github.com/fmtlib/fmt/archive/10.1.1.tar.gz fmt
   cmake_install fmt -DFMT_TEST=OFF
 }
 
