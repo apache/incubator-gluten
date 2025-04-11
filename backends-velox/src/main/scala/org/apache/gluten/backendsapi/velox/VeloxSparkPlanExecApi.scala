@@ -350,7 +350,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         case shuffle: ColumnarShuffleExchangeExec
             if !shuffle.useSortBasedShuffle &&
               VeloxConfig.get.veloxResizeBatchesShuffleInput =>
-          val range = VeloxConfig.get.veloxResizeBatchesShuffleInputRange
+          val range = VeloxConfig.get.veloxResizeBatchesShuffleInputOutputRange
           val appendBatches =
             VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
           shuffle.withNewChildren(Seq(appendBatches))
@@ -913,5 +913,4 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec =
     ColumnarRangeExec(start, end, step, numSlices, numElements, outputAttributes, child)
-
 }

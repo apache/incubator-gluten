@@ -89,6 +89,7 @@ object VeloxRuleApi {
       c => HeuristicTransform.WithRewrites(validatorBuilder(c.glutenConf), rewrites, offloads))
 
     // Legacy: Post-transform rules.
+    injector.injectPostTransform(_ => AppendBatchResizeAfterShuffleRead())
     injector.injectPostTransform(_ => UnionTransformerRule())
     injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
