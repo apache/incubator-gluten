@@ -110,7 +110,7 @@ function install_snappy {
 function install_dwarf {
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://github.com/davea42/libdwarf-code/archive/refs/tags/20210528.tar.gz dwarf
-  cd dwarf
+  pushd dwarf
   #local URL=https://github.com/davea42/libdwarf-code/releases/download/v0.5.0/libdwarf-0.5.0.tar.xz
   #local DIR=dwarf
   #mkdir -p "${DIR}"
@@ -121,6 +121,7 @@ function install_dwarf {
   make
   make check
   $SUDO make install
+  popd
 }
 
 function install_re2 {
