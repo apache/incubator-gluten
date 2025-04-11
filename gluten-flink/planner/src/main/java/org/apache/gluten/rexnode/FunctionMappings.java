@@ -29,7 +29,7 @@ public class FunctionMappings {
             put("<", "lessthan");
             put("=", "equalto");
             put("CAST", "cast");
-            put("CASE", "case");
+            put("CASE", "if");
             put("*", "multiply");
         }
     };

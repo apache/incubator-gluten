@@ -44,6 +44,11 @@ public class GlutenStreamSource extends StreamSource
     }
 
     @Override
+    public RowType getInputType() {
+        return null;
+    }
+
+    @Override
     public RowType getOutputType() {
         return sourceFunction.getOutputType();
     }

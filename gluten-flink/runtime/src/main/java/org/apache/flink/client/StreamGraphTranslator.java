@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
@@ -36,8 +37,8 @@ import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -89,61 +90,74 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         for (JobVertex vertex : jobGraph.getVertices()) {
             StreamConfig streamConfig = new StreamConfig(vertex.getConfiguration());
             buildGlutenChains(streamConfig);
+            LOG.debug("Vertex {} is {}.", vertex.getName(), streamConfig);
         }
         return jobGraph;
     }
 
     private void buildGlutenChains(
-            StreamConfig taskConfig) {
-        // TODO: only support head operator now.
-        if (isGlutenOperator(taskConfig)) {
-            while (true) {
-                List<StreamEdge> outEdges = taskConfig.getChainedOutputs(userClassloader);
-                if (outEdges.size() != 1) {
-                    // only support operators have one output.
-                    break;
-                }
-                StreamEdge outEdge = outEdges.get(0);
-                Map<Integer, StreamConfig> chainedTasks =
-                        taskConfig.getTransitiveChainedTaskConfigs(userClassloader);
-                StreamConfig outTask = chainedTasks.get(outEdge.getTargetId());
-                if (outTask != null) {
-                    if (isGlutenOperator(outTask)) {
-                        GlutenOperator outOperator = getGlutenOperator(outTask);
-                        PlanNode outNode = outOperator.getPlanNode();
-                        GlutenOperator sourceOperator = getGlutenOperator(taskConfig);
-                        if (outNode != null) {
-                            outNode.setSources(List.of(sourceOperator.getPlanNode()));
-                        } else {
-                            outNode = sourceOperator.getPlanNode();
-                        }
-                        if (sourceOperator instanceof GlutenStreamSource) {
-                            taskConfig.setStreamOperator(
-                                    new GlutenStreamSource(
-                                            new GlutenSourceFunction(
-                                                    outNode,
-                                                    outOperator.getOutputType(),
-                                                    sourceOperator.getId())));
-                        } else {
-                            // TODO: support GlutenCombinedOperator.
-                            //taskConfig.setStreamOperator(
-                            //        new GlutenCombinedOperator(outNode));
-                        }
-                        // TODO: stream edges need to be reset.
-                        taskConfig.setTransitiveChainedTaskConfigs(
-                                outTask.getTransitiveChainedTaskConfigs(userClassloader));
-                        taskConfig.setChainedOutputs(outTask.getChainedOutputs(userClassloader));
-                        taskConfig.setOperatorNonChainedOutputs(
-                                outTask.getOperatorNonChainedOutputs(userClassloader));
-                        taskConfig.serializeAllConfigs();
-                    } else {
-                        break;
-                    }
+            StreamConfig vertexConfig) {
+        Map<Integer, StreamConfig> serializedTasks =
+                vertexConfig.getTransitiveChainedTaskConfigs(userClassloader);
+        Map<Integer, StreamConfig> chainedTasks = new HashMap<>(serializedTasks.size());
+        serializedTasks.forEach(
+                (id, config) ->
+                        chainedTasks.put(id, new StreamConfig(config.getConfiguration()))
+        );
+        StreamConfig taskConfig = vertexConfig;
+        while (true) {
+            List<StreamEdge> outEdges = taskConfig.getChainedOutputs(userClassloader);
+            if (outEdges == null || outEdges.isEmpty()) {
+                // only support operators have one output.
+                break;
+            } else if (outEdges.size() > 1) {
+                LOG.info("{} has more than one chained task.", taskConfig.getOperatorName());
+                break;
+            }
+
+            StreamEdge outEdge = outEdges.get(0);
+            StreamConfig outTask = chainedTasks.get(outEdge.getTargetId());
+            if (outTask == null) {
+                LOG.warn("Not find task {} in Chained tasks", outEdge.getTargetId());
+                break;
+            }
+            if (isGlutenOperator(taskConfig) && isGlutenOperator(outTask)) {
+                GlutenOperator outOperator = getGlutenOperator(outTask);
+                PlanNode outNode = outOperator.getPlanNode();
+                GlutenOperator sourceOperator = getGlutenOperator(taskConfig);
+                if (outNode != null) {
+                    outNode.setSources(List.of(sourceOperator.getPlanNode()));
+                    LOG.debug("Set {} source to {}", outNode, sourceOperator.getPlanNode());
                 } else {
-                    break;
+                    outNode = sourceOperator.getPlanNode();
+                    LOG.debug("Set out node to {}", sourceOperator.getPlanNode());
                 }
+                if (sourceOperator instanceof GlutenStreamSource) {
+                    taskConfig.setStreamOperator(
+                            new GlutenStreamSource(
+                                    new GlutenSourceFunction(
+                                            outNode,
+                                            outOperator.getOutputType(),
+                                            sourceOperator.getId())));
+                } else {
+                    taskConfig.setStreamOperator(
+                            new GlutenSingleInputOperator(
+                                    outNode,
+                                    outOperator.getId(),
+                                    sourceOperator.getInputType(),
+                                    outOperator.getOutputType()));
+                }
+                taskConfig.setChainedOutputs(outTask.getChainedOutputs(userClassloader));
+                taskConfig.setOperatorNonChainedOutputs(
+                        outTask.getOperatorNonChainedOutputs(userClassloader));
+                taskConfig.serializeAllConfigs();
+            } else {
+                LOG.debug("{} and {} can not be merged", taskConfig.getOperatorName(), outTask.getOperatorName());
+                taskConfig = outTask;
             }
         }
+        // TODO: may need fallback if failed.
+        vertexConfig.setAndSerializeTransitiveChainedTaskConfigs(chainedTasks);
     }
 
     private boolean isGlutenOperator(StreamConfig taskConfig) {

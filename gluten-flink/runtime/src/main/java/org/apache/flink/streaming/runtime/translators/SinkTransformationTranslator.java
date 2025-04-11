@@ -51,13 +51,14 @@ import org.apache.flink.util.Preconditions;
 
 import io.github.zhztheplayer.velox4j.connector.CommitStrategy;
 import io.github.zhztheplayer.velox4j.connector.DiscardDataTableHandle;
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableWriteNode;
-import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
-import org.apache.gluten.table.runtime.operators.GlutenCalOperator;
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
+import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import javax.annotation.Nullable;
 
@@ -179,18 +180,20 @@ public class SinkTransformationTranslator<Input, Output>
                 if (sink instanceof DiscardingSink) {
                     RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                             ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
-                    RowType outType = new RowType(List.of("num"), List.of(new BigIntType()));
-                    String plan = Serde.toJson(new TableWriteNode(
-                            String.valueOf(transformation.getId()),
+                    // TODO: this is a constrain of velox
+                    RowType ignore = new RowType(List.of("num"), List.of(new BigIntType()));
+                    PlanNode plan = new TableWriteNode(
+                            PlanNodeIdGenerator.newId(),
                             outputType,
                             outputType.getNames(),
                             null,
                             "connector-fuzzer",
                             new DiscardDataTableHandle(),
                             false,
-                            outType,
+                            ignore,
                             CommitStrategy.NO_COMMIT,
-                            null));
+                            null);
+                    // TODO: id needs refine
                     adjustTransformations(
                             prewritten,
                             input ->
@@ -198,11 +201,11 @@ public class SinkTransformationTranslator<Input, Output>
                                             WRITER_NAME,
                                             CommittableMessageTypeInfo.noOutput(),
                                             new GlutenOneInputOperatorFactory(
-                                                    new GlutenCalOperator(
+                                                    new GlutenSingleInputOperator(
                                                             plan,
-                                                            String.valueOf(transformation.getId()),
-                                                            "",
-                                                            Serde.toJson(outType)
+                                                            PlanNodeIdGenerator.newId(),
+                                                            outputType,
+                                                            ignore
                                                     ))),
                             false,
                             sink instanceof SupportsConcurrentExecutionAttempts);

@@ -18,18 +18,15 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.gluten.rexnode.Utils;
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.rexnode.RexNodeConverter;
-import org.apache.gluten.table.runtime.operators.GlutenCalOperator;
 
-import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.plan.FilterNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.ProjectNode;
-import io.github.zhztheplayer.velox4j.plan.TableScanNode;
-import io.github.zhztheplayer.velox4j.serde.Serde;
-import io.github.zhztheplayer.velox4j.type.Type;
+
 import org.apache.calcite.rex.RexNode;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
@@ -50,12 +47,14 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.gluten.util.PlanNodeIdGenerator;
+
 import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
 
-/** Gluten Stream {@link ExecNode} for Calc to use {@link GlutenCalOperator}. */
+/** Gluten Stream {@link ExecNode} for Calc to use {@link GlutenSingleInputOperator}. */
 @ExecNodeMetadata(
         name = "stream-exec-calc",
         version = 1,
@@ -112,35 +111,32 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        Type inputType = LogicalTypeConverter.toVLType(inputEdge.getOutputType());
+        io.github.zhztheplayer.velox4j.type.RowType inputType =
+                (io.github.zhztheplayer.velox4j.type.RowType)
+                        LogicalTypeConverter.toVLType(inputEdge.getOutputType());
         List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
-        // add a mock input as velox not allow the source is empty.
-        // TODO: remove mock table scan.
-        PlanNode mockInput = new TableScanNode(
-                String.valueOf(ExecNodeContext.newNodeId()),
-                inputType,
-                new ExternalStreamTableHandle("connector-external-stream"),
-                List.of());
         PlanNode filter = null;
         if (condition != null) {
             filter = new FilterNode(
-                String.valueOf(getId()),
-                List.of(mockInput),
-                RexNodeConverter.toTypedExpr(condition, inNames));
+                    PlanNodeIdGenerator.newId(),
+                    List.of(),
+                    RexNodeConverter.toTypedExpr(condition, inNames));
         }
         List<TypedExpr> projectExprs = RexNodeConverter.toTypedExpr(projection, inNames);
         PlanNode project = new ProjectNode(
-                String.valueOf(ExecNodeContext.newNodeId()),
+                PlanNodeIdGenerator.newId(),
                 filter == null ? List.of() : List.of(filter),
                 Utils.getNamesFromRowType(getOutputType()),
                 projectExprs);
-        // TODO: velo4j not support serializable now.
-        Utils.registerRegistry();
-        String plan = Serde.toJson(project);
-        String inputStr = Serde.toJson(inputType);
-        Type outputType = LogicalTypeConverter.toVLType(getOutputType());
-        String outputStr = Serde.toJson(outputType);
-        final GlutenCalOperator calOperator = new GlutenCalOperator(plan, mockInput.getId(), inputStr, outputStr);
+        io.github.zhztheplayer.velox4j.type.RowType outputType =
+                (io.github.zhztheplayer.velox4j.type.RowType)
+                        LogicalTypeConverter.toVLType(getOutputType());
+        final GlutenSingleInputOperator calOperator =
+                new GlutenSingleInputOperator(
+                        project,
+                        PlanNodeIdGenerator.newId(),
+                        inputType,
+                        outputType);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 new TransformationMetadata("gluten-calc", "Gluten cal operator"),
