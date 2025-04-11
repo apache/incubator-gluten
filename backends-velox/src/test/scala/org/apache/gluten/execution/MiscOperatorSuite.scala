@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.expression.VeloxDummyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -2049,8 +2049,10 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     Seq(true, false).foreach(
       coalesceEnabled => {
         withSQLConf(
+          VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_OUTPUT.key -> "true",
           SQLConf.SHUFFLE_PARTITIONS.key -> "10",
-          SQLConf.COALESCE_PARTITIONS_ENABLED.key -> coalesceEnabled.toString) {
+          SQLConf.COALESCE_PARTITIONS_ENABLED.key -> coalesceEnabled.toString
+        ) {
           runQueryAndCompare(
             "SELECT l_orderkey, count(1) from lineitem group by l_orderkey".stripMargin) {
             df =>
