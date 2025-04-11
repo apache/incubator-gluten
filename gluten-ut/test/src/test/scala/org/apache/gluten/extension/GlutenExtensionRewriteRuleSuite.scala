@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
+import org.apache.gluten.execution.{HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformerSuite}
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
@@ -72,7 +72,11 @@ class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
           |SELECT SUM(f1) / COUNT(DISTINCT f2, f3) FROM t GROUP BY f4;
           |""".stripMargin,
         noFallBack = false
-      )(_ => {})
+      )(
+        df => {
+          checkGlutenOperatorMatch[ProjectExecTransformer](df)
+          checkGlutenOperatorMatch[HashAggregateExecBaseTransformer](df)
+        })
     }
   }
 }
