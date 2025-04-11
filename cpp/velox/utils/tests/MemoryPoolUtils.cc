@@ -27,7 +27,7 @@ arrow::Status LimitedMemoryPool::Allocate(int64_t size, int64_t alignment, uint8
 #if ARROW_VERSION_MAJOR >= 18
   stats_.DidAllocateBytes(size);
 #else
-  stats_.UpdateAllocatedBytes(-size);
+  stats_.UpdateAllocatedBytes(size);
 #endif
   return arrow::Status::OK();
 }
