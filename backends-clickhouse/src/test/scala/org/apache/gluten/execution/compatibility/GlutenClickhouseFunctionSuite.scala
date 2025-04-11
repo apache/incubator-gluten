@@ -187,8 +187,8 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("array decimal32 CH column to row") {
-    compareResultsAgainstVanillaSpark("SELECT array(1.0, 2.0)", true, { _ => }, false)
-    compareResultsAgainstVanillaSpark("SELECT map(1.0, '2', 3.0, '4')", true, { _ => }, false)
+    compareResultsAgainstVanillaSpark("SELECT array(1.0, 2.0)", true, { _ => })
+    compareResultsAgainstVanillaSpark("SELECT map(1.0, '2', 3.0, '4')", true, { _ => })
   }
 
   test("array decimal32 spark row to CH column") {
@@ -281,8 +281,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         """
           |select cast(map(1,'2') as string)
           |""".stripMargin,
-        true,
-        false
+        true
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -443,7 +442,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         { _ => }
       )
       val q = "select cast(a as string) from (select array('123',NULL) as a)"
-      compareResultsAgainstVanillaSpark(q, true, { _ => }, false)
+      compareResultsAgainstVanillaSpark(q, true, { _ => })
     }
   }
 
@@ -505,8 +504,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
             |cast(map(array(1), map("aa", "123\'")) as string),
             |cast(named_struct("a", "test\'", "b", 1) as string),
             |cast(named_struct("a", "test\'", "b", 1, "c", struct("\'test"), "d", array('123\'')) as string)
-            |""".stripMargin,
-          noFallBack = false
+            |""".stripMargin
         )(checkGlutenOperatorMatch[ProjectExecTransformer])
       }
     }

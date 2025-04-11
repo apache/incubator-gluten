@@ -91,10 +91,10 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
     for (size_t row_idx = 0; row_idx < block.rows(); row_idx++)
     {
         const auto file_path = file_path_columns.column->getDataAt(row_idx);
-        auto bitmap = bitmap_columns.column->getDataAt(row_idx);
+        auto bitmap = bitmap_columns.column->getDataAt(row_idx).toString();
         auto cardinality = cardinality_src_columns.column->get64(row_idx); // alisa deletedRowIndexCount
 
-        if (size_of_current_bin > 0 && bitmap.size + size_of_current_bin > packing_target_size)
+        if (size_of_current_bin > 0 && bitmap.length() + size_of_current_bin > packing_target_size)
         {
             write_buffer->finalize();
             write_buffer = nullptr;
@@ -120,7 +120,7 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
                 {
                     DeltaDVRoaringBitmapArray existing_bitmap
                         = deserializeExistingBitmap(existing_path_or_inline_dv, existing_offset, existing_size_in_bytes, table_path);
-                    existing_bitmap.merge(bitmap.toString());
+                    existing_bitmap.merge(bitmap);
                     bitmap = existing_bitmap.serialize();
                     cardinality = existing_bitmap.cardinality();
                 }
@@ -140,12 +140,13 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
         if (!write_buffer)
             initBinPackage();
 
-        size_of_current_bin = size_of_current_bin + bitmap.size;
-        Int32 bitmap_size = static_cast<Int32>(bitmap.size);
+        Int32 bitmap_size = static_cast<Int32>(bitmap.length());
+        size_of_current_bin = size_of_current_bin + bitmap.length();
+
         DB::writeBinaryBigEndian(bitmap_size, *write_buffer);
 
-        write_buffer->write(bitmap.data, bitmap.size);
-        Int32 checksum_value = static_cast<Int32>(crc32_z(0L, reinterpret_cast<const unsigned char *>(bitmap.data), bitmap_size));
+        write_buffer->write(bitmap.c_str(), bitmap_size);
+        Int32 checksum_value = static_cast<Int32>(crc32_z(0L, reinterpret_cast<const unsigned char *>(bitmap.c_str()), bitmap_size));
         DB::writeBinaryBigEndian(checksum_value, *write_buffer);
 
         auto dv_descriptor_field

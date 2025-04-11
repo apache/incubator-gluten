@@ -64,7 +64,7 @@ private:
 
     void initBinPackage();
 
-    const DB::ContextPtr & context;
+    DB::ContextPtr context;
     const String table_path;
     const size_t prefix_length;
     const size_t packing_target_size;

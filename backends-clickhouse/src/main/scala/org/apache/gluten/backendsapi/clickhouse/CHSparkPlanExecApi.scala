@@ -27,7 +27,7 @@ import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
-import org.apache.gluten.vectorized.CHColumnarBatchSerializer
+import org.apache.gluten.vectorized.{BlockOutputStream, CHColumnarBatchSerializer, CHNativeBlock, CHStreamReader}
 
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
@@ -58,6 +58,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.commons.lang3.ClassUtils
 
+import java.io.{ObjectInputStream, ObjectOutputStream}
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 
@@ -525,6 +526,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
             wrapChild(union)
           case ordered: TakeOrderedAndProjectExecTransformer =>
             wrapChild(ordered)
+          case rddScan: CHRDDScanTransformer =>
+            wrapChild(rddScan)
           case other =>
             throw new GlutenNotSupportException(
               s"Not supported operator ${other.nodeName} for BroadcastRelation")
@@ -964,5 +967,30 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     case ce: FlattenedAnd => GenericExpressionTransformer(ce.name, children, ce)
     case co: FlattenedOr => GenericExpressionTransformer(co.name, children, co)
     case _ => super.genFlattenedExpressionTransformer(substraitName, children, expr)
+  }
+
+  override def isSupportRDDScanExec(plan: RDDScanExec): Boolean = true
+
+  override def getRDDScanTransform(plan: RDDScanExec): RDDScanTransformer =
+    CHRDDScanTransformer.replace(plan)
+
+  override def copyColumnarBatch(batch: ColumnarBatch): ColumnarBatch =
+    CHNativeBlock.fromColumnarBatch(batch).copyColumnarBatch()
+
+  override def serializeColumnarBatch(output: ObjectOutputStream, batch: ColumnarBatch): Unit = {
+    val writeBuffer: Array[Byte] =
+      new Array[Byte](CHBackendSettings.customizeBufferSize)
+    BlockOutputStream.directWrite(
+      output,
+      writeBuffer,
+      CHBackendSettings.customizeBufferSize,
+      CHNativeBlock.fromColumnarBatch(batch).blockAddress())
+  }
+
+  override def deserializeColumnarBatch(input: ObjectInputStream): ColumnarBatch = {
+    val bufferSize = CHBackendSettings.customizeBufferSize
+    val readBuffer: Array[Byte] = new Array[Byte](bufferSize)
+    val address = CHStreamReader.directRead(input, readBuffer, bufferSize)
+    new CHNativeBlock(address).toColumnarBatch
   }
 }
