@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
+import org.apache.gluten.execution.{HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformerSuite}
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
@@ -61,5 +61,22 @@ class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
         case _ => false
       }
     )
+  }
+
+  test("GLUTEN-9279 - Not Pull out expression to avoid invalid reference binding") {
+    withTable("t") {
+      sql("CREATE TABLE t(f1 String, f2 String, f3 String, f4 String) USING CSV")
+      sql("INSERT INTO t values ('1', '2', '3', '4'), ('11' ,'22', '33', '4')")
+      runQueryAndCompare(
+        """
+          |SELECT SUM(f1) / COUNT(DISTINCT f2, f3) FROM t GROUP BY f4;
+          |""".stripMargin,
+        noFallBack = false
+      )(
+        df => {
+          checkGlutenOperatorCount[ProjectExecTransformer](df, 3)
+          checkGlutenOperatorCount[HashAggregateExecBaseTransformer](df, 4)
+        })
+    }
   }
 }
