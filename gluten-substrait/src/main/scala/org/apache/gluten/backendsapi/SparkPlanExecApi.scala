@@ -720,6 +720,4 @@ trait SparkPlanExecApi {
       children: Seq[ExpressionTransformer],
       expr: Expression): ExpressionTransformer =
     GenericExpressionTransformer(substraitName, children, expr)
-
-  def genShuffleRead(plan: SparkPlan): SparkPlan = plan
 }
