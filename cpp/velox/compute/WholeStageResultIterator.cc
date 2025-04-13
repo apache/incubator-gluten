@@ -47,6 +47,8 @@ const std::string kRamReadBytes = "ramReadBytes";
 const std::string kPreloadSplits = "readyPreloadedSplits";
 const std::string kNumWrittenFiles = "numWrittenFiles";
 const std::string kWriteIOTime = "writeIOWallNanos";
+const std::string kWriteRecodeTime = "writeRecodeWallNanos";
+const std::string kWriteCompressionTime = "writeCompressionWallNanos";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -442,6 +444,10 @@ void WholeStageResultIterator::collectMetrics() {
           runtimeMetric("sum", entry.second->customStats, kNumWrittenFiles);
       metrics_->get(Metrics::kPhysicalWrittenBytes)[metricIndex] = second->physicalWrittenBytes;
       metrics_->get(Metrics::kWriteIOTime)[metricIndex] = runtimeMetric("sum", second->customStats, kWriteIOTime);
+      metrics_->get(Metrics::kWriteRecodeTime)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kWriteRecodeTime);
+      metrics_->get(Metrics::kWriteCompressionTime)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kWriteCompressionTime);
 
       metricIndex += 1;
     }

@@ -102,6 +102,8 @@ object MetricsUtil extends Logging {
 
     val physicalWrittenBytes = operatorMetrics.get(0).physicalWrittenBytes
     val writeIOTime = operatorMetrics.get(0).writeIOTime
+    val writeRecodeTime = operatorMetrics.get(0).writeRecodeTime
+    val writeCompressionTime = operatorMetrics.get(0).writeCompressionTime
 
     var cpuCount: Long = 0
     var wallNanos: Long = 0
@@ -197,6 +199,8 @@ object MetricsUtil extends Logging {
       preloadSplits,
       physicalWrittenBytes,
       writeIOTime,
+      writeRecodeTime,
+      writeCompressionTime,
       numWrittenFiles
     )
   }

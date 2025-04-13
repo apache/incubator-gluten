@@ -53,6 +53,8 @@ public class OperatorMetrics implements IOperatorMetrics {
 
   public long physicalWrittenBytes;
   public long writeIOTime;
+  public long writeRecodeTime;
+  public long writeCompressionTime;
   public long numWrittenFiles;
 
   /** Create an instance for operator metrics. */
@@ -92,6 +94,8 @@ public class OperatorMetrics implements IOperatorMetrics {
       long preloadSplits,
       long physicalWrittenBytes,
       long writeIOTime,
+      long writeRecodeTime,
+      long writeCompressionTime,
       long numWrittenFiles) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
@@ -128,6 +132,8 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.preloadSplits = preloadSplits;
     this.physicalWrittenBytes = physicalWrittenBytes;
     this.writeIOTime = writeIOTime;
+    this.writeRecodeTime = writeRecodeTime;
+    this.writeCompressionTime = writeCompressionTime;
     this.numWrittenFiles = numWrittenFiles;
   }
 }
