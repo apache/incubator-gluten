@@ -172,6 +172,30 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion("Test array_prepend function", "3.5") {
+    withTempPath {
+      path =>
+        Seq[(Array[String], String)](
+          (Array("a", "b"), "c"),
+          (Array("a"), "b"),
+          (Array(), "a"),
+          (Array("a", "b", null.asInstanceOf[String]), "c"),
+          (Array(null.asInstanceOf[String]), "a"),
+          (Array(null.asInstanceOf[String]), null.asInstanceOf[String]),
+          (Array(), null.asInstanceOf[String])
+        )
+          .toDF("arr", "txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select arr, txt, array_prepend(arr, txt) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test round function") {
     runQueryAndCompare(
       "SELECT round(cast(l_orderkey as int), 2)" +
