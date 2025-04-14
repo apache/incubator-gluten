@@ -25,6 +25,7 @@
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
 #include <Disks/IO/ReadBufferFromRemoteFSGather.h>
 #include <IO/BoundedReadBuffer.h>
+#include <IO/ParallelReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/ReadSettings.h>
@@ -33,7 +34,6 @@
 #include <IO/SeekableReadBuffer.h>
 #include <IO/SharedThreadPools.h>
 #include <IO/SplittableBzip2ReadBuffer.h>
-#include <IO/ParallelReadBuffer.h>
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
@@ -42,6 +42,7 @@
 #include <Storages/ObjectStorage/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/compute/detail/lru_cache.hpp>
 #include <sys/stat.h>
 #include <Poco/Logger.h>
@@ -86,6 +87,12 @@ namespace ErrorCodes
     extern const int UNKNOWN_FILE_SIZE;
     extern const int CANNOT_SEEK_THROUGH_FILE;
     extern const int CANNOT_READ_FROM_FILE_DESCRIPTOR;
+}
+
+namespace FileCacheSetting
+{
+extern const FileCacheSettingsUInt64 max_size;
+extern const FileCacheSettingsString path;
 }
 }
 
@@ -302,7 +309,7 @@ public:
                     config,
                     read_settings,
                     /* read_until_position */ 0,
-                    /* use_external_buffer */ true,
+                    /* use_external_buffer */ false,
                     file_size);
 
             if (use_async_prefetch)
@@ -322,8 +329,7 @@ public:
                     hdfs_file_path,
                     config,
                     read_settings,
-                    /* read_until_position */ 0,
-                    /* use_external_buffer */ true);
+                    /* read_until_position */ 0);
                 file_size = tmp_read_buffer->getFileSize();
             }
 
@@ -345,7 +351,7 @@ public:
             if (*file_size > 0)
                 buffer_size = std::min(*file_size, buffer_size);
             auto cache_hdfs_read = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-                std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false, buffer_size);
+                std::move(cache_creator), stored_objects, read_settings, /* use_external_buffer */ false, buffer_size);
             read_buffer = std::move(cache_hdfs_read);
         }
 
@@ -371,13 +377,13 @@ public:
         if (!file_cache && config.s3_local_cache_enabled)
         {
             DB::FileCacheSettings file_cache_settings;
-            file_cache_settings.max_size = config.s3_local_cache_max_size;
+            file_cache_settings[FileCacheSetting::max_size] = config.s3_local_cache_max_size;
             auto cache_base_path = config.s3_local_cache_cache_path;
 
             if (!std::filesystem::exists(cache_base_path))
                 std::filesystem::create_directories(cache_base_path);
 
-            file_cache_settings.base_path = cache_base_path;
+            file_cache_settings[FileCacheSetting::path] = cache_base_path;
             file_cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings, "");
             file_cache->initialize();
         }
@@ -429,7 +435,7 @@ public:
 
         DB::StoredObjects stored_objects{DB::StoredObject{pathKey, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true, 0);
+            std::move(cache_creator), stored_objects, read_settings, /* use_external_buffer */ true, 0);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
         size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
@@ -561,12 +567,17 @@ private:
 
         std::string ak;
         std::string sk;
+        std::string path_style_access;
+        bool addressing_type = false;
         tryGetString(settings, BackendInitializerUtil::HADOOP_S3_ACCESS_KEY, ak);
         tryGetString(settings, BackendInitializerUtil::HADOOP_S3_SECRET_KEY, sk);
+        tryGetString(settings, BackendInitializerUtil::HADOOP_S3_PATH_STYLE_ACCESS, path_style_access);
         const DB::Settings & global_settings = context->getGlobalContext()->getSettingsRef();
         const DB::Settings & local_settings = context->getSettingsRef();
+        boost::algorithm::to_lower(path_style_access);
+        addressing_type = (path_style_access == "false");
         DB::S3::ClientSettings client_settings{
-            .use_virtual_addressing = false,
+            .use_virtual_addressing = addressing_type,
             .disable_checksum = local_settings[DB::Setting::s3_disable_checksum],
             .gcs_issue_compose_request = context->getConfigRef().getBool("s3.gcs_issue_compose_request", false),
         };
@@ -684,7 +695,7 @@ DB::ReadSettings ReadBufferBuilder::getReadSettings() const
     const auto & config = context->getConfigRef();
 
     /// Override enable_filesystem_cache with gluten config
-    read_settings.enable_filesystem_cache = config.getBool("gluten_cache.local.enabled", false);
+    read_settings.enable_filesystem_cache = config.getBool(GlutenCacheConfig::ENABLED, false);
 
     /// Override remote_fs_prefetch with gluten config
     read_settings.remote_fs_prefetch = config.getBool("hdfs.enable_async_io", false);
@@ -798,23 +809,24 @@ ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     size_t file_size)
 {
     const auto & config = context->getConfigRef();
-    if (!config.getBool("gluten_cache.local.enabled", false))
+    if (!config.getBool(GlutenCacheConfig::ENABLED, false))
         return read_buffer_creator;
 
     read_settings.enable_filesystem_cache = true;
     if (!file_cache)
     {
         DB::FileCacheSettings file_cache_settings;
-        file_cache_settings.loadFromConfig(config, "gluten_cache.local");
+        file_cache_settings.loadFromConfig(config, GlutenCacheConfig::PREFIX);
 
-        if (std::filesystem::path(file_cache_settings.base_path).is_relative())
-            file_cache_settings.base_path = std::filesystem::path(context->getPath()) / "caches" / file_cache_settings.base_path;
+        auto & base_path = file_cache_settings[FileCacheSetting::path].value;
+        if (std::filesystem::path(base_path).is_relative())
+            base_path = std::filesystem::path(context->getPath()) / "caches" / base_path;
 
-        if (!std::filesystem::exists(file_cache_settings.base_path))
-            std::filesystem::create_directories(file_cache_settings.base_path);
+        if (!std::filesystem::exists(base_path))
+            std::filesystem::create_directories(base_path);
 
-        const auto name = config.getString("gluten_cache.local.name");
-        const auto * config_prefix = "";
+        const auto name = config.getString(GlutenCacheConfig::PREFIX + ".name");
+        std::string config_prefix;
         file_cache = DB::FileCacheFactory::instance().getOrCreate(name, file_cache_settings, config_prefix);
         file_cache->initialize();
     }
@@ -894,8 +906,8 @@ std::unique_ptr<DB::ReadBuffer> ReadBufferBuilder::wrapWithParallelIfNeeded(
     LOG_TRACE(
         getLogger("ReadBufferBuilder"),
         "Using ParallelReadBuffer with {} workers with chunks of {} bytes",
-        max_download_threads,
-        max_download_buffer_size);
+        max_download_threads.value,
+        max_download_buffer_size.value);
 
     return wrapInParallelReadBufferIfSupported(
         {std::move(in)},

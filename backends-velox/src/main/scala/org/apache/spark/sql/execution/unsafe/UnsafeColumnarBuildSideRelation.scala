@@ -25,10 +25,8 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
 
-import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, IdentityBroadcastMode}
@@ -78,8 +76,7 @@ case class UnsafeColumnarBuildSideRelation(
       UnsafeBytesBufferArray(
         bytesBufferArray.length,
         bytesBufferArray.map(_.length),
-        bytesBufferArray.map(_.length.toLong).sum,
-        TaskContext.get().taskMemoryManager
+        bytesBufferArray.map(_.length.toLong).sum
       ),
       mode
     )
@@ -104,7 +101,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   override def write(kryo: Kryo, out: Output): Unit = Utils.tryOrIOException {
     kryo.writeObject(out, output.toList)
-    kryo.writeObject(out, mode)
+    kryo.writeClassAndObject(out, mode)
     out.writeInt(batches.arraySize)
     kryo.writeObject(out, batches.bytesBufferLengths)
     out.writeLong(batches.totalBytes)
@@ -123,35 +120,29 @@ case class UnsafeColumnarBuildSideRelation(
 
     // scalastyle:off
     /**
-     * This is used in Broadcast, shared by multiple tasks, we use off-heap memory to reduce on-heap
-     * pressure Similar to
+     * We use off-heap memory to reduce on-heap pressure Similar to
      * https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/execution/joins/HashedRelation.scala#L389-L410
      */
     // scalastyle:on
-    val taskMemoryManager = new TaskMemoryManager(SparkEnv.get.memoryManager, 0)
 
-    batches =
-      UnsafeBytesBufferArray(totalArraySize, bytesBufferLengths, totalBytes, taskMemoryManager)
+    batches = UnsafeBytesBufferArray(totalArraySize, bytesBufferLengths, totalBytes)
 
     for (i <- 0 until totalArraySize) {
       val length = bytesBufferLengths(i)
       val tmpBuffer = new Array[Byte](length)
-      in.read(tmpBuffer)
+      in.readFully(tmpBuffer)
       batches.putBytesBuffer(i, tmpBuffer)
     }
   }
 
   override def read(kryo: Kryo, in: Input): Unit = Utils.tryOrIOException {
     output = kryo.readObject(in, classOf[List[_]]).asInstanceOf[Seq[Attribute]]
-    mode = kryo.readObject(in, classOf[BroadcastMode])
+    mode = kryo.readClassAndObject(in).asInstanceOf[BroadcastMode]
     val totalArraySize = in.readInt()
     val bytesBufferLengths = kryo.readObject(in, classOf[Array[Int]])
     val totalBytes = in.readLong()
 
-    val taskMemoryManager = new TaskMemoryManager(SparkEnv.get.memoryManager, 0)
-
-    batches =
-      UnsafeBytesBufferArray(totalArraySize, bytesBufferLengths, totalBytes, taskMemoryManager)
+    batches = UnsafeBytesBufferArray(totalArraySize, bytesBufferLengths, totalBytes)
 
     for (i <- 0 until totalArraySize) {
       val length = bytesBufferLengths(i)

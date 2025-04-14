@@ -140,6 +140,7 @@ JoinOptimizationInfo JoinOptimizationInfo::parse(const String & advance)
     tryAssign(kvs, "buildHashTableId", info.storage_join_key);
     tryAssign(kvs, "isNullAwareAntiJoin", info.is_null_aware_anti_join);
     tryAssign(kvs, "isExistenceJoin", info.is_existence_join);
+    tryAssign(kvs, "isAnyJoin", info.is_any_join);
     tryAssign(kvs, "leftRowCount", info.left_table_rows);
     tryAssign(kvs, "leftSizeInBytes", info.left_table_bytes);
     tryAssign(kvs, "rightRowCount", info.right_table_rows);

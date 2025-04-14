@@ -46,6 +46,8 @@
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/NormalFileWriter.h>
+#include <Storages/SubstraitSource/Delta/DeltaWriter.h>
+#include <Storages/SubstraitSource/Delta/DeltaUtil.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
@@ -166,25 +168,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
 JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 {
-    LOG_INFO(&Poco::Logger::get("jni"), "start jni onUnload");
-    local_engine::BackendFinalizerUtil::finalizeGlobally();
-
-    JNIEnv * env;
-    vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
-
-    local_engine::JniErrorsGlobalState::instance().destroy(env);
-    local_engine::BroadCastJoinBuilder::destroy(env);
-    local_engine::SparkMergeTreeWriterJNI::destroy(env);
-    local_engine::SparkRowInfoJNI::destroy(env);
-
-    env->DeleteGlobalRef(block_stripes_class);
-    env->DeleteGlobalRef(split_result_class);
-    env->DeleteGlobalRef(block_stats_class);
-    env->DeleteGlobalRef(local_engine::ShuffleReader::input_stream_class);
-    env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
-    env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
-    env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
-    env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
+    // manually destroy native in 'nativeDestroyNative' method
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
@@ -205,6 +189,27 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::BackendFinalizerUtil::finalizeSessionally();
     LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeDestroyNative(JNIEnv * env, jclass)
+{
+    LOG_INFO(&Poco::Logger::get("jni"), "start destroy native");
+    local_engine::BackendFinalizerUtil::finalizeGlobally();
+
+    local_engine::JniErrorsGlobalState::instance().destroy(env);
+    local_engine::BroadCastJoinBuilder::destroy(env);
+    local_engine::SparkMergeTreeWriterJNI::destroy(env);
+    local_engine::SparkRowInfoJNI::destroy(env);
+    local_engine::delta::DeltaUtil::releaseJavaCallerReference(env);
+
+    env->DeleteGlobalRef(block_stripes_class);
+    env->DeleteGlobalRef(split_result_class);
+    env->DeleteGlobalRef(block_stats_class);
+    env->DeleteGlobalRef(local_engine::ShuffleReader::input_stream_class);
+    env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
+    env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
+    env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
+    env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
 }
 
 /// Set settings for the current query. It assumes that all parameters are started with `CH_RUNTIME_SETTINGS_PREFIX` prefix,
@@ -229,7 +234,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     jobjectArray split_infos,
     jobjectArray iter_arr,
     jbyteArray conf_plan,
-    jboolean materialize_input)
+    jboolean materialize_input,
+    jint partition_index)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::QueryContext::instance().currentQueryContext();
@@ -243,7 +249,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     const std::string::size_type plan_size = plan_a.length();
     auto plan_pb = local_engine::BinaryToMessage<substrait::Plan>({reinterpret_cast<const char *>(plan_a.elems()), plan_size});
 
-    auto parser_context = local_engine::ParserContext::build(query_context, plan_pb);
+    auto parser_context = local_engine::ParserContext::build(query_context, plan_pb, partition_index);
     local_engine::SerializedPlanParser parser(parser_context);
 
     jsize iter_num = env->GetArrayLength(iter_arr);
@@ -1328,6 +1334,46 @@ JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_removeFiles
     auto cache_name = jstring2string(env, cache_name_);
 
     local_engine::CacheManager::removeFiles(file, cache_name);
+    LOCAL_ENGINE_JNI_METHOD_END(env, );
+}
+
+JNIEXPORT jlong Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_createDeletionVectorWriter(
+    JNIEnv * env, jclass, jstring table_path_, jint prefix_length_, jlong packingTargetSize_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto table_path = jstring2string(env, table_path_);
+
+    const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
+    auto writer = new local_engine::delta::DeltaWriter(query_context, table_path, prefix_length_, packingTargetSize_);
+    return reinterpret_cast<jlong>(writer);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1);
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWrite(
+    JNIEnv * env, jclass, jlong writer_address_, jlong blockAddress)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto * block = reinterpret_cast<DB::Block *>(blockAddress);
+    auto * writer = reinterpret_cast<local_engine::delta::DeltaWriter *>(writer_address_);
+    writer->writeDeletionVector(*block);
+    LOCAL_ENGINE_JNI_METHOD_END(env, );
+}
+
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWriteFinalize(JNIEnv * env, jclass, jlong writer_address_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto * writer = reinterpret_cast<local_engine::delta::DeltaWriter *>(writer_address_);
+    auto * column_batch = writer->finalize();
+    delete writer;
+    return reinterpret_cast<UInt64>(column_batch);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1);
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_registerNativeReference(JNIEnv * env, jclass)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::delta::DeltaUtil::initJavaCallerReference(env);
     LOCAL_ENGINE_JNI_METHOD_END(env, );
 }
 

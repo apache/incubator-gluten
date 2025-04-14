@@ -123,6 +123,55 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion("Test array_append function - INT", "3.4") {
+    withTempPath {
+      path =>
+        Seq[(Array[Int], Int)](
+          (Array(2, 1), 0),
+          (Array(1), 1),
+          (Array(), 0),
+          (Array(1, 2, null.asInstanceOf[Int]), 1),
+          (Array(null.asInstanceOf[Int]), 1),
+          (Array(null.asInstanceOf[Int]), null.asInstanceOf[Int]),
+          (Array(), null.asInstanceOf[Int]),
+          (null.asInstanceOf[Array[Int]], 1)
+        )
+          .toDF("arr", "num")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select arr, num, array_append(arr, num) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  testWithMinSparkVersion("Test array_append function - STRING", "3.4") {
+    withTempPath {
+      path =>
+        Seq[(Array[String], String)](
+          (Array("a", "b"), "c"),
+          (Array("a"), "b"),
+          (Array(), "a"),
+          (Array("a", "b", null.asInstanceOf[String]), "c"),
+          (Array(null.asInstanceOf[String]), "a"),
+          (Array(null.asInstanceOf[String]), null.asInstanceOf[String]),
+          (Array(), null.asInstanceOf[String])
+        )
+          .toDF("arr", "txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select arr, txt, array_append(arr, txt) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test round function") {
     runQueryAndCompare(
       "SELECT round(cast(l_orderkey as int), 2)" +
@@ -137,9 +186,21 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("null input for array_size", Some("3.3")) {
-    runQueryAndCompare("SELECT array_size(null)") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+  testWithMinSparkVersion("null input for array_size", "3.3") {
+    withTempPath {
+      path =>
+        Seq[(Array[Int])](
+          (null.asInstanceOf[Array[Int]])
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select array_size(txt) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
@@ -251,42 +312,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     runQueryAndCompare("SELECT hash(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-  }
-
-  test("get_json_object") {
-    runQueryAndCompare(
-      "SELECT get_json_object(string_field1, '$.a') " +
-        "from datatab limit 1;") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-
-    runQueryAndCompare(
-      "SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
-        "from lineitem limit 1;") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-
-    // Invalid UTF-8 encoding.
-    spark.sql(
-      "CREATE TABLE t USING parquet SELECT concat('{\"a\": 2, \"'," +
-        " string(X'80'), '\": 3, \"c\": 100}') AS c1")
-    withTable("t") {
-      runQueryAndCompare("SELECT get_json_object(c1, '$.c') FROM t;") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
-    }
-  }
-
-  ignore("json_array_length") {
-    runQueryAndCompare(
-      s"select *, json_array_length(string_field1) " +
-        s"from datatab limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, json_array_length('[1,2,3,4]') " +
-        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
-    runQueryAndCompare(
-      s"select l_orderkey, json_array_length(null) " +
-        s"from lineitem limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("Test acos function") {
@@ -614,6 +639,40 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("map_concat") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[String, Int]("a" -> 1, "b" -> 2),
+          Map[String, Int]("a" -> 2, "b" -> 3),
+          null
+        )
+          .toDF("m")
+          .write
+          .parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+        runQueryAndCompare("select map_concat(m, map('c', 4)) from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("map_filter") {
+    withTempPath {
+      path =>
+        Seq((Map("a" -> 1, "b" -> 2, "c" -> 3)))
+          .toDF("m")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select map_filter(m, (k, v) -> k != 'b') from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("test transform_keys function") {
     withTempPath {
       path =>
@@ -754,8 +813,20 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("Test sum/count function") {
-    runQueryAndCompare("""SELECT sum(2),count(2) from lineitem""".stripMargin) {
-      checkGlutenOperatorMatch[BatchScanExecTransformer]
+    withTempPath {
+      path =>
+        Seq[(Integer, Integer)](
+          (2, 2)
+        )
+          .toDF("val1", "val2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("SELECT sum(val1),count(val2) from tbl") {
+          checkGlutenOperatorMatch[BatchScanExecTransformer]
+        }
     }
   }
 
@@ -770,14 +841,25 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test width_bucket function", Some("3.4")) {
-    runQueryAndCompare("""SELECT width_bucket(2, 0, 4, 3), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+  testWithMinSparkVersion("Test width_bucket function", "3.4") {
+    withTempPath {
+      path =>
+        Seq[(Integer, Integer, Integer, Integer)](
+          (2, 0, 4, 3)
+        )
+          .toDF("val1", "val2", "val3", "val4")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("SELECT width_bucket(val1, val2, val3, val4) from tbl") {
+          checkGlutenOperatorMatch[BatchScanExecTransformer]
+        }
     }
   }
 
-  testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4")) {
+  testWithMinSparkVersion("Test url_decode function", "3.4") {
     withTempPath {
       path =>
         Seq("https%3A%2F%2Fspark.apache.org")
@@ -792,7 +874,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test url_encode function", Some("3.4")) {
+  testWithMinSparkVersion("Test url_encode function", "3.4") {
     withTempPath {
       path =>
         Seq("https://spark.apache.org")
@@ -923,7 +1005,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("mask", Some("3.4")) {
+  testWithMinSparkVersion("mask", "3.4") {
     runQueryAndCompare("SELECT mask(c_comment) FROM customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -1037,7 +1119,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("try_subtract", Some("3.3")) {
+  testWithMinSparkVersion("try_subtract", "3.3") {
     runQueryAndCompare(
       "select try_subtract(2147483647, cast(l_orderkey as int)), " +
         "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
@@ -1053,7 +1135,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("try_multiply", Some("3.3")) {
+  testWithMinSparkVersion("try_multiply", "3.3") {
     runQueryAndCompare(
       "select try_multiply(2147483647, cast(l_orderkey as int)), " +
         "try_multiply(-2147483648, cast(l_orderkey as int)) from lineitem") {
@@ -1219,7 +1301,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("get", Some("3.4")) {
+  testWithMinSparkVersion("get", "3.4") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -1310,7 +1392,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("levenshtein with limit", Some("3.5")) {
+  testWithMinSparkVersion("levenshtein with limit", "3.5") {
     runQueryAndCompare("select levenshtein(c_comment, c_address, 3) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -1424,7 +1506,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("array insert", Some("3.4")) {
+  testWithMinSparkVersion("array insert", "3.4") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -1478,7 +1560,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test try_cast", Some("3.4")) {
+  testWithMinSparkVersion("Test try_cast", "3.4") {
     withTempView("try_cast_table") {
       withTempPath {
         path =>

@@ -24,6 +24,7 @@
 #include <Parser/TypeParser.h>
 #include <Processors/Transforms/ExpressionTransform.h>
 #include <Processors/Transforms/MaterializingTransform.h>
+#include <QueryPipeline/Chain.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
@@ -69,7 +70,7 @@ DB::ProcessorPtr make_sink(
 
 DB::ExpressionActionsPtr create_rename_action(const DB::Block & input, const DB::Block & output)
 {
-    ActionsDAG actions_dag{blockToNameAndTypeList(input)};
+    ActionsDAG actions_dag{blockToRowType(input)};
     actions_dag.project(buildNamesWithAliases(input, output));
     return std::make_shared<DB::ExpressionActions>(std::move(actions_dag));
 }

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
@@ -38,6 +38,8 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   protected val parquetTableDataPath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
 
+  final protected lazy val absoluteParquetPath = rootPath + parquetTableDataPath
+
   protected val tablesPath: String
   protected val tpchQueries: String
   protected val queriesResults: String
@@ -47,7 +49,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     super.beforeAll()
 
     if (needCopyParquetToTablePath) {
-      val sourcePath = new File(rootPath + parquetTableDataPath)
+      val sourcePath = new File(absoluteParquetPath)
       FileUtils.copyDirectory(sourcePath, new File(tablesPath))
     }
 
@@ -68,7 +70,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     spark.sql(s"use $parquetSourceDB")
 
     val parquetTablePath = basePath + "/tpch-data"
-    FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
+    FileUtils.copyDirectory(new File(absoluteParquetPath), new File(parquetTablePath))
 
     createNotNullTPCHTablesInParquet(parquetTablePath)
 
@@ -236,7 +238,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     spark.sql(s"use $parquetSourceDB")
 
     val parquetTablePath = basePath + "/tpch-data"
-    FileUtils.copyDirectory(new File(rootPath + parquetTableDataPath), new File(parquetTablePath))
+    FileUtils.copyDirectory(new File(absoluteParquetPath), new File(parquetTablePath))
 
     createNotNullTPCHTablesInParquet(parquetTablePath)
 
@@ -575,16 +577,19 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   }
 
   override protected def afterAll(): Unit = {
-    // guava cache invalidate event trigger remove operation may in seconds delay, so wait a bit
-    // normally this doesn't take more than 1s
-    eventually(timeout(60.seconds), interval(1.seconds)) {
-      // Spark listener message was not sent in time with ci env.
-      // In tpch case, there are more then 10 hbj data has build.
-      // Let's just verify it was cleaned ever.
-      assert(CHBroadcastBuildSideCache.size() <= 10)
-    }
 
-    ClickhouseSnapshot.clearAllFileStatusCache()
+    // if SparkEnv.get returns null which means something wrong at beforeAll()
+    if (SparkEnv.get != null) {
+      // guava cache invalidate event trigger remove operation may in seconds delay, so wait a bit
+      // normally this doesn't take more than 1s
+      eventually(timeout(60.seconds), interval(1.seconds)) {
+        // Spark listener message was not sent in time with ci env.
+        // In tpch case, there are more than 10 hbj data has built.
+        // Let's just verify it was cleaned ever.
+        assert(CHBroadcastBuildSideCache.size() <= 10)
+      }
+      ClickhouseSnapshot.clearAllFileStatusCache()
+    }
     DeltaLog.clearCache()
     super.afterAll()
   }

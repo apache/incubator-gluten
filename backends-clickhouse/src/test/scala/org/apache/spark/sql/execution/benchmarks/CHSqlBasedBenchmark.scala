@@ -16,9 +16,6 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.jni.JniLibLoader
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
@@ -55,7 +52,6 @@ trait CHSqlBasedBenchmark extends SqlBasedBenchmark {
 
   override def afterAll(): Unit = {
     DeltaLog.clearCache()
-    JniLibLoader.unloadFromPath(spark.conf.get(GlutenConfig.GLUTEN_LIB_PATH.key))
     // Wait for Ctrl+C, convenient for seeing Spark UI
     // Thread.sleep(600000)
     super.afterAll()

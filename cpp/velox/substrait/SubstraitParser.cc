@@ -393,7 +393,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"lte", "lessthanorequal"},
     {"gt", "greaterthan"},
     {"gte", "greaterthanorequal"},
-    {"not_equal", "notequalto"},
     {"char_length", "length"},
     {"strpos", "instr"},
     {"ends_with", "endswith"},

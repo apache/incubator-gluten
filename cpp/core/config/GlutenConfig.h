@@ -37,8 +37,6 @@ const std::string kAllowPrecisionLoss = "spark.sql.decimalOperations.allowPrecis
 
 const std::string kIgnoreMissingFiles = "spark.sql.files.ignoreMissingFiles";
 
-const std::string kDefaultSessionTimezone = "spark.gluten.sql.session.timeZone.default";
-
 const std::string kSparkOverheadMemory = "spark.gluten.memoryOverhead.size.in.bytes";
 
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
@@ -75,6 +73,9 @@ const std::string kSparkRedactionString = "*********(redacted)";
 
 const std::string kSparkLegacyTimeParserPolicy = "spark.sql.legacy.timeParserPolicy";
 const std::string kShuffleFileBufferSize = "spark.shuffle.file.buffer";
+const std::string kSparkMapKeyDedupPolicy = "spark.sql.mapKeyDedupPolicy";
+
+const std::string kSparkLegacyStatisticalAggregate = "spark.sql.legacy.statisticalAggregate";
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);

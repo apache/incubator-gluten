@@ -70,7 +70,7 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
 
 void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb, int64_t startRow) {
   auto veloxBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-  refreshStates(veloxBatch->getRowVector(), startRow);
+  refreshStates(veloxBatch->getFlattenedRowVector(), startRow);
 
   // Initialize the offsets_ , lengths_
   lengths_.clear();

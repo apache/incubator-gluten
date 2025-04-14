@@ -107,6 +107,7 @@ object ExpressionNames {
   final val LTRIM = "ltrim"
   final val RTRIM = "rtrim"
   final val TRIM = "trim"
+  final val BTRIM = "btrim"
   final val LPAD = "lpad"
   final val RPAD = "rpad"
   final val REPLACE = "replace"
@@ -237,6 +238,7 @@ object ExpressionNames {
   final val TO_JSON = "to_json"
   final val FROM_JSON = "from_json"
   final val JSON_TUPLE = "json_tuple"
+  final val JSON_OBJECT_KEYS = "json_object_keys"
 
   // Hash functions
   final val MURMUR3HASH = "murmur3hash"
@@ -277,10 +279,12 @@ object ExpressionNames {
   final val ZIP_WITH = "zip_with"
   final val FLATTEN = "flatten"
   final val ARRAY_INSERT = "array_insert"
+  final val ARRAY_APPEND = "array_append"
 
   // Map functions
   final val CREATE_MAP = "map"
   final val GET_MAP_VALUE = "get_map_value"
+  final val MAP_CONCAT = "map_concat"
   final val MAP_KEYS = "map_keys"
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
@@ -289,6 +293,7 @@ object ExpressionNames {
   final val TRANSFORM_KEYS = "transform_keys"
   final val TRANSFORM_VALUES = "transform_values"
   final val STR_TO_MAP = "str_to_map"
+  final val MAP_FILTER = "map_filter"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"

@@ -29,12 +29,11 @@ import org.apache.gluten.vectorized.{ArrowColumnarRow, ArrowWritableColumnVector
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, CaseWhen, Coalesce, Expression, If, LambdaFunction, NamedExpression, NaNvl, ScalaUDF}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.{ExplainUtils, ProjectExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-import org.apache.spark.sql.hive.HiveUdfUtil
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.hive.{HiveUDFTransformer, VeloxHiveUDFTransformer}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 import scala.collection.mutable.ListBuffer
@@ -45,13 +44,14 @@ import scala.collection.mutable.ListBuffer
  * (a, b, c) ColumnarPartialProjectExec (a, b, c, myudf(a) as _SparkPartialProject1),
  * ProjectExecTransformer(_SparkPartialProject1 + b + hash(c))
  *
- * @param original
- *   extract the ScalaUDF from original project list as Alias in UnsafeProjection and
- *   AttributeReference in ColumnarPartialProjectExec output
+ * @param projectList
+ *   The project output, with this argument in case class, function QueryPlan.expressions can return
+ *   the Expression list correctly, then the function executeQuery can find the SubQuery from
+ *   Expression
  * @param child
  *   child plan
  */
-case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
+case class ColumnarPartialProjectExec(projectList: Seq[NamedExpression], child: SparkPlan)(
     replacedAliasUdf: Seq[Alias])
   extends UnaryExecNode
   with ValidatablePlan {
@@ -59,10 +59,8 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   private val projectAttributes: ListBuffer[Attribute] = ListBuffer()
   private val projectIndexInChild: ListBuffer[Int] = ListBuffer()
   private var UDFAttrNotExists = false
-  private var hasUnsupportedDataType = replacedAliasUdf.exists(a => !validateDataType(a.dataType))
-  if (!hasUnsupportedDataType) {
-    getProjectIndexInChildOutput(replacedAliasUdf)
-  }
+  private var hasUnsupportedDataType = false
+  getProjectIndexInChildOutput(replacedAliasUdf)
 
   @transient override lazy val metrics = Map(
     "time" -> SQLMetrics.createTimingMetric(sparkContext, "total time of partial project"),
@@ -77,11 +75,11 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   override def output: Seq[Attribute] = child.output ++ replacedAliasUdf.map(_.toAttribute)
 
   override def doCanonicalize(): ColumnarPartialProjectExec = {
-    val canonicalized = original.canonicalized.asInstanceOf[ProjectExec]
-    this.copy(
-      original = canonicalized,
-      child = child.canonicalized
-    )(replacedAliasUdf.map(QueryPlan.normalizeExpressions(_, child.output)))
+    super
+      .doCanonicalize()
+      .asInstanceOf[ColumnarPartialProjectExec]
+      .copy()(replacedAliasUdf =
+        replacedAliasUdf.map(QueryPlan.normalizeExpressions(_, child.output)))
   }
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
@@ -102,26 +100,6 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
       .forall(validateExpression)
   }
 
-  private def validateDataType(dataType: DataType): Boolean = {
-    dataType match {
-      case _: BooleanType => true
-      case _: ByteType => true
-      case _: ShortType => true
-      case _: IntegerType => true
-      case _: LongType => true
-      case _: FloatType => true
-      case _: DoubleType => true
-      case _: StringType => true
-      case _: TimestampType => true
-      case _: DateType => true
-      case _: BinaryType => true
-      case _: DecimalType => true
-      case YearMonthIntervalType.DEFAULT => true
-      case _: NullType => true
-      case _ => false
-    }
-  }
-
   private def getProjectIndexInChildOutput(exprs: Seq[Expression]): Unit = {
     exprs.forall {
       case a: AttributeReference =>
@@ -131,7 +109,9 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
           UDFAttrNotExists = true
           log.debug(s"Expression $a should exist in child output ${child.output}")
           false
-        } else if (!validateDataType(a.dataType)) {
+        } else if (
+          BackendsApiManager.getValidatorApiInstance.doSchemaValidate(a.dataType).isDefined
+        ) {
           hasUnsupportedDataType = true
           log.debug(s"Expression $a contains unsupported data type ${a.dataType}")
           false
@@ -147,9 +127,6 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (!GlutenConfig.get.enableColumnarPartialProject) {
-      return ValidationResult.failed("Config disable this feature")
-    }
     if (UDFAttrNotExists) {
       return ValidationResult.failed("Attribute in the UDF does not exists in its child")
     }
@@ -159,21 +136,20 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     if (projectAttributes.size == child.output.size) {
       return ValidationResult.failed("UDF need all the columns in child output")
     }
-    if (original.output.isEmpty) {
-      return ValidationResult.failed("Project fallback because output is empty")
-    }
     if (replacedAliasUdf.isEmpty) {
       return ValidationResult.failed("No UDF")
     }
-    if (replacedAliasUdf.size > original.output.size) {
+    if (replacedAliasUdf.size > projectList.size) {
       // e.g. udf1(col) + udf2(col), it will introduce 2 cols for a2c
       return ValidationResult.failed("Number of RowToColumn columns is more than ProjectExec")
     }
-    if (!original.projectList.forall(validateExpression(_))) {
+    if (!projectList.forall(validateExpression(_))) {
       return ValidationResult.failed("Contains expression not supported")
     }
     if (
-      ExpressionUtils.hasComplexExpressions(original, GlutenConfig.get.fallbackExpressionsThreshold)
+      ExpressionUtils.hasComplexExpressions(
+        projectList,
+        GlutenConfig.get.fallbackExpressionsThreshold)
     ) {
       return ValidationResult.failed("Fallback by complex expression")
     }
@@ -256,6 +232,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
       targetRow.rowId = i
       proj.target(targetRow).apply(arrowBatch.getRow(i))
     }
+    targetRow.finishWriteRow()
     val targetBatch = new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), numRows)
     val start2 = System.currentTimeMillis()
     val veloxBatch = VeloxColumnarBatches.toVeloxBatch(
@@ -294,11 +271,16 @@ object ColumnarPartialProjectExec {
 
   val projectPrefix = "_SparkPartialProject"
 
+  /** Check if it's a hive udf but not transformable */
+  private def containsUnsupportedHiveUDF(h: Expression): Boolean = {
+    HiveUDFTransformer.isHiveUDF(h) && !VeloxHiveUDFTransformer.isSupportedHiveUDF(h)
+  }
+
   private def containsUDF(expr: Expression): Boolean = {
     if (expr == null) return false
     expr match {
       case _: ScalaUDF => true
-      case h if HiveUdfUtil.isHiveUdf(h) => true
+      case h if containsUnsupportedHiveUDF(h) => true
       case p => p.children.exists(c => containsUDF(c))
     }
   }
@@ -329,7 +311,7 @@ object ColumnarPartialProjectExec {
     expr match {
       case u: ScalaUDF =>
         replaceByAlias(u, replacedAliasUdf)
-      case h if HiveUdfUtil.isHiveUdf(h) =>
+      case h if containsUnsupportedHiveUDF(h) =>
         replaceByAlias(h, replacedAliasUdf)
       case au @ Alias(_: ScalaUDF, _) =>
         val replaceIndex = replacedAliasUdf.indexWhere(r => r.exprId == au.exprId)
@@ -361,7 +343,7 @@ object ColumnarPartialProjectExec {
       p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
     }
     val partialProject =
-      ColumnarPartialProjectExec(original, original.child)(replacedAliasUdf.toSeq)
+      ColumnarPartialProjectExec(original.projectList, original.child)(replacedAliasUdf.toSeq)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }

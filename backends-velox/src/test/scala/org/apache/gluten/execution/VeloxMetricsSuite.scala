@@ -21,7 +21,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerStageCompleted}
-import org.apache.spark.sql.TestUtils
+import org.apache.spark.sql.GlutenTestUtils
 import org.apache.spark.sql.execution.{ColumnarInputAdapter, CommandResultExec, InputIteratorTransformer}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, BroadcastQueryStageExec}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
@@ -219,7 +219,7 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
 
-    TestUtils.withListener(spark.sparkContext, inputMetricsListener) {
+    GlutenTestUtils.withListener(spark.sparkContext, inputMetricsListener) {
       _ =>
         val df = spark.sql("""
                              |select /*+ BROADCAST(part) */ * from part join lineitem

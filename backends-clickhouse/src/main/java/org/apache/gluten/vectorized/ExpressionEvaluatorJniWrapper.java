@@ -28,8 +28,11 @@ public class ExpressionEvaluatorJniWrapper {
   /** Call initNative to initialize native computing. */
   static native void nativeInitNative(byte[] confAsPlan);
 
-  /** Call finalizeNative to finalize native computing. */
+  /** Call finalizeNative to finalize native computing for each SparkSession. */
   static native void nativeFinalizeNative();
+
+  /** Call finalizeNative to finalize native computing when jvm shutdown. */
+  static native void nativeDestroyNative();
 
   /**
    * Create a native compute kernel and return a columnar result iterator.
@@ -41,7 +44,8 @@ public class ExpressionEvaluatorJniWrapper {
       byte[][] splitInfo,
       ColumnarNativeIterator[] batchItr,
       byte[] confArray,
-      boolean materializeInput);
+      boolean materializeInput,
+      int partitionIndex);
 
   public static native void updateQueryRuntimeSettings(byte[] settings);
 }

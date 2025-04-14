@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   cache-native-lib-centos-7:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
@@ -55,8 +55,8 @@ jobs:
           key: ccache-centos7-release-default-${{github.sha}}
 
   cache-native-lib-centos-8:
-    runs-on: ubuntu-20.04
-    container: apache/gluten:centos-8
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
@@ -79,7 +79,7 @@ jobs:
           key: ccache-centos8-release-default-${{github.sha}}
 
   # ccache-native-lib-ubuntu-velox-ut:
-  #   runs-on: ubuntu-20.04
+  #   runs-on: ubuntu-22.04
   #   env:
   #     CCACHE_DIR: "${{ github.workspace }}/.ccache"
   #   container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
@@ -111,7 +111,7 @@ jobs:
   #         path: '${{ env.CCACHE_DIR }}'
   #         key: ccache-ubuntu-release-default
 #  ccache-native-lib-centos-velox-ut:
-#    runs-on: ubuntu-20.04
+#    runs-on: ubuntu-22.04
 #    env:
 #      CCACHE_DIR: "${{ github.workspace }}/.ccache"
 #    container: ghcr.io/facebookincubator/velox-dev:centos8

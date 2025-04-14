@@ -48,6 +48,10 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
     nativeFinalizeNative();
   }
 
+  public static void destroyNative() {
+    nativeDestroyNative();
+  }
+
   // Used to validate the Substrait plan in native compute engine.
   public static boolean doValidate(byte[] subPlan) {
     throw new UnsupportedOperationException("doValidate is not supported in Clickhouse Backend");
@@ -64,7 +68,8 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
       byte[] wsPlan,
       byte[][] splitInfo,
       List<ColumnarNativeIterator> iterList,
-      boolean materializeInput) {
+      boolean materializeInput,
+      int partitionIndex) {
     CHThreadGroup.registerNewThreadGroup();
     long handle =
         nativeCreateKernelWithIterator(
@@ -72,13 +77,17 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
             splitInfo,
             iterList.toArray(new ColumnarNativeIterator[0]),
             ConfigUtil.serialize(getNativeBackendConf()),
-            materializeInput);
+            materializeInput,
+            partitionIndex);
     return createBatchIterator(handle);
   }
 
   // Only for UT.
   public static BatchIterator createKernelWithBatchIterator(
-      byte[] wsPlan, byte[][] splitInfo, List<ColumnarNativeIterator> iterList) {
+      byte[] wsPlan,
+      byte[][] splitInfo,
+      List<ColumnarNativeIterator> iterList,
+      int partitionIndex) {
     CHThreadGroup.registerNewThreadGroup();
     long handle =
         nativeCreateKernelWithIterator(
@@ -86,7 +95,8 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
             splitInfo,
             iterList.toArray(new ColumnarNativeIterator[0]),
             ConfigUtil.serialize(getNativeBackendConf()),
-            false);
+            false,
+            partitionIndex);
     return createBatchIterator(handle);
   }
 

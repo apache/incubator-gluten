@@ -175,6 +175,15 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
         val backendValidation = backendSpecificJoinValidation()
         logInfo(s"Backend-specific validation result: ${backendValidation.getOrElse("Succeeded")}")
         backendValidation.getOrElse(ValidationResult.succeeded)
+      case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
+      case FullOuter
+          if BackendsApiManager.getSettings.broadcastNestedLoopJoinSupportsFullOuterJoin() =>
+        if (condition.isEmpty) {
+          ValidationResult.succeeded
+        } else {
+          ValidationResult.failed(
+            s"FullOuter join with join condition is not supported with BroadcastNestedLoopJoin")
+        }
       case _ =>
         logInfo(s"Validation failed: $joinType join is not supported with BroadcastNestedLoopJoin")
         ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")

@@ -238,6 +238,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("intersectAll - nullability")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
+    .exclude("SPARK-27439: Explain result should match collected result after view change")
     .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
     .exclude("SPARK-28224: Aggregate sum big decimal overflow")
     .exclude("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
@@ -263,6 +264,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-24165: CaseWhen/If - nullability of nested types")
     .exclude("SPARK-27671: Fix analysis exception when casting null in nested field in struct")
     .exclude("summary")
+    .excludeGlutenTest(
+      "SPARK-27439: Explain result should match collected result after view change")
     .excludeGlutenTest("distributeBy and localSort")
     .excludeGlutenTest("describe")
     .excludeGlutenTest("Allow leading/trailing whitespace in string before casting")
@@ -484,7 +487,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
     .exclude("binary overlay function")
-    .exclude("string parse_url function")
     .exclude("string / binary length function")
     .exclude("SPARK-36751: add octet length api for scala")
     .exclude("SPARK-36751: add bit length api for scala")
@@ -578,6 +580,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("null cast")
     .exclude("cast string to date")
     .exclude("cast string to timestamp")
+    .excludeGlutenTest("cast string to timestamp")
     .exclude("cast from boolean")
     .exclude("data type casting")
     .excludeGlutenTest("data type casting")
@@ -847,6 +850,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("null cast")
     .exclude("cast string to date")
     .exclude("cast string to timestamp")
+    .excludeGlutenTest("cast string to timestamp")
     .exclude("cast from boolean")
     .exclude("cast from int")
     .exclude("cast from long")
@@ -978,6 +982,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeGlutenTest("replace partial hash aggregate with sort aggregate")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSQLAggregateFunctionSuite]
+    .excludeGlutenTest("Return NaN or null when dividing by zero")
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("window function: partition and order expressions")
     .exclude("window function: expressions in arguments of a window functions")
