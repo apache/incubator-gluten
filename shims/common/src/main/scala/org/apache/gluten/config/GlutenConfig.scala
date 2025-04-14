@@ -616,7 +616,8 @@ object GlutenConfig {
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX,
       LEGACY_TIME_PARSER_POLICY.key,
-      LEGACY_STATISTICAL_AGGREGATE.key
+      LEGACY_STATISTICAL_AGGREGATE.key,
+      COLUMNAR_CUDF_ENABLED.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -1715,5 +1716,11 @@ object GlutenConfig {
       .doc("Enable or disable columnar collectLimit.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_CUDF_ENABLED =
+    buildConf("spark.gluten.sql.columnar.cudf")
+      .doc("Enable or disable cudf support. This is an experimental feature.")
+      .booleanConf
+      .createWithDefault(false)
 
 }
