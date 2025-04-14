@@ -51,7 +51,7 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
     getRootCause(e.getCause)
   }
 
-  test("Dynamic Off-Heap Sizing") {
+  test("Dynamic off-heap sizing") {
     System.gc()
     dataGenerator.generateRandomData(spark, Some(outputPath))
     spark.read.format("parquet").load(outputPath).createOrReplaceTempView("tbl")
