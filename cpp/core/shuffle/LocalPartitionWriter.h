@@ -86,7 +86,7 @@ class LocalPartitionWriter : public PartitionWriter {
 
   arrow::Status requestSpill(bool isFinal);
 
-  arrow::Status finishSpill(bool closeFile);
+  arrow::Status finishSpill();
 
   std::string nextSpilledFileDir();
 

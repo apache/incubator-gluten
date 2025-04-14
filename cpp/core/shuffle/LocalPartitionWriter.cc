@@ -21,6 +21,8 @@
 #include <glog/logging.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <xsimd/arch/xsimd_scalar.hpp>
+
 #include <filesystem>
 #include <random>
 #include <thread>
@@ -34,12 +36,14 @@ namespace gluten {
 class LocalPartitionWriter::LocalSpiller {
  public:
   LocalSpiller(
+      bool isFinal,
       std::shared_ptr<arrow::io::OutputStream> os,
       std::string spillFile,
       uint32_t compressionThreshold,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec)
-      : os_(os),
+      : isFinal_(isFinal),
+        os_(os),
         spillFile_(std::move(spillFile)),
         compressionThreshold_(compressionThreshold),
         pool_(pool),
@@ -53,7 +57,24 @@ class LocalPartitionWriter::LocalSpiller {
 
   arrow::Status spill(uint32_t partitionId, std::unique_ptr<InMemoryPayload> payload) {
     ScopedTimer timer(&spillTime_);
-    if (lastPid_ != -1 && partitionId != lastPid_) {
+    if (isFinal_) {
+      ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
+      auto* raw = compressedOs_ != nullptr ? compressedOs_.get() : os_.get();
+      RETURN_NOT_OK(payload->serialize(raw));
+
+      // Flush immediately to finish the compressed stream.
+      if (compressedOs_ != nullptr) {
+        RETURN_NOT_OK(compressedOs_->Flush());
+      }
+
+      ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
+      diskSpill_->insertPayload(partitionId, Payload::kRaw, 0, nullptr, end - start, pool_, nullptr);
+      DLOG(INFO) << "LocalSpiller: Spilled partition " << lastPid_ << " file start: " << start << ", file end: " << end
+                 << ", file: " << spillFile_;
+      return arrow::Status::OK();
+    }
+
+    if (lastPid_ != -1 && lastPid_ != partitionId) {
       if (compressedOs_ != nullptr) {
         RETURN_NOT_OK(compressedOs_->Flush());
       }
@@ -92,7 +113,7 @@ class LocalPartitionWriter::LocalSpiller {
     return arrow::Status::OK();
   }
 
-  arrow::Result<std::shared_ptr<Spill>> finish(bool closeFile) {
+  arrow::Result<std::shared_ptr<Spill>> finish() {
     ARROW_RETURN_IF(finished_, arrow::Status::Invalid("Calling finish() on a finished LocalSpiller."));
     ARROW_RETURN_IF(os_->closed(), arrow::Status::Invalid("Spill file os has been closed."));
 
@@ -102,13 +123,16 @@ class LocalPartitionWriter::LocalSpiller {
         spillTime_ -= compressTime_;
         RETURN_NOT_OK(compressedOs_->Close());
       }
-      ARROW_ASSIGN_OR_RAISE(auto pos, os_->Tell());
-      diskSpill_->insertPayload(lastPid_, Payload::kRaw, 0, nullptr, pos - writePos_, pool_, nullptr);
-      DLOG(INFO) << "LocalSpiller: Spilled partition " << lastPid_ << " file start: " << writePos_
-                 << ", file end: " << pos << ", file: " << spillFile_;
+
+      if (!isFinal_) {
+        ARROW_ASSIGN_OR_RAISE(auto pos, os_->Tell());
+        diskSpill_->insertPayload(lastPid_, Payload::kRaw, 0, nullptr, pos - writePos_, pool_, nullptr);
+        DLOG(INFO) << "LocalSpiller: Spilled partition " << lastPid_ << " file start: " << writePos_
+                   << ", file end: " << pos << ", file: " << spillFile_;
+      }
     }
 
-    if (closeFile) {
+    if (!isFinal_) {
       RETURN_NOT_OK(os_->Close());
     }
 
@@ -125,6 +149,8 @@ class LocalPartitionWriter::LocalSpiller {
   }
 
  private:
+  bool isFinal_;
+
   std::shared_ptr<arrow::io::OutputStream> os_;
   std::shared_ptr<ShuffleCompressedOutputStream> compressedOs_{nullptr};
   int64_t writePos_{0};
@@ -483,7 +509,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   stopped_ = true;
 
   if (useSpillFileAsDataFile_) {
-    RETURN_NOT_OK(finishSpill(false));
+    RETURN_NOT_OK(finishSpill());
     // The last spill has been written to data file.
     auto spill = std::move(spills_.back());
     spills_.pop_back();
@@ -505,7 +531,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
     writeTime_ = spill->spillTime();
     compressTime_ += spill->compressTime();
   } else {
-    RETURN_NOT_OK(finishSpill(true));
+    RETURN_NOT_OK(finishSpill());
     ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_));
 
     int64_t endInFinalFile = 0;
@@ -573,16 +599,16 @@ arrow::Status LocalPartitionWriter::requestSpill(bool isFinal) {
       ARROW_ASSIGN_OR_RAISE(os, openFile(spillFile));
     }
     spiller_ = std::make_unique<LocalSpiller>(
-        os, std::move(spillFile), options_.compressionThreshold, payloadPool_.get(), codec_.get());
+        isFinal, os, std::move(spillFile), options_.compressionThreshold, payloadPool_.get(), codec_.get());
   }
   return arrow::Status::OK();
 }
 
-arrow::Status LocalPartitionWriter::finishSpill(bool closeFile) {
+arrow::Status LocalPartitionWriter::finishSpill() {
   if (spiller_ && !spiller_->finished()) {
     auto spiller = std::move(spiller_);
     spills_.emplace_back();
-    ARROW_ASSIGN_OR_RAISE(spills_.back(), spiller->finish(closeFile));
+    ARROW_ASSIGN_OR_RAISE(spills_.back(), spiller->finish());
   }
   return arrow::Status::OK();
 }
@@ -624,7 +650,7 @@ LocalPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPa
 
   if (lastEvictPid_ != -1 && (partitionId < lastEvictPid_ || (isFinal && !dataFileOs_))) {
     lastEvictPid_ = -1;
-    RETURN_NOT_OK(finishSpill(true));
+    RETURN_NOT_OK(finishSpill());
   }
   RETURN_NOT_OK(requestSpill(isFinal));
 
@@ -645,7 +671,7 @@ LocalPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPa
 
 arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actual) {
   // Finish last spiller.
-  RETURN_NOT_OK(finishSpill(true));
+  RETURN_NOT_OK(finishSpill());
 
   int64_t reclaimed = 0;
   // Reclaim memory from payloadCache.
@@ -676,7 +702,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
     // This is not accurate. When the evicted partition buffers are not copied, the merged ones
     // are resized from the original buffers thus allocated from partitionBufferPool.
     reclaimed += beforeSpill - payloadPool_->bytes_allocated();
-    RETURN_NOT_OK(finishSpill(true));
+    RETURN_NOT_OK(finishSpill());
   }
   *actual = reclaimed;
   return arrow::Status::OK();

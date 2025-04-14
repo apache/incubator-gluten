@@ -124,6 +124,14 @@ class ShuffleCompressedOutputStream : public arrow::io::OutputStream {
   }
 
   arrow::Status Write(const void* data, int64_t nbytes) override {
+    ARROW_RETURN_IF(!isOpen_, arrow::Status::Invalid("Stream is closed"));
+
+    if (nbytes == 0) {
+      return arrow::Status::OK();
+    }
+
+    freshCompressor_ = false;
+
     int64_t flushTime = 0;
     {
       ScopedTimer timer(&compressTime_);
@@ -164,15 +172,25 @@ class ShuffleCompressedOutputStream : public arrow::io::OutputStream {
   }
 
   arrow::Status Flush() override {
+    ARROW_RETURN_IF(!isOpen_, arrow::Status::Invalid("Stream is closed"));
+
+    if (freshCompressor_) {
+      // No data written, no need to flush
+      return arrow::Status::OK();
+    }
+
     RETURN_NOT_OK(FinalizeCompression());
     ARROW_ASSIGN_OR_RAISE(compressor_, codec_->MakeCompressor());
+    freshCompressor_ = true;
     return arrow::Status::OK();
   }
 
   arrow::Status Close() override {
     if (isOpen_) {
       isOpen_ = false;
-      RETURN_NOT_OK(FinalizeCompression());
+      if (!freshCompressor_) {
+        RETURN_NOT_OK(FinalizeCompression());
+      }
       // Do not close the underlying stream, it is the caller's responsibility.
     }
     return arrow::Status::OK();
@@ -260,6 +278,7 @@ class ShuffleCompressedOutputStream : public arrow::io::OutputStream {
   std::shared_ptr<OutputStream> raw_;
   arrow::MemoryPool* pool_;
 
+  bool freshCompressor_{true};
   std::shared_ptr<arrow::util::Compressor> compressor_;
   std::shared_ptr<arrow::ResizableBuffer> compressed_;
 
