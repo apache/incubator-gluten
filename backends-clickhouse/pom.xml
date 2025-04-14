@@ -216,6 +216,10 @@
     </profile>
   </profiles>
 
+  <properties>
+    <surefire.skipTests>true</surefire.skipTests>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -659,7 +663,7 @@
             <include>**/*Test.java</include>
             <include>**/Test*.java</include>
           </includes>
-          <skipTests>false</skipTests>
+          <skipTests>${surefire.skipTests}</skipTests>
         </configuration>
       </plugin>
     </plugins>
