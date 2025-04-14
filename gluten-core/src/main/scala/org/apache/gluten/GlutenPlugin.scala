@@ -142,7 +142,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     if (!extensionSeq.toSet.contains(GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME)) {
       conf.set(
         SPARK_SESSION_EXTENSIONS.key,
-        (extensionSeq ++ GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME).mkString(","))
+        (extensionSeq :+ GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME).mkString(","))
     }
 
     // adaptive custom cost evaluator class
