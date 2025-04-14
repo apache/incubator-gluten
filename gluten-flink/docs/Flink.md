@@ -44,9 +44,9 @@ You need to get the Velox4j code, and compile it first.
 
 ```bash
 ## fetch velox4j code
-git clone https://github.com/velox4j/velox4j.git
+git clone https://github.com/bigo-sg/velox4j.git
 cd velox4j
-git reset --hard 7aaa6465cb2c56c8898b737bcc770bae35a94ee4
+git checkout gluten
 mvn clean install
 ```
 **Get gluten**

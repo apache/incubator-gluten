@@ -58,7 +58,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData>, GlutenOperator {
 
-    private static final Logger LOG = LoggerFactory.getLogger(StreamGraphTranslator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GlutenSingleInputOperator.class);
 
     private final PlanNode glutenPlan;
     private final String id;
