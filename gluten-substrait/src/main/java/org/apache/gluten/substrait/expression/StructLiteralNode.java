@@ -16,82 +16,35 @@
  */
 package org.apache.gluten.substrait.expression;
 
-import org.apache.gluten.substrait.type.*;
+import org.apache.gluten.substrait.type.NothingNode;
+import org.apache.gluten.substrait.type.StructNode;
+import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
-import org.apache.spark.sql.catalyst.InternalRow;
 
-public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
-  public StructLiteralNode(InternalRow row, TypeNode typeNode) {
-    super(row, typeNode);
+import java.util.List;
+
+public class StructLiteralNode extends LiteralNodeWithValue<List<Object>> {
+  public StructLiteralNode(List<Object> struct, TypeNode typeNode) {
+    super(struct, typeNode);
   }
 
   public LiteralNode getFieldLiteral(int index) {
-    InternalRow value = getValue();
+    List<Object> value = getValue();
     TypeNode type = ((StructNode) getTypeNode()).getFieldTypes().get(index);
-    if (value.isNullAt(index)) {
+    if (value.get(index) == null) {
       return ExpressionBuilder.makeNullLiteral(type);
-    }
-
-    if (type instanceof BooleanTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getBoolean(index), type);
-    }
-    if (type instanceof I8TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getByte(index), type);
-    }
-    if (type instanceof I16TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getShort(index), type);
-    }
-    if (type instanceof I32TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getInt(index), type);
-    }
-    if (type instanceof I64TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getLong(index), type);
-    }
-    if (type instanceof FP32TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getFloat(index), type);
-    }
-    if (type instanceof FP64TypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getDouble(index), type);
-    }
-    if (type instanceof DateTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getInt(index), type);
-    }
-    if (type instanceof TimestampTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getLong(index), type);
-    }
-    if (type instanceof StringTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getUTF8String(index), type);
-    }
-    if (type instanceof BinaryTypeNode) {
-      return ExpressionBuilder.makeLiteral(value.getBinary(index), type);
-    }
-    if (type instanceof DecimalTypeNode) {
-      return ExpressionBuilder.makeLiteral(
-          value.getDecimal(
-              index, ((DecimalTypeNode) type).precision, ((DecimalTypeNode) type).scale),
-          type);
-    }
-    if (type instanceof ListNode) {
-      return ExpressionBuilder.makeLiteral(value.getArray(index), type);
-    }
-    if (type instanceof MapNode) {
-      return ExpressionBuilder.makeLiteral(value.getMap(index), type);
-    }
-    if (type instanceof StructNode) {
-      return ExpressionBuilder.makeLiteral(
-          value.getStruct(index, ((StructNode) type).getFieldTypes().size()), type);
     }
     if (type instanceof NothingNode) {
       return ExpressionBuilder.makeNullLiteral(type);
     }
-    throw new UnsupportedOperationException(
-        type.toString() + " is not supported in getFieldLiteral.");
+
+    return ExpressionBuilder.makeLiteral(value.get(index), type);
   }
 
   @Override
-  protected void updateLiteralBuilder(Builder literalBuilder, InternalRow row) {
+  protected void updateLiteralBuilder(Builder literalBuilder, List<Object> struct) {
     Expression.Literal.Struct.Builder structBuilder = Expression.Literal.Struct.newBuilder();
     for (int i = 0; i < ((StructNode) getTypeNode()).getFieldTypes().size(); ++i) {
       structBuilder.addFields(getFieldLiteral(i).getLiteral());
