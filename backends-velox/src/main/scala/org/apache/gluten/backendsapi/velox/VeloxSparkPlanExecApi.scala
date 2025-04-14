@@ -301,7 +301,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     children match {
       case Seq(left, posExpr, right, _) if posExpr.original == Literal(1) =>
         // transformer to array_prepend implement in velox
-        // https://github.com/apache/spark/blob/aaa94c4e40dfe3dd4f7d05c2388903bad93a2907/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/expressions/collectionOperations.scala#L1714
         GenericExpressionTransformer(ExpressionNames.ARRAY_PREPEND, Seq(left, right), original)
       case _ =>
         GenericExpressionTransformer(substraitExprName, children, original)
