@@ -353,6 +353,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       } else {
         VELOX_NYI("Unsupported Join type: {}", std::to_string(crossRel.type()));
       }
+      break;
     case ::substrait::CrossRel_JoinType::CrossRel_JoinType_JOIN_TYPE_OUTER:
       joinType = core::JoinType::kFull;
       break;

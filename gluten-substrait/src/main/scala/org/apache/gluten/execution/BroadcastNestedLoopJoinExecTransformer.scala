@@ -175,7 +175,6 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
         val backendValidation = backendSpecificJoinValidation()
         logInfo(s"Backend-specific validation result: ${backendValidation.getOrElse("Succeeded")}")
         backendValidation.getOrElse(ValidationResult.succeeded)
-      case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
       case FullOuter
           if BackendsApiManager.getSettings.broadcastNestedLoopJoinSupportsFullOuterJoin() =>
         if (condition.isEmpty) {
@@ -190,7 +189,6 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     }
 
     if (!result.ok()) {
-      logInfo(s"Validation failed: 104")
       return result
     }
 

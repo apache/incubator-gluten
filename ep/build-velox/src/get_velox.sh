@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/ArnavBalyan/velox.git
-VELOX_BRANCH=arnavb/2025_02_14_nested_join
+VELOX_BRANCH=arnavb/2025_04_13_nested_loop
 VELOX_HOME=""
 
 OS=`uname -s`
