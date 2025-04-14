@@ -193,6 +193,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         runQueryAndCompare("select arr, txt, array_prepend(arr, txt) from tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
+        sql("select arr, txt, array_prepend(arr, txt) from tbl").explain()
     }
   }
 
