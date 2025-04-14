@@ -1717,11 +1717,11 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+
   val COLUMNAR_CUDF_ENABLED =
     buildConf("spark.gluten.sql.columnar.cudf")
-      .internal()
-      .doc("Enable or disable cudf support.")
+      .doc("Enable or disable cudf support. This is an experimental feature.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
 }
