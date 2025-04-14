@@ -25,7 +25,7 @@ import org.apache.gluten.utils.SubstraitUtil
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, RightOuter}
+import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, InnerLike, JoinType, LeftExistence, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{ExplainUtils, SparkPlan}
 import org.apache.spark.sql.execution.joins.BaseJoinExec
@@ -87,6 +87,8 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
         left.output ++ right.output.map(_.withNullability(true))
       case RightOuter =>
         left.output.map(_.withNullability(true)) ++ right.output
+      case j: ExistenceJoin =>
+        left.output :+ j.exists
       case LeftExistence(_) =>
         left.output
       case FullOuter =>
@@ -108,7 +110,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     case BuildRight =>
       joinType match {
         case _: InnerLike => left.outputPartitioning
-        case LeftOuter => left.outputPartitioning
+        case LeftOuter | ExistenceJoin(_) => left.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building right side")
@@ -167,8 +169,12 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   }
 
   def validateJoinTypeAndBuildSide(): ValidationResult = {
+    logInfo(s"Validating joinType: $joinType, buildSide: $buildSide")
     val result = joinType match {
-      case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
+      case _: InnerLike | LeftOuter | RightOuter =>
+        val backendValidation = backendSpecificJoinValidation()
+        logInfo(s"Backend-specific validation result: ${backendValidation.getOrElse("Succeeded")}")
+        backendValidation.getOrElse(ValidationResult.succeeded)
       case FullOuter
           if BackendsApiManager.getSettings.broadcastNestedLoopJoinSupportsFullOuterJoin() =>
         if (condition.isEmpty) {
@@ -178,6 +184,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
             s"FullOuter join with join condition is not supported with BroadcastNestedLoopJoin")
         }
       case _ =>
+        logInfo(s"Validation failed: $joinType join is not supported with BroadcastNestedLoopJoin")
         ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
 
@@ -185,12 +192,18 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       return result
     }
 
+    logInfo("validation passed, checking joinType and buildSide compatibility.")
     (joinType, buildSide) match {
-      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) =>
+      case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) | (ExistenceJoin(_), BuildLeft) =>
+        logInfo(s"Validation failed: $joinType join is not supported with $buildSide")
         ValidationResult.failed(s"$joinType join is not supported with $buildSide")
-      case _ => ValidationResult.succeeded // continue
+      case _ =>
+        logInfo("Validation succeeded")
+        ValidationResult.succeeded // continue
     }
   }
+
+  protected def backendSpecificJoinValidation(): Option[ValidationResult] = None
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!GlutenConfig.get.broadcastNestedLoopJoinTransformerTransformerEnabled) {
