@@ -315,12 +315,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        digests: [ vcpkg-centos-8, centos-8-jdk8, centos-8-jdk11, centos-8-jdk17 ]
+        digests: [ vcpkg-centos-8, centos-8-jdk8, centos-8-jdk11, centos-8-jdk17, centos-9-jdk8-cudf ]
     needs:
       - build-vcpkg-centos-8
       - build-centos-8-jdk8
       - build-centos-8-jdk11
       - build-centos-8-jdk17
+      - build-centos-9-jdk8-cudf
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
