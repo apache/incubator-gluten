@@ -72,13 +72,12 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
     for (const auto partitionWriterType : {PartitionWriterType::kLocal, PartitionWriterType::kRss}) {
       for (const auto diskWriteBufferSize : {4, 56, 32 * 1024}) {
         for (auto useRadixSort : {true, false}) {
-          params.push_back(
-              ShuffleTestParams{
-                  .shuffleWriterType = ShuffleWriterType::kSortShuffle,
-                  .partitionWriterType = partitionWriterType,
-                  .compressionType = compression,
-                  .diskWriteBufferSize = diskWriteBufferSize,
-                  .useRadixSort = useRadixSort});
+          params.push_back(ShuffleTestParams{
+              .shuffleWriterType = ShuffleWriterType::kSortShuffle,
+              .partitionWriterType = partitionWriterType,
+              .compressionType = compression,
+              .diskWriteBufferSize = diskWriteBufferSize,
+              .useRadixSort = useRadixSort});
         }
       }
     }
@@ -86,17 +85,15 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
 
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
-        params.push_back(
-            ShuffleTestParams{
-                ShuffleWriterType::kHashShuffle,
-                PartitionWriterType::kLocal,
-                compression,
-                compressionThreshold,
-                mergeBufferSize});
+        params.push_back(ShuffleTestParams{
+            ShuffleWriterType::kHashShuffle,
+            PartitionWriterType::kLocal,
+            compression,
+            compressionThreshold,
+            mergeBufferSize});
       }
-      params.push_back(
-          ShuffleTestParams{
-              ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold});
+      params.push_back(ShuffleTestParams{
+          ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold});
     }
   }
 
@@ -174,7 +171,11 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeFlatVector<int32_t>(
           4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
-          4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5)),
+          4,
+          [](vector_size_t row) {
+            return Timestamp{row % 2, 0};
+          },
+          nullEvery(5)),
   });
 
   auto rowType = facebook::velox::asRowType(vector->type());
