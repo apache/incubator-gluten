@@ -315,6 +315,7 @@ class CompressedInputStream : public arrow::io::InputStream {
   }
 
   arrow::Result<int64_t> Read(int64_t nbytes, void* out) override {
+    ScopedTimer timer(&decompressWallTime_);
     auto out_data = reinterpret_cast<uint8_t*>(out);
 
     int64_t total_read = 0;
@@ -343,6 +344,10 @@ class CompressedInputStream : public arrow::io::InputStream {
     return std::move(buf);
   }
 
+  int64_t decompressTime() const {
+    return decompressWallTime_ - blockingTime_;
+  }
+
  private:
   ARROW_DISALLOW_COPY_AND_ASSIGN(CompressedInputStream);
 
@@ -355,6 +360,7 @@ class CompressedInputStream : public arrow::io::InputStream {
   arrow::Status EnsureCompressedData() {
     int64_t compressed_avail = compressed_ ? compressed_->size() - compressed_pos_ : 0;
     if (compressed_avail == 0) {
+      ScopedTimer timer(&blockingTime_);
       // No compressed data available, read a full chunk
       ARROW_ASSIGN_OR_RAISE(compressed_, raw_->Read(kChunkSize));
       compressed_pos_ = 0;
@@ -384,7 +390,12 @@ class CompressedInputStream : public arrow::io::InputStream {
         fresh_decompressor_ = false;
       }
       if (result.bytes_written > 0 || !result.need_more_output || input_len == 0) {
-        RETURN_NOT_OK(decompressed_->Resize(result.bytes_written));
+        // StdMemoryAllocator does not allow resize to 0.
+        if (result.bytes_written > 0) {
+          RETURN_NOT_OK(decompressed_->Resize(result.bytes_written));
+        } else {
+          decompressed_.reset();
+        }
         break;
       }
       GLUTEN_CHECK(result.bytes_written == 0, "Decompressor should return 0 bytes written");
@@ -465,6 +476,9 @@ class CompressedInputStream : public arrow::io::InputStream {
   bool fresh_decompressor_;
   // Total number of bytes decompressed
   int64_t total_pos_;
+
+  int64_t blockingTime_{0};
+  int64_t decompressWallTime_{0};
 };
 
 } // namespace gluten

@@ -390,13 +390,16 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
       veloxPool_(veloxPool),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
-  GLUTEN_ASSIGN_OR_THROW(
-      auto bufferedIn, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
   if (codec_ != nullptr) {
-    GLUTEN_ASSIGN_OR_THROW(
-        in_, arrow::io::CompressedInputStream::Make(codec_.get(), bufferedIn, arrow::default_memory_pool()));
+    GLUTEN_ASSIGN_OR_THROW(in_, CompressedInputStream::Make(codec_.get(), std::move(in), memoryPool));
   } else {
-    in_ = bufferedIn;
+    GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
+  }
+}
+
+VeloxSortShuffleReaderDeserializer::~VeloxSortShuffleReaderDeserializer() {
+  if (auto in = std::dynamic_pointer_cast<CompressedInputStream>(in_)) {
+    decompressTime_ += in->decompressTime();
   }
 }
 
@@ -452,6 +455,7 @@ void VeloxSortShuffleReaderDeserializer::readNextRow() {
   GLUTEN_THROW_NOT_OK(in_->Read(lastRowSize_, rowBufferPtr_ + bytesRead_));
   data_.push_back(std::string_view(rowBufferPtr_ + bytesRead_, lastRowSize_));
   bytesRead_ += lastRowSize_;
+  lastRowSize_ = 0;
   ++cachedRows_;
 }
 

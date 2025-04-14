@@ -79,6 +79,8 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
       int64_t& deserializeTime,
       int64_t& decompressTime);
 
+  ~VeloxSortShuffleReaderDeserializer() override;
+
   std::shared_ptr<ColumnarBatch> next() override;
 
  private:
@@ -90,13 +92,12 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
   uint32_t batchSize_;
-
   facebook::velox::memory::MemoryPool* veloxPool_;
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
 
-  facebook::velox::BufferPtr rowBuffer_;
-  char* rowBufferPtr_;
+  facebook::velox::BufferPtr rowBuffer_{nullptr};
+  char* rowBufferPtr_{nullptr};
   uint32_t bytesRead_{0};
   uint32_t lastRowSize_{0};
   std::vector<std::string_view> data_;
