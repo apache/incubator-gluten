@@ -61,8 +61,8 @@ public class TestFlinkUpsert extends CatalogTestBase {
   @Parameters(name = "catalogName={0}, baseNamespace={1}, format={2}, isStreaming={3}")
   public static List<Object[]> parameters() {
     List<Object[]> parameters = Lists.newArrayList();
-    // ignore orc, it is not supported by ch backend
-    for (FileFormat format : new FileFormat[] {FileFormat.PARQUET, FileFormat.AVRO}) {
+    // ignore ORC and AVRO, ch backend only support PARQUET
+    for (FileFormat format : new FileFormat[] {FileFormat.PARQUET}) {
       for (Boolean isStreaming : new Boolean[] {true, false}) {
         // Only test with one catalog as this is a file operation concern.
         // FlinkCatalogTestBase requires the catalog name start with testhadoop if using hadoop
