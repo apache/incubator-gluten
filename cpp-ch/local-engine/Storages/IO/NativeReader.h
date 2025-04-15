@@ -16,10 +16,12 @@
  */
 #pragma once
 
-#include <Common/PODArray.h>
+#include <jni.h>
 #include <Core/Block.h>
 #include <Core/Defines.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
+#include <IO/BufferWithOwnMemory.h>
+#include <IO/ReadBuffer.h>
 
 namespace local_engine
 {
@@ -34,14 +36,13 @@ public:
         std::string name;
         DB::SerializationPtr serializer = nullptr;
         size_t avg_value_size_hint = 0;
-        
+
         // for aggregate data
         size_t aggregate_state_size = 0;
         size_t aggregate_state_align = 0;
         DB::AggregateFunctionPtr aggregate_function = nullptr;
 
         std::function<void(DB::ReadBuffer &, DB::ColumnPtr &, size_t, ColumnParseUtil &)> parse;
-
     };
 
     NativeReader(
@@ -70,6 +71,23 @@ private:
 
     DB::Block prepareByFirstBlock();
     bool appendNextBlock(DB::Block & result_block);
+};
+
+class ReadBufferFromJavaInputStream final : public DB::BufferWithOwnMemory<DB::ReadBuffer>
+{
+public:
+    static jclass input_stream_class;
+    static jmethodID input_stream_read;
+
+    explicit ReadBufferFromJavaInputStream(jobject input_stream_, jbyteArray buffer_, size_t buffer_size_);
+    ~ReadBufferFromJavaInputStream() override;
+
+private:
+    jobject input_stream;
+    size_t buffer_size;
+    jbyteArray buffer;
+    int readFromJava() const;
+    bool nextImpl() override;
 };
 
 }

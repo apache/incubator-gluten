@@ -422,13 +422,11 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
       runQueryAndCompare(
         "select a from (select array_intersect(array(null,1,2,3,null), array(3,5,1,null,null)) as arr) " +
-          "lateral view explode(arr) as a order by a",
-        noFallBack = false
+          "lateral view explode(arr) as a order by a"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
-        "select array_intersect(array(null,1,2,3,null), cast(null as array<int>))",
-        noFallBack = false
+        "select array_intersect(array(null,1,2,3,null), cast(null as array<int>))"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
@@ -449,8 +447,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       runQueryAndCompare(
         "select array_position(array(1,2,3,null), 1), array_position(array(1,2,3,null), null)," +
           "array_position(array(1,2,3,null), 5), array_position(array(1,2,3), 5), " +
-          "array_position(array(1,2,3), 2), array_position(cast(null as array<int>), 1)",
-        noFallBack = false
+          "array_position(array(1,2,3), 2), array_position(cast(null as array<int>), 1)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -465,8 +462,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       runQueryAndCompare(
         "select array_contains(array(1,2,3,null), 1), array_contains(array(1,2,3,null), " +
           "cast(null as int)), array_contains(array(1,2,3,null), 5), array_contains(array(1,2,3), 5)," +
-          "array_contains(array(1,2,3), 2), array_contains(cast(null as array<int>), 1)",
-        noFallBack = false
+          "array_contains(array(1,2,3), 2), array_contains(cast(null as array<int>), 1)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -483,8 +479,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
-        "select sort_array(array(1,3,2,null)), sort_array(array(1,2,3,null),false)",
-        noFallBack = false
+        "select sort_array(array(1,3,2,null)), sort_array(array(1,2,3,null),false)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -535,8 +530,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select find_in_set(null, 'a'), find_in_set('a', null), " +
-          "find_in_set('a', 'a,b'), find_in_set('a', 'ab,ab')",
-        noFallBack = false
+          "find_in_set('a', 'a,b'), find_in_set('a', 'ab,ab')"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -587,8 +581,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         "select elt(2, n_comment, n_regionkey) from nation"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
       runQueryAndCompare(
-        "select elt(null, 'a', 'b'), elt(0, 'a', 'b'), elt(1, 'a', 'b'), elt(3, 'a', 'b')",
-        noFallBack = false
+        "select elt(null, 'a', 'b'), elt(0, 'a', 'b'), elt(1, 'a', 'b'), elt(3, 'a', 'b')"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -601,8 +594,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
       runQueryAndCompare(
         "select array_max(null), array_max(array(null)), array_max(array(1, 2, 3, null)), " +
-          "array_max(array(1.0, 2.0, 3.0, null)), array_max(array('z', 't', 'abc'))",
-        noFallBack = false
+          "array_max(array(1.0, 2.0, 3.0, null)), array_max(array('z', 't', 'abc'))"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -615,8 +607,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
       runQueryAndCompare(
         "select array_min(null), array_min(array(null)), array_min(array(1, 2, 3, null)), " +
-          "array_min(array(1.0, 2.0, 3.0, null)), array_min(array('z', 't', 'abc'))",
-        noFallBack = false
+          "array_min(array(1.0, 2.0, 3.0, null)), array_min(array('z', 't', 'abc'))"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -664,8 +655,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
       runQueryAndCompare(
         "select array_distinct(array(1,2,1,2,3)), array_distinct(array(null,1,null,1,2,null,3)), " +
-          "array_distinct(array(array(1,null,2), array(1,null,2))), array_distinct(null), array_distinct(array(null))",
-        noFallBack = false
+          "array_distinct(array(array(1,null,2), array(1,null,2))), array_distinct(null), array_distinct(array(null))"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -682,8 +672,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
           "array_union(array(null,1,null,1,2,null,3), array(1,null,2,null,3,null,4)), " +
           "array_union(array(array(1,null,2), array(2,null,3)), array(array(2,null,3), array(1,null,2))), " +
           "array_union(array(null), array(null)), " +
-          "array_union(cast(null as array<int>), cast(null as array<int>))",
-        noFallBack = false
+          "array_union(cast(null as array<int>), cast(null as array<int>))"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -698,8 +687,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
       runQueryAndCompare(
         "select shuffle(array(1,2,3,4,5)), shuffle(array(1,3,null,3,4)), shuffle(null)",
-        compareResult = false,
-        noFallBack = false
+        compareResult = false
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -1235,8 +1223,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select sequence(null, 1), sequence(1, null), sequence(1, 3, null), sequence(1, 5)," +
-          "sequence(5, 1), sequence(1, 5, 2), sequence(5, 1, -2)",
-        noFallBack = false
+          "sequence(5, 1), sequence(1, 5, 2), sequence(5, 1, -2)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
@@ -1935,8 +1922,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       runQueryAndCompare(
         "select concat_ws(null), concat_ws('-'), concat_ws('-', null), concat_ws('-', null, null), " +
           "concat_ws(null, 'a'), concat_ws('-', 'a'), concat_ws('-', 'a', null), " +
-          "concat_ws('-', 'a', null, 'b', 'c', null, array(null), array('d', null), array('f', 'g'))",
-        noFallBack = false
+          "concat_ws('-', 'a', null, 'b', 'c', null, array(null), array('d', null), array('f', 'g'))"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
@@ -2195,8 +2181,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select 1/0f, 1/0.0d",
-        noFallBack = false
+        "select 1/0f, 1/0.0d"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
@@ -2439,8 +2424,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select trunc('2023-12-06', 'MM'), trunc('2023-12-06', 'YEAR'), trunc('2023-12-06', 'WEEK'), trunc('2023-12-06', 'QUARTER')",
-        noFallBack = false
+        "select trunc('2023-12-06', 'MM'), trunc('2023-12-06', 'YEAR'), trunc('2023-12-06', 'WEEK'), trunc('2023-12-06', 'QUARTER')"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
@@ -2465,8 +2449,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select cast('1' as boolean), cast('t' as boolean), cast('all' as boolean), cast('f' as boolean)",
-        noFallBack = false
+        "select cast('1' as boolean), cast('t' as boolean), cast('all' as boolean), cast('f' as boolean)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }

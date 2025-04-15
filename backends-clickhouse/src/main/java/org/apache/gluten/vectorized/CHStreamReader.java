@@ -49,6 +49,8 @@ public class CHStreamReader implements AutoCloseable {
 
   private native long nativeNext(long nativeShuffleReader);
 
+  public static native long directRead(InputStream inputStream, byte[] buffer, int bufferSize);
+
   public CHNativeBlock next() {
     long block = nativeNext(nativeShuffleReader);
     return new CHNativeBlock(block);
