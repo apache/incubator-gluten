@@ -300,7 +300,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original: Expression): ExpressionTransformer = {
     children match {
       case Seq(left, posExpr, right, _) if posExpr.original == Literal(1) =>
-        // transformer to array_prepend implement in velox
+        // Transformer for array_prepend.
         GenericExpressionTransformer(ExpressionNames.ARRAY_PREPEND, Seq(left, right), original)
       case _ =>
         GenericExpressionTransformer(substraitExprName, children, original)
