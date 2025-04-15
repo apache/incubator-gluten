@@ -91,7 +91,8 @@ TEST_F(Substrait2VeloxPlanConversionTest, q6) {
   FLAGS_velox_exception_user_stacktrace_enabled = true;
   FLAGS_velox_exception_system_stacktrace_enabled = true;
   std::unordered_map<std::string, std::string> hiveConfig{
-      {"hive.orc.use-column-names",  "true"}};
+      {"hive.orc.use-column-names", "true"},
+      {"hive.parquet.use-column-names", "true"}};
   std::shared_ptr<const facebook::velox::config::ConfigBase> config{
     std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfig))};
   resetHiveConnector(config);
