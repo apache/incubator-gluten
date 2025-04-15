@@ -19,6 +19,7 @@ package org.apache.gluten.test;
 import org.apache.gluten.backendsapi.ListenerApi;
 import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
 
+import org.apache.spark.sql.test.TestSparkSession;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -27,6 +28,7 @@ public abstract class VeloxBackendTestBase {
 
   @BeforeClass
   public static void setup() {
+    new TestSparkSession(MockVeloxBackend.mockPluginContext().conf());
     API.onExecutorStart(MockVeloxBackend.mockPluginContext());
   }
 
