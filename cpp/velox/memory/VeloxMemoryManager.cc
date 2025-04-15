@@ -221,12 +221,14 @@ VeloxMemoryManager::VeloxMemoryManager(
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
+  auto checkUsageLeak = backendConf.get<bool>(kCheckUsageLeak, kCheckUsageLeakDefault);
 
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
       .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
       .trackDefaultUsage = true, // memory usage tracking
-      .checkUsageLeak = true, // leak check
+      .checkUsageLeak = checkUsageLeak, // leak check
+      .debugEnabled = false, // debug
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
