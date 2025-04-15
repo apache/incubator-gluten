@@ -153,6 +153,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       // enabled. Skip the check.
       return
     }
+
     val minOffHeapSize = "1MB"
     if (
       !conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, false) ||
