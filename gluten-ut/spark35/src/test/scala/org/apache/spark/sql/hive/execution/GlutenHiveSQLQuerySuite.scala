@@ -54,14 +54,14 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
         val path = dir.getCanonicalPath
         spark
           .range(2)
-          .selectExpr("id as a", "to_binary(cast(id as string), 'utf-8') as b")
+          .selectExpr("id as a", "to_binary(cast(id + 1 as string), 'utf-8') as b")
           .write
           .mode("overwrite")
           .parquet(path)
 
         withTable("test") {
           sql("create table test (a long, b string) using parquet options (path '" + path + "')")
-          val df = sql("select * from test group by a, b order by a, b")
+          val df = sql("select b from test group by b order by b")
           checkAnswer(df, Seq(Row(0, "0"), Row(1, "1")))
         }
     }
