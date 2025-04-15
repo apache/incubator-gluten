@@ -725,8 +725,7 @@ def parse_logs(log_file):
     for category in FUNCTION_CATEGORIES:
         if category == 'scalar':
             for f in functions[category]:
-                # TODO: Remove this filter as it may exclude supported expressions, such as
-                #  RuntimeReplaceable and Builder.
+                # TODO: Remove this filter as it may exclude supported expressions, such as Builder.
                 if f not in builtin_functions and f not in gluten_expressions.values() and function_to_classname[
                     f] not in gluten_expressions.keys():
                     logging.log(logging.WARNING, f"Function not found in gluten expressions: {f}")
