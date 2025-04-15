@@ -24,9 +24,6 @@ class GlutenClickHouseMINIOSuite extends GlutenClickHouseCacheBaseTestSuite {
   override protected val tablesPath: String = s"s3a://$BUCKET"
 
   override protected def copyDataIfNeeded(): Unit = {
-    if (!minioHelper.bucketExists(BUCKET)) {
-      minioHelper.createBucket(BUCKET)
-    }
     val targetFile = new Path(s"$tablesPath/lineitem")
     val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
     val existed = fs.exists(targetFile)
@@ -44,5 +41,12 @@ class GlutenClickHouseMINIOSuite extends GlutenClickHouseCacheBaseTestSuite {
         true,
         spark.sessionState.newHadoopConf())
     }
+  }
+
+  override def beforeAll(): Unit = {
+    if (!minioHelper.bucketExists(BUCKET)) {
+      minioHelper.createBucket(BUCKET)
+    }
+    super.beforeAll()
   }
 }
