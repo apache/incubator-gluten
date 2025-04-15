@@ -526,7 +526,8 @@ private:
 
         String config_prefix = "s3";
         auto endpoint = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ENDPOINT, "https://s3.us-west-2.amazonaws.com");
-        if (!endpoint.starts_with("https://"))
+        bool end_point_start_with_http_or_https = endpoint.starts_with("https://") || endpoint.starts_with("http://");
+        if (!end_point_start_with_http_or_https)
         {
             if (endpoint.starts_with("s3"))
                 // as https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.0.1/bk_cloud-data-access/content/s3-config-parameters.html
