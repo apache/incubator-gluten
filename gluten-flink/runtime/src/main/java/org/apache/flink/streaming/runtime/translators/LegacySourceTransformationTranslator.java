@@ -36,6 +36,7 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
 import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 import org.apache.gluten.util.LogicalTypeConverter;
+import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -81,16 +82,17 @@ public class LegacySourceTransformationTranslator<OUT>
         if (userFunction instanceof DataGeneratorSource) {
             RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                     ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
+            String id = PlanNodeIdGenerator.newId();
             operatorFactory = SimpleOperatorFactory.of(
                     new GlutenStreamSource(
                             new GlutenSourceFunction(
                                     new TableScanNode(
-                                            String.valueOf(transformationId),
+                                            id,
                                             outputType,
                                             new FuzzerTableHandle("connector-fuzzer", 12367),
                                             List.of()),
                                     outputType,
-                                    String.valueOf(transformationId))));
+                                    id)));
             namePrefix = "Gluten ";
         } else {
             operatorFactory = transformation.getOperatorFactory();
