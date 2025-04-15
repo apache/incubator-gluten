@@ -61,7 +61,7 @@ jobs:
           tags: ${{ env.DOCKERHUB_REPO }}:vcpkg-centos-7
 
   build-centos-9-jdk8-cudf:
-    if: true
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
 
     steps:
