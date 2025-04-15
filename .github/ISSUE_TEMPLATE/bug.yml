@@ -49,6 +49,8 @@ body:
       multiple: true
       description: Please provide the gluten version in your environment.
       options:
+        - Gluten-1.0.x
+        - Gluten-1.1.x
         - Gluten-1.2.x
         - Gluten-1.3.x
         - Gluten-1.4.x
