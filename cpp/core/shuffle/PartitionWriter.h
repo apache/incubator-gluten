@@ -48,7 +48,8 @@ class PartitionWriter : public Reclaimable {
       Evict::type evictType,
       bool reuseBuffers) = 0;
 
-  virtual arrow::Status sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal) = 0;
+  virtual arrow::Status
+  sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal) = 0;
 
   std::optional<int64_t> getCompressedBufferLength(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
     if (!codec_) {
