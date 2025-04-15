@@ -75,7 +75,7 @@ abstract class GlutenClickHouseCacheBaseTestSuite
 
   override protected def afterAll(): Unit = {
     cleanupCache()
-    super.afterEach()
+    super.afterAll()
   }
 
   def runWithoutCache(): Unit = {
