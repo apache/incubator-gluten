@@ -48,4 +48,20 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
       purge = false)
   }
 
+  testGluten("test binary as string") {
+    withTempDir { dir =>
+      val path = dir.getCanonicalPath
+      spark.range(2).selectExpr("id as a", "to_binary(cast(id as string), 'utf-8') as b")
+        .write
+        .mode("overwrite")
+        .parquet(path)
+
+      withTable("test") {
+        sql("create table test (a long, b string) using parquet options (path '" + path + "')")
+        val df = sql("select * from test group by a, b order by a, b")
+        checkAnswer(df, Seq(Row(0, "0"), Row(1, "1")))
+      }
+    }
+  }
+
 }
