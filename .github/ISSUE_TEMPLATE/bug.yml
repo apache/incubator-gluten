@@ -43,6 +43,20 @@ body:
       required: true
 
   - type: dropdown
+    id: affectVersions
+    attributes:
+      label: Gluten version
+      multiple: true
+      description: Please provide the gluten version in your environment.
+      options:
+        - Gluten-1.2.x
+        - Gluten-1.3.x
+        - Gluten-1.4.x
+        - UnReleased
+    validations:
+      required: false
+
+  - type: dropdown
     id: version
     attributes:
       label: Spark version
