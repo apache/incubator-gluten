@@ -69,7 +69,7 @@ class LocalPartitionWriter::LocalSpiller {
 
       ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
       diskSpill_->insertPayload(partitionId, Payload::kRaw, 0, nullptr, end - start, pool_, nullptr);
-      DLOG(INFO) << "LocalSpiller(final): Spilled partition " << lastPid_ << " file start: " << start
+      DLOG(INFO) << "LocalSpiller(final): Spilled partition " << partitionId << " file start: " << start
                  << ", file end: " << end << ", file: " << spillFile_;
       return arrow::Status::OK();
     }
