@@ -294,6 +294,19 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(newSubstraitName, children, newExpr)
   }
 
+  override def genArrayInsertTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression): ExpressionTransformer = {
+    children match {
+      case Seq(left, posExpr, right, _) if posExpr.original == Literal(1) =>
+        // Transformer for array_prepend.
+        GenericExpressionTransformer(ExpressionNames.ARRAY_PREPEND, Seq(left, right), original)
+      case _ =>
+        GenericExpressionTransformer(substraitExprName, children, original)
+    }
+  }
+
   /**
    * Generate FilterExecTransformer.
    *

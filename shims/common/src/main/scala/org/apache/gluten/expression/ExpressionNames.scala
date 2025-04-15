@@ -280,6 +280,7 @@ object ExpressionNames {
   final val FLATTEN = "flatten"
   final val ARRAY_INSERT = "array_insert"
   final val ARRAY_APPEND = "array_append"
+  final val ARRAY_PREPEND = "array_prepend"
 
   // Map functions
   final val CREATE_MAP = "map"

@@ -308,6 +308,13 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
   }
 
+  def genArrayInsertTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("ArrayInsert is not supported")
+  }
+
   // For date_add(cast('2001-01-01' as Date), interval 1 day), backends may handle it in different
   // ways
   def genDateAddTransformer(
