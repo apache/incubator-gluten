@@ -290,7 +290,7 @@ object VeloxConfig {
     buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput")
       .internal()
       .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
-        s"The default minimum output batch size is equal to 0.8 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
+        s"The default minimum output batch size is equal to 0.25 * ${COLUMNAR_MAX_BATCH_SIZE.key}")
       .booleanConf
       .createWithDefault(true)
 
