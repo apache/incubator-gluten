@@ -135,6 +135,36 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     }
   }
 
+  private def checkOffHeapSettings(conf: SparkConf): Unit = {
+    if (
+      conf.getBoolean(
+        DYNAMIC_OFFHEAP_SIZING_ENABLED.key,
+        DYNAMIC_OFFHEAP_SIZING_ENABLED.defaultValue.get)
+    ) {
+      // When dynamic off-heap sizing is enabled, off-heap mode is not strictly required to be
+      // enabled. Skip the check.
+      return
+    }
+
+    if (
+      conf.getBoolean(COLUMNAR_MEMORY_UNTRACKED.key, COLUMNAR_MEMORY_UNTRACKED.defaultValue.get)
+    ) {
+      // When untracked memory mode is enabled, off-heap mode is not strictly required to be
+      // enabled. Skip the check.
+      return
+    }
+    val minOffHeapSize = "1MB"
+    if (
+      !conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, false) ||
+      conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
+        minOffHeapSize)
+    ) {
+      throw new GlutenException(
+        s"Must set '$SPARK_OFFHEAP_ENABLED' to true " +
+          s"and set '$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize")
+    }
+  }
+
   private def setPredefinedConfigs(conf: SparkConf): Unit = {
     // Spark SQL extensions
     val extensionSeq =
@@ -154,20 +184,8 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key, costEvaluator)
     }
 
-    // check memory off-heap enabled and size
-    val minOffHeapSize = "1MB"
-    if (
-      !conf.getBoolean(
-        DYNAMIC_OFFHEAP_SIZING_ENABLED.key,
-        DYNAMIC_OFFHEAP_SIZING_ENABLED.defaultValue.get) &&
-      (!conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, false) ||
-        conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
-          minOffHeapSize))
-    ) {
-      throw new GlutenException(
-        s"Must set '$SPARK_OFFHEAP_ENABLED' to true " +
-          s"and set '$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize")
-    }
+    // check memory off-heap enabled and size.
+    checkOffHeapSettings(conf)
 
     // Task slots.
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)

@@ -246,6 +246,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def memoryIsolation: Boolean = getConf(COLUMNAR_MEMORY_ISOLATION)
 
+  def memoryUntracked: Boolean = getConf(COLUMNAR_MEMORY_UNTRACKED)
+
   def offHeapMemorySize: Long = getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
   def taskOffHeapMemorySize: Long = getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
@@ -1238,6 +1240,16 @@ object GlutenConfig {
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
         "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
         "be enabled to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_MEMORY_UNTRACKED =
+    buildConf("spark.gluten.memory.untracked")
+      .internal()
+      .doc(
+        "Enable to leave all native memory allocations in Gluten untracked. Spark " +
+          "will be unaware of the allocations so will not trigger spill-to-disk operations " +
+          "or managed OOMs. Should only be enabled for testing or other non-production usages.")
       .booleanConf
       .createWithDefault(false)
 
