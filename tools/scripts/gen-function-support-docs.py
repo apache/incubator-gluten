@@ -1058,9 +1058,8 @@ if __name__ == '__main__':
 
     spark_function_map = create_spark_function_map()
 
-    # support_list, unresolved = parse_logs(
-    #     os.path.join(gluten_home, 'gluten-ut', 'spark35', 'target', 'gen-function-support-docs-tests.log'))
-    support_list, unresolved = parse_logs('/Users/rong/workspace/log/tmp5.log')
+    support_list, unresolved = parse_logs(
+        os.path.join(gluten_home, 'gluten-ut', 'spark35', 'target', 'gen-function-support-docs-tests.log'))
 
     for category in args.categories.split(','):
         generate_function_doc(category,
