@@ -463,7 +463,6 @@ object GlutenConfig {
       SHUFFLE_WRITER_BUFFER_SIZE.key,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
-      COLUMNAR_MEMORY_CHECK_USAGE_LEAK.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
       "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
@@ -1265,13 +1264,6 @@ object GlutenConfig {
       .doc("Block size of native reservation listener reserve memory from Spark.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("8MB")
-
-  val COLUMNAR_MEMORY_CHECK_USAGE_LEAK =
-    buildConf("spark.gluten.memory.checkUsageLeak")
-      .internal()
-      .doc("Enable check memory usage leak.")
-      .booleanConf
-      .createWithDefault(true)
 
   // Options used by RAS.
   val RAS_ENABLED =

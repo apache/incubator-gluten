@@ -46,7 +46,7 @@ const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.si
 const std::string kMemoryReservationBlockSize = "spark.gluten.memory.reservationBlockSize";
 const uint64_t kMemoryReservationBlockSizeDefault = 8 << 20;
 
-const std::string kCheckUsageLeak = "spark.gluten.memory.checkUsageLeak";
+const std::string kCheckUsageLeak = "spark.gluten.sql.columnar.backend.velox.checkUsageLeak";
 const bool kCheckUsageLeakDefault = true;
 
 const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
