@@ -30,19 +30,6 @@
 
 namespace gluten {
 
-jstring charTojstring(JNIEnv* env, const char* pat) {
-  const jclass str_class = (env)->FindClass("Ljava/lang/String;");
-  const jmethodID ctor_id = (env)->GetMethodID(str_class, "<init>", "([BLjava/lang/String;)V");
-  const jsize str_size = static_cast<jsize>(strlen(pat));
-  const jbyteArray bytes = (env)->NewByteArray(str_size);
-  (env)->SetByteArrayRegion(bytes, 0, str_size, reinterpret_cast<jbyte*>(const_cast<char*>(pat)));
-  const jstring encoding = (env)->NewStringUTF("UTF-8");
-  const auto result = static_cast<jstring>((env)->NewObject(str_class, ctor_id, bytes, encoding));
-  env->DeleteLocalRef(bytes);
-  env->DeleteLocalRef(encoding);
-  return result;
-}
-
 static jclass jniVeloxBroadcastBuildSideCache = nullptr;
 static jmethodID jniGet = nullptr;
 
@@ -52,7 +39,7 @@ jlong callJavaGet(const std::string& id) {
     throw gluten::GlutenException("JNIEnv was not attached to current thread");
   }
 
-  const jstring s = charTojstring(env, id.c_str());
+  const jstring s = env->NewStringUTF(id.c_str());
 
   auto result = env->CallStaticLongMethod(jniVeloxBroadcastBuildSideCache, jniGet, s);
   return result;
