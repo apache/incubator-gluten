@@ -690,6 +690,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
             case (e, idx) =>
               e match {
                 case b: BoundReference => child.output(b.ordinal)
+                case a: AttributeReference => a
                 case o: Expression =>
                   val newExpr = Alias(o, "col_" + idx)()
                   appendedProjections += newExpr
@@ -743,7 +744,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi with Logging {
             case other =>
               offload = false
               logWarning(
-                "Not supported operator" + other.nodeName +
+                "Not supported operator " + other.nodeName +
                   " for BroadcastRelation and fallback to shuffle hash join")
               child
           }
