@@ -36,8 +36,8 @@ body:
       label: Gluten version
       description: Please provide the target gluten version you want to support.
       options:
-        - Gluten-1.5.x
-        - Gluten-1.6.x
-        - N/A
+        - main branch
+        - Gluten-1.5
+        - Gluten-1.6
     validations:
       required: false
