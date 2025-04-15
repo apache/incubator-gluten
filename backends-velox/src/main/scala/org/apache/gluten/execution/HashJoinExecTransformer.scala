@@ -100,7 +100,7 @@ case class BroadcastHashJoinExecTransformer(
     right,
     isNullAwareAntiJoin) {
 
-  // Unique ID for builded table
+  // Unique ID for built table
   lazy val buildBroadcastTableId: String = buildPlan.id.toString
 
   override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
@@ -134,7 +134,7 @@ case class BroadcastHashJoinExecTransformer(
       GlutenDriverEndpoint.collectResources(executionId, buildBroadcastTableId)
     } else {
       logWarning(
-        s"Can't not trace broadcast table data $buildBroadcastTableId" +
+        s"Can not trace broadcast table data $buildBroadcastTableId" +
           s" because execution id is null." +
           s" Will clean up until expire time.")
     }
