@@ -1249,7 +1249,7 @@ object GlutenConfig {
       .doc(
         "Enable to leave all native memory allocations in Gluten untracked. Spark " +
           "will be unaware of the allocations so will not trigger spill-to-disk operations " +
-          "or managed OOMs. Should only be enabled for testing or other non-production usages.")
+          "or managed OOMs. Should only be enabled for testing or other non-production use cases.")
       .booleanConf
       .createWithDefault(false)
 
