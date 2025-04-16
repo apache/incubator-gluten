@@ -195,7 +195,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
         val path = dir.getCanonicalPath
         spark
           .range(2)
-          .selectExpr("id as a", "to_binary(cast(id + 10 as string), 'utf-8') as b")
+          .selectExpr("id as a", "cast(cast(id + 10 as string) as binary) as b")
           .write
           .mode("overwrite")
           .parquet(path)
