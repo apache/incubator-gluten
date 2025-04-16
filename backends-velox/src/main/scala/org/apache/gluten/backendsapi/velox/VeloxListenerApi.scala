@@ -26,6 +26,8 @@ import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
+import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
+import org.apache.gluten.memory.listener.ReservationListener
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
 
@@ -216,7 +218,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
     NativeBackendInitializer
       .forBackend(VeloxBackend.BACKEND_NAME)
-      .initialize(GlobalOffHeapMemory.newReservationListener(), parsed)
+      .initialize(newGlobalOffHeapMemoryListener(), parsed)
 
     // Inject backend-specific implementations to override spark classes.
     GlutenFormatFactory.register(new VeloxParquetWriterInjects)
@@ -249,5 +251,27 @@ object VeloxListenerApi {
 
   private def inLocalMode(conf: SparkConf): Boolean = {
     SparkResourceUtil.isLocalMaster(conf)
+  }
+
+  private def newGlobalOffHeapMemoryListener(): ReservationListener = {
+    new ReservationListener {
+      private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+
+      override def reserve(size: Long): Long = {
+        GlobalOffHeapMemory.acquire(size)
+        recorder.inc(size)
+        size
+      }
+
+      override def unreserve(size: Long): Long = {
+        GlobalOffHeapMemory.release(size)
+        recorder.inc(-size)
+        size
+      }
+
+      override def getUsedBytes: Long = {
+        recorder.current()
+      }
+    }
   }
 }

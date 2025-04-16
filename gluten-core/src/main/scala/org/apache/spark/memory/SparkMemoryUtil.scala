@@ -124,7 +124,7 @@ object SparkMemoryUtil {
       }
 
       override def visit(noopMemoryTarget: NoopMemoryTarget): String = {
-        prettyPrintStats("No-op memory manager stats: ", noopMemoryTarget)
+        prettyPrintStats("No-op memory target stats: ", noopMemoryTarget)
       }
 
       override def visit(
@@ -134,6 +134,10 @@ object SparkMemoryUtil {
 
       override def visit(retryOnOomMemoryTarget: RetryOnOomMemoryTarget): String = {
         retryOnOomMemoryTarget.target().accept(this)
+      }
+
+      override def visit(globalOffHeapMemoryTarget: GlobalOffHeapMemoryTarget): String = {
+        prettyPrintStats("Global off-heap target stats: ", globalOffHeapMemoryTarget)
       }
     })
   }
