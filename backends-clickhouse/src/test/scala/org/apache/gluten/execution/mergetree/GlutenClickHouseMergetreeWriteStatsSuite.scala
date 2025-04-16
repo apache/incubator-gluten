@@ -30,11 +30,8 @@ import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.input_file_name
 
-import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
-
-import java.io.File
 
 class GlutenClickHouseMergetreeWriteStatsSuite
   extends GlutenClickHouseTPCDSAbstractSuite
@@ -65,13 +62,12 @@ class GlutenClickHouseMergetreeWriteStatsSuite
     conf.set("fs.defaultFS", HDFS_URL)
     val fs = FileSystem.get(conf)
     fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
+    hdfsHelper.resetMeta()
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
+    hdfsHelper.resetMeta()
   }
 
   def tpcdsMergetreeTables: Map[String, String] = {
