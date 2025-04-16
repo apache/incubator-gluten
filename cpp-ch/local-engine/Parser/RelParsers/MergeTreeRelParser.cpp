@@ -140,11 +140,7 @@ DB::Block MergeTreeRelParser::replaceDeltaNameIfNeeded(const DB::Block & output)
         if (DELTA_META_COLUMN_MAP.contains(column.name))
         {
             if (auto tuple = DELTA_META_COLUMN_MAP.at(column.name); std::get<0>(tuple).has_value())
-            {
-                auto a= std::get<1>(tuple);
-                read_block.emplace_back(ColumnWithTypeAndName(a, std::get<0>(tuple).value()));
-            }
-
+                read_block.emplace_back(ColumnWithTypeAndName(std::get<1>(tuple), std::get<0>(tuple).value()));
         }
         else
         {
@@ -216,13 +212,13 @@ void MergeTreeRelParser::recoverNodeWithCaseSensitive(DB::QueryPlan & query_plan
 
     DB::NamesWithAliases aliases;
     aliases.reserve(read_Header.columns());
-    bool need_alisa = false;
+    bool need_alias = false;
     for (const auto & elem : read_Header)
     {
         if (auto lower_name = Poco::toLower(elem.name); names.contains(lower_name))
         {
-            if (!need_alisa && !boost::equals(elem.name, names[lower_name]))
-                need_alisa = true;
+            if (!need_alias && !boost::equals(elem.name, names[lower_name]))
+                need_alias = true;
 
             aliases.emplace_back(DB::NameWithAlias(elem.name, names[lower_name]));
         }
@@ -232,7 +228,7 @@ void MergeTreeRelParser::recoverNodeWithCaseSensitive(DB::QueryPlan & query_plan
         }
     }
 
-    if (!need_alisa)
+    if (!need_alias)
         return;
 
     DB::ActionsDAG actions_dag{blockToRowType(query_plan.getCurrentHeader())};
