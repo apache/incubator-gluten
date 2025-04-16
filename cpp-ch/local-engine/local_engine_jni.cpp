@@ -171,11 +171,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     return JNI_VERSION_1_8;
 }
 
-JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
-{
-    // manually destroy native in 'nativeDestroyNative' method
-}
-
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
