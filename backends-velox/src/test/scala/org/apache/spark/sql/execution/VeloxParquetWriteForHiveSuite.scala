@@ -331,9 +331,9 @@ class VeloxParquetWriteForHiveSuite
     }
   }
 
-  testWithSpecifiedSparkVersion(
+  testWithMaxSparkVersion(
     "Native writer should keep the same compression codec if `hive.exec.compress.output` is true",
-    maxSparkVersion = Some("3.3")) {
+    "3.3") {
     Seq(false, true).foreach {
       enableNativeWrite =>
         withSQLConf("spark.gluten.sql.native.writer.enabled" -> enableNativeWrite.toString) {

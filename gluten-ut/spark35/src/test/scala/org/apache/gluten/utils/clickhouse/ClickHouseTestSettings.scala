@@ -1788,6 +1788,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
+    .excludeCH("SPARK-36866: filter pushdown - year-month interval")
   // avoid Velox compile error
   enableSuite(
     "org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2"
@@ -1809,6 +1810,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
+    .excludeCH("SPARK-36866: filter pushdown - year-month interval")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .excludeCH("Various partition value types")
     .excludeCH("Various inferred partition value types")
@@ -1973,6 +1975,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenRuntimeNullChecksV2Writes]
   enableSuite[GlutenSQLAggregateFunctionSuite]
+    .excludeGlutenTest("Return NaN or null when dividing by zero")
   enableSuite[GlutenSQLQuerySuite]
     // Decimal precision exceeds.
     .includeCH("should be able to resolve a persistent view")
@@ -2048,6 +2051,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("store and retrieve column stats in different time zones")
     .excludeCH("SPARK-42777: describe column stats (min, max) for timestamp_ntz column")
     .excludeCH("Gluten - store and retrieve column stats in different time zones")
+    .excludeCH("statistics collection of a table with zero column")
   enableSuite[GlutenStringExpressionsSuite]
     .excludeCH("StringComparison")
     .excludeCH("Substring")
@@ -2145,7 +2149,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // Rewrite with NaN test cases excluded.
     .exclude("cases when literal is max")
   enableSuite[GlutenUrlFunctionsSuite]
-    .excludeCH("url parse_url function")
     .excludeCH("url encode/decode function")
   enableSuite[GlutenV1WriteCommandSuite]
     // Rewrite to match SortExecTransformer.

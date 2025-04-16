@@ -312,7 +312,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 5)
   }
 
-  testWithSpecifiedSparkVersion("coalesce validation", Some("3.4")) {
+  testWithMinSparkVersion("coalesce validation", "3.4") {
     withTempPath {
       path =>
         val data = "2019-09-09 01:02:03.456789"

@@ -1,6 +1,6 @@
 # Scalar Functions Support Status
 
-**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 220 functions and partially supports 20 functions.**
+**Out of 357 scalar functions in Spark 3.5, Gluten currently fully supports 233 functions and partially supports 20 functions.**
 
 ## Array Functions
 
@@ -18,14 +18,14 @@
 | array_max         | ArrayMax            | S        |                |
 | array_min         | ArrayMin            | S        |                |
 | array_position    | ArrayPosition       | S        |                |
-| array_prepend     | ArrayPrepend        |          |                |
+| array_prepend     | ArrayPrepend        | S        |                |
 | array_remove      | ArrayRemove         | S        |                |
 | array_repeat      | ArrayRepeat         | S        |                |
 | array_union       | ArrayUnion          | S        |                |
 | arrays_overlap    | ArraysOverlap       | S        |                |
 | arrays_zip        | ArraysZip           | S        |                |
 | flatten           | Flatten             | S        |                |
-| get               | Get                 |          |                |
+| get               | Get                 | S        |                |
 | sequence          | Sequence            |          |                |
 | shuffle           | Shuffle             | S        |                |
 | slice             | Slice               | S        |                |
@@ -49,7 +49,7 @@
 
 | Spark Functions   | Spark Expressions   | Status   | Restrictions   |
 |-------------------|---------------------|----------|----------------|
-| array_size        | ArraySize           |          |                |
+| array_size        | ArraySize           | S        |                |
 | cardinality       | Size                | S        |                |
 | concat            | Concat              | PS       |                |
 | reverse           | Reverse             | S        |                |
@@ -61,11 +61,11 @@
 |-------------------|---------------------|----------|----------------|
 | coalesce          | Coalesce            | S        |                |
 | if                | If                  | S        |                |
-| ifnull            | Nvl                 |          |                |
+| ifnull            | Nvl                 | S        |                |
 | nanvl             | NaNvl               | S        |                |
-| nullif            | NullIf              |          |                |
-| nvl               | Nvl                 |          |                |
-| nvl2              | Nvl2                |          |                |
+| nullif            | NullIf              | S        |                |
+| nvl               | Nvl                 | S        |                |
+| nvl2              | Nvl2                | S        |                |
 | when              | CaseWhen            | S        |                |
 
 ## Conversion Functions
@@ -180,7 +180,7 @@
 | from_json         | JsonToStructs       | S        |                |
 | get_json_object   | GetJsonObject       | S        |                |
 | json_array_length | LengthOfJsonArray   | S        |                |
-| json_object_keys  | JsonObjectKeys      |          |                |
+| json_object_keys  | JsonObjectKeys      | S        |                |
 | json_tuple        | JsonTuple           | S        |                |
 | schema_of_json    | SchemaOfJson        |          |                |
 | to_json           | StructsToJson       |          |                |
@@ -209,7 +209,7 @@
 | element_at        | ElementAt           | S        |                |
 | map               | CreateMap           | PS       |                |
 | map_concat        | MapConcat           | PS       |                |
-| map_contains_key  | MapContainsKey      |          |                |
+| map_contains_key  | MapContainsKey      | S        |                |
 | map_entries       | MapEntries          | S        |                |
 | map_from_arrays   | MapFromArrays       |          |                |
 | map_from_entries  | MapFromEntries      |          |                |
@@ -296,7 +296,7 @@
 |-----------------------------|---------------------------|----------|----------------|
 | aes_decrypt                 | AesDecrypt                |          |                |
 | aes_encrypt                 | AesEncrypt                |          |                |
-| assert_true                 | AssertTrue                |          |                |
+| assert_true                 | AssertTrue                | S        |                |
 | bitmap_bit_position         | BitmapBitPosition         |          |                |
 | bitmap_bucket_number        | BitmapBucketNumber        |          |                |
 | bitmap_count                | BitmapCount               |          |                |
@@ -304,7 +304,7 @@
 | current_database            | CurrentDatabase           |          |                |
 | current_schema              | CurrentDatabase           |          |                |
 | current_user                | CurrentUser               |          |                |
-| equal_null                  | EqualNull                 |          |                |
+| equal_null                  | EqualNull                 | S        |                |
 | hll_sketch_estimate         | HllSketchEstimate         |          |                |
 | hll_union                   | HllUnion                  |          |                |
 | input_file_block_length     | InputFileBlockLength      |          |                |
@@ -338,7 +338,7 @@
 | and               | And                 | S        |                        |
 | between           |                     | S        |                        |
 | case              |                     | S        |                        |
-| ilike             | ILike               |          |                        |
+| ilike             | ILike               | S        |                        |
 | in                | In                  | PS       |                        |
 | isnan             | IsNaN               | S        |                        |
 | isnotnull         | IsNotNull           | S        |                        |
@@ -396,7 +396,7 @@
 | regexp_substr      | RegExpSubStr                |          |                        |
 | repeat             | StringRepeat                | S        |                        |
 | replace            | StringReplace               | S        |                        |
-| right              | Right                       |          |                        |
+| right              | Right                       | S        |                        |
 | rpad               | RPadExpressionBuilder       | PS       | BinaryType unsupported |
 | rtrim              | StringTrimRight             | S        |                        |
 | sentences          | Sentences                   |          |                        |

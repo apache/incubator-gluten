@@ -43,12 +43,16 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
       return 0;
     }
 
-    long totalMemory = Runtime.getRuntime().totalMemory();
-    long freeMemory = Runtime.getRuntime().freeMemory();
-    long usedOnHeapBytes = (totalMemory - freeMemory);
+    // Only JVM shrinking can reclaim space from the total JVM memory.
+    // See https://github.com/apache/incubator-gluten/issues/9276.
+    long totalHeapMemory = Runtime.getRuntime().totalMemory();
+    long freeHeapMemory = Runtime.getRuntime().freeMemory();
+
     long usedOffHeapBytesNow = USED_OFFHEAP_BYTES.get();
 
-    if (size + usedOffHeapBytesNow + usedOnHeapBytes > MAX_MEMORY_IN_BYTES) {
+    // Adds the total JVM memory which is the actual memory the JVM occupied from the operating
+    // system into the counter.
+    if (size + usedOffHeapBytesNow + totalHeapMemory > MAX_MEMORY_IN_BYTES) {
       LOG.warn(
           String.format(
               "Failing allocation as unified memory is OOM. "
@@ -56,9 +60,9 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
                   + "Free On-heap: %d, Total On-heap: %d, "
                   + "Max On-heap: %d, Allocation: %d.",
               usedOffHeapBytesNow,
-              usedOnHeapBytes,
-              freeMemory,
-              totalMemory,
+              totalHeapMemory - freeHeapMemory,
+              freeHeapMemory,
+              totalHeapMemory,
               MAX_MEMORY_IN_BYTES,
               size));
 

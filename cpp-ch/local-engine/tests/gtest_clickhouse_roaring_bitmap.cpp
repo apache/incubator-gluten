@@ -176,7 +176,7 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     DeltaDVRoaringBitmapArray bitmap_array2{};
     bitmap_array2.rb_read(file_uri2, 1, 4047, context);
     EXPECT_FALSE(bitmap_array2.rb_is_empty());
-    EXPECT_EQ(2098, bitmap_array2.rb_size());
+    EXPECT_EQ(2098, bitmap_array2.cardinality());
     EXPECT_TRUE(bitmap_array2.rb_contains(0));
     EXPECT_TRUE(bitmap_array2.rb_contains(1003));
     EXPECT_TRUE(bitmap_array2.rb_contains(880));

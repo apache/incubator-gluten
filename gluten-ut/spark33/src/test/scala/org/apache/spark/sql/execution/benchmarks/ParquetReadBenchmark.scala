@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution.benchmarks
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 import org.apache.gluten.extension.columnar.transition.Transitions
-import org.apache.gluten.jni.JniLibLoader
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
@@ -223,9 +222,6 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
   }
 
   override def afterAll(): Unit = {
-    if (BackendTestUtils.isCHBackendLoaded()) {
-      JniLibLoader.unloadFromPath(spark.conf.get(GlutenConfig.GLUTEN_LIB_PATH.key))
-    }
     super.afterAll()
   }
 }

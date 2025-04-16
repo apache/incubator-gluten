@@ -17,13 +17,14 @@
 #include "DeltaDVRoaringBitmapArray.h"
 
 #include <zlib.h>
+#include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <IO/WriteHelpers.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <substrait/plan.pb.h>
 #include <roaring.hh>
 #include <Poco/URI.h>
 #include <Common/PODArray.h>
-#include <substrait/plan.pb.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 
 namespace DB
 {
@@ -82,7 +83,7 @@ void DeltaDVRoaringBitmapArray::rb_read(const String & file_path, Int32 offset, 
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Checksum mismatch.");
 }
 
-UInt64 DeltaDVRoaringBitmapArray::rb_size() const
+UInt64 DeltaDVRoaringBitmapArray::cardinality() const
 {
     UInt64 sum = 0;
     for (const auto & r : roaring_bitmap_array)
@@ -137,6 +138,15 @@ void DeltaDVRoaringBitmapArray::rb_merge(const DeltaDVRoaringBitmapArray & that)
 {
     rb_or(that);
 }
+
+void DeltaDVRoaringBitmapArray::merge(const String & that)
+{
+    DB::ReadBufferFromString rb(that);
+    DeltaDVRoaringBitmapArray that_bitmap;
+    that_bitmap.deserialize(rb);
+    rb_merge(that_bitmap);
+}
+
 void DeltaDVRoaringBitmapArray::rb_or(const DeltaDVRoaringBitmapArray & that)
 {
     if (roaring_bitmap_array.size() < that.roaring_bitmap_array.size())

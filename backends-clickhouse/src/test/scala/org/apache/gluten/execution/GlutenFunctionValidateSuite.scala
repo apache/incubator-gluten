@@ -24,7 +24,7 @@ import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter, LogicalPlan, Project}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
@@ -563,7 +563,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         | str_to_map('a,b', ',', ''),
         | str_to_map('a:c|b:c', '\\|', ':')
         |""".stripMargin
-    runQueryAndCompare(sql1, true, false)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql1, true)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test parse_url") {
@@ -622,14 +622,12 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       // Test codec with 'US-ASCII'
       runQueryAndCompare(
-        "SELECT decode(encode('Spark SQL', 'US-ASCII'), 'US-ASCII')",
-        noFallBack = false
+        "SELECT decode(encode('Spark SQL', 'US-ASCII'), 'US-ASCII')"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       // Test codec with 'UTF-16'
       runQueryAndCompare(
-        "SELECT decode(encode('Spark SQL', 'UTF-16'), 'UTF-16')",
-        noFallBack = false
+        "SELECT decode(encode('Spark SQL', 'UTF-16'), 'UTF-16')"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -645,8 +643,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select cast('7.921901' as float), cast('7.921901' as double)",
-        noFallBack = false
+        "select cast('7.921901' as float), cast('7.921901' as double)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -825,8 +822,28 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                             |FROM (select id, cast(id as string) name from range(10))
                             |GROUP BY name
                             |""".stripMargin) {
-        df => checkOperatorCount[ProjectExecTransformer](3)(df)
+        df => checkOperatorCount[ProjectExecTransformer](4)(df)
       }
+
+      runQueryAndCompare(
+        s"""
+           |select id % 2, max(hash(id)), min(hash(id)) from range(10) group by id % 2
+           |""".stripMargin)(
+        df => {
+          df.queryExecution.optimizedPlan.collect {
+            case Aggregate(_, aggregateExpressions, _) =>
+              val result =
+                aggregateExpressions
+                  .map(a => a.asInstanceOf[Alias].child)
+                  .filter(_.isInstanceOf[AggregateExpression])
+                  .map(expr => expr.asInstanceOf[AggregateExpression].aggregateFunction)
+                  .filter(aggFunc => aggFunc.children.head.isInstanceOf[AttributeReference])
+                  .map(aggFunc => aggFunc.children.head.asInstanceOf[AttributeReference].name)
+                  .distinct
+              assertResult(1)(result.size)
+          }
+          checkOperatorCount[ProjectExecTransformer](1)(df)
+        })
     }
   }
 
@@ -1041,8 +1058,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select cast(' \t2570852431\n' as long), cast('25708\t52431\n' as long)",
-        noFallBack = false
+        "select cast(' \t2570852431\n' as long), cast('25708\t52431\n' as long)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -1339,7 +1355,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   test("Test rewrite aggregate if to aggregate with filter") {
     val sql = "select sum(if(id % 2=0, id, null)), count(if(id % 2 = 0, 1, null)), " +
-      "avg(if(id % 2 = 0, id, null)), sum(if(id % 3 = 0, id, 0)) from range(10)"
+      "avg(if(id % 4 = 0, id, null)), sum(if(id % 3 = 0, id, 0)) from range(10)"
 
     def checkAggregateWithFilter(df: DataFrame): Unit = {
       val aggregates = collectWithSubqueries(df.queryExecution.executedPlan) {

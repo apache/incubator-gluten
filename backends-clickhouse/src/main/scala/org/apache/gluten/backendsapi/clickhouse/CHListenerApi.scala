@@ -82,10 +82,10 @@ class CHListenerApi extends ListenerApi with Logging {
         "Please set spark.gluten.sql.columnar.libpath to enable clickhouse backend")
     }
     if (isDriver) {
-      JniLibLoader.loadFromPath(libPath, true)
+      JniLibLoader.loadFromPath(libPath)
     } else {
       val executorLibPath = conf.get(GlutenConfig.GLUTEN_EXECUTOR_LIB_PATH.key, libPath)
-      JniLibLoader.loadFromPath(executorLibPath, true)
+      JniLibLoader.loadFromPath(executorLibPath)
     }
     CHListenerApi.addShutdownHook
     // Add configs

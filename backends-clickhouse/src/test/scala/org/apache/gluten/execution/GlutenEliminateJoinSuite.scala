@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse._
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
@@ -59,6 +61,8 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
+      .set(CHConfig.runtimeSettings("max_memory_usage_ratio_for_streaming_aggregating"), "0.01")
+      .set(CHConfig.runtimeSettings("high_cardinality_threshold_for_streaming_aggregating"), "0.2")
       .set(
         SQLConf.OPTIMIZER_EXCLUDED_RULES.key,
         ConstantFolding.ruleName + "," + NullPropagation.ruleName)
@@ -468,5 +472,73 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           }
           assert(joins.length == 1)
       })
+  }
+
+  // Ensure the isAnyJoin will never lost after apply other rules
+  test("lost any join setting") {
+    spark.sql("drop table if exists t_9267_1")
+    spark.sql("drop table if exists t_9267_2")
+    spark.sql("create table t_9267_1 (a bigint, b bigint) using parquet")
+    spark.sql("create table t_9267_2 (a bigint, b bigint) using parquet")
+    spark.sql("insert into t_9267_1 select id as a, id as b from range(20000000)")
+    spark.sql("insert into t_9267_2 select id as a, id as b from range(5000000)")
+    spark.sql("insert into t_9267_2 select id as a, id as b from range(5000000)")
+
+    val sql =
+      """
+        |select count(1) as n1, count(a1, b1, a2) as n2 from(
+        |  select t1.a as a1, t1.b as b1, t2.a as a2 from (
+        |    select * from t_9267_1 where a >= 0 and b < 100000000 and b >= 0
+        |  ) t1 left join (
+        |    select a, b from t_9267_2 group by a, b
+        |  ) t2 on t1.a = t2.a and t1.b = t2.b
+        |)""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.length == 1)
+      })
+
+    spark.sql("drop table t_9267_1")
+    spark.sql("drop table t_9267_2")
+  }
+
+  test("build left side") {
+    spark.sql("drop table if exists t_9267_1")
+    spark.sql("drop table if exists t_9267_2")
+    spark.sql("create table t_9267_1 (a bigint, b bigint) using parquet")
+    spark.sql("create table t_9267_2 (a bigint, b bigint) using parquet")
+    spark.sql("insert into t_9267_1 select id as a, id as b from range(2000000)")
+    spark.sql("insert into t_9267_2 select id as a, id as b from range(500000)")
+    spark.sql("insert into t_9267_2 select id as a, id as b from range(500000)")
+
+    // left table is smaller, it will be used as the build side.
+    val sql =
+      """
+        |select count(1) as n1, count(a1, b1, a2) as n2 from(
+        |  select t1.a as a1, t1.b as b1, t2.a as a2 from (
+        |    select a, b from t_9267_2 group by a, b
+        |  ) t1 left join (
+        |    select * from t_9267_1 where a >= 0 and b != 100000000 and b >= 0
+        |  ) t2 on t1.a = t2.a and t1.b = t2.b
+        |)""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.length == 1)
+      })
+
+    spark.sql("drop table t_9267_1")
+    spark.sql("drop table t_9267_2")
   }
 }

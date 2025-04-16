@@ -22,6 +22,7 @@ import org.apache.gluten.execution._
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
@@ -30,21 +31,24 @@ case class EliminateDeduplicateAggregateWithAnyJoin(spark: SparkSession)
   extends Rule[SparkPlan]
   with Logging {
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!CHBackendSettings.eliminateDeduplicateAggregateWithAnyJoin()) {
+
+    if (
+      !spark.conf
+        .get(CHBackendSettings.GLUTEN_ELIMINATE_DEDUPLICATE_AGGREGATE_WITH_ANY_JOIN, "true")
+        .toBoolean
+    ) {
       return plan
     }
 
     plan.transformUp {
-      case hashJoin: CHShuffledHashJoinExecTransformer =>
+      case hashJoin: CHShuffledHashJoinExecTransformer
+          if (hashJoin.buildSide == BuildRight && hashJoin.joinType == LeftOuter) =>
         hashJoin.right match {
           case aggregate: CHHashAggregateExecTransformer =>
             if (
-              hashJoin.joinType == LeftOuter &&
               isDeduplicateAggregate(aggregate) && allGroupingKeysAreJoinKeys(hashJoin, aggregate)
             ) {
-              val newHashJoin = hashJoin.copy(right = aggregate.child)
-              newHashJoin.isAnyJoin = true
-              newHashJoin
+              hashJoin.copy(right = aggregate.child, isAnyJoin = true)
             } else {
               hashJoin
             }
@@ -55,10 +59,31 @@ case class EliminateDeduplicateAggregateWithAnyJoin(spark: SparkSession)
               allGroupingKeysAreJoinKeys(hashJoin, aggregate) && project.projectList.forall(
                 _.isInstanceOf[AttributeReference])
             ) {
-              val newHashJoin =
-                hashJoin.copy(right = project.copy(child = aggregate.child))
-              newHashJoin.isAnyJoin = true
-              newHashJoin
+              hashJoin.copy(right = project.copy(child = aggregate.child), isAnyJoin = true)
+            } else {
+              hashJoin
+            }
+          case _ => hashJoin
+        }
+      case hashJoin: CHShuffledHashJoinExecTransformer
+          if (hashJoin.buildSide == BuildLeft && hashJoin.joinType == LeftOuter) =>
+        hashJoin.left match {
+          case aggregate: CHHashAggregateExecTransformer =>
+            if (
+              isDeduplicateAggregate(aggregate) && allGroupingKeysAreJoinKeys(hashJoin, aggregate)
+            ) {
+              hashJoin.copy(left = aggregate.child, isAnyJoin = true)
+            } else {
+              hashJoin
+            }
+          case project @ ProjectExecTransformer(_, aggregate: CHHashAggregateExecTransformer) =>
+            if (
+              hashJoin.joinType == LeftOuter &&
+              isDeduplicateAggregate(aggregate) &&
+              allGroupingKeysAreJoinKeys(hashJoin, aggregate) && project.projectList.forall(
+                _.isInstanceOf[AttributeReference])
+            ) {
+              hashJoin.copy(left = project.copy(child = aggregate.child), isAnyJoin = true)
             } else {
               hashJoin
             }

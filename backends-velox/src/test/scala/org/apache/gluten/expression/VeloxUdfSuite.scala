@@ -17,7 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.execution.ProjectExecTransformer
-import org.apache.gluten.tags.{SkipTestTags, UDFTest}
+import org.apache.gluten.tags.{SkipTest, UDFTest}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
@@ -90,6 +90,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.ui.enabled", "false")
   }
 
   // Aggregate result can be flaky.
@@ -254,7 +255,7 @@ class VeloxUdfSuiteLocal extends VeloxUdfSuite {
 // /path/to/gluten/package/target/gluten-package-${project.version}.jar
 // -Dvelox.udf.lib.path=\
 // /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
-@SkipTestTags
+@SkipTest
 class VeloxUdfSuiteCluster extends VeloxUdfSuite {
 
   override val master: String = "local-cluster[2,2,1024]"

@@ -57,7 +57,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
   }
 
   testWithSpecifiedSparkVersion(
-    "iceberg bucketed join", Array("3.3", "3.5")) {
+    "iceberg bucketed join", "3.3", "3.5") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -140,7 +140,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
   }
 
   testWithSpecifiedSparkVersion(
-    "iceberg bucketed join with partition", Array("3.3", "3.5")) {
+    "iceberg bucketed join with partition", "3.3", "3.5") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -222,8 +222,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg bucketed join partition value not exists",
-    Array("3.4", "3.5")) {
+  testWithMinSparkVersion("iceberg bucketed join partition value not exists", "3.5") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -302,8 +301,8 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     }
   }
 
-  testWithSpecifiedSparkVersion(
-    "iceberg bucketed join partition value not exists partial cluster", Array("3.4", "3.5")) {
+  testWithMinSparkVersion(
+    "iceberg bucketed join partition value not exists partial cluster", "3.4") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -383,7 +382,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
   }
 
   testWithSpecifiedSparkVersion(
-    "iceberg bucketed join with partition filter", Array("3.3", "3.5")) {
+    "iceberg bucketed join with partition filter", "3.3", "3.5") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -466,7 +465,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg: time travel") {
+  test("iceberg: time travel") {
     withTable("iceberg_tm") {
       spark.sql(
         s"""
@@ -765,7 +764,7 @@ class ClickHouseIcebergSuite extends GlutenClickHouseWholeStageTransformerSuite 
   // Spark configuration spark.sql.iceberg.handle-timestamp-without-timezone is not supported
   // in Spark 3.4
   // TODO: there is a bug when using timestamp type as the partition column
-  testWithSpecifiedSparkVersion("iceberg partition type - timestamp", Array("")) {
+  ignore("iceberg partition type - timestamp") {
     Seq("true", "false").foreach {
       flag =>
         withSQLConf(

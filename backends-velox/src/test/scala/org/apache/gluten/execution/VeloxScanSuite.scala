@@ -22,6 +22,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.VeloxFileSystemValidationJniWrapper
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GreaterThan
 import org.apache.spark.sql.execution.ScalarSubquery
 import org.apache.spark.sql.internal.SQLConf
@@ -185,6 +186,25 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
             assert(scans.head.filterExprs().size == 2)
           }
       }
+    }
+  }
+
+  test("test binary as string") {
+    withTempDir {
+      dir =>
+        val path = dir.getCanonicalPath
+        spark
+          .range(2)
+          .selectExpr("id as a", "cast(cast(id + 10 as string) as binary) as b")
+          .write
+          .mode("overwrite")
+          .parquet(path)
+
+        withTable("test") {
+          sql("create table test (a long, b string) using parquet options (path '" + path + "')")
+          val df = sql("select b from test group by b order by b")
+          checkAnswer(df, Seq(Row("10"), Row("11")))
+        }
     }
   }
 }

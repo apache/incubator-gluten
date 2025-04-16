@@ -64,7 +64,7 @@ case class FakeRowAdaptor(child: SparkPlan)
   override def rowType0(): Convention.RowType = Convention.RowType.VanillaRow
 
   override protected def doExecute(): RDD[InternalRow] = {
-    doExecuteColumnar().map(cb => new FakeRow(cb))
+    doExecuteColumnar().map(cb => new FakeRowEnhancement(cb))
   }
 
   override def outputOrdering: Seq[SortOrder] = child match {

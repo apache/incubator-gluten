@@ -31,8 +31,8 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.softaffinity.SoftAffinityListener
-import org.apache.spark.sql.execution.ui.{GlutenEventUtils, GlutenSQLAppStatusListener}
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusListener, GlutenUIUtils}
+import org.apache.spark.sql.internal.{SparkConfigUtil, SQLConf}
 import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.SparkResourceUtil
@@ -80,14 +80,12 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
   }
 
   override def registerMetrics(appId: String, pluginContext: PluginContext): Unit = {
-    if (
-      pluginContext.conf().getBoolean(GLUTEN_UI_ENABLED.key, GLUTEN_UI_ENABLED.defaultValue.get)
-    ) {
-      _sc.foreach {
-        sc =>
-          GlutenEventUtils.attachUI(sc)
+    _sc.foreach {
+      sc =>
+        if (GlutenUIUtils.uiEnabled(sc)) {
+          GlutenUIUtils.attachUI(sc)
           logInfo("Gluten SQL Tab has been attached.")
-      }
+        }
     }
   }
 
@@ -131,21 +129,21 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         "\n=============================================================="
       )
     logInfo(loggingInfo)
-    if (sc.getConf.getBoolean(GLUTEN_UI_ENABLED.key, GLUTEN_UI_ENABLED.defaultValue.get)) {
+    if (GlutenUIUtils.uiEnabled(sc)) {
       val event = GlutenBuildInfoEvent(glutenBuildInfo.toMap)
-      GlutenEventUtils.post(sc, event)
+      GlutenUIUtils.postEvent(sc, event)
     }
   }
 
   private def setPredefinedConfigs(conf: SparkConf): Unit = {
     // Spark SQL extensions
-    val extensions = if (conf.contains(SPARK_SESSION_EXTENSIONS.key)) {
-      s"${conf.get(SPARK_SESSION_EXTENSIONS.key)}," +
-        s"${GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME}"
-    } else {
-      s"${GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME}"
+    val extensionSeq =
+      SparkConfigUtil.getEntryValue(conf, SPARK_SESSION_EXTENSIONS).getOrElse(Seq.empty)
+    if (!extensionSeq.toSet.contains(GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME)) {
+      conf.set(
+        SPARK_SESSION_EXTENSIONS.key,
+        (extensionSeq :+ GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME).mkString(","))
     }
-    conf.set(SPARK_SESSION_EXTENSIONS.key, extensions)
 
     // adaptive custom cost evaluator class
     val enableGlutenCostEvaluator = conf.getBoolean(
@@ -170,10 +168,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         s"Must set '$SPARK_OFFHEAP_ENABLED' to true " +
           s"and set '$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize")
     }
-
-    // Session's local time zone must be set. If not explicitly set by user, its default
-    // value (detected for the platform) is used, consistent with spark.
-    conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE.key, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
 
     // Task slots.
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)

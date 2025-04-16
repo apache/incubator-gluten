@@ -17,13 +17,13 @@
 package org.apache.gluten.fuzzer
 
 import org.apache.gluten.fuzzer.FuzzerResult.Successful
-import org.apache.gluten.tags.{FuzzerTest, SkipTestTags}
+import org.apache.gluten.tags.{FuzzerTest, SkipTest}
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 
 @FuzzerTest
-@SkipTestTags
+@SkipTest
 class ShuffleWriterFuzzer extends FuzzerBase {
   private val REPARTITION_SQL = (numPartitions: Int) =>
     s"select /*+ REPARTITION($numPartitions) */ * from tbl"

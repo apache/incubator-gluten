@@ -57,7 +57,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg bucketed join", Some("3.4")) {
+  testWithMinSparkVersion("iceberg bucketed join", "3.4") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -131,7 +131,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg bucketed join with partition", Some("3.4")) {
+  testWithMinSparkVersion("iceberg bucketed join with partition", "3.4") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -205,9 +205,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion(
-    "iceberg bucketed join partition value not exists",
-    Array("3.4", "3.5")) {
+  testWithMinSparkVersion("iceberg bucketed join partition value not exists", "3.4") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -282,9 +280,9 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion(
+  testWithMinSparkVersion(
     "iceberg bucketed join partition value not exists partial cluster",
-    Array("3.4", "3.5")) {
+    "3.4") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -359,7 +357,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg bucketed join with partition filter", Some("3.4")) {
+  testWithMinSparkVersion("iceberg bucketed join with partition filter", "3.4") {
     val leftTable = "p_str_tb"
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
@@ -435,7 +433,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("iceberg: time travel") {
+  test("iceberg: time travel") {
     withTable("iceberg_tm") {
       spark.sql(s"""
                    |create table iceberg_tm (id int, name string) using iceberg
@@ -593,7 +591,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
 
   // Spark configuration spark.sql.iceberg.handle-timestamp-without-timezone is not supported
   // in Spark 3.4
-  testWithSpecifiedSparkVersion("iceberg partition type - timestamp", Array("3.2", "3.3", "3.5")) {
+  testWithSpecifiedSparkVersion("iceberg partition type - timestamp", "3.2", "3.3", "3.5") {
     Seq("true", "false").foreach {
       flag =>
         withSQLConf(

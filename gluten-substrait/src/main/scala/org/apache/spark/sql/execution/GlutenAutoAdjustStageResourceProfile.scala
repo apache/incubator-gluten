@@ -37,10 +37,10 @@ import scala.collection.mutable.ArrayBuffer
 
 /**
  * This rule is used to dynamic adjust stage resource profile for following purposes:
- *   1. swap offheap and onheap memory size when whole stage fallback happened 2. increase executor
- *      heap memory if stage contains gluten operator and spark operator at the same time. Note: we
- *      don't support set resource profile for final stage now. Todo: support set resource profile
- *      for final stage.
+ *   1. Decrease offheap and increase onheap memory size when whole stage fallback happened; 2.
+ *      Increase executor heap memory if stage contains gluten operator and spark operator at the
+ *      same time. Note: we don't support set resource profile for final stage now. Todo: will
+ *      support it.
  */
 @Experimental
 case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark: SparkSession)
@@ -88,6 +88,11 @@ case class GlutenAutoAdjustStageResourceProfile(glutenConf: GlutenConfig, spark:
       val newExecutorMemory =
         new ExecutorResourceRequest(ResourceProfile.MEMORY, newMemoryAmount.toLong)
       executorResource.put(ResourceProfile.MEMORY, newExecutorMemory)
+
+      val newExecutorOffheap =
+        new ExecutorResourceRequest(ResourceProfile.OFFHEAP_MEM, offheapRequest.get.amount / 10)
+      executorResource.put(ResourceProfile.OFFHEAP_MEM, newExecutorOffheap)
+
       val newRP = new ResourceProfile(executorResource.toMap, taskResource.toMap)
       return applyNewResourceProfileIfPossible(plan, newRP, rpManager)
     }

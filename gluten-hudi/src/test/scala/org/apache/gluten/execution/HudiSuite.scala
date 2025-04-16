@@ -38,7 +38,7 @@ abstract class HudiSuite extends WholeStageTransformerSuite {
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   }
 
-  testWithSpecifiedSparkVersion("hudi: time travel", Some("3.2")) {
+  testWithMinSparkVersion("hudi: time travel", "3.2") {
     withTable("hudi_tm") {
       spark.sql(s"""
                    |create table hudi_tm (id int, name string) using hudi
@@ -65,7 +65,7 @@ abstract class HudiSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("hudi: soft delete", Some("3.2")) {
+  testWithMinSparkVersion("hudi: soft delete", "3.2") {
     withTable("hudi_pf") {
       spark.sql(s"""
                    |create table hudi_pf (id int, name string) using hudi
@@ -85,7 +85,7 @@ abstract class HudiSuite extends WholeStageTransformerSuite {
   }
 
   // FIXME: flaky leaked file systems issue
-  ignore("hudi: mor", Some("3.2")) {
+  ignore("hudi: mor") {
     withTable("hudi_mor") {
       spark.sql(s"""
                    |create table hudi_mor (id int, name string, ts bigint)
@@ -111,7 +111,7 @@ abstract class HudiSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("hudi: partition filters", Some("3.2")) {
+  testWithMinSparkVersion("hudi: partition filters", "3.2") {
     withTable("hudi_pf") {
       spark.sql(s"""
                    |create table hudi_pf (id int, name string) using hudi partitioned by (name)

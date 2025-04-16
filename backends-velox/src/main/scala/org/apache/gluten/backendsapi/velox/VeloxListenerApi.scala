@@ -41,7 +41,7 @@ import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
-import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, SparkShutdownManagerUtil}
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
 
 import org.apache.commons.lang3.StringUtils
 
@@ -149,7 +149,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
-    addShutdownHook
     // Sets this configuration only once, since not undoable.
     // DebugInstance should be created first.
     if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
@@ -201,11 +200,11 @@ class VeloxListenerApi extends ListenerApi with Logging {
     // Load backend libraries.
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH.key, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
-      JniLibLoader.loadFromPath(libPath, false)
+      JniLibLoader.loadFromPath(libPath)
     } else {
       val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME.key, "gluten")
-      loader.load(s"$platformLibDir/${System.mapLibraryName(baseLibName)}", false)
-      loader.load(s"$platformLibDir/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}", false)
+      loader.load(s"$platformLibDir/${System.mapLibraryName(baseLibName)}")
+      loader.load(s"$platformLibDir/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}")
     }
 
     // Initial native backend with configurations.
@@ -250,12 +249,5 @@ object VeloxListenerApi {
 
   private def inLocalMode(conf: SparkConf): Boolean = {
     SparkResourceUtil.isLocalMaster(conf)
-  }
-
-  private def addShutdownHook: Unit = {
-    SparkShutdownManagerUtil.addHookForLibUnloading(
-      () => {
-        JniLibLoader.forceUnloadAll
-      })
   }
 }

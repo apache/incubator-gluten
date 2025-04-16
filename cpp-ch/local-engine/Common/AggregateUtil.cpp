@@ -155,7 +155,7 @@ bool AggregateDataBlockConverter::hasNext()
         else
         {
             size_t keys = data_variants->size();
-            auto blocks = aggregator.convertToBlocks(*data_variants, final, 1);
+            auto blocks = aggregator.convertToBlocks(*data_variants, final);
             size_t total_allocated_bytes = 0;
             size_t total_bytes = 0;
             while (!blocks.empty())
