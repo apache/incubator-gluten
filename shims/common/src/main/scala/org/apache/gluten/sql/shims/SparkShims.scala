@@ -90,6 +90,8 @@ trait SparkShims {
 
   def aggregateExpressionMappings: Seq[Sig]
 
+  def runtimeReplaceableExpressionMappings: Seq[Sig]
+
   def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec])
 
   def generateFileScanRDD(
