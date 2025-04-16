@@ -141,7 +141,7 @@ case class BroadcastHashJoinExecTransformer(
 
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
     val context =
-      BroadCastHashJoinContext(
+      BroadcastHashJoinContext(
         buildKeyExprs,
         substraitJoinType,
         buildSide == BuildRight,
@@ -157,7 +157,7 @@ case class BroadcastHashJoinExecTransformer(
   }
 }
 
-case class BroadCastHashJoinContext(
+case class BroadcastHashJoinContext(
     buildSideJoinKeys: Seq[Expression],
     substraitJoinType: JoinRel.JoinType,
     buildRight: Boolean,
