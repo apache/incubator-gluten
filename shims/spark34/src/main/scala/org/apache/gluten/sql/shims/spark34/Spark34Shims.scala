@@ -108,7 +108,8 @@ class Spark34Shims extends SparkShims {
       Sig[ArraySize](ExpressionNames.ARRAY_SIZE),
       Sig[EqualNull](ExpressionNames.EQUAL_NULL),
       Sig[ILike](ExpressionNames.ILIKE),
-      Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY)
+      Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY),
+      Sig[Get](ExpressionNames.GET)
     )
   }
 
