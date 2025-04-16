@@ -28,6 +28,7 @@ import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.spark.SparkCatalogConfig;
 import org.apache.iceberg.spark.source.TestPositionDeletesTable;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runners.Parameterized;
 
@@ -56,6 +57,16 @@ public class TestPositionDeletesTableGluten extends TestPositionDeletesTable {
       catalog.createNamespace(Namespace.of(new String[] {"default"}));
     } catch (AlreadyExistsException ignore) {
     }
+  }
+
+  @AfterClass
+  public static void stopMetastoreAndSpark() throws Exception {
+    catalog = null;
+    if (metastore != null) {
+      metastore.stop();
+      metastore = null;
+    }
+    hiveTableSupport.clean();
   }
 
   @Parameterized.Parameters(
