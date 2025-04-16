@@ -794,14 +794,11 @@ const ColumnIndexFilter::AtomMap ColumnIndexFilter::atom_map{
 
 ColumnIndexFilter::ColumnIndexFilter(const DB::ActionsDAG & filter_dag, DB::ContextPtr context)
 {
-    const auto inverted_dag = DB::KeyCondition::cloneASTWithInversionPushDown({filter_dag.getOutputs().at(0)}, context);
-
-    assert(inverted_dag.getOutputs().size() == 1);
-
-    const auto * inverted_dag_filter_node = inverted_dag.getOutputs()[0];
+    DB::ActionsDAGWithInversionPushDown inverted_dag(filter_dag.getOutputs().front(), context);
+    assert(inverted_dag.predicate != nullptr);
 
     DB::RPNBuilder<RPNElement> builder(
-        inverted_dag_filter_node,
+        inverted_dag.predicate,
         std::move(context),
         [&](const DB::RPNBuilderTreeNode & node, RPNElement & out) { return extractAtomFromTree(node, out); });
     rpn_ = std::move(builder).extractRPN();
