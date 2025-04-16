@@ -17,6 +17,7 @@
 package org.apache.spark.gluten.delta
 
 import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
@@ -68,14 +69,13 @@ class GlutenDeltaMergetreeDeletionVectorSuite
 
           spark.sql(s"""insert into table $tableName select * from lineitem """.stripMargin)
 
-          val df = sql(
-            s"""
-              | select
-              |   _metadata.file_path,
-              |   _metadata.row_index
-              | from $tableName
-              | limit 1
-              |""".stripMargin)
+          val df = sql(s"""
+                          | select
+                          |   _metadata.file_path,
+                          |   _metadata.row_index
+                          | from $tableName
+                          | limit 1
+                          |""".stripMargin)
 
           checkFallbackOperators(df, 0)
       }
