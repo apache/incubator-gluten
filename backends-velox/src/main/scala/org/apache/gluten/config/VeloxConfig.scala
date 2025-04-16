@@ -550,7 +550,7 @@ object VeloxConfig extends ConfigRegistry {
     buildConf("spark.gluten.velox.buildHashTableOncePerExecutor.enabled")
       .internal()
       .doc(
-        "Experimental: When enabled, the hash table is " +
+        "When enabled, the hash table is " +
           "constructed once per executor. If not enabled, " +
           "the hash table is rebuilt for each task.")
       .booleanConf
