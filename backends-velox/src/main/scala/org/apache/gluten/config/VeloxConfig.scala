@@ -58,6 +58,9 @@ class VeloxConfig(conf: SQLConf) extends GlutenConfig(conf) {
   def enableBroadcastBuildRelationInOffheap: Boolean =
     getConf(VELOX_BROADCAST_BUILD_RELATION_USE_OFFHEAP)
 
+  def enableBroadcastBuildOncePerExecutor: Boolean =
+    getConf(VELOX_BROADCAST_BUILD_HASHTABLE_ONCE_PER_EXECUTOR)
+
   def veloxOrcScanEnabled: Boolean =
     getConf(VELOX_ORC_SCAN_ENABLED)
 
@@ -531,6 +534,16 @@ object VeloxConfig {
         "Otherwise, broadcast build relation will use onheap memory.")
       .booleanConf
       .createWithDefault(false)
+
+  val VELOX_BROADCAST_BUILD_HASHTABLE_ONCE_PER_EXECUTOR =
+    buildConf("spark.gluten.velox.buildHashTableOncePerExecutor.enabled")
+      .internal()
+      .doc(
+        "Experimental: When enabled, the hash table is " +
+          "constructed once per executor. If not enabled, " +
+          "the hash table is rebuilt for each task.")
+      .booleanConf
+      .createWithDefault(true)
 
   val QUERY_TRACE_ENABLED = buildConf("spark.gluten.sql.columnar.backend.velox.queryTraceEnabled")
     .doc("Enable query tracing flag.")
