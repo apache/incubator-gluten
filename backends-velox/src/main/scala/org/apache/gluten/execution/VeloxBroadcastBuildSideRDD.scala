@@ -27,7 +27,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class VeloxBroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
     broadcasted: broadcast.Broadcast[BuildSideRelation],
-    broadcastContext: BroadCastHashJoinContext,
+    broadcastContext: BroadcastHashJoinContext,
     isBNL: Boolean = false)
   extends BroadcastBuildSideRDD(sc, broadcasted) {
 
