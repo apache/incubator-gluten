@@ -57,7 +57,7 @@ object VeloxBroadcastBuildSideCache
 
   def getOrBuildBroadcastHashTable(
       broadcast: Broadcast[BuildSideRelation],
-      broadCastContext: BroadCastHashJoinContext): BroadcastHashTable = {
+      broadCastContext: BroadcastHashJoinContext): BroadcastHashTable = {
 
     buildSideRelationCache
       .get(

@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.unsafe
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.execution.BroadCastHashJoinContext
+import org.apache.gluten.execution.BroadcastHashJoinContext
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -173,7 +173,7 @@ case class UnsafeColumnarBuildSideRelation(
 
   private var hashTableData: Long = 0L
 
-  def buildHashTable(broadCastContext: BroadCastHashJoinContext): (Long, BuildSideRelation) =
+  def buildHashTable(broadCastContext: BroadcastHashJoinContext): (Long, BuildSideRelation) =
     synchronized {
       if (hashTableData == 0) {
         val runtime = Runtimes.contextInstance(
