@@ -61,7 +61,7 @@ class FilterMetricsUpdater(
           metrics("extraTime"),
           metrics("numOutputRows"),
           metrics("outputBytes"),
-          Seq(metrics("numInputRows")),
+          numInputRows,
           metrics("inputBytes"),
           FilterMetricsUpdater.INCLUDING_PROCESSORS,
           FilterMetricsUpdater.INCLUDING_PROCESSORS

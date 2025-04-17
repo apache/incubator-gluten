@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.{DeltaProjectExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution.{DeltaFilterExecTransformer, DeltaProjectExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Column
@@ -70,19 +70,22 @@ class GlutenDeltaExpressionSuite
 
       spark.sql(s"""insert into table $table_name select * from lineitem""".stripMargin)
       val metric = createMetric(sparkContext, "number of source rows")
+      val metricFilter = createMetric(sparkContext, "number of source rows (during repeated scan)")
       val df = sql(s"select l_orderkey,l_shipdate from $table_name")
         .withColumn("im", Column(IncrementMetric(Literal(true), metric)))
         .filter("im")
+        .filter(Column(IncrementMetric(Literal(true), metricFilter)))
         .drop("im")
       df.collect()
 
       val cnt = df.queryExecution.executedPlan.collect {
-        case p: DeltaProjectExecTransformer =>
-          true
+        case _: DeltaProjectExecTransformer => true
+        case _: DeltaFilterExecTransformer => true
       }
 
-      assertResult(1)(cnt.size)
+      assertResult(2)(cnt.size)
       assertResult(600572)(metric.value)
+      assertResult(600572)(metricFilter.value)
     }
   }
 }
