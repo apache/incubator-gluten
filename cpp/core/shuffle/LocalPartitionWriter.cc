@@ -176,7 +176,7 @@ class LocalPartitionWriter::PayloadMerger {
   arrow::Result<std::vector<std::unique_ptr<BlockPayload>>>
   merge(uint32_t partitionId, std::unique_ptr<InMemoryPayload> append, bool reuseBuffers) {
     std::vector<std::unique_ptr<BlockPayload>> merged{};
-    if (!append->mergable()) {
+    if (!append->mergeable()) {
       // TODO: Merging complex type is currently not supported.
       merged.emplace_back();
       ARROW_ASSIGN_OR_RAISE(merged.back(), createBlockPayload(std::move(append), reuseBuffers));
@@ -664,9 +664,7 @@ LocalPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPa
     // are not merged here and will be merged in `stop()`.
     if (isFinal && !spills_.empty()) {
       for (auto pid = lastEvictPid_ + 1; pid <= partitionId; ++pid) {
-        auto bytesEvicted = totalBytesEvicted_;
-        RETURN_NOT_OK(mergeSpills(pid));
-        partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
+        ARROW_ASSIGN_OR_RAISE(partitionLengths_[pid], mergeSpills(pid));
       }
     }
   }

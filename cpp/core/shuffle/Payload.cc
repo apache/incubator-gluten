@@ -354,7 +354,7 @@ arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
     std::unique_ptr<InMemoryPayload> source,
     std::unique_ptr<InMemoryPayload> append,
     arrow::MemoryPool* pool) {
-  GLUTEN_DCHECK(source->mergable() && append->mergable(), "Cannot merge payloads.");
+  GLUTEN_DCHECK(source->mergeable() && append->mergeable(), "Cannot merge payloads.");
   auto mergedRows = source->numRows() + append->numRows();
   auto isValidityBuffer = source->isValidityBuffer();
 
@@ -472,7 +472,7 @@ int64_t InMemoryPayload::rawSize() {
   return getBufferSize(buffers_);
 }
 
-bool InMemoryPayload::mergable() const {
+bool InMemoryPayload::mergeable() const {
   return !hasComplexType_;
 }
 

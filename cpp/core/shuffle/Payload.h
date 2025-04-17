@@ -148,7 +148,7 @@ class InMemoryPayload final : public Payload {
 
   int64_t rawSize() override;
 
-  bool mergable() const;
+  bool mergeable() const;
 
  private:
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
