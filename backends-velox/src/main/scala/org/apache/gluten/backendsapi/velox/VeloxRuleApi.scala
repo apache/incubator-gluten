@@ -90,6 +90,7 @@ object VeloxRuleApi {
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => UnionTransformerRule())
+    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(_ => PushDownFilterToScan)
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
@@ -100,7 +101,6 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
     injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
-    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(c => p => ExpandFallbackPolicy(c.caller.isAqe(), p))
@@ -177,6 +177,7 @@ object VeloxRuleApi {
     // Gluten RAS: Post rules.
     injector.injectPostTransform(_ => RemoveTransitions)
     injector.injectPostTransform(_ => UnionTransformerRule())
+    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectPostTransform(_ => PushDownFilterToScan)
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
@@ -187,7 +188,6 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
     injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
-    injector.injectPostTransform(c => PartialProjectRule.apply(c.session))
     injector.injectPostTransform(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()

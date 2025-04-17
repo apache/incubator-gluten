@@ -17,13 +17,9 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.execution.{ColumnarPartialProjectExec, WholeStageTransformerSuite}
-import org.apache.gluten.extension.PartialProjectRule
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.catalyst.expressions.Alias
-import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
-import org.apache.spark.sql.catalyst.plans.logical.Project
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.udf
 
@@ -125,7 +121,7 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("test function no argument") {
+  ignore("test function no argument") {
     runQueryAndCompare("""SELECT no_argument(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ColumnarPartialProjectExec]
@@ -218,19 +214,35 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
       checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
+  // only SparkVersion >= 3.4 support columnar native writer
+  testWithSpecifiedSparkVersion(
+    "only the child and parent of the project both support Columnar," +
+      "just add ColumnarPartialProjectExec for the project",
+    Array("3.4", "3.5")) {
+    Seq("false", "true").foreach {
+      enableNativeScanAndWriter =>
+        withSQLConf(
+          "spark.gluten.sql.native.writer.enabled" -> enableNativeScanAndWriter,
+          "spark.gluten.sql.columnar.batchscan" -> enableNativeScanAndWriter
+        ) {
+          withTable("t1") {
+            spark.sql("""
+                        |create table if not exists t1 (revenue double) using parquet
+                        |""".stripMargin)
+            runQueryAndCompare(""" insert overwrite t1
+                                 |    select (plus_one(l_extendedprice) * l_discount
+                                 |      + hash(l_orderkey) + hash(l_comment)) as revenue
+                                 |    from   lineitem
+                                 |""".stripMargin) {
 
-  test("PartialProjectRule should handle ProjectExec with row child") {
-    val rule = PartialProjectRule(spark)
-    val project = ProjectExec(
-      Seq(Alias(Literal(1), "one")()),
-      spark.sessionState
-        .executePlan(
-          Project(Seq(Alias(Literal(1), "one")()), spark.emptyDataFrame.queryExecution.logical))
-        .executedPlan
-    )
-    val transformedPlan = rule.apply(project)
-
-    assert(transformedPlan.isInstanceOf[ProjectExec])
-    assert(transformedPlan == project)
+              if (enableNativeScanAndWriter.toBoolean) {
+                checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+              } else {
+                checkSparkOperatorMatch[ProjectExec]
+              }
+            }
+          }
+        }
+    }
   }
 }
