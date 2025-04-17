@@ -38,14 +38,10 @@ class LocalPartitionWriter : public PartitionWriter {
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
-      bool reuseBuffers,
-      bool hasComplexType) override;
+      bool reuseBuffers) override;
 
-  arrow::Status sortEvict(
-      uint32_t partitionId,
-      std::unique_ptr<InMemoryPayload> inMemoryPayload,
-      std::shared_ptr<arrow::Buffer> compressed,
-      bool isFinal) override;
+  arrow::Status sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal)
+      override;
 
   // This code path is not used by LocalPartitionWriter, Not implement it by default.
   arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override {
@@ -90,13 +86,13 @@ class LocalPartitionWriter : public PartitionWriter {
 
   arrow::Status requestSpill(bool isFinal);
 
-  arrow::Status finishSpill(bool close);
+  arrow::Status finishSpill();
 
   std::string nextSpilledFileDir();
 
   arrow::Result<std::shared_ptr<arrow::io::OutputStream>> openFile(const std::string& file);
 
-  arrow::Status mergeSpills(uint32_t partitionId);
+  arrow::Result<int64_t> mergeSpills(uint32_t partitionId);
 
   arrow::Status clearResource();
 
