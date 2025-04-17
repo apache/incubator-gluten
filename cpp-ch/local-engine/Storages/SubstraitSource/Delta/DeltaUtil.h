@@ -14,17 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.util
+#pragma once
 
-object SparkVersionUtil {
-  def majorMinorVersion(): (Int, Int) = {
-    VersionUtils.majorMinorVersion(org.apache.spark.SPARK_VERSION)
-  }
+#include <jni.h>
+#include <jni/jni_common.h>
 
-  // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.
-  def compareMajorMinorVersion(one: (Int, Int), other: (Int, Int)): Int = {
-    val base = 1000
-    assert(one._2 < base && other._2 < base)
-    one._1 * base + one._2 - (other._1 * base + other._2)
-  }
+
+namespace local_engine::delta
+{
+struct Codec
+{
+    struct Base85Codec
+    {
+        static constexpr Int32 ENCODED_UUID_LENGTH = 20;
+    };
+};
+
+
+static constexpr String UUID_DV_MARKER = "u";
+
+class DeltaUtil
+{
+public:
+    static void initJavaCallerReference(JNIEnv * env);
+    static void releaseJavaCallerReference(JNIEnv * env);
+
+    static String encodeUUID(String uuid, String prefix);
+    static String decodeUUID(String encodedUuid);
+
+private:
+    static jclass delta_jni_class;
+    static jmethodID delta_jni_encode_uuid;
+    static jmethodID delta_jni_decode_uuid;
+};
+
 }

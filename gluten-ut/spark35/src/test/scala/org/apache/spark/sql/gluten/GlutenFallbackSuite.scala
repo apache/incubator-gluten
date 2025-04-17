@@ -23,6 +23,7 @@ import org.apache.gluten.execution.FileSourceScanExecTransformer
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.execution.ProjectExec
@@ -38,6 +39,8 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
     super.sparkConf
       .set(GlutenConfig.RAS_ENABLED.key, "false")
       .set("spark.gluten.ui.enabled", "true")
+      // The gluten ui event test suite expects the spark ui to be enable
+      .set(UI_ENABLED, true)
   }
 
   testGluten("test fallback logging") {

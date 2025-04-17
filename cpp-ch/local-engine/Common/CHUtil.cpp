@@ -319,32 +319,6 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
     return out;
 }
 
-bool TypeUtil::hasNothingType(DB::DataTypePtr data_type)
-{
-    if (DB::isNothing(data_type))
-        return true;
-    else if (data_type->isNullable())
-        return hasNothingType(typeid_cast<const DB::DataTypeNullable *>(data_type.get())->getNestedType());
-    else if (DB::isArray(data_type))
-        return hasNothingType(typeid_cast<const DB::DataTypeArray *>(data_type.get())->getNestedType());
-    else if (DB::isMap(data_type))
-    {
-        const auto * type_map = typeid_cast<const DB::DataTypeMap *>(data_type.get());
-        return hasNothingType(type_map->getKeyType()) || hasNothingType(type_map->getValueType());
-    }
-    else if (DB::isTuple(data_type))
-    {
-        const auto * type_tuple = typeid_cast<const DB::DataTypeTuple *>(data_type.get());
-        for (size_t i = 0; i < type_tuple->getElements().size(); ++i)
-        {
-            if (hasNothingType(type_tuple->getElements()[i]))
-                return true;
-        }
-    }
-    return false;
-
-}
-
 size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
 {
     /// According to definition of DEFUALT_BLOCK_SIZE
@@ -893,6 +867,7 @@ extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCom
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
 extern void registerAggregateFunctionRowNumGroup(AggregateFunctionFactory &);
+extern void registerAggregateFunctionDVRoaringBitmap(AggregateFunctionFactory &);
 
 
 extern void registerFunctions(FunctionFactory &);
@@ -907,6 +882,7 @@ void registerAllFunctions()
     registerAggregateFunctionSparkAvg(agg_factory);
     registerAggregateFunctionRowNumGroup(agg_factory);
     DB::registerAggregateFunctionUniqHyperLogLogPlusPlus(agg_factory);
+    registerAggregateFunctionDVRoaringBitmap(agg_factory);
 
     /// register aggregate function combinators from local_engine
     auto & combinator_factory = AggregateFunctionCombinatorFactory::instance();

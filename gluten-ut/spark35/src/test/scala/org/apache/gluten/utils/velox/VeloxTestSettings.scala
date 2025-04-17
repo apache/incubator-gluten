@@ -581,8 +581,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
-    // ColumnarShuffleExchangeExec does not support SORT_BEFORE_REPARTITION
-    .exclude("SPARK-23207: Make repartition() generate consistent output")
     // This test will re-run in GlutenExchangeSuite with shuffle partitions > 1
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenReplaceHashWithSortAggSuite]
@@ -890,9 +888,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // ORC related
     .exclude("SPARK-37965: Spark support read/write orc file with invalid char in field name")
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
-    // Need to support MAP<NullType, NullType>
-    .exclude(
-      "SPARK-27619: When spark.sql.legacy.allowHashOnMapType is true, hash can be used on Maptype")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
     // The output byte size of Velox is different

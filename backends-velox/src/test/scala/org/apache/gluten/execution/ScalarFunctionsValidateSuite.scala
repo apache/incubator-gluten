@@ -123,7 +123,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test array_append function - INT", Some("3.4")) {
+  testWithMinSparkVersion("Test array_append function - INT", "3.4") {
     withTempPath {
       path =>
         Seq[(Array[Int], Int)](
@@ -148,7 +148,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test array_append function - STRING", Some("3.4")) {
+  testWithMinSparkVersion("Test array_append function - STRING", "3.4") {
     withTempPath {
       path =>
         Seq[(Array[String], String)](
@@ -186,9 +186,21 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("null input for array_size", Some("3.3")) {
-    runQueryAndCompare("SELECT array_size(null)") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+  testWithMinSparkVersion("null input for array_size", "3.3") {
+    withTempPath {
+      path =>
+        Seq[(Array[Int])](
+          (null.asInstanceOf[Array[Int]])
+        )
+          .toDF("txt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select array_size(txt) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
@@ -801,8 +813,20 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("Test sum/count function") {
-    runQueryAndCompare("""SELECT sum(2),count(2) from lineitem""".stripMargin) {
-      checkGlutenOperatorMatch[BatchScanExecTransformer]
+    withTempPath {
+      path =>
+        Seq[(Integer, Integer)](
+          (2, 2)
+        )
+          .toDF("val1", "val2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("SELECT sum(val1),count(val2) from tbl") {
+          checkGlutenOperatorMatch[BatchScanExecTransformer]
+        }
     }
   }
 
@@ -817,14 +841,25 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test width_bucket function", Some("3.4")) {
-    runQueryAndCompare("""SELECT width_bucket(2, 0, 4, 3), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+  testWithMinSparkVersion("Test width_bucket function", "3.4") {
+    withTempPath {
+      path =>
+        Seq[(Integer, Integer, Integer, Integer)](
+          (2, 0, 4, 3)
+        )
+          .toDF("val1", "val2", "val3", "val4")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("SELECT width_bucket(val1, val2, val3, val4) from tbl") {
+          checkGlutenOperatorMatch[BatchScanExecTransformer]
+        }
     }
   }
 
-  testWithSpecifiedSparkVersion("Test url_decode function", Some("3.4")) {
+  testWithMinSparkVersion("Test url_decode function", "3.4") {
     withTempPath {
       path =>
         Seq("https%3A%2F%2Fspark.apache.org")
@@ -839,7 +874,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test url_encode function", Some("3.4")) {
+  testWithMinSparkVersion("Test url_encode function", "3.4") {
     withTempPath {
       path =>
         Seq("https://spark.apache.org")
@@ -970,7 +1005,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("mask", Some("3.4")) {
+  testWithMinSparkVersion("mask", "3.4") {
     runQueryAndCompare("SELECT mask(c_comment) FROM customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -1084,7 +1119,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("try_subtract", Some("3.3")) {
+  testWithMinSparkVersion("try_subtract", "3.3") {
     runQueryAndCompare(
       "select try_subtract(2147483647, cast(l_orderkey as int)), " +
         "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
@@ -1100,7 +1135,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("try_multiply", Some("3.3")) {
+  testWithMinSparkVersion("try_multiply", "3.3") {
     runQueryAndCompare(
       "select try_multiply(2147483647, cast(l_orderkey as int)), " +
         "try_multiply(-2147483648, cast(l_orderkey as int)) from lineitem") {
@@ -1266,7 +1301,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("get", Some("3.4")) {
+  testWithMinSparkVersion("get", "3.4") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -1357,7 +1392,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("levenshtein with limit", Some("3.5")) {
+  testWithMinSparkVersion("levenshtein with limit", "3.5") {
     runQueryAndCompare("select levenshtein(c_comment, c_address, 3) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -1471,7 +1506,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("array insert", Some("3.4")) {
+  testWithMinSparkVersion("array insert", "3.4") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -1525,7 +1560,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("Test try_cast", Some("3.4")) {
+  testWithMinSparkVersion("Test try_cast", "3.4") {
     withTempView("try_cast_table") {
       withTempPath {
         path =>

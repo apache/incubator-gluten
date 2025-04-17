@@ -14,21 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.ui
+package org.apache.spark.util
 
-import org.apache.gluten.events.GlutenEvent
-
-import org.apache.spark.SparkContext
-import org.apache.spark.status.ElementTrackingStore
-
-object GlutenEventUtils {
-  def post(sc: SparkContext, event: GlutenEvent): Unit = {
-    sc.listenerBus.post(event)
+object SparkVersionUtil {
+  def majorMinorVersion(version: String = org.apache.spark.SPARK_VERSION): (Int, Int) = {
+    VersionUtils.majorMinorVersion(version)
   }
 
-  def attachUI(sc: SparkContext): Unit = {
-    val kvStore = sc.statusStore.store.asInstanceOf[ElementTrackingStore]
-    val statusStore = new GlutenSQLAppStatusStore(kvStore)
-    sc.ui.foreach(new GlutenSQLTab(statusStore, _))
+  def majorMinorPatchVersion(version: String): Option[(Int, Int, Int)] = {
+    VersionUtils.majorMinorPatchVersion(version)
+  }
+
+  // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.
+  def compareMajorMinorVersion(one: (Int, Int), other: (Int, Int)): Int = {
+    val base = 1000
+    assert(one._2 < base && other._2 < base)
+    one._1 * base + one._2 - (other._1 * base + other._2)
   }
 }

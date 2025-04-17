@@ -156,8 +156,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarShuffle: Boolean = getConf(COLUMNAR_SHUFFLE_ENABLED)
 
-  def enablePreferColumnar: Boolean = getConf(COLUMNAR_PREFER_ENABLED)
-
   def physicalJoinOptimizationThrottle: Integer =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
@@ -357,12 +355,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def autoAdjustStageFallenNodeThreshold: Double =
     getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
-
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
-
   def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
-
   def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
+  def getSupportedFlattenedExpressions: String = getConf(GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS)
 }
 
 object GlutenConfig {
@@ -404,6 +400,8 @@ object GlutenConfig {
   val SPARK_S3_RETRY_MAX_ATTEMPTS: String = HADOOP_PREFIX + S3_RETRY_MAX_ATTEMPTS
   val S3_CONNECTION_MAXIMUM = "fs.s3a.connection.maximum"
   val SPARK_S3_CONNECTION_MAXIMUM: String = HADOOP_PREFIX + S3_CONNECTION_MAXIMUM
+  val S3_ENDPOINT_REGION = "fs.s3a.endpoint.region"
+  val SPARK_S3_ENDPOINT_REGION: String = HADOOP_PREFIX + S3_ENDPOINT_REGION
 
   // ABFS config
   val ABFS_PREFIX = "fs.azure."
@@ -463,10 +461,8 @@ object GlutenConfig {
       COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       COLUMNAR_MAX_BATCH_SIZE.key,
       SHUFFLE_WRITER_BUFFER_SIZE.key,
-      SQLConf.SESSION_LOCAL_TIMEZONE.key,
-      GLUTEN_DEFAULT_SESSION_TIMEZONE.key,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
-      SQLConf.LEGACY_TIME_PARSER_POLICY.key,
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
       "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
@@ -483,9 +479,13 @@ object GlutenConfig {
       SPARK_S3_IAM_SESSION_NAME,
       SPARK_S3_RETRY_MAX_ATTEMPTS,
       SPARK_S3_CONNECTION_MAXIMUM,
+      SPARK_S3_ENDPOINT_REGION,
       "spark.gluten.velox.fs.s3a.connect.timeout",
       "spark.gluten.velox.fs.s3a.retry.mode",
       "spark.gluten.velox.awsSdkLogLevel",
+      "spark.gluten.velox.s3UseProxyFromEnv",
+      "spark.gluten.velox.s3PayloadSigningPolicy",
+      "spark.gluten.velox.s3LogLocation",
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
       SPARK_GCS_AUTH_TYPE,
@@ -508,7 +508,9 @@ object GlutenConfig {
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
       (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
-      (SQLConf.LEGACY_TIME_PARSER_POLICY.key, SQLConf.LEGACY_TIME_PARSER_POLICY.defaultValueString),
+      (
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
@@ -516,7 +518,8 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
-      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString)
+      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
@@ -593,7 +596,10 @@ object GlutenConfig {
       ("spark.sql.orc.compression.codec", "snappy"),
       ("spark.sql.decimalOperations.allowPrecisionLoss", "true"),
       ("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled", "false"),
-      ("spark.gluten.velox.awsSdkLogLevel", "FATAL")
+      ("spark.gluten.velox.awsSdkLogLevel", "FATAL"),
+      ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
+      ("spark.gluten.velox.s3PayloadSigningPolicy", "Never"),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -607,10 +613,10 @@ object GlutenConfig {
       COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key,
       COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       SPARK_OFFHEAP_ENABLED,
-      SESSION_LOCAL_TIMEZONE.key,
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX,
-      LEGACY_TIME_PARSER_POLICY.key
+      LEGACY_TIME_PARSER_POLICY.key,
+      LEGACY_STATISTICAL_AGGREGATE.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -653,13 +659,6 @@ object GlutenConfig {
     .booleanConf
     .createWithDefault(true)
 
-  val GLUTEN_DEFAULT_SESSION_TIMEZONE = buildConf("spark.gluten.sql.session.timeZone.default")
-    .doc(
-      "used to hold default session timezone and will be really used by Gluten only if " +
-        "`spark.sql.session.timeZone` is not set.")
-    .stringConf
-    .createWithDefaultString(SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
-
   val GLUTEN_LOAD_LIB_OS =
     buildConf("spark.gluten.loadLibOS")
       .doc("The shared library loader's OS name.")
@@ -698,6 +697,13 @@ object GlutenConfig {
     .doc("Supported scala udf names.")
     .stringConf
     .createWithDefault("")
+
+  val GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS =
+    buildConf("spark.gluten.sql.supported.flattenNestedFunctions")
+      .internal()
+      .doc("Flatten nested functions as one for optimization.")
+      .stringConf
+      .createWithDefault("and,or");
 
   val GLUTEN_SOFT_AFFINITY_ENABLED =
     buildConf("spark.gluten.soft-affinity.enabled")
@@ -962,13 +968,6 @@ object GlutenConfig {
         "shuffle will be used if the number of columns is greater than this threshold.")
       .intConf
       .createWithDefault(100000)
-
-  val COLUMNAR_PREFER_ENABLED =
-    buildConf("spark.gluten.sql.columnar.preferColumnar")
-      .internal()
-      .doc("Prefer to use columnar operators if set to true.")
-      .booleanConf
-      .createWithDefault(true)
 
   val COLUMNAR_TABLE_CACHE_ENABLED =
     buildConf("spark.gluten.sql.columnar.tableCache")

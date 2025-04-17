@@ -230,9 +230,8 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
     auto in = read_buffer_builder->build(file_info);
     auto result = collectRequiredRowGroups(*in, file_info);
 
-    size_t rows = 0;
-    for (const auto & rowgroup : result.readRowGroups)
-        rows += rowgroup.num_rows;
+    size_t rows = std::ranges::fold_left(
+        result.readRowGroups, static_cast<size_t>(0), [](size_t sum, const auto & row_group) { return sum + row_group.num_rows; });
 
     {
         std::lock_guard lock(mutex);

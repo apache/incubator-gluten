@@ -83,6 +83,15 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     }
   }
 
+  test("test subquery") {
+    runQueryAndCompare(
+      "select plus_one(" +
+        "(select plus_one(count(*)) from (values (1)) t0(inner_c))) as col " +
+        "from (values (2),(3)) t1(outer_c)") {
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+    }
+  }
+
   ignore("test plus_one with column used twice") {
     runQueryAndCompare(
       "SELECT sum(plus_one(cast(l_orderkey as long)) + hash(l_orderkey)) from lineitem") {

@@ -325,6 +325,7 @@ trait SparkPlanExecApi {
    *
    * childOutputAttributes may be different from outputAttributes, for example, the
    * childOutputAttributes include additional shuffle key columns
+   *
    * @return
    */
   // scalastyle:off argcount
@@ -714,4 +715,12 @@ trait SparkPlanExecApi {
       numElements: BigInt,
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec
+
+  def expressionFlattenSupported(expr: Expression): Boolean = false
+
+  def genFlattenedExpressionTransformer(
+      substraitName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer =
+    GenericExpressionTransformer(substraitName, children, expr)
 }

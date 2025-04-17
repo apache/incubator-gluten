@@ -17,13 +17,14 @@
 #include "DeltaDVRoaringBitmapArray.h"
 
 #include <zlib.h>
+#include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <IO/WriteHelpers.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <substrait/plan.pb.h>
 #include <roaring.hh>
 #include <Poco/URI.h>
 #include <Common/PODArray.h>
-#include <substrait/plan.pb.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 
 namespace DB
 {
@@ -49,11 +50,11 @@ UInt64 DeltaDVRoaringBitmapArray::compose_from_high_low_bytes(UInt32 high, UInt3
     return (static_cast<uint64_t>(high) << 32) | low;
 }
 
-DeltaDVRoaringBitmapArray::DeltaDVRoaringBitmapArray(const DB::ContextPtr & context_) : context(context_)
+DeltaDVRoaringBitmapArray::DeltaDVRoaringBitmapArray()
 {
 }
 
-void DeltaDVRoaringBitmapArray::rb_read(const String & file_path, Int32 offset, Int32 data_size)
+void DeltaDVRoaringBitmapArray::rb_read(const String & file_path, Int32 offset, Int32 data_size, DB::ContextPtr context)
 {
     substrait::ReadRel::LocalFiles::FileOrFiles file_info;
     file_info.set_uri_file(file_path);
@@ -74,33 +75,15 @@ void DeltaDVRoaringBitmapArray::rb_read(const String & file_path, Int32 offset, 
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The size of the deletion vector is mismatch.");
 
     int checksum_value = static_cast<Int32>(crc32_z(0L, reinterpret_cast<unsigned char *>(in->position()), size));
+    deserialize(*in);
 
-    int magic_num;
-    readBinaryLittleEndian(magic_num, *in);
-    if (magic_num != 1681511377)
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The magic num is mismatch.");
-
-    int64_t bitmap_array_size;
-    readBinaryLittleEndian(bitmap_array_size, *in);
-
-    roaring_bitmap_array.reserve(bitmap_array_size);
-    for (size_t i = 0; i < bitmap_array_size; ++i)
-    {
-        int bitmap_index;
-        readBinaryLittleEndian(bitmap_index, *in);
-        roaring::Roaring r = roaring::Roaring::read(in->position());
-        size_t current_bitmap_size = r.getSizeInBytes();
-        in->ignore(current_bitmap_size);
-        roaring_bitmap_array.push_back(r);
-    }
     int expected_checksum;
     readBinaryBigEndian(expected_checksum, *in);
     if (expected_checksum != checksum_value)
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Checksum mismatch.");
-
 }
 
-UInt64 DeltaDVRoaringBitmapArray::rb_size() const
+UInt64 DeltaDVRoaringBitmapArray::cardinality() const
 {
     UInt64 sum = 0;
     for (const auto & r : roaring_bitmap_array)
@@ -124,8 +107,7 @@ void DeltaDVRoaringBitmapArray::rb_clear()
 
 bool DeltaDVRoaringBitmapArray::rb_is_empty() const
 {
-    return std::ranges::all_of(roaring_bitmap_array.begin(), roaring_bitmap_array.end(),
-                [](const auto& rb) { return rb.isEmpty(); });
+    return std::ranges::all_of(roaring_bitmap_array.begin(), roaring_bitmap_array.end(), [](const auto & rb) { return rb.isEmpty(); });
 }
 
 void DeltaDVRoaringBitmapArray::rb_add(Int64 x)
@@ -156,6 +138,15 @@ void DeltaDVRoaringBitmapArray::rb_merge(const DeltaDVRoaringBitmapArray & that)
 {
     rb_or(that);
 }
+
+void DeltaDVRoaringBitmapArray::merge(const String & that)
+{
+    DB::ReadBufferFromString rb(that);
+    DeltaDVRoaringBitmapArray that_bitmap;
+    that_bitmap.deserialize(rb);
+    rb_merge(that_bitmap);
+}
+
 void DeltaDVRoaringBitmapArray::rb_or(const DeltaDVRoaringBitmapArray & that)
 {
     if (roaring_bitmap_array.size() < that.roaring_bitmap_array.size())
@@ -171,4 +162,59 @@ bool DeltaDVRoaringBitmapArray::operator==(const DeltaDVRoaringBitmapArray & oth
 
     return roaring_bitmap_array == other.roaring_bitmap_array;
 }
+
+
+String DeltaDVRoaringBitmapArray::serialize() const
+{
+    DB::WriteBufferFromOwnString out;
+    constexpr Int32 magic_number = 1681511377;
+    writeBinaryLittleEndian(magic_number, out);
+    Int64 size = roaring_bitmap_array.size();
+    writeBinaryLittleEndian(size, out);
+
+    for (Int32 i = 0; i < roaring_bitmap_array.size(); ++i)
+    {
+        writeBinaryLittleEndian(i, out);
+        std::unique_ptr<roaring::Roaring> bitmap = std::make_unique<roaring::Roaring>(roaring_bitmap_array.at(i));
+        bitmap->runOptimize();
+        auto size_in_bytes = bitmap->getSizeInBytes();
+        std::unique_ptr<char[]> buf(new char[size_in_bytes]);
+        bitmap->write(buf.get());
+        out.write(buf.get(), size_in_bytes);
+    }
+
+    return out.str();
+}
+
+void DeltaDVRoaringBitmapArray::deserialize(DB::ReadBuffer & buf)
+{
+    Int32 magic_num;
+    readBinaryLittleEndian(magic_num, buf);
+    if (magic_num != 1681511377)
+        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "The magic num is mismatch.");
+
+    int64_t bitmap_array_size;
+    readBinaryLittleEndian(bitmap_array_size, buf);
+
+    roaring_bitmap_array.reserve(bitmap_array_size);
+    for (size_t i = 0; i < bitmap_array_size; ++i)
+    {
+        int bitmap_index;
+        readBinaryLittleEndian(bitmap_index, buf);
+        roaring::Roaring r = roaring::Roaring::read(buf.position());
+        size_t current_bitmap_size = r.getSizeInBytes();
+        buf.ignore(current_bitmap_size);
+        roaring_bitmap_array.push_back(r);
+    }
+}
+
+std::optional<Int64> DeltaDVRoaringBitmapArray::last()
+{
+    if (roaring_bitmap_array.empty() || roaring_bitmap_array.back().isEmpty())
+        return std::nullopt;
+
+    return compose_from_high_low_bytes(roaring_bitmap_array.size(), roaring_bitmap_array.back().maximum());
+}
+
+
 }

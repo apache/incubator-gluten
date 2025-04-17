@@ -21,12 +21,20 @@ import org.apache.gluten.execution.OffloadDeltaNode
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
+import org.apache.gluten.sql.shims.DeltaShimLoader
+
+import org.apache.spark.SparkContext
+import org.apache.spark.api.plugin.PluginContext
 
 class CHDeltaComponent extends Component {
   override def name(): String = "ch-delta"
   override def buildInfo(): Component.BuildInfo =
     Component.BuildInfo("CHDelta", "N/A", "N/A", "N/A")
   override def dependencies(): Seq[Class[_ <: Component]] = classOf[CHBackend] :: Nil
+
+  override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit =
+    DeltaShimLoader.getDeltaShims.onDriverStart(sc, pc)
+
   override def injectRules(injector: Injector): Unit = {
     val legacy = injector.gluten.legacy
     legacy.injectTransform {
@@ -34,5 +42,7 @@ class CHDeltaComponent extends Component {
         val offload = Seq(OffloadDeltaNode())
         HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
     }
+
+    DeltaShimLoader.getDeltaShims.registerExpressionExtension()
   }
 }
