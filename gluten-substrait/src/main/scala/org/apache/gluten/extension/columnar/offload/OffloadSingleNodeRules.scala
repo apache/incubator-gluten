@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.CollectLimitExec
+import org.apache.spark.sql.execution.RDDScanTransformer
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -350,6 +351,9 @@ object OffloadOthers {
             plan.child,
             offset
           )
+        case plan: RDDScanExec if RDDScanTransformer.isSupportRDDScanExec(plan) =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          RDDScanTransformer.getRDDScanTransform(plan)
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
           p

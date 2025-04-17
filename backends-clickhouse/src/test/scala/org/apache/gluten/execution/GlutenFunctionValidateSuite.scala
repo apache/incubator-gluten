@@ -563,7 +563,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         | str_to_map('a,b', ',', ''),
         | str_to_map('a:c|b:c', '\\|', ':')
         |""".stripMargin
-    runQueryAndCompare(sql1, true, false)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql1, true)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("test parse_url") {
@@ -622,14 +622,12 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       // Test codec with 'US-ASCII'
       runQueryAndCompare(
-        "SELECT decode(encode('Spark SQL', 'US-ASCII'), 'US-ASCII')",
-        noFallBack = false
+        "SELECT decode(encode('Spark SQL', 'US-ASCII'), 'US-ASCII')"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
 
       // Test codec with 'UTF-16'
       runQueryAndCompare(
-        "SELECT decode(encode('Spark SQL', 'UTF-16'), 'UTF-16')",
-        noFallBack = false
+        "SELECT decode(encode('Spark SQL', 'UTF-16'), 'UTF-16')"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -645,8 +643,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select cast('7.921901' as float), cast('7.921901' as double)",
-        noFallBack = false
+        "select cast('7.921901' as float), cast('7.921901' as double)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -1061,8 +1058,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
-        "select cast(' \t2570852431\n' as long), cast('25708\t52431\n' as long)",
-        noFallBack = false
+        "select cast(' \t2570852431\n' as long), cast('25708\t52431\n' as long)"
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }

@@ -173,7 +173,7 @@ Here we will explain how to run TPC-H on Velox backend with the Parquet file for
     ```
 
   - Modify `${GLUTEN_HOME}/tools/workload/tpch/run_tpch/tpch_parquet.sh`.
-    - Set `GLUTEN_JAR` correctly. Please refer to the section of [Build Gluten with Velox Backend](../get-started/Velox.md/#2-build-gluten-with-velox-backend)
+    - Set `GLUTEN_JAR` correctly. Please refer to the section of [Build Gluten with Velox Backend](../get-started/Velox.md#build-gluten-with-velox-backend)
     - Set `SPARK_HOME` correctly.
     - Set the memory configurations appropriately.
   - Execute `tpch_parquet.sh` using the below command.

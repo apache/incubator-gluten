@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.tags;
+package org.apache.spark.sql.internal
 
-import org.scalatest.TagAnnotation;
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.config.ConfigEntry
 
-import java.lang.annotation.*;
-
-@TagAnnotation
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD, ElementType.TYPE})
-public @interface SkipTestTags {}
+object SparkConfigUtil {
+  def getEntryValue[T](conf: SparkConf, entry: ConfigEntry[T]): T = {
+    conf.get(entry)
+  }
+}

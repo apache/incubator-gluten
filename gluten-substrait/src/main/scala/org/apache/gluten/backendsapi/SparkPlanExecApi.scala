@@ -45,6 +45,7 @@ import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.types.{DecimalType, LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.io.{ObjectInputStream, ObjectOutputStream}
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 
@@ -306,6 +307,13 @@ trait SparkPlanExecApi {
       children: Seq[ExpressionTransformer],
       expr: PreciseTimestampConversion): ExpressionTransformer = {
     throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
+  }
+
+  def genArrayInsertTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    throw new GlutenNotSupportException("ArrayInsert is not supported")
   }
 
   // For date_add(cast('2001-01-01' as Date), interval 1 day), backends may handle it in different
@@ -723,4 +731,18 @@ trait SparkPlanExecApi {
       children: Seq[ExpressionTransformer],
       expr: Expression): ExpressionTransformer =
     GenericExpressionTransformer(substraitName, children, expr)
+
+  def isSupportRDDScanExec(plan: RDDScanExec): Boolean = false
+
+  def getRDDScanTransform(plan: RDDScanExec): RDDScanTransformer =
+    throw new GlutenNotSupportException("RDDScanExec is not supported")
+
+  def copyColumnarBatch(batch: ColumnarBatch): ColumnarBatch =
+    throw new GlutenNotSupportException("Copying ColumnarBatch is not supported")
+
+  def serializeColumnarBatch(output: ObjectOutputStream, batch: ColumnarBatch): Unit =
+    throw new GlutenNotSupportException("Serialize ColumnarBatch is not supported")
+
+  def deserializeColumnarBatch(input: ObjectInputStream): ColumnarBatch =
+    throw new GlutenNotSupportException("Deserialize ColumnarBatch is not supported")
 }

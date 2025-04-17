@@ -28,6 +28,7 @@ ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
+ENABLE_GPU=OFF
 VELOX_HOME=
 # set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -97,6 +98,10 @@ for arg in "$@"; do
     ENABLE_HDFS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --enable_gpu=*)
+    ENABLE_GPU=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   *)
     OTHER_ARGUMENTS+=("$1")
     shift # Remove generic argument from processing
@@ -128,6 +133,7 @@ echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "ENABLE_ABFS=${ENABLE_ABFS}"
+echo "ENABLE_GPU=${ENABLE_GPU}"
 
 if [ -d build ]; then
   rm -r build
@@ -147,5 +153,6 @@ cmake .. \
   -DENABLE_GCS=${ENABLE_GCS} \
   -DENABLE_S3=${ENABLE_S3} \
   -DENABLE_HDFS=${ENABLE_HDFS} \
-  -DENABLE_ABFS=${ENABLE_ABFS} 
+  -DENABLE_ABFS=${ENABLE_ABFS} \
+  -DENABLE_GPU=${ENABLE_GPU}
 make -j$NPROC

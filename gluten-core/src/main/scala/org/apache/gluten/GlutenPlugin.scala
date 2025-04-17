@@ -32,7 +32,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.softaffinity.SoftAffinityListener
 import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusListener, GlutenUIUtils}
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.{SparkConfigUtil, SQLConf}
 import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.SparkResourceUtil
@@ -135,15 +135,46 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     }
   }
 
+  private def checkOffHeapSettings(conf: SparkConf): Unit = {
+    if (
+      conf.getBoolean(
+        DYNAMIC_OFFHEAP_SIZING_ENABLED.key,
+        DYNAMIC_OFFHEAP_SIZING_ENABLED.defaultValue.get)
+    ) {
+      // When dynamic off-heap sizing is enabled, off-heap mode is not strictly required to be
+      // enabled. Skip the check.
+      return
+    }
+
+    if (
+      conf.getBoolean(COLUMNAR_MEMORY_UNTRACKED.key, COLUMNAR_MEMORY_UNTRACKED.defaultValue.get)
+    ) {
+      // When untracked memory mode is enabled, off-heap mode is not strictly required to be
+      // enabled. Skip the check.
+      return
+    }
+
+    val minOffHeapSize = "1MB"
+    if (
+      !conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, false) ||
+      conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
+        minOffHeapSize)
+    ) {
+      throw new GlutenException(
+        s"Must set '$SPARK_OFFHEAP_ENABLED' to true " +
+          s"and set '$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize")
+    }
+  }
+
   private def setPredefinedConfigs(conf: SparkConf): Unit = {
     // Spark SQL extensions
-    val extensions = if (conf.contains(SPARK_SESSION_EXTENSIONS.key)) {
-      s"${conf.get(SPARK_SESSION_EXTENSIONS.key)}," +
-        s"${GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME}"
-    } else {
-      s"${GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME}"
+    val extensionSeq =
+      SparkConfigUtil.getEntryValue(conf, SPARK_SESSION_EXTENSIONS).getOrElse(Seq.empty)
+    if (!extensionSeq.toSet.contains(GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME)) {
+      conf.set(
+        SPARK_SESSION_EXTENSIONS.key,
+        (extensionSeq :+ GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME).mkString(","))
     }
-    conf.set(SPARK_SESSION_EXTENSIONS.key, extensions)
 
     // adaptive custom cost evaluator class
     val enableGlutenCostEvaluator = conf.getBoolean(
@@ -154,20 +185,8 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key, costEvaluator)
     }
 
-    // check memory off-heap enabled and size
-    val minOffHeapSize = "1MB"
-    if (
-      !conf.getBoolean(
-        DYNAMIC_OFFHEAP_SIZING_ENABLED.key,
-        DYNAMIC_OFFHEAP_SIZING_ENABLED.defaultValue.get) &&
-      (!conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, false) ||
-        conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
-          minOffHeapSize))
-    ) {
-      throw new GlutenException(
-        s"Must set '$SPARK_OFFHEAP_ENABLED' to true " +
-          s"and set '$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize")
-    }
+    // check memory off-heap enabled and size.
+    checkOffHeapSettings(conf)
 
     // Task slots.
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)

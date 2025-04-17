@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenTestUtils, Row}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.types.{DecimalType, StructType}
 
 // Some sqls' line length exceeds 100
@@ -589,6 +590,39 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       { _ => }
     )
     sql("drop table test_8142")
+  }
+
+  test("GLUTEN-9317 duplicated column names") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+
+      sql("create table test_9317 (a int, b int, c int) using parquet")
+      sql("insert into test_9317 values (1, 2, 3), (4, 5, 6), (7, 8, 9)")
+      sql("insert into test_9317 values (1, 2, 3), (4, 5, 6), (7, 8, 9)")
+      val sqlStr =
+        """
+          | select * from (
+          |select * from (
+          | select a, b, b, row_number() over(partition by a order by c) as r
+          | from test_9317
+          |) where r = 1
+          |) order by a, b
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sqlStr,
+        true,
+        {
+          df =>
+            {
+              val shuffles = df.queryExecution.executedPlan.collect {
+                case shuffle: ColumnarShuffleExchangeExec => shuffle
+              }
+              assert(shuffles.size == 2)
+            }
+        }
+      )
+      sql("drop table test_9317")
+    }
+
   }
 }
 // scalastyle:off line.size.limit
