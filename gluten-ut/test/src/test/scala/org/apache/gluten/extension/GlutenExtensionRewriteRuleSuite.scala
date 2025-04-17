@@ -65,16 +65,26 @@ class GlutenExtensionRewriteRuleSuite extends WholeStageTransformerSuite {
 
   test("GLUTEN-9279 - Not Pull out expression to avoid invalid reference binding") {
     withTable("t") {
-      sql("CREATE TABLE t(f1 String, f2 String, f3 String, f4 String) USING CSV")
+      sql("CREATE TABLE t(f1 String, f2 String, f3 String, f4 String) USING PARQUET")
       sql("INSERT INTO t values ('1', '2', '3', '4'), ('11' ,'22', '33', '4')")
+      var expectedProjectCount = 3
+      var noFallback = false
+      if (BackendTestUtils.isCHBackendLoaded()) {
+        // The `RewriteMultiChildrenCount` rule in the Velox-backend is the root cause of the
+        // additional ProjectExecTransformer, which leads to the invalid reference binding issue.
+        // We still conduct tests on the CH-backend here to ensure that the introduced modification
+        // in `PullOutPreProject` has no side effect on the CH-backend.
+        expectedProjectCount = 2
+        noFallback = true
+      }
       runQueryAndCompare(
         """
           |SELECT SUM(f1) / COUNT(DISTINCT f2, f3) FROM t GROUP BY f4;
           |""".stripMargin,
-        noFallBack = false
+        noFallBack = noFallback
       )(
         df => {
-          checkGlutenOperatorCount[ProjectExecTransformer](df, 3)
+          checkGlutenOperatorCount[ProjectExecTransformer](df, expectedProjectCount)
           checkGlutenOperatorCount[HashAggregateExecBaseTransformer](df, 4)
         })
     }
