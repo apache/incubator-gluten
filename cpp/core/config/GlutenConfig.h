@@ -77,6 +77,8 @@ const std::string kSparkMapKeyDedupPolicy = "spark.sql.mapKeyDedupPolicy";
 
 const std::string kSparkLegacyStatisticalAggregate = "spark.sql.legacy.statisticalAggregate";
 
+const std::string kSparkJsonIgnoreNullFields = "spark.sql.jsonGenerator.ignoreNullFields";
+
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);
 
