@@ -933,7 +933,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           .toDF("a")
           .write
           .parquet(path.getCanonicalPath)
-        spark.sparkContext.setLogLevel("info")
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("url_tbl")
         runQueryAndCompare("select url_decode(a) from url_tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -948,7 +947,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           .toDF("a")
           .write
           .parquet(path.getCanonicalPath)
-        spark.sparkContext.setLogLevel("info")
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("url_tbl")
         runQueryAndCompare("select url_encode(a) from url_tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
