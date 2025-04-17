@@ -26,7 +26,7 @@ import org.apache.gluten.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
+import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_DISK_WRITE_BUFFER_SIZE, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -80,21 +80,27 @@ class ColumnarShuffleWriter[K, V](
 
   private val nativeMergeThreshold = GlutenConfig.get.columnarShuffleMergeThreshold
 
-  private val compressionCodec =
+  private val compressionCodec: Option[String] =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
-      GlutenShuffleUtils.getCompressionCodec(conf)
+      Some(GlutenShuffleUtils.getCompressionCodec(conf))
     } else {
-      null // uncompressed
+      None
     }
 
-  private val compressionCodecBackend =
-    GlutenConfig.get.columnarShuffleCodecBackend.orNull
+  private val compressionCodecBackend: Option[String] =
+    GlutenConfig.get.columnarShuffleCodecBackend
 
-  private val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
+  private val compressionLevel = {
+    compressionCodec
+      .map(codec => GlutenShuffleUtils.getCompressionLevel(conf, codec))
+      .getOrElse(GlutenShuffleUtils.DEFAULT_COMPRESSION_LEVEL)
+  }
 
-  private val sortEvictBufferSize =
-    GlutenShuffleUtils.getSortEvictBufferSize(conf, compressionCodec)
+  private val compressionBufferSize = {
+    compressionCodec
+      .map(codec => GlutenShuffleUtils.getCompressionBufferSize(conf, codec))
+      .getOrElse(0)
+  }
 
   private val bufferCompressThreshold =
     GlutenConfig.get.columnarShuffleCompressionThreshold
@@ -145,10 +151,11 @@ class ColumnarShuffleWriter[K, V](
             nativeBufferSize,
             nativeMergeBufferSize,
             nativeMergeThreshold,
-            compressionCodec,
-            compressionCodecBackend,
+            compressionCodec.orNull,
+            compressionCodecBackend.orNull,
             compressionLevel,
-            sortEvictBufferSize,
+            compressionBufferSize,
+            conf.get(SHUFFLE_DISK_WRITE_BUFFER_SIZE).toInt,
             bufferCompressThreshold,
             GlutenConfig.get.columnarShuffleCompressionMode,
             conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
