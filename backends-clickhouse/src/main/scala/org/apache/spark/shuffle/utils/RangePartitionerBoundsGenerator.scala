@@ -120,10 +120,9 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
       context: SubstraitContext,
       ordering: SortOrder,
       attributes: Seq[Attribute]): Int = {
-    val funcs = context.registeredFunction
     val projExprNode = ExpressionConverter
       .replaceWithExpressionTransformer(ordering.child, attributes)
-      .doTransform(funcs)
+      .doTransform(context)
     val pb = projExprNode.toProtobuf
     if (!pb.hasSelection) {
       throw new IllegalArgumentException(s"A sorting field should be an attribute")
@@ -135,7 +134,6 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   private def buildProjectionPlan(
       context: SubstraitContext,
       sortExpressions: Seq[NamedExpression]): PlanNode = {
-    val args = context.registeredFunction
     val columnarProjExprs = sortExpressions.map(
       expr => {
         ExpressionConverter
@@ -143,7 +141,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
       })
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     for (expr <- columnarProjExprs) {
-      projExprNodeList.add(expr.doTransform(args))
+      projExprNodeList.add(expr.doTransform(context))
     }
     val projectRel = RelBuilder.makeProjectRel(null, projExprNodeList, context, 0)
     val outNames = new util.ArrayList[String]
