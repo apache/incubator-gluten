@@ -17,6 +17,8 @@
 package org.apache.gluten.memory.memtarget;
 
 import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
+import org.apache.gluten.proto.MemoryUsageStats;
 
 import org.apache.spark.annotation.Experimental;
 import org.slf4j.Logger;
@@ -24,18 +26,42 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * The memory target used by dynamic off-heap sizing. Since
+ * https://github.com/apache/incubator-gluten/issues/5439.
+ */
 @Experimental
-public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
+public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownNameAndStats {
+
   private static final Logger LOG = LoggerFactory.getLogger(DynamicOffHeapSizingMemoryTarget.class);
-  private final MemoryTarget delegated;
   // When dynamic off-heap sizing is enabled, the off-heap should be sized for the total usable
   // memory, so we can use it as the max memory we will use.
-  private static final long MAX_MEMORY_IN_BYTES = GlutenConfig.get().offHeapMemorySize();
-  private static final AtomicLong USED_OFFHEAP_BYTES = new AtomicLong();
+  private static final long TOTAL_MEMORY_SHARED;
 
-  public DynamicOffHeapSizingMemoryTarget(MemoryTarget delegated) {
-    this.delegated = delegated;
+  static {
+    final long maxOnHeapSize = Runtime.getRuntime().maxMemory();
+    final double fractionForSizing = GlutenConfig.get().dynamicOffHeapSizingMemoryFraction();
+    // Since when dynamic off-heap sizing is enabled, we commingle on-heap
+    // and off-heap memory, we set the off-heap size to the usable on-heap size. We will
+    // size it with a memory fraction, which can be aggressively set, but the default
+    // is using the same way that Spark sizes on-heap memory:
+    //
+    // spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction *
+    //    (spark.executor.memory - 300MB).
+    //
+    // We will be careful to use the same configuration settings as Spark to ensure
+    // that we are sizing the off-heap memory in the same way as Spark sizes on-heap memory.
+    // The 300MB value, unfortunately, is hard-coded in Spark code.
+    TOTAL_MEMORY_SHARED = (long) ((maxOnHeapSize - (300 * 1024 * 1024)) * fractionForSizing);
+    LOG.info("DynamicOffHeapSizingMemoryTarget MAX_MEMORY_IN_BYTES: {}", TOTAL_MEMORY_SHARED);
   }
+
+  private static final AtomicLong USED_OFF_HEAP_BYTES = new AtomicLong();
+
+  private final String name = MemoryTargetUtil.toUniqueName("DynamicOffHeapSizing");
+  private final SimpleMemoryUsageRecorder recorder = new SimpleMemoryUsageRecorder();
+
+  public DynamicOffHeapSizingMemoryTarget() {}
 
   @Override
   public long borrow(long size) {
@@ -47,47 +73,42 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
     // See https://github.com/apache/incubator-gluten/issues/9276.
     long totalHeapMemory = Runtime.getRuntime().totalMemory();
     long freeHeapMemory = Runtime.getRuntime().freeMemory();
-
-    long usedOffHeapBytesNow = USED_OFFHEAP_BYTES.get();
+    long usedOffHeapMemory = USED_OFF_HEAP_BYTES.get();
 
     // Adds the total JVM memory which is the actual memory the JVM occupied from the operating
     // system into the counter.
-    if (size + usedOffHeapBytesNow + totalHeapMemory > MAX_MEMORY_IN_BYTES) {
+    if (size + usedOffHeapMemory + totalHeapMemory > TOTAL_MEMORY_SHARED) {
       LOG.warn(
           String.format(
               "Failing allocation as unified memory is OOM. "
                   + "Used Off-heap: %d, Used On-Heap: %d, "
                   + "Free On-heap: %d, Total On-heap: %d, "
                   + "Max On-heap: %d, Allocation: %d.",
-              usedOffHeapBytesNow,
+              usedOffHeapMemory,
               totalHeapMemory - freeHeapMemory,
               freeHeapMemory,
               totalHeapMemory,
-              MAX_MEMORY_IN_BYTES,
+              TOTAL_MEMORY_SHARED,
               size));
 
       return 0;
     }
 
-    long reserved = delegated.borrow(size);
-
-    USED_OFFHEAP_BYTES.addAndGet(reserved);
-
-    return reserved;
+    USED_OFF_HEAP_BYTES.addAndGet(size);
+    recorder.inc(size);
+    return size;
   }
 
   @Override
   public long repay(long size) {
-    long unreserved = delegated.repay(size);
-
-    USED_OFFHEAP_BYTES.addAndGet(-unreserved);
-
-    return unreserved;
+    USED_OFF_HEAP_BYTES.addAndGet(-size);
+    recorder.inc(-size);
+    return size;
   }
 
   @Override
   public long usedBytes() {
-    return delegated.usedBytes();
+    return recorder.current();
   }
 
   @Override
@@ -95,7 +116,13 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
     return visitor.visit(this);
   }
 
-  public MemoryTarget delegated() {
-    return delegated;
+  @Override
+  public String name() {
+    return name;
+  }
+
+  @Override
+  public MemoryUsageStats stats() {
+    return recorder.toStats();
   }
 }

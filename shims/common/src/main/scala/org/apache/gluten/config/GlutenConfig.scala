@@ -342,6 +342,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def dynamicOffHeapSizingEnabled: Boolean =
     getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 
+  def dynamicOffHeapSizingMemoryFraction: Double =
+    getConf(DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION)
+
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = getConf(CELEBORN_FALLBACK_ENABLED)
