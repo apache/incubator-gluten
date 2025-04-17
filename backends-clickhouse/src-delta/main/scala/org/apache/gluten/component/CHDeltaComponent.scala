@@ -17,7 +17,7 @@
 package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackend
-import org.apache.gluten.execution.{OffloadDeltaNode, OffloadDeltaProject}
+import org.apache.gluten.execution.{OffloadDeltaFilter, OffloadDeltaNode, OffloadDeltaProject}
 import org.apache.gluten.extension.DeltaPostTransformRules
 import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
@@ -27,7 +27,7 @@ import org.apache.gluten.sql.shims.DeltaShimLoader
 
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.PluginContext
-import org.apache.spark.sql.execution.ProjectExec
+import org.apache.spark.sql.execution.{FilterExec, ProjectExec}
 
 class CHDeltaComponent extends Component {
   override def name(): String = "ch-delta"
@@ -43,11 +43,14 @@ class CHDeltaComponent extends Component {
     val ras = injector.gluten.ras
     legacy.injectTransform {
       c =>
-        val offload = Seq(OffloadDeltaNode(), OffloadDeltaProject())
+        val offload = Seq(OffloadDeltaNode(), OffloadDeltaProject(), OffloadDeltaFilter())
           .map(_.toStrcitRule())
         HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
     }
-    val offloads: Seq[RasOffload] = Seq(RasOffload.from[ProjectExec](OffloadDeltaProject()))
+    val offloads: Seq[RasOffload] = Seq(
+      RasOffload.from[ProjectExec](OffloadDeltaProject()),
+      RasOffload.from[FilterExec](OffloadDeltaFilter())
+    )
     offloads.foreach(
       offload =>
         ras.injectRasRule(
