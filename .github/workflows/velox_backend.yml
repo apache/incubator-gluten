@@ -654,7 +654,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -694,7 +694,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   spark-test-spark33:
     needs: build-native-lib-centos-7
@@ -741,7 +741,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -787,7 +787,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   spark-test-spark34:
     needs: build-native-lib-centos-7
@@ -836,7 +836,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -883,7 +883,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   spark-test-spark35:
     needs: build-native-lib-centos-7
@@ -930,7 +930,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -983,7 +983,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   spark-test-spark35-slow:
     needs: build-native-lib-centos-7
@@ -1022,7 +1022,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   spark-test-spark35-ras:
     needs: build-native-lib-centos-7
@@ -1068,7 +1068,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   spark-test-spark35-slow-ras:
     needs: build-native-lib-centos-7
@@ -1106,7 +1106,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   spark-test-spark35-smj:
     needs: build-native-lib-centos-7
@@ -1152,7 +1152,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   spark-test-spark35-slow-smj:
     needs: build-native-lib-centos-7
@@ -1190,7 +1190,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.job }}-test-log
-          path: "**/target/*.log"
+          path: "**/target/*.log, **/gluten-ut/**/hs_err_*.log, **/gluten-ut/**/core.*"
 
   cpp-test-udf-test:
     runs-on: ubuntu-22.04
