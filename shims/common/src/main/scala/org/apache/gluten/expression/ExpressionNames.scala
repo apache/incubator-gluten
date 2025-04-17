@@ -286,6 +286,7 @@ object ExpressionNames {
   final val ARRAY_PREPEND = "array_prepend"
   final val ARRAY_SIZE = "array_size"
   final val GET = "get"
+  final val ARRAY_COMPACT = "array_compact"
 
   // Map functions
   final val CREATE_MAP = "map"
