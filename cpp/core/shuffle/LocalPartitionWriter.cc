@@ -655,7 +655,7 @@ LocalPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPa
     // For final data file, merge all spills for partitions in [lastEvictPid_ + 1, partitionId]. Note in this function,
     // only the spilled partitions before partitionId are merged. Therefore, the remaining partitions after partitionId
     // are not merged here and will be merged in `stop()`.
-    if (isFinal && spills_.size() > 0) {
+    if (isFinal && !spills_.empty()) {
       for (auto pid = lastEvictPid_ + 1; pid <= partitionId; ++pid) {
         auto bytesEvicted = totalBytesEvicted_;
         RETURN_NOT_OK(mergeSpills(pid));
