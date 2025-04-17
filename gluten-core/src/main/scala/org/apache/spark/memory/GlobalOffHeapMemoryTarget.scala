@@ -18,7 +18,8 @@ package org.apache.spark.memory
 
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
-import org.apache.gluten.memory.listener.ReservationListener
+import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetUtil, MemoryTargetVisitor}
+import org.apache.gluten.proto.MemoryUsageStats
 
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
@@ -27,16 +28,11 @@ import org.apache.spark.storage.BlockId
 import java.lang.reflect.Field
 import java.util.UUID
 
-/**
- * API #acuqire is for reserving some global off-heap memory from Spark memory manager. Once
- * reserved, Spark tasks will have less off-heap memory to use because of the reservation.
- *
- * Note the API #acuqire doesn't trigger spills on Spark tasks although OOM may be encountered.
- *
- * The utility internally relies on the Spark storage memory pool. As Spark doesn't expect trait
- * BlockId to be extended by user, TestBlockId is chosen for the storage memory reservations.
- */
-object GlobalOffHeapMemory extends Logging {
+class GlobalOffHeapMemoryTarget private[memory]
+  extends MemoryTarget
+  with KnownNameAndStats
+  with Logging {
+  private val targetName = MemoryTargetUtil.toUniqueName("GlobalOffHeap")
   private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
 
   private val FIELD_MEMORY_MANAGER: Field = {
@@ -53,61 +49,51 @@ object GlobalOffHeapMemory extends Logging {
     f
   }
 
-  def acquire(numBytes: Long): Unit = memoryManagerOption().foreach {
-    mm =>
-      val succeeded =
-        mm.acquireStorageMemory(
-          BlockId(s"test_${UUID.randomUUID()}"),
-          numBytes,
-          MemoryMode.OFF_HEAP)
+  override def borrow(size: Long): Long = {
+    memoryManagerOption()
+      .map {
+        mm =>
+          val succeeded =
+            mm.acquireStorageMemory(
+              BlockId(s"test_${UUID.randomUUID()}"),
+              size,
+              MemoryMode.OFF_HEAP)
 
-      if (succeeded) {
-        recorder.inc(numBytes)
-        return
+          if (succeeded) {
+            recorder.inc(size)
+            size
+          } else {
+            // OOM.
+            // Throw OOM.
+            val storageUsed = mm.offHeapStorageMemoryUsed
+            val executionUsed = mm.offHeapExecutionMemoryUsed
+            val offHeapMemoryTotal = storageUsed + executionUsed
+            logError(
+              s"Spark off-heap memory is exhausted." +
+                s" Storage: $storageUsed / $offHeapMemoryTotal," +
+                s" execution: $executionUsed / $offHeapMemoryTotal")
+            return 0;
+          }
       }
-
-      // Throw OOM.
-      val offHeapMemoryTotal =
-        mm.maxOffHeapStorageMemory + mm.offHeapExecutionMemoryUsed
-      throw new GlutenException(
-        s"Spark off-heap memory is exhausted." +
-          s" Storage: ${mm.offHeapStorageMemoryUsed} / $offHeapMemoryTotal," +
-          s" execution: ${mm.offHeapExecutionMemoryUsed} / $offHeapMemoryTotal")
+      .getOrElse(size)
   }
 
-  def release(numBytes: Long): Unit = memoryManagerOption().foreach {
-    mm =>
-      mm.releaseStorageMemory(numBytes, MemoryMode.OFF_HEAP)
-      recorder.inc(-numBytes)
+  override def repay(size: Long): Long = {
+    memoryManagerOption()
+      .map {
+        mm =>
+          mm.releaseStorageMemory(size, MemoryMode.OFF_HEAP)
+          recorder.inc(-size)
+          size
+      }
+      .getOrElse(size)
   }
 
-  def currentBytes(): Long = {
-    recorder.current()
-  }
+  override def usedBytes(): Long = recorder.current()
 
-  def newReservationListener(): ReservationListener = {
-    new ReservationListener {
-      private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+  override def accept[T](visitor: MemoryTargetVisitor[T]): T = visitor.visit(this)
 
-      override def reserve(size: Long): Long = {
-        acquire(size)
-        recorder.inc(size)
-        size
-      }
-
-      override def unreserve(size: Long): Long = {
-        release(size)
-        recorder.inc(-size)
-        size
-      }
-
-      override def getUsedBytes: Long = {
-        recorder.current()
-      }
-    }
-  }
-
-  private def memoryManagerOption(): Option[MemoryManager] = {
+  private[memory] def memoryManagerOption(): Option[MemoryManager] = {
     val env = SparkEnv.get
     if (env != null) {
       return Some(env.memoryManager)
@@ -121,4 +107,8 @@ object GlobalOffHeapMemory extends Logging {
       "Memory manager not found because the code is unlikely be run in a Spark application")
     None
   }
+
+  override def name(): String = targetName
+
+  override def stats(): MemoryUsageStats = recorder.toStats
 }
