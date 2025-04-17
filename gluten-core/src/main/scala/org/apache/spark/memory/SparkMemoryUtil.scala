@@ -129,7 +129,9 @@ object SparkMemoryUtil {
 
       override def visit(
           dynamicOffHeapSizingMemoryTarget: DynamicOffHeapSizingMemoryTarget): String = {
-        dynamicOffHeapSizingMemoryTarget.delegated().accept(this)
+        prettyPrintStats(
+          "Dynamic off-heap sizing memory target stats: ",
+          dynamicOffHeapSizingMemoryTarget)
       }
 
       override def visit(retryOnOomMemoryTarget: RetryOnOomMemoryTarget): String = {
