@@ -196,6 +196,27 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion("Test array_compact function", "3.4") {
+    withTempPath {
+      path =>
+        Seq[Array[String]](
+          Array("a", "b"),
+          Array(),
+          Array("a", "b", null.asInstanceOf[String]),
+          Array(null.asInstanceOf[String])
+        )
+          .toDF("arr")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select arr, array_compact(arr, txt) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test round function") {
     runQueryAndCompare(
       "SELECT round(cast(l_orderkey as int), 2)" +

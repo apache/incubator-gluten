@@ -181,6 +181,11 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       function: ExpressionTransformer,
       expr: ArrayFilter): ExpressionTransformer = {
     expr.function match {
+      // Transformer for array_compact.
+      case LambdaFunction(function, arguments, _)
+          if function.getClass.getSimpleName.equals("IsNotNull") &&
+            function.children == arguments =>
+        GenericExpressionTransformer(ExpressionNames.ARRAY_COMPACT, Seq(argument), expr)
       case LambdaFunction(_, arguments, _) if arguments.size == 2 =>
         throw new GlutenNotSupportException(
           "filter on array with lambda using index argument is not supported yet")

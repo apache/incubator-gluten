@@ -105,6 +105,7 @@ class Spark34Shims extends SparkShims {
 
   override def runtimeReplaceableExpressionMappings: Seq[Sig] = {
     Seq(
+      Sig[ArrayCompact](ExpressionNames.ARRAY_COMPACT),
       Sig[ArraySize](ExpressionNames.ARRAY_SIZE),
       Sig[EqualNull](ExpressionNames.EQUAL_NULL),
       Sig[ILike](ExpressionNames.ILIKE),
