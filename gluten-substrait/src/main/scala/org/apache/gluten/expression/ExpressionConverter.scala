@@ -771,6 +771,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           j)
+      case s: StructsToJson =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genToJsonTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(s.child, attributeSeq, expressionsMap),
+          s
+        )
       case u: UnBase64 if SparkShimLoader.getSparkShims.unBase64FunctionFailsOnError(u) =>
         throw new GlutenNotSupportException("UnBase64 with failOnError is not supported in gluten.")
       case ce if BackendsApiManager.getSparkPlanExecApiInstance.expressionFlattenSupported(ce) =>
