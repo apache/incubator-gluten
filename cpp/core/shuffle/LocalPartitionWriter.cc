@@ -477,25 +477,34 @@ void LocalPartitionWriter::init() {
   subDirSelection_.assign(localDirs_.size(), 0);
 }
 
-arrow::Status LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
-  auto spillId = 0;
-  auto spillIter = spills_.begin();
-  while (spillIter != spills_.end()) {
-    ARROW_ASSIGN_OR_RAISE(auto st, dataFileOs_->Tell());
-    (*spillIter)->openForRead(options_.shuffleFileBufferSize);
-    // Read if partition exists in the spilled file and write to the final file.
-    while (auto payload = (*spillIter)->nextPayload(partitionId)) {
+arrow::Result<int64_t> LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
+  int64_t bytesEvicted = 0;
+  int32_t spillIndex = 0;
+
+  for (const auto& spill : spills_) {
+    ARROW_ASSIGN_OR_RAISE(auto startPos, dataFileOs_->Tell());
+
+    spill->openForRead(options_.shuffleFileBufferSize);
+
+    // Read if partition exists in the spilled file. Then write to the final data file.
+    while (auto payload = spill->nextPayload(partitionId)) {
       // May trigger spill during compression.
       RETURN_NOT_OK(payload->serialize(dataFileOs_.get()));
       compressTime_ += payload->getCompressTime();
       writeTime_ += payload->getWriteTime();
     }
-    ++spillIter;
-    ARROW_ASSIGN_OR_RAISE(auto ed, dataFileOs_->Tell());
-    DLOG(INFO) << "Partition " << partitionId << " spilled from spillResult " << spillId++ << " of bytes " << ed - st;
-    totalBytesEvicted_ += (ed - st);
+
+    ARROW_ASSIGN_OR_RAISE(auto endPos, dataFileOs_->Tell());
+    auto bytesWritten = endPos - startPos;
+
+    DLOG(INFO) << "Partition " << partitionId << " spilled from spillResult " << spillIndex++ << " of bytes "
+               << bytesWritten;
+
+    bytesEvicted += bytesWritten;
   }
-  return arrow::Status::OK();
+
+  totalBytesEvicted_ += bytesEvicted;
+  return bytesEvicted;
 }
 
 arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
@@ -509,11 +518,9 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
     ARROW_ASSIGN_OR_RAISE(auto spill, spiller_->finish());
 
     // Merge the remaining partitions from spills.
-    if (spills_.size() > 0) {
+    if (!spills_.empty()) {
       for (auto pid = lastEvictPid_ + 1; pid < numPartitions_; ++pid) {
-        auto bytesEvicted = totalBytesEvicted_;
-        RETURN_NOT_OK(mergeSpills(pid));
-        partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
+        ARROW_ASSIGN_OR_RAISE(partitionLengths_[pid], mergeSpills(pid));
       }
     }
 
