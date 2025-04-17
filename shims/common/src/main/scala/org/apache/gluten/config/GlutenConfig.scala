@@ -342,6 +342,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def dynamicOffHeapSizingEnabled: Boolean =
     getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 
+  def dynamicOffHeapSizingMemoryFraction: Double =
+    getConf(DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION)
+
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = getConf(CELEBORN_FALLBACK_ENABLED)
@@ -1244,7 +1247,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val COLUMNAR_MEMORY_UNTRACKED =
-    buildConf("spark.gluten.memory.untracked")
+    buildStaticConf("spark.gluten.memory.untracked")
       .internal()
       .doc(
         "When enabled, turn all native memory allocations in Gluten into untracked. Spark " +
@@ -1634,7 +1637,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
-    buildConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
+    buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
       .internal()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
@@ -1651,7 +1654,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
-    buildConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
+    buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
       .internal()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +
