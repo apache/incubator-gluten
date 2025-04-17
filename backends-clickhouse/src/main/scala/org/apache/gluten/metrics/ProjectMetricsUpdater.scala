@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.metrics
 
-import org.apache.gluten.metrics.ProjectMetricsUpdater.{DELTA_INPUT_ROW_METRIC_NAMES, UNSUPPORT_METRIC_NAMES}
+import org.apache.gluten.metrics.ProjectMetricsUpdater.{DELTA_INPUT_ROW_METRIC_NAMES, UNSUPPORTED_METRIC_NAMES}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -39,7 +39,7 @@ class ProjectMetricsUpdater(
                 metric.name match {
                   case Some(input) if DELTA_INPUT_ROW_METRIC_NAMES.contains(input) =>
                     numInputRows = numInputRows :+ metric
-                  case Some(unSupport) if UNSUPPORT_METRIC_NAMES.contains(unSupport) =>
+                  case Some(unSupport) if UNSUPPORTED_METRIC_NAMES.contains(unSupport) =>
                     logTrace(s"Unsupported metric name: $unSupport")
                   case Some(other) =>
                     logTrace(s"Unknown metric name: $other")
@@ -75,7 +75,7 @@ object ProjectMetricsUpdater {
   val INCLUDING_PROCESSORS: Array[String] = Array("ExpressionTransform")
   val CH_PLAN_NODE_NAME: Array[String] = Array("ExpressionTransform")
 
-  val UNSUPPORT_METRIC_NAMES: Set[String] =
+  val UNSUPPORTED_METRIC_NAMES: Set[String] =
     Set(
       "number of updated rows",
       "number of deleted rows",
