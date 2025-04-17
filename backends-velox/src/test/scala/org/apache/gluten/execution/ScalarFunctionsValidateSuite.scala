@@ -211,7 +211,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
 
-        runQueryAndCompare("select arr, array_compact(arr, txt) from tbl") {
+        runQueryAndCompare("select arr, array_compact(arr) from tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
     }
