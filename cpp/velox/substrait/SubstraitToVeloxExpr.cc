@@ -515,8 +515,9 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
   vectors.reserve(numFields);
   names.reserve(numFields);
   for (auto i = 0; i < numFields; ++i) {
-    names.push_back("col_" + std::to_string(i));
     const auto& child = structLiteral.struct_().fields(i);
+    const auto& name = structLiteral.struct_().names(i);
+    names.push_back(name);
     auto typeCase = child.literal_type_case();
     switch (typeCase) {
       case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond: {
