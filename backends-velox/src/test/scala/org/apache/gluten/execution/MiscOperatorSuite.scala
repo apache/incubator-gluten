@@ -2041,6 +2041,18 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
+  test("Blacklist expression can be handled by ColumnarPartialProject") {
+    withSQLConf("spark.gluten.expression.blacklist" -> "regexp_replace") {
+      runQueryAndCompare(
+        "SELECT c_custkey, c_name, regexp_replace(c_comment, '\\w', 'something') FROM customer") {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+          assert(executedPlan.count(_.isInstanceOf[ColumnarPartialProjectExec]) == 1)
+      }
+    }
+  }
+  
   test("Check VeloxResizeBatches is added in ShuffleRead") {
     Seq(true, false).foreach(
       coalesceEnabled => {

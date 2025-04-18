@@ -14,21 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.ui
+package org.apache.spark.sql.internal
 
-import org.apache.gluten.events.GlutenEvent
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.config.ConfigEntry
 
-import org.apache.spark.SparkContext
-import org.apache.spark.status.ElementTrackingStore
-
-object GlutenEventUtils {
-  def post(sc: SparkContext, event: GlutenEvent): Unit = {
-    sc.listenerBus.post(event)
-  }
-
-  def attachUI(sc: SparkContext): Unit = {
-    val kvStore = sc.statusStore.store.asInstanceOf[ElementTrackingStore]
-    val statusStore = new GlutenSQLAppStatusStore(kvStore)
-    sc.ui.foreach(new GlutenSQLTab(statusStore, _))
+object SparkConfigUtil {
+  def getEntryValue[T](conf: SparkConf, entry: ConfigEntry[T]): T = {
+    conf.get(entry)
   }
 }

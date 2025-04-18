@@ -682,7 +682,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case arrayInsert if arrayInsert.getClass.getSimpleName.equals("ArrayInsert") =>
         // Since spark 3.4.0
         val children = SparkShimLoader.getSparkShims.extractExpressionArrayInsert(arrayInsert)
-        GenericExpressionTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genArrayInsertTransformer(
           substraitExprName,
           children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           arrayInsert

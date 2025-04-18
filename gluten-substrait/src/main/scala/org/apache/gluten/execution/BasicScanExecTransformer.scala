@@ -139,7 +139,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       .map(ExpressionConverter.replaceAttributeReference)
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
-    val filterNodes = transformer.map(_.doTransform(context.registeredFunction))
+    val filterNodes = transformer.map(_.doTransform(context))
     val exprNode = filterNodes.orNull
 
     // used by CH backend

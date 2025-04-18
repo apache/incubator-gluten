@@ -27,7 +27,6 @@ import org.apache.spark.sql.internal.SQLConf
 class SQLQuerySuite extends WholeStageTransformerSuite {
   protected val resourcePath: String = null
   protected val fileFormat: String = null
-  override protected val logLevel: String = "INFO"
 
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf

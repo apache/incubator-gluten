@@ -343,19 +343,37 @@ object ExpressionMappings {
     Sig[NthValue](NTH_VALUE)
   )
 
+  private val RUNTIME_REPLACEABLE_SIGS: Seq[Sig] = Seq(
+    Sig[AssertTrue](ASSERT_TRUE),
+    Sig[NullIf](NULLIF),
+    Sig[Nvl](NVL),
+    Sig[Nvl2](NVL2),
+    Sig[Right](RIGHT)
+  ) ++ SparkShimLoader.getSparkShims.runtimeReplaceableExpressionMappings
+
+  def blacklistExpressionMap: Map[Class[_], String] = {
+    partitionExpressionMapByBlacklist._1
+  }
+
   def expressionsMap: Map[Class[_], String] = {
+    partitionExpressionMapByBlacklist._2
+  }
+
+  private def partitionExpressionMapByBlacklist: (Map[Class[_], String], Map[Class[_], String]) = {
     val blacklist = GlutenConfig.get.expressionBlacklist
-    val filtered = (defaultExpressionsMap ++ toMap(
-      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)).filterNot(
+    val (blacklistedExpr, filteredExpr) = (defaultExpressionsMap ++ toMap(
+      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)).partition(
       kv => blacklist.contains(kv._2))
-    filtered
+    (blacklistedExpr, filteredExpr)
   }
 
   // This is needed when generating function support status documentation for Spark built-in
   // functions.
   // Used by gluten/tools/scripts/gen-function-support-docs.py
   def listExpressionMappings(): Array[(String, String)] = {
-    expressionsMap.map(kv => (kv._1.getSimpleName, kv._2)).toArray
+    (expressionsMap ++ toMap(RUNTIME_REPLACEABLE_SIGS))
+      .map(kv => (kv._1.getSimpleName, kv._2))
+      .toArray
   }
 
   private lazy val defaultExpressionsMap: Map[Class[_], String] = {

@@ -246,6 +246,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def memoryIsolation: Boolean = getConf(COLUMNAR_MEMORY_ISOLATION)
 
+  def memoryUntracked: Boolean = getConf(COLUMNAR_MEMORY_UNTRACKED)
+
   def offHeapMemorySize: Long = getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
   def taskOffHeapMemorySize: Long = getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
@@ -339,6 +341,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def dynamicOffHeapSizingEnabled: Boolean =
     getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
+
+  def dynamicOffHeapSizingMemoryFraction: Double =
+    getConf(DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION)
 
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
@@ -616,7 +621,8 @@ object GlutenConfig {
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX,
       LEGACY_TIME_PARSER_POLICY.key,
-      LEGACY_STATISTICAL_AGGREGATE.key
+      LEGACY_STATISTICAL_AGGREGATE.key,
+      COLUMNAR_CUDF_ENABLED.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -1240,6 +1246,16 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val COLUMNAR_MEMORY_UNTRACKED =
+    buildStaticConf("spark.gluten.memory.untracked")
+      .internal()
+      .doc(
+        "When enabled, turn all native memory allocations in Gluten into untracked. Spark " +
+          "will be unaware of the allocations so will not trigger spill-to-disk operations " +
+          "or Spark OOMs. Should only be used for testing or other non-production use cases.")
+      .booleanConf
+      .createWithDefault(false)
+
   val COLUMNAR_MEMORY_BACKTRACE_ALLOCATION =
     buildConf("spark.gluten.memory.backtrace.allocation")
       .internal()
@@ -1621,7 +1637,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
-    buildConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
+    buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
       .internal()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
@@ -1638,7 +1654,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
-    buildConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
+    buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
       .internal()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +
@@ -1715,5 +1731,11 @@ object GlutenConfig {
       .doc("Enable or disable columnar collectLimit.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_CUDF_ENABLED =
+    buildConf("spark.gluten.sql.columnar.cudf")
+      .doc("Enable or disable cudf support. This is an experimental feature.")
+      .booleanConf
+      .createWithDefault(false)
 
 }

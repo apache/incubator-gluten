@@ -18,6 +18,7 @@ package org.apache.gluten.substrait.expression;
 
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.expression.ExpressionConverter;
+import org.apache.gluten.substrait.SubstraitContext;
 import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
@@ -29,7 +30,6 @@ import org.apache.spark.sql.catalyst.expressions.PreComputeRangeFrameBound;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import scala.collection.JavaConverters;
@@ -104,7 +104,7 @@ public class WindowFunctionNode implements Serializable {
                       JavaConverters.asScalaIteratorConverter(originalInputAttributes.iterator())
                           .asScala()
                           .toSeq())
-                  .doTransform(new HashMap<String, Long>());
+                  .doTransform(new SubstraitContext());
           Long offset = Long.valueOf(boundType.eval(null).toString());
           if (offset < 0) {
             Expression.WindowFunction.Bound.Preceding.Builder refPrecedingBuilder =

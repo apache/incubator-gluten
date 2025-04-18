@@ -483,14 +483,17 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
     {
       // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
-      // FIXME this uses process-wise off-heap memory which is not for task
-      // partial aggregation memory config
+      // Partial aggregation memory configurations.
+      // TODO: Move the calculations to Java side.
       auto offHeapMemory = veloxCfg_->get<int64_t>(kSparkTaskOffHeapMemory, facebook::velox::memory::kMaxMemory);
-      auto maxPartialAggregationMemory = veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).has_value()
-          ? veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).value()
-          : static_cast<int64_t>((veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
-      auto maxExtendedPartialAggregationMemory =
-          static_cast<long>((veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
+      auto maxPartialAggregationMemory = std::max<int64_t>(
+          1 << 24,
+          veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).has_value()
+              ? veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).value()
+              : static_cast<int64_t>(veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
+      auto maxExtendedPartialAggregationMemory = std::max<int64_t>(
+          1 << 26,
+          static_cast<long>(veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
       configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
           std::to_string(maxExtendedPartialAggregationMemory);

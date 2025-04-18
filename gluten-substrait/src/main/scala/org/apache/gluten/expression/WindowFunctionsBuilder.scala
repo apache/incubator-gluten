@@ -19,15 +19,14 @@ package org.apache.gluten.expression
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.expression.ExpressionNames.{LAG, LEAD}
-import org.apache.gluten.substrait.expression.ExpressionBuilder
+import org.apache.gluten.substrait.SubstraitContext
 
 import org.apache.spark.sql.catalyst.expressions.{EmptyRow, Expression, Lag, Lead, WindowExpression, WindowFunction}
 
 import scala.util.control.Breaks.{break, breakable}
 
 object WindowFunctionsBuilder {
-  def create(args: java.lang.Object, windowFunc: WindowFunction): Long = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+  def create(context: SubstraitContext, windowFunc: WindowFunction): Long = {
     val substraitFunc = windowFunc match {
       // Handle lag with negative inputOffset, e.g., converts lag(c1, -1) to lead(c1, 1).
       // Spark uses `-inputOffset` as `offset` for Lag function.
@@ -46,7 +45,7 @@ object WindowFunctionsBuilder {
 
     val functionName =
       ConverterUtils.makeFuncName(substraitFunc.get, Seq(windowFunc.dataType), FunctionConfig.OPT)
-    ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    context.registerFunction(functionName)
   }
 
   def extractWindowExpression(expr: Expression): WindowExpression = {

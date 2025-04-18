@@ -25,9 +25,10 @@ import org.apache.gluten.expression.ExpressionNames.MONOTONICALLY_INCREASING_ID
 import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
-import org.apache.gluten.vectorized.CHColumnarBatchSerializer
+import org.apache.gluten.vectorized.{BlockOutputStream, CHColumnarBatchSerializer, CHNativeBlock, CHStreamReader}
 
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
@@ -58,8 +59,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.commons.lang3.ClassUtils
 
-import java.lang.{Long => JLong}
-import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+import java.io.{ObjectInputStream, ObjectOutputStream}
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -525,6 +526,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
             wrapChild(union)
           case ordered: TakeOrderedAndProjectExecTransformer =>
             wrapChild(ordered)
+          case rddScan: CHRDDScanTransformer =>
+            wrapChild(rddScan)
           case other =>
             throw new GlutenNotSupportException(
               s"Not supported operator ${other.nodeName} for BroadcastRelation")
@@ -706,7 +709,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       windowExpression: Seq[NamedExpression],
       windowExpressionNodes: JList[WindowFunctionNode],
       originalInputAttributes: Seq[Attribute],
-      args: JMap[String, JLong]): Unit = {
+      context: SubstraitContext): Unit = {
 
     windowExpression.map {
       windowExpr =>
@@ -718,7 +721,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
+              WindowFunctionsBuilder.create(context, aggWindowFunc).toInt,
               new JArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
@@ -742,10 +745,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
                 childrenNodeList.add(
                   ExpressionConverter
                     .replaceWithExpressionTransformer(expr, originalInputAttributes)
-                    .doTransform(args)))
+                    .doTransform(context)))
 
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              CHExpressions.createAggregateFunction(args, aggExpression.aggregateFunction).toInt,
+              CHExpressions.createAggregateFunction(context, aggExpression.aggregateFunction).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
@@ -781,21 +784,21 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
                 .replaceWithExpressionTransformer(
                   offsetWf.input,
                   attributeSeq = originalInputAttributes)
-                .doTransform(args))
+                .doTransform(context))
             childrenNodeList.add(
               ExpressionConverter
                 .replaceWithExpressionTransformer(
                   offsetWf.offset,
                   attributeSeq = originalInputAttributes)
-                .doTransform(args))
+                .doTransform(context))
             childrenNodeList.add(
               ExpressionConverter
                 .replaceWithExpressionTransformer(
                   offsetWf.default,
                   attributeSeq = originalInputAttributes)
-                .doTransform(args))
+                .doTransform(context))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, offsetWf).toInt,
+              WindowFunctionsBuilder.create(context, offsetWf).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
@@ -809,9 +812,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
             val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
             val childrenNodeList = new JArrayList[ExpressionNode]()
             val literal = buckets.asInstanceOf[Literal]
-            childrenNodeList.add(LiteralTransformer(literal).doTransform(args))
+            childrenNodeList.add(LiteralTransformer(literal).doTransform(context))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, wf).toInt,
+              WindowFunctionsBuilder.create(context, wf).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
@@ -964,5 +967,30 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     case ce: FlattenedAnd => GenericExpressionTransformer(ce.name, children, ce)
     case co: FlattenedOr => GenericExpressionTransformer(co.name, children, co)
     case _ => super.genFlattenedExpressionTransformer(substraitName, children, expr)
+  }
+
+  override def isSupportRDDScanExec(plan: RDDScanExec): Boolean = true
+
+  override def getRDDScanTransform(plan: RDDScanExec): RDDScanTransformer =
+    CHRDDScanTransformer.replace(plan)
+
+  override def copyColumnarBatch(batch: ColumnarBatch): ColumnarBatch =
+    CHNativeBlock.fromColumnarBatch(batch).copyColumnarBatch()
+
+  override def serializeColumnarBatch(output: ObjectOutputStream, batch: ColumnarBatch): Unit = {
+    val writeBuffer: Array[Byte] =
+      new Array[Byte](CHBackendSettings.customizeBufferSize)
+    BlockOutputStream.directWrite(
+      output,
+      writeBuffer,
+      CHBackendSettings.customizeBufferSize,
+      CHNativeBlock.fromColumnarBatch(batch).blockAddress())
+  }
+
+  override def deserializeColumnarBatch(input: ObjectInputStream): ColumnarBatch = {
+    val bufferSize = CHBackendSettings.customizeBufferSize
+    val readBuffer: Array[Byte] = new Array[Byte](bufferSize)
+    val address = CHStreamReader.directRead(input, readBuffer, bufferSize)
+    new CHNativeBlock(address).toColumnarBatch
   }
 }

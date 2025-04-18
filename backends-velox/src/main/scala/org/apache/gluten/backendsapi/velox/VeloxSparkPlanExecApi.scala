@@ -181,6 +181,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       function: ExpressionTransformer,
       expr: ArrayFilter): ExpressionTransformer = {
     expr.function match {
+      // Transformer for array_compact.
+      case LambdaFunction(_: IsNotNull, _, _) =>
+        GenericExpressionTransformer(ExpressionNames.ARRAY_COMPACT, Seq(argument), expr)
       case LambdaFunction(_, arguments, _) if arguments.size == 2 =>
         throw new GlutenNotSupportException(
           "filter on array with lambda using index argument is not supported yet")
@@ -292,6 +295,19 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
     }
     GenericExpressionTransformer(newSubstraitName, children, newExpr)
+  }
+
+  override def genArrayInsertTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: Expression): ExpressionTransformer = {
+    children match {
+      case Seq(left, posExpr, right, _) if posExpr.original == Literal(1) =>
+        // Transformer for array_prepend.
+        GenericExpressionTransformer(ExpressionNames.ARRAY_PREPEND, Seq(left, right), original)
+      case _ =>
+        GenericExpressionTransformer(substraitExprName, children, original)
+    }
   }
 
   /**
