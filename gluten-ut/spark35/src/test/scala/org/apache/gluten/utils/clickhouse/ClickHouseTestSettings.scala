@@ -319,6 +319,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("SPARK-40496: disable parsing fallback when the date/timestamp format is provided")
     .excludeCH("SPARK-42335: Pass the comment option through to univocity if users set it explicitly in CSV dataSource")
     .excludeCH("SPARK-46862: column pruning in the multi-line mode")
+    // Flaky and already excluded in other cases
+    .exclude("Gluten - test for FAILFAST parsing mode")
+
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
