@@ -2052,7 +2052,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
   }
- 
+
   test("Check VeloxResizeBatches is added in ShuffleRead") {
     Seq(true, false).foreach(
       coalesceEnabled => {
