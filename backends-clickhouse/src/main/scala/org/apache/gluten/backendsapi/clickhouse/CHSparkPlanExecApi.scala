@@ -49,7 +49,7 @@ import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
@@ -559,7 +559,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val batches = countsAndBytes.map(_._2)
     val totalBatchesSize = batches.map(_.length).sum
     val rawSize = dataSize.value
-    if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
+    if (rawSize >= GlutenConfig.get.maxBroadcastTableSize) {
       throw new GlutenException(
         s"Cannot broadcast the table that is larger than 8GB: $rawSize bytes")
     }

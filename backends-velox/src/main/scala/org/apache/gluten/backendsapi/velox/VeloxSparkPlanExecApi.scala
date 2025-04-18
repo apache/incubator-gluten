@@ -41,7 +41,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
@@ -649,7 +649,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       .filter(_.getNumRows != 0)
       .collect
     val rawSize = serialized.map(_.getSerialized.length).sum
-    if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
+    if (rawSize >= GlutenConfig.get.maxBroadcastTableSize) {
       throw new SparkException(
         s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
     }
