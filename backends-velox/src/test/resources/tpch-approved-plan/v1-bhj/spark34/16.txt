@@ -146,7 +146,7 @@ Results [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 (21) FlushableHashAggregateExecTransformer
 Input [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
 Keys [3]: [p_brand#X, p_type#X, p_size#X]
-Functions [1]: [partial_count(distinct ps_suppkey#X)]
+Functions [1]: [partial_count(ps_suppkey#X)]
 Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
 Results [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 
@@ -179,7 +179,7 @@ Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 (29) RegularHashAggregateExecTransformer
 Input [4]: [p_brand#X, p_type#X, p_size#X, count#X]
 Keys [3]: [p_brand#X, p_type#X, p_size#X]
-Functions [1]: [count(distinct ps_suppkey#X)]
+Functions [1]: [count(ps_suppkey#X)]
 Aggregate Attributes [1]: [count(ps_suppkey#X)#X]
 Results [4]: [p_brand#X, p_type#X, p_size#X, count(ps_suppkey#X)#X AS supplier_cnt#X]
 
