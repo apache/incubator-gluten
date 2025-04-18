@@ -345,9 +345,11 @@ object OffloadOthers {
             child)
         case plan: CollectLimitExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          val offset = SparkShimLoader.getSparkShims.getCollectLimitOffset(plan)
           BackendsApiManager.getSparkPlanExecApiInstance.genColumnarCollectLimitExec(
             plan.limit,
-            plan.child
+            plan.child,
+            offset
           )
         case plan: RDDScanExec if RDDScanTransformer.isSupportRDDScanExec(plan) =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
