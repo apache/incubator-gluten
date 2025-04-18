@@ -44,7 +44,6 @@ class CHDeltaComponent extends Component {
     legacy.injectTransform {
       c =>
         val offload = Seq(OffloadDeltaNode(), OffloadDeltaProject(), OffloadDeltaFilter())
-          .map(_.toStrcitRule())
         HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
     }
     val offloads: Seq[RasOffload] = Seq(

@@ -43,6 +43,7 @@ class ProjectMetricsUpdater(
                     logTrace(s"Unsupported metric name: $unSupport")
                   case Some(other) =>
                     logTrace(s"Unknown metric name: $other")
+                  case _ => // do nothing
                 }
               case o: String =>
                 logTrace(s"Unknown metric name: $o")
