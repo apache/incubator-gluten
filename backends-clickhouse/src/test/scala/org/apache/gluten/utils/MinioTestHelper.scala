@@ -27,7 +27,7 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import java.util
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
 
 class MinioTestHelper(TMP_PREFIX: String) {
 
