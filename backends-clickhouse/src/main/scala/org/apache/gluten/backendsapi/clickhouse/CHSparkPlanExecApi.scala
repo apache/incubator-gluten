@@ -32,6 +32,7 @@ import org.apache.gluten.vectorized.{BlockOutputStream, CHColumnarBatchSerialize
 
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
@@ -561,7 +562,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val rawSize = dataSize.value
     if (rawSize >= GlutenConfig.get.maxBroadcastTableSize) {
       throw new GlutenException(
-        s"Cannot broadcast the table that is larger than 8GB: $rawSize bytes")
+        "Cannot broadcast the table that is larger than " +
+          s"${SparkMemoryUtil.bytesToString(GlutenConfig.get.maxBroadcastTableSize)}: " +
+          s"${SparkMemoryUtil.bytesToString(rawSize)}")
     }
     if ((rawSize == 0 && totalBatchesSize != 0) || totalBatchesSize < 0) {
       throw new GlutenException(

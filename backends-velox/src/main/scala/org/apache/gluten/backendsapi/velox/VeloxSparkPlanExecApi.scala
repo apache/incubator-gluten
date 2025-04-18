@@ -28,6 +28,7 @@ import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSeria
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -651,7 +652,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val rawSize = serialized.map(_.getSerialized.length).sum
     if (rawSize >= GlutenConfig.get.maxBroadcastTableSize) {
       throw new SparkException(
-        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+        "Cannot broadcast the table that is larger than " +
+          s"${SparkMemoryUtil.bytesToString(GlutenConfig.get.maxBroadcastTableSize)}: " +
+          s"${SparkMemoryUtil.bytesToString(rawSize)}")
     }
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
