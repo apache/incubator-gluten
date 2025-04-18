@@ -138,7 +138,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   const auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
   if (runtime->debugModeEnabled()) {
     try {
-      const auto jsonPlan = substraitFromPbToJson("Plan", planData, planSize, std::nullopt);
+      const auto jsonPlan = substraitFromPbToJson("Plan", planData, planSize);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan: for validation";
       LOG(INFO) << jsonPlan;
     } catch (const std::exception& e) {

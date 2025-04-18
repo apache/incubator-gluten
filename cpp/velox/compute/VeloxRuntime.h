@@ -35,9 +35,15 @@ class VeloxRuntime final : public Runtime {
       VeloxMemoryManager* vmm,
       const std::unordered_map<std::string, std::string>& confMap);
 
-  void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override;
+  void setSparkTaskInfo(SparkTaskInfo taskInfo) override {
+    static std::atomic<uint32_t> vtId{0};
+    taskInfo_ = taskInfo;
+    taskInfo_.vId = vtId++;
+  }
 
-  void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override;
+  void parsePlan(const uint8_t* data, int32_t size, bool dump) override;
+
+  void parseSplitInfo(const uint8_t* data, int32_t size, bool dump) override;
 
   VeloxMemoryManager* memoryManager() override;
 
@@ -74,9 +80,9 @@ class VeloxRuntime final : public Runtime {
 
   std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override;
 
-  void dumpConf(const std::string& path) override;
+  void dumpConf(bool dump) override;
 
-  std::shared_ptr<ArrowWriter> createArrowWriter(const std::string& path) override;
+  std::shared_ptr<ArrowWriter> createArrowWriter(bool dump) override;
 
   std::shared_ptr<VeloxDataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
 
