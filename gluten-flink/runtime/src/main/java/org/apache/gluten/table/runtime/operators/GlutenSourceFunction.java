@@ -51,6 +51,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     private Session session;
     private Query query;
     BufferAllocator allocator;
+    private MemoryManager memoryManager;
 
     public GlutenSourceFunction(PlanNode planNode, RowType outputType, String id) {
         this.planNode = planNode;
@@ -72,7 +73,8 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
                 id,
                 -1,
                 new FuzzerConnectorSplit("connector-fuzzer", 1000)));
-        session = Velox4j.newSession(MemoryManager.create(AllocationListener.NOOP));
+        memoryManager = MemoryManager.create(AllocationListener.NOOP);
+        session = Velox4j.newSession(memoryManager);
         query = new Query(planNode, splits, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
 
@@ -80,16 +82,21 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
             CloseableIterator<RowVector> result =
                     UpIterators.asJavaIterator(session.queryOps().execute(query));
             if (result.hasNext()) {
-                List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                        result.next(),
+                final RowVector outRv = result.next();
+                final List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
+                    outRv,
                         allocator,
                         session,
                         outputType);
                 for (RowData row : rows) {
                     sourceContext.collect(row);
                 }
+                outRv.close();
             }
         }
+
+        session.close();
+        memoryManager.close();
     }
 
     @Override

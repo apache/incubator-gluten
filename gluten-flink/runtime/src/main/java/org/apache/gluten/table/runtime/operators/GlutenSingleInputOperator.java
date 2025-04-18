@@ -22,6 +22,7 @@ import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
 import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
 import io.github.zhztheplayer.velox4j.iterator.DownIterators;
+import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.iterator.UpIterators;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import io.github.zhztheplayer.velox4j.type.RowType;
@@ -65,13 +66,14 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
     private final RowType inputType;
     private final RowType outputType;
 
-    private StreamRecord outElement = null;
+    private StreamRecord<RowData> outElement = null;
 
+    private MemoryManager memoryManager;
     private Session session;
     private Query query;
     private BlockingQueue<RowVector> inputQueue;
     BufferAllocator allocator;
-    CloseableIterator<RowVector> result;
+    UpIterator result;
 
     public GlutenSingleInputOperator(PlanNode plan, String id, RowType inputType, RowType outputType) {
         this.glutenPlan = plan;
@@ -84,7 +86,8 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
     public void open() throws Exception {
         super.open();
         outElement = new StreamRecord(null);
-        session = Velox4j.newSession(MemoryManager.create(AllocationListener.NOOP));
+        memoryManager = MemoryManager.create(AllocationListener.NOOP);
+        session = Velox4j.newSession(memoryManager);
 
         inputQueue = new LinkedBlockingQueue<>();
         ExternalStream es =
@@ -104,27 +107,43 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
         query = new Query(glutenPlan, splits, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
-        result = UpIterators.asJavaIterator(session.queryOps().execute(query));
+        result = session.queryOps().execute(query);
     }
 
     @Override
     public void processElement(StreamRecord<RowData> element) {
-        inputQueue.add(
-                FlinkRowToVLVectorConvertor.fromRowData(
-                        element.getValue(),
-                        allocator,
-                        session,
-                        inputType));
-        if (result.hasNext()) {
-            List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                    result.next(),
-                    allocator,
-                    session,
-                    outputType);
-            for (RowData row : rows) {
-                output.collect(outElement.replace(row));
-            }
-        }
+        final RowVector inRv = FlinkRowToVLVectorConvertor.fromRowData(
+            element.getValue(),
+            allocator,
+            session,
+            inputType);
+        inputQueue.add(inRv);
+      switch (result.advance()) {
+          case AVAILABLE:
+              final RowVector outRv = result.get();
+              final List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
+                  outRv,
+                  allocator,
+                  session,
+                  outputType);
+              for (RowData row : rows) {
+                  output.collect(outElement.replace(row));
+              }
+              outRv.close();
+              break;
+          case BLOCKED:
+              // No new output data from Velox.
+              break;
+          case FINISHED:
+              throw new IllegalStateException("GlutenSingleInputOperator should never finish");
+      }
+      inRv.close();
+    }
+
+    @Override
+    public void close() throws Exception {
+        session.close();
+        memoryManager.close();
     }
 
     @Override
