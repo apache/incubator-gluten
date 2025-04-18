@@ -437,9 +437,9 @@ auto BM_Generic = [](::benchmark::State& state,
             });
       }
       *Runtime::localWriteFilesTempPath() = FLAGS_write_path;
-      runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), std::nullopt);
+      runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), false);
       for (auto& split : splits) {
-        runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
+        runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), false);
       }
 
       auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters), runtime->getConfMap());
