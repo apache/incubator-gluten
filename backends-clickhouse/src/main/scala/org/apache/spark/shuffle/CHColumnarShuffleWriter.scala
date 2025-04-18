@@ -55,10 +55,7 @@ class CHColumnarShuffleWriter[K, V](
   private val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
   private val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(
-      conf,
-      compressionCodec,
-      GlutenConfig.get.columnarShuffleCodecBackend.orNull)
+    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec)
   private val maxSortBufferSize = CHConfig.get.chColumnarMaxSortBufferSize
   private val forceMemorySortShuffle = CHConfig.get.chColumnarForceMemorySortShuffle
   private val spillThreshold = CHConfig.get.chColumnarShuffleSpillThreshold

@@ -825,6 +825,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     jstring codecJstr,
     jstring codecBackendJstr,
     jint compressionLevel,
+    jint compressionBufferSize,
     jint diskWriteBufferSize,
     jint compressionThreshold,
     jstring compressionModeJstr,
@@ -864,6 +865,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   auto partitionWriterOptions = PartitionWriterOptions{
       .mergeBufferSize = mergeBufferSize,
       .mergeThreshold = mergeThreshold,
+      .compressionBufferSize = compressionBufferSize,
       .compressionThreshold = compressionThreshold,
       .compressionType = getCompressionType(env, codecJstr),
       .compressionTypeStr = getCompressionTypeStr(env, codecJstr),
