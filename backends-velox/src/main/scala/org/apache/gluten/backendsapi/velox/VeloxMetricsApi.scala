@@ -382,6 +382,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
         sparkContext,
         "number of written bytes"),
       "writeIONanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write IO"),
+      "writeRecodeNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write recode"),
+      "writeCompressionNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "time of write compression"),
       "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of write"),
       "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
     )
