@@ -32,6 +32,7 @@ import org.apache.gluten.vectorized.{BlockOutputStream, CHColumnarBatchSerialize
 
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
@@ -49,7 +50,7 @@ import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
@@ -559,9 +560,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val batches = countsAndBytes.map(_._2)
     val totalBatchesSize = batches.map(_.length).sum
     val rawSize = dataSize.value
-    if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
+    if (rawSize >= GlutenConfig.get.maxBroadcastTableSize) {
       throw new GlutenException(
-        s"Cannot broadcast the table that is larger than 8GB: $rawSize bytes")
+        "Cannot broadcast the table that is larger than " +
+          s"${SparkMemoryUtil.bytesToString(GlutenConfig.get.maxBroadcastTableSize)}: " +
+          s"${SparkMemoryUtil.bytesToString(rawSize)}")
     }
     if ((rawSize == 0 && totalBatchesSize != 0) || totalBatchesSize < 0) {
       throw new GlutenException(
