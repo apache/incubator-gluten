@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.vectorized;
 
+import io.github.zhztheplayer.velox4j.arrow.Arrow;
+import io.github.zhztheplayer.velox4j.data.BaseVector;
 import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
@@ -127,12 +129,12 @@ public class FlinkRowToVLVectorConvertor {
     public static List<RowData> toRowData(
             RowVector rowVector,
             BufferAllocator allocator,
-            Session session,
             RowType rowType) {
         // TODO: support more types
-        FieldVector fieldVector = session.arrowOps().toArrowVector(
+        final BaseVector loadedVector = rowVector.loadedVector();
+        final FieldVector fieldVector = Arrow.toArrowVector(
                 allocator,
-                rowVector.loadedVector());
+                loadedVector);
         List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
         for (int j = 0; j < rowVector.getSize(); j++) {
             List<Object> fieldValues = new ArrayList<>(rowType.size());
@@ -153,6 +155,8 @@ public class FlinkRowToVLVectorConvertor {
             }
             rowDatas.add(GenericRowData.of(fieldValues.toArray()));
         }
+        fieldVector.close();
+        loadedVector.close();
         return rowDatas;
     }
 

@@ -73,7 +73,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
     private Query query;
     private BlockingQueue<RowVector> inputQueue;
     BufferAllocator allocator;
-    UpIterator result;
+    CloseableIterator<RowVector> result;
 
     public GlutenSingleInputOperator(PlanNode plan, String id, RowType inputType, RowType outputType) {
         this.glutenPlan = plan;
@@ -107,7 +107,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
         query = new Query(glutenPlan, splits, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
-        result = session.queryOps().execute(query);
+        result = UpIterators.asJavaIterator(session.queryOps().execute(query));
     }
 
     @Override
@@ -118,25 +118,17 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
             session,
             inputType);
         inputQueue.add(inRv);
-      switch (result.advance()) {
-          case AVAILABLE:
-              final RowVector outRv = result.get();
-              final List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                  outRv,
-                  allocator,
-                  session,
-                  outputType);
-              for (RowData row : rows) {
-                  output.collect(outElement.replace(row));
-              }
-              outRv.close();
-              break;
-          case BLOCKED:
-              // No new output data from Velox.
-              break;
-          case FINISHED:
-              throw new IllegalStateException("GlutenSingleInputOperator should never finish");
-      }
+        if (result.hasNext()) {
+            final RowVector outRv = result.next();
+            List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
+                outRv,
+                allocator,
+                outputType);
+            for (RowData row : rows) {
+                output.collect(outElement.replace(row));
+            }
+            outRv.close();
+        }
       inRv.close();
     }
 

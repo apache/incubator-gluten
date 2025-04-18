@@ -18,6 +18,7 @@
 package org.apache.gluten.table.runtime.operators;
 
 import io.github.zhztheplayer.velox4j.connector.FuzzerConnectorSplit;
+import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
@@ -79,20 +80,20 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
         allocator = new RootAllocator(Long.MAX_VALUE);
 
         while (isRunning) {
-            CloseableIterator<RowVector> result =
-                    UpIterators.asJavaIterator(session.queryOps().execute(query));
-            if (result.hasNext()) {
+            final UpIterator upItr = session.queryOps().execute(query);
+            final CloseableIterator<RowVector> result = UpIterators.asJavaIterator(upItr);
+            while (result.hasNext()) {
                 final RowVector outRv = result.next();
                 final List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
                     outRv,
                         allocator,
-                        session,
                         outputType);
                 for (RowData row : rows) {
                     sourceContext.collect(row);
                 }
                 outRv.close();
             }
+            upItr.close();
         }
 
         session.close();
