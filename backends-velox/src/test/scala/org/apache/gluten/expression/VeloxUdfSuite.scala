@@ -61,7 +61,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
         .getOrCreate()
     }
 
-    _spark.sparkContext.setLogLevel("info")
+    _spark.sparkContext.setLogLevel("warn")
   }
 
   override def afterAll(): Unit = {
