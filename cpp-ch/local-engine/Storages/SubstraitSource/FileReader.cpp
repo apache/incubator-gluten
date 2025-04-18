@@ -59,12 +59,12 @@ DB::Columns BaseReader::addVirtualColumn(DB::Chunk dataChunk, size_t rowNum) con
         std::back_inserter(res_columns),
         [&](const auto & column) -> DB::ColumnPtr
         {
-            if (readHeader.has(column.name))
-                return read_columns[readHeader.getPositionByName(column.name)];
             if (auto it = normalized_partition_values.find(boost::to_lower_copy(column.name)); it != normalized_partition_values.end())
                 return createPartitionColumn(it->second, column.type, rows);
             if (file->fileMetaColumns().virtualColumn(column.name))
                 return file->fileMetaColumns().createMetaColumn(column.name, column.type, rows);
+            if (readHeader.has(column.name))
+                return read_columns[readHeader.getPositionByName(column.name)];
             throw DB::Exception(
                 DB::ErrorCodes::LOGICAL_ERROR, "Not found column = {} when reading file: {}.", column.name, file->getURIPath());
         });
