@@ -14,6 +14,10 @@ vcpkg_extract_source_archive(
 file(DOWNLOAD "https://git.savannah.gnu.org/cgit/config.git/plain/config.guess" "${SOURCE_PATH}/config.guess")
 file(DOWNLOAD "https://git.savannah.gnu.org/cgit/config.git/plain/config.sub" "${SOURCE_PATH}/config.sub")
 
+# Ensure config.guess and config.sub files are executable
+file(CHMOD "${SOURCE_PATH}/config.guess" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+file(CHMOD "${SOURCE_PATH}/config.sub" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
 vcpkg_configure_make(SOURCE_PATH ${SOURCE_PATH} AUTOCONFIG)
 vcpkg_install_make()
 vcpkg_fixup_pkgconfig()
