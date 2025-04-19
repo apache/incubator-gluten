@@ -28,6 +28,8 @@
 #include "config/GlutenConfig.h"
 #include "jni/JniError.h"
 #include "jni/JniFileSystem.h"
+#include "jni/JniHashTable.h"
+#include "memory/AllocationListener.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
@@ -35,6 +37,8 @@
 #include "utils/VeloxBatchResizer.h"
 #include "velox/common/base/BloomFilter.h"
 #include "velox/common/file/FileSystems.h"
+#include "velox/exec/HashTable.h"
+#include "velox/exec/HashTableBuilder.h"
 
 #include <iostream>
 
@@ -63,6 +67,7 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   getJniErrorState()->ensureInitialized(env);
   initVeloxJniFileSystem(env);
   initVeloxJniUDF(env);
+  initVeloxJniHashTable(env);
 
   infoCls = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/validate/NativePlanValidationInfo;");
   infoClsInitMethod = env->GetMethodID(infoCls, "<init>", "(ILjava/lang/String;)V");
@@ -72,6 +77,8 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[B)V");
 
   DLOG(INFO) << "Loaded Velox backend.";
+
+  gluten::vm = vm;
 
   return jniVersion;
 }
@@ -463,6 +470,81 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_nativeBuild( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jstring tableId,
+    jlongArray batchHandles,
+    jstring joinKey,
+    jint joinType,
+    jboolean hasMixedJoinCondition,
+    jboolean isExistenceJoin,
+    jbyteArray namedStruct,
+    jboolean isNullAwareAntiJoin) {
+  JNI_METHOD_START
+  const auto hashTableId = jStringToCString(env, tableId);
+  const auto hashJoinKey = jStringToCString(env, joinKey);
+  const auto inputType = gluten::getByteArrayElementsSafe(env, namedStruct);
+  std::string structString{
+      reinterpret_cast<const char*>(inputType.elems()), static_cast<std::string::size_type>(inputType.length())};
+
+  substrait::NamedStruct substraitStruct;
+  substraitStruct.ParseFromString(structString);
+
+  std::vector<facebook::velox::TypePtr> veloxTypeList;
+  veloxTypeList = SubstraitParser::parseNamedStruct(substraitStruct);
+
+  const auto& substraitNames = substraitStruct.names();
+
+  std::vector<std::string> names;
+  names.reserve(substraitNames.size());
+  for (const auto& name : substraitNames) {
+    names.emplace_back(name);
+  }
+
+  std::vector<std::shared_ptr<ColumnarBatch>> cb;
+  int handleCount = env->GetArrayLength(batchHandles);
+  auto safeArray = getLongArrayElementsSafe(env, batchHandles);
+  for (int i = 0; i < handleCount; ++i) {
+    int64_t handle = safeArray.elems()[i];
+    cb.push_back(ObjectStore::retrieve<ColumnarBatch>(handle));
+  }
+
+  auto hashTableHandler = nativeHashTableBuild(
+      hashJoinKey,
+      names,
+      veloxTypeList,
+      joinType,
+      hasMixedJoinCondition,
+      isExistenceJoin,
+      isNullAwareAntiJoin,
+      cb,
+      defaultLeafVeloxMemoryPool());
+
+  return gluten::hashTableObjStore->save(hashTableHandler);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_cloneHashTable( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong tableHandler) {
+  JNI_METHOD_START
+  auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(tableHandler);
+  return gluten::hashTableObjStore->save(hashTableHandler);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_clearHashTable( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong tableHandler) {
+  JNI_METHOD_START
+  auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(tableHandler);
+  hashTableHandler->clear();
+  ObjectStore::release(tableHandler);
+  JNI_METHOD_END()
+}
 #ifdef __cplusplus
 }
 #endif
