@@ -351,6 +351,12 @@ object OffloadOthers {
             plan.child,
             offset
           )
+        case plan: CollectTailExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarTailExec(
+            plan.limit,
+            plan.child
+          )
         case plan: RDDScanExec if RDDScanTransformer.isSupportRDDScanExec(plan) =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           RDDScanTransformer.getRDDScanTransform(plan)

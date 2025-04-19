@@ -560,6 +560,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportCollectLimitExec(): Boolean = true
 
+  override def supportCollectTailExec(): Boolean = true
+
   override def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = true
 
   override def supportIcebergEqualityDeleteRead(): Boolean = false
