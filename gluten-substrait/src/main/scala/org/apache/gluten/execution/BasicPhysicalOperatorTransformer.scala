@@ -47,13 +47,14 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   // Split out all the IsNotNulls from condition.
-  private val (notNullPreds, _) = splitConjunctivePredicates(cond).partition {
+  protected val (notNullPreds, _) = splitConjunctivePredicates(cond).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
     case _ => false
   }
 
   // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
-  private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
+  protected val notNullAttributes: Seq[ExprId] =
+    notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
@@ -78,7 +79,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     assert(condExpr != null)
     val condExprNode = ExpressionConverter
       .replaceWithExpressionTransformer(condExpr, originalInputAttributes)
-      .doTransform(context.registeredFunction)
+      .doTransform(context)
     RelBuilder.makeFilterRel(
       context,
       condExprNode,
@@ -221,10 +222,9 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     val columnarProjExprs: Seq[ExpressionTransformer] = ExpressionConverter
       .replaceWithExpressionTransformer(projectList, originalInputAttributes)
-    val projExprNodeList = columnarProjExprs.map(_.doTransform(args)).asJava
+    val projExprNodeList = columnarProjExprs.map(_.doTransform(context)).asJava
     RelBuilder.makeProjectRel(
       originalInputAttributes.asJava,
       input,

@@ -18,9 +18,14 @@
 
 #include <memory>
 #include <optional>
+#include <DataTypes/DataTypesNumber.h>
 #include <Parser/RelParsers/RelParser.h>
-#include <Storages/SelectQueryInfo.h>
+#include <Storages/MergeTree/MergeTreeVirtualColumns.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
+#include <Storages/Parquet/ParquetMeta.h>
+#include <Storages/SubstraitSource/FormatFile.h>
 #include <substrait/algebra.pb.h>
+#include <Common/GlutenConfig.h>
 
 namespace DB
 {
@@ -33,12 +38,36 @@ extern const int LOGICAL_ERROR;
 namespace local_engine
 {
 
+using ReplaceDeltaNodeFunc = std::function<void(DB::ActionsDAG &, const MergeTreeTableInstance &, DB::ContextPtr)>;
+
+void replaceInputFileNameNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context);
+void replaceFilePathNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context);
+void replaceFileNameNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context);
+void replaceInputFileBlockStartNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context);
+void replaceInputFileBlockLengthNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context);
+void replaceTmpRowIndexNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context);
+
+static const std::unordered_map<String, std::tuple<std::optional<String>, DB::DataTypePtr, ReplaceDeltaNodeFunc>> DELTA_META_COLUMN_MAP
+    = {{FileMetaColumns::INPUT_FILE_NAME, std::tuple("_part", std::make_shared<DB::DataTypeString>(), replaceInputFileNameNode)},
+       {FileMetaColumns::INPUT_FILE_BLOCK_START,
+        std::tuple(std::nullopt, std::make_shared<DB::DataTypeInt64>(), replaceInputFileBlockStartNode)},
+       {FileMetaColumns::INPUT_FILE_BLOCK_LENGTH,
+        std::tuple(std::nullopt, std::make_shared<DB::DataTypeInt64>(), replaceInputFileBlockLengthNode)},
+       {ParquetVirtualMeta::TMP_ROWINDEX,
+        std::tuple(DB::BlockOffsetColumn::name, std::make_shared<DB::DataTypeUInt64>(), replaceTmpRowIndexNode)},
+       {FileMetaColumns::FILE_PATH, std::tuple("_part", std::make_shared<DB::DataTypeString>(), replaceFilePathNode)},
+       {FileMetaColumns::FILE_NAME, std::tuple("_part", std::make_shared<DB::DataTypeString>(), replaceFileNameNode)}
+    };
+
 class MergeTreeRelParser : public RelParser
 {
 public:
+    inline static const std::string VIRTUAL_COLUMN_PART = "_part";
+
     explicit MergeTreeRelParser(ParserContextPtr parser_context_, const DB::ContextPtr & context_)
         : RelParser(parser_context_), context(context_)
     {
+        spark_sql_config = SparkSQLConfig::loadFromContext(context);
     }
 
     ~MergeTreeRelParser() override = default;
@@ -80,6 +109,11 @@ public:
     std::unordered_map<std::string, UInt64> column_sizes;
 
 private:
+    DB::Block parseMergeTreeOutput(const substrait::ReadRel & rel, SparkStorageMergeTreePtr storage);
+    DB::Block replaceDeltaNameIfNeeded(const DB::Block & output);
+    void replaceNodeWithCaseSensitive(DB::Block & read_block, SparkStorageMergeTreePtr storage);
+    void recoverDeltaNameIfNeeded(DB::QueryPlan & plan, const DB::Block & output, const MergeTreeTableInstance & merge_tree_table);
+    void recoverNodeWithCaseSensitive(DB::QueryPlan & query_plan, const DB::Block & output);
     void parseToAction(DB::ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name) const;
     DB::PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, const DB::Block & input);
     DB::ActionsDAG optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, const DB::Block & block);
@@ -88,6 +122,7 @@ private:
     UInt64 getColumnsSize(const DB::NameSet & columns);
 
     DB::ContextPtr context;
+    SparkSQLConfig spark_sql_config;
 };
 
 }

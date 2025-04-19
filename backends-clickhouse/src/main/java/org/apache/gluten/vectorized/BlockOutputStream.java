@@ -74,6 +74,8 @@ public class BlockOutputStream implements Closeable {
 
   private native void nativeFlush(long instance);
 
+  public static native long directWrite(OutputStream stream, byte[] buf, int size, long block);
+
   public void write(ColumnarBatch cb) {
     if (cb.numCols() == 0 || cb.numRows() == 0) return;
     CHNativeBlock block = CHNativeBlock.fromColumnarBatch(cb);

@@ -312,7 +312,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 5)
   }
 
-  testWithSpecifiedSparkVersion("coalesce validation", Some("3.4")) {
+  testWithMinSparkVersion("coalesce validation", "3.4") {
     withTempPath {
       path =>
         val data = "2019-09-09 01:02:03.456789"
@@ -2007,6 +2007,48 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2") {
           checkGlutenOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
         }
+      }
+    }
+  }
+
+  test("test get_struct_field with scalar function as input") {
+    withSQLConf("spark.sql.json.enablePartialResults" -> "true") {
+      withTable("t") {
+        withTempPath {
+          path =>
+            Seq[String](
+              "{\"a\":1,\"b\":[10, 11, 12]}",
+              "{\"a\":2,\"b\":[20, 21, 22]}"
+            ).toDF("json_str").write.parquet(path.getCanonicalPath)
+            spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+
+            val query =
+              """
+                | select
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').a,
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').b
+                | from t
+                |""".stripMargin
+
+            runQueryAndCompare(query)(
+              df => {
+                val executedPlan = getExecutedPlan(df)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExecTransformer]) == 1)
+              })
+        }
+      }
+    }
+  }
+
+  test("Blacklist expression can be handled by ColumnarPartialProject") {
+    withSQLConf("spark.gluten.expression.blacklist" -> "regexp_replace") {
+      runQueryAndCompare(
+        "SELECT c_custkey, c_name, regexp_replace(c_comment, '\\w', 'something') FROM customer") {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+          assert(executedPlan.count(_.isInstanceOf[ColumnarPartialProjectExec]) == 1)
       }
     }
   }

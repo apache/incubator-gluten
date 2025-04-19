@@ -17,7 +17,8 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
+import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.columnarbatch.VeloxColumnarBatches
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.rdd.RDD
@@ -35,9 +36,6 @@ case class ColumnarCollectTailExec(
     limit: Int,
     child: SparkPlan
 ) extends ColumnarCollectTailBaseExec(limit, child) {
-
-  override def batchType(): Convention.BatchType =
-    BackendsApiManager.getSettings.primaryBatchType
 
   private def collectTailRows(
       partitionIter: Iterator[ColumnarBatch],
@@ -58,22 +56,34 @@ case class ColumnarCollectTailExec(
       tailQueue += batch
       totalRowsInTail += batchRows
 
-      while (totalRowsInTail > limit && tailQueue.nonEmpty) {
-        val front = tailQueue.remove(0)
+      var canDrop = true
+      while (tailQueue.nonEmpty && canDrop) {
+        val front = tailQueue.head
         val frontRows = front.numRows().toLong
-        val overflow = totalRowsInTail - limit
 
-        if (frontRows <= overflow) {
+        if (totalRowsInTail - frontRows >= limit) {
+          val dropped = tailQueue.remove(0)
+          dropped.close()
           totalRowsInTail -= frontRows
         } else {
-          val keep = frontRows - overflow
-          val partial = VeloxColumnarBatches.slice(front, overflow.toInt, keep.toInt)
-          tailQueue.prepend(partial)
-          totalRowsInTail -= overflow
+          canDrop = false
         }
-        front.close()
       }
     }
+
+    if (tailQueue.nonEmpty) {
+      val first = tailQueue.remove(0)
+      val overflow = totalRowsInTail - limit
+      if (overflow > 0) {
+        val keep = first.numRows() - overflow
+        val sliced = VeloxColumnarBatches.slice(first, overflow.toInt, keep.toInt)
+        tailQueue.prepend(sliced)
+        first.close()
+      } else {
+        tailQueue.prepend(first)
+      }
+    }
+
     tailQueue.iterator
   }
 

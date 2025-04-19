@@ -182,6 +182,8 @@ inline constexpr auto DEFAULT_TEMP_FILE_PATH = "/tmp/libch";
 struct SparkSQLConfig
 {
     bool caseSensitive = false; // spark.sql.caseSensitive
+    size_t deltaDataSkippingNumIndexedCols = 32;
+    String deltaDataSkippingStatsColumns;
 
     static SparkSQLConfig loadFromContext(const DB::ContextPtr & context);
 };

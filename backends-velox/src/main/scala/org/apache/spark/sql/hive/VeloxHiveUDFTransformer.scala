@@ -16,25 +16,18 @@
  */
 package org.apache.spark.sql.hive
 
-import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer}
+import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer, UDFMappings}
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.expression.UDFResolver
+
+import java.util.Locale
 
 object VeloxHiveUDFTransformer {
   def replaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    val (udfName, udfClassName) = expr match {
-      case s: HiveSimpleUDF =>
-        (s.name.stripPrefix("default."), s.funcWrapper.functionClassName)
-      case g: HiveGenericUDF =>
-        (g.name.stripPrefix("default."), g.funcWrapper.functionClassName)
-      case _ =>
-        throw new GlutenNotSupportException(
-          s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
-    }
+    val (udfName, udfClassName) = HiveUDFTransformer.getHiveUDFNameAndClassName(expr)
 
     if (UDFResolver.UDFNames.contains(udfClassName)) {
       val udfExpression = UDFResolver
@@ -45,5 +38,17 @@ object VeloxHiveUDFTransformer {
     } else {
       HiveUDFTransformer.genTransformerFromUDFMappings(udfName, expr, attributeSeq)
     }
+  }
+
+  /**
+   * Check whether the input hive udf expression is supported to transform. It maybe transformed by
+   * [[VeloxHiveUDFTransformer]] or [[HiveUDFTransformer]].
+   */
+  def isSupportedHiveUDF(expr: Expression): Boolean = {
+    val (udfName, udfClassName) = HiveUDFTransformer.getHiveUDFNameAndClassName(expr)
+    // Transformable by VeloxHiveUDFTransformer
+    UDFResolver.UDFNames.contains(udfClassName) ||
+    // Transformable by HiveUDFTransformer
+    UDFMappings.hiveUDFMap.contains(udfName.toLowerCase(Locale.ROOT))
   }
 }

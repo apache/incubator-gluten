@@ -23,6 +23,7 @@ import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
 import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster}
 import org.apache.gluten.extension.injector.Injector
 
+import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -32,6 +33,10 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class TransitionSuite extends SharedSparkSession {
   import TransitionSuite._
+
+  override protected def sparkConf: SparkConf =
+    super.sparkConf
+      .set("spark.ui.enabled", "false")
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()

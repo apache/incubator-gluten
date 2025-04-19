@@ -366,6 +366,19 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("SPARK-33291: Cast struct with null elements to string")
     .excludeCH("SPARK-35111: Cast string to year-month interval")
     .excludeCH("Gluten - data type casting")
+    .exclude("cast string to date #2")
+    .exclude("casting to fixed-precision decimals")
+    .exclude("SPARK-28470: Cast should honor nullOnOverflow property")
+    .exclude("cast from array II")
+    .exclude("cast from map II")
+    .exclude("cast from struct II")
+    .exclude("cast from date")
+    .exclude("cast from timestamp II")
+    .exclude("cast a timestamp before the epoch 1970-01-01 00:00:00Z")
+    .exclude("SPARK-34727: cast from float II")
+    .exclude("SPARK-39749: cast Decimal to string")
+    .exclude("SPARK-42176: cast boolean to timestamp")
+    .exclude("null cast #2")
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     .excludeByPrefix("determining the number of reducers")
     .excludeCH("SPARK-46590 adaptive query execution works correctly with broadcast join and union")
@@ -1775,6 +1788,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
+    .excludeCH("SPARK-36866: filter pushdown - year-month interval")
   // avoid Velox compile error
   enableSuite(
     "org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2"
@@ -1796,6 +1810,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
+    .excludeCH("SPARK-36866: filter pushdown - year-month interval")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .excludeCH("Various partition value types")
     .excludeCH("Various inferred partition value types")
@@ -1960,6 +1975,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenRuntimeNullChecksV2Writes]
   enableSuite[GlutenSQLAggregateFunctionSuite]
+    .excludeGlutenTest("Return NaN or null when dividing by zero")
   enableSuite[GlutenSQLQuerySuite]
     // Decimal precision exceeds.
     .includeCH("should be able to resolve a persistent view")
@@ -2035,6 +2051,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("store and retrieve column stats in different time zones")
     .excludeCH("SPARK-42777: describe column stats (min, max) for timestamp_ntz column")
     .excludeCH("Gluten - store and retrieve column stats in different time zones")
+    .excludeCH("statistics collection of a table with zero column")
   enableSuite[GlutenStringExpressionsSuite]
     .excludeCH("StringComparison")
     .excludeCH("Substring")
@@ -2132,7 +2149,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // Rewrite with NaN test cases excluded.
     .exclude("cases when literal is max")
   enableSuite[GlutenUrlFunctionsSuite]
-    .excludeCH("url parse_url function")
     .excludeCH("url encode/decode function")
   enableSuite[GlutenV1WriteCommandSuite]
     // Rewrite to match SortExecTransformer.

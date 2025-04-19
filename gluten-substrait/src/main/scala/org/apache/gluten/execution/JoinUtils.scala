@@ -64,7 +64,7 @@ object JoinUtils {
             ExpressionConverter
               .replaceWithExpressionTransformer(expr, partialConstructedJoinOutput)
               .asInstanceOf[AttributeReferenceTransformer]
-              .doTransform(substraitContext.registeredFunction),
+              .doTransform(substraitContext),
             expr.dataType)
       }
       (keys, inputNode, inputNodeOutput)
@@ -78,7 +78,7 @@ object JoinUtils {
             (
               ExpressionConverter
                 .replaceWithExpressionTransformer(expr, inputNodeOutput)
-                .doTransform(substraitContext.registeredFunction),
+                .doTransform(substraitContext),
               expr.dataType))
       }
       val preProjectNode = RelBuilder.makeProjectRel(
@@ -100,7 +100,7 @@ object JoinUtils {
             ExpressionConverter
               .replaceWithExpressionTransformer(a, partialConstructedJoinOutput)
               .asInstanceOf[AttributeReferenceTransformer]
-              .doTransform(substraitContext.registeredFunction),
+              .doTransform(substraitContext),
             a.dataType)
         case _ =>
           val (key, idx) = appendedKeysAndIndices.next()
@@ -207,11 +207,9 @@ object JoinUtils {
             leftType,
             rightKey,
             rightType,
-            substraitContext.registeredFunction)
+            substraitContext)
       }
-      .reduce(
-        (l, r) =>
-          HashJoinLikeExecTransformer.makeAndExpression(l, r, substraitContext.registeredFunction))
+      .reduce((l, r) => HashJoinLikeExecTransformer.makeAndExpression(l, r, substraitContext))
 
     // Create post-join filter, which will be computed in hash join.
     val postJoinFilter =

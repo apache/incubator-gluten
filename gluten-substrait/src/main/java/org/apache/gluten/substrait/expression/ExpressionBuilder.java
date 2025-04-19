@@ -36,16 +36,6 @@ import java.util.Map;
 public class ExpressionBuilder {
   private ExpressionBuilder() {}
 
-  public static Long newScalarFunction(Map<String, Long> functionMap, String functionName) {
-    if (!functionMap.containsKey(functionName)) {
-      Long functionId = (long) functionMap.size();
-      functionMap.put(functionName, functionId);
-      return functionId;
-    } else {
-      return functionMap.get(functionName);
-    }
-  }
-
   public static NullLiteralNode makeNullLiteral(TypeNode typeNode) {
     return new NullLiteralNode(typeNode);
   }

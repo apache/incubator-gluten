@@ -17,8 +17,8 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.execution.{LimitExec, SparkPlan}
@@ -29,23 +29,12 @@ abstract class ColumnarCollectTailBaseExec(
 ) extends LimitExec
   with ValidatablePlan {
 
+  override def batchType(): Convention.BatchType =
+    BackendsApiManager.getSettings.primaryBatchType
+
   override def outputPartitioning: Partitioning = SinglePartition
 
   override protected def doValidateInternal(): ValidationResult = {
-    val isSupported = BackendsApiManager.getSettings.supportCollectTailExec()
-
-    if (!isSupported) {
-      return ValidationResult.failed(
-        s"CollectTailExec is not supported by the current backend."
-      )
-    }
-
-    if (
-      (childPlan.supportsColumnar && GlutenConfig.get.enablePreferColumnar) &&
-      BackendsApiManager.getSettings.supportColumnarShuffleExec()
-    ) {
-      return ValidationResult.succeeded
-    }
     ValidationResult.failed("Columnar shuffle not enabled or child does not support columnar.")
   }
 
