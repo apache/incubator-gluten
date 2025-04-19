@@ -266,7 +266,7 @@ bool ExpressionParser::reuseCSE() const
 }
 
 ExpressionParser::NodeRawConstPtr
-ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr type, const DB::Field & field) const
+ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
 {
     String name = toString(field).substr(0, 10);
     name = getUniqueName(name);
@@ -280,7 +280,6 @@ ExpressionParser::addConstColumn(DB::ActionsDAG & actions_dag, const DB::DataTyp
     }
     return res_node;
 }
-
 
 ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG & actions_dag, const substrait::Expression & rel) const
 {
@@ -305,7 +304,80 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
         case substrait::Expression::RexTypeCase::kCast: {
             if (!rel.cast().has_type() || !rel.cast().has_input())
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
-            return parseCast(actions_dag, rel);
+            ActionsDAG::NodeRawConstPtrs args;
+
+            const auto & input = rel.cast().input();
+            args.emplace_back(parseExpression(actions_dag, input));
+
+            const auto & substrait_type = rel.cast().type();
+            const auto & input_type = args[0]->result_type;
+            DataTypePtr denull_input_type = removeNullable(input_type);
+            DataTypePtr output_type = TypeParser::parseType(substrait_type);
+            DataTypePtr denull_output_type = removeNullable(output_type);
+            const ActionsDAG::Node * result_node = nullptr;
+            if (substrait_type.has_binary())
+            {
+                /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
+                result_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
+            }
+            else if (isString(denull_input_type) && isDate32(denull_output_type))
+                result_node = toFunctionNode(actions_dag, "sparkToDate", args);
+            else if (isString(denull_input_type) && isDateTime64(denull_output_type))
+                result_node = toFunctionNode(actions_dag, "sparkToDateTime", args);
+            else if (isDecimal(denull_input_type) && isString(denull_output_type))
+            {
+                /// Spark cast(x as STRING) if x is Decimal -> CH toDecimalString(x, scale)
+                UInt8 scale = getDecimalScale(*denull_input_type);
+                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeUInt8>(), Field(scale)));
+                result_node = toFunctionNode(actions_dag, "toDecimalString", args);
+            }
+            else if (isFloat(denull_input_type) && isInt(denull_output_type))
+            {
+                String function_name = "sparkCastFloatTo" + denull_output_type->getName();
+                result_node = toFunctionNode(actions_dag, function_name, args);
+            }
+            else if (isFloat(denull_input_type) && isString(denull_output_type))
+                result_node = toFunctionNode(actions_dag, "sparkCastFloatToString", args);
+            else if ((isDecimal(denull_input_type) || isNativeNumber(denull_input_type)) && substrait_type.has_decimal())
+            {
+                int precision = substrait_type.decimal().precision();
+                int scale = substrait_type.decimal().scale();
+                if (precision)
+                {
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision));
+                    args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale));
+                    result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
+                }
+            }
+            else if ((isMap(denull_input_type) || isArray(denull_input_type) || isTuple(denull_input_type)) && isString(denull_output_type))
+            {
+                /// https://github.com/apache/incubator-gluten/issues/9049
+                result_node = toFunctionNode(actions_dag, "sparkCastComplexTypesToString", args);
+            }
+            else if (isString(denull_input_type) && substrait_type.has_bool_())
+            {
+                /// cast(string to boolean)
+                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
+                result_node = toFunctionNode(actions_dag, "accurateCastOrNull", args);
+            }
+            else if (isString(denull_input_type) && isInt(denull_output_type))
+            {
+                /// Spark cast(x as INT) if x is String -> CH cast(trim(x) as INT)
+                /// Refer to https://github.com/apache/incubator-gluten/issues/4956 and https://github.com/apache/incubator-gluten/issues/8598
+                const auto * trim_str_arg = addConstColumn(actions_dag, std::make_shared<DataTypeString>(), " \t\n\r\f");
+                args[0] = toFunctionNode(actions_dag, "trimBothSpark", {args[0], trim_str_arg});
+                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
+                result_node = toFunctionNode(actions_dag, "CAST", args);
+            }
+            else
+            {
+                /// Common process: CAST(input, type)
+                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
+                result_node = toFunctionNode(actions_dag, "CAST", args);
+            }
+
+            actions_dag.addOrReplaceInOutputs(*result_node);
+            return result_node;
         }
 
         case substrait::Expression::RexTypeCase::kIfThen: {
@@ -433,138 +505,6 @@ ExpressionParser::NodeRawConstPtr ExpressionParser::parseExpression(ActionsDAG &
                 rel.DebugString());
     }
 }
-
-bool ExpressionParser::isValueFromNothingType(const substrait::Expression & expr) const
-{
-    const auto & cast_input = expr.cast().input();
-    // null literal
-    if (cast_input.has_literal() && cast_input.literal().has_null() && cast_input.literal().null().has_nothing())
-        return true;
-    else if (cast_input.has_scalar_function())
-    {
-        auto function_name = getFunctionNameInSignature(cast_input.scalar_function());
-        // empty map
-        if (cast_input.scalar_function().output_type().has_map())
-        {
-            const auto & map_type = cast_input.scalar_function().output_type().map();
-            if (map_type.key().has_nothing() && map_type.value().has_nothing())
-                return true;
-        }
-        // empty array
-        else if (cast_input.scalar_function().output_type().has_list())
-        {
-            const auto & list_type = cast_input.scalar_function().output_type().list();
-            if (list_type.type().has_nothing())
-                return true;
-        }
-    }
-    return false;
-}
-
-ExpressionParser::NodeRawConstPtr ExpressionParser::parseCast(DB::ActionsDAG & actions_dag, const substrait::Expression & cast_expr) const
-{
-    if (isValueFromNothingType(cast_expr))
-        return parseNothingValuesCast(actions_dag, cast_expr);
-    return parseNormalValuesCast(actions_dag, cast_expr);
-}
-
-// Build a default value from the output type of `cast` when the `cast`'s input is built from `nothing` type.
-// `nothing` type is wrapped in nullable in `TypeParser`, it could cause nullability missmatch.
-ExpressionParser::NodeRawConstPtr
-ExpressionParser::parseNothingValuesCast(DB::ActionsDAG & actions_dag, const substrait::Expression & cast_expr) const
-{
-    auto ch_type = TypeParser::parseType(cast_expr.cast().type());
-    // use the target type to create the default value.
-    auto default_value = ch_type->getDefault();
-    return addConstColumn(actions_dag, ch_type, default_value);
-}
-
-ExpressionParser::NodeRawConstPtr
-ExpressionParser::parseNormalValuesCast(DB::ActionsDAG & actions_dag, const substrait::Expression & cast_expr) const
-{
-    ActionsDAG::NodeRawConstPtrs args;
-    const auto & input = cast_expr.cast().input();
-    args.emplace_back(parseExpression(actions_dag, input));
-
-    const auto & substrait_type = cast_expr.cast().type();
-    const auto & input_type = args[0]->result_type;
-    DataTypePtr denull_input_type = removeNullable(input_type);
-    DataTypePtr output_type = TypeParser::parseType(substrait_type);
-    DataTypePtr denull_output_type = removeNullable(output_type);
-    const ActionsDAG::Node * result_node = nullptr;
-    if (substrait_type.has_binary())
-    {
-        /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
-        result_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
-    }
-    else if (isString(denull_input_type) && isDate32(denull_output_type))
-        result_node = toFunctionNode(actions_dag, "sparkToDate", args);
-    else if (isString(denull_input_type) && isDateTime64(denull_output_type))
-        result_node = toFunctionNode(actions_dag, "sparkToDateTime", args);
-    else if (isDecimal(denull_input_type) && isString(denull_output_type))
-    {
-        /// Spark cast(x as STRING) if x is Decimal -> CH toDecimalString(x, scale)
-        UInt8 scale = getDecimalScale(*denull_input_type);
-        args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeUInt8>(), Field(scale)));
-        result_node = toFunctionNode(actions_dag, "toDecimalString", args);
-    }
-    else if (isFloat(denull_input_type) && isInt(denull_output_type))
-    {
-        String function_name = "sparkCastFloatTo" + denull_output_type->getName();
-        result_node = toFunctionNode(actions_dag, function_name, args);
-    }
-    else if (isFloat(denull_input_type) && isString(denull_output_type))
-        result_node = toFunctionNode(actions_dag, "sparkCastFloatToString", args);
-    else if ((isDecimal(denull_input_type) || isNativeNumber(denull_input_type)) && substrait_type.has_decimal())
-    {
-        int precision = substrait_type.decimal().precision();
-        int scale = substrait_type.decimal().scale();
-        if (precision)
-        {
-            args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision));
-            args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale));
-            result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
-        }
-    }
-    else if (isMap(denull_input_type) && isString(denull_output_type))
-    {
-        // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
-        auto map_input_type = std::static_pointer_cast<const DataTypeMap>(denull_input_type);
-        args.emplace_back(addConstColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
-        args.emplace_back(addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
-        result_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
-    }
-    else if (isArray(denull_input_type) && isString(denull_output_type))
-    {
-        // ISSUE-7602: spark cast(array to string) has different result with CH cast(array to string)
-        result_node = toFunctionNode(actions_dag, "sparkCastArrayToString", args);
-    }
-    else if (isString(denull_input_type) && substrait_type.has_bool_())
-    {
-        /// cast(string to boolean)
-        args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
-        result_node = toFunctionNode(actions_dag, "accurateCastOrNull", args);
-    }
-    else if (isString(denull_input_type) && isInt(denull_output_type))
-    {
-        /// Spark cast(x as INT) if x is String -> CH cast(trim(x) as INT)
-        /// Refer to https://github.com/apache/incubator-gluten/issues/4956 and https://github.com/apache/incubator-gluten/issues/8598
-        auto trim_str_arg = addConstColumn(actions_dag, std::make_shared<DataTypeString>(), " \t\n\r\f");
-        args[0] = toFunctionNode(actions_dag, "trimBothSpark", {args[0], trim_str_arg});
-        args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
-        result_node = toFunctionNode(actions_dag, "CAST", args);
-    }
-    else
-    {
-        /// Common process: CAST(input, type)
-        args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
-        result_node = toFunctionNode(actions_dag, "CAST", args);
-    }
-
-    actions_dag.addOrReplaceInOutputs(*result_node);
-    return result_node;
-}
-
 
 DB::ActionsDAG
 ExpressionParser::expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header) const
@@ -871,7 +811,7 @@ ExpressionParser::parseArrayJoin(const substrait::Expression_ScalarFunction & fu
             const auto * key_node = add_tuple_element(item_node, 1);
 
             /// value = arrayJoin(arg_not_null).2.2
-            const auto val_node = add_tuple_element(item_node, 2);
+            const auto * val_node = add_tuple_element(item_node, 2);
 
             actions_dag.addOrReplaceInOutputs(*pos_node);
             actions_dag.addOrReplaceInOutputs(*key_node);
@@ -912,7 +852,7 @@ ExpressionParser::parseJsonTuple(const substrait::Expression_ScalarFunction & fu
     const auto * extract_expr_node = addConstColumn(actions_dag, std::make_shared<DB::DataTypeString>(), write_buffer.str());
     auto json_extract_builder = DB::FunctionFactory::instance().get("JSONExtract", context->queryContext());
     auto json_extract_result_name = "JSONExtract(" + json_expr_node->result_name + ", " + extract_expr_node->result_name + ")";
-    const auto json_extract_node
+    const auto * json_extract_node
         = &actions_dag.addFunction(json_extract_builder, {json_expr_node, extract_expr_node}, json_extract_result_name);
     auto tuple_element_builder = DB::FunctionFactory::instance().get("sparkTupleElement", context->queryContext());
     auto tuple_index_type = std::make_shared<DB::DataTypeUInt32>();

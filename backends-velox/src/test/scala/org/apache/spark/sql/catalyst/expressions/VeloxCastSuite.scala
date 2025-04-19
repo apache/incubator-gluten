@@ -28,12 +28,25 @@ class VeloxCastSuite extends VeloxWholeStageTransformerSuite with ExpressionEval
   def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): Cast = {
     v match {
       case lit: Expression =>
-        logDebug(s"Cast from: ${lit.dataType.typeName}, to: ${targetType.typeName}")
         Cast(lit, targetType, timeZoneId)
       case _ =>
         val lit = Literal(v)
-        logDebug(s"Cast from: ${lit.dataType.typeName}, to: ${targetType.typeName}")
         Cast(lit, targetType, timeZoneId)
+    }
+  }
+
+  test("cast binary to string type") {
+
+    val testCases = Seq(
+      ("Hello, World!".getBytes, "Hello, World!"),
+      ("12345".getBytes, "12345"),
+      ("".getBytes, ""),
+      ("Some special characters: !@#$%^&*()".getBytes, "Some special characters: !@#$%^&*()"),
+      ("Line\nbreak".getBytes, "Line\nbreak")
+    )
+
+    for ((binaryValue, expectedString) <- testCases) {
+      checkEvaluation(cast(cast(binaryValue, BinaryType), StringType), expectedString)
     }
   }
 
@@ -65,6 +78,7 @@ class VeloxCastSuite extends VeloxWholeStageTransformerSuite with ExpressionEval
       TimeZone.setDefault(originalDefaultTz)
     }
   }
+
   override protected val resourcePath: String = "N/A"
   override protected val fileFormat: String = "N/A"
 }

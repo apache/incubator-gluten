@@ -28,13 +28,13 @@
 #include <Parser/TypeParser.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
 #include <Storages/SourceFromJavaIter.h>
+#include <Storages/SourceFromRange.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <rapidjson/document.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/DebugUtils.h>
-#include <Storages/SourceFromRange.h>
 
 namespace DB
 {
@@ -198,7 +198,7 @@ QueryPlanStepPtr ReadRelParser::parseReadRelWithLocalFile(const substrait::ReadR
 
     if (rel.has_filter())
     {
-        DB::ActionsDAG actions_dag{blockToNameAndTypeList(header)};
+        DB::ActionsDAG actions_dag{blockToRowType(header)};
         const DB::ActionsDAG::Node * filter_node = parseExpression(actions_dag, rel.filter());
         actions_dag.addOrReplaceInOutputs(*filter_node);
         assert(filter_node == &(actions_dag.findInOutputs(filter_node->result_name)));

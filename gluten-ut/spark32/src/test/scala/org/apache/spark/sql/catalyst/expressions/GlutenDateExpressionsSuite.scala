@@ -432,8 +432,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
       Seq("legacy", "corrected").foreach {
         legacyParserPolicy =>
           withSQLConf(
-            SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
-            SQLConf.SESSION_LOCAL_TIMEZONE.key -> UTC_OPT.get
+            SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy
           ) {
             assert(Hour(Literal.create(null, DateType), UTC_OPT).resolved === false)
             assert(Hour(Literal(ts), UTC_OPT).resolved)

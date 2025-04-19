@@ -41,9 +41,6 @@ import com.google.common.collect.Lists
 import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
 
-import java.lang.{Long => JLong}
-import java.util.{Map => JMap}
-
 trait ColumnarShuffledJoin extends BaseJoinExec {
   def isSkewJoin: Boolean
 
@@ -324,9 +321,8 @@ object HashJoinLikeExecTransformer {
       leftType: DataType,
       rightNode: ExpressionNode,
       rightType: DataType,
-      functionMap: JMap[String, JLong]): ExpressionNode = {
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
+      context: SubstraitContext): ExpressionNode = {
+    val functionId = context.registerFunction(
       ConverterUtils.makeFuncName(ExpressionNames.EQUAL, Seq(leftType, rightType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
@@ -338,9 +334,8 @@ object HashJoinLikeExecTransformer {
   def makeAndExpression(
       leftNode: ExpressionNode,
       rightNode: ExpressionNode,
-      functionMap: JMap[String, JLong]): ExpressionNode = {
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
+      context: SubstraitContext): ExpressionNode = {
+    val functionId = context.registerFunction(
       ConverterUtils.makeFuncName(ExpressionNames.AND, Seq(BooleanType, BooleanType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)

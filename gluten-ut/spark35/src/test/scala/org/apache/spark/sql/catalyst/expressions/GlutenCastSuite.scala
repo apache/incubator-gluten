@@ -26,8 +26,7 @@ import org.apache.spark.util.ThreadUtils
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 
-class GlutenCastSuite extends CastSuiteBase with GlutenTestsTrait {
-  override protected def evalMode: EvalMode.Value = EvalMode.LEGACY
+class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
 
   override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): Cast = {
     v match {

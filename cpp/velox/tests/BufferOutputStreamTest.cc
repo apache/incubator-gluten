@@ -29,7 +29,7 @@ class BufferOutputStreamTest : public ::testing::Test, public test::VectorTestBa
  protected:
   // Velox requires the mem manager to be instanced.
   static void SetUpTestCase() {
-    VeloxBackend::create({});
+    VeloxBackend::create(AllocationListener::noop(), {});
     memory::MemoryManager::testingSetInstance({});
   }
 

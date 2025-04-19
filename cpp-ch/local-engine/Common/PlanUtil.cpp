@@ -112,7 +112,7 @@ DB::IQueryPlanStep * addRemoveNullableStep(DB::QueryPlan & plan, const DB::Conte
 
 DB::IQueryPlanStep * renamePlanHeader(DB::QueryPlan & plan, const BuildNamesWithAliases & buildAliases, const String & step_desc)
 {
-    DB::ActionsDAG actions_dag{blockToNameAndTypeList(plan.getCurrentHeader())};
+    DB::ActionsDAG actions_dag{blockToRowType(plan.getCurrentHeader())};
     DB::NamesWithAliases aliases;
     buildAliases(plan.getCurrentHeader(), aliases);
     actions_dag.project(aliases);

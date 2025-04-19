@@ -36,6 +36,7 @@
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
@@ -87,6 +88,10 @@ extern const ServerSettingsUInt64 max_thread_pool_size;
 extern const ServerSettingsUInt64 thread_pool_queue_size;
 extern const ServerSettingsUInt64 max_io_thread_pool_size;
 extern const ServerSettingsUInt64 io_thread_pool_queue_size;
+extern const ServerSettingsString vector_similarity_index_cache_policy;
+extern const ServerSettingsUInt64 vector_similarity_index_cache_size;
+extern const ServerSettingsUInt64 vector_similarity_index_cache_max_entries;
+extern const ServerSettingsDouble vector_similarity_index_cache_size_ratio;
 }
 namespace Setting
 {
@@ -98,6 +103,7 @@ extern const SettingsBool query_plan_merge_filters;
 extern const SettingsBool compile_expressions;
 extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
 extern const SettingsUInt64 output_format_compression_level;
+extern const SettingsBool query_plan_optimize_lazy_materialization;
 }
 namespace ErrorCodes
 {
@@ -661,6 +667,11 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     /// output_format_compression_level is set to 3, which is wrong, since snappy does not support it.
     settings[Setting::output_format_compression_level] = arrow::util::kUseDefaultCompressionLevel;
 
+    /// 6. After https://github.com/ClickHouse/ClickHouse/pull/55518
+    /// We currently do not support lazy materialization.
+    /// "test 'order by' two keys" will failed if we enable it.
+    settings[Setting::query_plan_optimize_lazy_materialization] = false;
+    
     for (const auto & [key, value] : spark_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
@@ -812,7 +823,15 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
         global_context->setIndexMarkCache(index_mark_cache_policy, index_mark_cache_size, index_mark_cache_size_ratio);
-        
+
+        String vector_similarity_index_cache_policy = server_settings[ServerSetting::vector_similarity_index_cache_policy];
+        size_t vector_similarity_index_cache_size = server_settings[ServerSetting::vector_similarity_index_cache_size];
+        size_t vector_similarity_index_cache_max_count = server_settings[ServerSetting::vector_similarity_index_cache_max_entries];
+        double vector_similarity_index_cache_size_ratio = server_settings[ServerSetting::vector_similarity_index_cache_size_ratio];
+        LOG_INFO(log, "Lowered vector similarity index cache size to {} because the system has limited RAM", formatReadableSizeWithBinarySuffix(vector_similarity_index_cache_size));
+
+        global_context->setVectorSimilarityIndexCache(vector_similarity_index_cache_policy, vector_similarity_index_cache_size, vector_similarity_index_cache_max_count, vector_similarity_index_cache_size_ratio);
+
         getMergeTreePrefixesDeserializationThreadPool().initialize(
             server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_size],
             server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_free_size],
@@ -848,6 +867,7 @@ extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCom
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
 extern void registerAggregateFunctionRowNumGroup(AggregateFunctionFactory &);
+extern void registerAggregateFunctionDVRoaringBitmap(AggregateFunctionFactory &);
 
 
 extern void registerFunctions(FunctionFactory &);
@@ -862,6 +882,7 @@ void registerAllFunctions()
     registerAggregateFunctionSparkAvg(agg_factory);
     registerAggregateFunctionRowNumGroup(agg_factory);
     DB::registerAggregateFunctionUniqHyperLogLogPlusPlus(agg_factory);
+    registerAggregateFunctionDVRoaringBitmap(agg_factory);
 
     /// register aggregate function combinators from local_engine
     auto & combinator_factory = AggregateFunctionCombinatorFactory::instance();

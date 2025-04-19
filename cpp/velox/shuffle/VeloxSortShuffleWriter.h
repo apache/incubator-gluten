@@ -17,16 +17,13 @@
 
 #pragma once
 
-#include "shuffle/RadixSort.h"
 #include "shuffle/VeloxShuffleWriter.h"
 
 #include <arrow/status.h>
-#include <map>
 #include <vector>
 
 #include "velox/common/memory/HashStringAllocator.h"
 #include "velox/row/CompactRow.h"
-#include "velox/vector/BaseVector.h"
 
 namespace gluten {
 
@@ -80,7 +77,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status evictPartition(uint32_t partitionId, size_t begin, size_t end);
 
-  arrow::Status evictPartitionInternal(uint32_t partitionId, int32_t numRows, uint8_t* buffer, int64_t rawLength);
+  arrow::Status evictPartitionInternal(uint32_t partitionId, uint8_t* buffer, int64_t rawLength);
 
   facebook::velox::vector_size_t maxRowsToInsert(
       facebook::velox::vector_size_t offset,
@@ -113,8 +110,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   uint32_t currenPageSize_;
 
   std::unique_ptr<arrow::Buffer> sortedBuffer_;
-  uint8_t* rawBuffer_;
-  std::shared_ptr<arrow::Buffer> compressionBuffer_{nullptr};
+  uint8_t* sortedBufferPtr_;
 
   // Row ID -> Partition ID
   // subscript: The index of row in the current input RowVector

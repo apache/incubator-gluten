@@ -25,7 +25,6 @@ import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
-import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 
@@ -69,10 +68,8 @@ class GlutenClickHouseMergeTreeCacheDataSuite
     conf.set("fs.defaultFS", HDFS_URL)
     val fs = FileSystem.get(conf)
     fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
-    FileUtils.deleteDirectory(new File(HDFS_CACHE_PATH))
-    FileUtils.forceMkdir(new File(HDFS_CACHE_PATH))
+    hdfsHelper.resetMeta()
+    hdfsHelper.resetCache()
   }
 
   def countFiles(directory: File): Int = {
@@ -123,9 +120,8 @@ class GlutenClickHouseMergeTreeCacheDataSuite
                  | select * from lineitem a
                  | where a.l_shipdate between date'1995-01-01' and date'1995-01-31'
                  |""".stripMargin)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
-    val dataPath = new File(HDFS_CACHE_PATH)
+    hdfsHelper.resetMeta()
+    val dataPath = new File(hdfsHelper.HDFS_CACHE_PATH)
     val initial_cache_files = countFiles(dataPath)
 
     val res = spark
@@ -137,7 +133,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
               |                aaa='ccc')""".stripMargin)
       .collect()
     assertResult(true)(res(0).getBoolean(0))
-    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(hdfsHelper.metaPath(s"$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs"))
     assertResult(true)(metaPath.exists() && metaPath.isDirectory)
     assertResult(22)(metaPath.list().length)
     assert(countFiles(dataPath) > initial_cache_files)
@@ -227,9 +223,8 @@ class GlutenClickHouseMergeTreeCacheDataSuite
                  | select * from lineitem a
                  | where a.l_shipdate between date'1995-01-01' and date'1995-01-31'
                  |""".stripMargin)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
-    val dataPath = new File(HDFS_CACHE_PATH)
+    hdfsHelper.resetMeta()
+    val dataPath = new File(hdfsHelper.HDFS_CACHE_PATH)
     val initial_cache_files = countFiles(dataPath)
 
     val res = spark
@@ -241,7 +236,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
               |                aaa='ccc')""".stripMargin)
       .collect()
     assertResult(true)(res(0).getBoolean(0))
-    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(hdfsHelper.metaPath(s"$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs"))
     assertResult(true)(metaPath.exists() && metaPath.isDirectory)
     eventually(timeout(60.seconds), interval(2.seconds)) {
       assertResult(22)(metaPath.list().length)
@@ -335,9 +330,8 @@ class GlutenClickHouseMergeTreeCacheDataSuite
                  | select * from lineitem a
                  | where a.l_shipdate between date'1995-01-01' and date'1995-01-31'
                  |""".stripMargin)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
-    val dataPath = new File(HDFS_CACHE_PATH)
+    hdfsHelper.resetMeta()
+    val dataPath = new File(hdfsHelper.HDFS_CACHE_PATH)
     val initial_cache_files = countFiles(dataPath)
 
     val res = spark
@@ -349,7 +343,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
               |                aaa='ccc')""".stripMargin)
       .collect()
     assertResult(true)(res(0).getBoolean(0))
-    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(hdfsHelper.metaPath(s"$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs"))
     assertResult(true)(metaPath.exists() && metaPath.isDirectory)
     assertResult(22)(metaPath.list().length)
     assert(countFiles(dataPath) > initial_cache_files)
@@ -437,12 +431,11 @@ class GlutenClickHouseMergeTreeCacheDataSuite
                  | select * from lineitem a
                  | where a.l_shipdate between date'1995-01-01' and date'1995-01-31'
                  |""".stripMargin)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
-    val dataPath = new File(HDFS_CACHE_PATH)
+    hdfsHelper.resetMeta()
+    val dataPath = new File(hdfsHelper.HDFS_CACHE_PATH)
     val initial_cache_files = countFiles(dataPath)
 
-    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(hdfsHelper.metaPath(s"$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs"))
     val res1 = spark.sql(s"cache data select * from lineitem_mergetree_hdfs").collect()
     assertResult(true)(res1(0).getBoolean(0))
     assertResult(1)(metaPath.list().length)
@@ -528,9 +521,8 @@ class GlutenClickHouseMergeTreeCacheDataSuite
                  | select * from lineitem a
                  | where a.l_shipdate between date'1995-01-01' and date'1995-01-31'
                  |""".stripMargin)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
-    val dataPath = new File(HDFS_CACHE_PATH)
+    hdfsHelper.resetMeta()
+    val dataPath = new File(hdfsHelper.HDFS_CACHE_PATH)
     val initial_cache_files = countFiles(dataPath)
 
     val res = spark
@@ -542,7 +534,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
               |                aaa='ccc')""".stripMargin)
       .collect()
     assertResult(true)(res(0).getBoolean(0))
-    val metaPath = new File(s"$HDFS_METADATA_PATH/$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs")
+    val metaPath = new File(hdfsHelper.metaPath(s"$SPARK_DIR_NAME/test/lineitem_mergetree_hdfs"))
     assertResult(true)(metaPath.exists() && metaPath.isDirectory)
     assertResult(22)(metaPath.list().length)
     assert(countFiles(dataPath) > initial_cache_files)
@@ -597,7 +589,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
   test("test disable cache files return") {
     withSQLConf(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key -> "false") {
       runSql(
-        s"CACHE FILES select * from '$HDFS_URL_ENDPOINT/tpch-data/lineitem'",
+        s"CACHE FILES select * from '${hdfsHelper.getHdfsUrl("tpch-data/lineitem")}'",
         noFallBack = false) {
         df =>
           val res = df.collect()

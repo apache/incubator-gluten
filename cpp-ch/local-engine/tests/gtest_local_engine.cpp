@@ -106,7 +106,7 @@ int main(int argc, char ** argv)
     SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
 
     DB::registerInterpreters();
-    DB::registerTableFunctions(false);
+    DB::registerTableFunctions();
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

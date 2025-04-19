@@ -18,6 +18,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/scalar_function_parser/getTimestamp.h>
+#include <Common/DateLUTImpl.h>
 
 namespace DB
 {

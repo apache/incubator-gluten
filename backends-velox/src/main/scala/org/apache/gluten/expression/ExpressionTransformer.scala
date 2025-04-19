@@ -16,17 +16,17 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.expression.ExpressionConverter.replaceWithExpressionTransformer
 import org.apache.gluten.substrait.`type`.StructNode
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression._
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types.{IntegerType, LongType}
 
-import java.lang.{Integer => JInteger, Long => JLong}
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
+import java.lang.{Integer => JInteger}
+import java.util.{ArrayList => JArrayList}
 
 import scala.language.existentials
 
@@ -36,8 +36,8 @@ case class VeloxAliasTransformer(
     original: Expression)
   extends UnaryExpressionTransformer {
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    child.doTransform(args)
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
+    child.doTransform(context)
   }
 }
 
@@ -56,9 +56,11 @@ case class VeloxGetStructFieldTransformer(
     child: ExpressionTransformer,
     ordinal: Int,
     original: GetStructField)
-  extends UnaryExpressionTransformer {
-  override def doTransform(args: Object): ExpressionNode = {
-    val childNode = child.doTransform(args)
+  extends BinaryExpressionTransformer {
+  override def left: ExpressionTransformer = child
+  override def right: ExpressionTransformer = LiteralTransformer(ordinal)
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
+    val childNode = child.doTransform(context)
     childNode match {
       case node: StructLiteralNode =>
         node.getFieldLiteral(ordinal)
@@ -70,8 +72,7 @@ case class VeloxGetStructFieldTransformer(
           node.getTypeNode.asInstanceOf[StructNode].getFieldTypes.get(ordinal)
         ExpressionBuilder.makeNullLiteral(nodeType)
       case _ =>
-        throw new GlutenNotSupportException(
-          s"Unsupported child expression of GetStructField: $original.")
+        super.doTransform(context)
     }
   }
 }
@@ -82,7 +83,7 @@ case class VeloxHashExpressionTransformer(
     original: HashExpression[_])
   extends ExpressionTransformer {
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     // As of Spark 3.3, there are 3 kinds of HashExpression.
     // HiveHash is not supported in native backend and will fail native validation.
     val (seedNode, seedType) = original match {
@@ -98,13 +99,12 @@ case class VeloxHashExpressionTransformer(
     nodes.add(seedNode)
     children.foreach(
       expression => {
-        nodes.add(expression.doTransform(args))
+        nodes.add(expression.doTransform(context))
       })
     val childrenTypes = seedType +: original.children.map(child => child.dataType)
-    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionName =
       ConverterUtils.makeFuncName(substraitExprName, childrenTypes, FunctionConfig.OPT)
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val functionId = context.registerFunction(functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }

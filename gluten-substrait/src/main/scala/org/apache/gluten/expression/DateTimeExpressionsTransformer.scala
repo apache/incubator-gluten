@@ -44,8 +44,7 @@ case class TruncTimestampTransformer(
     original: TruncTimestamp)
   extends ExpressionTransformer {
   override def children: Seq[ExpressionTransformer] = {
-    val timeZoneId = original.timeZoneId.map(timeZoneId => LiteralTransformer(timeZoneId))
-    Seq(format, timestamp) ++ timeZoneId
+    Seq(format, timestamp)
   }
 }
 

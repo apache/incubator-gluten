@@ -29,3 +29,15 @@ body:
       description: Please describe the potential enhancement and its use cases.
     validations:
       required: true
+
+  - type: dropdown
+    id: targetVersion
+    attributes:
+      label: Gluten version
+      description: Please provide the target gluten version you want to support.
+      options:
+        - main branch
+        - Gluten-1.5
+        - Gluten-1.6
+    validations:
+      required: false

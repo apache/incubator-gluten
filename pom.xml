@@ -27,7 +27,7 @@
   </parent>
   <groupId>org.apache.gluten</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>1.4.0-SNAPSHOT</version>
+  <version>1.5.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
@@ -157,6 +157,7 @@
       -Djdk.reflect.useDirectMethodHandle=false
       -Dio.netty.tryReflectionSetAccessible=true
     </extraJavaTestArgs>
+    <log4j.conf>file:src/test/resources/log4j2.properties</log4j.conf>
   </properties>
 
   <profiles>
@@ -1371,6 +1372,9 @@
             <testFailureIgnore>${maven.test.failure.ignore}</testFailureIgnore>
             <junitxml>.</junitxml>
             <argLine>${argLine} ${extraJavaTestArgs}</argLine>
+            <systemProperties>
+              <log4j.configurationFile>${log4j.conf}</log4j.configurationFile>
+            </systemProperties>
           </configuration>
           <executions>
             <execution>

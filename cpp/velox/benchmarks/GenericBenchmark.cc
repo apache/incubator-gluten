@@ -96,6 +96,7 @@ struct WriterMetrics {
   int64_t writeTime{0};
   int64_t compressTime{0};
 
+  int64_t dataSize{0};
   int64_t bytesSpilled{0};
   int64_t bytesWritten{0};
 };
@@ -238,6 +239,8 @@ void populateWriterMetrics(
   if (splitTime > 0) {
     metrics.splitTime += splitTime;
   }
+  metrics.dataSize +=
+      std::accumulate(shuffleWriter->rawPartitionLengths().begin(), shuffleWriter->rawPartitionLengths().end(), 0LL);
   metrics.bytesWritten += shuffleWriter->totalBytesWritten();
   metrics.bytesSpilled += shuffleWriter->totalBytesEvicted();
 }
@@ -302,6 +305,9 @@ void runShuffle(
       // Read and discard.
       auto cb = iter->next();
     }
+    // Call the dtor to collect the metrics.
+    iter.reset();
+
     readerMetrics.decompressTime = reader->getDecompressTime();
     readerMetrics.deserializeTime = reader->getDeserializeTime();
   }
@@ -343,6 +349,8 @@ void updateBenchmarkMetrics(
     state.counters["shuffle_split_time"] =
         benchmark::Counter(splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 
+    state.counters["shuffle_data_size"] = benchmark::Counter(
+        writerMetrics.dataSize, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
     state.counters["shuffle_spilled_bytes"] = benchmark::Counter(
         writerMetrics.bytesSpilled, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
     state.counters["shuffle_write_bytes"] = benchmark::Counter(

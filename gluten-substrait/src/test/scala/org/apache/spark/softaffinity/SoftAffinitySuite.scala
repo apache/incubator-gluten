@@ -39,6 +39,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED.key, "true")
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.key, "2")
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.key, "2")
+    .set("spark.ui.enabled", "false")
 
   val scalaVersion = scala.util.Properties.versionNumberString
 

@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <set>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
@@ -240,7 +241,6 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
     return ch_type;
 }
 
-
 DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & struct_, const std::string & low_card_cols)
 {
     std::unordered_set<std::string> low_card_columns;
@@ -254,6 +254,11 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
     for (int i = 0; i < struct_.names_size(); ++i)
         field_names.emplace_back(struct_.names(i));
 
+    /// Spark permits schemas with duplicate field names, whereas ClickHouse (CH) does not. However,
+    /// since Substrait plans reference columns by position rather than name, renaming duplicate
+    /// columns is safe and will not affect query execution.
+    /// See bug #9317.
+    std::set<String> column_names_set;
     for (int i = 0; i < struct_.struct_().types_size(); ++i)
     {
         auto name = field_names.front();
@@ -286,7 +291,14 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
                           agg_function_name, args_types, properties, function_parser->getDefaultFunctionParameters())
                           ->getStateType();
         }
-
+        if (column_names_set.contains(name))
+        {
+            name = name + "_" + std::to_string(i);
+        }
+        else
+        {
+            column_names_set.insert(name);
+        }
         internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));
     }
 

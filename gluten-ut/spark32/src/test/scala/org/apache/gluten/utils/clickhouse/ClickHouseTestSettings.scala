@@ -439,7 +439,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
     .exclude("binary overlay function")
-    .exclude("string parse_url function")
     .exclude("string / binary length function")
     .exclude("SPARK-36751: add octet length api for scala")
     .exclude("SPARK-36751: add bit length api for scala")
@@ -986,6 +985,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Exchange reuse across the whole plan")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSQLAggregateFunctionSuite]
+    .excludeGlutenTest("Return NaN or null when dividing by zero")
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("window function: partition and order expressions")
     .exclude("window function: expressions in arguments of a window functions")

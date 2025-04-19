@@ -42,10 +42,6 @@
 using namespace gluten;
 
 namespace {
-jclass javaReservationListenerClass;
-
-jmethodID reserveMemoryMethod;
-jmethodID unreserveMemoryMethod;
 
 jclass byteArrayClass;
 
@@ -238,14 +234,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
   nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", "([I[IJ)V");
 
-  javaReservationListenerClass = createGlobalClassReference(
-      env,
-      "Lorg/apache/gluten/memory/listener/"
-      "ReservationListener;");
-
-  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
-  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", "(J)J");
-
   shuffleReaderMetricsClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ShuffleReaderMetrics;");
   shuffleReaderMetricsSetDecompressTime =
@@ -316,8 +304,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrap
   auto backendType = jStringToCString(env, jBackendType);
   auto safeArray = getByteArrayElementsSafe(env, sessionConf);
   auto sparkConf = parseConfMap(env, safeArray.elems(), safeArray.length());
-  std::unique_ptr<AllocationListener> listener =
-      std::make_unique<SparkAllocationListener>(vm, jListener, reserveMemoryMethod, unreserveMemoryMethod);
+  std::unique_ptr<AllocationListener> listener = std::make_unique<SparkAllocationListener>(vm, jListener);
   bool backtrace = sparkConf.at(kBacktraceAllocation) == "true";
   if (backtrace) {
     listener = std::make_unique<BacktraceAllocationListener>(std::move(listener));
@@ -838,10 +825,10 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     jstring codecJstr,
     jstring codecBackendJstr,
     jint compressionLevel,
-    jint sortEvictBufferSize,
+    jint diskWriteBufferSize,
     jint compressionThreshold,
     jstring compressionModeJstr,
-    jint sortBufferInitialSize,
+    jint initialSortBufferSize,
     jboolean useRadixSort,
     jstring dataFileJstr,
     jint numSubDirs,
@@ -869,8 +856,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .taskAttemptId = static_cast<int64_t>(taskAttemptId),
       .startPartitionId = startPartitionId,
       .shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
-      .sortBufferInitialSize = sortBufferInitialSize,
-      .sortEvictBufferSize = sortEvictBufferSize,
+      .initialSortBufferSize = initialSortBufferSize,
+      .diskWriteBufferSize = diskWriteBufferSize,
       .useRadixSort = static_cast<bool>(useRadixSort)};
 
   // Build PartitionWriterOptions.

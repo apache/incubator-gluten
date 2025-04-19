@@ -17,6 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.ExpressionNode
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -27,7 +28,7 @@ case class CreateArrayTransformer(
     original: CreateArray)
   extends ExpressionTransformer {
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     // If children is empty,
     // transformation is only supported when useStringTypeWhenEmpty is false
     // because ClickHouse and Velox currently doesn't support this config.
@@ -35,6 +36,6 @@ case class CreateArrayTransformer(
       throw new GlutenNotSupportException(s"$original not supported yet.")
     }
 
-    super.doTransform(args)
+    super.doTransform(context)
   }
 }

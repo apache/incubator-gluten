@@ -39,15 +39,13 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.metric.SQLMetrics.{createMetric, createTimingMetric}
-import org.apache.spark.sql.functions.{array, col, explode, input_file_name, lit, split, struct}
+import org.apache.spark.sql.functions.{array, col, input_file_name, explode, lit, struct}
 import org.apache.spark.sql.types.LongType
 
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 3.2.1. It is modified to overcome the following issues:
- *   1. In Clickhouse backend, we can't implement input_file_name() correctly, we can only implement
- *      it so that it return a a list of filenames (concated by ',').
+ * This file is copied from Delta 3.2.1.
  */
 
 /**
@@ -195,7 +193,6 @@ case class UpdateCommand(
             data.filter(new Column(updateCondition))
               .select(input_file_name().as("input_files"))
               .filter(new Column(incrUpdatedCountExpr))
-              .select(explode(split(col("input_files"), ",")))
               .distinct()
               .as[String]
               .collect()

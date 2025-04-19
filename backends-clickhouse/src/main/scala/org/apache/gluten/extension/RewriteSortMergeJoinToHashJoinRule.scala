@@ -80,7 +80,8 @@ case class RewriteSortMergeJoinToHashJoinRule(session: SparkSession)
       smj.condition,
       newLeft,
       newRight,
-      smj.isSkewJoin)
+      smj.isSkewJoin,
+      false)
     val validateResult = hashJoin.doValidate()
     if (!validateResult.ok()) {
       logError(s"Validation failed for ShuffledHashJoinExec: ${validateResult.reason()}")

@@ -35,9 +35,7 @@ import org.apache.spark.sql.functions.{coalesce, col, count, input_file_name, li
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 3.2.1. It is modified to overcome the following issues:
- *   1. In Clickhouse backend, we can't implement input_file_name() correctly, we can only implement
- *      it so that it return a a list of filenames (concated by ','). In findTouchedFiles func.
+ * This file is copied from Delta 3.2.1.
  */
 
 /**

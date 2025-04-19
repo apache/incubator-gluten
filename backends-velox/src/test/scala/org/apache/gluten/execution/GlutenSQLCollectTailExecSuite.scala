@@ -21,6 +21,8 @@ import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.util.QueryExecutionListener
 
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 class GlutenSQLCollectTailExecSuite extends WholeStageTransformerSuite {
 
   override protected val resourcePath: String = "N/A"
@@ -37,35 +39,49 @@ class GlutenSQLCollectTailExecSuite extends WholeStageTransformerSuite {
    * returned rows match expectedRows.
    */
   private def verifyTailExec(df: DataFrame, expectedRows: Seq[Row], tailCount: Int): Unit = {
+
+    val latch = new CountDownLatch(1)
+
+    @volatile var listenerException: Option[Throwable] = None
+
     class TailExecListener extends QueryExecutionListener {
-      var latestPlan: String = ""
 
       override def onSuccess(funcName: String, qe: QueryExecution, durationNs: Long): Unit = {
-        latestPlan = qe.executedPlan.toString()
-        assert(
-          latestPlan.contains("ColumnarCollectTail"),
-          "ColumnarCollectTail was not found in the physical plan!"
-        )
+        try {
+          val latestPlan = qe.executedPlan.toString()
+          if (!latestPlan.contains("ColumnarCollectTail")) {
+            throw new Exception("ColumnarCollectTail not found in: " + latestPlan)
+          }
+        } catch {
+          case ex: Throwable =>
+            listenerException = Some(ex)
+        } finally {
+          latch.countDown()
+        }
       }
 
-      override def onFailure(funcName: String, qe: QueryExecution, error: Exception): Unit = {}
+      override def onFailure(funcName: String, qe: QueryExecution, error: Exception): Unit = {
+        listenerException = Some(error)
+        latch.countDown()
+      }
     }
 
     val tailExecListener = new TailExecListener()
     spark.listenerManager.register(tailExecListener)
-    try {
-      val tailArray = df.tail(tailCount)
 
-      assert(
-        tailArray.sameElements(expectedRows),
-        s"""
-           |Tail output [${tailArray.mkString(", ")}]
-           |did not match expected [${expectedRows.mkString(", ")}].
+    val tailArray = df.tail(tailCount)
+    latch.await(10, TimeUnit.SECONDS)
+    listenerException.foreach(throw _)
+
+    assert(
+      tailArray.sameElements(expectedRows),
+      s"""
+         |Tail output [${tailArray.mkString(", ")}]
+         |did not match expected [${expectedRows.mkString(", ")}].
          """.stripMargin
-      )
-    } finally {
-      spark.listenerManager.unregister(tailExecListener)
-    }
+    )
+
+    spark.listenerManager.unregister(tailExecListener)
   }
 
   test("ColumnarCollectTailExec - verify CollectTailExec in physical plan") {
@@ -112,4 +128,11 @@ class GlutenSQLCollectTailExecSuite extends WholeStageTransformerSuite {
     val expected = (9997L to 9999L).map(Row(_))
     verifyTailExec(unionDf, expected, tailCount = 3)
   }
+
+  test("ColumnarCollectTailExec - tail spans across two columnar batches") {
+    val df = spark.range(0, 4101).toDF("id").orderBy("id")
+    val expected = (4095L to 4100L).map(Row(_))
+    verifyTailExec(df, expected, tailCount = 6)
+  }
+
 }

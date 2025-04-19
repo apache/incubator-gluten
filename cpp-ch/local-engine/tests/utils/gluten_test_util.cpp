@@ -45,7 +45,7 @@ extern const int LOGICAL_ERROR;
 namespace local_engine::test
 {
 using namespace DB;
-std::optional<ActionsDAG> parseFilter(const std::string & filter, const AnotherRowType & name_and_types)
+std::optional<ActionsDAG> parseFilter(const std::string & filter, const RowType & name_and_types)
 {
     using namespace DB;
 
@@ -212,7 +212,7 @@ DB::DataTypePtr toDataType(const parquet::ColumnDescriptor & type)
     assert(false);
 }
 
-AnotherRowType readParquetSchema(const std::string & file, const FormatSettings & settings)
+RowType readParquetSchema(const std::string & file, const FormatSettings & settings)
 {
     const auto in = std::make_shared<DB::ReadBufferFromFile>(file);
     DB::ParquetSchemaReader schema_reader(*in, settings);

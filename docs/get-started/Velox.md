@@ -431,7 +431,7 @@ Using the following configuration options to customize spilling:
 
 # Velox User-Defined Functions (UDF) and User-Defined Aggregate Functions (UDAF)
 
-Please check the [VeloxNativeUDF.md](../developers/VeloxNativeUDF.md) for more detailed usage and configurations.
+Please check the [VeloxNativeUDF.md](../developers/VeloxUDF.md) for more detailed usage and configurations.
 
 # Test TPC-H or TPC-DS on Gluten with Velox backend
 
@@ -444,10 +444,6 @@ The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch
 
 The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../tools/gluten-it/common/src/main/resources/tpcds-queries)
 and [TPC-H queries](../../tools/gluten-it/common/src/main/resources/tpch-queries).
-
-Some other versions of TPC-DS queries are also provided, but are **not** recommended for testing, including:
-
-- the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
 
 ## Submit the Spark SQL job
 
@@ -547,7 +543,7 @@ I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan 
 
 
 ## Using Stage-Level Resource Adjustment to Avoid OOM(Experimental)
- see more [here](../VeloxStageResourceAdj.md)
+ see more [here](./VeloxStageResourceAdj.md)
 
 ## Broadcast Build Relations to Off-Heap(Experimental)
 

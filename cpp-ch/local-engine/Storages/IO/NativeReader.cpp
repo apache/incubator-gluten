@@ -25,17 +25,19 @@
 #include <IO/VarInt.h>
 #include <Storages/IO/AggregateSerializationUtils.h>
 #include <Storages/IO/NativeWriter.h>
+#include <jni/jni_common.h>
 #include <Common/Arena.h>
+#include <Common/JNIUtils.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int INCORRECT_INDEX;
-    extern const int LOGICAL_ERROR;
-    extern const int CANNOT_READ_ALL_DATA;
-    extern const int INCORRECT_DATA;
-    extern const int TOO_LARGE_ARRAY_SIZE;
+extern const int INCORRECT_INDEX;
+extern const int LOGICAL_ERROR;
+extern const int CANNOT_READ_ALL_DATA;
+extern const int INCORRECT_DATA;
+extern const int TOO_LARGE_ARRAY_SIZE;
 }
 }
 
@@ -68,10 +70,8 @@ DB::Block NativeReader::read()
 
     /// Append small blocks into a large one, could reduce memory allocations overhead.
     while (result_block.rows() < max_block_size && result_block.bytes() < max_block_bytes)
-    {
         if (!appendNextBlock(result_block))
             break;
-    }
 
     if (result_block.rows())
     {
@@ -85,7 +85,8 @@ DB::Block NativeReader::read()
     return result_block;
 }
 
-static void readFixedSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
+static void
+readFixedSizeAggregateData(DB::ReadBuffer & in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
 {
     ColumnAggregateFunction & real_column = typeid_cast<ColumnAggregateFunction &>(*column->assumeMutable());
     auto & arena = real_column.createOrGetArena();
@@ -102,7 +103,8 @@ static void readFixedSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & colum
     }
 }
 
-static void readVarSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
+static void
+readVarSizeAggregateData(DB::ReadBuffer & in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
 {
     ColumnAggregateFunction & real_column = typeid_cast<ColumnAggregateFunction &>(*column->assumeMutable());
     auto & arena = real_column.createOrGetArena();
@@ -119,7 +121,8 @@ static void readVarSizeAggregateData(DB::ReadBuffer &in, DB::ColumnPtr & column,
     }
 }
 
-static void readNormalSimpleData(DB::ReadBuffer &in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
+static void
+readNormalSimpleData(DB::ReadBuffer & in, DB::ColumnPtr & column, size_t rows, NativeReader::ColumnParseUtil & column_parse_util)
 {
     ISerialization::DeserializeBinaryBulkSettings settings;
     settings.getter = [&](ISerialization::SubstreamPath) -> ReadBuffer * { return &in; };
@@ -130,7 +133,7 @@ static void readNormalSimpleData(DB::ReadBuffer &in, DB::ColumnPtr & column, siz
     ISerialization::DeserializeBinaryBulkStatePtr state;
 
     column_parse_util.serializer->deserializeBinaryBulkStatePrefix(settings, state, nullptr);
-    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(column, rows, settings, state, nullptr);
+    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(column, 0, rows, settings, state, nullptr);
 }
 
 // May not efficient.
@@ -146,8 +149,8 @@ readNormalComplexData(DB::ReadBuffer & in, DB::ColumnPtr & column, size_t rows, 
     ISerialization::DeserializeBinaryBulkStatePtr state;
 
     DB::ColumnPtr new_col = column->cloneResized(0);
-    column_parse_util.serializer->deserializeBinaryBulkStatePrefix(settings, state ,nullptr);
-    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(new_col, rows, settings, state, nullptr);
+    column_parse_util.serializer->deserializeBinaryBulkStatePrefix(settings, state, nullptr);
+    column_parse_util.serializer->deserializeBinaryBulkWithMultipleStreams(new_col, 0, rows, settings, state, nullptr);
     column->assumeMutable()->insertRangeFrom(*new_col, 0, new_col->size());
 }
 
@@ -201,7 +204,7 @@ DB::Block NativeReader::prepareByFirstBlock()
         /// Data
         ColumnPtr read_column = column.type->createColumn(*serialization);
 
-        if (rows)    /// If no rows, nothing to read.
+        if (rows) /// If no rows, nothing to read.
         {
             if (is_agg_state_type && agg_opt_column)
             {
@@ -270,6 +273,38 @@ bool NativeReader::appendNextBlock(DB::Block & result_block)
     }
 
     return true;
+}
+
+jclass ReadBufferFromJavaInputStream::input_stream_class = nullptr;
+jmethodID ReadBufferFromJavaInputStream::input_stream_read = nullptr;
+
+bool ReadBufferFromJavaInputStream::nextImpl()
+{
+    int count = readFromJava();
+    if (count > 0)
+        working_buffer.resize(count);
+    return count > 0;
+}
+
+int ReadBufferFromJavaInputStream::readFromJava() const
+{
+    GET_JNIENV(env)
+    jint count = safeCallIntMethod(env, input_stream, input_stream_read, buffer);
+
+    if (count > 0)
+        env->GetByteArrayRegion(buffer, 0, count, reinterpret_cast<jbyte *>(internal_buffer.begin()));
+
+    CLEAN_JNIENV
+    return count;
+}
+
+ReadBufferFromJavaInputStream::ReadBufferFromJavaInputStream(jobject input_stream_, jbyteArray buffer_, const size_t buffer_size_)
+    : input_stream(input_stream_), buffer(buffer_), buffer_size(buffer_size_)
+{
+}
+
+ReadBufferFromJavaInputStream::~ReadBufferFromJavaInputStream()
+{
 }
 
 }

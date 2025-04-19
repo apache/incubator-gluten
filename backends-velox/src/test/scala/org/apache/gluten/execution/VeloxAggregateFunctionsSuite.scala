@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.VeloxConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.extension.columnar.validator.FallbackInjects
 
 import org.apache.spark.SparkConf
@@ -390,7 +390,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_r2", Some("3.3")) {
+  testWithMinSparkVersion("regr_r2", "3.3") {
     runQueryAndCompare("""
                          |select regr_r2(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -409,7 +409,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_slope", Some("3.4")) {
+  testWithMinSparkVersion("regr_slope", "3.4") {
     runQueryAndCompare("""
                          |select regr_slope(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -428,7 +428,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_intercept", Some("3.4")) {
+  testWithMinSparkVersion("regr_intercept", "3.4") {
     runQueryAndCompare("""
                          |select regr_intercept(l_partkey, l_suppkey) from lineitem;
                          |""".stripMargin) {
@@ -447,7 +447,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  testWithSpecifiedSparkVersion("regr_sxy regr_sxx regr_syy", Some("3.4")) {
+  testWithMinSparkVersion("regr_sxy regr_sxx regr_syy", "3.4") {
     runQueryAndCompare("""
                          |select regr_sxy(l_quantity, l_tax) from lineitem;
                          |""".stripMargin) {
@@ -1193,6 +1193,28 @@ class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
       }
     }
   }
+
+  test("aggregate on join keys can set ignoreNullKeys") {
+    val s =
+      """
+        |select count(1) from
+        |  (select l_orderkey, max(l_partkey) from lineitem group by l_orderkey) a
+        |inner join
+        |  (select l_orderkey from lineitem) b
+        |on a.l_orderkey = b.l_orderkey
+        |""".stripMargin
+    withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true") {
+      runQueryAndCompare(s) {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(executedPlan.exists {
+            case a: RegularHashAggregateExecTransformer if a.ignoreNullKeys => true
+            case a: FlushableHashAggregateExecTransformer if a.ignoreNullKeys => true
+            case _ => false
+          })
+      }
+    }
+  }
 }
 
 class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
@@ -1248,6 +1270,60 @@ class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
             executedPlan.exists(plan => plan.isInstanceOf[RegularHashAggregateExecTransformer]))
           assert(
             executedPlan.exists(plan => plan.isInstanceOf[FlushableHashAggregateExecTransformer]))
+      }
+    }
+  }
+
+  test("flushable aggregate rule - double sum when floatingPointMode is strict") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemory" -> "100",
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "false",
+      "spark.gluten.sql.columnar.maxBatchSize" -> "2",
+      "spark.gluten.sql.columnar.backend.velox.floatingPointMode" -> "strict"
+    ) {
+      withTempView("t1") {
+        import testImplicits._
+        Seq((24.621d, 1), (12.14d, 1), (0.169d, 1), (6.865d, 1), (1.879d, 1), (16.326d, 1))
+          .toDF("c1", "c2")
+          .createOrReplaceTempView("t1")
+        runQueryAndCompare("select c2, cast(sum(c1) as bigint) from t1 group by c2") {
+          df =>
+            {
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[RegularHashAggregateExecTransformer]
+                  }) == 2)
+            }
+        }
+      }
+    }
+  }
+
+  test("flushable aggregate rule - double sum when floatingPointMode is loose") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.velox.floatingPointMode" -> "loose"
+    ) {
+      withTempView("t1") {
+        import testImplicits._
+        Seq((24.6d, 1), (12.1d, 1), (0.1d, 1), (6.8d, 1), (1.8d, 1), (16.3d, 1))
+          .toDF("c1", "c2")
+          .createOrReplaceTempView("t1")
+        runQueryAndCompare("select c2, cast(sum(c1) as bigint) from t1 group by c2") {
+          df =>
+            {
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[RegularHashAggregateExecTransformer]
+                  }) == 1)
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[FlushableHashAggregateExecTransformer]
+                  }) == 1)
+            }
+        }
       }
     }
   }

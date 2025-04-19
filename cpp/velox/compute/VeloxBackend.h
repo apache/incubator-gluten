@@ -26,17 +26,44 @@
 
 #include "velox/common/caching/AsyncDataCache.h"
 #include "velox/common/config/Config.h"
-#include "velox/common/memory/MemoryPool.h"
 #include "velox/common/memory/MmapAllocator.h"
 
+#include "memory/VeloxMemoryManager.h"
+
 namespace gluten {
+
 // This kind string must be same with VeloxBackend#name in java side.
 inline static const std::string kVeloxBackendKind{"velox"};
 /// As a static instance in per executor, initialized at executor startup.
 /// Should not put heavily work here.
 class VeloxBackend {
  public:
-  ~VeloxBackend() {
+  ~VeloxBackend() {}
+
+  static void create(
+      std::unique_ptr<AllocationListener> listener,
+      const std::unordered_map<std::string, std::string>& conf);
+
+  static VeloxBackend* get();
+
+  facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
+
+  std::shared_ptr<facebook::velox::config::ConfigBase> getBackendConf() const {
+    return backendConf_;
+  }
+
+  VeloxMemoryManager* getGlobalMemoryManager() const {
+    return globalMemoryManager_.get();
+  }
+
+  void tearDown() {
+    // Destruct IOThreadPoolExecutor will join all threads.
+    // On threads exit, thread local variables can be constructed with referencing global variables.
+    // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
+    ioExecutor_.reset();
+    globalMemoryManager_.reset();
+
+    // dump cache stats on exit if enabled
     if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
       LOG(INFO) << asyncDataCache_->toString();
       for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
@@ -49,32 +76,18 @@ class VeloxBackend {
     }
   }
 
-  static void create(const std::unordered_map<std::string, std::string>& conf);
-
-  static VeloxBackend* get();
-
-  facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
-
-  std::shared_ptr<facebook::velox::config::ConfigBase> getBackendConf() const {
-    return backendConf_;
-  }
-
-  void tearDown() {
-    // Destruct IOThreadPoolExecutor will join all threads.
-    // On threads exit, thread local variables can be constructed with referencing global variables.
-    // So, we need to destruct IOThreadPoolExecutor and stop the threads before global variables get destructed.
-    ioExecutor_.reset();
-  }
-
  private:
-  explicit VeloxBackend(const std::unordered_map<std::string, std::string>& conf) {
-    init(conf);
+  explicit VeloxBackend(
+      std::unique_ptr<AllocationListener> listener,
+      const std::unordered_map<std::string, std::string>& conf) {
+    init(std::move(listener), conf);
   }
 
-  void init(const std::unordered_map<std::string, std::string>& conf);
+  void init(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf);
   void initCache();
   void initConnector();
   void initUdf();
+  std::unique_ptr<facebook::velox::cache::SsdCache> initSsdCache(uint64_t ssdSize);
 
   void initJolFilesystem();
 
@@ -84,6 +97,8 @@ class VeloxBackend {
 
   static std::unique_ptr<VeloxBackend> instance_;
 
+  // A global Velox memory manager for the current process.
+  std::unique_ptr<VeloxMemoryManager> globalMemoryManager_;
   // Instance of AsyncDataCache used for all large allocations.
   std::shared_ptr<facebook::velox::cache::AsyncDataCache> asyncDataCache_;
 

@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
+import org.apache.spark.sql.internal.SQLConf
 
 class GlutenSQLAggregateFunctionSuite extends GlutenSQLTestsTrait {
 
@@ -32,5 +33,30 @@ class GlutenSQLAggregateFunctionSuite extends GlutenSQLTestsTrait {
     val df = sql(query)
     checkAnswer(df, Seq(Row(3, 5)))
     assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 4)
+  }
+
+  testGluten("Return NaN or null when dividing by zero") {
+    val query =
+      """
+        |select skewness(value), kurtosis(value)
+        |from values (1), (1)
+        |AS tab(value)
+        |""".stripMargin
+    val df = sql(query)
+
+    withSQLConf(
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key -> "true"
+    ) {
+      checkAnswer(df, Seq(Row(Double.NaN, Double.NaN)))
+      assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 2)
+    }
+
+    withSQLConf(
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key ->
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString
+    ) {
+      checkAnswer(df, Seq(Row(null, null)))
+      assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecBaseTransformer]) == 2)
+    }
   }
 }

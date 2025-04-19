@@ -18,13 +18,13 @@ package org.apache.gluten.fuzzer
 
 import org.apache.gluten.execution.RowToVeloxColumnarExec
 import org.apache.gluten.fuzzer.FuzzerResult.Successful
-import org.apache.gluten.tags.{FuzzerTest, SkipTestTags}
+import org.apache.gluten.tags.{FuzzerTest, SkipTest}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 
 @FuzzerTest
-@SkipTestTags
+@SkipTest
 class RowToColumnarFuzzer extends FuzzerBase {
 
   override protected def sparkConf: SparkConf = {

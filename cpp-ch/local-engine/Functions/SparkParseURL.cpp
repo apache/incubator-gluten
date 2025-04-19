@@ -19,11 +19,11 @@
 #include <Columns/IColumn.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/FunctionStringToString.h>
 #include <Functions/FunctionsStringSearchToString.h>
 #include <Functions/IFunction.h>
 #include <Functions/URL/domain.h>
 #include <Poco/Logger.h>
+#include <Poco/URI.h>
 #include <memory>
 
 namespace DB
@@ -58,8 +58,17 @@ struct ExtractNullableSubstringImpl
 
         for (size_t i = 0; i < size; ++i)
         {
-            Extractor::execute(reinterpret_cast<const char *>(&data[prev_offset]), offsets[i] - prev_offset - 1, start, length);
-
+            String s(reinterpret_cast<const char *>(&data[prev_offset]), offsets[i] - prev_offset - 1);
+            try
+            {
+                Poco::URI uri(s, false);
+                Extractor::execute(uri, s, start, length);
+            } 
+            catch (const Poco::SyntaxException &)
+            {
+                start = nullptr;
+                length = 0;
+            }
             res_data.resize_exact(res_data.size() + length + 1);
             if (start)
             {
@@ -176,11 +185,8 @@ public:
         if (const DB::ColumnString * col = DB::checkAndGetColumn<DB::ColumnString>(column.get()))
         {
             auto col_res = DB::ColumnString::create();
-            auto null_map = DB::DataTypeUInt8().createColumn();
-
-            DB::ColumnString::Chars & vec_res = col_res->getChars();
-            DB::ColumnString::Offsets & offsets_res = col_res->getOffsets();
-            Impl::vector(col->getChars(), col->getOffsets(), col_needle->getValue<String>(), vec_res, offsets_res, *null_map);
+            auto null_map = DB::ColumnUInt8::create(col->size(), 0);
+            Impl::vector(*col, col_needle->getValue<String>(), *col_res, *null_map);
 
             return DB::ColumnNullable::create(std::move(col_res), std::move(null_map));
         }
@@ -198,45 +204,19 @@ struct NameSparkExtractURLQuery
 
 struct SparkExtractURLQuery
 {
-    static size_t getReserveLengthForElement() { return 15; }
+    static size_t getReserveLengthForElement() { return 30; }
 
-    static void execute(DB::Pos data, size_t size, DB::Pos & res_data, size_t & res_size)
+    static void execute(const Poco::URI & uri, const String & data, DB::Pos & res_data, size_t & res_size)
     {
-        res_data = data;
-        res_size = 0;
-        DB::Pos pos = data;
-        DB::Pos end = data + size;
-        const static String protocol_delim = "://";
-        DB::Pos protocol_delim_pos = static_cast<DB::Pos>(memmem(pos, end - pos, protocol_delim.data(), protocol_delim.size()));
-        DB::Pos query_string_begin = nullptr;
-        if (protocol_delim_pos)
-        {
-            query_string_begin = find_first_symbols<'?', '#'>(pos, end);
-        }
-        else
-        {
-            query_string_begin = find_first_symbols<'?', '#', ':'>(pos, end);
-        }
-        if (query_string_begin && query_string_begin < end)
-        {
-            if (*query_string_begin != '?')
-            {
-                res_data = nullptr;
-                res_size = 0;
-                return;
-            }
-            res_data = query_string_begin + 1;
-            DB::Pos query_string_end = find_first_symbols<'#'>(res_data, end);
-            if (query_string_end && query_string_end < end)
-            {
-                res_size = query_string_end - res_data;
-            }
-            else
-            {
-                res_size = end - res_data;
-            }
-        }
-        else
+        
+        const auto & query = uri.getRawQuery();
+        res_data = query.data();
+        res_size = query.size();
+        String protocol_prefix = uri.getScheme() + "://";
+        DB::Pos query_string_begin = data.starts_with(protocol_prefix) ? 
+            find_first_symbols<'?', '#'>(data.data(), data.data() + data.size()) :
+            find_first_symbols<'?', '#', ':'>(data.data(), data.data() + data.size());
+        if (query_string_begin && *query_string_begin != '?')
         {
             res_data = nullptr;
             res_size = 0;
@@ -255,100 +235,73 @@ struct NameSparkExtractURLOneQuery
 };
 struct SparkExtractURLOneQuery
 {
-    static void vector(const DB::ColumnString::Chars & data,
-        const DB::ColumnString::Offsets & offsets,
-        std::string pattern,
-        DB::ColumnString::Chars & res_data, DB::ColumnString::Offsets & res_offsets, DB::IColumn & null_map)
+    static void vector(const DB::ColumnString & col, std::string pattern, DB::IColumn & res_col, DB::IColumn & null_map)
     {
-        const static String protocol_delim = "://";
-        res_data.reserve_exact(data.size() / 5);
-        res_offsets.resize_exact(offsets.size());
-
-        pattern += '=';
-        const char * param_str = pattern.c_str();
-        size_t param_len = pattern.size();
-
-        DB::ColumnString::Offset prev_offset = 0;
-        DB::ColumnString::Offset res_offset = 0;
-
-        for (size_t i = 0; i < offsets.size(); ++i)
+        DB::ColumnUInt8 & null_map_col = assert_cast<DB::ColumnUInt8 &>(null_map);
+        DB::PaddedPODArray<UInt8> & null_map_data = null_map_col.getData();
+        for (size_t i = 0; i < col.size(); ++i)
         {
-            DB::ColumnString::Offset cur_offset = offsets[i];
-
-            const char * str = reinterpret_cast<const char *>(&data[prev_offset]);
-            const char * end = reinterpret_cast<const char *>(&data[cur_offset]);
-
-            /// Find query string or fragment identifier.
-            /// Note that we support parameters in fragment identifier in the same way as in query string.
-            DB::Pos protocol_delim_pos = static_cast<DB::Pos>(memmem(str, end - str, protocol_delim.data(), protocol_delim.size()));
-            DB::Pos query_string_begin = nullptr;
-            if (protocol_delim_pos)
+            try 
             {
-                query_string_begin = find_first_symbols<'?', '#'>(protocol_delim_pos, end);
-            }
-            else
-            {
-                query_string_begin = find_first_symbols<'?', '#', ':'>(str, end);
-            }
-
-            if (*query_string_begin != '?')
-            {
-                query_string_begin = end;
-            }
-
-            /// Will point to the beginning of "name=value" pair. Then it will be reassigned to the beginning of "value".
-            const char * param_begin = nullptr;
-
-            if (query_string_begin + 1 < end)
-            {
-                param_begin = query_string_begin + 1;
-
-                while (true)
+                const String s = col.getDataAt(i).toString();
+                Poco::URI uri(s, false);
+                
+                String protocol_prefix = uri.getScheme() + "://";
+                DB::Pos query_string_begin = s.starts_with(protocol_prefix) ? 
+                    find_first_symbols<'?', '#'>(s.data(), s.data() + s.size()) :
+                    find_first_symbols<'?', '#', ':'>(s.data(), s.data() + s.size());
+                if (query_string_begin && *query_string_begin != '?')
                 {
-                    param_begin = static_cast<const char *>(memmem(param_begin, end - param_begin, param_str, param_len));
+                    res_col.insertDefault();
+                    null_map_data[i] = 1;
+                    continue;
+                }
 
-                    if (!param_begin)
-                        break;
-
-                    if (param_begin[-1] != '?' && param_begin[-1] != '#' && param_begin[-1] != '&')
+                const String & query = uri.getRawQuery();
+                DB::Pos query_pos = query.data();
+                auto getMatchedValue = [&](const DB::Pos & begin_pos, const size_t len) -> bool
+                {
+                    for (size_t j = 0; j < len; ++j)
                     {
-                        /// Parameter name is different but has the same suffix.
-                        param_begin += param_len;
-                        continue;
+                        if (*(begin_pos + j) == '=')
+                        {
+                            if (pattern == String(begin_pos, j))
+                            {
+                                res_col.insertData(begin_pos + j + 1, len - j - 1);
+                                return true;
+                            }
+                        }
                     }
-                    else
+                    return false;
+                };
+
+                bool matched = false;
+                for (size_t j = 0; j < query.size(); ++j)
+                {
+                    if (query.at(j) == '&')
                     {
-                        param_begin += param_len;
-                        break;
+                        if(getMatchedValue(query_pos, query.data() + j - query_pos))
+                        {
+                            matched = true;
+                            break;
+                        }
+                        else
+                            query_pos = query.data() + j + 1;
                     }
                 }
-            }
+                if (!matched && query_pos < query.data() + query.size())
+                    matched = getMatchedValue(query_pos, query.data() + query.size() - query_pos);
 
-            if (param_begin)
+                if (!matched)
+                    res_col.insertDefault();
+    
+                null_map_data[i] = !matched;
+            }
+            catch (const Poco::SyntaxException &)
             {
-                const char * param_end = find_first_symbols<'&', '#'>(param_begin, end);
-                if (param_end == end)
-                    param_end = param_begin + strlen(param_begin);
-
-                size_t param_size = param_end - param_begin;
-
-                res_data.resize_exact(res_offset + param_size + 1);
-                memcpySmallAllowReadWriteOverflow15(&res_data[res_offset], param_begin, param_size);
-                res_offset += param_size;
-                null_map.insert(0);
+                res_col.insertDefault();
+                null_map_data[i] = 1;
             }
-            else
-            {
-                /// No parameter found, put empty string in result.
-                res_data.resize_exact(res_offset + 1);
-                null_map.insert(1);
-            }
-
-            res_data[res_offset] = 0;
-            ++res_offset;
-            res_offsets[i] = res_offset;
-
-            prev_offset = cur_offset;
         }
     }
 };
@@ -362,39 +315,17 @@ REGISTER_FUNCTION(SparkFunctionURLOneQuery)
 
 struct SparkExtractURLHost
 {
-    static size_t getReserveLengthForElement() { return 15; }
+    static size_t getReserveLengthForElement() { return 30; }
 
-    static void execute(DB::Pos data, size_t size, DB::Pos & res_data, size_t & res_size)
+    static void execute(const Poco::URI & uri, const String &, DB::Pos & res_data, size_t & res_size)
     {
-        DB::Pos end = data + size;
-        const static String protocol_delim = "://";
-        DB::Pos protocol_delim_start = static_cast<DB::Pos>(memmem(data, size, protocol_delim.data(), protocol_delim.size()));
-        if (!protocol_delim_start)
+        const auto & host = uri.getHost();
+        res_data = host.data();
+        res_size = host.size();  
+        if (host.empty())
         {
             res_data = nullptr;
             res_size = 0;
-            return;
-        }
-        DB::Pos userinfo_delim_pos = find_first_symbols<'@'>(protocol_delim_start + protocol_delim.size(), end);
-        std::string_view host;
-        if (userinfo_delim_pos && userinfo_delim_pos < end)
-        {
-            host = DB::getURLHost(userinfo_delim_pos + 1, end - userinfo_delim_pos);
-        }
-        else
-        {
-            host = DB::getURLHost(protocol_delim_start + protocol_delim.size() , end - protocol_delim_start - protocol_delim.size());
-        }
-
-        if (host.empty())
-        {
-            res_data = data;
-            res_size = 0;
-        }
-        else
-        {
-            res_data = host.data();
-            res_size = host.size();
         }
     }
 };
@@ -417,37 +348,14 @@ struct SparkExtractURLPath
 {
     static size_t getReserveLengthForElement() { return 25; }
 
-    static void execute(DB::Pos data, size_t size, DB::Pos & res_data, size_t & res_size)
+    static void execute(const Poco::URI & uri, const String &, DB::Pos & res_data, size_t & res_size)
     {
-        res_data = data;
-        res_size = 0;
-        DB::Pos pos = data;
-        DB::Pos end = data + size;
-        const static String protocol_delim = "://";
-        const auto * start_pos = static_cast<DB::Pos>(memmem(pos, end - pos, protocol_delim.data(), protocol_delim.size()));
-        if (start_pos)
-        {
-            start_pos += protocol_delim.size();
-            const auto * path_start_pos = find_first_symbols<'/', '#', '?'>(start_pos, end);
-            if (path_start_pos && path_start_pos < end)
-            {
-                if (*path_start_pos != '/')
-                    return;
-                res_data = path_start_pos;
-                const auto * path_end_pos = find_first_symbols<'?', '#'>(path_start_pos, end);
-                if (path_end_pos && path_end_pos < end)
-                {
-                    res_size = path_end_pos - path_start_pos;
-                }
-                else
-                {
-                    res_size = end - path_start_pos;
-                }
-            }
-        }
+        const auto & path = uri.getPath();
+        res_data = path.data();
+        res_size = path.size();
     }
 };
-using SparkFunctionURLPath = DB::FunctionStringToString<DB::ExtractSubstringImpl<SparkExtractURLPath>, NameSparkExtractURLPath>;
+using SparkFunctionURLPath = FunctionStringToNullableString<ExtractNullableSubstringImpl<SparkExtractURLPath>, NameSparkExtractURLPath>;
 REGISTER_FUNCTION(SparkFunctionURLPath)
 {
     factory.registerFunction<SparkFunctionURLPath>();
@@ -460,30 +368,16 @@ struct NameSparkExtractUserInfo
 struct SparkExtractURLUserInfo
 {
     static size_t getReserveLengthForElement() { return 25; }
-    static void execute(DB::Pos data, size_t size, DB::Pos & res_data, size_t & res_size)
+    static void execute(const Poco::URI & uri, const String &, DB::Pos & res_data, size_t & res_size)
     {
-        res_data = data;
-        res_size = 0;
-        DB::Pos pos = data;
-        DB::Pos end = data + size;
-        const static String protocol_delim = "://";
-        const static String userinfo_delim = "@";
-        DB::Pos protocol_delim_start = static_cast<DB::Pos>(memmem(pos, end - pos, protocol_delim.data(), protocol_delim.size()));
-        if (!protocol_delim_start)
+        const auto & userinfo = uri.getUserInfo();
+        res_data = userinfo.data();
+        res_size = userinfo.size();
+        if (userinfo.empty())
         {
             res_data = nullptr;
             res_size = 0;
-            return;
         }
-        res_data = protocol_delim_start + protocol_delim.size();
-        DB::Pos userinfo_delim_start = find_first_symbols<'@'>(res_data, end);
-        if (!userinfo_delim_start || userinfo_delim_start >= end)
-        {
-            res_data = nullptr;
-            res_size = 0;
-            return;
-        }
-        res_size = userinfo_delim_start  - res_data;
     }
 };
 using SparkFunctionURLUserInfo = FunctionStringToNullableString<ExtractNullableSubstringImpl<SparkExtractURLUserInfo>, NameSparkExtractUserInfo>;
@@ -499,23 +393,24 @@ struct NameSparkExtractURLRef
 struct SparkExtractURLRef
 {
     static size_t getReserveLengthForElement() { return 25; }
-    static void execute(DB::Pos data, size_t size, DB::Pos & res_data, size_t & res_size)
+    static void execute(const Poco::URI & uri, const String & data, DB::Pos & res_data, size_t & res_size)
     {
-        res_data = data;
-        res_size = 0;
-        DB::Pos pos = data;
-        DB::Pos end = data + size;
-        const static String ref_delim = "#";
-        const auto * ref_delim_pos = find_first_symbols<'#'>(pos, end);
-        if (ref_delim_pos && ref_delim_pos < end)
+        const auto & fragment = uri.getFragment();
+        res_data = fragment.data();
+        res_size = fragment.size();
+        if (data.find(fragment) == std::string::npos || fragment.empty())
         {
-            res_data = ref_delim_pos + 1;
-            res_size = end - res_data;
-        }
-        else
-        {
-            res_data = nullptr;
-            res_size = 0;
+            const auto * ref_delim_pos = find_first_symbols<'#'>(data.data(),data.data() + data.size());
+            if (ref_delim_pos && ref_delim_pos < data.data() + data.size())
+            {
+                res_data = ref_delim_pos + 1;
+                res_size = data.data() + data.size() - res_data;
+            }
+            else
+            {
+                res_data = nullptr;
+                res_size = 0;
+            }
         }
     }
 };
@@ -532,44 +427,35 @@ struct NameSparkExtractURLFile
 struct SparkExtractURLFile
 {
     static size_t getReserveLengthForElement() { return 25; }
-    static void execute(DB::Pos data, size_t size, DB::Pos & res_data, size_t & res_size)
+    static void execute(const Poco::URI & uri, const String & data, DB::Pos & res_data, size_t & res_size)
     {
-        res_data = data;
-        res_size = 0;
-        DB::Pos pos = data;
-        DB::Pos end = data + size;
         const static String protocol_delim = "://";
-        const static String slash_delim = "/";
-        const static String query_delim = "?";
-        const auto * protocol_delim_pos = static_cast<DB::Pos>(memmem(pos, end - pos, protocol_delim.data(), protocol_delim.size()));
+        const auto * protocol_delim_pos = static_cast<DB::Pos>(memmem(data.data(), data.size(), protocol_delim.data(), protocol_delim.size()));
         if (!protocol_delim_pos)
         {
-            auto colon_pos = find_first_symbols<':'>(pos, end);
-            if (colon_pos && colon_pos + 1 < end)
+            auto colon_pos = find_first_symbols<':'>(data.data(), data.data() + data.size());
+            if (colon_pos && colon_pos + 1 < data.data() + data.size())
             {
                 res_data = nullptr;
-                return;
-            }
-            res_size = size;
-            return;
-        }
-        DB::Pos file_begin_pos = find_first_symbols<'/', '?', '#'>(protocol_delim_pos + protocol_delim.size(), end);
-        if (file_begin_pos && file_begin_pos < end)
-        {
-            if (*file_begin_pos == '#')
-            {
-                return;
-            }
-            res_data = file_begin_pos;
-            DB::Pos ref_delim_pos = find_first_symbols<'#'>(file_begin_pos + 1, end);
-            if (ref_delim_pos && ref_delim_pos < end)
-            {
-                res_size = ref_delim_pos - res_data;
+                res_size = 0;
             }
             else
             {
-                res_size = end - res_data;
+                res_data = data.data();
+                res_size = data.size();
             }
+            return;
+        }
+        const String & res = uri.getPath();
+        res_data = res.data();
+        res_size = res.size();
+        DB::Pos query_begin_pos = find_first_symbols<'?'>(protocol_delim_pos + protocol_delim.size(), data.data() + data.size());
+        if (query_begin_pos && *query_begin_pos == '?')
+        {
+            const String & query = uri.getRawQuery();
+            String new_res = res.empty() && query.empty() ? "" : res + "?" + query;
+            res_data = new_res.data();
+            res_size = new_res.size();
         }
     }
 };
@@ -586,29 +472,15 @@ struct NameSparkExtractURLAuthority
 struct SparkExtractURLAuthority
 {
     static size_t getReserveLengthForElement() { return 25; }
-    static void execute(DB::Pos data, size_t size, DB::Pos & res_data, size_t & res_size)
+    static void execute(const Poco::URI & uri, const String &, DB::Pos & res_data, size_t & res_size)
     {
-        res_data = data;
-        res_size = 0;
-        DB::Pos pos = data;
-        DB::Pos end = data + size;
-        const static String protocol_delim = "://";
-        const auto * protocol_delim_pos = static_cast<DB::Pos>(memmem(pos, end - pos, protocol_delim.data(), protocol_delim.size()));
-        if (!protocol_delim_pos)
+        const auto & authority = uri.getAuthority();
+        res_data = authority.data();
+        res_size = authority.size();
+        if (authority.empty())
         {
             res_data = nullptr;
             res_size = 0;
-            return;
-        }
-        res_data = protocol_delim_pos + protocol_delim.size();
-        DB::Pos end_pos = find_first_symbols<'/', '?', '#'>(res_data, end);
-        if (end_pos)
-        {
-            res_size = end_pos - res_data;
-        }
-        else
-        {
-            res_size = end - res_data -1 ;
         }
     }
 };
@@ -627,7 +499,7 @@ struct NameSparkExtractURLInvalid
 struct SparkExtractURLInvalid
 {
     static size_t getReserveLengthForElement() { return 1; }
-    static void execute(DB::Pos, size_t, DB::Pos & res_data, size_t & res_size)
+    static void execute(const Poco::URI &, const String &, DB::Pos & res_data, size_t & res_size)
     {
         res_data = nullptr;
         res_size = 0;

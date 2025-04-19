@@ -48,6 +48,10 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
     nativeFinalizeNative();
   }
 
+  public static void destroyNative() {
+    nativeDestroyNative();
+  }
+
   // Used to validate the Substrait plan in native compute engine.
   public static boolean doValidate(byte[] subPlan) {
     throw new UnsupportedOperationException("doValidate is not supported in Clickhouse Backend");

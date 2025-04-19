@@ -50,11 +50,12 @@ class MemoryManagerTest : public ::testing::Test {
     std::unordered_map<std::string, std::string> conf = {
         {kMemoryReservationBlockSize, std::to_string(kMemoryReservationBlockSizeDefault)},
         {kVeloxMemInitCapacity, std::to_string(kVeloxMemInitCapacityDefault)}};
-    gluten::VeloxBackend::create(conf);
+    gluten::VeloxBackend::create(AllocationListener::noop(), conf);
   }
 
   void SetUp() override {
-    vmm_ = std::make_unique<VeloxMemoryManager>(gluten::kVeloxBackendKind, std::make_unique<MockAllocationListener>());
+    vmm_ = std::make_unique<VeloxMemoryManager>(
+        gluten::kVeloxBackendKind, std::make_unique<MockAllocationListener>(), *VeloxBackend::get()->getBackendConf());
     listener_ = vmm_->getListener();
     allocator_ = vmm_->allocator();
   }
@@ -333,11 +334,12 @@ class MultiMemoryManagerTest : public ::testing::Test {
     std::unordered_map<std::string, std::string> conf = {
         {kMemoryReservationBlockSize, std::to_string(kMemoryReservationBlockSizeDefault)},
         {kVeloxMemInitCapacity, std::to_string(kVeloxMemInitCapacityDefault)}};
-    gluten::VeloxBackend::create(conf);
+    gluten::VeloxBackend::create(AllocationListener::noop(), conf);
   }
 
   std::unique_ptr<VeloxMemoryManager> newVeloxMemoryManager(std::unique_ptr<AllocationListener> listener) {
-    return std::make_unique<VeloxMemoryManager>(gluten::kVeloxBackendKind, std::move(listener));
+    return std::make_unique<VeloxMemoryManager>(
+        gluten::kVeloxBackendKind, std::move(listener), *VeloxBackend::get()->getBackendConf());
   }
 };
 

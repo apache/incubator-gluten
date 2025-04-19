@@ -31,18 +31,20 @@ object HiveUDFTransformer {
     }
   }
 
+  def getHiveUDFNameAndClassName(expr: Expression): (String, String) = expr match {
+    case s: HiveSimpleUDF =>
+      (s.name.stripPrefix("default."), s.funcWrapper.functionClassName)
+    case g: HiveGenericUDF =>
+      (g.name.stripPrefix("default."), g.funcWrapper.functionClassName)
+    case _ =>
+      throw new GlutenNotSupportException(
+        s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
+  }
+
   def replaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    val udfName = expr match {
-      case s: HiveSimpleUDF =>
-        s.name.stripPrefix("default.")
-      case g: HiveGenericUDF =>
-        g.name.stripPrefix("default.")
-      case _ =>
-        throw new GlutenNotSupportException(
-          s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
-    }
+    val (udfName, _) = getHiveUDFNameAndClassName(expr)
     genTransformerFromUDFMappings(udfName, expr, attributeSeq)
   }
 

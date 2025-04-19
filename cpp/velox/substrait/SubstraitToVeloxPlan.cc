@@ -16,6 +16,9 @@
  */
 
 #include "SubstraitToVeloxPlan.h"
+
+#include "utils/StringUtil.h"
+
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
@@ -418,6 +421,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     preGroupingExprs.insert(preGroupingExprs.begin(), veloxGroupingExprs.begin(), veloxGroupingExprs.end());
   }
 
+  if (aggRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "ignoreNullKeys=")) {
+    ignoreNullKeys = true;
+  }
+
   // Get the output names of Aggregation.
   std::vector<std::string> aggOutNames;
   aggOutNames.reserve(aggRel.measures().size());
@@ -493,7 +501,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 }
 
 std::string makeUuid() {
-  return boost::lexical_cast<std::string>(boost::uuids::random_generator()());
+  return generateUuid();
 }
 
 std::string compressionFileNameSuffix(common::CompressionKind kind) {
@@ -1284,18 +1292,24 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Velox requires Filter Pushdown must being enabled.
   bool filterPushdownEnabled = true;
+  auto names = colNameList;
+  auto types = veloxTypeList;
+  auto dataColumns = ROW(std::move(names), std::move(types));
   std::shared_ptr<connector::hive::HiveTableHandle> tableHandle;
   if (!readRel.has_filter()) {
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr);
+        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr, dataColumns);
   } else {
     common::SubfieldFilters subfieldFilters;
-    auto names = colNameList;
-    auto types = veloxTypeList;
-    auto remainingFilter = exprConverter_->toVeloxExpr(readRel.filter(), ROW(std::move(names), std::move(types)));
+    auto remainingFilter = exprConverter_->toVeloxExpr(readRel.filter(), dataColumns);
 
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter);
+        kHiveConnectorId,
+        "hive_table",
+        filterPushdownEnabled,
+        std::move(subfieldFilters),
+        remainingFilter,
+        dataColumns);
   }
 
   // Get assignments and out names.

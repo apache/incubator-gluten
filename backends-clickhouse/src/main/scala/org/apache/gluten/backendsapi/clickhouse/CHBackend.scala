@@ -44,7 +44,8 @@ import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.util.SerializableConfiguration
+
+import org.apache.hadoop.conf.Configuration
 
 import java.util.Locale
 
@@ -160,6 +161,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     CHConfig.prefixOf("enable.coalesce.aggregation.union")
   val GLUTEN_ENABLE_COALESCE_PROJECT_UNION: String =
     CHConfig.prefixOf("enable.coalesce.project.union")
+  val GLUTEN_JOIN_AGGREGATE_TO_AGGREGATE_UNION: String =
+    CHConfig.prefixOf("join.aggregate.to.aggregate.union")
+  val GLUTEN_ELIMINATE_DEDUPLICATE_AGGREGATE_WITH_ANY_JOIN: String =
+    CHConfig.prefixOf("eliminate_deduplicate_aggregate_with_any_join")
 
   def affinityMode: String = {
     SparkEnv.get.conf
@@ -175,7 +180,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       fields: Array[StructField],
       rootPaths: Seq[String],
       properties: Map[String, String],
-      serializableHadoopConf: Option[SerializableConfiguration] = None): ValidationResult = {
+      hadoopConf: Configuration): ValidationResult = {
 
     // Validate if all types are supported.
     def hasComplexType: Boolean = {
@@ -403,6 +408,27 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def enableReplaceFromJsonWithGetJsonObject(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConfig.runtimeConfig("enable_replace_from_json_with_get_json_object"),
+      defaultValue = true
+    )
+  }
+
+  def eliminateDeduplicateAggregateWithAnyJoin(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConfig.runtimeConfig("eliminate_deduplicate_aggregate_with_any_join"),
+      defaultValue = true
+    )
+  }
+
+  def enableSimplifySum(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConfig.runtimeConfig("enable_simplify_sum"),
+      defaultValue = true
+    )
+  }
+
+  def enableAggregateIfToFilter(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConfig.runtimeConfig("enable_aggregate_if_to_filter"),
       defaultValue = true
     )
   }

@@ -208,11 +208,11 @@ class GlutenClickHouseExcelFormatSuite
       "select * from filter_timestamp where account_time = timestamp'2020-10-01 10:10:10'"
     val sql5: String =
       "select * from filter_timestamp where account_date in ('2020-10-01', '2020-10-02')"
-    runAndCompare(sql1) {}
-    runAndCompare(sql2) {}
-    runAndCompare(sql3) {}
-    runAndCompare(sql4) {}
-    runAndCompare(sql5) {}
+    runAndCompare(sql1)
+    runAndCompare(sql2)
+    runAndCompare(sql3)
+    runAndCompare(sql4)
+    runAndCompare(sql5)
   }
   // scalastyle:on line.size.limit
 
@@ -1471,7 +1471,8 @@ class GlutenClickHouseExcelFormatSuite
      * close the hdfs file, and hence the file is not flushed.HDFS file is closed when LocalExecutor
      * is destroyed, but before that, the file moved by spark committer.
      */
-    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/write_into_hdfs/"
+
+    val tablePath = hdfsHelper.getHdfsUrl(s"$SPARK_DIR_NAME/write_into_hdfs/")
     val format = "parquet"
     val sql =
       s"""
@@ -1485,11 +1486,9 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   // TODO: pass spark configuration to FileFormatWriter in Spark 3.3 and 3.2
-  testWithSpecifiedSparkVersion(
-    "write succeed even if set wrong snappy compression codec level",
-    Some("3.5")) {
+  testWithMinSparkVersion("write succeed even if set wrong snappy compression codec level", "3.5") {
     // TODO: remove duplicated test codes
-    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/failed_test/"
+    val tablePath = hdfsHelper.getHdfsUrl(s"$SPARK_DIR_NAME/failed_test/")
     val format = "parquet"
     val sql =
       s"""

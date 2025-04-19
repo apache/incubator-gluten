@@ -20,7 +20,6 @@ import org.apache.gluten.exception.GlutenException;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
-import org.apache.spark.util.SparkDirectoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +31,7 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public class JniWorkspace {
   private static final Logger LOG = LoggerFactory.getLogger(JniWorkspace.class);
@@ -55,19 +55,6 @@ public class JniWorkspace {
       this.workDir = created.toAbsolutePath().toString();
       this.jniLibLoader = new JniLibLoader(workDir);
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
-    } catch (Exception e) {
-      throw new GlutenException(e);
-    }
-  }
-
-  private static JniWorkspace createDefault() {
-    try {
-      final String tempRoot =
-          SparkDirectoryUtil.get()
-              .namespace("jni")
-              .mkChildDirRandomly(UUID.randomUUID().toString())
-              .getAbsolutePath();
-      return createOrGet(tempRoot);
     } catch (Exception e) {
       throw new GlutenException(e);
     }
@@ -99,14 +86,17 @@ public class JniWorkspace {
     }
   }
 
-  public static JniWorkspace getDefault() {
+  public static void initializeDefault(Supplier<String> rootDir) {
     synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
       if (DEFAULT_INSTANCE == null) {
-        DEFAULT_INSTANCE = createDefault();
+        DEFAULT_INSTANCE = createOrGet(rootDir.get());
       }
-      Preconditions.checkNotNull(DEFAULT_INSTANCE);
-      return DEFAULT_INSTANCE;
     }
+  }
+
+  public static JniWorkspace getDefault() {
+    Preconditions.checkNotNull(DEFAULT_INSTANCE, "Not call initializeDefault yet");
+    return DEFAULT_INSTANCE;
   }
 
   private static JniWorkspace createOrGet(String rootDir) {

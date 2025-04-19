@@ -48,6 +48,7 @@ public:
     Poco::Timestamp getLastModified(const std::string & path) const override;
     bool supportsChmod() const override;
     bool supportsStat() const override;
+    bool supportsPartitionCommand(const DB::PartitionCommand & command) const override;
     std::vector<std::string> listDirectory(const std::string & path) const override;
     DB::DirectoryIteratorPtr iterateDirectory(const std::string & path) const override;
     uint32_t getHardlinkCount(const std::string & path) const override;

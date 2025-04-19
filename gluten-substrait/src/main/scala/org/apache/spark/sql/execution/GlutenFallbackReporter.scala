@@ -25,7 +25,7 @@ import org.apache.gluten.logging.LogLevelUtil
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
-import org.apache.spark.sql.execution.ui.GlutenEventUtils
+import org.apache.spark.sql.execution.ui.GlutenUIUtils
 
 /**
  * This rule is used to collect all fallback reason.
@@ -40,7 +40,7 @@ case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
       return plan
     }
     printFallbackReason(plan)
-    if (glutenConf.glutenUiEnabled) {
+    if (GlutenUIUtils.uiEnabled(spark.sparkContext, Some(glutenConf))) {
       postFallbackReason(plan)
     }
     plan
@@ -88,7 +88,7 @@ case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
       concat.toString(),
       fallbackNodeToReason
     )
-    GlutenEventUtils.post(sc, event)
+    GlutenUIUtils.postEvent(sc, event)
   }
 }
 

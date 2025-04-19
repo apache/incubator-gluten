@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.unsafe;
 
 import org.apache.spark.{SparkConf, SparkEnv}
-import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
 import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.plans.physical.IdentityBroadcastMode
@@ -37,9 +36,6 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val taskMemoryManager = new TaskMemoryManager(
-      new UnifiedMemoryManager(SparkEnv.get.conf, Long.MaxValue, Long.MaxValue / 2, 1),
-      0)
     val a = AttributeReference("a", StringType, nullable = false, null)()
     val output = Seq(a)
     val totalArraySize = 1
@@ -48,8 +44,7 @@ class UnsafeColumnarBuildSideRelationTest extends SharedSparkSession {
     val bytesArray = UnsafeBytesBufferArray(
       1,
       perArraySize,
-      10,
-      taskMemoryManager
+      10
     )
     bytesArray.putBytesBuffer(0, "1234567890".getBytes())
     unsafeRelWithIdentityMode = UnsafeColumnarBuildSideRelation(

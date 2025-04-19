@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.memory.arrow.alloc;
 
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.memory.memtarget.MemoryTargets;
 import org.apache.gluten.memory.memtarget.Spillers;
 
@@ -58,13 +59,17 @@ public class ArrowBufferAllocators {
 
     {
       final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
-      listener =
-          new ManagedAllocationListener(
-              MemoryTargets.throwOnOom(
-                  MemoryTargets.dynamicOffHeapSizingIfEnabled(
-                      MemoryTargets.newConsumer(
-                          tmm, "ArrowContextInstance", Spillers.NOOP, Collections.emptyMap()))),
-              TaskResources.getSharedUsage());
+      if (GlutenConfig.get().memoryUntracked()) {
+        listener = AllocationListener.NOOP;
+      } else {
+        listener =
+            new ManagedAllocationListener(
+                MemoryTargets.throwOnOom(
+                    MemoryTargets.dynamicOffHeapSizingIfEnabled(
+                        MemoryTargets.newConsumer(
+                            tmm, "ArrowContextInstance", Spillers.NOOP, Collections.emptyMap()))),
+                TaskResources.getSharedUsage());
+      }
     }
 
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);

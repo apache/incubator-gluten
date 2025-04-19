@@ -18,7 +18,7 @@ package org.apache.gluten.sql.shims.spark34
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.expression.ExpressionNames.KNOWN_NULLABLE
-import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
@@ -68,8 +68,6 @@ import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 import scala.reflect.ClassTag
 
 class Spark34Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
-
   override def getDistribution(
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression]): Seq[Distribution] = {
@@ -89,7 +87,9 @@ class Spark34Shims extends SparkShims {
       Sig[Mask](ExpressionNames.MASK),
       Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT),
       Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT),
-      Sig[ArrayAppend](ExpressionNames.ARRAY_APPEND)
+      Sig[ArrayAppend](ExpressionNames.ARRAY_APPEND),
+      Sig[UrlEncode](ExpressionNames.URL_ENCODE),
+      Sig[UrlDecode](ExpressionNames.URL_DECODE)
     )
   }
 
@@ -100,6 +100,17 @@ class Spark34Shims extends SparkShims {
       Sig[RegrIntercept](ExpressionNames.REGR_INTERCEPT),
       Sig[RegrSXY](ExpressionNames.REGR_SXY),
       Sig[RegrReplacement](ExpressionNames.REGR_REPLACEMENT)
+    )
+  }
+
+  override def runtimeReplaceableExpressionMappings: Seq[Sig] = {
+    Seq(
+      Sig[ArrayCompact](ExpressionNames.ARRAY_COMPACT),
+      Sig[ArraySize](ExpressionNames.ARRAY_SIZE),
+      Sig[EqualNull](ExpressionNames.EQUAL_NULL),
+      Sig[ILike](ExpressionNames.ILIKE),
+      Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY),
+      Sig[Get](ExpressionNames.GET)
     )
   }
 
@@ -617,6 +628,10 @@ class Spark34Shims extends SparkShims {
     }
   }
 
-  override def isColumnarLimitExecSupported(): Boolean = false
+  override def isColumnarLimitExecSupported(): Boolean = true
+
+  override def getCollectLimitOffset(plan: CollectLimitExec): Int = {
+    plan.offset
+  }
 
 }
