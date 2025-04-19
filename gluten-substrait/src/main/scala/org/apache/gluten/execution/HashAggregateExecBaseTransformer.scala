@@ -193,12 +193,22 @@ object HashAggregateExecBaseTransformer {
       .genHashAggregateExecTransformer(
         agg.requiredChildDistributionExpressions,
         agg.groupingExpressions,
-        agg.aggregateExpressions,
+        agg.aggregateExpressions.map(rewriteAggregateExpression),
         agg.aggregateAttributes,
         getInitialInputBufferOffset(agg),
         agg.resultExpressions,
         agg.child
       )
+  }
+
+  // Vanilla spark will add an aggregate to remove duplicates for the distinct aggregation
+  // function, so velox does not need to process distinct.
+  def rewriteAggregateExpression(aggregateExpr: AggregateExpression): AggregateExpression = {
+    if (aggregateExpr.isDistinct) {
+      aggregateExpr.copy(isDistinct = false)
+    } else {
+      aggregateExpr
+    }
   }
 }
 
