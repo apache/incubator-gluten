@@ -42,13 +42,16 @@ struct SparkTaskInfo {
   int32_t partitionId{0};
   // Same as TID.
   int64_t taskId{0};
+  // virtual id for each backend internal use
+  int32_t vId{0};
 
   std::string toString() const {
-    return "[Stage: " + std::to_string(stageId) + " TID: " + std::to_string(taskId) + "]";
+    return "[Stage: " + std::to_string(stageId) + " TID: " + std::to_string(taskId) + " VID: " + std::to_string(vId) +
+        "]";
   }
 
   friend std::ostream& operator<<(std::ostream& os, const SparkTaskInfo& taskInfo) {
-    os << "[Stage: " << taskInfo.stageId << " TID: " << taskInfo.taskId << "]";
+    os << taskInfo.toString();
     return os;
   }
 };
@@ -80,11 +83,11 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return kind_;
   }
 
-  virtual void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
+  virtual void parsePlan(const uint8_t* data, int32_t size, bool dump) {
     throw GlutenException("Not implemented");
   }
 
-  virtual void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
+  virtual void parseSplitInfo(const uint8_t* data, int32_t size, bool dump) {
     throw GlutenException("Not implemented");
   }
 
@@ -147,11 +150,11 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
-  virtual void dumpConf(const std::string& path) {
+  virtual void dumpConf(bool dump) {
     throw GlutenException("Not implemented");
   }
 
-  virtual std::shared_ptr<ArrowWriter> createArrowWriter(const std::string& path) {
+  virtual std::shared_ptr<ArrowWriter> createArrowWriter(bool dump) {
     throw GlutenException("Not implemented");
   };
 
@@ -159,7 +162,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return confMap_;
   }
 
-  void setSparkTaskInfo(SparkTaskInfo taskInfo) {
+  virtual void setSparkTaskInfo(SparkTaskInfo taskInfo) {
     taskInfo_ = taskInfo;
   }
 

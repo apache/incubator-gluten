@@ -63,11 +63,7 @@ std::string substraitFromJsonToPb(std::string_view typeName, std::string_view js
   return out;
 }
 
-std::string substraitFromPbToJson(
-    std::string_view typeName,
-    const uint8_t* data,
-    int32_t size,
-    std::optional<std::string> dumpFile) {
+std::string substraitFromPbToJson(std::string_view typeName, const uint8_t* data, int32_t size) {
   std::string typeUrl = "/substrait." + std::string(typeName);
 
   google::protobuf::io::ArrayInputStream bufStream{data, size};
@@ -78,14 +74,6 @@ std::string substraitFromPbToJson(
   auto status = google::protobuf::util::BinaryToJsonStream(getGeneratedTypeResolver(), typeUrl, &bufStream, &outStream);
   if (!status.ok()) {
     throw GlutenException("BinaryToJsonStream returned " + status.ToString());
-  }
-
-  if (dumpFile.has_value()) {
-    std::ofstream outFile(*dumpFile);
-    if (!outFile.is_open()) {
-      LOG(ERROR) << "Failed to open file for writing: " << *dumpFile;
-    }
-    outFile << out << std::endl;
   }
   return out;
 }
