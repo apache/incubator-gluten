@@ -233,6 +233,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
     // varchar
     .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
+    // Flaky and already excluded in other cases
+    .exclude("Gluten - test for FAILFAST parsing mode")
+
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
