@@ -19,7 +19,8 @@ package org.apache.spark.api.python
 import org.apache.gluten.columnarbatch.ArrowBatches.ArrowJavaBatch
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.execution.GlutenPlan
+import org.apache.gluten.execution.{GlutenPlan, ValidatablePlan}
+import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
@@ -211,11 +212,26 @@ case class ColumnarArrowEvalPythonExec(
     child: SparkPlan,
     evalType: Int)
   extends EvalPythonExec
-  with GlutenPlan {
+  with GlutenPlan
+  with ValidatablePlan {
 
   override def batchType(): Convention.BatchType = ArrowJavaBatch
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
+
+  override protected def doValidateInternal(): ValidationResult = {
+    val (_, inputs) = udfs.map(collectFunctions).unzip
+    inputs.map {
+      input =>
+        input.map {
+          e =>
+            if (!e.isInstanceOf[AttributeReference]) {
+              return ValidationResult.failed("UDF input is not an instance of AttributeReference")
+            }
+        }
+    }
+    super.doValidateInternal()
+  }
 
   override def requiredChildConvention(): Seq[ConventionReq] = List(
     ConventionReq.ofBatch(ConventionReq.BatchType.Is(ArrowJavaBatch)))
