@@ -77,6 +77,12 @@ public class CHNativeBlock {
     return nativeBlockStats(blockAddress, columnPosition);
   }
 
+  public static native long copyBlock(long blockAddress);
+
+  public ColumnarBatch copyColumnarBatch() {
+    return new CHNativeBlock(copyBlock(blockAddress)).toColumnarBatch();
+  }
+
   public void close() {
     if (blockAddress != 0) {
       nativeClose(blockAddress);

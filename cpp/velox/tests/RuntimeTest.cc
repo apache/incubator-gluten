@@ -144,7 +144,7 @@ TEST(TestRuntime, CreateRuntime) {
 }
 
 TEST(TestRuntime, CreateVeloxRuntime) {
-  VeloxBackend::create({});
+  VeloxBackend::create(AllocationListener::noop(), {});
   auto mm = MemoryManager::create(kVeloxBackendKind, AllocationListener::noop());
   auto runtime = Runtime::create(kVeloxBackendKind, mm);
   ASSERT_EQ(typeid(*runtime), typeid(VeloxRuntime));

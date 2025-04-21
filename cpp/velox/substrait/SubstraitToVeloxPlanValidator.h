@@ -20,14 +20,21 @@
 #include "SubstraitToVeloxPlan.h"
 #include "velox/core/QueryCtx.h"
 
+using namespace facebook;
+
 namespace gluten {
 
 /// This class is used to validate whether the computing of
 /// a Substrait plan is supported in Velox.
 class SubstraitToVeloxPlanValidator {
  public:
-  SubstraitToVeloxPlanValidator(memory::MemoryPool* pool, core::ExecCtx* execCtx)
-      : pool_(pool), execCtx_(execCtx), planConverter_(pool_, confMap_, std::nullopt, true) {}
+  SubstraitToVeloxPlanValidator(memory::MemoryPool* pool) : planConverter_(pool, {}, std::nullopt, true) {
+    const std::unordered_map<std::string, std::string> configs{
+        {velox::core::QueryConfig::kSparkPartitionId, "0"}, {velox::core::QueryConfig::kSessionTimezone, "GMT"}};
+    queryCtx_ = velox::core::QueryCtx::create(nullptr, velox::core::QueryConfig(configs));
+    // An execution context used for function validation.
+    execCtx_ = std::make_unique<velox::core::ExecCtx>(pool, queryCtx_.get());
+  }
 
   /// Used to validate whether the computing of this Plan is supported.
   bool validate(const ::substrait::Plan& plan);
@@ -88,14 +95,10 @@ class SubstraitToVeloxPlanValidator {
   /// Used to validate whether the computing of this RelRoot is supported.
   bool validate(const ::substrait::RelRoot& relRoot);
 
-  /// A memory pool used for function validation.
-  memory::MemoryPool* pool_;
+  std::shared_ptr<velox::core::QueryCtx> queryCtx_;
 
   /// An execution context used for function validation.
-  core::ExecCtx* execCtx_;
-
-  // Unused customized conf map.
-  std::unordered_map<std::string, std::string> confMap_ = {};
+  std::unique_ptr<core::ExecCtx> execCtx_;
 
   /// A converter used to convert Substrait plan into Velox's plan node.
   SubstraitToVeloxPlanConverter planConverter_;
@@ -141,9 +144,6 @@ class SubstraitToVeloxPlanValidator {
   /// Validate Substrait expression.
   bool validateExpression(const ::substrait::Expression& expression, const RowTypePtr& inputType);
 
-  /// Validate Substrait literal.
-  bool validateLiteral(const ::substrait::Expression_Literal& literal, const RowTypePtr& inputType);
-
   /// Validate Substrait if-then expression.
   bool validateIfThen(const ::substrait::Expression_IfThen& ifThen, const RowTypePtr& inputType);
 
@@ -156,6 +156,8 @@ class SubstraitToVeloxPlanValidator {
   void logValidateMsg(const std::string& log) {
     validateLog_.emplace_back(log);
   }
+
+  bool isAllowedCast(const TypePtr& fromType, const TypePtr& toType);
 };
 
 } // namespace gluten

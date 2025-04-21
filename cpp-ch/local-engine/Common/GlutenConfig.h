@@ -182,8 +182,18 @@ inline constexpr auto DEFAULT_TEMP_FILE_PATH = "/tmp/libch";
 struct SparkSQLConfig
 {
     bool caseSensitive = false; // spark.sql.caseSensitive
+    size_t deltaDataSkippingNumIndexedCols = 32;
+    String deltaDataSkippingStatsColumns;
 
     static SparkSQLConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+struct GlutenCacheConfig
+{
+    inline static const String PREFIX = "gluten_cache.local";
+
+    /// We can't use gluten_cache.local.enabled because FileCacheSettings doesn't contain this field.
+    inline static const String ENABLED = "enable.gluten_cache.local";
 };
 
 }

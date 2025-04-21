@@ -17,6 +17,7 @@
 #include "SparkMergeTreeSink.h"
 
 #include <Core/Settings.h>
+#include <Disks/IDiskTransaction.h>
 #include <IO/copyData.h>
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
@@ -175,9 +176,9 @@ void SinkHelper::doMergePartsAsync(const std::vector<PartWithStats> & merge_part
     thread_pool.scheduleOrThrow(
         [this, merge_parts_with_stats, thread_group = CurrentThread::getGroup()]() -> void
         {
+            ThreadGroupSwitcher switcher(thread_group, "AsyncMerge");
+
             Stopwatch watch;
-            CurrentThread::detachFromGroupIfNotDetached();
-            CurrentThread::attachToGroup(thread_group);
             size_t before_size = 0;
 
             std::vector<DB::DataPartPtr> prepare_merge_parts_;
@@ -231,7 +232,7 @@ void SinkHelper::writeTempPart(
     else
         part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
     const auto tmp = dataRef().getWriter().writeTempPart(block_with_partition, metadata_snapshot, context, part_dir);
-    part_with_stats.data_part = tmp.part;
+    part_with_stats.data_part = tmp->part;
     new_parts.emplace_back(std::move(part_with_stats));
 }
 

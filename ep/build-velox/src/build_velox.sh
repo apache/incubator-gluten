@@ -26,6 +26,8 @@ ENABLE_GCS=OFF
 ENABLE_HDFS=OFF
 # Enable ABFS connector.
 ENABLE_ABFS=OFF
+
+ENABLE_GPU=OFF
 # CMake build type for Velox.
 BUILD_TYPE=release
 # May be deprecated in Gluten build.
@@ -64,6 +66,10 @@ for arg in "$@"; do
     ENABLE_ABFS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --enable_gpu=*)
+    ENABLE_GPU=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   --build_type=*)
     BUILD_TYPE=("${arg#*=}")
     shift # Remove argument name from processing
@@ -98,7 +104,7 @@ function compile {
   CXX_FLAGS='-Wno-missing-field-initializers'
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_MONO_LIBRARY=ON -DVELOX_BUILD_RUNNER=OFF -DVELOX_SIMDJSON_SKIPUTF8VALIDATION=ON"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
-      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
@@ -109,7 +115,7 @@ function compile {
   # If ENABLE_BENCHMARK == ON, Velox disables tests and connectors
   if [ $ENABLE_BENCHMARK == "OFF" ]; then
     if [ $ENABLE_TESTS == "ON" ]; then
-        COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=ON "
+      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=ON "
     fi
     if [ $ENABLE_ABFS == "ON" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_ABFS=ON"
@@ -120,6 +126,10 @@ function compile {
   else
     echo "ENABLE_BENCHMARK is ON. Disabling Tests, GCS and ABFS connectors if enabled."
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_BENCHMARKS=ON"
+  fi
+  if [ $ENABLE_GPU == "ON" ]; then
+    # the cuda default options are for Centos9 image from Meta
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GPU=ON -DVELOX_ENABLE_CUDF=ON -DCMAKE_CUDA_ARCHITECTURES=70 -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc"
   fi
   if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
@@ -157,13 +167,13 @@ function compile {
         sudo cmake --install xsimd-build/
       fi
     fi
-    if [ -d gtest-build ]; then
+    if [ -d googletest-build ]; then
       echo "INSTALL gtest."
       if [ $OS == 'Linux' ]; then
-        cd gtest-src; cmake . ; sudo make install -j
-        #sudo cmake --install gtest-build/
+        cd googletest-src; cmake . ; sudo make install -j
+        #sudo cmake --install googletest-build/
       elif [ $OS == 'Darwin' ]; then
-        sudo cmake --install gtest-build/
+        sudo cmake --install googletest-build/
       fi
     fi
   fi

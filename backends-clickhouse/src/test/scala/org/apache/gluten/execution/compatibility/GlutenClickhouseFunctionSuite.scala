@@ -20,7 +20,12 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{GlutenClickHouseTPCHAbstractSuite, ProjectExecTransformer}
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.internal.SQLConf
+
+// Some sqls' line length exceeds 100
+// scalastyle:off line.size.limit
 
 class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   override protected val needCopyParquetToTablePath = true
@@ -182,8 +187,8 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("array decimal32 CH column to row") {
-    compareResultsAgainstVanillaSpark("SELECT array(1.0, 2.0)", true, { _ => }, false)
-    compareResultsAgainstVanillaSpark("SELECT map(1.0, '2', 3.0, '4')", true, { _ => }, false)
+    compareResultsAgainstVanillaSpark("SELECT array(1.0, 2.0)", true, { _ => })
+    compareResultsAgainstVanillaSpark("SELECT map(1.0, '2', 3.0, '4')", true, { _ => })
   }
 
   test("array decimal32 spark row to CH column") {
@@ -276,8 +281,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         """
           |select cast(map(1,'2') as string)
           |""".stripMargin,
-        true,
-        false
+        true
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
@@ -438,8 +442,106 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         { _ => }
       )
       val q = "select cast(a as string) from (select array('123',NULL) as a)"
-      compareResultsAgainstVanillaSpark(q, true, { _ => }, false)
+      compareResultsAgainstVanillaSpark(q, true, { _ => })
     }
+  }
+
+  test("GLUTEN-9049: cast complex type to string") {
+    withTable("test_9049") {
+      sql("""
+            |CREATE TABLE test_9049 (
+            |  id INT,
+            |  v1 array<string>,
+            |  v2 array<array<string>>,
+            |  v3 array<struct<s1:string, s2:int>>,
+            |  v4 array<map<string, int>>,
+            |  v5 map<string, array<string>>,
+            |  v6 map<array<string>, map<string, struct<s1:string, s2:int>>>,
+            |  v7 struct<s1:array<string>, s2:string, s3:map<string, int>, s4:struct<ss1:string, ss2:int>>
+            |) using orc;
+            |""".stripMargin)
+      sql("""
+            |insert overwrite table test_9049 values
+            |(1,
+            |array('123', '\'456\'', null),
+            |array(array('abc', '\'edf\'', null), null),
+            |array(struct("\'abc\'", 100), struct("\'edf\'", 200), null, struct("\'123\'", 300)),
+            |array(map('k1', 1), map('\'k2\'', 2), map('k3', null), null),
+            |map('k1', array('v1', 'v2', null), "'k2'", null),
+            |map(array('a1', 'a2', null), map('aa1', struct('s1', 123))),
+            |struct(array('sa1', null, "'sa2'"), null, map('sm1', null), struct("ss1", 123))
+            |),
+            |(2,
+            |array('345', null, '\'678\''),
+            |array(array('abc', '\'edf\'', null), null),
+            |array(struct("\'abc\'", 400), struct("\'edf\'", 500), null, struct("\'123\'", 600)),
+            |array(map('k1', 1), map('\'k2\'', 2), map('k3', null), null),
+            |map('k1', array('v1', 'v2', null), "'k2'", null),
+            |map(array('a1', 'a2', null), map('aa1', struct('s1', 234))),
+            |struct(array('sa1', null, "'sa2'"), null, map('sm1', null), struct("ss1", 345))
+            |),
+            |(3, null, null, null, null, null, null, null);
+            |""".stripMargin)
+      val checkSql =
+        """
+          |select id,
+          |cast(v1 as string), cast(v2 as string),
+          |cast(v3 as string), cast(v4 as string),
+          |cast(v5 as string), cast(v6 as string),
+          |cast(v7 as string) from test_9049;
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(checkSql, true, { _ => })
+
+      withSQLConf(
+        SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+        runQueryAndCompare(
+          """
+            |select
+            |cast(array("'123'", null) as string),
+            |cast(array(array('123\'')) as string),
+            |cast(array(struct(1, '123\'')) as string),
+            |cast(array(null) as string),
+            |cast(map(array(1), map("aa", "123\'")) as string),
+            |cast(named_struct("a", "test\'", "b", 1) as string),
+            |cast(named_struct("a", "test\'", "b", 1, "c", struct("\'test"), "d", array('123\'')) as string)
+            |""".stripMargin
+        )(checkGlutenOperatorMatch[ProjectExecTransformer])
+      }
+    }
+  }
+
+  test("GLUTEN-8921: Type mismatch at checkDecimalOverflowSparkOrNull") {
+    compareResultsAgainstVanillaSpark(
+      """
+        |select l_shipdate, avg(l_quantity), count(0) over() COU,
+        |SUM(-1.1) over() SU, AVG(-2) over() AV,
+        |max(-1.1) over() MA, min(-3) over() MI
+        |from lineitem
+        |where l_shipdate <= date'1998-09-02'
+        |group by l_shipdate
+        |order by l_shipdate
+      """.stripMargin,
+      true,
+      { _ => }
+    )
+  }
+
+  test("GLUTEN-8922: Incorrect result in lead function with constant col") {
+    compareResultsAgainstVanillaSpark(
+      """
+        |select l_shipdate,
+        |FIRST_VALUE(-2) over() FI,
+        |LAST_VALUE(-2) over() LA,
+        |lag(-2) over(order by l_shipdate) lag0,
+        |lead(-2) over(order by l_shipdate) lead0
+        |from lineitem
+        |where l_shipdate <= date'1998-09-02'
+        |group by l_shipdate
+        |order by l_shipdate
+      """.stripMargin,
+      true,
+      { _ => }
+    )
   }
 
 }

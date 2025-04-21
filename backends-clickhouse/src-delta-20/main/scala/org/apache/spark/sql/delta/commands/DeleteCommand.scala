@@ -31,7 +31,7 @@ import org.apache.spark.sql.execution.SQLExecution
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.metric.SQLMetrics.createMetric
-import org.apache.spark.sql.functions.{col, explode, input_file_name, lit, split, typedLit, udf}
+import org.apache.spark.sql.functions.{input_file_name, lit, typedLit, udf}
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
@@ -39,8 +39,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
  * Gluten overwrite Delta:
  *
  * This file is copied from Delta 2.2.0. It is modified to overcome the following issues:
- *   1. In Clickhouse backend, we can't implement input_file_name() correctly, we can only implement
- *      it so that it return a a list of filenames (concated by ',').
  */
 
 trait DeleteCommandMetrics { self: LeafRunnableCommand =>
@@ -221,7 +219,6 @@ case class DeleteCommand(deltaLog: DeltaLog, target: LogicalPlan, condition: Opt
                   .filter(new Column(cond))
                   .select(input_file_name().as("input_files"))
                   .filter(deletedRowUdf())
-                  .select(explode(split(col("input_files"), ",")))
                   .distinct()
                   .as[String]
                   .collect()

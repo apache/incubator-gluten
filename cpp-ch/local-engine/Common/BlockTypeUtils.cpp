@@ -22,9 +22,18 @@
 
 namespace local_engine
 {
-DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header)
+DB::Block toSampleBlock(const RowType & type)
 {
-    DB::NamesAndTypesList types;
+    DB::ColumnsWithTypeAndName result;
+    result.reserve(type.size());
+    for (const auto & field : type)
+        result.emplace_back(toColumnType(field));
+    return result;
+}
+
+RowType blockToRowType(const DB::Block & header)
+{
+    RowType types;
     for (const auto & name : header.getNames())
     {
         const auto * column = header.findByName(name);

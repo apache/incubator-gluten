@@ -25,6 +25,7 @@
 #include <Parser/TypeParser.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Storages/SubstraitSource/substrait_fwd.h>
 #include <substrait/plan.pb.h>
 
 namespace DB
@@ -39,8 +40,8 @@ namespace local_engine
 {
 
 class FormatFile;
-using substraitInputFile = substrait::ReadRel::LocalFiles::FileOrFiles;
-
+class ColumnIndexFilter;
+using ColumnIndexFilterPtr = std::shared_ptr<ColumnIndexFilter>;
 class FileMetaColumns
 {
 public:
@@ -71,18 +72,9 @@ public:
         return std::ranges::any_of(block, [](const auto & column) { return isVirtualColumn(column.name); });
     }
 
-    static DB::Block removeVirtualColumns(const DB::Block & block)
-    {
-        DB::ColumnsWithTypeAndName result_columns;
-        std::ranges::copy_if(
-            block.getColumnsWithTypeAndName(),
-            std::back_inserter(result_columns),
-            [](const auto & column) { return !isVirtualColumn(column.name); });
-        return result_columns;
-    }
     ///
 
-    explicit FileMetaColumns(const substraitInputFile & file);
+    explicit FileMetaColumns(const SubstraitInputFile & file);
     DB::ColumnPtr createMetaColumn(const String & columnName, const DB::DataTypePtr & type, size_t rows) const;
 
     bool virtualColumn(const std::string & column_name) const { return metadata_columns_map.contains(column_name); }
@@ -91,7 +83,7 @@ protected:
     static std::map<std::string, std::function<DB::Field(const std::string &)>> BASE_METADATA_EXTRACTORS;
 
     /// InputFileName, InputFileBlockStart and InputFileBlockLength,
-    static std::map<std::string, std::function<DB::Field(const substraitInputFile &)>> INPUT_FUNCTION_EXTRACTORS;
+    static std::map<std::string, std::function<DB::Field(const SubstraitInputFile &)>> INPUT_FUNCTION_EXTRACTORS;
 
     std::unordered_map<String, DB::Field> metadata_columns_map;
 };
@@ -107,17 +99,19 @@ public:
 
     public:
         virtual ~InputFormat() = default;
+
         DB::IInputFormat & inputFormat() const { return *input; }
-        void cancel() const noexcept { return input->cancel(); }
+        void cancel() const noexcept { input->cancel(); }
         virtual DB::Chunk generate() { return input->generate(); }
         InputFormat(std::unique_ptr<DB::ReadBuffer> read_buffer_, const DB::InputFormatPtr & input_)
             : read_buffer(std::move(read_buffer_)), input(input_)
         {
         }
     };
+
     using InputFormatPtr = std::shared_ptr<InputFormat>;
 
-    FormatFile(DB::ContextPtr context_, const substraitInputFile & file_info_, const ReadBufferBuilderPtr & read_buffer_builder_);
+    FormatFile(DB::ContextPtr context_, const SubstraitInputFile & file_info_, const ReadBufferBuilderPtr & read_buffer_builder_);
     virtual ~FormatFile() = default;
 
     /// Create a new input format for reading this file
@@ -126,6 +120,9 @@ public:
     /// Spark would split a large file into small segements and read in different tasks
     /// If this file doesn't support the split feacture, only the task with offset 0 will generate data.
     virtual bool supportSplit() const { return false; }
+
+    /// Initialize the file with column index filter
+    virtual void initialize(const ColumnIndexFilterPtr &) { }
 
     /// Try to get rows from file metadata
     virtual std::optional<size_t> getTotalRows() { return {}; }
@@ -140,15 +137,23 @@ public:
     size_t getStartOffset() const { return file_info.start(); }
     const FileMetaColumns & fileMetaColumns() const { return meta_columns; }
 
+    const SubstraitInputFile & getFileInfo() const { return file_info; }
+    const DB::ContextPtr & getContext() const { return context; }
+
+    const DB::Block & getFileSchema() const { return file_schema; }
+
 protected:
     DB::ContextPtr context;
-    const substraitInputFile file_info;
+    const SubstraitInputFile file_info;
     ReadBufferBuilderPtr read_buffer_builder;
     std::map<String, String> partition_values;
     /// partition keys are normalized to lower cases for partition column case-insensitive matching
     std::map<String, String> normalized_partition_values;
     std::shared_ptr<const DB::KeyCondition> key_condition;
     const FileMetaColumns meta_columns;
+
+    /// Currently, it is used to read an iceberg format, and initialized in the constructor of child class
+    DB::Block file_schema;
 };
 
 using FormatFilePtr = std::shared_ptr<FormatFile>;

@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 package org.apache.gluten.extension.columnar.offload
-
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
@@ -28,6 +27,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.CollectLimitExec
+import org.apache.spark.sql.execution.RDDScanTransformer
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -42,9 +43,7 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
     case p if FallbackTags.nonEmpty(p) =>
       p
-    case s: ShuffleExchangeExec
-        if (s.child.supportsColumnar || GlutenConfig.get.enablePreferColumnar) &&
-          BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
+    case s: ShuffleExchangeExec =>
       logDebug(s"Columnar Processing for ${s.getClass} is currently supported.")
       BackendsApiManager.getSparkPlanExecApiInstance.genColumnarShuffleExchange(s)
     case b: BroadcastExchangeExec =>
@@ -186,7 +185,7 @@ object OffloadOthers {
   // Utility to replace single node within transformed Gluten node.
   // Children will be preserved as they are as children of the output node.
   //
-  // Do not look up on children on the input node in this rule. Otherwise
+  // Do not look up on children on the input node in this rule. Otherwise,
   // it may break RAS which would group all the possible input nodes to
   // search for validate candidates.
   private class ReplaceSingleNode extends LogLevelUtil with Logging {
@@ -344,6 +343,17 @@ object OffloadOthers {
             plan.withReplacement,
             plan.seed,
             child)
+        case plan: CollectLimitExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          val offset = SparkShimLoader.getSparkShims.getCollectLimitOffset(plan)
+          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarCollectLimitExec(
+            plan.limit,
+            plan.child,
+            offset
+          )
+        case plan: RDDScanExec if RDDScanTransformer.isSupportRDDScanExec(plan) =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          RDDScanTransformer.getRDDScanTransform(plan)
         case p if !p.isInstanceOf[GlutenPlan] =>
           logDebug(s"Transformation for ${p.getClass} is currently not supported.")
           p

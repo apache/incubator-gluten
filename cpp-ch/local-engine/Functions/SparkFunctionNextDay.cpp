@@ -188,12 +188,8 @@ DB::ColumnPtr SparkFunctionNextDay::executeConst(const DB::ColumnsWithTypeAndNam
     auto nested_result_type = DB::removeNullable(result_type);
     auto next_week_day = getDayOfWeek((*arguments[1].column)[0].safeGet<String>());
     if (next_week_day == -1) [[unlikely]]
-    {
-        auto default_date_col = nested_result_type->createColumnConst(from_date_col->size(), 0);
-        auto null_map_col = DB::DataTypeUInt8().createColumnConst(from_date_col->size(), 1)->convertToFullColumnIfConst();
-        return DB::ColumnNullable::create(default_date_col, null_map_col);
-    }
-   
+        return result_type->createColumnConstWithDefaultValue(from_date_col->size());
+
     auto to_date_col = result_type->createColumn();
     to_date_col->reserve(from_date_col->size());
     DB::WhichDataType ty_which(nested_result_type);

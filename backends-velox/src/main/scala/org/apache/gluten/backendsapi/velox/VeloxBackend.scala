@@ -48,12 +48,10 @@ import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, Pa
 import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.util.SerializableConfiguration
 
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
-import scala.collection.mutable
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends SubstraitBackend {
@@ -105,29 +103,16 @@ object VeloxBackendSettings extends BackendSettingsApi {
       fields: Array[StructField],
       rootPaths: Seq[String],
       properties: Map[String, String],
-      serializableHadoopConf: Option[SerializableConfiguration] = None): ValidationResult = {
+      hadoopConf: Configuration): ValidationResult = {
 
     def validateScheme(): Option[String] = {
       val filteredRootPaths = distinctRootPaths(rootPaths)
-      if (filteredRootPaths.nonEmpty) {
-        val resolvedPaths =
-          if (GlutenConfig.get.enableHdfsViewfs) {
-            ViewFileSystemUtils.convertViewfsToHdfs(
-              filteredRootPaths,
-              mutable.Map.empty[String, String],
-              serializableHadoopConf.get.value)
-          } else {
-            filteredRootPaths
-          }
-
-        if (
-          !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
-            resolvedPaths.toArray)
-        ) {
-          Some(s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
-        } else {
-          None
-        }
+      if (
+        filteredRootPaths.nonEmpty &&
+        !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
+          filteredRootPaths.toArray)
+      ) {
+        Some(s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
       } else {
         None
       }
@@ -202,11 +187,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
       val fileLimit = GlutenConfig.get.parquetEncryptionValidationFileLimit
       val encryptionResult =
-        ParquetMetadataUtils.validateEncryption(
-          format,
-          rootPaths,
-          serializableHadoopConf,
-          fileLimit)
+        ParquetMetadataUtils.validateEncryption(format, rootPaths, hadoopConf, fileLimit)
       if (encryptionResult.ok()) {
         None
       } else {
@@ -571,14 +552,16 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportCartesianProductExec(): Boolean = true
 
-  override def supportBroadcastNestedLoopJoinExec(): Boolean = true
-
   override def supportSampleExec(): Boolean = true
 
   override def supportColumnarArrowUdf(): Boolean = true
 
   override def needPreComputeRangeFrameBoundary(): Boolean = true
 
-  override def supportRangeExec(): Boolean = true
+  override def supportCollectLimitExec(): Boolean = true
+
+  override def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = true
+
+  override def supportIcebergEqualityDeleteRead(): Boolean = false
 
 }

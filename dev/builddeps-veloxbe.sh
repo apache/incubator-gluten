@@ -1,4 +1,20 @@
 #!/bin/bash
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 ####################################################################################################
 #  The main function of this script is to allow developers to build the environment with one click #
 #  Recommended commands for first-time installation:                                               #
@@ -23,6 +39,7 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 ENABLE_VCPKG=OFF
+ENABLE_GPU=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
 VELOX_BRANCH=""
@@ -98,6 +115,10 @@ do
         ;;
         --enable_vcpkg=*)
         ENABLE_VCPKG=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_gpu=*)
+        ENABLE_GPU=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --run_setup_script=*)
@@ -188,7 +209,7 @@ function build_velox {
   cd $GLUTEN_DIR/ep/build-velox/src
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
   ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-                   --enable_abfs=$ENABLE_ABFS --build_test_utils=$BUILD_TESTS \
+                   --enable_abfs=$ENABLE_ABFS --enable_gpu=$ENABLE_GPU --build_test_utils=$BUILD_TESTS \
                    --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS \
                    --velox_home=$VELOX_HOME
 }
@@ -213,7 +234,8 @@ function build_gluten_cpp {
     -DENABLE_GCS=$ENABLE_GCS \
     -DENABLE_S3=$ENABLE_S3 \
     -DENABLE_HDFS=$ENABLE_HDFS \
-    -DENABLE_ABFS=$ENABLE_ABFS"
+    -DENABLE_ABFS=$ENABLE_ABFS \
+    -DENABLE_GPU=$ENABLE_GPU"
 
   if [ $OS == 'Darwin' ]; then
     if [ -n "$INSTALL_PREFIX" ]; then
@@ -263,10 +285,6 @@ if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     exit 1
   fi
   if [ $ENABLE_S3 == "ON" ]; then
-    if [ $OS == 'Darwin' ]; then
-      echo "S3 is not supported on MacOS."
-      exit 1
-    fi
     ${VELOX_HOME}/scripts/setup-adapters.sh aws
   fi
   if [ $ENABLE_GCS == "ON" ]; then

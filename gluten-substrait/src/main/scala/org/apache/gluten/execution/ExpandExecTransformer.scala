@@ -67,7 +67,6 @@ case class ExpandExecTransformer(
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     val projectSetExprNodes = new JArrayList[JList[ExpressionNode]]()
     projections.foreach {
       projectSet =>
@@ -76,7 +75,7 @@ case class ExpandExecTransformer(
           project =>
             val projectExprNode = ExpressionConverter
               .replaceWithExpressionTransformer(project, originalInputAttributes)
-              .doTransform(args)
+              .doTransform(context)
             projectExprNodes.add(projectExprNode)
         }
         projectSetExprNodes.add(projectExprNodes)

@@ -156,6 +156,9 @@ SparkSQLConfig SparkSQLConfig::loadFromContext(const DB::ContextPtr & context)
 {
     SparkSQLConfig sql_config;
     sql_config.caseSensitive = context->getConfigRef().getBool("spark.sql.caseSensitive", false);
+    // TODO support transfer spark settings from spark session to native engine
+    sql_config.deltaDataSkippingNumIndexedCols = context->getConfigRef().getUInt64("spark.databricks.delta.properties.defaults.dataSkippingNumIndexedCols", 32);
+    sql_config.deltaDataSkippingStatsColumns = context->getConfigRef().getString("spark.databricks.delta.properties.defaults.dataSkippingStatsColumns", "");
 
     return sql_config;
 }

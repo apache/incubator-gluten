@@ -21,7 +21,7 @@ import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
+import org.apache.gluten.extension.columnar.MiscColumnarRules.{PreventBatchTypeMismatchInTableCache, RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
 import org.apache.gluten.extension.columnar.enumerated.{RasOffload, RemoveSort}
 import org.apache.gluten.extension.columnar.heuristic.{ExpandFallbackPolicy, HeuristicTransform}
 import org.apache.gluten.extension.columnar.offload.{OffloadExchange, OffloadJoin, OffloadOthers}
@@ -74,7 +74,7 @@ object VeloxRuleApi {
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
 
     // Legacy: The legacy transform rule.
-    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin())
+    val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin()).map(_.toStrcitRule())
     val validatorBuilder: GlutenConfig => Validator = conf =>
       Validators.newValidator(conf, offloads)
     val rewrites =
@@ -96,8 +96,11 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
     injector.injectPostTransform(_ => EnsureLocalSortRequirements)
     injector.injectPostTransform(_ => EliminateLocalSort)
+    injector.injectPostTransform(_ => PullOutDuplicateProject)
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
+    injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
+    injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
 
     // Gluten columnar: Fallback policies.
@@ -113,6 +116,8 @@ object VeloxRuleApi {
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
+    injector.injectFinal(
+      c => PreventBatchTypeMismatchInTableCache(c.caller.isCache(), Set(VeloxBatch)))
     injector.injectFinal(c => GlutenAutoAdjustStageResourceProfile(c.glutenConf, c.session))
     injector.injectFinal(c => GlutenFallbackReporter(c.glutenConf, c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
@@ -162,6 +167,7 @@ object VeloxRuleApi {
       RasOffload.from[GenerateExec](OffloadOthers()),
       RasOffload.from[EvalPythonExec](OffloadOthers()),
       RasOffload.from[SampleExec](OffloadOthers()),
+      RasOffload.from[CollectLimitExec](OffloadOthers()),
       RasOffload.from[RangeExec](OffloadOthers())
     )
     offloads.foreach(
@@ -178,8 +184,11 @@ object VeloxRuleApi {
     injector.injectPostTransform(_ => PushDownInputFileExpression.PostOffload)
     injector.injectPostTransform(_ => EnsureLocalSortRequirements)
     injector.injectPostTransform(_ => EliminateLocalSort)
+    injector.injectPostTransform(_ => PullOutDuplicateProject)
     injector.injectPostTransform(_ => CollapseProjectExecTransformer)
     injector.injectPostTransform(c => FlushableHashAggregateRule.apply(c.session))
+    injector.injectPostTransform(c => HashAggregateIgnoreNullKeysRule.apply(c.session))
+    injector.injectPostTransform(_ => CollectLimitTransformerRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, VeloxBatch))
     injector.injectPostTransform(c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()))
     SparkShimLoader.getSparkShims
@@ -188,6 +197,8 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => ColumnarCollapseTransformStages(c.glutenConf))
     injector.injectPostTransform(c => GlutenNoopWriterRule(c.session))
     injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
+    injector.injectPostTransform(
+      c => PreventBatchTypeMismatchInTableCache(c.caller.isCache(), Set(VeloxBatch)))
     injector.injectPostTransform(c => GlutenAutoAdjustStageResourceProfile(c.glutenConf, c.session))
     injector.injectPostTransform(c => GlutenFallbackReporter(c.glutenConf, c.session))
     injector.injectPostTransform(_ => RemoveFallbackTagRule())

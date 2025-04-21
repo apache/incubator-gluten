@@ -289,7 +289,8 @@ MergeTreeData::LoadPartResult SparkStorageMergeTree::loadDataPart(
         has_lightweight_delete_parts.store(true);
 
     // without it "test mergetree optimize partitioned by one low card column" will log ERROR
-    calculateColumnAndSecondaryIndexSizesImpl();
+    resetColumnSizes();
+    calculateColumnAndSecondaryIndexSizesIfNeeded();
 
     LOG_TRACE(log, "Finished loading {} part {} on disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
     return res;
@@ -382,13 +383,13 @@ std::map<std::string, MutationCommands> SparkStorageMergeTree::getUnfinishedMuta
     throw std::runtime_error("not implement");
 }
 
-MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
+MergeTreeTemporaryPartPtr SparkMergeTreeDataWriter::writeTempPart(
     BlockWithPartition & block_with_partition,
     const StorageMetadataPtr & metadata_snapshot,
     const ContextPtr & context,
     const std::string & part_dir) const
 {
-    MergeTreeDataWriter::TemporaryPart temp_part;
+    auto temp_part = std::make_unique<MergeTreeTemporaryPart>();
 
     Block & block = block_with_partition.block;
 
@@ -405,7 +406,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 
     MergeTreePartInfo new_part_info(partition.getID(metadata_snapshot->getPartitionKey().sample_block), 1, 1, 0);
 
-    temp_part.temporary_directory_lock = data.getTemporaryPartDirectoryHolder(part_dir);
+    temp_part->temporary_directory_lock = data.getTemporaryPartDirectoryHolder(part_dir);
 
     auto indices = MergeTreeIndexFactory::instance().getMany(metadata_snapshot->getSecondaryIndices());
 
@@ -515,9 +516,9 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     out->writeWithPermutation(block, perm_ptr);
     auto finalizer = out->finalizePartAsync(new_data_part, data_settings[MergeTreeSetting::fsync_after_insert], nullptr, nullptr);
 
-    temp_part.part = new_data_part;
-    temp_part.streams.emplace_back(MergeTreeDataWriter::TemporaryPart::Stream{.stream = std::move(out), .finalizer = std::move(finalizer)});
-    temp_part.finalize();
+    temp_part->part = new_data_part;
+    temp_part->streams.emplace_back(MergeTreeTemporaryPart::Stream{.stream = std::move(out), .finalizer = std::move(finalizer)});
+    temp_part->finalize();
     data_part_storage->commitTransaction();
     return temp_part;
 }

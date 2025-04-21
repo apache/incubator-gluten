@@ -30,7 +30,13 @@ std::unique_ptr<ReadBufferFromFileBase> GlutenHDFSObjectStorage::readObject( ///
     size_t begin_of_path = object.remote_path.find('/', object.remote_path.find("//") + 2);
     auto hdfs_path = object.remote_path.substr(begin_of_path);
     auto hdfs_uri = object.remote_path.substr(0, begin_of_path);
-    return std::make_unique<ReadBufferFromHDFS>(hdfs_uri, hdfs_path, config, HDFSObjectStorage::patchSettings(read_settings), 0, true);
+    return std::make_unique<ReadBufferFromHDFS>(
+        hdfs_uri,
+        hdfs_path,
+        config,
+        HDFSObjectStorage::patchSettings(read_settings),
+        0,
+        read_settings.remote_read_buffer_use_external_buffer);
 }
 
 DB::ObjectStorageKey local_engine::GlutenHDFSObjectStorage::generateObjectKeyForPath(const std::string & path, const std::optional<std::string> & key_prefix) const

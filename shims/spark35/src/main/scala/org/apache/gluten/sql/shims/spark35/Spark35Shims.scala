@@ -17,7 +17,7 @@
 package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
-import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
@@ -46,7 +46,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
@@ -67,10 +67,10 @@ import org.apache.parquet.schema.MessageType
 import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   override def getDistribution(
       leftKeys: Seq[Expression],
@@ -90,7 +90,10 @@ class Spark35Shims extends SparkShims {
       Sig[RoundFloor](ExpressionNames.FLOOR),
       Sig[RoundCeil](ExpressionNames.CEIL),
       Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT),
-      Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT)
+      Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT),
+      Sig[ArrayAppend](ExpressionNames.ARRAY_APPEND),
+      Sig[UrlEncode](ExpressionNames.URL_ENCODE),
+      Sig[UrlDecode](ExpressionNames.URL_DECODE)
     )
   }
 
@@ -101,6 +104,18 @@ class Spark35Shims extends SparkShims {
       Sig[RegrIntercept](ExpressionNames.REGR_INTERCEPT),
       Sig[RegrSXY](ExpressionNames.REGR_SXY),
       Sig[RegrReplacement](ExpressionNames.REGR_REPLACEMENT)
+    )
+  }
+
+  override def runtimeReplaceableExpressionMappings: Seq[Sig] = {
+    Seq(
+      Sig[ArrayCompact](ExpressionNames.ARRAY_COMPACT),
+      Sig[ArrayPrepend](ExpressionNames.ARRAY_PREPEND),
+      Sig[ArraySize](ExpressionNames.ARRAY_SIZE),
+      Sig[EqualNull](ExpressionNames.EQUAL_NULL),
+      Sig[ILike](ExpressionNames.ILIKE),
+      Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY),
+      Sig[Get](ExpressionNames.GET)
     )
   }
 
@@ -375,8 +390,8 @@ class Spark35Shims extends SparkShims {
 
   override def supportDuplicateReadingTracking: Boolean = true
 
-  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] =
-    partition.files.map(_.fileStatus)
+  def getFileStatus(partition: PartitionDirectory): Seq[(FileStatus, Map[String, Any])] =
+    partition.files.map(f => (f.fileStatus, f.metadata))
 
   def isFileSplittable(
       relation: HadoopFsRelation,
@@ -387,7 +402,8 @@ class Spark35Shims extends SparkShims {
   }
 
   def isRowIndexMetadataColumn(name: String): Boolean =
-    name == ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+    name == ParquetFileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME ||
+      name.equalsIgnoreCase("__delta_internal_is_row_deleted")
 
   def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Int = {
     sparkSchema.fields.zipWithIndex.find {
@@ -411,10 +427,11 @@ class Spark35Shims extends SparkShims {
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
-      partitionValues: InternalRow): Seq[PartitionedFile] = {
+      partitionValues: InternalRow,
+      metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile] = {
     PartitionedFileUtil.splitFiles(
       sparkSession,
-      FileStatusWithMetadata(file),
+      FileStatusWithMetadata(file, metadata),
       isSplitable,
       maxSplitBytes,
       partitionValues)
@@ -446,36 +463,120 @@ class Spark35Shims extends SparkShims {
   }
 
   override def orderPartitions(
+      batchScan: DataSourceV2ScanExecBase,
       scan: Scan,
       keyGroupedPartitioning: Option[Seq[Expression]],
       filteredPartitions: Seq[Seq[InputPartition]],
-      outputPartitioning: Partitioning): Seq[InputPartition] = {
+      outputPartitioning: Partitioning,
+      commonPartitionValues: Option[Seq[(InternalRow, Int)]],
+      applyPartialClustering: Boolean,
+      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = {
     scan match {
       case _ if keyGroupedPartitioning.isDefined =>
-        var newPartitions = filteredPartitions
+        var finalPartitions = filteredPartitions
+
         outputPartitioning match {
           case p: KeyGroupedPartitioning =>
-            val partitionMapping = newPartitions
-              .map(
-                s =>
-                  InternalRowComparableWrapper(
-                    s.head.asInstanceOf[HasPartitionKey],
-                    p.expressions) -> s)
-              .toMap
-            newPartitions = p.partitionValues.map {
-              partValue =>
-                // Use empty partition for those partition values that are not present
-                partitionMapping.getOrElse(
-                  InternalRowComparableWrapper(partValue, p.expressions),
-                  Seq.empty)
+            if (
+              SQLConf.get.v2BucketingPushPartValuesEnabled &&
+              SQLConf.get.v2BucketingPartiallyClusteredDistributionEnabled
+            ) {
+              assert(
+                filteredPartitions.forall(_.size == 1),
+                "Expect partitions to be not grouped when " +
+                  s"${SQLConf.V2_BUCKETING_PARTIALLY_CLUSTERED_DISTRIBUTION_ENABLED.key} " +
+                  "is enabled"
+              )
+
+              val groupedPartitions = batchScan
+                .groupPartitions(finalPartitions.map(_.head), true)
+                .getOrElse(Seq.empty)
+
+              // This means the input partitions are not grouped by partition values. We'll need to
+              // check `groupByPartitionValues` and decide whether to group and replicate splits
+              // within a partition.
+              if (commonPartitionValues.isDefined && applyPartialClustering) {
+                // A mapping from the common partition values to how many splits the partition
+                // should contain. Note this no longer maintain the partition key ordering.
+                val commonPartValuesMap = commonPartitionValues.get
+                  .map(t => (InternalRowComparableWrapper(t._1, p.expressions), t._2))
+                  .toMap
+                val nestGroupedPartitions = groupedPartitions.map {
+                  case (partValue, splits) =>
+                    // `commonPartValuesMap` should contain the part value since it's the super set.
+                    val numSplits = commonPartValuesMap
+                      .get(InternalRowComparableWrapper(partValue, p.expressions))
+                    assert(
+                      numSplits.isDefined,
+                      s"Partition value $partValue does not exist in " +
+                        "common partition values from Spark plan")
+
+                    val newSplits = if (replicatePartitions) {
+                      // We need to also replicate partitions according to the other side of join
+                      Seq.fill(numSplits.get)(splits)
+                    } else {
+                      // Not grouping by partition values: this could be the side with partially
+                      // clustered distribution. Because of dynamic filtering, we'll need to check
+                      // if the final number of splits of a partition is smaller than the original
+                      // number, and fill with empty splits if so. This is necessary so that both
+                      // sides of a join will have the same number of partitions & splits.
+                      splits.map(Seq(_)).padTo(numSplits.get, Seq.empty)
+                    }
+                    (InternalRowComparableWrapper(partValue, p.expressions), newSplits)
+                }
+
+                // Now fill missing partition keys with empty partitions
+                val partitionMapping = nestGroupedPartitions.toMap
+                finalPartitions = commonPartitionValues.get.flatMap {
+                  case (partValue, numSplits) =>
+                    // Use empty partition for those partition values that are not present.
+                    partitionMapping.getOrElse(
+                      InternalRowComparableWrapper(partValue, p.expressions),
+                      Seq.fill(numSplits)(Seq.empty))
+                }
+              } else {
+                // either `commonPartitionValues` is not defined, or it is defined but
+                // `applyPartialClustering` is false.
+                val partitionMapping = groupedPartitions.map {
+                  case (row, parts) =>
+                    InternalRowComparableWrapper(row, p.expressions) -> parts
+                }.toMap
+
+                // In case `commonPartitionValues` is not defined (e.g., SPJ is not used), there
+                // could exist duplicated partition values, as partition grouping is not done
+                // at the beginning and postponed to this method. It is important to use unique
+                // partition values here so that grouped partitions won't get duplicated.
+                finalPartitions = p.uniquePartitionValues.map {
+                  partValue =>
+                    // Use empty partition for those partition values that are not present
+                    partitionMapping.getOrElse(
+                      InternalRowComparableWrapper(partValue, p.expressions),
+                      Seq.empty)
+                }
+              }
+            } else {
+              val partitionMapping = finalPartitions.map {
+                parts =>
+                  val row = parts.head.asInstanceOf[HasPartitionKey].partitionKey()
+                  InternalRowComparableWrapper(row, p.expressions) -> parts
+              }.toMap
+              finalPartitions = p.partitionValues.map {
+                partValue =>
+                  // Use empty partition for those partition values that are not present
+                  partitionMapping.getOrElse(
+                    InternalRowComparableWrapper(partValue, p.expressions),
+                    Seq.empty)
+              }
             }
+
           case _ =>
         }
-        newPartitions.flatten
+        finalPartitions
       case _ =>
-        filteredPartitions.flatten
+        filteredPartitions
     }
   }
+
   override def supportsRowBased(plan: SparkPlan): Boolean = plan.supportsRowBased
 
   override def withTryEvalMode(expr: Expression): Boolean = {
@@ -581,5 +682,14 @@ class Spark35Shims extends SparkShims {
         true
       case e: Exception => false
     }
+  }
+
+  override def isColumnarLimitExecSupported(): Boolean = true
+
+  override def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
+    file.otherConstantMetadataColumnValues.asJava.asInstanceOf[JMap[String, Object]]
+
+  override def getCollectLimitOffset(plan: CollectLimitExec): Int = {
+    plan.offset
   }
 }

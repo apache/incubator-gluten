@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi.clickhouse
 import org.apache.gluten.backendsapi.TransformerApi
 import org.apache.gluten.execution.{CHHashAggregateExecTransformer, WriteFilesExecTransformer}
 import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
@@ -162,6 +163,15 @@ class CHTransformerApi extends TransformerApi with Logging {
         nativeConfMap.put(orcCompressionKey, "snappy")
       }
     }
+
+    if (nativeConfMap.containsKey(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key)) {
+      // We can't use gluten_cache.local.enabled
+      // because FileCacheSettings doesn't contain this field.
+      nativeConfMap.put(
+        CHConfig.runtimeConfig("enable.gluten_cache.local"),
+        nativeConfMap.get(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key))
+      nativeConfMap.remove(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key)
+    }
   }
 
   override def getSupportExpressionClassName: util.Set[String] = {
@@ -202,16 +212,14 @@ class CHTransformerApi extends TransformerApi with Logging {
   }
 
   override def createCheckOverflowExprNode(
-      args: java.lang.Object,
+      context: SubstraitContext,
       substraitExprName: String,
       childNode: ExpressionNode,
       childResultType: DataType,
       dataType: DecimalType,
       nullable: Boolean,
       nullOnOverflow: Boolean): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
+    val functionId = context.registerFunction(
       ConverterUtils.makeFuncName(
         substraitExprName,
         Seq(dataType, BooleanType),

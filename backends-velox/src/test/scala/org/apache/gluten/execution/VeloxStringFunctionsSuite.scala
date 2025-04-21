@@ -316,6 +316,19 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
+  test("btrim") {
+    runQueryAndCompare(
+      s"select l_orderkey, btrim(l_comment) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, btrim('. abcdefg', l_comment) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, btrim($NULL_STR_COL), " +
+        s"btrim($NULL_STR_COL, l_comment), btrim('. abcdefg', $NULL_STR_COL) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
   test("lpad") {
     runQueryAndCompare(
       s"select l_orderkey, lpad($NULL_STR_COL, 80) " +
@@ -403,6 +416,18 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
     runQueryAndCompare(
       s"select l_orderkey, like($NULL_STR_COL, '%a%') " +
         s"from $LINEITEM_TABLE where l_comment rlike '%$$##@@#&&' limit $LENGTH") { _ => }
+  }
+
+  testWithMinSparkVersion("ilike", "3.3") {
+    runQueryAndCompare(
+      s"select l_orderkey, l_comment, ilike(l_comment, 'a*') " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, ilike(l_comment, ' ') " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, ilike($NULL_STR_COL, '%a%') " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("regexp") {
@@ -519,7 +544,7 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit 5") { _ => }
   }
 
-  testWithSpecifiedSparkVersion("split", Some("3.4")) {
+  testWithMinSparkVersion("split", "3.4") {
     runQueryAndCompare(
       s"select l_orderkey, l_comment, split(l_comment, '') " +
         s"from $LINEITEM_TABLE limit 5") {
@@ -624,6 +649,20 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
     runQueryAndCompare(
       s"select l_orderkey, left(l_comment, $NULL_STR_COL) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("right") {
+    runQueryAndCompare(
+      s"select l_orderkey, right(l_comment, 1) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      s"select l_orderkey, right($NULL_STR_COL, 1) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      s"select l_orderkey, right(l_comment, $NULL_STR_COL) " +
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 }

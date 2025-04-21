@@ -25,7 +25,7 @@ import org.apache.gluten.logging.LogLevelUtil
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
-import org.apache.spark.sql.execution.ui.GlutenEventUtils
+import org.apache.spark.sql.execution.ui.GlutenUIUtils
 
 /**
  * This rule is used to collect all fallback reason.
@@ -40,7 +40,9 @@ case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
       return plan
     }
     printFallbackReason(plan)
-    postFallbackReason(plan)
+    if (GlutenUIUtils.uiEnabled(spark.sparkContext, Some(glutenConf))) {
+      postFallbackReason(plan)
+    }
     plan
   }
 
@@ -48,7 +50,7 @@ case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
     val executionIdInfo = Option(spark.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY))
       .map(id => s"[QueryId=$id]")
       .getOrElse("")
-    logOnLevel(logLevel, s"Validation failed for plan: $nodeName$executionIdInfo, due to: $reason.")
+    logOnLevel(logLevel, s"Validation failed for plan: $nodeName$executionIdInfo, due to: $reason")
   }
 
   private def printFallbackReason(plan: SparkPlan): Unit = {
@@ -86,7 +88,7 @@ case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
       concat.toString(),
       fallbackNodeToReason
     )
-    GlutenEventUtils.post(sc, event)
+    GlutenUIUtils.postEvent(sc, event)
   }
 }
 

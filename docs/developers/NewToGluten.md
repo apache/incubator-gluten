@@ -10,15 +10,23 @@ Help users to debug and test with gluten.
 
 Now gluten supports Ubuntu20.04, Ubuntu22.04, centos8, centos7 and macOS.
 
-## OpenJDK 8
+## JDK
 
-### Environment Setting
+Currently, Gluten supports JDK 8 for Spark 3.2/3.3/3.4/3.5. For Spark 3.3 and higher versions, Gluten
+supports JDK 11 and 17. Please note since Spark 4.0, JDK 8 will not be supported. So we recommend Velox
+backend users to use higher JDK version now to ease the migration for deploying Gluten with Spark-4.0
+in the future. And we may probably upgrade Arrow from 15.0.0 to some higher version, which also requires
+JDK 11 is the minimum version.
+
+### JDK 8
+
+#### Environment Setting
 
 For root user, the environment variables file is `/etc/profile`, it will take effect for all the users.
 
 For other user, you can set in `~/.bashrc`.
 
-### Guide for Ubuntu
+#### Guide for Ubuntu
 
 The default JDK version in ubuntu is java11, we need to set to java8.
 
@@ -41,9 +49,9 @@ export PATH="$PATH:$JAVA_HOME/bin"
 
 > Must set PATH with double quote in ubuntu.
 
-## OpenJDK 17
+### JDK 11/17
 
-By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME points to jdk17 or jdk11 respectively.
+By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME is set correctly.
 
 Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
 So please add following configs in `spark-defaults.conf`:
@@ -86,10 +94,6 @@ Install the Linux IntelliJ version, and debug code locally.
 
 - Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server
 - Start Idea, `bash <idea_dir>/idea.sh`
-
-## Windows/macOS IntelliJ remote debug
-
-If you have IntelliJ Ultimate Edition, you can debug Gluten code remotely.
 
 ## Set up gluten project
 
@@ -461,7 +465,7 @@ valgrind --leak-check=yes ./exec_backend_test
 # Run TPC-H and TPC-DS
 
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
-Refer to [velox_be.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_be.yml)
+Refer to [velox_backend.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_backend.yml)
 
 # Run gluten+velox on clean machine
 

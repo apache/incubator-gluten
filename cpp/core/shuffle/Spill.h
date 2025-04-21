@@ -29,13 +29,7 @@ namespace gluten {
 
 class Spill final {
  public:
-  enum SpillType { kSequentialSpill, kBatchedSpill };
-
-  Spill(SpillType type);
-
   ~Spill();
-
-  SpillType type() const;
 
   void openForRead(uint64_t shuffleFileBufferSize);
 
@@ -70,7 +64,6 @@ class Spill final {
     std::unique_ptr<Payload> payload{};
   };
 
-  SpillType type_;
   std::shared_ptr<gluten::MmapFileStream> is_;
   std::list<PartitionPayload> partitionPayloads_{};
   std::string spillFile_;

@@ -46,7 +46,7 @@ const std::string kLocalReadBytes = "localReadBytes";
 const std::string kRamReadBytes = "ramReadBytes";
 const std::string kPreloadSplits = "readyPreloadedSplits";
 const std::string kNumWrittenFiles = "numWrittenFiles";
-const std::string kWriteIOTime = "writeIOTime";
+const std::string kWriteIOTime = "writeIOWallNanos";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -152,9 +152,10 @@ WholeStageResultIterator::WholeStageResultIterator(
             starts[idx],
             lengths[idx],
             partitionKeys,
-            std::nullopt,
+            std::nullopt /*tableBucketName*/,
             std::unordered_map<std::string, std::string>(),
             nullptr,
+            std::unordered_map<std::string, std::string>(),
             std::unordered_map<std::string, std::string>(),
             0,
             true,
@@ -476,24 +477,23 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   configs[velox::core::QueryConfig::kMaxOutputBatchRows] =
       std::to_string(veloxCfg_->get<uint32_t>(kSparkBatchSize, 4096));
   try {
-    if (veloxCfg_->valueExists(kDefaultSessionTimezone)) {
-      configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
-    }
-    if (veloxCfg_->valueExists(kSessionTimezone)) {
-      configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
-    }
+    configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
 
     {
       // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
-      // FIXME this uses process-wise off-heap memory which is not for task
-      // partial aggregation memory config
+      // Partial aggregation memory configurations.
+      // TODO: Move the calculations to Java side.
       auto offHeapMemory = veloxCfg_->get<int64_t>(kSparkTaskOffHeapMemory, facebook::velox::memory::kMaxMemory);
-      auto maxPartialAggregationMemory =
-          static_cast<long>((veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
-      auto maxExtendedPartialAggregationMemory =
-          static_cast<long>((veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
+      auto maxPartialAggregationMemory = std::max<int64_t>(
+          1 << 24,
+          veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).has_value()
+              ? veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).value()
+              : static_cast<int64_t>(veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
+      auto maxExtendedPartialAggregationMemory = std::max<int64_t>(
+          1 << 26,
+          static_cast<long>(veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
       configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
           std::to_string(maxExtendedPartialAggregationMemory);
@@ -514,6 +514,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kJoinSpillEnabled, true));
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] =
         std::to_string(veloxCfg_->get<bool>(kOrderBySpillEnabled, true));
+    configs[velox::core::QueryConfig::kWindowSpillEnabled] =
+        std::to_string(veloxCfg_->get<bool>(kWindowSpillEnabled, true));
     configs[velox::core::QueryConfig::kMaxSpillLevel] = std::to_string(veloxCfg_->get<int32_t>(kMaxSpillLevel, 4));
     configs[velox::core::QueryConfig::kMaxSpillFileSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillFileSize, 1L * 1024 * 1024 * 1024));
@@ -562,6 +564,15 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     } else {
       configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "false";
     }
+
+    if (veloxCfg_->get<std::string>(kSparkMapKeyDedupPolicy, "") == "EXCEPTION") {
+      configs[velox::core::QueryConfig::kThrowExceptionOnDuplicateMapKeys] = "true";
+    } else {
+      configs[velox::core::QueryConfig::kThrowExceptionOnDuplicateMapKeys] = "false";
+    }
+
+    configs[velox::core::QueryConfig::kSparkLegacyStatisticalAggregate] =
+        std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
       const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);

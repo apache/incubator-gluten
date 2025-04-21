@@ -65,12 +65,12 @@ std::map<std::string, std::function<Field(const std::string &)>> FileMetaColumns
         }}};
 
 // Initialize the static variable outside the class definition
-std::map<std::string, std::function<DB::Field(const substraitInputFile &)>> FileMetaColumns::INPUT_FUNCTION_EXTRACTORS
-    = {{INPUT_FILE_NAME, [](const substraitInputFile & file) { return file.uri_file(); }},
-       {INPUT_FILE_BLOCK_START, [](const substraitInputFile & file) { return file.start(); }},
-       {INPUT_FILE_BLOCK_LENGTH, [](const substraitInputFile & file) { return file.length(); }}};
+std::map<std::string, std::function<DB::Field(const SubstraitInputFile &)>> FileMetaColumns::INPUT_FUNCTION_EXTRACTORS
+    = {{INPUT_FILE_NAME, [](const SubstraitInputFile & file) { return file.uri_file(); }},
+       {INPUT_FILE_BLOCK_START, [](const SubstraitInputFile & file) { return file.start(); }},
+       {INPUT_FILE_BLOCK_LENGTH, [](const SubstraitInputFile & file) { return file.length(); }}};
 
-FileMetaColumns::FileMetaColumns(const substraitInputFile & file)
+FileMetaColumns::FileMetaColumns(const SubstraitInputFile & file)
 {
     for (const auto & column : file.metadata_columns())
     {
@@ -104,25 +104,29 @@ DB::ColumnPtr FileMetaColumns::createMetaColumn(const String & columnName, const
     return mutable_column;
 }
 
-FormatFile::FormatFile(DB::ContextPtr context_, const substraitInputFile & file_info_, const ReadBufferBuilderPtr & read_buffer_builder_)
+FormatFile::FormatFile(DB::ContextPtr context_, const SubstraitInputFile & file_info_, const ReadBufferBuilderPtr & read_buffer_builder_)
     : context(context_), file_info(file_info_), read_buffer_builder(read_buffer_builder_), meta_columns(file_info_)
 {
+    /// Escaping rules for file_info:
+    /// 1. file_info.partition_columns() and file_info.partition_values() had been decoded in jvm. We don't need to decode them again in c++.
+    /// e.g. The raw partition value is "%s", and the decoded value is "%s".
+    ///
+    /// 2. the file path in file_info.uri_file() and file_info.metadata_columns() are not decoded.
+    /// e.g. The raw partition value is "%s", the raw file path is "file:/spark-warehouse/sales/year=%25s/part-00000"
+    /// the file path in file_info.uri_file() and file_info.metadata_columns() is encoded based on raw file path: "file:/spark-warehouse/sales/year=%2525s/part-00000"
+    /// To get the raw file path, we need to decode file_info.uri_file(). Currently it is implemented in [[ReadBufferBuilder::build()]].
+    ///
+    /// 3. input_file_name() returns file_info.uri_file() directly instead of decoding it.
+
     if (file_info.partition_columns_size())
     {
         for (size_t i = 0; i < file_info.partition_columns_size(); ++i)
         {
             const auto & partition_column = file_info.partition_columns(i);
+            partition_values[partition_column.key()] = partition_column.value();
 
-            std::string unescaped_key;
-            std::string unescaped_value;
-            Poco::URI::decode(partition_column.key(), unescaped_key);
-            Poco::URI::decode(partition_column.value(), unescaped_value);
-
-            partition_values[unescaped_key] = unescaped_value;
-
-            std::string normalized_key = unescaped_key;
-            boost::to_lower(normalized_key);
-            normalized_partition_values[normalized_key] = unescaped_value;
+            auto normalized_key = boost::to_lower_copy(partition_column.key());
+            normalized_partition_values[normalized_key] = partition_column.value();
         }
     }
 

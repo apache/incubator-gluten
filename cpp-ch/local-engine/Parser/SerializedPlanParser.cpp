@@ -65,6 +65,7 @@ namespace DB
 namespace Setting
 {
 extern const SettingsUInt64 priority;
+extern const SettingsMilliseconds low_priority_query_wait_time_ms;
 }
 namespace ErrorCodes
 {
@@ -235,35 +236,40 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
     rel_stack.pop_back();
 
-    // source node is special
+    /// Sperical process for read relation because it may be incomplete when reading from scans/mergetrees/ranges.
     if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
     {
-        assert(all_input_rels.empty());
+        chassert(all_input_rels.empty());
         auto read_rel_parser = std::dynamic_pointer_cast<ReadRelParser>(rel_parser);
         const auto & read = rel.read();
-        if (read.has_local_files())
+
+        if (read_rel_parser->isReadRelFromJavaIter(read))
         {
-            if (ReadRelParser::isReadRelFromJava(read))
-            {
-                auto iter = read.local_files().items().at(0).uri_file();
-                auto pos = iter.find(':');
-                auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
-                auto [input_iter, materalize_input] = getInputIter(static_cast<size_t>(iter_index));
-                read_rel_parser->setInputIter(input_iter, materalize_input);
-            }
+            /// If read from java iter, local_files is guranteed to be set in read rel.
+            auto iter = read.local_files().items().at(0).uri_file();
+            auto pos = iter.find(':');
+            auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
+            auto [input_iter, materalize_input] = getInputIter(static_cast<size_t>(iter_index));
+            read_rel_parser->setInputIter(input_iter, materalize_input);
         }
-        else if (ReadRelParser::isReadFromMergeTree(read))
+        else if (read_rel_parser->isReadRelFromMergeTree(read))
         {
             if (!read.has_extension_table())
-            {
                 read_rel_parser->setSplitInfo(nextSplitInfo());
-            }
         }
-        else if (!read.has_local_files() && !read.has_extension_table())
+        else if (read_rel_parser->isReadRelFromRange(read))
         {
-            // read from split files
-            auto split_info = nextSplitInfo();
-            read_rel_parser->setSplitInfo(split_info);
+            if (!read.has_extension_table())
+                read_rel_parser->setSplitInfo(nextSplitInfo());
+        }
+        else if (read_rel_parser->isReadRelFromLocalFile(read))
+        {
+            if (!read.has_local_files())
+                read_rel_parser->setSplitInfo(nextSplitInfo());
+        }
+        else if (read_rel_parser->isReadFromStreamKafka(read))
+        {
+            read_rel_parser->setSplitInfo(nextSplitInfo());
         }
     }
 
@@ -299,7 +305,8 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         "",
         0, // since we set a query to empty string, let's set hash to zero.
         parser_context->queryContext()->getClientInfo(),
-        priorities.insert(settings[Setting::priority]),
+        priorities.insert(
+            settings[Setting::priority], std::chrono::milliseconds(settings[Setting::low_priority_query_wait_time_ms].totalMilliseconds())),
         CurrentThread::getGroup(),
         IAST::QueryKind::Select,
         settings,
@@ -415,10 +422,9 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
             visitNonNullable(scalar_function.arguments(1).value());
         }
     }
-    else if (expr.has_selection())
+    else if (auto field_index = SubstraitParserUtils::getStructFieldIndex(expr))
     {
-        const auto & selection = expr.selection();
-        auto column_pos = selection.direct_reference().struct_field().field();
+        const auto & column_pos = *field_index;
         auto column_name = header.getByPosition(column_pos).name;
         collected_columns.insert(column_name);
     }
