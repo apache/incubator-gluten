@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_04_20
+VELOX_BRANCH=2025_04_21
 VELOX_HOME=""
 
 OS=`uname -s`
