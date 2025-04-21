@@ -54,8 +54,7 @@ ${GLUTEN_HOME}/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON -
 
 ```
 cd ${GLUTEN_HOME}
-mvn clean package -Pspark-3.2 -Pbackends-velox -Pceleborn -Puniffle -DskipTests
-mvn test -Pspark-3.2 -Pbackends-velox -Pceleborn -pl backends-velox \
+mvn test -Pspark-3.2 -pl backends-velox \
 -am -DtagsToInclude="org.apache.gluten.tags.GenerateExample" \
 -Dtest=none -DfailIfNoTests=false \
 -Dexec.skip
@@ -67,7 +66,7 @@ mvn test -Pspark-3.2 -Pbackends-velox -Pceleborn -pl backends-velox \
 
 ```shell
 $ tree ${GLUTEN_HOME}/backends-velox/generated-native-benchmark/
-/workspace/test_clean/incubator-gluten/backends-velox/generated-native-benchmark/
+/some-dir-to-gluten-home/backends-velox/generated-native-benchmark/
 |-- conf_12_0.ini
 |-- data_12_0_0.parquet
 |-- data_12_0_1.parquet
