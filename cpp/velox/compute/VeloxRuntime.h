@@ -82,7 +82,7 @@ class VeloxRuntime final : public Runtime {
 
   void dumpConf(bool dump) override;
 
-  std::shared_ptr<ArrowWriter> createArrowWriter(bool dump) override;
+  std::shared_ptr<ArrowWriter> createArrowWriter(bool dump, int32_t idx) override;
 
   std::shared_ptr<VeloxDataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
 

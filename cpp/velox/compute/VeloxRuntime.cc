@@ -353,13 +353,14 @@ void VeloxRuntime::dumpConf(bool dump) {
   dumpToStorage(veloxCfg_, dumpPath, out.str());
 }
 
-std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(bool dump) {
+std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(bool dump, int32_t idx) {
   if (!dump) {
     return nullptr;
   }
 
   auto saveDir = veloxCfg_->get<std::string>(kGlutenSaveDir).value();
-  auto dumpPath = fmt::format("{}/data_{}_{}_{}.parquet", saveDir, taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId);
+  auto dumpPath =
+      fmt::format("{}/data_{}_{}_{}_{}.parquet", saveDir, taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId, idx);
   auto batchSize = veloxCfg_->get<int64_t>(kSparkBatchSize, 4096);
   return std::make_shared<VeloxArrowWriter>(dumpPath, batchSize, memoryManager()->getLeafMemoryPool().get());
 }

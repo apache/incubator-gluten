@@ -154,7 +154,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
-  virtual std::shared_ptr<ArrowWriter> createArrowWriter(bool dump) {
+  virtual std::shared_ptr<ArrowWriter> createArrowWriter(bool dump, int32_t idx) {
     throw GlutenException("Not implemented");
   };
 

@@ -103,7 +103,7 @@ class DummyRuntime final : public Runtime {
     throw GlutenException("Not yet implemented");
   }
 
-  std::shared_ptr<ArrowWriter> createArrowWriter(bool dump) override {
+  std::shared_ptr<ArrowWriter> createArrowWriter(bool dump, int32_t) override {
     throw GlutenException("Not yet implemented");
   }
 
