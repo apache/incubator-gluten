@@ -76,6 +76,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "No deadlock in UI update",
       "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join"
     )
+    // Gluten columnar operator will have different number of shuffle
+    .exclude("SPARK-29906: AQE should not introduce extra shuffle for outermost limit")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
     .excludeCH("test ApproxCountDistinctForIntervals with large number of endpoints")
@@ -434,6 +436,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
+    // Gluten columnar operator will have different number of jobs
+    .exclude("SPARK-40211: customize initialNumPartitions for take")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
     .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
