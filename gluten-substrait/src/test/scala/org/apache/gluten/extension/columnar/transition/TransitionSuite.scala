@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.component.NoComponents
+import org.apache.gluten.component.WithDummyBackend
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
 
@@ -28,7 +28,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class TransitionSuite extends SharedSparkSession with NoComponents {
+class TransitionSuite extends SharedSparkSession with WithDummyBackend {
   import TransitionSuite._
 
   override protected def sparkConf: SparkConf =

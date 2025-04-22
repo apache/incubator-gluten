@@ -25,18 +25,18 @@ import org.apache.spark.sql.execution.SparkPlan
 
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-trait NoComponents extends BeforeAndAfterAll {
+trait WithDummyBackend extends BeforeAndAfterAll {
   this: Suite =>
-  import NoComponents._
+  import WithDummyBackend._
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    new DummyBackend().ensureRegistered()
+    DummyBackend.ensureRegistered()
   }
 }
 
-object NoComponents {
-  class DummyBackend extends Backend {
+object WithDummyBackend {
+  object DummyBackend extends Backend {
     override def name(): String = "dummy-backend"
     override def buildInfo(): Component.BuildInfo =
       Component.BuildInfo("DUMMY_BACKEND", "N/A", "N/A", "N/A")

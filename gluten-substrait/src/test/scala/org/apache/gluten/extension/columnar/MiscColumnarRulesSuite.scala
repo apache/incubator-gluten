@@ -16,14 +16,14 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.component.NoComponents
+import org.apache.gluten.component.WithDummyBackend
 import org.apache.gluten.extension.columnar.MiscColumnarRules.PreventBatchTypeMismatchInTableCache
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.extension.columnar.transition.TransitionSuite.BatchToRow
 
 import org.apache.spark.sql.test.SharedSparkSession
 
-class MiscColumnarRulesSuite extends SharedSparkSession with NoComponents {
+class MiscColumnarRulesSuite extends SharedSparkSession with WithDummyBackend {
 
   test("Fix ColumnarToRowRemovalGuard not able to be copied") {
     val dummyPlan =
