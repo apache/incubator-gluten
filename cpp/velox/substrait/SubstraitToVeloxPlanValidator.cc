@@ -232,6 +232,22 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   return true;
 }
 
+bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
+  static const std::unordered_set<TypeKind> kAllowedArrayElementKinds = {
+      TypeKind::DOUBLE,
+      TypeKind::BOOLEAN,
+      TypeKind::TIMESTAMP,
+  };
+
+  // https://github.com/apache/incubator-gluten/issues/9392
+  // is currently WIP to add support for other types.
+  if (toType->isVarchar()) {
+    return kAllowedArrayElementKinds.count(fromType->kind()) > 0;
+  }
+
+  return false;
+}
+
 bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const TypePtr& toType) {
   // Currently cast is not allowed for various categories, code has a bunch of rules
   // which define the cast categories and if we should offload to velox. Currently,
@@ -273,6 +289,17 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
       return true;
     }
     return false;
+  }
+
+  if (fromType->isArray() && toType->isArray()) {
+    const auto& toElem = toType->asArray().elementType();
+    const auto& fromElem = fromType->asArray().elementType();
+
+    if (!isAllowedCast(fromElem, toElem)) {
+      return false;
+    }
+
+    return isSupportedArrayCast(fromElem, toElem);
   }
 
   // Limited support for Complex types.
