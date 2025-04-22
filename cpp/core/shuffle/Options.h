@@ -40,6 +40,7 @@ static constexpr bool kEnableBufferedWrite = true;
 static constexpr bool kDefaultUseRadixSort = true;
 static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
+static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
 
 enum ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
@@ -52,7 +53,8 @@ struct ShuffleReaderOptions {
   ShuffleWriterType shuffleWriterType = kHashShuffle;
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t batchSize = kDefaultBatchSize;
-  int64_t bufferSize = kDefaultReadBufferSize;
+  int64_t readerBufferSize = kDefaultReadBufferSize;
+  int64_t deserializerBufferSize = kDefaultDeserializerBufferSize;
 };
 
 struct ShuffleWriterOptions {

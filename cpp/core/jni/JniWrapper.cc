@@ -1065,7 +1065,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     jstring compressionType,
     jstring compressionBackend,
     jint batchSize,
-    jlong bufferSize,
+    jlong readerBufferSize,
+    jlong deserializerBufferSize,
     jstring shuffleWriterType) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
@@ -1077,7 +1078,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     options.codecBackend = getCodecBackend(env, compressionBackend);
   }
   options.batchSize = batchSize;
-  options.bufferSize = bufferSize;
+  options.readerBufferSize = readerBufferSize;
+  options.deserializerBufferSize = deserializerBufferSize;
 
   options.shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterType));
   std::shared_ptr<arrow::Schema> schema =

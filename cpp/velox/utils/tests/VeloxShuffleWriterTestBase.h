@@ -367,6 +367,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         rowType,
         kDefaultBatchSize,
         kDefaultReadBufferSize,
+        kDefaultDeserializerBufferSize,
         defaultArrowMemoryPool().get(),
         pool_,
         GetParam().shuffleWriterType);
