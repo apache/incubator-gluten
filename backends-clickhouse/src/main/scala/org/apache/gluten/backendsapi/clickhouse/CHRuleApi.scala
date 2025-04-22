@@ -76,7 +76,7 @@ object CHRuleApi {
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
-    injector.injectPreCBORule(spark => CHOptimizeMetadataOnlyDeltaQuery(spark))
+    injector.injectPreCBORule(spark => new CHOptimizeMetadataOnlyDeltaQuery(spark))
   }
 
   private def injectLegacy(injector: LegacyInjector): Unit = {

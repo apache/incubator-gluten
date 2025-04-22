@@ -1158,6 +1158,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "- single join")
     .exclude("SPARK-35455: Unify empty relation optimization between normal and AQE optimizer " +
       "- multi join")
+    // Gluten columnar operator will have different number of shuffle
+    .exclude("SPARK-29906: AQE should not introduce extra shuffle for outermost limit")
     .excludeGlutenTest("Empty stage coalesced to 1-partition RDD")
     .excludeGlutenTest(
       "Avoid changing merge join to broadcast join if too many empty partitions on build plan")
