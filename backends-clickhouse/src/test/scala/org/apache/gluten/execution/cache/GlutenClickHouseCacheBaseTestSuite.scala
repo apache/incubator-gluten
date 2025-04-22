@@ -37,7 +37,9 @@ abstract class GlutenClickHouseCacheBaseTestSuite
   override protected val queriesResults: String = rootPath + "queries-output"
 
   // Abstract methods to be implemented by subclasses
-  protected def cleanupCache(): Unit = cacheHelper.deleteCache(spark, tablesPath)
+  protected def cleanupCache(): Unit =
+    cacheHelper.deleteCache(spark, s"$tablesPath/lineitem", s"$tablesPath/$SPARK_DIR_NAME")
+
   protected def copyDataIfNeeded(): Unit
 
   // Initialize the cache helper - accessible to subclasses
