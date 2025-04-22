@@ -115,6 +115,8 @@ target_link_libraries(
   PUBLIC substrait_source clickhouse_aggregate_functions clickhouse_functions
          gluten_spark_functions ch_contrib::xxHash)
 
+option(USE_SYMLINK "Use symlink instead of rename for library" OFF)
+
 # Add udf sources files in sub directories to functions_sources
 option(ENABLE_LOCAL_UDFS
        "Build UDFs in 'local-engine/Parser/*_udf' subdirectories" ON)
@@ -200,13 +202,23 @@ if(ENABLE_SEPARATE_SYMBOLS)
   separate_symbols(${LOCALENGINE_SHARED_LIB})
 endif()
 
-add_custom_command(
-  OUTPUT ${LOCALENGINE_SHARED_LIB_NAME}
-  COMMAND ${CMAKE_COMMAND} -E rename $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}>
+if(USE_SYMLINK)
+  add_custom_command(
+          OUTPUT ${LOCALENGINE_SHARED_LIB_NAME}
+          COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}>
           ${LOCALENGINE_SHARED_LIB_NAME}
-  COMMENT
-    "Renaming $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> to ${LOCALENGINE_SHARED_LIB_NAME}"
-  DEPENDS ${LOCALENGINE_SHARED_LIB})
+          COMMENT
+          "Creating symlink from $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> to ${LOCALENGINE_SHARED_LIB_NAME}"
+          DEPENDS ${LOCALENGINE_SHARED_LIB})
+else()
+  add_custom_command(
+          OUTPUT ${LOCALENGINE_SHARED_LIB_NAME}
+          COMMAND ${CMAKE_COMMAND} -E rename $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}>
+          ${LOCALENGINE_SHARED_LIB_NAME}
+          COMMENT
+          "Renaming $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> to ${LOCALENGINE_SHARED_LIB_NAME}"
+          DEPENDS ${LOCALENGINE_SHARED_LIB})
+endif()
 
 add_custom_target(libch ALL DEPENDS ${LOCALENGINE_SHARED_LIB_NAME})
 
