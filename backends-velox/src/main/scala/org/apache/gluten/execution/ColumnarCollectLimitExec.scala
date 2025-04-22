@@ -19,7 +19,6 @@ package org.apache.gluten.execution
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.columnarbatch.VeloxColumnarBatches
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 

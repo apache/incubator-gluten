@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-// import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.vectorized.CHNativeBlock
 
 import org.apache.spark.sql.execution.SparkPlan
@@ -90,10 +89,6 @@ case class CHColumnarCollectLimitExec(limit: Int, offset: Int, child: SparkPlan)
       }
     }
   }
-
-//  override protected def doValidateInternal(): ValidationResult = {
-//    ValidationResult.succeeded
-//  }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
