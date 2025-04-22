@@ -49,7 +49,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[ClickHouseAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
-      "SPARK-29906",
+      // exclude SPARK-29906 because gluten columnar operator will have different number of shuffle
       "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
@@ -76,8 +76,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "No deadlock in UI update",
       "SPARK-35455: Unify empty relation optimization between normal and AQE optimizer - multi join"
     )
-    // Gluten columnar operator will have different number of shuffle
-    .exclude("SPARK-29906: AQE should not introduce extra shuffle for outermost limit")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
     .excludeCH("test ApproxCountDistinctForIntervals with large number of endpoints")
