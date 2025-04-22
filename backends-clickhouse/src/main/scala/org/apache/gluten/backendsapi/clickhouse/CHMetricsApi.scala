@@ -188,7 +188,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   override def genFilterTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric],
       extraMetrics: Seq[(String, SQLMetric)] = Seq.empty): MetricsUpdater =
-    new FilterMetricsUpdater(metrics)
+    new FilterMetricsUpdater(metrics, extraMetrics)
 
   override def genProjectTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
@@ -206,7 +206,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   override def genProjectTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric],
       extraMetrics: Seq[(String, SQLMetric)] = Seq.empty): MetricsUpdater =
-    new ProjectMetricsUpdater(metrics)
+    new ProjectMetricsUpdater(metrics, extraMetrics)
 
   override def genHashAggregateTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
