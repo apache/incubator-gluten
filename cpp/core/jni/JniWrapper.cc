@@ -427,7 +427,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
     auto safeSplitArray = getByteArrayElementsSafe(env, splitInfoArray);
     auto splitInfoData = safeSplitArray.elems();
-    ctx->parseSplitInfo(splitInfoData, splitInfoSize, saveInput);
+    ctx->parseSplitInfo(splitInfoData, splitInfoSize, i, saveInput);
   }
 
   // Handle the Java iters

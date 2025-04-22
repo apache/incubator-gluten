@@ -124,12 +124,12 @@ void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, bool dump) {
   GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
 }
 
-void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, bool dump) {
+void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dump) {
   if (debugModeEnabled_ || dump) {
     try {
       auto splitJson = substraitFromPbToJson("ReadRel.LocalFiles", data, size);
       if (dump) {
-        auto dumpFile = fmt::format("split_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId);
+        auto dumpFile = fmt::format("split_{}_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId, idx);
         dumpToStorage(veloxCfg_, dumpFile, splitJson);
       }
       LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#')

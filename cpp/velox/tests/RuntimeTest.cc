@@ -52,7 +52,7 @@ class DummyRuntime final : public Runtime {
 
   void parsePlan(const uint8_t* data, int32_t size, bool dump) override {}
 
-  void parseSplitInfo(const uint8_t* data, int32_t size, bool dump) override {}
+  void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dump) override {}
 
   std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,

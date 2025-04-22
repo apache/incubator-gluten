@@ -87,7 +87,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
-  virtual void parseSplitInfo(const uint8_t* data, int32_t size, bool dump) {
+  virtual void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dump) {
     throw GlutenException("Not implemented");
   }
 
