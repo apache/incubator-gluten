@@ -45,22 +45,21 @@ class CacheTestHelper(val TMP_PREFIX: String) {
   }
 
   /** Delete cache files for all tables in the data path */
-  def deleteCache(spark: SparkSession, dataPath: String): Unit = {
-    val targetFile = new Path(dataPath)
-    val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
-    fs.listStatus(targetFile)
-      .foreach(
-        table => {
-          if (table.isDirectory) {
-            fs.listStatus(table.getPath)
-              .foreach(
-                data => {
-                  if (data.isFile) {
-                    CHNativeCacheManager
-                      .removeFiles(data.getPath.toUri.getPath.substring(1), CACHE_NAME)
-                  }
-                })
-          }
-        })
+  def deleteCache(spark: SparkSession, dataPaths: String*): Unit = {
+    dataPaths.foreach(
+      dataPath => {
+        val targetFile = new Path(dataPath)
+        val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
+        if (fs.isDirectory(targetFile)) {
+          fs.listStatus(targetFile)
+            .foreach(
+              data => {
+                if (data.isFile) {
+                  CHNativeCacheManager
+                    .removeFiles(data.getPath.toUri.getPath.substring(1), CACHE_NAME)
+                }
+              })
+        }
+      })
   }
 }
