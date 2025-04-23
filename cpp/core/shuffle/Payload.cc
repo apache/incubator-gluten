@@ -480,7 +480,8 @@ std::shared_ptr<arrow::Schema> InMemoryPayload::schema() const {
   return schema_;
 }
 
-arrow::Status InMemoryPayload::createDictionaries() {
+arrow::Status InMemoryPayload::createDictionaries(const std::shared_ptr<DictionaryMaker>& dictionary) {
+  ARROW_ASSIGN_OR_RAISE(buffers_, dictionary->updateAndGet(schema_, numRows_, buffers_));
   return arrow::Status::OK();
 }
 

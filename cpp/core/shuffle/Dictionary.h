@@ -1,0 +1,329 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#pragma once
+
+#include <arrow/buffer.h>
+#include <arrow/buffer_builder.h>
+#include <arrow/stl_allocator.h>
+#include <arrow/type.h>
+#include <arrow/type_traits.h>
+#include <arrow/visit_type_inline.h>
+
+#include "utils/Exception.h"
+
+namespace {
+
+using IndexType = int32_t;
+
+template <typename T>
+using is_gluten_binary_type = std::
+    integral_constant<bool, std::is_same<arrow::BinaryType, T>::value || std::is_same<arrow::StringType, T>::value>;
+
+template <typename T, typename R = void>
+using enable_if_gluten_binary = std::enable_if_t<is_gluten_binary_type<T>::value, R>;
+
+constexpr uint8_t kIsPayload = 0;
+constexpr uint8_t kIsDictionary = 1;
+
+class IDictionaryStorage {
+ public:
+  virtual ~IDictionaryStorage() = default;
+
+  virtual arrow::Status serialize(arrow::io::OutputStream* out) = 0;
+};
+
+template <typename ValueType>
+class DictionaryStorage : public IDictionaryStorage {
+ public:
+  DictionaryStorage(arrow::MemoryPool* pool) {
+    values_ = arrow::BufferBuilder{pool};
+  }
+
+  arrow::Result<IndexType> getOrUpdate(const ValueType& value) {
+    const auto& [it, inserted] = indexMap.emplace(value, indexMap.size());
+    if (inserted) {
+      RETURN_NOT_OK(values_.Append(&value, sizeof(ValueType)));
+    }
+    return it->second;
+  }
+
+  arrow::Status serialize(arrow::io::OutputStream* out) override {
+    ARROW_ASSIGN_OR_RAISE(auto valueBuffer, values_.Finish());
+
+    const auto valueBufferSize = valueBuffer->size();
+    RETURN_NOT_OK(out->Write(&valueBufferSize, sizeof(valueBufferSize)));
+    RETURN_NOT_OK(out->Write(valueBuffer->data(), valueBufferSize));
+
+    return arrow::Status::OK();
+  }
+
+ private:
+  arrow::BufferBuilder values_;
+  std::unordered_map<ValueType, IndexType> indexMap;
+};
+
+template <>
+class DictionaryStorage<std::string_view> : public IDictionaryStorage {
+ public:
+  DictionaryStorage(arrow::MemoryPool* pool) {
+    values_ = arrow::BufferBuilder{pool};
+    lengths_ = arrow::BufferBuilder{pool};
+  }
+
+  arrow::Result<IndexType> getOrUpdate(const std::string_view& view) {
+    auto it = indexMap_.find(view);
+    if (it == indexMap_.end()) {
+      const auto length = view.size();
+      RETURN_NOT_OK(lengths_.Append(&length, sizeof(length)));
+
+      const auto offset = values_.length();
+      RETURN_NOT_OK(values_.Append(view));
+
+      auto value = std::string_view{values_.data_as<char>() + offset, length};
+      const auto& [newIt, _] = indexMap_.emplace(value, indexMap_.size());
+      it = newIt;
+    }
+    return it->second;
+  }
+
+  arrow::Status serialize(arrow::io::OutputStream* out) override {
+    ARROW_ASSIGN_OR_RAISE(auto lengthBuffer, lengths_.Finish());
+    ARROW_ASSIGN_OR_RAISE(auto valueBuffer, values_.Finish());
+
+    const auto lengthBufferSize = lengthBuffer->size();
+    RETURN_NOT_OK(out->Write(&lengthBufferSize, sizeof(lengthBufferSize)));
+    RETURN_NOT_OK(out->Write(lengthBuffer->data(), lengthBufferSize));
+
+    const auto valueBufferSize = valueBuffer->size();
+    RETURN_NOT_OK(out->Write(&valueBufferSize, sizeof(valueBufferSize)));
+    RETURN_NOT_OK(out->Write(valueBuffer->data(), valueBufferSize));
+
+    return arrow::Status::OK();
+  }
+
+ private:
+  arrow::BufferBuilder lengths_;
+  arrow::BufferBuilder values_;
+  std::unordered_map<std::string_view, IndexType> indexMap_;
+};
+
+template <typename T, typename CType = typename arrow::TypeTraits<T>::CType>
+arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionary(
+    int32_t numRows,
+    const std::shared_ptr<arrow::Buffer>& validityBuffer,
+    const std::shared_ptr<arrow::Buffer>& valueBuffer,
+    const std::shared_ptr<DictionaryStorage<CType>>& dictionary,
+    arrow::MemoryPool* pool) {
+  ARROW_ASSIGN_OR_RAISE(auto indices, arrow::AllocateBuffer(sizeof(IndexType) * numRows, pool));
+  auto rawIndices = indices->mutable_data_as<IndexType>();
+
+  const auto* values = valueBuffer->data_as<CType>();
+
+  if (validityBuffer != nullptr) {
+    const auto* nulls = validityBuffer->data();
+    for (auto i = 0; i < numRows; ++i) {
+      if (arrow::bit_util::GetBit(nulls, i)) {
+        ARROW_ASSIGN_OR_RAISE(*rawIndices, dictionary->getOrUpdate(values[i]));
+      }
+      ++rawIndices;
+    }
+  } else {
+    for (auto i = 0; i < numRows; ++i) {
+      ARROW_ASSIGN_OR_RAISE(*rawIndices++, dictionary->getOrUpdate(values[i]));
+    }
+  }
+
+  return indices;
+}
+
+arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionaryForBinary(
+    int32_t numRows,
+    const std::shared_ptr<arrow::Buffer>& validityBuffer,
+    const std::shared_ptr<arrow::Buffer>& lengthBuffer,
+    const std::shared_ptr<arrow::Buffer>& valueBuffer,
+    const std::shared_ptr<DictionaryStorage<std::string_view>>& dictionary,
+    arrow::MemoryPool* pool) {
+  ARROW_ASSIGN_OR_RAISE(auto indices, arrow::AllocateBuffer(sizeof(IndexType) * numRows, pool));
+  auto rawIndices = indices->mutable_data_as<IndexType>();
+
+  const auto* lengths = lengthBuffer->data_as<uint32_t>();
+  const auto* values = valueBuffer->data_as<char>();
+
+  size_t offset = 0;
+
+  if (validityBuffer != nullptr) {
+    const auto* nulls = validityBuffer->data();
+    for (auto i = 0; i < numRows; ++i) {
+      if (arrow::bit_util::GetBit(nulls, i)) {
+        std::string_view view(values + offset, lengths[i]);
+        offset += lengths[i];
+        ARROW_ASSIGN_OR_RAISE(*rawIndices, dictionary->getOrUpdate(view));
+      }
+      ++rawIndices;
+    }
+  } else {
+    for (auto i = 0; i < numRows; ++i) {
+      std::string_view view(values + offset, lengths[i]);
+      offset += lengths[i];
+      ARROW_ASSIGN_OR_RAISE(*rawIndices++, dictionary->getOrUpdate(view));
+    }
+  }
+
+  return indices;
+}
+
+} // namespace
+
+class DictionaryMaker {
+ public:
+  DictionaryMaker(arrow::MemoryPool* pool) : pool_(pool) {}
+
+  arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
+      const std::shared_ptr<arrow::Schema>& schema,
+      int32_t numRows,
+      const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
+    RETURN_NOT_OK(initSchema(schema));
+
+    std::vector<std::shared_ptr<arrow::Buffer>> results;
+
+    size_t bufferIdx = 0;
+    for (auto fieldIdx : dictionaryFields_) {
+      const auto fieldType = schema_->field(fieldIdx)->type();
+      bool isBinaryType =
+          fieldType->id() == arrow::BinaryType::type_id || fieldType->id() == arrow::StringType::type_id;
+      ValueUpdater valueUpdater{
+          this,
+          fieldIdx,
+          numRows,
+          buffers[bufferIdx++],
+          buffers[bufferIdx++],
+          isBinaryType ? buffers[bufferIdx++] : nullptr,
+          results};
+      RETURN_NOT_OK(arrow::VisitTypeInline(*fieldType, &valueUpdater));
+    }
+
+    return results;
+  }
+
+  arrow::Status serialize(arrow::io::OutputStream* out) {
+    RETURN_NOT_OK(out->Write(&kIsDictionary, sizeof(kIsDictionary)));
+
+    auto bitMapSize = arrow::bit_util::RoundUpToMultipleOf8(schema_->num_fields());
+    std::vector<uint8_t> bitMap(bitMapSize);
+
+    for (auto fieldIdx : dictionaryFields_) {
+      arrow::bit_util::SetBit(bitMap.data(), fieldIdx);
+    }
+
+    RETURN_NOT_OK(out->Write(bitMap.data(), bitMapSize));
+
+    for (auto fieldIdx : dictionaryFields_) {
+      GLUTEN_DCHECK(
+          dictionaries_.find(fieldIdx) != dictionaries_.end(),
+          "Invalid dictionary field index: " + std::to_string(fieldIdx));
+
+      const auto& dictionary = dictionaries_[fieldIdx];
+      RETURN_NOT_OK(dictionary->serialize(out));
+    }
+
+    return arrow::Status::OK();
+  }
+
+ private:
+  arrow::Status initSchema(const std::shared_ptr<arrow::Schema>& schema) {
+    if (!schema_) {
+      schema_ = schema;
+      for (auto i = 0; i < schema_->num_fields(); ++i) {
+        switch (schema_->field(i)->type()->id()) {
+          case arrow::NullType::type_id:
+          case arrow::BooleanType::type_id:
+          case arrow::ListType::type_id:
+          case arrow::MapType::type_id:
+          case arrow::StructType::type_id:
+            break;
+          default:
+            dictionaryFields_.push_back(i);
+            break;
+        }
+      }
+    } else if (schema_ != schema) {
+      return arrow::Status::Invalid("Schema mismatch");
+    }
+    return arrow::Status::OK();
+  }
+
+  arrow::MemoryPool* pool_;
+  std::shared_ptr<arrow::Schema> schema_;
+  std::vector<int32_t> dictionaryFields_;
+  std::unordered_map<int32_t, std::shared_ptr<IDictionaryStorage>> dictionaries_;
+
+  struct ValueUpdater {
+    DictionaryMaker* self;
+    int32_t fieldIdx;
+    int32_t numRows;
+    std::shared_ptr<arrow::Buffer> nulls{nullptr};
+    std::shared_ptr<arrow::Buffer> values{nullptr};
+    std::shared_ptr<arrow::Buffer> binaryValues{nullptr};
+
+    std::vector<std::shared_ptr<arrow::Buffer>>& results;
+
+    template <typename ValueType>
+    std::shared_ptr<DictionaryStorage<ValueType>> getOrCreateDict(int32_t fieldIdx) {
+      auto it = self->dictionaries_.find(fieldIdx);
+      if (it == self->dictionaries_.end()) {
+        auto dict = std::make_shared<DictionaryStorage<ValueType>>(self->pool_);
+        self->dictionaries_[fieldIdx] = dict;
+        return dict;
+      }
+      return std::dynamic_pointer_cast<DictionaryStorage<ValueType>>(it->second);
+    }
+
+    template <typename ArrowType>
+    arrow::enable_if_integer<ArrowType, arrow::Status> Visit(const ArrowType&) {
+      using CType = typename arrow::TypeTraits<ArrowType>::CType;
+
+      const auto& dict = getOrCreateDict<CType>(fieldIdx);
+
+      ARROW_ASSIGN_OR_RAISE(auto indices, updateDictionary<ArrowType>(numRows, nulls, values, dict, self->pool_));
+
+      results.push_back(nulls);
+      results.push_back(indices);
+
+      return arrow::Status::OK();
+    }
+
+    template <typename ArrowType>
+    enable_if_gluten_binary<ArrowType, arrow::Status> Visit(const ArrowType&) {
+      using OffsetCType = typename arrow::TypeTraits<ArrowType>::OffsetType::c_type;
+      static_assert(std::is_same_v<OffsetCType, int32_t>);
+
+      const auto& dict = getOrCreateDict<std::string_view>(fieldIdx);
+
+      ARROW_ASSIGN_OR_RAISE(
+          auto indices, updateDictionaryForBinary(numRows, nulls, values, binaryValues, dict, self->pool_));
+
+      results.push_back(nulls);
+      results.push_back(indices);
+      return arrow::Status::OK();
+    }
+
+    arrow::Status Visit(const arrow::DataType& type) {
+      return arrow::Status::TypeError("Not implemented for type: ", type.ToString());
+    }
+  };
+};
