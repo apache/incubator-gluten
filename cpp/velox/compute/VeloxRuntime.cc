@@ -129,7 +129,8 @@ void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx
     try {
       auto splitJson = substraitFromPbToJson("ReadRel.LocalFiles", data, size);
       if (dumpSplit) {
-        auto dumpFile = fmt::format("split_{}_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId, idx);
+        auto dumpFile =
+            fmt::format("split_{}_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId, idx);
         dumpToStorage(veloxCfg_, dumpFile, splitJson);
       }
       LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#')
