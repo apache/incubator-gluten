@@ -106,11 +106,11 @@ VeloxRuntime::VeloxRuntime(
       kMemoryPoolCapacityTransferAcrossTasks, FLAGS_velox_memory_pool_capacity_transfer_across_tasks);
 }
 
-void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, bool dump) {
-  if (debugModeEnabled_ || dump) {
+void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, bool dumpPlan) {
+  if (debugModeEnabled_ || dumpPlan) {
     try {
       auto planJson = substraitFromPbToJson("Plan", data, size);
-      if (dump) {
+      if (dumpPlan) {
         auto dumpFile = fmt::format("plan_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId);
         dumpToStorage(veloxCfg_, dumpFile, planJson);
       }
@@ -124,12 +124,12 @@ void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, bool dump) {
   GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
 }
 
-void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dump) {
-  if (debugModeEnabled_ || dump) {
+void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dumpSplit) {
+  if (debugModeEnabled_ || dumpSplit) {
     try {
       auto splitJson = substraitFromPbToJson("ReadRel.LocalFiles", data, size);
-      if (dump) {
-        auto dumpFile = fmt::format("split_{}_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId, idx);
+      if (dumpSplit) {
+        auto dumpFile = fmt::format("split_{}_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId, idx);
         dumpToStorage(veloxCfg_, dumpFile, splitJson);
       }
       LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#')
@@ -349,18 +349,18 @@ void VeloxRuntime::dumpConf(bool dump) {
     out << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
   }
 
-  auto dumpPath = fmt::format("conf_{}_{}_{}.ini", taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId);
+  auto dumpPath = fmt::format("conf_{}_{}_{}.ini", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId);
   dumpToStorage(veloxCfg_, dumpPath, out.str());
 }
 
-std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(bool dump, int32_t idx) {
-  if (!dump) {
+std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(bool dumpData, int32_t idx) {
+  if (!dumpData) {
     return nullptr;
   }
 
   auto saveDir = veloxCfg_->get<std::string>(kGlutenSaveDir).value();
   auto dumpPath =
-      fmt::format("{}/data_{}_{}_{}_{}.parquet", saveDir, taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId, idx);
+      fmt::format("{}/data_{}_{}_{}_{}.parquet", saveDir, taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId, idx);
   auto batchSize = veloxCfg_->get<int64_t>(kSparkBatchSize, 4096);
   return std::make_shared<VeloxArrowWriter>(dumpPath, batchSize, memoryManager()->getLeafMemoryPool().get());
 }

@@ -41,9 +41,9 @@ class VeloxRuntime final : public Runtime {
     taskInfo_.vId = vtId++;
   }
 
-  void parsePlan(const uint8_t* data, int32_t size, bool dump) override;
+  void parsePlan(const uint8_t* data, int32_t size, bool dumpPlan) override;
 
-  void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dump) override;
+  void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dumpSplitInfo) override;
 
   VeloxMemoryManager* memoryManager() override;
 
@@ -82,7 +82,7 @@ class VeloxRuntime final : public Runtime {
 
   void dumpConf(bool dump) override;
 
-  std::shared_ptr<ArrowWriter> createArrowWriter(bool dump, int32_t idx) override;
+  std::shared_ptr<ArrowWriter> createArrowWriter(bool dumpData, int32_t idx) override;
 
   std::shared_ptr<VeloxDataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
 

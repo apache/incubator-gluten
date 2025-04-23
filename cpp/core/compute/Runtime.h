@@ -83,11 +83,11 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return kind_;
   }
 
-  virtual void parsePlan(const uint8_t* data, int32_t size, bool dump) {
+  virtual void parsePlan(const uint8_t* data, int32_t size, bool dumpPlan) {
     throw GlutenException("Not implemented");
   }
 
-  virtual void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dump) {
+  virtual void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dumpSplit) {
     throw GlutenException("Not implemented");
   }
 
@@ -154,7 +154,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
-  virtual std::shared_ptr<ArrowWriter> createArrowWriter(bool dump, int32_t idx) {
+  virtual std::shared_ptr<ArrowWriter> createArrowWriter(bool dumpData, int32_t idx) {
     throw GlutenException("Not implemented");
   };
 

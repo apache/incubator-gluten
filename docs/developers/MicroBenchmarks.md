@@ -43,13 +43,17 @@ mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am \
 
 The generated example files are placed in gluten/backends-velox:
 
+- stageId means Spark stage id in web ui.
+- partitionedId means Spark partition id in web stage ui.
+- vId means backends internal virtual id.
+
 ```shell
 $ tree gluten/backends-velox/generated-native-benchmark/
 gluten/backends-velox/generated-native-benchmark/
-├── plan_{stageId}_{taskId}_{vId}.json
-├── data_{stageId}_{taskId}_{vId}_{idx}.parquet
-├── data_{stageId}_{taskId}_{vId}_{idx}.parquet
-├── conf_{stageId}_{taskId}_{vId}.ini
+├── plan_{stageId}_{partitionId}_{vId}.json
+├── data_{stageId}_{partitionId}_{vId}_{idx}.parquet
+├── data_{stageId}_{partitionId}_{vId}_{idx}.parquet
+├── conf_{stageId}_{partitionId}_{vId}.ini
 ```
 
 Run micro benchmark with the generated files as input. You need to specify the **absolute** path to
@@ -58,10 +62,10 @@ the input files:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan <path-to-gluten>/backends-velox/generated-native-benchmark/plan_{stageId}_{taskId}_{vId}.json \
---data <path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{taskId}_{vId}_{idx}.parquet,\
-<path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{taskId}_{vId}_{idx}.parquet \
---conf <path-to-gluten>/backends-velox/generated-native-benchmark/conf_{stageId}_{taskId}_{vId}.ini \
+--plan <path-to-gluten>/backends-velox/generated-native-benchmark/plan_{stageId}_{partitionId}_{vId}.json \
+--data <path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{idx}.parquet,\
+<path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{idx}.parquet \
+--conf <path-to-gluten>/backends-velox/generated-native-benchmark/conf_{stageId}_{partitionId}_{vId}.ini \
 --threads 1 --iterations 1 --noprint-result
 ```
 
@@ -118,7 +122,7 @@ And then re-run the query with below configurations to dump the inputs to micro 
 
 | Parameters                                  | Description                                                                                                                                                                                                                                                                                                                                 | Recommend Setting                                          |
 |---------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
-| spark.gluten.sql.benchmark_task.taskId      | Comma-separated string to specify the Task IDs to dump. If it's set, `spark.gluten.sql.benchmark_task.stageId` and `spark.gluten.sql.benchmark_task.partitionId` will be ignored.                                                                                                                                                           | Comma-separated string of task IDs. Empty by default.      |
+| spark.gluten.sql.benchmark_task.partitionId | Comma-separated string to specify the Task IDs to dump. If it's set, `spark.gluten.sql.benchmark_task.stageId` and `spark.gluten.sql.benchmark_task.partitionId` will be ignored.                                                                                                                                                           | Comma-separated string of task IDs. Empty by default.      |
 | spark.gluten.sql.benchmark_task.stageId     | Spark stage ID.                                                                                                                                                                                                                                                                                                                             | Target stage ID                                            |
 | spark.gluten.sql.benchmark_task.partitionId | Comma-separated string to specify the Partition IDs in a stage to dump. Must be specified together with `spark.gluten.sql.benchmark_task.stageId`. Empty by default, meaning all partitions of this stage will be dumped. To identify the partition ID, navigate to the `Stage` tab in the Spark UI and locate it under the `Index` column. | Comma-separated string of partition IDs. Empty by default. |
 | spark.gluten.saveDir                        | Directory to save the inputs to micro benchmark, should exist and be empty.                                                                                                                                                                                                                                                                 | /path/to/saveDir                                           |
@@ -126,15 +130,15 @@ And then re-run the query with below configurations to dump the inputs to micro 
 Check the files in `spark.gluten.saveDir`. If the simulated stage is a first stage, you will get 3
 or 4 types of dumped file:
 
-- Configuration file: INI formatted, file name `conf_{stageId}_{taskId}_{vId}.ini`. Contains the
+- Configuration file: INI formatted, file name `conf_{stageId}_{partitionId}_{vId}.ini`. Contains the
   configurations to init Velox backend and runtime session.
-- Plan file: JSON formatted, file name `plan_{stageId}_{taskId}_{vId}.json`. Contains the substrait
+- Plan file: JSON formatted, file name `plan_{stageId}_{partitionId}_{vId}.json`. Contains the substrait
   plan to the stage, without input file splits.
-- Split file: JSON formatted, file name `split_{stageId}_{taskId}_{vId}_{idx}.json`. There can
+- Split file: JSON formatted, file name `split_{stageId}_{partitionId}_{vId}_{splitIdx}.json`. There can
   be more than one split file in a first stage task. Contains the substrait plan piece to the input
   file splits.
 - Data file(optional): Parquet formatted, file
-  name `data_{stageId}_{taskId}_{vId}_{iteratorIdx}.parquet`. If the first stage contains one or
+  name `data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet`. If the first stage contains one or
   more BHJ operators, there can be one or more input data files. The input data files of a first
   stage will be loaded as iterators to serve as the inputs for the pipeline:
 
@@ -156,29 +160,29 @@ Sample command:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---conf /absolute_path/to/conf_{stageId}_{taskId}_{vId}.ini \
---plan /absolute_path/to/plan_{stageId}_{taskId}_{vId}.json \
---split /absolut_path/to/split_{stageId}_{taskId}_{vId}_{idx}.json,/absolut_path/to/split_{stageId}_{taskId}_{vId}_{idx}.json \
+--conf /absolute_path/to/conf_{stageId}_{partitionId}_{vId}.ini \
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--split /absolut_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json,/absolut_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json \
 --threads 1 --noprint-result
 
 # If the stage requires data files, use --data-file to specify the absolute path.
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---conf /absolute_path/to/conf_{stageId}_{taskId}_{vId}.ini \
---plan /absolute_path/to/plan_{stageId}_{taskId}_{vId}.json \
---split /absolut_path/to/split_{stageId}_{taskId}_{vId}_{idx}.json,/absolut_path/to/split_{stageId}_{taskId}_{vId}_{idx}.json \
---data /absolut_path/to/data_{stageId}_{taskId}_{vId}_{iteratorIdx}.parquet,/absolut_path/to/data_{stageId}_{taskId}_{vId}_{iteratorIdx}.parquet \
+--conf /absolute_path/to/conf_{stageId}_{partitionId}_{vId}.ini \
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--split /absolut_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json,/absolut_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json \
+--data /absolut_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet,/absolut_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet \
 --threads 1 --noprint-result
 ```
 
 If the simulated stage is a middle stage, which means pure shuffle stage, you will get 3 types of
 dumped file:
 
-- Configuration file: INI formatted, file name `conf_{stageId}_{taskId}_{vId}.ini`. Contains the
+- Configuration file: INI formatted, file name `conf_{stageId}_{partitionId}_{vId}.ini`. Contains the
   configurations to init Velox backend and runtime session.
-- Plan file: JSON formatted, file name `plan_{stageId}_{taskId}_{vId}.json`. Contains the substrait
+- Plan file: JSON formatted, file name `plan_{stageId}_{partitionId}_{vId}.json`. Contains the substrait
   plan to the stage.
-- Data file: Parquet formatted, file name `data_{stageId}_{taskId}_{vId}_{iteratorIdx}.parquet`.
+- Data file: Parquet formatted, file name `data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet`.
   There can be more than one input data file in a middle stage task. The input data files of a
   middle stage will be loaded as iterators to serve as the inputs for the pipeline:
 
@@ -197,16 +201,16 @@ Sample command:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---conf /absolute_path/to/conf_{stageId}_{taskId}_{vId}.ini \
---plan /absolute_path/to/plan_{stageId}_{taskId}_{vId}.json \
---data /absolut_path/to/data_{stageId}_{taskId}_{vId}_{iteratorIdx}.parquet,/absolut_path/to/data_{stageId}_{taskId}_{vId}_{iteratorIdx}.parquet \
+--conf /absolute_path/to/conf_{stageId}_{partitionId}_{vId}.ini \
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--data /absolut_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet,/absolut_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet \
 --threads 1 --noprint-result
 ```
 
 For some complex queries, stageId may cannot represent the Substrait plan input, please get the
-taskId from spark UI, and get your target parquet from saveDir.
+partitionId from spark UI, and get your target parquet from saveDir.
 
-In this example, only one partition input with stage id 3 partition id 2, taskId is 36, iterator length is 2.
+In this example, only one partition input with stage id 3 partition id 2, partitionId is 36, iterator length is 2.
 
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
@@ -227,8 +231,8 @@ details.
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /absolute_path/to/plan_{stageId}_{taskId}_{vId}.json \
---data /absolute_path/to/data_{stageId}_{taskId}_{vId}_{iteratorIdx}.parquet
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--data /absolute_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet
 --threads 1 --noprint-result --save-output /absolute_path/to/result.parquet
 ```
 
@@ -243,8 +247,8 @@ details.
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /absolute_path/to/plan_{stageId}_{taskId}_{vId}.json \
---split /absolute_path/to/split_{stageId}_{taskId}_{vId}_{idx}.json \
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--split /absolute_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json \
 --threads 1 --noprint-result --with-shuffle
 ```
 
@@ -309,9 +313,9 @@ General configurations for shuffle write:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /path/to/saveDir/plan_{stageId}_{taskId}_{vId}.json \
---conf /path/to/saveDir/conf_{stageId}_{taskId}_{vId}.ini \
---split /path/to/saveDir/split_{stageId}_{taskId}_{vId}_{idx}.json \
+--plan /path/to/saveDir/plan_{stageId}_{partitionId}_{vId}.json \
+--conf /path/to/saveDir/conf_{stageId}_{partitionId}_{vId}.ini \
+--split /path/to/saveDir/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json \
 --with-shuffle \
 --shuffle-writer sort \
 --partitioning hash \
