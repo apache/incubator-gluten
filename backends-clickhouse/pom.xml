@@ -63,7 +63,7 @@
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-spark33/main/scala</source>
-                    <source>${project.basedir}src-spark33/main/java</source>
+                    <source>${project.basedir}/src-spark33/main/java</source>
                   </sources>
                 </configuration>
               </execution>
@@ -115,13 +115,16 @@
     </profile>
     <profile>
       <id>spark-3.5</id>
-      <properties>
-        <slf4j.version>1.7.36</slf4j.version>
-      </properties>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
       <dependencies>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>1.7.36</version>
+          <scope>provided</scope>
+        </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-common</artifactId>
@@ -138,19 +141,13 @@
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-client</artifactId>
           <version>${hadoop.version}</version>
-          <scope>test</scope>
+          <scope>provided</scope>
           <exclusions>
             <exclusion>
               <groupId>org.apache.logging.log4j</groupId>
               <artifactId>log4j-slf4j-impl</artifactId>
             </exclusion>
           </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-          <version>${guava.version}</version>
-          <scope>provided</scope>
         </dependency>
       </dependencies>
       <build>
@@ -168,7 +165,7 @@
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-spark35/main/scala</source>
-                    <source>${project.basedir}src-spark35/main/java</source>
+                    <source>${project.basedir}/src-spark35/main/java</source>
                   </sources>
                 </configuration>
               </execution>
