@@ -17,6 +17,7 @@
 
 #include "shuffle/LocalPartitionWriter.h"
 
+#include "shuffle/Dictionary.h"
 #include "shuffle/Payload.h"
 #include "shuffle/Spill.h"
 #include "shuffle/Utils.h"
@@ -288,7 +289,10 @@ class LocalPartitionWriter::PayloadCache {
     }
 
     if (useDictionary_) {
-      RETURN_NOT_OK(payload->createDictionaries());
+      if (partitionDictionaries_.find(partitionId) == partitionDictionaries_.end()) {
+        partitionDictionaries_[partitionId] = std::make_shared<DictionaryMaker>(pool_);
+      }
+      RETURN_NOT_OK(payload->createDictionaries(partitionDictionaries_[partitionId]));
     }
 
     auto createCompressed = codec_ != nullptr && payload->numRows() >= compressionThreshold_;
@@ -305,6 +309,12 @@ class LocalPartitionWriter::PayloadCache {
         "Invalid status: partitionInUse_ is set: " + std::to_string(partitionInUse_.value()));
 
     if (hasCachedPayloads(partitionId)) {
+      if (useDictionary_ && partitionDictionaries_.find(partitionId) != partitionDictionaries_.end()) {
+        RETURN_NOT_OK(partitionDictionaries_[partitionId]->serialize(os));
+      } else {
+        RETURN_NOT_OK(os->Write(&kIsPayload, sizeof(kIsPayload)));
+      }
+
       auto& payloads = partitionCachedPayload_[partitionId];
       while (!payloads.empty()) {
         auto payload = std::move(payloads.front());
@@ -397,6 +407,8 @@ class LocalPartitionWriter::PayloadCache {
   int64_t spillTime_{0};
   int64_t writeTime_{0};
   std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionCachedPayload_;
+
+  std::unordered_map<uint32_t, std::shared_ptr<DictionaryMaker>> partitionDictionaries_;
 
   bool useDictionary_{false};
   std::optional<uint32_t> partitionInUse_{std::nullopt};

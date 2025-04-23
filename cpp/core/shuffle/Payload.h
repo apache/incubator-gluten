@@ -21,6 +21,7 @@
 #include <arrow/io/interfaces.h>
 #include <arrow/memory_pool.h>
 
+#include "shuffle/Dictionary.h"
 #include "shuffle/Options.h"
 #include "shuffle/Utils.h"
 
@@ -154,7 +155,7 @@ class InMemoryPayload final : public Payload {
 
   std::shared_ptr<arrow::Schema> schema() const;
 
-  arrow::Status createDictionaries();
+  arrow::Status createDictionaries(const std::shared_ptr<DictionaryMaker>& dictionary);
 
  private:
   std::shared_ptr<arrow::Schema> schema_;
