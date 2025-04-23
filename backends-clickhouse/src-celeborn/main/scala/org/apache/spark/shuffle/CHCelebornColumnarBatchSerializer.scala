@@ -17,6 +17,7 @@
 package org.apache.spark.shuffle
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.vectorized.BlockOutputStream
 import org.apache.gluten.vectorized.CHStreamReader
 
@@ -27,7 +28,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.celeborn.client.read.CelebornInputStream
-import org.apache.gluten.config.GlutenConfig
 
 import java.io._
 import java.nio.ByteBuffer
@@ -63,10 +63,7 @@ private class CHCelebornColumnarBatchSerializerInstance(
   private lazy val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
   private lazy val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private lazy val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(
-      conf,
-      compressionCodec,
-      GlutenConfig.get.columnarShuffleCodecBackend.orNull)
+    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec)
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {

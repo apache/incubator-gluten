@@ -87,21 +87,24 @@ abstract class CelebornColumnarShuffleWriter[K, V](
 
   protected val blockManager: BlockManager = SparkEnv.get.blockManager
 
-  protected val customizedCompressionCodec: String =
+  protected val compressionCodec: Option[String] =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
-      GlutenShuffleUtils.getCompressionCodec(conf)
+      Some(GlutenShuffleUtils.getCompressionCodec(conf))
     } else {
-      null // uncompressed
+      None
     }
 
-  protected val compressionLevel: Int =
-    GlutenShuffleUtils.getCompressionLevel(
-      conf,
-      customizedCompressionCodec,
-      GlutenConfig.get.columnarShuffleCodecBackend.orNull)
+  protected val compressionLevel: Int = {
+    compressionCodec
+      .map(codec => GlutenShuffleUtils.getCompressionLevel(conf, codec))
+      .getOrElse(GlutenShuffleUtils.DEFAULT_COMPRESSION_LEVEL)
+  }
 
-  protected val compressionBufferSize: Int =
-    GlutenShuffleUtils.getSortEvictBufferSize(conf, customizedCompressionCodec)
+  protected val compressionBufferSize: Int = {
+    compressionCodec
+      .map(codec => GlutenShuffleUtils.getCompressionBufferSize(conf, codec))
+      .getOrElse(0)
+  }
 
   protected val bufferCompressThreshold: Int =
     GlutenConfig.get.columnarShuffleCompressionThreshold
