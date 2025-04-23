@@ -39,6 +39,21 @@ static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBuf
 static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
 static const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
 
+class PartitionScopeGuard {
+ public:
+  PartitionScopeGuard(std::optional<uint32_t>& partitionInUse, uint32_t partitionId) : partitionInUse_(partitionInUse) {
+    GLUTEN_DCHECK(!partitionInUse_.has_value(), "Partition id is already set.");
+    partitionInUse_ = partitionId;
+  }
+
+  ~PartitionScopeGuard() {
+    partitionInUse_ = std::nullopt;
+  }
+
+ private:
+  std::optional<uint32_t>& partitionInUse_;
+};
+
 std::string getShuffleSpillDir(const std::string& configuredDir, int32_t subDirId);
 
 arrow::Result<std::string> createTempShuffleFile(const std::string& dir);

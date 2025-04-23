@@ -423,7 +423,7 @@ arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
       }
     }
   }
-  return std::make_unique<InMemoryPayload>(mergedRows, isValidityBuffer, std::move(merged));
+  return std::make_unique<InMemoryPayload>(mergedRows, isValidityBuffer, source->schema(), std::move(merged));
 }
 
 arrow::Result<std::unique_ptr<BlockPayload>> InMemoryPayload::toBlockPayload(
@@ -474,6 +474,14 @@ int64_t InMemoryPayload::rawSize() {
 
 bool InMemoryPayload::mergeable() const {
   return !hasComplexType_;
+}
+
+std::shared_ptr<arrow::Schema> InMemoryPayload::schema() const {
+  return schema_;
+}
+
+arrow::Status InMemoryPayload::createDictionaries() {
+  return arrow::Status::OK();
 }
 
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(

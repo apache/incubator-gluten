@@ -125,9 +125,11 @@ class InMemoryPayload final : public Payload {
   InMemoryPayload(
       uint32_t numRows,
       const std::vector<bool>* isValidityBuffer,
+      const std::shared_ptr<arrow::Schema>& schema,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       bool hasComplexType = false)
       : Payload(Type::kUncompressed, numRows, isValidityBuffer),
+        schema_(schema),
         buffers_(std::move(buffers)),
         hasComplexType_(hasComplexType) {}
 
@@ -150,7 +152,12 @@ class InMemoryPayload final : public Payload {
 
   bool mergeable() const;
 
+  std::shared_ptr<arrow::Schema> schema() const;
+
+  arrow::Status createDictionaries();
+
  private:
+  std::shared_ptr<arrow::Schema> schema_;
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
   bool hasComplexType_;
 };
