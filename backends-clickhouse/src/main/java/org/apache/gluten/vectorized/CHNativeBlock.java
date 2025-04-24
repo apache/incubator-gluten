@@ -126,5 +126,5 @@ public class CHNativeBlock {
     CHNativeBlock block = CHNativeBlock.fromColumnarBatch(batch);
     long blockAddress = block.nativeSlice(offset, limit);
     return new CHNativeBlock(blockAddress).toColumnarBatch();
-    }
+  }
 }
