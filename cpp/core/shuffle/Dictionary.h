@@ -26,19 +26,31 @@
 
 #include "utils/Exception.h"
 
+#include <arrow/array/array_decimal.h>
+
 namespace {
 
 using IndexType = int32_t;
 
 template <typename T>
-using is_gluten_binary_type = std::
-    integral_constant<bool, std::is_same<arrow::BinaryType, T>::value || std::is_same<arrow::StringType, T>::value>;
+using is_dictionary_binary_type =
+    std::integral_constant<bool, std::is_same_v<arrow::BinaryType, T> || std::is_same_v<arrow::StringType, T>>;
 
 template <typename T, typename R = void>
-using enable_if_gluten_binary = std::enable_if_t<is_gluten_binary_type<T>::value, R>;
+using enable_if_dictionary_binary = std::enable_if_t<is_dictionary_binary_type<T>::value, R>;
 
-constexpr uint8_t kIsPayload = 1;
-constexpr uint8_t kIsDictionary = 2;
+template <typename T>
+using is_dictionary_fixed_width_type = std::integral_constant<
+    bool,
+    (arrow::is_primitive_ctype<T>::value && !std::is_same_v<arrow::BooleanType, T>) || arrow::is_date_type<T>::value ||
+        arrow::is_timestamp_type<T>::value || arrow::is_time_type<T>::value>;
+
+template <typename T, typename R = void>
+using enable_if_dictionary_fixed_width = std::enable_if_t<is_dictionary_fixed_width_type<T>::value, R>;
+
+constexpr uint8_t kPlainPayload = 1;
+constexpr uint8_t kDictionary = 2;
+constexpr uint8_t kDictionaryPayload = 3;
 
 class IDictionaryStorage {
  public:
@@ -122,17 +134,17 @@ class DictionaryStorage<std::string_view> : public IDictionaryStorage {
   std::unordered_map<std::string_view, IndexType> indexMap_;
 };
 
-template <typename T, typename CType = typename arrow::TypeTraits<T>::CType>
+template <typename T>
 arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionary(
     int32_t numRows,
     const std::shared_ptr<arrow::Buffer>& validityBuffer,
     const std::shared_ptr<arrow::Buffer>& valueBuffer,
-    const std::shared_ptr<DictionaryStorage<CType>>& dictionary,
+    const std::shared_ptr<DictionaryStorage<T>>& dictionary,
     arrow::MemoryPool* pool) {
   ARROW_ASSIGN_OR_RAISE(auto indices, arrow::AllocateBuffer(sizeof(IndexType) * numRows, pool));
   auto rawIndices = indices->mutable_data_as<IndexType>();
 
-  const auto* values = valueBuffer->data_as<CType>();
+  const auto* values = valueBuffer->data_as<T>();
 
   if (validityBuffer != nullptr) {
     const auto* nulls = validityBuffer->data();
@@ -189,9 +201,9 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionaryForBinary(
 
 } // namespace
 
-class DictionaryMaker {
+class DictionaryWriter {
  public:
-  DictionaryMaker(arrow::MemoryPool* pool) : pool_(pool) {}
+  DictionaryWriter(arrow::MemoryPool* pool) : pool_(pool) {}
 
   arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
       const std::shared_ptr<arrow::Schema>& schema,
@@ -204,7 +216,10 @@ class DictionaryMaker {
     size_t bufferIdx = 0;
     for (auto i = 0; i < schema->num_fields(); ++i) {
       switch (fieldTypes_[i]) {
-        case FieldType::kBoolean:
+        case FieldType::kNull:
+        case FieldType::kComplex:
+          break;
+        case FieldType::kFixedWidth:
           results.emplace_back(buffers[bufferIdx++]);
           results.emplace_back(buffers[bufferIdx++]);
           break;
@@ -225,8 +240,6 @@ class DictionaryMaker {
           RETURN_NOT_OK(arrow::VisitTypeInline(*fieldType, &valueUpdater));
           break;
         }
-        default:
-          break;
       }
     }
 
@@ -262,7 +275,7 @@ class DictionaryMaker {
   }
 
  private:
-  enum class FieldType { kNull, kBoolean, kComplex, kSupportsDictionary };
+  enum class FieldType { kNull, kFixedWidth, kComplex, kSupportsDictionary };
 
   arrow::Status initSchema(const std::shared_ptr<arrow::Schema>& schema) {
     if (!schema_) {
@@ -275,7 +288,8 @@ class DictionaryMaker {
             fieldTypes_[i] = FieldType::kNull;
             break;
           case arrow::BooleanType::type_id:
-            fieldTypes_[i] = FieldType::kBoolean;
+          case arrow::Decimal128Type::type_id:
+            fieldTypes_[i] = FieldType::kFixedWidth;
             break;
           case arrow::ListType::type_id:
           case arrow::MapType::type_id:
@@ -303,7 +317,7 @@ class DictionaryMaker {
   std::unordered_map<int32_t, std::shared_ptr<IDictionaryStorage>> dictionaries_;
 
   struct ValueUpdater {
-    DictionaryMaker* self;
+    DictionaryWriter* self;
     int32_t fieldIdx;
     int32_t numRows;
     std::shared_ptr<arrow::Buffer> nulls{nullptr};
@@ -324,12 +338,12 @@ class DictionaryMaker {
     }
 
     template <typename ArrowType>
-    arrow::enable_if_integer<ArrowType, arrow::Status> Visit(const ArrowType&) {
-      using CType = typename arrow::TypeTraits<ArrowType>::CType;
+    enable_if_dictionary_fixed_width<ArrowType, arrow::Status> Visit(const ArrowType&) {
+      using ValueType = typename ArrowType::c_type;
 
-      const auto& dict = getOrCreateDict<CType>(fieldIdx);
+      const auto& dict = getOrCreateDict<ValueType>(fieldIdx);
 
-      ARROW_ASSIGN_OR_RAISE(auto indices, updateDictionary<ArrowType>(numRows, nulls, values, dict, self->pool_));
+      ARROW_ASSIGN_OR_RAISE(auto indices, updateDictionary<ValueType>(numRows, nulls, values, dict, self->pool_));
 
       results.push_back(nulls);
       results.push_back(indices);
@@ -338,7 +352,7 @@ class DictionaryMaker {
     }
 
     template <typename ArrowType>
-    enable_if_gluten_binary<ArrowType, arrow::Status> Visit(const ArrowType&) {
+    enable_if_dictionary_binary<ArrowType, arrow::Status> Visit(const ArrowType&) {
       using OffsetCType = typename arrow::TypeTraits<ArrowType>::OffsetType::c_type;
       static_assert(std::is_same_v<OffsetCType, int32_t>);
 
@@ -349,6 +363,7 @@ class DictionaryMaker {
 
       results.push_back(nulls);
       results.push_back(indices);
+
       return arrow::Status::OK();
     }
 
