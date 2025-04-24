@@ -238,6 +238,7 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
   switch (type_) {
     case Type::kUncompressed: {
       ScopedTimer timer(&writeTime_);
+      RETURN_NOT_OK(outputStream->Write(&kIsPayload, sizeof(kIsPayload)));
       RETURN_NOT_OK(outputStream->Write(&kUncompressedType, sizeof(Type)));
       RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
       uint32_t numBuffers = buffers_.size();
@@ -257,6 +258,7 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
     case Type::kToBeCompressed: {
       {
         ScopedTimer timer(&writeTime_);
+        RETURN_NOT_OK(outputStream->Write(&kIsPayload, sizeof(kIsPayload)));
         RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
         RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
         uint32_t numBuffers = buffers_.size();
@@ -268,6 +270,7 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
     } break;
     case Type::kCompressed: {
       ScopedTimer timer(&writeTime_);
+      RETURN_NOT_OK(outputStream->Write(&kIsPayload, sizeof(kIsPayload)));
       RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
       RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
       uint32_t buffers = numBuffers();
