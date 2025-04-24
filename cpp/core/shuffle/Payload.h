@@ -151,6 +151,8 @@ class InMemoryPayload final : public Payload {
 
   int64_t rawSize() override;
 
+  int64_t rawCapacity() const;
+
   bool mergeable() const;
 
   std::shared_ptr<arrow::Schema> schema() const;
@@ -183,7 +185,6 @@ class UncompressedDiskBlockPayload final : public Payload {
   int64_t rawSize_;
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
-  uint32_t readPos_{0};
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readUncompressedBuffer();
 };

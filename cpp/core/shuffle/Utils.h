@@ -65,6 +65,8 @@ int64_t getBufferSize(const std::shared_ptr<arrow::Array>& array);
 
 int64_t getBufferSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
+int64_t getBufferCapacity(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
+
 int64_t getMaxCompressedBufferSize(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     arrow::util::Codec* codec);
