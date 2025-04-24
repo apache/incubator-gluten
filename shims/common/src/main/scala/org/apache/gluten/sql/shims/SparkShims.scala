@@ -312,8 +312,6 @@ trait SparkShims {
 
   def isParquetFileEncrypted(fileStatus: LocatedFileStatus, conf: Configuration): Boolean
 
-  def isColumnarLimitExecSupported(): Boolean
-
   def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
     Map.empty[String, Any].asJava.asInstanceOf[JMap[String, Object]]
 

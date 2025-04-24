@@ -270,7 +270,8 @@ std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
       veloxCompressionType,
       rowType,
       options.batchSize,
-      options.bufferSize,
+      options.readerBufferSize,
+      options.deserializerBufferSize,
       memoryManager()->getArrowMemoryPool(),
       ctxVeloxPool,
       options.shuffleWriterType);

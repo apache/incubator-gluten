@@ -86,7 +86,9 @@ RssPartitionWriter::sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayl
     RETURN_NOT_OK(rssOs_->init());
     if (codec_ != nullptr) {
       ARROW_ASSIGN_OR_RAISE(
-          compressedOs_, ShuffleCompressedOutputStream::Make(codec_.get(), rssOs_, arrow::default_memory_pool()));
+          compressedOs_,
+          ShuffleCompressedOutputStream::Make(
+              codec_.get(), options_.compressionBufferSize, rssOs_, arrow::default_memory_pool()));
     }
 
     lastEvictedPartitionId_ = partitionId;

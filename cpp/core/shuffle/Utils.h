@@ -112,9 +112,13 @@ class MmapFileStream : public arrow::io::InputStream {
 class ShuffleCompressedOutputStream : public arrow::io::OutputStream {
  public:
   /// \brief Create a compressed output stream wrapping the given output stream.
-  static arrow::Result<std::shared_ptr<ShuffleCompressedOutputStream>>
-  Make(arrow::util::Codec* codec, const std::shared_ptr<OutputStream>& raw, arrow::MemoryPool* pool) {
-    auto res = std::shared_ptr<ShuffleCompressedOutputStream>(new ShuffleCompressedOutputStream(codec, raw, pool));
+  static arrow::Result<std::shared_ptr<ShuffleCompressedOutputStream>> Make(
+      arrow::util::Codec* codec,
+      int32_t compressionBufferSize,
+      const std::shared_ptr<OutputStream>& raw,
+      arrow::MemoryPool* pool) {
+    auto res = std::shared_ptr<ShuffleCompressedOutputStream>(
+        new ShuffleCompressedOutputStream(codec, compressionBufferSize, raw, pool));
     RETURN_NOT_OK(res->Init(codec));
     return res;
   }
@@ -221,13 +225,14 @@ class ShuffleCompressedOutputStream : public arrow::io::OutputStream {
 
   ShuffleCompressedOutputStream(
       arrow::util::Codec* codec,
+      int32_t compressionBufferSize,
       const std::shared_ptr<OutputStream>& raw,
       arrow::MemoryPool* pool)
-      : codec_(codec), raw_(raw), pool_(pool) {}
+      : codec_(codec), compressionBufferSize_(compressionBufferSize), raw_(raw), pool_(pool) {}
 
   arrow::Status Init(arrow::util::Codec* codec) {
     ARROW_ASSIGN_OR_RAISE(compressor_, codec->MakeCompressor());
-    ARROW_ASSIGN_OR_RAISE(compressed_, AllocateResizableBuffer(kChunkSize, pool_));
+    ARROW_ASSIGN_OR_RAISE(compressed_, AllocateResizableBuffer(compressionBufferSize_, pool_));
     compressedPos_ = 0;
     isOpen_ = true;
     return arrow::Status::OK();
@@ -270,11 +275,8 @@ class ShuffleCompressedOutputStream : public arrow::io::OutputStream {
     return arrow::Status::OK();
   }
 
-  // TODO: Support setting chunk size
-  // Write 64 KB compressed data at a time
-  static const int64_t kChunkSize = 64 * 1024;
-
   arrow::util::Codec* codec_;
+  int32_t compressionBufferSize_;
   std::shared_ptr<OutputStream> raw_;
   arrow::MemoryPool* pool_;
 

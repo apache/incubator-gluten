@@ -30,7 +30,8 @@ static constexpr int64_t kDefaultSortBufferThreshold = 64 << 20;
 static constexpr int64_t kDefaultPushMemoryThreshold = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
-static constexpr int32_t kDefaultDiskWriteBufferSize = 32 * 1024; // TODO: compare performance with 1M (spark default)
+static constexpr int32_t kDefaultCompressionBufferSize = 32 * 1024;
+static constexpr int32_t kDefaultDiskWriteBufferSize = 1024 * 1024;
 static const std::string kDefaultCompressionTypeStr = "lz4";
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
@@ -39,6 +40,7 @@ static constexpr bool kEnableBufferedWrite = true;
 static constexpr bool kDefaultUseRadixSort = true;
 static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
+static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
 
 enum ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
@@ -51,7 +53,8 @@ struct ShuffleReaderOptions {
   ShuffleWriterType shuffleWriterType = kHashShuffle;
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t batchSize = kDefaultBatchSize;
-  int64_t bufferSize = kDefaultReadBufferSize;
+  int64_t readerBufferSize = kDefaultReadBufferSize;
+  int64_t deserializerBufferSize = kDefaultDeserializerBufferSize;
 };
 
 struct ShuffleWriterOptions {
@@ -73,6 +76,8 @@ struct ShuffleWriterOptions {
 struct PartitionWriterOptions {
   int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
   double mergeThreshold = kDefaultMergeBufferThreshold;
+  int32_t compressionBufferSize =
+      kDefaultCompressionBufferSize; // spark.io.compression.lz4.blockSize,spark.io.compression.zstd.bufferSize
   int32_t compressionThreshold = kDefaultCompressionThreshold;
   arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
   std::string compressionTypeStr = kDefaultCompressionTypeStr;
