@@ -156,7 +156,7 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     checkEvaluation(cast(Literal.create(null, IntegerType), ShortType), null)
   }
 
-  test("cast Velox Timestamp to Int64 with floor division") {
+  test("cast timestamp to Int64 with floor division") {
     val originalDefaultTz = TimeZone.getDefault
     try {
       TimeZone.setDefault(TimeZone.getTimeZone("UTC"))

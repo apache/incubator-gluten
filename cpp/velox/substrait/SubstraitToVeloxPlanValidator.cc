@@ -254,6 +254,10 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
 
   // Limited support for Timestamp to X.
   if (fromType->isTimestamp()) {
+    if (toType->isDecimal()) {
+      return false;
+    }
+
     if (toType->isBigint()) {
       return true;
     }
