@@ -111,7 +111,7 @@ void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, bool dumpPlan) {
     try {
       auto planJson = substraitFromPbToJson("Plan", data, size);
       if (dumpPlan) {
-        auto dumpFile = fmt::format("plan_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.taskId, taskInfo_.vId);
+        auto dumpFile = fmt::format("plan_{}_{}_{}.json", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId);
         dumpToStorage(veloxCfg_, dumpFile, planJson);
       }
       LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#') << " received substrait::Plan: " << taskInfo_ << std::endl

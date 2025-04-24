@@ -51,8 +51,8 @@ The generated example files are placed in gluten/backends-velox:
 $ tree gluten/backends-velox/generated-native-benchmark/
 gluten/backends-velox/generated-native-benchmark/
 ├── plan_{stageId}_{partitionId}_{vId}.json
-├── data_{stageId}_{partitionId}_{vId}_{idx}.parquet
-├── data_{stageId}_{partitionId}_{vId}_{idx}.parquet
+├── data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet
+├── data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet
 ├── conf_{stageId}_{partitionId}_{vId}.ini
 ```
 
@@ -63,8 +63,8 @@ the input files:
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 --plan <path-to-gluten>/backends-velox/generated-native-benchmark/plan_{stageId}_{partitionId}_{vId}.json \
---data <path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{idx}.parquet,\
-<path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{idx}.parquet \
+--data <path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet,\
+<path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet \
 --conf <path-to-gluten>/backends-velox/generated-native-benchmark/conf_{stageId}_{partitionId}_{vId}.ini \
 --threads 1 --iterations 1 --noprint-result
 ```
@@ -122,7 +122,7 @@ And then re-run the query with below configurations to dump the inputs to micro 
 
 | Parameters                                  | Description                                                                                                                                                                                                                                                                                                                                 | Recommend Setting                                          |
 |---------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
-| spark.gluten.sql.benchmark_task.partitionId | Comma-separated string to specify the Task IDs to dump. If it's set, `spark.gluten.sql.benchmark_task.stageId` and `spark.gluten.sql.benchmark_task.partitionId` will be ignored.                                                                                                                                                           | Comma-separated string of task IDs. Empty by default.      |
+| spark.gluten.sql.benchmark_task.taskId      | Comma-separated string to specify the Task IDs to dump. If it's set, `spark.gluten.sql.benchmark_task.stageId` and `spark.gluten.sql.benchmark_task.partitionId` will be ignored.                                                                                                                                                           | Comma-separated string of task IDs. Empty by default.      |
 | spark.gluten.sql.benchmark_task.stageId     | Spark stage ID.                                                                                                                                                                                                                                                                                                                             | Target stage ID                                            |
 | spark.gluten.sql.benchmark_task.partitionId | Comma-separated string to specify the Partition IDs in a stage to dump. Must be specified together with `spark.gluten.sql.benchmark_task.stageId`. Empty by default, meaning all partitions of this stage will be dumped. To identify the partition ID, navigate to the `Stage` tab in the Spark UI and locate it under the `Index` column. | Comma-separated string of partition IDs. Empty by default. |
 | spark.gluten.saveDir                        | Directory to save the inputs to micro benchmark, should exist and be empty.                                                                                                                                                                                                                                                                 | /path/to/saveDir                                           |
@@ -208,7 +208,7 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 ```
 
 For some complex queries, stageId may cannot represent the Substrait plan input, please get the
-partitionId from spark UI, and get your target parquet from saveDir.
+taskId from spark UI, and get your target parquet from saveDir.
 
 In this example, only one partition input with stage id 3 partition id 2, partitionId is 36, iterator length is 2.
 
