@@ -119,12 +119,12 @@ public class CHNativeBlock {
   }
 
   public static ColumnarBatch slice(ColumnarBatch batch, int offset, int limit) {
-    if (limit >= batch.numRows()) {
-      return batch;
-    } else {
-      CHNativeBlock block = CHNativeBlock.fromColumnarBatch(batch);
-      long blockAddress = block.nativeSlice(offset, limit);
-      return new CHNativeBlock(blockAddress).toColumnarBatch();
+    if (offset + limit > batch.numRows()) {
+      throw new GlutenException(
+          "Parameter out of bound in slice function, offset: " + offset + ", limit: " + limit);
     }
-  }
+    CHNativeBlock block = CHNativeBlock.fromColumnarBatch(batch);
+    long blockAddress = block.nativeSlice(offset, limit);
+    return new CHNativeBlock(blockAddress).toColumnarBatch();
+    }
 }
