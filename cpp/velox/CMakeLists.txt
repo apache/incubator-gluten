@@ -175,6 +175,11 @@ if(ENABLE_S3)
   find_package(ZLIB)
 endif()
 
+if(ENABLE_ICEBERG_WRITE)
+  list(APPEND VELOX_SRCS compute/iceberg/IcebergFormat.cc
+       compute/iceberg/IcebergWriter.cc)
+endif()
+
 add_library(velox SHARED ${VELOX_SRCS})
 
 if(ENABLE_GLUTEN_VCPKG AND NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")

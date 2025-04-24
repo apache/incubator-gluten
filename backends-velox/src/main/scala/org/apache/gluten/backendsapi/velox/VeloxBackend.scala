@@ -564,4 +564,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportIcebergEqualityDeleteRead(): Boolean = false
 
+  override def supportAppendDataExec(): Boolean = true
+
 }
