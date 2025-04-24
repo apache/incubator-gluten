@@ -37,8 +37,8 @@ using is_gluten_binary_type = std::
 template <typename T, typename R = void>
 using enable_if_gluten_binary = std::enable_if_t<is_gluten_binary_type<T>::value, R>;
 
-constexpr uint8_t kIsPayload = 0;
-constexpr uint8_t kIsDictionary = 1;
+constexpr uint8_t kIsPayload = 1;
+constexpr uint8_t kIsDictionary = 2;
 
 class IDictionaryStorage {
  public:
