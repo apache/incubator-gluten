@@ -92,7 +92,7 @@ class LocalPartitionWriter::LocalSpiller {
   arrow::Status spill(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) {
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
 
-    RETURN_NOT_OK(os_->Write(&kIsPayload, sizeof(kIsPayload)));
+    RETURN_NOT_OK(os_->Write(&kPlainPayload, sizeof(kPlainPayload)));
     RETURN_NOT_OK(payload->serialize(os_.get()));
 
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
@@ -280,7 +280,7 @@ class LocalPartitionWriter::PayloadCache {
 
     if (useDictionary_) {
       if (partitionDictionaries_.find(partitionId) == partitionDictionaries_.end()) {
-        partitionDictionaries_[partitionId] = std::make_shared<DictionaryMaker>(pool_);
+        partitionDictionaries_[partitionId] = std::make_shared<DictionaryWriter>(pool_);
       }
       RETURN_NOT_OK(payload->createDictionaries(partitionDictionaries_[partitionId]));
     }
@@ -304,8 +304,10 @@ class LocalPartitionWriter::PayloadCache {
       bool useDictionary = false;
       if (useDictionary_ && partitionDictionaries_.find(partitionId) != partitionDictionaries_.end()) {
         useDictionary = true;
-        RETURN_NOT_OK(os->Write(&kIsDictionary, sizeof(kIsDictionary)));
+        RETURN_NOT_OK(os->Write(&kDictionary, sizeof(kDictionary)));
         RETURN_NOT_OK(partitionDictionaries_[partitionId]->serialize(os));
+
+        partitionDictionaries_.erase(partitionId);
       }
 
       auto& payloads = partitionCachedPayload_[partitionId];
@@ -314,9 +316,7 @@ class LocalPartitionWriter::PayloadCache {
         payloads.pop_front();
 
         // Write the cached payload to disk.
-        if (!useDictionary) {
-          RETURN_NOT_OK(os->Write(&kIsPayload, sizeof(kIsPayload)));
-        }
+        RETURN_NOT_OK(os->Write(useDictionary ? &kDictionaryPayload : &kPlainPayload, sizeof(kPlainPayload)));
         RETURN_NOT_OK(payload->serialize(os));
 
         compressTime_ += payload->getCompressTime();
@@ -357,8 +357,10 @@ class LocalPartitionWriter::PayloadCache {
         bool useDictionary = false;
         if (useDictionary_ && partitionDictionaries_.find(pid) != partitionDictionaries_.end()) {
           useDictionary = true;
-          RETURN_NOT_OK(os->Write(&kIsDictionary, sizeof(kIsDictionary)));
+          RETURN_NOT_OK(os->Write(&kDictionary, sizeof(kDictionary)));
           RETURN_NOT_OK(partitionDictionaries_[pid]->serialize(os.get()));
+
+          partitionDictionaries_.erase(pid);
         }
 
         auto& payloads = partitionCachedPayload_[pid];
@@ -368,9 +370,7 @@ class LocalPartitionWriter::PayloadCache {
           totalBytesToEvict += payload->rawSize();
 
           // Spill the cached payload to disk.
-          if (!useDictionary) {
-            RETURN_NOT_OK(os->Write(&kIsPayload, sizeof(kIsPayload)));
-          }
+          RETURN_NOT_OK(os->Write(useDictionary ? &kDictionaryPayload : &kPlainPayload, sizeof(kPlainPayload)));
           RETURN_NOT_OK(payload->serialize(os.get()));
 
           compressTime_ += payload->getCompressTime();
@@ -422,7 +422,7 @@ class LocalPartitionWriter::PayloadCache {
   int64_t writeTime_{0};
   std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionCachedPayload_;
 
-  std::unordered_map<uint32_t, std::shared_ptr<DictionaryMaker>> partitionDictionaries_;
+  std::unordered_map<uint32_t, std::shared_ptr<DictionaryWriter>> partitionDictionaries_;
 
   bool useDictionary_{false};
   std::optional<uint32_t> partitionInUse_{std::nullopt};

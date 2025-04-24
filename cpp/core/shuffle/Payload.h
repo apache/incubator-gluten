@@ -157,7 +157,7 @@ class InMemoryPayload final : public Payload {
 
   std::shared_ptr<arrow::Schema> schema() const;
 
-  arrow::Status createDictionaries(const std::shared_ptr<DictionaryMaker>& dictionary);
+  arrow::Status createDictionaries(const std::shared_ptr<DictionaryWriter>& dictionary);
 
  private:
   std::shared_ptr<arrow::Schema> schema_;

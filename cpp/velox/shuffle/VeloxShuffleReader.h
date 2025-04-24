@@ -61,6 +61,9 @@ class VeloxHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
 
   std::unique_ptr<InMemoryPayload> merged_{nullptr};
   bool reachEos_{false};
+
+  std::vector<int32_t> dictionaryFields_{};
+  std::vector<facebook::velox::VectorPtr> dictionaries_{};
 };
 
 class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {

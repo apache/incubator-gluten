@@ -50,16 +50,6 @@ T* advance(uint8_t** dst) {
   return ptr;
 }
 
-arrow::Result<uint8_t> readBlockType(arrow::io::InputStream* inputStream) {
-  uint8_t type;
-  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream->Read(sizeof(uint8_t), &type));
-  if (bytes == 0) {
-    // Reach EOS.
-    return 0;
-  }
-  return type;
-}
-
 arrow::Result<uint8_t> readPayloadType(arrow::io::InputStream* is) {
   uint8_t type;
   ARROW_ASSIGN_OR_RAISE(auto bytes, is->Read(sizeof(Payload::Type), &type));
@@ -316,13 +306,8 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
     int64_t& deserializeTime,
     int64_t& decompressTime) {
   auto timer = std::make_unique<ScopedTimer>(&deserializeTime);
-  static const std::vector<std::shared_ptr<arrow::Buffer>> kEmptyBuffers{};
-  ARROW_ASSIGN_OR_RAISE(auto blockType, readBlockType(inputStream));
-  if (blockType == 0) {
-    numRows = 0;
-    return kEmptyBuffers;
-  }
   ARROW_ASSIGN_OR_RAISE(auto type, readPayloadType(inputStream));
+
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numRows));
   uint32_t numBuffers;
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numBuffers));
@@ -500,7 +485,7 @@ std::shared_ptr<arrow::Schema> InMemoryPayload::schema() const {
   return schema_;
 }
 
-arrow::Status InMemoryPayload::createDictionaries(const std::shared_ptr<DictionaryMaker>& dictionary) {
+arrow::Status InMemoryPayload::createDictionaries(const std::shared_ptr<DictionaryWriter>& dictionary) {
   ARROW_ASSIGN_OR_RAISE(buffers_, dictionary->updateAndGet(schema_, numRows_, buffers_));
   return arrow::Status::OK();
 }
@@ -536,7 +521,7 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
 
   GLUTEN_CHECK(codec_ != nullptr, "Codec is null when serializing Payload::kToBeCompressed.");
 
-  RETURN_NOT_OK(outputStream->Write(&kIsPayload, sizeof(kIsPayload)));
+  RETURN_NOT_OK(outputStream->Write(&kPlainPayload, sizeof(kPlainPayload)));
 
   RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(kCompressedType)));
   RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
