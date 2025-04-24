@@ -50,10 +50,10 @@ The generated example files are placed in gluten/backends-velox:
 ```shell
 $ tree gluten/backends-velox/generated-native-benchmark/
 gluten/backends-velox/generated-native-benchmark/
-├── plan_{stageId}_{partitionId}_{vId}.json
-├── data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet
-├── data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet
-├── conf_{stageId}_{partitionId}_{vId}.ini
+├── conf_12_10_3.ini
+├── data_12_10_3_0.parquet
+├── data_12_10_3_1.parquet
+├── plan_12_10_3.json
 ```
 
 Run micro benchmark with the generated files as input. You need to specify the **absolute** path to
