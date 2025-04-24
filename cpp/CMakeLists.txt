@@ -242,8 +242,13 @@ if(ENABLE_GPU)
   add_definitions(-DGLUTEN_ENABLE_GPU)
 endif()
 
+<<<<<<< HEAD
 if(ENABLE_ENHANCED_FEATURES)
   add_definitions(-DGLUTEN_ENABLE_ENHANCED_FEATURES)
+=======
+if(ENABLE_ICEBERG_WRITE)
+  add_definitions(-DGLUTEN_ENABLE_ICEBERG_WRITE)
+>>>>>>> 3dc2c78e3 (support iceberg write)
 endif()
 
 # Subdirectories

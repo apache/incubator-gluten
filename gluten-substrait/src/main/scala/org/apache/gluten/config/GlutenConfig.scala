@@ -69,6 +69,8 @@ class GlutenConfig(conf: SQLConf) extends GlutenCoreConfig(conf) {
 
   def enableColumnarWindowGroupLimit: Boolean = getConf(COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED)
 
+  def enableAppendData: Boolean = getConf(COLUMNAR_APPEND_DATA_ENABLED)
+
   def enableColumnarShuffledHashJoin: Boolean = getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
   def shuffledHashJoinOptimizeBuildSide: Boolean =
@@ -831,6 +833,13 @@ object GlutenConfig {
       .doc("Enable or disable columnar window group limit.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_APPEND_DATA_ENABLED =
+    buildConf("spark.gluten.sql.columnar.appendData")
+      .internal()
+      .doc("Enable or disable columnar v2 command append data. This is an experimental feature")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_PREFER_STREAMING_AGGREGATE =
     buildConf("spark.gluten.sql.columnar.preferStreamingAggregate")
