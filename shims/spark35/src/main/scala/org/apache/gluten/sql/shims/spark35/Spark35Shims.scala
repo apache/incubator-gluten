@@ -684,8 +684,6 @@ class Spark35Shims extends SparkShims {
     }
   }
 
-  override def isColumnarLimitExecSupported(): Boolean = true
-
   override def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
     file.otherConstantMetadataColumnValues.asJava.asInstanceOf[JMap[String, Object]]
 
