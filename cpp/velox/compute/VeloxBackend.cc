@@ -283,9 +283,6 @@ void VeloxBackend::initCache() {
 }
 
 void VeloxBackend::initConnector() {
-  // The configs below are used at process level.
-  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->rawConfigs();
-
   auto hiveConf = getHiveConfig(backendConf_);
 
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
@@ -295,10 +292,8 @@ void VeloxBackend::initConnector() {
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
-  velox::connector::registerConnector(std::make_shared<velox::connector::hive::HiveConnector>(
-      kHiveConnectorId,
-      std::make_shared<facebook::velox::config::ConfigBase>(std::move(connectorConfMap)),
-      ioExecutor_.get()));
+  velox::connector::registerConnector(
+      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
 }
 
 void VeloxBackend::initUdf() {
