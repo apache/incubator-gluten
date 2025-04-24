@@ -202,27 +202,44 @@ class DictionaryMaker {
     std::vector<std::shared_ptr<arrow::Buffer>> results;
 
     size_t bufferIdx = 0;
-    for (auto fieldIdx : dictionaryFields_) {
-      const auto fieldType = schema_->field(fieldIdx)->type();
-      bool isBinaryType =
-          fieldType->id() == arrow::BinaryType::type_id || fieldType->id() == arrow::StringType::type_id;
-      ValueUpdater valueUpdater{
-          this,
-          fieldIdx,
-          numRows,
-          buffers[bufferIdx++],
-          buffers[bufferIdx++],
-          isBinaryType ? buffers[bufferIdx++] : nullptr,
-          results};
-      RETURN_NOT_OK(arrow::VisitTypeInline(*fieldType, &valueUpdater));
+    for (auto i = 0; i < schema->num_fields(); ++i) {
+      switch (fieldTypes_[i]) {
+        case FieldType::kBoolean:
+          results.emplace_back(buffers[bufferIdx++]);
+          results.emplace_back(buffers[bufferIdx++]);
+          break;
+        case FieldType::kSupportsDictionary: {
+          const auto fieldType = schema_->field(i)->type();
+          bool isBinaryType =
+              fieldType->id() == arrow::BinaryType::type_id || fieldType->id() == arrow::StringType::type_id;
+
+          ValueUpdater valueUpdater{
+              this,
+              i,
+              numRows,
+              buffers[bufferIdx++],
+              buffers[bufferIdx++],
+              isBinaryType ? buffers[bufferIdx++] : nullptr,
+              results};
+
+          RETURN_NOT_OK(arrow::VisitTypeInline(*fieldType, &valueUpdater));
+          break;
+        }
+        default:
+          break;
+      }
     }
+
+    if (hasComplexType_) {
+      results.emplace_back(buffers[bufferIdx++]);
+    }
+
+    GLUTEN_DCHECK(bufferIdx == buffers.size(), "Not all buffers are consumed.");
 
     return results;
   }
 
   arrow::Status serialize(arrow::io::OutputStream* out) {
-    RETURN_NOT_OK(out->Write(&kIsDictionary, sizeof(kIsDictionary)));
-
     auto bitMapSize = arrow::bit_util::RoundUpToMultipleOf8(schema_->num_fields());
     std::vector<uint8_t> bitMap(bitMapSize);
 
@@ -245,18 +262,29 @@ class DictionaryMaker {
   }
 
  private:
+  enum class FieldType { kNull, kBoolean, kComplex, kSupportsDictionary };
+
   arrow::Status initSchema(const std::shared_ptr<arrow::Schema>& schema) {
     if (!schema_) {
       schema_ = schema;
+      fieldTypes_.resize(schema_->num_fields());
+
       for (auto i = 0; i < schema_->num_fields(); ++i) {
         switch (schema_->field(i)->type()->id()) {
           case arrow::NullType::type_id:
+            fieldTypes_[i] = FieldType::kNull;
+            break;
           case arrow::BooleanType::type_id:
+            fieldTypes_[i] = FieldType::kBoolean;
+            break;
           case arrow::ListType::type_id:
           case arrow::MapType::type_id:
           case arrow::StructType::type_id:
+            fieldTypes_[i] = FieldType::kComplex;
+            hasComplexType_ = true;
             break;
           default:
+            fieldTypes_[i] = FieldType::kSupportsDictionary;
             dictionaryFields_.push_back(i);
             break;
         }
@@ -269,7 +297,9 @@ class DictionaryMaker {
 
   arrow::MemoryPool* pool_;
   std::shared_ptr<arrow::Schema> schema_;
+  std::vector<FieldType> fieldTypes_;
   std::vector<int32_t> dictionaryFields_;
+  bool hasComplexType_{false};
   std::unordered_map<int32_t, std::shared_ptr<IDictionaryStorage>> dictionaries_;
 
   struct ValueUpdater {

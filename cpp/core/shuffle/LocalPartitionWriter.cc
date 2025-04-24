@@ -68,8 +68,10 @@ class LocalPartitionWriter::LocalSpiller {
     ARROW_ASSIGN_OR_RAISE(const auto pos, os_->Tell());
 
     diskSpill_->insertPayload(lastPid_, Payload::kRaw, 0, nullptr, pos - writePos_, pool_, nullptr);
+
     DLOG(INFO) << "LocalSpiller: Spilled partition " << lastPid_ << " file start: " << writePos_
                << ", file end: " << pos << ", file: " << spillFile_;
+
     return arrow::Status::OK();
   }
 
@@ -91,23 +93,28 @@ class LocalPartitionWriter::LocalSpiller {
 
   arrow::Status spill(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) {
     // Check spill Type.
-    ARROW_RETURN_IF(
-        payload->type() == Payload::kToBeCompressed,
-        arrow::Status::Invalid("Cannot spill payload of type: " + payload->toString()));
+    auto payloadType = payload->type();
+    GLUTEN_DCHECK(payloadType == Payload::kToBeCompressed, "Cannot spill payload of type: " + payload->toString());
+
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
+
     RETURN_NOT_OK(payload->serialize(os_.get()));
+
     compressTime_ += payload->getCompressTime();
     spillTime_ += payload->getWriteTime();
+
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
+
     DLOG(INFO) << "LocalSpiller: Spilled partition " << partitionId << " file start: " << start << ", file end: " << end
                << ", file: " << spillFile_;
 
-    auto payloadType = payload->type();
     if (payloadType == Payload::kUncompressed && codec_ != nullptr && payload->numRows() >= compressionThreshold_) {
       payloadType = Payload::kToBeCompressed;
     }
+
     diskSpill_->insertPayload(
         partitionId, payloadType, payload->numRows(), payload->isValidityBuffer(), end - start, pool_, codec_);
+
     return arrow::Status::OK();
   }
 
@@ -310,6 +317,7 @@ class LocalPartitionWriter::PayloadCache {
 
     if (hasCachedPayloads(partitionId)) {
       if (useDictionary_ && partitionDictionaries_.find(partitionId) != partitionDictionaries_.end()) {
+        RETURN_NOT_OK(os->Write(&kIsDictionary, sizeof(kIsDictionary)));
         RETURN_NOT_OK(partitionDictionaries_[partitionId]->serialize(os));
       } else {
         RETURN_NOT_OK(os->Write(&kIsPayload, sizeof(kIsPayload)));
