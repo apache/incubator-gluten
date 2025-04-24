@@ -236,9 +236,6 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
 
-  // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
-  FLAGS_cache_prefetch_min_pct = conf->get<int>(kCachePrefetchMinPct, 0);
-
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
 }
 

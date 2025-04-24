@@ -141,6 +141,9 @@ void VeloxBackend::init(
   FLAGS_gluten_velox_async_timeout_on_task_stopping =
       backendConf_->get<int32_t>(kVeloxAsyncTimeoutOnTaskStopping, kVeloxAsyncTimeoutOnTaskStoppingDefault);
 
+  // Set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
+  FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
+
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
