@@ -287,35 +287,6 @@ void VeloxBackend::initConnector() {
   std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->rawConfigs();
 
   auto hiveConf = getHiveConfig(backendConf_);
-  for (auto& [k, v] : hiveConf->rawConfigsCopy()) {
-    connectorConfMap[k] = v;
-  }
-
-  connectorConfMap[velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
-      backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
-
-  connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
-      backendConf_->get<std::string>(kMaxCoalescedBytes, "67108864"); // 64M
-  connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedDistance] =
-      backendConf_->get<std::string>(kMaxCoalescedDistance, "512KB"); // 512KB
-  connectorConfMap[velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
-      backendConf_->get<std::string>(kPrefetchRowGroups, "1");
-  connectorConfMap[velox::connector::hive::HiveConfig::kLoadQuantum] =
-      backendConf_->get<std::string>(kLoadQuantum, "268435456"); // 256M
-  connectorConfMap[velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
-      backendConf_->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
-  connectorConfMap[velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
-      backendConf_->get<std::string>(kFilePreloadThreshold, "1048576"); // 1M
-
-  // read as UTC
-  connectorConfMap[velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
-
-  // Maps table field names to file field names using names, not indices.
-  connectorConfMap[velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
-  connectorConfMap[velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
-
-  // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
-  FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(

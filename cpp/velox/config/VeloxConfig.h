@@ -139,6 +139,8 @@ const std::string kMemoryPoolCapacityTransferAcrossTasks =
 
 // write fies
 const std::string kMaxPartitions = "spark.gluten.sql.columnar.backend.velox.maxPartitionsPerWritersSession";
+const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
+const bool kVeloxFileHandleCacheEnabledDefault = false;
 
 const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.glogVerboseLevel";
 const uint32_t kGlogVerboseLevelDefault = 0;
