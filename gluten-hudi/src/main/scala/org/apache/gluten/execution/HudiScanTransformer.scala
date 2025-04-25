@@ -102,6 +102,6 @@ object HudiScanTransformer {
     // "org.apache.spark.sql.execution.datasources.parquet.HoodieParquetFileFormat"
     // But exclude "NewHoodieParquetFileFormat"
     !fileFormatName.endsWith("NewHoodieParquetFileFormat") &&
-      fileFormatName.endsWith("HoodieParquetFileFormat")
+    fileFormatName.endsWith("HoodieParquetFileFormat")
   }
 }
