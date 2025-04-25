@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.execution.BroadCastHashJoinContext;
+import org.apache.gluten.execution.BroadCastJoinContext;
 import org.apache.gluten.execution.JoinTypeTransform;
 import org.apache.gluten.expression.ConverterUtils$;
 import org.apache.gluten.utils.SubstraitUtil;
@@ -36,11 +36,12 @@ public class StorageJoinBuilder {
   public static native long nativeCloneBuildHashTable(long hashTableData);
 
   private static native long nativeBuild(
-      String buildHashTableId,
+      String buildTableId,
       byte[] in,
       long rowCount,
       String joinKeys,
       int joinType,
+      boolean isBhj,
       boolean hasMixedFiltCondition,
       boolean isExistenceJoin,
       byte[] namedStruct,
@@ -53,7 +54,7 @@ public class StorageJoinBuilder {
   public static long build(
       byte[] batches,
       long rowCount,
-      BroadCastHashJoinContext broadCastContext,
+      BroadCastJoinContext broadCastContext,
       List<Expression> newBuildKeys,
       List<Attribute> newOutput,
       boolean hasNullKeyValues) {
@@ -77,24 +78,26 @@ public class StorageJoinBuilder {
             .collect(Collectors.joining(","));
 
     int joinType;
-    if (broadCastContext.buildHashTableId().startsWith("BuiltBNLJBroadcastTable-")) {
-      joinType = SubstraitUtil.toCrossRelSubstrait(broadCastContext.joinType()).ordinal();
-    } else {
+    if (broadCastContext.isBhj()) {
       boolean buildRight = broadCastContext.buildRight();
       joinType =
           JoinTypeTransform.toSubstraitJoinType(broadCastContext.joinType(), buildRight).ordinal();
+    } else {
+      joinType = SubstraitUtil.toCrossRelSubstrait(broadCastContext.joinType()).ordinal();
     }
 
     return nativeBuild(
-        broadCastContext.buildHashTableId(),
+        broadCastContext.buildTableId(),
         batches,
         rowCount,
         joinKey,
         joinType,
+        broadCastContext.isBhj(),
         broadCastContext.hasMixedFiltCondition(),
         broadCastContext.isExistenceJoin(),
         SubstraitUtil.toNameStruct(output).toByteArray(),
         broadCastContext.isNullAwareAntiJoin(),
-        hasNullKeyValues);
+        hasNullKeyValues
+        );
   }
 }

@@ -313,9 +313,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
-  def genJoinParametersInternal(): (Int, Int, String) = {
-    (0, 0, "")
-  }
+  def genJoinParametersInternal(): (Int, Int, Int)
 }
 
 object HashJoinLikeExecTransformer {
@@ -413,10 +411,10 @@ abstract class BroadcastHashJoinExecTransformerBase(
   override def joinBuildSide: BuildSide = buildSide
   override def hashJoinType: JoinType = joinType
 
-  // Unique ID for builded hash table
-  lazy val buildHashTableId: String = "BuiltHashTable-" + buildPlan.id
+  // Unique ID for built hash table.
+  lazy val buildHashTableId: Int = buildPlan.id
 
-  override def genJoinParametersInternal(): (Int, Int, String) = {
+  override def genJoinParametersInternal(): (Int, Int, Int) = {
     (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
   }
 }

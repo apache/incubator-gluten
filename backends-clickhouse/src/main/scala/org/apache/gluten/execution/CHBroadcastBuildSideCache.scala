@@ -53,11 +53,11 @@ object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, Br
 
   def getOrBuildBroadcastHashTable(
       broadcast: Broadcast[BuildSideRelation],
-      broadCastContext: BroadCastHashJoinContext): BroadcastHashTable = {
+      broadCastContext: BroadCastJoinContext): BroadcastHashTable = {
 
     buildSideRelationCache
       .get(
-        broadCastContext.buildHashTableId,
+        broadCastContext.buildTableId,
         (broadcast_id: String) => {
           val (pointer, relation) =
             broadcast.value

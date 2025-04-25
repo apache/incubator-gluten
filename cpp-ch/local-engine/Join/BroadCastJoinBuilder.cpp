@@ -114,6 +114,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     jlong row_count,
     const std::string & join_keys,
     jint join_type,
+    bool is_bhj,
     bool has_mixed_join_condition,
     bool is_existence_join,
     const std::string & named_struct,
@@ -128,11 +129,10 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     DB::JoinKind kind;
     DB::JoinStrictness strictness;
 
-    if (key.starts_with("BuiltBNLJBroadcastTable-"))
-        std::tie(kind, strictness) = JoinUtil::getCrossJoinKindAndStrictness(static_cast<substrait::CrossRel_JoinType>(join_type));
-    else
+    if (is_bhj)
         std::tie(kind, strictness) = JoinUtil::getJoinKindAndStrictness(static_cast<substrait::JoinRel_JoinType>(join_type), is_existence_join);
-
+    else
+        std::tie(kind, strictness) = JoinUtil::getCrossJoinKindAndStrictness(static_cast<substrait::CrossRel_JoinType>(join_type));
 
     substrait::NamedStruct substrait_struct;
     substrait_struct.ParseFromString(named_struct);

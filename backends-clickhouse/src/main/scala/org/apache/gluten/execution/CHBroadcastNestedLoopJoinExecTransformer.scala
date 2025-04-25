@@ -65,14 +65,15 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     }
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
     val context =
-      BroadCastHashJoinContext(
+      BroadCastJoinContext(
         Seq.empty,
         finalJoinType,
         buildSide == BuildRight,
         false,
         joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,
-        buildBroadcastTableId)
+        buildBroadcastTableId,
+        false)
     val broadcastRDD = CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
     streamedRDD :+ broadcastRDD
   }
@@ -99,7 +100,7 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     val joinParametersStr = new StringBuffer("JoinParameters:")
     joinParametersStr
       .append("isBHJ=")
-      .append(1)
+      .append(0)
       .append("\n")
       .append("buildBroadcastTableId=")
       .append(buildBroadcastTableId)
