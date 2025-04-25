@@ -521,14 +521,14 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
 
   GLUTEN_CHECK(codec_ != nullptr, "Codec is null when serializing Payload::kToBeCompressed.");
 
-  RETURN_NOT_OK(outputStream->Write(&kPlainPayload, sizeof(kPlainPayload)));
+  uint8_t blockType;
+  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream_->Read(sizeof(blockType), &blockType));
+  ARROW_RETURN_IF(bytes == 0, arrow::Status::Invalid("Cannot serialize payload. Reached EOS."));
+
+  RETURN_NOT_OK(outputStream->Write(&blockType, sizeof(blockType)));
 
   RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(kCompressedType)));
   RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-
-  uint8_t type;
-  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream_->Read(sizeof(uint8_t), &type));
-  ARROW_RETURN_IF(bytes == 0, arrow::Status::Invalid("Cannot serialize payload. Reached EOS."));
 
   uint32_t numBuffers = 0;
   ARROW_ASSIGN_OR_RAISE(bytes, inputStream_->Read(sizeof(uint32_t), &numBuffers));
@@ -539,7 +539,7 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
   ARROW_ASSIGN_OR_RAISE(auto start, inputStream_->Tell());
 
   auto pos = start;
-  auto rawBufferSize = rawSize_ - sizeof(uint8_t) - sizeof(numBuffers);
+  auto rawBufferSize = rawSize_ - sizeof(blockType) - sizeof(numBuffers);
 
   while (pos - start < rawBufferSize) {
     ARROW_ASSIGN_OR_RAISE(auto uncompressed, readUncompressedBuffer());

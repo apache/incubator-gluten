@@ -92,7 +92,9 @@ class LocalPartitionWriter::LocalSpiller {
   arrow::Status spill(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) {
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
 
-    RETURN_NOT_OK(os_->Write(&kPlainPayload, sizeof(kPlainPayload)));
+    static constexpr uint8_t kSpillBlockType = static_cast<uint8_t>(BlockType::kPlainPayload);
+
+    RETURN_NOT_OK(os_->Write(&kSpillBlockType, sizeof(kSpillBlockType)));
     RETURN_NOT_OK(payload->serialize(os_.get()));
 
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
@@ -247,8 +249,7 @@ class LocalPartitionWriter::PayloadMerger {
           "Invalid status: partitionInUse_ is set when not in spilling: " + std::to_string(partitionInUse_.value()));
     }
 
-    auto payload = std::move(partitionMergePayload_[partitionId]);
-    return payload;
+    return std::move(partitionMergePayload_[partitionId]);
   }
 
   bool hasMerged(uint32_t partitionId) {
@@ -301,14 +302,7 @@ class LocalPartitionWriter::PayloadCache {
         "Invalid status: partitionInUse_ is set: " + std::to_string(partitionInUse_.value()));
 
     if (hasCachedPayloads(partitionId)) {
-      bool useDictionary = false;
-      if (useDictionary_ && partitionDictionaries_.find(partitionId) != partitionDictionaries_.end()) {
-        useDictionary = true;
-        RETURN_NOT_OK(os->Write(&kDictionary, sizeof(kDictionary)));
-        RETURN_NOT_OK(partitionDictionaries_[partitionId]->serialize(os));
-
-        partitionDictionaries_.erase(partitionId);
-      }
+      ARROW_ASSIGN_OR_RAISE(bool hasDictionary, tryFlushDictionary(partitionId, os));
 
       auto& payloads = partitionCachedPayload_[partitionId];
       while (!payloads.empty()) {
@@ -316,7 +310,9 @@ class LocalPartitionWriter::PayloadCache {
         payloads.pop_front();
 
         // Write the cached payload to disk.
-        RETURN_NOT_OK(os->Write(useDictionary ? &kDictionaryPayload : &kPlainPayload, sizeof(kPlainPayload)));
+        uint8_t blockType =
+            static_cast<uint8_t>(hasDictionary ? BlockType::kDictionaryPayload : BlockType::kPlainPayload);
+        RETURN_NOT_OK(os->Write(&blockType, sizeof(blockType)));
         RETURN_NOT_OK(payload->serialize(os));
 
         compressTime_ += payload->getCompressTime();
@@ -339,7 +335,7 @@ class LocalPartitionWriter::PayloadCache {
   }
 
   arrow::Result<std::shared_ptr<Spill>> spillAndClose(
-      std::shared_ptr<arrow::io::OutputStream> os,
+      arrow::io::OutputStream* os,
       const std::string& spillFile,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec,
@@ -354,14 +350,7 @@ class LocalPartitionWriter::PayloadCache {
       }
 
       if (hasCachedPayloads(pid)) {
-        bool useDictionary = false;
-        if (useDictionary_ && partitionDictionaries_.find(pid) != partitionDictionaries_.end()) {
-          useDictionary = true;
-          RETURN_NOT_OK(os->Write(&kDictionary, sizeof(kDictionary)));
-          RETURN_NOT_OK(partitionDictionaries_[pid]->serialize(os.get()));
-
-          partitionDictionaries_.erase(pid);
-        }
+        ARROW_ASSIGN_OR_RAISE(bool hasDictionary, tryFlushDictionary(pid, os));
 
         auto& payloads = partitionCachedPayload_[pid];
         while (!payloads.empty()) {
@@ -370,8 +359,10 @@ class LocalPartitionWriter::PayloadCache {
           totalBytesToEvict += payload->rawSize();
 
           // Spill the cached payload to disk.
-          RETURN_NOT_OK(os->Write(useDictionary ? &kDictionaryPayload : &kPlainPayload, sizeof(kPlainPayload)));
-          RETURN_NOT_OK(payload->serialize(os.get()));
+          uint8_t blockType =
+              static_cast<uint8_t>(hasDictionary ? BlockType::kDictionaryPayload : BlockType::kPlainPayload);
+          RETURN_NOT_OK(os->Write(&blockType, sizeof(blockType)));
+          RETURN_NOT_OK(payload->serialize(os));
 
           compressTime_ += payload->getCompressTime();
           spillTime_ += payload->getWriteTime();
@@ -410,6 +401,19 @@ class LocalPartitionWriter::PayloadCache {
   bool hasCachedPayloads(uint32_t partitionId) {
     return partitionCachedPayload_.find(partitionId) != partitionCachedPayload_.end() &&
         !partitionCachedPayload_[partitionId].empty();
+  }
+
+  arrow::Result<bool> tryFlushDictionary(uint32_t partitionId, arrow::io::OutputStream* os) {
+    if (useDictionary_ && partitionDictionaries_.find(partitionId) != partitionDictionaries_.end()) {
+      static constexpr uint8_t kDictionaryBlock = static_cast<uint8_t>(BlockType::kDictionary);
+      RETURN_NOT_OK(os->Write(&kDictionaryBlock, sizeof(kDictionaryBlock)));
+      RETURN_NOT_OK(partitionDictionaries_[partitionId]->serialize(os));
+
+      partitionDictionaries_.erase(partitionId);
+
+      return true;
+    }
+    return false;
   }
 
   uint32_t numPartitions_;
@@ -700,7 +704,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
     spills_.emplace_back();
     ARROW_ASSIGN_OR_RAISE(
         spills_.back(),
-        payloadCache_->spillAndClose(os, spillFile, payloadPool_.get(), codec_.get(), totalBytesToEvict_));
+        payloadCache_->spillAndClose(os.get(), spillFile, payloadPool_.get(), codec_.get(), totalBytesToEvict_));
     reclaimed += beforeSpill - payloadPool_->bytes_allocated();
     if (reclaimed >= size) {
       *actual = reclaimed;
@@ -715,6 +719,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
 
       if (maybeMerged.has_value()) {
         const auto& merged = maybeMerged.value();
+
         totalBytesToEvict_ += merged->rawSize();
         reclaimed += merged->rawCapacity();
 
