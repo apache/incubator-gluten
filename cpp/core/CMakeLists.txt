@@ -146,7 +146,10 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     utils/StringUtil.cc
     utils/ObjectStore.cc
     jni/JniError.cc
-    jni/JniCommon.cc)
+    jni/JniCommon.cc
+        shuffle/Dictionary.cc
+        shuffle/ArrowDictionaryWriter.h
+        shuffle/ArrowDictionaryWriter.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})

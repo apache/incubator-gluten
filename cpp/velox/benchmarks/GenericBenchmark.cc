@@ -199,13 +199,13 @@ std::unique_ptr<PartitionWriter> createPartitionWriter(
     partitionWriter = std::make_unique<RssPartitionWriter>(
         FLAGS_shuffle_partitions,
         std::move(options),
-        runtime->memoryManager()->getArrowMemoryPool(),
+        runtime->memoryManager(),
         std::move(rssClient));
   } else {
     partitionWriter = std::make_unique<LocalPartitionWriter>(
         FLAGS_shuffle_partitions,
         std::move(options),
-        runtime->memoryManager()->getArrowMemoryPool(),
+        runtime->memoryManager(),
         dataFile,
         localDirs);
   }
