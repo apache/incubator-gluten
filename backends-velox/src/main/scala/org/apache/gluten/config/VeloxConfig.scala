@@ -595,7 +595,7 @@ object VeloxConfig {
       .checkValues(Set("loose", "strict"))
       .createWithDefault("loose")
 
-  private val COLUMNAR_VELOX_MEMORY_CHECK_USAGE_LEAK =
+  val COLUMNAR_VELOX_MEMORY_CHECK_USAGE_LEAK =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.checkUsageLeak")
       .internal()
       .doc("Enable check memory usage leak.")
