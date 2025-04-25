@@ -83,9 +83,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
         final int transformationId = transformation.getId();
         final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
-        System.out.println("Source transformation id: " + transformation.getSource().getClass().getSimpleName());
-        if (false) {
-        //if (transformation.getSource().getClass().getSimpleName().equals("NexmarkSource")) {
+        if (transformation.getSource().getClass().getSimpleName().equals("NexmarkSource")) {
             RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                     ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
             String id = PlanNodeIdGenerator.newId();
