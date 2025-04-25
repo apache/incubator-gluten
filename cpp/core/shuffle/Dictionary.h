@@ -28,8 +28,7 @@
 
 #include <arrow/array/array_decimal.h>
 
-namespace {
-
+namespace gluten {
 using IndexType = int32_t;
 
 template <typename T>
@@ -196,8 +195,6 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionaryForBinary(
 
   return indices;
 }
-
-} // namespace
 
 class DictionaryWriter {
  public:
@@ -370,3 +367,4 @@ class DictionaryWriter {
     }
   };
 };
+} // namespace gluten
