@@ -222,7 +222,7 @@ case class ColumnarArrowEvalPythonExec(
     inputs.foreach {
       input =>
         input.foreach {
-          case e: AttributeReference if e.exprId != null =>
+          case e: AttributeReference if child.output.exists(_.exprId == e.exprId) =>
           // Valid case, continue validation
           case _: AttributeReference =>
             return ValidationResult.failed("Expression Id does not exist for AttributeReference")
