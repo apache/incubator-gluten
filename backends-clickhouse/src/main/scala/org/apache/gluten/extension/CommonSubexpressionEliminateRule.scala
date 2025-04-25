@@ -32,7 +32,9 @@ import scala.collection.mutable
 // 2. append two options to spark config
 //    --conf spark.sql.planChangeLog.level=error
 //    --conf spark.sql.planChangeLog.batches=all
-class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
+case class CommonSubexpressionEliminateRule(spark: SparkSession)
+  extends Rule[LogicalPlan]
+  with Logging {
 
   private var lastPlan: LogicalPlan = null
 

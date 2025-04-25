@@ -37,7 +37,6 @@
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_bool(velox_memory_use_hugepages);
 DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
-DECLARE_int32(cache_prefetch_min_pct);
 
 #ifdef ENABLE_HDFS
 #include "operators/writer/VeloxParquetDataSourceHDFS.h"
@@ -75,7 +74,6 @@ VeloxRuntime::VeloxRuntime(
   FLAGS_velox_exception_system_stacktrace_enabled =
       veloxCfg_->get<bool>(kEnableSystemExceptionStacktrace, FLAGS_velox_exception_system_stacktrace_enabled);
   FLAGS_velox_memory_use_hugepages = veloxCfg_->get<bool>(kMemoryUseHugePages, FLAGS_velox_memory_use_hugepages);
-  FLAGS_cache_prefetch_min_pct = veloxCfg_->get<bool>(kCachePrefetchMinPct, FLAGS_cache_prefetch_min_pct);
   FLAGS_velox_memory_pool_capacity_transfer_across_tasks = veloxCfg_->get<bool>(
       kMemoryPoolCapacityTransferAcrossTasks, FLAGS_velox_memory_pool_capacity_transfer_across_tasks);
 }
