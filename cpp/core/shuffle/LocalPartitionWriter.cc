@@ -269,8 +269,17 @@ class LocalPartitionWriter::PayloadMerger {
 
 class LocalPartitionWriter::PayloadCache {
  public:
-  PayloadCache(uint32_t numPartitions, arrow::util::Codec* codec, int32_t compressionThreshold, arrow::MemoryPool* pool)
-      : numPartitions_(numPartitions), codec_(codec), compressionThreshold_(compressionThreshold), pool_(pool) {}
+  PayloadCache(
+      uint32_t numPartitions,
+      arrow::util::Codec* codec,
+      int32_t compressionThreshold,
+      arrow::MemoryPool* pool,
+      MemoryManager* memoryManager)
+      : numPartitions_(numPartitions),
+        codec_(codec),
+        compressionThreshold_(compressionThreshold),
+        pool_(pool),
+        memoryManager_(memoryManager) {}
 
   arrow::Status cache(uint32_t partitionId, std::unique_ptr<InMemoryPayload> payload) {
     PartitionScopeGuard cacheGuard(partitionInUse_, partitionId);
@@ -281,7 +290,7 @@ class LocalPartitionWriter::PayloadCache {
 
     if (useDictionary_) {
       if (partitionDictionaries_.find(partitionId) == partitionDictionaries_.end()) {
-        partitionDictionaries_[partitionId] = std::make_shared<DictionaryWriter>(pool_);
+        partitionDictionaries_[partitionId] = createDictionaryWriter(memoryManager_);
       }
       RETURN_NOT_OK(payload->createDictionaries(partitionDictionaries_[partitionId]));
     }
@@ -420,6 +429,7 @@ class LocalPartitionWriter::PayloadCache {
   arrow::util::Codec* codec_;
   int32_t compressionThreshold_;
   arrow::MemoryPool* pool_;
+  MemoryManager* memoryManager_;
 
   int64_t compressTime_{0};
   int64_t spillTime_{0};
@@ -435,10 +445,10 @@ class LocalPartitionWriter::PayloadCache {
 LocalPartitionWriter::LocalPartitionWriter(
     uint32_t numPartitions,
     PartitionWriterOptions options,
-    arrow::MemoryPool* pool,
+    MemoryManager* memoryManager,
     const std::string& dataFile,
     const std::vector<std::string>& localDirs)
-    : PartitionWriter(numPartitions, std::move(options), pool), dataFile_(dataFile), localDirs_(localDirs) {
+    : PartitionWriter(numPartitions, std::move(options), memoryManager), dataFile_(dataFile), localDirs_(localDirs) {
   init();
 }
 
@@ -545,8 +555,8 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
         ARROW_ASSIGN_OR_RAISE(auto maybeMerged, merger_->finish(pid, false));
         if (maybeMerged.has_value()) {
           if (!payloadCache_) {
-            payloadCache_ =
-                std::make_shared<PayloadCache>(numPartitions_, codec_.get(), options_.compressionThreshold, pool_);
+            payloadCache_ = std::make_shared<PayloadCache>(
+                numPartitions_, codec_.get(), options_.compressionThreshold, payloadPool_.get(), memoryManager_);
           }
           // Spill can be triggered by compressing or building dictionaries.
           RETURN_NOT_OK(payloadCache_->cache(pid, std::move(maybeMerged.value())));
@@ -651,8 +661,8 @@ arrow::Status LocalPartitionWriter::hashEvict(
   ARROW_ASSIGN_OR_RAISE(auto merged, merger_->merge(partitionId, std::move(inMemoryPayload), reuseBuffers));
   if (!merged.empty()) {
     if (UNLIKELY(!payloadCache_)) {
-      payloadCache_ =
-          std::make_shared<PayloadCache>(numPartitions_, codec_.get(), options_.compressionThreshold, pool_);
+      payloadCache_ = std::make_shared<PayloadCache>(
+          numPartitions_, codec_.get(), options_.compressionThreshold, payloadPool_.get(), memoryManager_);
     }
     for (auto& payload : merged) {
       RETURN_NOT_OK(payloadCache_->cache(partitionId, std::move(payload)));
@@ -729,7 +739,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
         ARROW_ASSIGN_OR_RAISE(
             auto payload,
             merged->toBlockPayload(
-                shouldCompress ? Payload::kToBeCompressed : Payload::kUncompressed, pool_, codec_.get()));
+                shouldCompress ? Payload::kToBeCompressed : Payload::kUncompressed, payloadPool_.get(), codec_.get()));
 
         RETURN_NOT_OK(spiller_->spill(pid, std::move(payload)));
       }

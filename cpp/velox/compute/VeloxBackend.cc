@@ -37,6 +37,7 @@
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkExprToSubfieldFilterParser.h"
+#include "shuffle/ArrowDictionaryWriter.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -211,6 +212,10 @@ void VeloxBackend::init(
   // local cache persistent relies on the cache pool from root memory pool so we need to init this
   // after the memory manager instanced
   initCache();
+
+  registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager) {
+    return std::make_unique<ArrowDictionaryWriter>(memoryManager->getArrowMemoryPool());
+  });
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
