@@ -90,7 +90,7 @@
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-spark33/test/scala</source>
-                    <source>${project.basedir}/src-spark33/test/java</source>
+                    <source>${project.basedir}/src-iceberg/test/java-spark33</source>
                   </sources>
                 </configuration>
               </execution>
@@ -192,7 +192,7 @@
                 <configuration>
                   <sources>
                     <source>${project.basedir}/src-spark35/test/scala</source>
-                    <source>${project.basedir}/src-spark35/test/java</source>
+                    <source>${project.basedir}/src-iceberg/test/java-spark35</source>
                   </sources>
                 </configuration>
               </execution>
