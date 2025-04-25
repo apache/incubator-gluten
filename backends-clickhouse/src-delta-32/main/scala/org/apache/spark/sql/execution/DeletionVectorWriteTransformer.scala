@@ -30,7 +30,7 @@ import org.apache.spark.sql.delta.actions.DeletionVectorDescriptor
 import org.apache.spark.sql.delta.commands.DeletionVectorResult
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.storage.dv.DeletionVectorStore
-import org.apache.spark.sql.delta.util.{Codec, Utils => DeltaUtils}
+import org.apache.spark.sql.delta.util.{Utils => DeltaUtils}
 import org.apache.spark.sql.execution.datasources.CallTransformer
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -38,7 +38,6 @@ import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
 
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
 case class DeletionVectorWriteTransformer(
@@ -112,19 +111,6 @@ object DeletionVectorWriteTransformer {
       StructField.apply("cardinality", LongType, nullable = false),
       StructField.apply("maxRowIndex", LongType, nullable = true)
     ))
-
-  def encodeUUID(uuid: String, randomPrefix: String): String = {
-    val uuidData = Codec.Base85Codec.encodeUUID(UUID.fromString(uuid))
-    // This should always be true and we are relying on it for separating out the
-    // prefix again later without having to spend an extra character as a separator.
-    assert(uuidData.length == 20)
-    // uuidData
-    s"$randomPrefix$uuidData"
-  }
-
-  def decodeUUID(encodedUuid: String): String = {
-    Codec.Base85Codec.decodeUUID(encodedUuid).toString
-  }
 
   def replace(
       aggregated: DataFrame,
