@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.RuntimeSettings
 import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
@@ -32,8 +33,6 @@ import java.io.File
 
 class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
 
-  import org.apache.gluten.backendsapi.clickhouse.CHConfig._
-
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -45,7 +44,7 @@ class GlutenClickHouseDeltaParquetWriteSuite extends ParquetTPCHSuite {
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, spark35.toString)
       .set("spark.sql.storeAssignmentPolicy", "legacy")
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
       .set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
   }
 

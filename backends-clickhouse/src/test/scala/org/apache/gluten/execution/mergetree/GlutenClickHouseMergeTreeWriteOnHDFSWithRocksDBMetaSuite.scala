@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig, RuntimeSettings}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
@@ -35,7 +35,6 @@ import scala.concurrent.duration.DurationInt
 class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite extends CreateMergeTreeSuite {
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -43,10 +42,9 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite extends CreateMer
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
   }
 
   override protected def beforeEach(): Unit = {
@@ -479,8 +477,8 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite extends CreateMer
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      CHConfig.runtimeSettings("mergetree.merge_after_insert") -> "true",
-      CHConfig.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
+      RuntimeSettings.MERGE_AFTER_INSERT.key -> "true",
+      RuntimeSettings.INSERT_WITHOUT_LOCAL_STORAGE.key -> "true",
       RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key -> "10000"
     ) {
       spark.sql(s"""

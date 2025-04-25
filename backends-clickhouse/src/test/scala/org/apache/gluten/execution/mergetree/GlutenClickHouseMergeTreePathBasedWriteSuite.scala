@@ -54,7 +54,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite extends CreateMergeTreeSuite 
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
       .set(RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key, "100000")
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
       .setCHSettings("input_format_parquet_max_block_size", 8192)
 
   }

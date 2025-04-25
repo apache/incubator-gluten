@@ -16,8 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig}
-import org.apache.gluten.backendsapi.clickhouse.CHConfig.GlutenCHConf
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCDSAbstractSuite}
 
@@ -47,10 +46,9 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
       .set("spark.databricks.delta.stats.enabled", "true")
       .set("spark.databricks.delta.optimizeWrite.enabled", "true")
       .set("spark.sql.storeAssignmentPolicy", "LEGACY")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
-      .setCHSettings("mergetree.merge_after_insert", false)
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
   }
 
   override protected def beforeEach(): Unit = {
