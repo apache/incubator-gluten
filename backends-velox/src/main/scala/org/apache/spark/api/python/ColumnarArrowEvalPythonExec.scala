@@ -222,10 +222,8 @@ case class ColumnarArrowEvalPythonExec(
     inputs.foreach {
       input =>
         input.foreach {
-          e =>
-            if (!e.isInstanceOf[AttributeReference]) {
-              return ValidationResult.failed("UDF input is not an instance of AttributeReference")
-            }
+          case _: AttributeReference => // Do nothing
+          case _ => return ValidationResult.failed("UDF input is not an instance of AttributeReference")
         }
     }
     super.doValidateInternal()
