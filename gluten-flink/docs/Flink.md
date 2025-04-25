@@ -39,14 +39,14 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 **Get Velox4j**
 
-Gluten for Flink depends on [Velox4j](https://github.com/velox4j/velox4j) to call velox. This is an experimental feature.
+Gluten for Flink depends on [Velox4j](https://github.com/velox4j/velox4j) commit:7aaa6465cb2c56c8898b737bcc770bae35a94ee4 to call velox. This is an experimental feature.
 You need to get the Velox4j code, and compile it first.
 
 ```bash
 ## fetch velox4j code
-git clone https://github.com/shuai-xu/velox4j.git
+git clone https://github.com/velox4j/velox4j.git
 cd velox4j
-git checkout gluten
+git reset --hard 7aaa6465cb2c56c8898b737bcc770bae35a94ee4
 mvn clean install
 ```
 **Get gluten**
