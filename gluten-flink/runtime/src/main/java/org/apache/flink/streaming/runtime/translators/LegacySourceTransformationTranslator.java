@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
+import io.github.zhztheplayer.velox4j.connector.FuzzerConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.FuzzerTableHandle;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
@@ -92,7 +93,8 @@ public class LegacySourceTransformationTranslator<OUT>
                                             new FuzzerTableHandle("connector-fuzzer", 12367),
                                             List.of()),
                                     outputType,
-                                    id)));
+                                    id,
+                                    new FuzzerConnectorSplit("connector-fuzzer", 1000))));
             namePrefix = "Gluten ";
         } else {
             operatorFactory = transformation.getOperatorFactory();

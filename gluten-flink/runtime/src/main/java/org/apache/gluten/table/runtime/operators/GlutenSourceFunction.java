@@ -17,20 +17,18 @@
 
 package org.apache.gluten.table.runtime.operators;
 
-import io.github.zhztheplayer.velox4j.connector.FuzzerConnectorSplit;
-import io.github.zhztheplayer.velox4j.iterator.UpIterator;
-import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
+import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.data.RowVector;
-import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
-import io.github.zhztheplayer.velox4j.iterator.UpIterators;
+import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import io.github.zhztheplayer.velox4j.query.Query;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.type.RowType;
@@ -47,6 +45,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     private final PlanNode planNode;
     private final RowType outputType;
     private final String id;
+    private final ConnectorSplit split;
     private volatile boolean isRunning = true;
 
     private Session session;
@@ -54,10 +53,15 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     BufferAllocator allocator;
     private MemoryManager memoryManager;
 
-    public GlutenSourceFunction(PlanNode planNode, RowType outputType, String id) {
+    public GlutenSourceFunction(
+            PlanNode planNode,
+            RowType outputType,
+            String id,
+            ConnectorSplit split) {
         this.planNode = planNode;
         this.outputType = outputType;
         this.id = id;
+        this.split = split;
     }
 
     public PlanNode getPlanNode() {
@@ -68,36 +72,41 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
 
     public String getId() { return id; }
 
+    public ConnectorSplit getConnectorSplit() { return split; }
+
     @Override
     public void run(SourceContext<RowData> sourceContext) throws Exception {
-        final List<BoundSplit> splits = List.of(new BoundSplit(
-                id,
-                -1,
-                new FuzzerConnectorSplit("connector-fuzzer", 1000)));
+        final List<BoundSplit> splits = List.of(new BoundSplit(id, -1, split));
         memoryManager = MemoryManager.create(AllocationListener.NOOP);
         session = Velox4j.newSession(memoryManager);
         query = new Query(planNode, splits, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
 
+        UpIterator upIterator = session.queryOps().execute(query);
         while (isRunning) {
-            final UpIterator upItr = session.queryOps().execute(query);
-            final CloseableIterator<RowVector> result = UpIterators.asJavaIterator(upItr);
-            while (result.hasNext()) {
-                final RowVector outRv = result.next();
-                final List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                    outRv,
+            UpIterator.State state = upIterator.advance();
+            if (state == UpIterator.State.AVAILABLE) {
+                final RowVector outRv = upIterator.get();
+                List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
+                        outRv,
                         allocator,
                         outputType);
                 for (RowData row : rows) {
                     sourceContext.collect(row);
                 }
                 outRv.close();
+            } else if (state == UpIterator.State.BLOCKED) {
+                System.out.println("Get empty row");
+            } else {
+                System.out.println("Velox task finished");
+                break;
             }
-            upItr.close();
         }
 
+        upIterator.close();
         session.close();
         memoryManager.close();
+        allocator.close();
     }
 
     @Override

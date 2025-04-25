@@ -20,13 +20,10 @@ package org.apache.gluten.table.runtime.operators;
 import io.github.zhztheplayer.velox4j.connector.ExternalStream;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
-import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
 import io.github.zhztheplayer.velox4j.iterator.DownIterators;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
-import io.github.zhztheplayer.velox4j.iterator.UpIterators;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import io.github.zhztheplayer.velox4j.type.RowType;
-import org.apache.flink.client.StreamGraphTranslator;
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
@@ -73,7 +70,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
     private Query query;
     private BlockingQueue<RowVector> inputQueue;
     BufferAllocator allocator;
-    CloseableIterator<RowVector> result;
+    UpIterator upIterator;
 
     public GlutenSingleInputOperator(PlanNode plan, String id, RowType inputType, RowType outputType) {
         this.glutenPlan = plan;
@@ -107,7 +104,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
         query = new Query(glutenPlan, splits, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
-        result = UpIterators.asJavaIterator(session.queryOps().execute(query));
+        upIterator = session.queryOps().execute(query);
     }
 
     @Override
@@ -118,18 +115,19 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
             session,
             inputType);
         inputQueue.add(inRv);
-        if (result.hasNext()) {
-            final RowVector outRv = result.next();
+        UpIterator.State state = upIterator.advance();
+        if (state == UpIterator.State.AVAILABLE) {
+            RowVector outRv = upIterator.get();
             List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                outRv,
-                allocator,
-                outputType);
+                    outRv,
+                    allocator,
+                    outputType);
             for (RowData row : rows) {
                 output.collect(outElement.replace(row));
             }
             outRv.close();
         }
-      inRv.close();
+        inRv.close();
     }
 
     @Override

@@ -133,12 +133,14 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
                     LOG.debug("Set out node to {}", sourceOperator.getPlanNode());
                 }
                 if (sourceOperator instanceof GlutenStreamSource) {
+                    GlutenStreamSource streamSource = (GlutenStreamSource) sourceOperator;
                     taskConfig.setStreamOperator(
                             new GlutenStreamSource(
                                     new GlutenSourceFunction(
                                             outNode,
                                             outOperator.getOutputType(),
-                                            sourceOperator.getId())));
+                                            sourceOperator.getId(),
+                                            streamSource.getConnectorSplit())));
                 } else {
                     taskConfig.setStreamOperator(
                             new GlutenSingleInputOperator(
