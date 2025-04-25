@@ -44,12 +44,12 @@ using namespace facebook::velox;
 namespace gluten {
 namespace {
 
-arrow::Result<uint8_t> readBlockType(arrow::io::InputStream* inputStream) {
-  uint8_t type;
-  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream->Read(sizeof(uint8_t), &type));
+arrow::Result<BlockType> readBlockType(arrow::io::InputStream* inputStream) {
+  BlockType type;
+  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream->Read(sizeof(BlockType), &type));
   if (bytes == 0) {
     // Reach EOS.
-    return 0;
+    return BlockType::kEndOfStream;
   }
   return type;
 }
@@ -266,7 +266,7 @@ RowVectorPtr deserialize(
       } break;
       default: {
         VectorPtr dictionary{nullptr};
-        if (dictionaryFields[dictionaryIdx] == i) {
+        if (!dictionaryFields.empty() && dictionaryFields[dictionaryIdx] == i) {
           dictionary = dictionaries[dictionaryIdx];
           ++dictionaryIdx;
         }
@@ -301,8 +301,6 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
 std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     RowTypePtr type,
     std::unique_ptr<InMemoryPayload> payload,
-    std::vector<int32_t> dictionaryFields,
-    std::vector<VectorPtr> dictionaries,
     memory::MemoryPool* pool,
     int64_t& deserializeTime) {
   ScopedTimer timer(&deserializeTime);
@@ -313,7 +311,7 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     GLUTEN_ASSIGN_OR_THROW(auto buffer, payload->readBufferAt(i));
     veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
   }
-  auto rowVector = deserialize(type, payload->numRows(), veloxBuffers, dictionaryFields, dictionaries, pool);
+  auto rowVector = deserialize(type, payload->numRows(), veloxBuffers, {}, {}, pool);
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
@@ -449,36 +447,66 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
   GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
 }
 
-std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
-  GLUTEN_ASSIGN_OR_THROW(auto blockType, readBlockType(in_.get()));
-  if (blockType == 0) {
-    reachEos_ = true;
-    if (hasComplexType_) {
-      return nullptr;
-    }
-  } else if (blockType == kDictionary) {
-    VeloxDictionaryReader reader(rowType_, veloxPool_);
-    GLUTEN_ASSIGN_OR_THROW(dictionaryFields_, reader.readFields(in_.get()));
-    GLUTEN_ASSIGN_OR_THROW(dictionaries_, reader.readDictionaries(in_.get(), dictionaryFields_));
+bool VeloxHashShuffleReaderDeserializer::shouldSkipMerge() {
+  // Complex type or dictionary encodings do not support merging.
+  return hasComplexType_ || !dictionaryFields_.empty();
+}
 
-    GLUTEN_ASSIGN_OR_THROW(blockType, readBlockType(in_.get()));
-    GLUTEN_CHECK(blockType == kDictionaryPayload, "Invalid block type for dictionary payload");
-  } else if (blockType == kDictionaryPayload) {
-    GLUTEN_CHECK(
-        !dictionaries_.empty() && !dictionaryFields_.empty(),
-        "Dictionaries cannot be empty when reading dictionary payload");
-  } else {
-    // Clear previous dictionaries if the next block is a plain payload.
-    dictionaryFields_.clear();
-    dictionaries_.clear();
+void VeloxHashShuffleReaderDeserializer::resolveNextBlockType() {
+  if (blockTypeResolved_) {
+    return;
   }
 
-  // Complex type or dictionary encodings do not support merging.
-  if (hasComplexType_ || !dictionaryFields_.empty()) {
+  blockTypeResolved_ = true;
+
+  GLUTEN_ASSIGN_OR_THROW(auto blockType, readBlockType(in_.get()));
+  switch (blockType) {
+    case BlockType::kEndOfStream:
+      reachEos_ = true;
+      break;
+    case BlockType::kDictionary: {
+      VeloxDictionaryReader reader(rowType_, veloxPool_);
+      GLUTEN_ASSIGN_OR_THROW(dictionaryFields_, reader.readFields(in_.get()));
+      GLUTEN_ASSIGN_OR_THROW(dictionaries_, reader.readDictionaries(in_.get(), dictionaryFields_));
+
+      GLUTEN_ASSIGN_OR_THROW(blockType, readBlockType(in_.get()));
+      GLUTEN_CHECK(blockType == BlockType::kDictionaryPayload, "Invalid block type for dictionary payload");
+    } break;
+    case BlockType::kDictionaryPayload: {
+      GLUTEN_CHECK(
+          !dictionaryFields_.empty() && !dictionaries_.empty(),
+          "Dictionaries cannot be empty when reading dictionary payload");
+    } break;
+    case BlockType::kPlainPayload: {
+      if (!dictionaryFields_.empty()) {
+        // Clear previous dictionaries if the next block is a plain payload.
+        dictionaryFields_.clear();
+        dictionaries_.clear();
+      }
+    } break;
+  }
+}
+
+std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
+  resolveNextBlockType();
+
+  if (shouldSkipMerge()) {
+    // We have leftover rows from the last mergeable read.
+    if (merged_) {
+      return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
+    }
+
+    if (reachEos_) {
+      return nullptr;
+    }
+
     uint32_t numRows = 0;
     GLUTEN_ASSIGN_OR_THROW(
         auto arrowBuffers,
         BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, deserializeTime_, decompressTime_));
+
+    blockTypeResolved_ = false;
+
     return makeColumnarBatch(
         rowType_, numRows, std::move(arrowBuffers), dictionaryFields_, dictionaries_, veloxPool_, deserializeTime_);
   }
@@ -486,8 +514,7 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   // TODO: Remove merging.
   if (reachEos_) {
     if (merged_) {
-      return makeColumnarBatch(
-          rowType_, std::move(merged_), dictionaryFields_, dictionaries_, veloxPool_, deserializeTime_);
+      return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
     }
     return nullptr;
   }
@@ -495,18 +522,25 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers{};
   uint32_t numRows = 0;
   while (!merged_ || merged_->numRows() < batchSize_) {
+    resolveNextBlockType();
+
+    // Break the merging loop once we reach EOS or read a dictionary block.
+    if (reachEos_ || !dictionaryFields_.empty()) {
+      break;
+    }
+
     GLUTEN_ASSIGN_OR_THROW(
         arrowBuffers,
         BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, deserializeTime_, decompressTime_));
-    if (arrowBuffers.empty()) {
-      reachEos_ = true;
-      break;
-    }
+
+    blockTypeResolved_ = false;
+
     if (!merged_) {
       merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, schema_, std::move(arrowBuffers));
       arrowBuffers.clear();
       continue;
     }
+
     auto mergedRows = merged_->numRows() + numRows;
     if (mergedRows > batchSize_) {
       break;
@@ -522,13 +556,13 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
     return nullptr;
   }
 
-  auto columnarBatch =
-      makeColumnarBatch(rowType_, std::move(merged_), dictionaryFields_, dictionaries_, veloxPool_, deserializeTime_);
+  auto columnarBatch = makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
 
   // Save remaining rows.
   if (!arrowBuffers.empty()) {
     merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, schema_, std::move(arrowBuffers));
   }
+
   return columnarBatch;
 }
 

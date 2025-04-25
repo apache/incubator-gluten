@@ -48,9 +48,7 @@ using is_dictionary_fixed_width_type = std::integral_constant<
 template <typename T, typename R = void>
 using enable_if_dictionary_fixed_width = std::enable_if_t<is_dictionary_fixed_width_type<T>::value, R>;
 
-constexpr uint8_t kPlainPayload = 1;
-constexpr uint8_t kDictionary = 2;
-constexpr uint8_t kDictionaryPayload = 3;
+enum class BlockType : uint8_t { kEndOfStream = 0, kPlainPayload = 1, kDictionary = 2, kDictionaryPayload = 3 };
 
 class IDictionaryStorage {
  public:
