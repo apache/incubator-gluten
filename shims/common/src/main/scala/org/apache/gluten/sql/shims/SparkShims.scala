@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
-import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.{CollectLimitExec, FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
@@ -89,6 +89,8 @@ trait SparkShims {
   def scalarExpressionMappings: Seq[Sig]
 
   def aggregateExpressionMappings: Seq[Sig]
+
+  def runtimeReplaceableExpressionMappings: Seq[Sig]
 
   def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec])
 
@@ -310,8 +312,8 @@ trait SparkShims {
 
   def isParquetFileEncrypted(fileStatus: LocatedFileStatus, conf: Configuration): Boolean
 
-  def isColumnarLimitExecSupported(): Boolean
-
   def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
     Map.empty[String, Any].asJava.asInstanceOf[JMap[String, Object]]
+
+  def getCollectLimitOffset(plan: CollectLimitExec): Int = 0
 }

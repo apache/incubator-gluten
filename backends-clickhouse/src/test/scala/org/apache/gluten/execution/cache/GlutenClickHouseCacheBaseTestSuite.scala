@@ -14,34 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution.tpch
+package org.apache.gluten.execution.cache
 
-import org.apache.gluten.backendsapi.clickhouse.CHConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConfig._
-import org.apache.gluten.execution.{CHNativeCacheManager, FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.utils.CacheTestHelper
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import org.apache.commons.io.IOUtils
-import org.apache.hadoop.fs.{FileUtil, Path}
+import org.apache.hadoop.fs.Path
 
 import java.nio.charset.Charset
 
-class GlutenClickHouseHDFSSuite
+abstract class GlutenClickHouseCacheBaseTestSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
-
-  override protected val tablesPath: String = HDFS_URL_ENDPOINT + "/tpch-data"
+  // Common paths
   override protected val tpchQueries: String =
     rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
-  private val cache_name = "gluten_cache"
+  // Abstract methods to be implemented by subclasses
+  protected def cleanupCache(): Unit =
+    cacheHelper.deleteCache(spark, s"$tablesPath/lineitem", s"$tablesPath/$SPARK_DIR_NAME")
+
+  protected def copyDataIfNeeded(): Unit
+
+  // Initialize the cache helper - accessible to subclasses
+  protected val cacheHelper = new CacheTestHelper(TMP_PREFIX)
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
-    super.sparkConf
+    val conf = super.sparkConf
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
@@ -49,19 +55,10 @@ class GlutenClickHouseHDFSSuite
       .set("spark.sql.adaptive.enabled", "true")
       .setCHConfig("use_local_format", true)
       .set(prefixOf("shuffle.hash.algorithm"), "sparkMurmurHash3_32")
-      .set(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key, "true")
-      .setCHConfig("gluten_cache.local.name", cache_name)
-      .setCHConfig("gluten_cache.local.path", LOCAL_CACHE_PATH)
-      .setCHConfig("gluten_cache.local.max_size", "10Gi")
-      // If reuse_disk_cache is set to false,the cache will be deleted in JNI_OnUnload
-      // but CacheManager and JobScheduler of backend are static global variables
-      // and is destroyed at the end of the program which causes backend reporting logical errors.
-      // TODO: fix reuse_disk_cache
-      .setCHConfig("reuse_disk_cache", "true")
       .set("spark.sql.adaptive.enabled", "false")
 
-    // TODO: spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm =>
-    //     CHConf.prefixOf("shuffle.hash.algorithm")
+    // Apply cache configuration using the helper
+    cacheHelper.setCacheConfig(conf)
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -70,55 +67,20 @@ class GlutenClickHouseHDFSSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val targetFile = new Path(s"$tablesPath/lineitem")
-    val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
-    val existed = fs.exists(targetFile)
-    // If the 'lineitem' directory doesn't exist in HDFS,
-    // upload the 'lineitem' data from the local system.
-    if (!existed) {
-      val localDataDir = new Path(s"$absoluteParquetPath/lineitem")
-      val localFs = localDataDir.getFileSystem(spark.sessionState.newHadoopConf())
-      FileUtil.copy(
-        localFs,
-        localDataDir,
-        fs,
-        targetFile,
-        false,
-        true,
-        spark.sessionState.newHadoopConf())
-    }
+    copyDataIfNeeded()
   }
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
-    deleteCache()
+    cleanupCache()
   }
 
   override protected def afterAll(): Unit = {
-    deleteCache()
-    super.afterEach()
+    cleanupCache()
+    super.afterAll()
   }
 
-  private def deleteCache(): Unit = {
-    val targetFile = new Path(tablesPath)
-    val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
-    fs.listStatus(targetFile)
-      .foreach(
-        table => {
-          if (table.isDirectory) {
-            fs.listStatus(table.getPath)
-              .foreach(
-                data => {
-                  if (data.isFile) {
-                    CHNativeCacheManager
-                      .removeFiles(data.getPath.toUri.getPath.substring(1), cache_name)
-                  }
-                })
-          }
-        })
-  }
-
-  val runWithoutCache: () => Unit = () => {
+  def runWithoutCache(): Unit = {
     runTPCHQuery(6) {
       df =>
         val plans = df.queryExecution.executedPlan.collect {
@@ -129,7 +91,7 @@ class GlutenClickHouseHDFSSuite
     }
   }
 
-  val runWithCache: () => Unit = () => {
+  def runWithCache(): Unit = {
     runTPCHQuery(6) {
       df =>
         val plans = df.queryExecution.executedPlan.collect {
@@ -141,15 +103,13 @@ class GlutenClickHouseHDFSSuite
     }
   }
 
-  test("test hdfs cache") {
+  test("test cache") {
     runWithoutCache()
     runWithCache()
   }
 
   test("test cache file command") {
-    runSql(
-      s"CACHE FILES select * from '$HDFS_URL_ENDPOINT/tpch-data/lineitem'",
-      noFallBack = false) { _ => }
+    runSql(s"CACHE FILES select * from '$tablesPath/lineitem'", noFallBack = false) { _ => }
     runWithCache()
   }
 

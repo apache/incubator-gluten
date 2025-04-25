@@ -121,7 +121,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     block_stats_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/BlockStats;");
     block_stats_constructor = local_engine::GetMethodID(env, block_stats_class, "<init>", "(JZ)V");
 
-    local_engine::ShuffleReader::input_stream_class
+    local_engine::ShuffleReader::shuffle_input_stream_class
         = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/ShuffleInputStream;");
     local_engine::NativeSplitter::iterator_class
         = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/IteratorWrapper;");
@@ -134,8 +134,13 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::SourceFromJavaIter::serialized_record_batch_iterator_next
         = local_engine::GetMethodID(env, local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class, "next", "()[B");
 
-    local_engine::ShuffleReader::input_stream_read
-        = local_engine::GetMethodID(env, local_engine::ShuffleReader::input_stream_class, "read", "(JJ)J");
+    local_engine::ReadBufferFromJavaInputStream::input_stream_class
+        = local_engine::CreateGlobalClassReference(env, "Ljava/io/InputStream;");
+    local_engine::ReadBufferFromJavaInputStream::input_stream_read
+        = local_engine::GetMethodID(env, local_engine::ReadBufferFromJavaInputStream::input_stream_class, "read", "([B)I");
+
+    local_engine::ShuffleReader::shuffle_input_stream_read
+        = local_engine::GetMethodID(env, local_engine::ShuffleReader::shuffle_input_stream_class, "read", "(JJ)J");
 
     local_engine::NativeSplitter::iterator_has_next
         = local_engine::GetMethodID(env, local_engine::NativeSplitter::iterator_class, "hasNext", "()Z");
@@ -164,11 +169,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
-}
-
-JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
-{
-    // manually destroy native in 'nativeDestroyNative' method
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
@@ -205,7 +205,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     env->DeleteGlobalRef(block_stripes_class);
     env->DeleteGlobalRef(split_result_class);
     env->DeleteGlobalRef(block_stats_class);
-    env->DeleteGlobalRef(local_engine::ShuffleReader::input_stream_class);
+    env->DeleteGlobalRef(local_engine::ShuffleReader::shuffle_input_stream_class);
     env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
     env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
     env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
@@ -536,12 +536,35 @@ Java_org_apache_gluten_vectorized_CHNativeBlock_nativeBlockStats(JNIEnv * env, j
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_CHNativeBlock_copyBlock(JNIEnv * env, jobject obj, jlong block_address)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+
+    auto copied_block = block->cloneWithColumns(block->getColumns());
+    auto * a = new DB::Block(std::move(copied_block));
+    return reinterpret_cast<jlong>(a);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_CHNativeBlock_nativeSlice(JNIEnv * env, jobject /* obj */, jlong block_address, jint offset, jint limit)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    DB::Block cut_block = block->cloneWithCutColumns(offset, limit);
+
+    return reinterpret_cast<jlong>(new DB::Block(std::move(cut_block)));
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHStreamReader_createNativeShuffleReader(
     JNIEnv * env, jclass /*clazz*/, jobject input_stream, jboolean compressed, jlong max_shuffle_read_rows, jlong max_shuffle_read_bytes)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * input = env->NewGlobalRef(input_stream);
-    auto read_buffer = std::make_unique<local_engine::ReadBufferFromJavaInputStream>(input);
+    auto read_buffer = std::make_unique<local_engine::ReadBufferFromJavaShuffleInputStream>(input);
     auto * shuffle_reader
         = new local_engine::ShuffleReader(std::move(read_buffer), compressed, max_shuffle_read_rows, max_shuffle_read_bytes);
     return reinterpret_cast<jlong>(shuffle_reader);
@@ -554,6 +577,19 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHStreamReader_nativeNext(JNIE
     local_engine::ShuffleReader * reader = reinterpret_cast<local_engine::ShuffleReader *>(shuffle_reader);
     DB::Block * block = reader->read();
     return reinterpret_cast<jlong>(block);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHStreamReader_directRead(
+    JNIEnv * env, jclass /*clazz*/, jobject input_stream, jbyteArray buffer, jint buffer_size)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    // auto * input = env->NewGlobalRef(input_stream);
+    auto rb = std::make_unique<local_engine::ReadBufferFromJavaInputStream>(input_stream, buffer, buffer_size);
+    auto reader = std::make_unique<local_engine::NativeReader>(*rb);
+    DB::Block block = reader->read();
+    DB::Block * res = new DB::Block(block);
+    return reinterpret_cast<jlong>(res);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
@@ -1189,6 +1225,25 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_BlockOutputStream_nativeCreate
     local_engine::ShuffleWriter * writer
         = new local_engine::ShuffleWriter(output_stream, buffer, jstring2string(env, codec), level, compressed, customize_buffer_size);
     return reinterpret_cast<jlong>(writer);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT long Java_org_apache_gluten_vectorized_BlockOutputStream_directWrite(
+    JNIEnv * env,
+    jclass,
+    jobject output_stream,
+    jbyteArray buffer,
+    jint customize_buffer_size,
+    jlong block_address)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    auto wb = std::make_shared<local_engine::WriteBufferFromJavaOutputStream>(output_stream, buffer, customize_buffer_size);
+    auto native_writer = std::make_unique<local_engine::NativeWriter>(*wb, block->cloneEmpty());
+    auto write_size = native_writer->write(*block);
+    native_writer->flush();
+    wb->finalize();
+    return write_size;
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 

@@ -49,7 +49,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[ClickHouseAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
-      "SPARK-29906",
+      // exclude SPARK-29906 because gluten columnar operator will have different number of shuffle
       "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
@@ -319,6 +319,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("SPARK-40496: disable parsing fallback when the date/timestamp format is provided")
     .excludeCH("SPARK-42335: Pass the comment option through to univocity if users set it explicitly in CSV dataSource")
     .excludeCH("SPARK-46862: column pruning in the multi-line mode")
+    // Flaky and already excluded in other cases
+    .exclude("Gluten - test for FAILFAST parsing mode")
+
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
@@ -431,6 +434,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
+    // Gluten columnar operator will have different number of jobs
+    .exclude("SPARK-40211: customize initialNumPartitions for take")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
     .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
@@ -1788,6 +1793,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
+    .excludeCH("SPARK-36866: filter pushdown - year-month interval")
   // avoid Velox compile error
   enableSuite(
     "org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2"
@@ -1809,6 +1815,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .includeCH("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
     .excludeCH("filter pushdown - StringContains")
+    .excludeCH("SPARK-36866: filter pushdown - year-month interval")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .excludeCH("Various partition value types")
     .excludeCH("Various inferred partition value types")
@@ -2049,6 +2056,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeCH("store and retrieve column stats in different time zones")
     .excludeCH("SPARK-42777: describe column stats (min, max) for timestamp_ntz column")
     .excludeCH("Gluten - store and retrieve column stats in different time zones")
+    .excludeCH("statistics collection of a table with zero column")
   enableSuite[GlutenStringExpressionsSuite]
     .excludeCH("StringComparison")
     .excludeCH("Substring")

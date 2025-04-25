@@ -88,6 +88,14 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
 //
 //  Tested Velox operators: TableScan (Filter Pushdown), Project, Aggregate.
 TEST_F(Substrait2VeloxPlanConversionTest, q6) {
+  FLAGS_velox_exception_user_stacktrace_enabled = true;
+  FLAGS_velox_exception_system_stacktrace_enabled = true;
+  std::unordered_map<std::string, std::string> hiveConfig{
+      {"hive.orc.use-column-names", "true"}, {"hive.parquet.use-column-names", "true"}};
+  std::shared_ptr<const facebook::velox::config::ConfigBase> config{
+      std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfig))};
+  resetHiveConnector(config);
+
   // Generate the used ORC file.
   auto type =
       ROW({"l_orderkey",
@@ -257,7 +265,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, ifthenTest) {
   // Convert to Velox PlanNode.
   auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
-      "-- Project[1][expressions: ] -> \n  -- TableScan[0][table: hive_table, remaining filter: (and(and(and(and(isnotnull(\"hd_vehicle_count\"),or(equalto(\"hd_buy_potential\",\">10000\"),equalto(\"hd_buy_potential\",\"unknown\"))),greaterthan(\"hd_vehicle_count\",0)),if(greaterthan(\"hd_vehicle_count\",0),greaterthan(divide(cast \"hd_dep_count\" as DOUBLE,cast \"hd_vehicle_count\" as DOUBLE),1.2))),isnotnull(\"hd_demo_sk\")))] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:BIGINT, n0_3:BIGINT\n",
+      "-- Project[1][expressions: ] -> \n  -- TableScan[0][table: hive_table, remaining filter: (and(and(and(and(isnotnull(\"hd_vehicle_count\"),or(equalto(\"hd_buy_potential\",\">10000\"),equalto(\"hd_buy_potential\",\"unknown\"))),greaterthan(\"hd_vehicle_count\",0)),if(greaterthan(\"hd_vehicle_count\",0),greaterthan(divide(cast \"hd_dep_count\" as DOUBLE,cast \"hd_vehicle_count\" as DOUBLE),1.2))),isnotnull(\"hd_demo_sk\"))), data columns: ROW<hd_demo_sk:BIGINT,hd_buy_potential:VARCHAR,hd_dep_count:BIGINT,hd_vehicle_count:BIGINT>] -> n0_0:BIGINT, n0_1:VARCHAR, n0_2:BIGINT, n0_3:BIGINT\n",
       planNode->toString(true, true));
 }
 
@@ -273,7 +281,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, filterUpper) {
   // Convert to Velox PlanNode.
   auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
-      "-- Project[1][expressions: ] -> \n  -- TableScan[0][table: hive_table, remaining filter: (and(isnotnull(\"key\"),lessthan(\"key\",3)))] -> n0_0:INTEGER\n",
+      "-- Project[1][expressions: ] -> \n  -- TableScan[0][table: hive_table, remaining filter: (and(isnotnull(\"key\"),lessthan(\"key\",3))), data columns: ROW<key:INTEGER>] -> n0_0:INTEGER\n",
       planNode->toString(true, true));
 }
 

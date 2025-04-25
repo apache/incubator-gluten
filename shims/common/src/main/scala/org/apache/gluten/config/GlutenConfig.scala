@@ -17,7 +17,7 @@
 package org.apache.gluten.config
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.network.util.{ByteUnit, JavaUtils}
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf, SQLConfProvider}
 
 import com.google.common.collect.ImmutableList
@@ -194,6 +194,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleReaderBufferSize: Long =
     getConf(COLUMNAR_SHUFFLE_READER_BUFFER_SIZE)
 
+  def columnarSortShuffleDeserializerBufferSize: Long =
+    getConf(COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE)
+
   def maxBatchSize: Int = getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def shuffleWriterBufferSize: Int = getConf(SHUFFLE_WRITER_BUFFER_SIZE)
@@ -245,6 +248,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   }
 
   def memoryIsolation: Boolean = getConf(COLUMNAR_MEMORY_ISOLATION)
+
+  def memoryUntracked: Boolean = getConf(COLUMNAR_MEMORY_UNTRACKED)
 
   def offHeapMemorySize: Long = getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
@@ -340,6 +345,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def dynamicOffHeapSizingEnabled: Boolean =
     getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 
+  def dynamicOffHeapSizingMemoryFraction: Double =
+    getConf(DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION)
+
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = getConf(CELEBORN_FALLBACK_ENABLED)
@@ -359,6 +367,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
   def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
   def getSupportedFlattenedExpressions: String = getConf(GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS)
+
+  def maxBroadcastTableSize: Long =
+    JavaUtils.byteStringAsBytes(conf.getConfString(SPARK_MAX_BROADCAST_TABLE_SIZE, "8GB"))
 }
 
 object GlutenConfig {
@@ -437,6 +448,7 @@ object GlutenConfig {
   val SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE = "spark.shuffle.spill.diskWriteBufferSize"
   val SPARK_SHUFFLE_SPILL_COMPRESS = "spark.shuffle.spill.compress"
   val SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT: Boolean = true
+  val SPARK_MAX_BROADCAST_TABLE_SIZE = "spark.sql.maxBroadcastTableSize"
 
   def get: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
@@ -1063,6 +1075,14 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
+  val COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.deserializerBufferSize")
+      .internal()
+      .doc("Buffer size in bytes for sort-based shuffle reader deserializing raw input to " +
+        "columnar batch.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1MB")
+
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf("spark.gluten.sql.columnar.maxBatchSize")
       .internal()
@@ -1238,6 +1258,16 @@ object GlutenConfig {
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
         "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
         "be enabled to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_MEMORY_UNTRACKED =
+    buildStaticConf("spark.gluten.memory.untracked")
+      .internal()
+      .doc(
+        "When enabled, turn all native memory allocations in Gluten into untracked. Spark " +
+          "will be unaware of the allocations so will not trigger spill-to-disk operations " +
+          "or Spark OOMs. Should only be used for testing or other non-production use cases.")
       .booleanConf
       .createWithDefault(false)
 
@@ -1622,7 +1652,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
-    buildConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
+    buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
       .internal()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
@@ -1639,7 +1669,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
-    buildConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
+    buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
       .internal()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +

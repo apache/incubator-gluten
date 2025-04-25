@@ -89,6 +89,14 @@ class Spark33Shims extends SparkShims {
     )
   }
 
+  override def runtimeReplaceableExpressionMappings: Seq[Sig] = {
+    Seq(
+      Sig[ArraySize](ExpressionNames.ARRAY_SIZE),
+      Sig[ILike](ExpressionNames.ILIKE),
+      Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY)
+    )
+  }
+
   override def convertPartitionTransforms(
       partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
     CatalogUtil.convertPartitionTransforms(partitions)
@@ -393,7 +401,5 @@ class Spark33Shims extends SparkShims {
         false
     }
   }
-
-  override def isColumnarLimitExecSupported(): Boolean = true
 
 }

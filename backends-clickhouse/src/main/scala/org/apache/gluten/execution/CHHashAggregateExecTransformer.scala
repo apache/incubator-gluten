@@ -238,7 +238,6 @@ case class CHHashAggregateExecTransformer(
       operatorId: Long,
       input: RelNode = null,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     // Get the grouping nodes.
     val groupingList = new util.ArrayList[ExpressionNode]()
     groupingExpressions.foreach(
@@ -247,7 +246,7 @@ case class CHHashAggregateExecTransformer(
         // may be different for each backend.
         val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(expr, childOutput)
-          .doTransform(args)
+          .doTransform(context)
         groupingList.add(exprNode)
       })
     // Get the aggregate function nodes.
@@ -267,7 +266,7 @@ case class CHHashAggregateExecTransformer(
         if (aggExpr.filter.isDefined) {
           val exprNode = ExpressionConverter
             .replaceWithExpressionTransformer(aggExpr.filter.get, childOutput)
-            .doTransform(args)
+            .doTransform(context)
           aggFilterList.add(exprNode)
         } else {
           aggFilterList.add(null)
@@ -281,7 +280,7 @@ case class CHHashAggregateExecTransformer(
               expr => {
                 ExpressionConverter
                   .replaceWithExpressionTransformer(expr, childOutput)
-                  .doTransform(args)
+                  .doTransform(context)
               })
 
             val extraNodes = aggregateFunc match {
@@ -290,7 +289,7 @@ case class CHHashAggregateExecTransformer(
                 Seq(
                   ExpressionConverter
                     .replaceWithExpressionTransformer(relativeSDLiteral, child.output)
-                    .doTransform(args))
+                    .doTransform(context))
               case _ => Seq.empty
             }
 
@@ -311,12 +310,12 @@ case class CHHashAggregateExecTransformer(
                   child.asInstanceOf[BaseAggregateExec].groupingExpressions,
                   child.asInstanceOf[BaseAggregateExec].aggregateExpressions)
               )
-            Seq(aggTypesExpr.doTransform(args))
+            Seq(aggTypesExpr.doTransform(context))
           case Final | PartialMerge =>
             Seq(
               ExpressionConverter
                 .replaceWithExpressionTransformer(aggExpr.resultAttribute, originalInputAttributes)
-                .doTransform(args))
+                .doTransform(context))
           case other =>
             throw new GlutenNotSupportException(s"$other not supported.")
         }
@@ -324,7 +323,7 @@ case class CHHashAggregateExecTransformer(
           childrenNodeList.add(node)
         }
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-          CHExpressions.createAggregateFunction(args, aggregateFunc),
+          CHExpressions.createAggregateFunction(context, aggregateFunc),
           childrenNodeList,
           modeToKeyWord(aggExpr.mode),
           ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable)

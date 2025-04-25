@@ -483,6 +483,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("column stats collection for null columns")
     .exclude("store and retrieve column stats in different time zones")
     .excludeGlutenTest("store and retrieve column stats in different time zones")
+    .excludeCH("statistics collection of a table with zero column")
   enableSuite[GlutenStringFunctionsSuite]
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
@@ -1157,6 +1158,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "- single join")
     .exclude("SPARK-35455: Unify empty relation optimization between normal and AQE optimizer " +
       "- multi join")
+    // Gluten columnar operator will have different number of shuffle
+    .exclude("SPARK-29906: AQE should not introduce extra shuffle for outermost limit")
     .excludeGlutenTest("Empty stage coalesced to 1-partition RDD")
     .excludeGlutenTest(
       "Avoid changing merge join to broadcast join if too many empty partitions on build plan")

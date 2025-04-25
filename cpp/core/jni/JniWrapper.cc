@@ -825,10 +825,11 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     jstring codecJstr,
     jstring codecBackendJstr,
     jint compressionLevel,
-    jint sortEvictBufferSize,
+    jint compressionBufferSize,
+    jint diskWriteBufferSize,
     jint compressionThreshold,
     jstring compressionModeJstr,
-    jint sortBufferInitialSize,
+    jint initialSortBufferSize,
     jboolean useRadixSort,
     jstring dataFileJstr,
     jint numSubDirs,
@@ -856,14 +857,15 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .taskAttemptId = static_cast<int64_t>(taskAttemptId),
       .startPartitionId = startPartitionId,
       .shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
-      .sortBufferInitialSize = sortBufferInitialSize,
-      .sortEvictBufferSize = sortEvictBufferSize,
+      .initialSortBufferSize = initialSortBufferSize,
+      .diskWriteBufferSize = diskWriteBufferSize,
       .useRadixSort = static_cast<bool>(useRadixSort)};
 
   // Build PartitionWriterOptions.
   auto partitionWriterOptions = PartitionWriterOptions{
       .mergeBufferSize = mergeBufferSize,
       .mergeThreshold = mergeThreshold,
+      .compressionBufferSize = compressionBufferSize,
       .compressionThreshold = compressionThreshold,
       .compressionType = getCompressionType(env, codecJstr),
       .compressionTypeStr = getCompressionTypeStr(env, codecJstr),
@@ -1063,7 +1065,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     jstring compressionType,
     jstring compressionBackend,
     jint batchSize,
-    jlong bufferSize,
+    jlong readerBufferSize,
+    jlong deserializerBufferSize,
     jstring shuffleWriterType) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
@@ -1075,7 +1078,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     options.codecBackend = getCodecBackend(env, compressionBackend);
   }
   options.batchSize = batchSize;
-  options.bufferSize = bufferSize;
+  options.readerBufferSize = readerBufferSize;
+  options.deserializerBufferSize = deserializerBufferSize;
 
   options.shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterType));
   std::shared_ptr<arrow::Schema> schema =

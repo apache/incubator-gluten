@@ -68,12 +68,14 @@ object ExpressionNames {
   final val CAST = "cast"
   final val COALESCE = "coalesce"
   final val LIKE = "like"
+  final val ILIKE = "ilike"
   final val RLIKE = "rlike"
   final val REGEXP_REPLACE = "regexp_replace"
   final val REGEXP_EXTRACT = "regexp_extract"
   final val REGEXP_EXTRACT_ALL = "regexp_extract_all"
   final val EQUAL = "equal"
   final val EQUAL_NULL_SAFE = "equal_null_safe"
+  final val EQUAL_NULL = "equal_null"
   final val LESS_THAN = "lt"
   final val LESS_THAN_OR_EQUAL = "lte"
   final val GREATER_THAN = "gt"
@@ -189,6 +191,7 @@ object ExpressionNames {
   final val FACTORIAL = "factorial"
   final val RAND = "rand"
   final val RINT = "rint"
+  final val RIGHT = "right"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
@@ -281,6 +284,9 @@ object ExpressionNames {
   final val ARRAY_INSERT = "array_insert"
   final val ARRAY_APPEND = "array_append"
   final val ARRAY_PREPEND = "array_prepend"
+  final val ARRAY_SIZE = "array_size"
+  final val GET = "get"
+  final val ARRAY_COMPACT = "array_compact"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -295,6 +301,7 @@ object ExpressionNames {
   final val TRANSFORM_VALUES = "transform_values"
   final val STR_TO_MAP = "str_to_map"
   final val MAP_FILTER = "map_filter"
+  final val MAP_CONTAINS_KEY = "map_contains_key"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"
@@ -334,6 +341,10 @@ object ExpressionNames {
   final val RAISE_ERROR = "raise_error"
   final val VERSION = "version"
   final val AT_LEAST_N_NON_NULLS = "at_least_n_non_nulls"
+  final val ASSERT_TRUE = "assert_true"
+  final val NULLIF = "nullif"
+  final val NVL = "nvl"
+  final val NVL2 = "nvl2"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"

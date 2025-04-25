@@ -87,13 +87,12 @@ case class TopNTransformer(
       inputAttributes: Seq[Attribute],
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     val sortFieldList = sortOrder.map {
       order =>
         val builder = SortField.newBuilder()
         val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-          .doTransform(args)
+          .doTransform(context)
         builder.setExpr(exprNode.toProtobuf)
 
         builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))

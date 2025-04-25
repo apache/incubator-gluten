@@ -50,7 +50,7 @@ class VeloxParquetWriteForHiveSuite
       _spark = SparkSession.builder().config(sparkConf).enableHiveSupport().getOrCreate()
     }
 
-    _spark.sparkContext.setLogLevel("info")
+    _spark.sparkContext.setLogLevel("warn")
   }
 
   override protected def spark: SparkSession = _spark

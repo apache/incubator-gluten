@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi.clickhouse
 import org.apache.gluten.backendsapi.TransformerApi
 import org.apache.gluten.execution.{CHHashAggregateExecTransformer, WriteFilesExecTransformer}
 import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
@@ -211,16 +212,14 @@ class CHTransformerApi extends TransformerApi with Logging {
   }
 
   override def createCheckOverflowExprNode(
-      args: java.lang.Object,
+      context: SubstraitContext,
       substraitExprName: String,
       childNode: ExpressionNode,
       childResultType: DataType,
       dataType: DecimalType,
       nullable: Boolean,
       nullOnOverflow: Boolean): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
+    val functionId = context.registerFunction(
       ConverterUtils.makeFuncName(
         substraitExprName,
         Seq(dataType, BooleanType),

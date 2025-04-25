@@ -188,7 +188,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[VeloxAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
-      "SPARK-29906",
       "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
@@ -234,6 +233,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
     // varchar
     .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
+    // Flaky and already excluded in other cases
+    .exclude("Gluten - test for FAILFAST parsing mode")
+
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
@@ -687,6 +689,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
+    // Gluten columnar operator will have different number of jobs
+    .exclude("SPARK-40211: customize initialNumPartitions for take")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
@@ -936,6 +940,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetFileMetadataStructRowIndexSuite]
   enableSuite[GlutenTableLocationSuite]
   enableSuite[GlutenRemoveRedundantWindowGroupLimitsSuite]
+  enableSuite[GlutenSQLCollectLimitExecSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

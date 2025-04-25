@@ -72,6 +72,8 @@ class Spark32Shims extends SparkShims {
 
   override def aggregateExpressionMappings: Seq[Sig] = Seq.empty
 
+  override def runtimeReplaceableExpressionMappings: Seq[Sig] = Seq.empty
+
   override def convertPartitionTransforms(
       partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
     CatalogUtil.convertPartitionTransforms(partitions)
@@ -311,7 +313,5 @@ class Spark32Shims extends SparkShims {
         false
     }
   }
-
-  override def isColumnarLimitExecSupported(): Boolean = true
 
 }

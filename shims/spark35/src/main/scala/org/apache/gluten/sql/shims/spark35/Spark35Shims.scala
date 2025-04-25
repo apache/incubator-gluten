@@ -107,6 +107,18 @@ class Spark35Shims extends SparkShims {
     )
   }
 
+  override def runtimeReplaceableExpressionMappings: Seq[Sig] = {
+    Seq(
+      Sig[ArrayCompact](ExpressionNames.ARRAY_COMPACT),
+      Sig[ArrayPrepend](ExpressionNames.ARRAY_PREPEND),
+      Sig[ArraySize](ExpressionNames.ARRAY_SIZE),
+      Sig[EqualNull](ExpressionNames.EQUAL_NULL),
+      Sig[ILike](ExpressionNames.ILIKE),
+      Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY),
+      Sig[Get](ExpressionNames.GET)
+    )
+  }
+
   override def convertPartitionTransforms(
       partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
     CatalogUtil.convertPartitionTransforms(partitions)
@@ -672,8 +684,10 @@ class Spark35Shims extends SparkShims {
     }
   }
 
-  override def isColumnarLimitExecSupported(): Boolean = false
-
   override def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
     file.otherConstantMetadataColumnValues.asJava.asInstanceOf[JMap[String, Object]]
+
+  override def getCollectLimitOffset(plan: CollectLimitExec): Int = {
+    plan.offset
+  }
 }

@@ -44,6 +44,9 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   protected val tpchQueries: String
   protected val queriesResults: String
 
+  protected val lineitemNullableSchema: String = lineitemSchema()
+  protected val lineitemNotNullSchema: String = lineitemSchema(false)
+
   override def beforeAll(): Unit = {
 
     super.beforeAll()
@@ -98,22 +101,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
     spark.sql(s"""
                  | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
-                 | l_orderkey      bigint not null,
-                 | l_partkey       bigint not null,
-                 | l_suppkey       bigint not null,
-                 | l_linenumber    bigint not null,
-                 | l_quantity      double not null,
-                 | l_extendedprice double not null,
-                 | l_discount      double not null,
-                 | l_tax           double not null,
-                 | l_returnflag    string not null,
-                 | l_linestatus    string not null,
-                 | l_shipdate      date not null,
-                 | l_commitdate    date not null,
-                 | l_receiptdate   date not null,
-                 | l_shipinstruct  string not null,
-                 | l_shipmode      string not null,
-                 | l_comment       string not null)
+                 | $lineitemNotNullSchema)
                  | USING clickhouse
                  | TBLPROPERTIES (engine='MergeTree'
                  |                )
@@ -269,22 +257,8 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
     spark.sql(s"""
                  | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string)
+                 | $lineitemNullableSchema
+                 | )
                  | USING clickhouse
                  | TBLPROPERTIES (engine='MergeTree'
                  |                )
@@ -445,22 +419,8 @@ abstract class GlutenClickHouseTPCHAbstractSuite
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
     spark.sql(s"""
                  | CREATE TABLE IF NOT EXISTS lineitem (
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string)
+                 | $lineitemNullableSchema
+                 | )
                  | USING PARQUET LOCATION '$lineitemData'
                  |""".stripMargin)
 
@@ -657,4 +617,31 @@ abstract class GlutenClickHouseTPCHAbstractSuite
        |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
        |    AND l_quantity < 24
        |""".stripMargin
+
+  private def lineitemSchema(nullable: Boolean = true): String = {
+    val nullableSql = if (nullable) {
+      ""
+    } else {
+      " not null "
+    }
+
+    s"""
+       | l_orderkey      bigint $nullableSql,
+       | l_partkey       bigint $nullableSql,
+       | l_suppkey       bigint $nullableSql,
+       | l_linenumber    bigint $nullableSql,
+       | l_quantity      double $nullableSql,
+       | l_extendedprice double $nullableSql,
+       | l_discount      double $nullableSql,
+       | l_tax           double $nullableSql,
+       | l_returnflag    string $nullableSql,
+       | l_linestatus    string $nullableSql,
+       | l_shipdate      date   $nullableSql,
+       | l_commitdate    date   $nullableSql,
+       | l_receiptdate   date   $nullableSql,
+       | l_shipinstruct  string $nullableSql,
+       | l_shipmode      string $nullableSql,
+       | l_comment       string $nullableSql
+       |""".stripMargin
+  }
 }
