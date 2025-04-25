@@ -543,8 +543,19 @@ Java_org_apache_gluten_vectorized_CHNativeBlock_copyBlock(JNIEnv * env, jobject 
     DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
 
     auto copied_block = block->cloneWithColumns(block->getColumns());
-    auto a = new DB::Block(copied_block);
+    auto * a = new DB::Block(std::move(copied_block));
     return reinterpret_cast<jlong>(a);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_CHNativeBlock_nativeSlice(JNIEnv * env, jobject /* obj */, jlong block_address, jint offset, jint limit)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    DB::Block cut_block = block->cloneWithCutColumns(offset, limit);
+
+    return reinterpret_cast<jlong>(new DB::Block(std::move(cut_block)));
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 

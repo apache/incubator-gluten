@@ -16,17 +16,13 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.columnarbatch.VeloxColumnarBatches
+import org.apache.gluten.vectorized.CHNativeBlock
 
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ColumnarCollectLimitExec(
-    limit: Int,
-    child: SparkPlan,
-    offset: Int = 0
-) extends ColumnarCollectLimitBaseExec(limit, child, offset) {
+case class CHColumnarCollectLimitExec(limit: Int, offset: Int, child: SparkPlan)
+  extends ColumnarCollectLimitBaseExec(limit, child, offset) {
 
   /**
    * Returns an iterator that gives offset to limit rows in total from the input partitionIter.
@@ -79,10 +75,9 @@ case class ColumnarCollectLimitExec(
 
             val prunedBatch =
               if (startIndex == 0 && needed == batchSize) {
-                ColumnarBatches.retain(batch)
                 batch
               } else {
-                VeloxColumnarBatches.slice(batch, startIndex, needed)
+                CHNativeBlock.slice(batch, startIndex, needed)
               }
 
             rowsToCollect -= needed
