@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.joins
 
-import org.apache.gluten.execution.{BroadCastJoinContext, ColumnarNativeIterator}
+import org.apache.gluten.execution.{BroadcastJoinContext, ColumnarNativeIterator}
 import org.apache.gluten.utils.{IteratorUtil, PlanNodesUtil}
 import org.apache.gluten.vectorized._
 
@@ -47,7 +47,7 @@ case class ClickHouseBuildSideRelation(
   private var hashTableData: Long = 0L
 
   def buildHashTable(
-      broadCastContext: BroadCastJoinContext): (Long, ClickHouseBuildSideRelation) =
+      broadCastContext: BroadcastJoinContext): (Long, ClickHouseBuildSideRelation) =
     synchronized {
       if (hashTableData == 0) {
         logDebug(

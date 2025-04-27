@@ -65,7 +65,7 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     }
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
     val context =
-      BroadCastJoinContext(
+      BroadcastJoinContext(
         Seq.empty,
         finalJoinType,
         buildSide == BuildRight,

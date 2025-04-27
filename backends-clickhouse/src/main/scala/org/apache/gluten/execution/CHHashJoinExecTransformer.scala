@@ -189,7 +189,7 @@ case class CHShuffledHashJoinExecTransformer(
 case class CHBroadcastBuildSideRDD(
     @transient private val sc: SparkContext,
     broadcasted: broadcast.Broadcast[BuildSideRelation],
-    broadcastContext: BroadCastJoinContext)
+    broadcastContext: BroadcastJoinContext)
   extends BroadcastBuildSideRDD(sc, broadcasted) {
 
   override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
@@ -198,7 +198,7 @@ case class CHBroadcastBuildSideRDD(
   }
 }
 
-case class BroadCastJoinContext(
+case class BroadcastJoinContext(
     buildSideJoinKeys: Seq[Expression],
     joinType: JoinType,
     buildRight: Boolean,
@@ -260,7 +260,7 @@ case class CHBroadcastHashJoinExecTransformer(
     }
     val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
     val context =
-      BroadCastJoinContext(
+      BroadcastJoinContext(
         buildKeyExprs,
         joinType,
         buildSide == BuildRight,

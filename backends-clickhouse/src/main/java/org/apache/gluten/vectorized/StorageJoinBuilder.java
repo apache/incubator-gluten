@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.execution.BroadCastJoinContext;
+import org.apache.gluten.execution.BroadcastJoinContext;
 import org.apache.gluten.execution.JoinTypeTransform;
 import org.apache.gluten.expression.ConverterUtils$;
 import org.apache.gluten.utils.SubstraitUtil;
@@ -54,7 +54,7 @@ public class StorageJoinBuilder {
   public static long build(
       byte[] batches,
       long rowCount,
-      BroadCastJoinContext broadCastContext,
+      BroadcastJoinContext broadCastContext,
       List<Expression> newBuildKeys,
       List<Attribute> newOutput,
       boolean hasNullKeyValues) {
