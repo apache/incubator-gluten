@@ -78,6 +78,10 @@ case class ShuffledHashJoinExecTransformer(
       newLeft: SparkPlan,
       newRight: SparkPlan): ShuffledHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
+
+  override def genJoinParametersInternal(): (Int, Int, Int) = {
+    (0, 0, buildPlan.id)
+  }
 }
 
 case class BroadcastHashJoinExecTransformer(

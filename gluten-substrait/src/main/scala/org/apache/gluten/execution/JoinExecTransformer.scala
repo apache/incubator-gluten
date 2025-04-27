@@ -313,6 +313,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
+  // isBHJ, isNullAwareAntiJoin, buildTableId.
   def genJoinParametersInternal(): (Int, Int, Int)
 }
 

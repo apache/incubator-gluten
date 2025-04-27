@@ -36,6 +36,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     jlong row_count,
     const std::string & join_keys,
     jint join_type,
+    bool is_bhj,
     bool has_mixed_join_condition,
     bool is_existence_join,
     const std::string & named_struct,
