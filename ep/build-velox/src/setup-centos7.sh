@@ -163,9 +163,8 @@ function install_boost {
 
 function install_protobuf {
   cd "${DEPENDENCY_DIR}"
-  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz
-  tar -xzf protobuf-all-21.4.tar.gz
-  cd protobuf-21.4
+  wget_and_untar https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz protobuf
+  cd protobuf
   ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local
   make "-j$(nproc)"
   $SUDO make install
@@ -173,9 +172,8 @@ function install_protobuf {
 
 function install_gtest {
   cd "${DEPENDENCY_DIR}"
-  wget https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz
-  tar -xzf release-1.12.1.tar.gz
-  cd googletest-release-1.12.1
+  wget_and_untar https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz googletest
+  cd googletest
   mkdir -p build && cd build && cmake -DBUILD_GTEST=ON -DBUILD_GMOCK=ON -DINSTALL_GTEST=ON -DINSTALL_GMOCK=ON -DBUILD_SHARED_LIBS=ON ..
   make "-j$(nproc)"
   $SUDO make install
