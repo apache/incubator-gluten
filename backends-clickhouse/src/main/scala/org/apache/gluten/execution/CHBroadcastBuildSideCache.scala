@@ -45,11 +45,11 @@ object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, Br
 
   // Use for controlling to build bhj hash table once.
   // key: hashtable id, value is hashtable backend pointer(long to string).
-  private val buildSideRelationCache: Cache[String, BroadcastHashTable] =
+  private val buildSideRelationCache: Cache[Int, BroadcastHashTable] =
     Caffeine.newBuilder
       .expireAfterAccess(expiredTime, TimeUnit.SECONDS)
       .removalListener(this)
-      .build[String, BroadcastHashTable]()
+      .build[Int, BroadcastHashTable]()
 
   def getOrBuildBroadcastHashTable(
       broadcast: Broadcast[BuildSideRelation],
@@ -58,24 +58,24 @@ object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, Br
     buildSideRelationCache
       .get(
         broadcastContext.buildTableId,
-        (broadcast_id: String) => {
+        (broadcastId: String) => {
           val (pointer, relation) =
             broadcast.value
               .asInstanceOf[ClickHouseBuildSideRelation]
               .buildHashTable(broadcastContext)
-          logDebug(s"Create bhj $broadcast_id = 0x${pointer.toHexString}")
+          logDebug(s"Create bhj $broadcastId = 0x${pointer.toHexString}")
           BroadcastHashTable(pointer, relation)
         }
       )
   }
 
   /** This is callback from c++ backend. */
-  def get(broadcastHashtableId: String): Long =
+  def get(broadcastHashtableId: Int): Long =
     Option(buildSideRelationCache.getIfPresent(broadcastHashtableId))
       .map(_.pointer)
       .getOrElse(0)
 
-  def invalidateBroadcastHashtable(broadcastHashtableId: String): Unit = {
+  def invalidateBroadcastHashtable(broadcastHashtableId: Int): Unit = {
     // Cleanup operations on the backend are idempotent.
     buildSideRelationCache.invalidate(broadcastHashtableId)
   }
