@@ -132,8 +132,10 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
 
     @Override
     public void close() throws Exception {
+        upIterator.close();
         session.close();
         memoryManager.close();
+        allocator.close();
     }
 
     @Override

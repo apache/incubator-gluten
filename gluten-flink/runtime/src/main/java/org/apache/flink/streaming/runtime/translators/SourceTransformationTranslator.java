@@ -97,7 +97,8 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                                             List.of()),
                                     outputType,
                                     id,
-                                    new NexmarkConnectorSplit("connector-nexmark", 10000))));
+                                    // TODO: should use config to get parameters
+                                    new NexmarkConnectorSplit("connector-nexmark", 100000000))));
             streamGraph.addLegacySource(
                     transformationId,
                     slotSharingGroup,
@@ -105,7 +106,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                     operatorFactory,
                     null,
                     transformation.getOutputType(),
-                    "Gluten Source: " + transformation.getName());
+                    "Source: " + transformation.getName());
         } else {
             SourceOperatorFactory<OUT> operatorFactory =
                     new SourceOperatorFactory<>(
