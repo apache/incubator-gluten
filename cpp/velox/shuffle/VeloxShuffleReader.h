@@ -146,7 +146,7 @@ class VeloxShuffleReaderDeserializerFactory {
   VeloxShuffleReaderDeserializerFactory(
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
-      const facebook::velox::common::CompressionKind veloxCompressionType,
+      facebook::velox::common::CompressionKind veloxCompressionType,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
       int64_t readerBufferSize,

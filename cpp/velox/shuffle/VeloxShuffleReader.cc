@@ -561,7 +561,7 @@ size_t VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::remainingSize() 
 VeloxShuffleReaderDeserializerFactory::VeloxShuffleReaderDeserializerFactory(
     const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
-    const facebook::velox::common::CompressionKind veloxCompressionType,
+    facebook::velox::common::CompressionKind veloxCompressionType,
     const RowTypePtr& rowType,
     int32_t batchSize,
     int64_t readerBufferSize,
@@ -615,9 +615,8 @@ std::unique_ptr<ColumnarBatchIterator> VeloxShuffleReaderDeserializerFactory::cr
     case ShuffleWriterType::kRssSortShuffle:
       return std::make_unique<VeloxRssSortShuffleReaderDeserializer>(
           veloxPool_, rowType_, batchSize_, veloxCompressionType_, deserializeTime_, std::move(in));
-    default:
-      throw gluten::GlutenException("Unsupported shuffle writer type: " + std::to_string(shuffleWriterType_));
   }
+  GLUTEN_UNREACHABLE();
 }
 
 arrow::MemoryPool* VeloxShuffleReaderDeserializerFactory::getPool() {

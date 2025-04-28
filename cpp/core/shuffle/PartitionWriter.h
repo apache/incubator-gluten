@@ -37,7 +37,17 @@ class PartitionWriter : public Reclaimable {
     codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend, options_.compressionLevel);
   }
 
-  virtual ~PartitionWriter() = default;
+  static inline std::string typeToString(PartitionWriterType type) {
+    switch (type) {
+      case PartitionWriterType::kLocal:
+        return "LocalPartitionWriter";
+      case PartitionWriterType::kRss:
+        return "RssPartitionWriter";
+    }
+    GLUTEN_UNREACHABLE();
+  }
+
+  ~PartitionWriter() override = default;
 
   virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
 
@@ -83,4 +93,5 @@ class PartitionWriter : public Reclaimable {
   int64_t spillTime_{0};
   int64_t writeTime_{0};
 };
+
 } // namespace gluten
