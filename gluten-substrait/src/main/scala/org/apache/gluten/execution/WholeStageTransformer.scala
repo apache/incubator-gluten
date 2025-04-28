@@ -431,6 +431,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
     SoftAffinity.updateFilePartitionLocations(allInputPartitions, rdd.id)
 
+    leafTransformers.foreach {
+      case batchScan: BatchScanExecTransformerBase =>
+        batchScan.doPostDriverMetrics()
+    }
+
     rdd
   }
 
