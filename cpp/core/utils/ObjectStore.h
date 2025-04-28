@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <set>
+#include <map>
 #include "utils/ResourceMap.h"
 
 namespace gluten {
@@ -70,7 +70,14 @@ class ObjectStore {
     return storeId_;
   }
 
-  ObjectHandle save(std::shared_ptr<void> obj);
+  template <typename T>
+ ObjectHandle save(std::shared_ptr<T> obj) {
+    const std::lock_guard<std::mutex> lock(mtx_);
+    const std::string_view description = typeid(T).name();
+    ResourceHandle handle = store_.insert(std::move(obj));
+    aliveObjects_.emplace(handle, description);
+    return toObjHandle(handle);
+  }
 
  private:
   static ResourceMap<ObjectStore*>& stores();
@@ -95,7 +102,8 @@ class ObjectStore {
   ObjectStore(StoreHandle storeId) : storeId_(storeId){};
   StoreHandle storeId_;
   ResourceMap<std::shared_ptr<void>> store_;
-  std::set<ResourceHandle> aliveObjects_;
+  // Preserves handles of objects in the store in order, with the text descriptions associated with them.
+  std::map<ResourceHandle, std::string_view> aliveObjects_{};
   std::mutex mtx_;
 };
 } // namespace gluten
