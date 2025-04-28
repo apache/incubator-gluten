@@ -434,6 +434,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     leafTransformers.foreach {
       case batchScan: BatchScanExecTransformerBase =>
         batchScan.doPostDriverMetrics()
+      case _ =>
     }
 
     rdd
