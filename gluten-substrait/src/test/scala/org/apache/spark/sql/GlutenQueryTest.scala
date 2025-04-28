@@ -429,6 +429,28 @@ abstract class GlutenQueryTest extends PlanTest {
     val executedPlan = getExecutedPlan(df)
     assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
   }
+
+  /**
+   * Check whether the executed plan of a dataframe contains expected number of expected plans.
+   *
+   * @param df:
+   *   the input dataframe.
+   * @param count:
+   *   expected number of expected plan.
+   * @param tag:
+   *   class of the expected plan.
+   * @tparam T:
+   *   type of the expected plan.
+   */
+  def checkGlutenOperatorCount[T <: GlutenPlan](df: DataFrame, count: Int)(implicit
+      tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(
+      executedPlan.count(plan => tag.runtimeClass.isInstance(plan)) == count,
+      s"Expect $count ${tag.runtimeClass.getSimpleName} " +
+        s"in executedPlan:\n ${executedPlan.last}"
+    )
+  }
 }
 
 object GlutenQueryTest extends Assertions {

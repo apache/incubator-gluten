@@ -362,19 +362,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       }
     }
 
-    def maybeAddAppendBatchesExec(plan: SparkPlan): SparkPlan = {
-      plan match {
-        case shuffle: ColumnarShuffleExchangeExec
-            if !shuffle.useSortBasedShuffle &&
-              VeloxConfig.get.veloxResizeBatchesShuffleInput =>
-          val range = VeloxConfig.get.veloxResizeBatchesShuffleInputRange
-          val appendBatches =
-            VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
-          shuffle.withNewChildren(Seq(appendBatches))
-        case _ => plan
-      }
-    }
-
     val child = shuffle.child
 
     val newShuffle = shuffle.outputPartitioning match {
@@ -437,7 +424,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       case _ =>
         ColumnarShuffleExchangeExec(shuffle, child, null)
     }
-    maybeAddAppendBatchesExec(newShuffle)
+    newShuffle
   }
 
   /** Generate ShuffledHashJoinExecTransformer. */

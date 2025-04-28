@@ -16,32 +16,24 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.columnarbatch.VeloxColumnarBatches
-import org.apache.gluten.extension.columnar.transition.Convention
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.serializer.Serializer
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
-import org.apache.spark.sql.execution.{ShuffledColumnarBatchRDD, SparkPlan}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
-import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable
+import scala.util.control.Breaks._
 
 case class ColumnarCollectTailExec(
     limit: Int,
     child: SparkPlan
 ) extends ColumnarCollectTailBaseExec(limit, child) {
 
-  private def collectTailRows(
+  override protected def collectTailRows(
       partitionIter: Iterator[ColumnarBatch],
       limit: Int
   ): Iterator[ColumnarBatch] = {
-
     if (!partitionIter.hasNext || limit <= 0) {
       return Iterator.empty
     }
@@ -56,94 +48,33 @@ case class ColumnarCollectTailExec(
       tailQueue += batch
       totalRowsInTail += batchRows
 
-      var canDrop = true
-      while (tailQueue.nonEmpty && canDrop) {
-        val front = tailQueue.head
-        val frontRows = front.numRows().toLong
+      breakable {
+        while (tailQueue.nonEmpty) {
+          val front = tailQueue.head
+          val frontRows = front.numRows()
 
-        if (totalRowsInTail - frontRows >= limit) {
-          val dropped = tailQueue.remove(0)
-          dropped.close()
-          totalRowsInTail -= frontRows
-        } else {
-          canDrop = false
+          if (totalRowsInTail - frontRows >= limit) {
+            val dropped = tailQueue.remove(0)
+            dropped.close()
+            totalRowsInTail -= frontRows
+          } else {
+            break
+          }
         }
       }
     }
 
-    if (tailQueue.nonEmpty) {
+    val overflow = totalRowsInTail - limit
+    if (overflow > 0) {
       val first = tailQueue.remove(0)
-      val overflow = totalRowsInTail - limit
-      if (overflow > 0) {
-        val keep = first.numRows() - overflow
-        val sliced = VeloxColumnarBatches.slice(first, overflow.toInt, keep.toInt)
-        tailQueue.prepend(sliced)
-        first.close()
-      } else {
-        tailQueue.prepend(first)
-      }
+      val keep = first.numRows() - overflow
+      val sliced = VeloxColumnarBatches.slice(first, overflow.toInt, keep.toInt)
+      tailQueue.prepend(sliced)
+      first.close()
     }
 
     tailQueue.iterator
   }
-
-  private lazy val writeMetrics =
-    SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
-
-  private lazy val readMetrics =
-    SQLColumnarShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
-
-  private lazy val useSortBasedShuffle: Boolean =
-    BackendsApiManager.getSparkPlanExecApiInstance
-      .useSortBasedShuffle(outputPartitioning, child.output)
-
-  @transient private lazy val serializer: Serializer =
-    BackendsApiManager.getSparkPlanExecApiInstance
-      .createColumnarBatchSerializer(child.schema, metrics, useSortBasedShuffle)
-
-  @transient override lazy val metrics: Map[String, SQLMetric] =
-    BackendsApiManager.getMetricsApiInstance
-      .genColumnarShuffleExchangeMetrics(sparkContext, useSortBasedShuffle) ++
-      readMetrics ++ writeMetrics
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    val childExecution = child.executeColumnar()
-
-    if (childExecution.getNumPartitions == 0) {
-      return sparkContext.parallelize(Seq.empty[ColumnarBatch], 1)
-    }
-
-    val processedRDD =
-      if (childExecution.getNumPartitions == 1) childExecution
-      else shuffleLimitedPartitions(childExecution)
-
-    processedRDD.mapPartitions(partition => collectTailRows(partition, limit))
-  }
-
-  private def shuffleLimitedPartitions(childRDD: RDD[ColumnarBatch]): RDD[ColumnarBatch] = {
-    val locallyLimited = if (limit >= 0) {
-      childRDD.mapPartitions(partition => collectTailRows(partition, limit))
-    } else {
-      childRDD
-    }
-    new ShuffledColumnarBatchRDD(
-      BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
-        locallyLimited,
-        child.output,
-        child.output,
-        SinglePartition,
-        serializer,
-        writeMetrics,
-        metrics,
-        useSortBasedShuffle
-      ),
-      readMetrics
-    )
-  }
-
-  override def rowType0(): Convention.RowType = Convention.RowType.None
-
-  override def output: Seq[Attribute] = child.output
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)

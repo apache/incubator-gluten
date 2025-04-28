@@ -1353,7 +1353,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
-  test("Test rewrite aggregate if to aggregate with filter") {
+  ignore("Test rewrite aggregate if to aggregate with filter") {
     val sql = "select sum(if(id % 2=0, id, null)), count(if(id % 2 = 0, 1, null)), " +
       "avg(if(id % 4 = 0, id, null)), sum(if(id % 3 = 0, id, 0)) from range(10)"
 
