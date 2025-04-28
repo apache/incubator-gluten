@@ -71,7 +71,7 @@ class ObjectStore {
   }
 
   template <typename T>
- ObjectHandle save(std::shared_ptr<T> obj) {
+  ObjectHandle save(std::shared_ptr<T> obj) {
     const std::lock_guard<std::mutex> lock(mtx_);
     const std::string_view description = typeid(T).name();
     ResourceHandle handle = store_.insert(std::move(obj));

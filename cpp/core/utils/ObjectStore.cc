@@ -31,14 +31,12 @@ gluten::ObjectStore::~ObjectStore() {
   for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
     const ResourceHandle handle = (*itr).first;
     const std::string_view description = (*itr).second;
-    VLOG(2)
-        << "Unclosed object ["
-        << "Store ID: " << storeId_ << ", Resource handle ID: " << handle
-        << ", Description: " << description
-        << "] is found when object store is closing. Gluten will"
-           " destroy it automatically but it's recommended to manually close"
-           " the object through the Java closing API after use,"
-           " to minimize peak memory pressure of the application.";
+    VLOG(2) << "Unclosed object ["
+            << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", Description: " << description
+            << "] is found when object store is closing. Gluten will"
+               " destroy it automatically but it's recommended to manually close"
+               " the object through the Java closing API after use,"
+               " to minimize peak memory pressure of the application.";
     store_.erase(handle);
   }
   stores().erase(storeId_);
