@@ -21,7 +21,7 @@
 #include <Builder/SerializedPlanBuilder.h>
 #include <Compression/CompressedReadBuffer.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <Join/BroadCastJoinBuilder.h>
+#include <Join/BroadcastJoinBuilder.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/LocalExecutor.h>
 #include <Parser/ParserContext.h>
@@ -157,7 +157,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::SparkRowToCHColumn::spark_row_iterator_nextBatch = local_engine::GetMethodID(
         env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "nextBatch", "()Ljava/nio/ByteBuffer;");
 
-    local_engine::BroadCastJoinBuilder::init(env);
+    local_engine::BroadcastJoinBuilder::init(env);
     local_engine::CacheManager::initJNI(env);
     local_engine::SparkMergeTreeWriterJNI::init(env);
     local_engine::SparkRowInfoJNI::init(env);
@@ -197,7 +197,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     local_engine::BackendFinalizerUtil::finalizeGlobally();
 
     local_engine::JniErrorsGlobalState::instance().destroy(env);
-    local_engine::BroadCastJoinBuilder::destroy(env);
+    local_engine::BroadcastJoinBuilder::destroy(env);
     local_engine::SparkMergeTreeWriterJNI::destroy(env);
     local_engine::SparkRowInfoJNI::destroy(env);
     local_engine::delta::DeltaUtil::releaseJavaCallerReference(env);
@@ -1081,7 +1081,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     local_engine::ReadBufferFromByteArray read_buffer_from_java_array(in, length);
     DB::CompressedReadBuffer input(read_buffer_from_java_array);
     local_engine::configureCompressedReadBuffer(input);
-    const auto * obj = make_wrapper(local_engine::BroadCastJoinBuilder::buildJoin(
+    const auto * obj = make_wrapper(local_engine::BroadcastJoinBuilder::buildJoin(
         hash_table_id,
         input,
         row_count_,
@@ -1111,7 +1111,7 @@ Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeCleanBuildHashTable(J
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto hash_table_id = jstring2string(env, hash_table_id_);
-    local_engine::BroadCastJoinBuilder::cleanBuildHashTable(hash_table_id, instance);
+    local_engine::BroadcastJoinBuilder::cleanBuildHashTable(hash_table_id, instance);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 

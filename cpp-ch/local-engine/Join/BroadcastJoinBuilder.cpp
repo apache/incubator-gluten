@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "BroadCastJoinBuilder.h"
+#include "BroadcastJoinBuilder.h"
 
 #include <Compression/CompressedReadBuffer.h>
 #include <Interpreters/TableJoin.h>
@@ -40,7 +40,7 @@ extern const int UNKNOWN_TYPE;
 
 namespace local_engine
 {
-namespace BroadCastJoinBuilder
+namespace BroadcastJoinBuilder
 {
 using namespace DB;
 static jclass Java_CHBroadcastBuildSideCache = nullptr;
@@ -91,7 +91,7 @@ void cleanBuildHashTable(const std::string & hash_table_id, jlong instance)
     /// Record memory usage in Total Memory Tracker
     ThreadFromGlobalPoolNoTracingContextPropagation thread(clean_join);
     thread.join();
-    LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Broadcast hash table {} is cleaned", hash_table_id);
+    LOG_DEBUG(&Poco::Logger::get("BroadcastJoinBuilder"), "Broadcast hash table {} is cleaned", hash_table_id);
 }
 
 std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & key)

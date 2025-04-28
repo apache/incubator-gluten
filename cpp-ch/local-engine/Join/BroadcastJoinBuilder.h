@@ -27,7 +27,7 @@ class ReadBuffer;
 namespace local_engine
 {
 class StorageJoinFromReadBuffer;
-namespace BroadCastJoinBuilder
+namespace BroadcastJoinBuilder
 {
 
 std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
