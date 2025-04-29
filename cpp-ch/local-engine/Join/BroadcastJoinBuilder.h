@@ -29,7 +29,6 @@ namespace local_engine
 class StorageJoinFromReadBuffer;
 namespace BroadcastJoinBuilder
 {
-
 std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     const std::string & key,
     DB::ReadBuffer & input,
@@ -42,11 +41,12 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     const std::string & named_struct,
     bool is_null_aware_anti_join,
     bool has_null_key_values);
-void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
-std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & hash_table_id);
+void cleanBuildHashTable(const int& hash_table_id, jlong instance);
 
+std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const int& hash_table_id);
 
 void init(JNIEnv *);
+
 void destroy(JNIEnv *);
 }
 }

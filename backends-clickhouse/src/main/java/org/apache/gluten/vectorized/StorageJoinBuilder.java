@@ -31,12 +31,12 @@ import scala.collection.JavaConverters;
 
 public class StorageJoinBuilder {
 
-  public static native void nativeCleanBuildHashTable(String hashTableId, long hashTableData);
+  public static native void nativeCleanBuildHashTable(int hashTableId, long hashTableData);
 
   public static native long nativeCloneBuildHashTable(long hashTableData);
 
   private static native long nativeBuild(
-      String buildTableId,
+      int buildTableId,
       byte[] in,
       long rowCount,
       String joinKeys,

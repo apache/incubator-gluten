@@ -45,11 +45,10 @@ namespace BroadcastJoinBuilder
 using namespace DB;
 static jclass Java_CHBroadcastBuildSideCache = nullptr;
 static jmethodID Java_get = nullptr;
-jlong callJavaGet(const std::string & id)
+jlong callJavaGet(const int& id)
 {
     GET_JNIENV(env)
-    const jstring s = charTojstring(env, id.c_str());
-    const auto result = safeCallStaticLongMethod(env, Java_CHBroadcastBuildSideCache, Java_get, s);
+    const auto result = safeCallStaticLongMethod(env, Java_CHBroadcastBuildSideCache, Java_get, (jint)id);
     CLEAN_JNIENV
 
     return result;
@@ -82,7 +81,7 @@ DB::Block resetBuildTableBlockName(Block & block, bool only_one = false)
     return DB::Block(new_cols);
 }
 
-void cleanBuildHashTable(const std::string & hash_table_id, jlong instance)
+void cleanBuildHashTable(const int& hash_table_id, jlong instance)
 {
     auto clean_join = [&]
     {
@@ -94,7 +93,7 @@ void cleanBuildHashTable(const std::string & hash_table_id, jlong instance)
     LOG_DEBUG(&Poco::Logger::get("BroadcastJoinBuilder"), "Broadcast hash table {} is cleaned", hash_table_id);
 }
 
-std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & key)
+std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const int& key)
 {
     const jlong result = callJavaGet(key);
 
@@ -203,7 +202,7 @@ void init(JNIEnv * env)
 
     const char * classSig = "Lorg/apache/gluten/execution/CHBroadcastBuildSideCache;";
     Java_CHBroadcastBuildSideCache = CreateGlobalClassReference(env, classSig);
-    Java_get = GetStaticMethodID(env, Java_CHBroadcastBuildSideCache, "get", "(Ljava/lang/String;)J");
+    Java_get = GetStaticMethodID(env, Java_CHBroadcastBuildSideCache, "get", "(I))J");
 }
 
 void destroy(JNIEnv * env)

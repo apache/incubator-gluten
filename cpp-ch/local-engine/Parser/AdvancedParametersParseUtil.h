@@ -34,7 +34,7 @@ struct JoinOptimizationInfo
     Int64 right_table_rows = -1;
     Int64 right_table_bytes = -1;
     Int64 partitions_num = -1;
-    String storage_join_key;
+    Int32 storage_join_key = -1;
 
     static JoinOptimizationInfo parse(const String & advance);
 };

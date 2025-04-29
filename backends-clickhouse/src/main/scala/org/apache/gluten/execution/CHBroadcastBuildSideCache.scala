@@ -36,7 +36,7 @@ case class BroadcastHashTable(pointer: Long, relation: ClickHouseBuildSideRelati
  * The complicated part is due to reuse exchange, where multiple BHJ IDs correspond to a
  * `ClickHouseBuildSideRelation`.
  */
-object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, BroadcastHashTable] {
+object CHBroadcastBuildSideCache extends Logging with RemovalListener[Int, BroadcastHashTable] {
 
   private lazy val expiredTime = SparkEnv.get.conf.getLong(
     CHBackendSettings.GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME,
@@ -69,7 +69,7 @@ object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, Br
       )
   }
 
-  /** This is callback from c++ backend. */
+  /** This is called from c++ side. */
   def get(broadcastHashtableId: Int): Long =
     Option(buildSideRelationCache.getIfPresent(broadcastHashtableId))
       .map(_.pointer)
@@ -85,7 +85,7 @@ object CHBroadcastBuildSideCache extends Logging with RemovalListener[String, Br
 
   def cleanAll(): Unit = buildSideRelationCache.invalidateAll()
 
-  override def onRemoval(key: String, value: BroadcastHashTable, cause: RemovalCause): Unit = {
+  override def onRemoval(key: Int, value: BroadcastHashTable, cause: RemovalCause): Unit = {
     logDebug(s"Remove bhj $key = 0x${value.pointer.toHexString}")
     if (value.relation != null) {
       value.relation.reset()

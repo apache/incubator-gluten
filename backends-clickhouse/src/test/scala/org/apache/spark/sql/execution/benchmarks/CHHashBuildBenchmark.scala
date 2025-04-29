@@ -87,7 +87,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
                   new util.ArrayList[Expression](),
                   new util.ArrayList[Attribute](),
                   false)
-                StorageJoinBuilder.nativeCleanBuildHashTable("", table)
+                StorageJoinBuilder.nativeCleanBuildHashTable(0, table)
               }
           }
       }
