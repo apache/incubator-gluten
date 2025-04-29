@@ -219,6 +219,32 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     checkEvaluation(cast(Literal.create(null, IntegerType), ShortType), null)
   }
 
+  test("cast timestamp to Int64 with floor division") {
+    val originalDefaultTz = TimeZone.getDefault
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+      val testCases = Seq(
+        ("1970-01-01 00:00:00.000", 0L),
+        ("1970-01-01 00:00:00.999", 0L),
+        ("1970-01-01 00:00:01.000", 1L),
+        ("1970-01-01 00:00:59.999", 59L),
+        ("1970-01-01 00:01:00.000", 60L),
+        ("2000-01-01 00:00:00.000", 946684800L),
+        ("2024-02-16 12:34:56.789", 1708086896L),
+        ("9999-12-31 23:59:59.999", 253402300799L),
+        ("1969-12-31 23:59:59.999", -1L),
+        ("1969-12-31 23:59:58.500", -2L),
+        ("1900-01-01 12:00:00.000", -2208945600L)
+      )
+
+      for ((inputStr, expectedOutput) <- testCases) {
+        checkEvaluation(cast(Timestamp.valueOf(inputStr), LongType), expectedOutput)
+      }
+    } finally {
+      TimeZone.setDefault(originalDefaultTz)
+    }
+  }
+
   testGluten("cast string to timestamp") {
     ThreadUtils.parmap(
       ALL_TIMEZONES
