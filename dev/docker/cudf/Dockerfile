@@ -1,7 +1,7 @@
 FROM ghcr.io/facebookincubator/velox-dev:adapters
 RUN yum install -y sudo patch maven perl
 
-RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
+RUN git clone --depth=1 -b cudf https://github.com/apache/incubator-gluten /opt/gluten
 
 # Install spark to folder /opt
 RUN cd /opt/gluten/.github/workflows/util/ && ./install_spark_resources.sh 3.4
