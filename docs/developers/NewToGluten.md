@@ -140,9 +140,9 @@ If download failed, delete this folder and try again.
 
 ### Set up project
 
-* File->Open Folder   // select the Gluten folder
-* After the project loads, you will be prompted to "Select CMakeLists.txt". Select the `${workspaceFolder}/cpp/CmakeList.txt` file.
-* Next, you will be prompted to "Select a Kit" for the Gluten project. Select GCC 11 or above.
+- File->Open Folder   // select the Gluten folder
+- After the project loads, you will be prompted to "Select CMakeLists.txt". Select the `${workspaceFolder}/cpp/CmakeList.txt` file.
+- Next, you will be prompted to "Select a Kit" for the Gluten project. Select GCC 11 or above.
 
 ### Settings
 
