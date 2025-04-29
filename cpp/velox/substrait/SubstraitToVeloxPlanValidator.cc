@@ -245,6 +245,13 @@ bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
     return kAllowedArrayElementKinds.count(fromType->kind()) > 0;
   }
 
+  if (toType->kind() == TypeKind::DOUBLE) {
+    if (fromType->kind() == TypeKind::INTEGER || fromType->kind() == TypeKind::BIGINT ||
+        fromType->kind() == TypeKind::SMALLINT || fromType->kind() == TypeKind::TINYINT) {
+      return true;
+    }
+  }
+
   return false;
 }
 
