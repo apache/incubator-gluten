@@ -70,6 +70,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-native-lib-centos-8-arm:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Gluten native libraries
+        run: |
+          docker pull apache/gluten:vcpkg-centos-8
+          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-8 bash -c "
+            set -e
+            yum install tzdata -y
+            df -a
+            cd /work
+            export CCACHE_DIR=/work/.ccache
+            mkdir -p /work/.ccache
+            bash dev/ci-velox-buildstatic-centos-8.sh
+            ccache -s
+            mkdir -p /work/.m2/repository/org/apache/arrow/
+            cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
+          "
+
   build-native-lib-centos-7:
     runs-on: ubuntu-22.04
     steps:
