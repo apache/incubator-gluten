@@ -475,6 +475,7 @@ object GlutenConfig {
       SHUFFLE_WRITER_BUFFER_SIZE.key,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+      SQLConf.LEGACY_ARRAY_EXISTS_FOLLOWS_THREE_VALUED_LOGIC.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
       "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
