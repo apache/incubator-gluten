@@ -30,9 +30,13 @@ class ParquetReaderIterator : public FileReaderIterator {
  public:
   explicit ParquetReaderIterator(const std::string& path, int64_t batchSize, facebook::velox::memory::MemoryPool* pool);
 
-  void createRowReader();
+  facebook::velox::RowTypePtr getRowType() const {
+    return rowType_;
+  }
 
  protected:
+  void createRowReader();
+
   facebook::velox::memory::MemoryPool* pool_;
 
   facebook::velox::RowTypePtr rowType_;
