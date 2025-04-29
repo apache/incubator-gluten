@@ -47,8 +47,6 @@
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/NormalFileWriter.h>
 #include <Storages/SubstraitSource/Delta/DeltaWriter.h>
-#include <Storages/SubstraitSource/Delta/DeltaUtil.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <jni/jni_error.h>
@@ -200,7 +198,6 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     local_engine::BroadCastJoinBuilder::destroy(env);
     local_engine::SparkMergeTreeWriterJNI::destroy(env);
     local_engine::SparkRowInfoJNI::destroy(env);
-    local_engine::delta::DeltaUtil::releaseJavaCallerReference(env);
 
     env->DeleteGlobalRef(block_stripes_class);
     env->DeleteGlobalRef(split_result_class);
@@ -543,8 +540,19 @@ Java_org_apache_gluten_vectorized_CHNativeBlock_copyBlock(JNIEnv * env, jobject 
     DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
 
     auto copied_block = block->cloneWithColumns(block->getColumns());
-    auto a = new DB::Block(copied_block);
+    auto * a = new DB::Block(std::move(copied_block));
     return reinterpret_cast<jlong>(a);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_CHNativeBlock_nativeSlice(JNIEnv * env, jobject /* obj */, jlong block_address, jint offset, jint limit)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    DB::Block cut_block = block->cloneWithCutColumns(offset, limit);
+
+    return reinterpret_cast<jlong>(new DB::Block(std::move(cut_block)));
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
@@ -1412,13 +1420,6 @@ Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWriteFinal
     delete writer;
     return reinterpret_cast<UInt64>(column_batch);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1);
-}
-
-JNIEXPORT void Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_registerNativeReference(JNIEnv * env, jclass)
-{
-    LOCAL_ENGINE_JNI_METHOD_START
-    local_engine::delta::DeltaUtil::initJavaCallerReference(env);
-    LOCAL_ENGINE_JNI_METHOD_END(env, );
 }
 
 #ifdef __cplusplus

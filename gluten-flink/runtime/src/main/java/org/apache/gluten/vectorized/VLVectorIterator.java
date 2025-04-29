@@ -14,38 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package org.apache.gluten.vectorized;
 
-#include <jni.h>
-#include <jni/jni_common.h>
+import io.github.zhztheplayer.velox4j.data.RowVector;
 
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
-namespace local_engine::delta
-{
-struct Codec
-{
-    struct Base85Codec
-    {
-        static constexpr Int32 ENCODED_UUID_LENGTH = 20;
-    };
-};
+/** Iterator for velox RowVector. */
+public class VLVectorIterator implements Iterator<RowVector> {
 
+    private final List<RowVector> rows;
 
-static constexpr String UUID_DV_MARKER = "u";
+    public VLVectorIterator() {
+        this.rows = new LinkedList<>();
+    }
 
-class DeltaUtil
-{
-public:
-    static void initJavaCallerReference(JNIEnv * env);
-    static void releaseJavaCallerReference(JNIEnv * env);
+    public boolean hasNext() {
+        return !rows.isEmpty();
+    }
 
-    static String encodeUUID(String uuid, String prefix);
-    static String decodeUUID(String encodedUuid);
+    public RowVector next() {
+        if (!hasNext()) {
+            return null;
+        }
+        return rows.remove(0);
+    }
 
-private:
-    static jclass delta_jni_class;
-    static jmethodID delta_jni_encode_uuid;
-    static jmethodID delta_jni_decode_uuid;
-};
-
+    public void addRow(RowVector row) {
+        rows.add(row);
+    }
 }

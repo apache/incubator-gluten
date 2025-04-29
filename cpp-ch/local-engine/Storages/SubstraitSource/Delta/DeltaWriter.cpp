@@ -31,9 +31,9 @@
 #include <IO/WriteBuffer.h>
 #include <IO/WriteHelpers.h>
 #include <Storages/Output/WriteBufferBuilder.h>
-#include <Storages/SubstraitSource/Delta/DeltaUtil.h>
 #include <rapidjson/document.h>
 #include <Poco/URI.h>
+#include <Common/Base85Codec.h>
 
 namespace local_engine::delta
 {
@@ -48,6 +48,33 @@ String getRandomPrefix(const size_t & length)
     for (size_t i = 0; i < length; ++i)
         res += alphanum[rand() % (sizeof(alphanum) - 1)];
     return res;
+}
+
+DB::ColumnTuple::MutablePtr createDeletionVectorDescriptorColumn()
+{
+    DB::MutableColumns dv_descriptor_mutable_columns;
+    dv_descriptor_mutable_columns.emplace_back(DB::ColumnString::create()); // storageType
+    dv_descriptor_mutable_columns.emplace_back(DB::ColumnString::create()); // pathOrInlineDv
+    dv_descriptor_mutable_columns.emplace_back(DB::ColumnNullable::create(DB::ColumnInt32::create(), DB::ColumnUInt8::create())); // offset
+    dv_descriptor_mutable_columns.emplace_back(DB::ColumnInt32::create()); // sizeInBytes
+    dv_descriptor_mutable_columns.emplace_back(DB::ColumnInt64::create()); // cardinality
+    dv_descriptor_mutable_columns.emplace_back(
+        DB::ColumnNullable::create(DB::ColumnInt64::create(), DB::ColumnUInt8::create())); // maxRowIndex
+
+    return DB::ColumnTuple::create(std::move(dv_descriptor_mutable_columns));
+}
+
+DB::Tuple createDeletionVectorDescriptorField(
+    const String & path_or_inline_dv, const Int32 & offset, const Int32 & size_in_bytes, const Int64 & cardinality)
+{
+    DB::Tuple tuple;
+    tuple.emplace_back(UUID_DV_MARKER); // storageType
+    tuple.emplace_back(path_or_inline_dv); // pathOrInlineDv
+    tuple.emplace_back(offset); // offset
+    tuple.emplace_back(size_in_bytes); // sizeInBytes
+    tuple.emplace_back(cardinality); // cardinality
+    tuple.emplace_back(DB::Field{}); // maxRowIndex
+    return tuple;
 }
 
 DB::DataTypePtr getDeletionVectorType()
@@ -80,6 +107,24 @@ DB::DataTypePtr getDeletionVectorType()
     return std::make_shared<DB::DataTypeTuple>(dv_descriptor_types, dv_descriptor_names);
 }
 
+String assembleDeletionVectorPath(const String & table_path, const String & prefix, const String & uuid)
+{
+    String path = table_path + "/";
+    if (!prefix.empty())
+        path += prefix + "/";
+
+    path += DELETION_VECTOR_FILE_NAME_CORE + "_" + uuid + ".bin";
+    return path;
+}
+
+DeltaWriter::DeltaWriter(
+    const DB::ContextPtr & context_, const String & table_path_, const size_t & prefix_length_, const size_t & packing_target_size_)
+    : context(context_), table_path(table_path_), prefix_length(prefix_length_), packing_target_size(packing_target_size_)
+{
+    file_path_column = DB::ColumnString::create();
+    dv_descriptor_column = createDeletionVectorDescriptorColumn();
+    matched_row_count_col = DB::ColumnInt64::create();
+}
 
 void DeltaWriter::writeDeletionVector(const DB::Block & block)
 {
@@ -149,8 +194,8 @@ void DeltaWriter::writeDeletionVector(const DB::Block & block)
         Int32 checksum_value = static_cast<Int32>(crc32_z(0L, reinterpret_cast<const unsigned char *>(bitmap.c_str()), bitmap_size));
         DB::writeBinaryBigEndian(checksum_value, *write_buffer);
 
-        auto dv_descriptor_field
-            = createDeletionVectorDescriptorField(DeltaUtil::encodeUUID(uuid, prefix), offset, bitmap_size, cardinality);
+        auto encoded = Base85Codec::encodeUUID(uuid);
+        auto dv_descriptor_field = createDeletionVectorDescriptorField(prefix + encoded, offset, bitmap_size, cardinality);
 
         file_path_column->insert(file_path.data);
         dv_descriptor_column->insert(dv_descriptor_field);
@@ -173,34 +218,9 @@ DB::Block * DeltaWriter::finalize()
     return res;
 }
 
-
-DB::ColumnTuple::MutablePtr DeltaWriter::createDeletionVectorDescriptorColumn()
+std::unique_ptr<DB::WriteBuffer> DeltaWriter::createWriteBuffer(const String & table_path, const String & prefix) const
 {
-    DB::MutableColumns dv_descriptor_mutable_columns;
-    dv_descriptor_mutable_columns.emplace_back(DB::ColumnString::create()); // storageType
-    dv_descriptor_mutable_columns.emplace_back(DB::ColumnString::create()); // pathOrInlineDv
-    dv_descriptor_mutable_columns.emplace_back(DB::ColumnNullable::create(DB::ColumnInt32::create(), DB::ColumnUInt8::create())); // offset
-    dv_descriptor_mutable_columns.emplace_back(DB::ColumnInt32::create()); // sizeInBytes
-    dv_descriptor_mutable_columns.emplace_back(DB::ColumnInt64::create()); // cardinality
-    dv_descriptor_mutable_columns.emplace_back(
-        DB::ColumnNullable::create(DB::ColumnInt64::create(), DB::ColumnUInt8::create())); // maxRowIndex
-
-    return DB::ColumnTuple::create(std::move(dv_descriptor_mutable_columns));
-}
-
-String DeltaWriter::assembleDeletionVectorPath(const String & table_path, const String & prefix, const String & uuid) const
-{
-    String path = table_path + "/";
-    if (!prefix.empty())
-        path += prefix + "/";
-
-    path += DELETION_VECTOR_FILE_NAME_CORE + "_" + uuid + ".bin";
-    return path;
-}
-
-std::unique_ptr<DB::WriteBuffer> DeltaWriter::createWriteBuffer(const String & table_path, const String & prefix, const String & uuid) const
-{
-    String dv_file = assembleDeletionVectorPath(table_path, prefix, uuid);
+    const String dv_file = assembleDeletionVectorPath(table_path, prefix, toString(uuid));
 
     std::string encoded;
     Poco::URI::encode(dv_file, "", encoded);
@@ -215,27 +235,15 @@ DeltaDVRoaringBitmapArray DeltaWriter::deserializeExistingBitmap(
     const Int32 & existing_size_in_bytes,
     const String & table_path) const
 {
-    const auto random_prefix_length = existing_path_or_inline_dv.length() - Codec::Base85Codec::ENCODED_UUID_LENGTH;
+    static constexpr size_t ENCODED_UUID_LENGTH = 20;
+    const auto random_prefix_length = existing_path_or_inline_dv.length() - ENCODED_UUID_LENGTH;
     const auto randomPrefix = existing_path_or_inline_dv.substr(0, random_prefix_length);
     const auto encoded_uuid = existing_path_or_inline_dv.substr(random_prefix_length);
-    const auto existing_decode_uuid = DeltaUtil::decodeUUID(encoded_uuid);
-    const String existing_dv_file = assembleDeletionVectorPath(table_path, randomPrefix, existing_decode_uuid);
+    const auto existing_decode_uuid = Base85Codec::decodeUUID(encoded_uuid);
+    const String existing_dv_file = assembleDeletionVectorPath(table_path, randomPrefix, toString(existing_decode_uuid));
     DeltaDVRoaringBitmapArray existing_bitmap;
     existing_bitmap.rb_read(existing_dv_file, existing_offset, existing_size_in_bytes, context);
     return existing_bitmap;
-}
-
-DB::Tuple DeltaWriter::createDeletionVectorDescriptorField(
-    const String & path_or_inline_dv, const Int32 & offset, const Int32 & size_in_bytes, const Int64 & cardinality)
-{
-    DB::Tuple tuple;
-    tuple.emplace_back(UUID_DV_MARKER); // storageType
-    tuple.emplace_back(path_or_inline_dv); // pathOrInlineDv
-    tuple.emplace_back(offset); // offset
-    tuple.emplace_back(size_in_bytes); // sizeInBytes
-    tuple.emplace_back(cardinality); // cardinality
-    tuple.emplace_back(DB::Field{}); // maxRowIndex
-    return tuple;
 }
 
 void DeltaWriter::initBinPackage()
@@ -243,8 +251,8 @@ void DeltaWriter::initBinPackage()
     offset = 0;
     size_of_current_bin = 0;
     prefix = getRandomPrefix(prefix_length);
-    uuid = DB::toString(DB::UUIDHelpers::generateV4());
-    write_buffer = createWriteBuffer(table_path, prefix, uuid);
+    uuid = DB::UUIDHelpers::generateV4();
+    write_buffer = createWriteBuffer(table_path, prefix);
     DB::writeIntBinary(DV_FILE_FORMAT_VERSION_ID_V1, *write_buffer);
     offset++;
 }

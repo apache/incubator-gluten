@@ -194,7 +194,7 @@ object MetricsUtil extends Logging {
       extraTime: SQLMetric,
       outputRows: SQLMetric,
       outputBytes: SQLMetric,
-      inputRows: SQLMetric,
+      inputRows: Seq[SQLMetric],
       inputBytes: SQLMetric,
       includingMetrics: Array[String],
       planNodeNames: Array[String]): Unit = {
@@ -207,9 +207,29 @@ object MetricsUtil extends Logging {
         if (planNodeNames.exists(processor.name.startsWith(_))) {
           outputRows += processor.outputRows
           outputBytes += processor.outputBytes
-          inputRows += processor.inputRows
+          inputRows.foreach(inputRow => inputRow += processor.inputRows)
           inputBytes += processor.inputBytes
         }
       })
+  }
+
+  def updateExtraTimeMetric(
+      metricData: MetricsData,
+      extraTime: SQLMetric,
+      outputRows: SQLMetric,
+      outputBytes: SQLMetric,
+      inputRows: SQLMetric,
+      inputBytes: SQLMetric,
+      includingMetrics: Array[String],
+      planNodeNames: Array[String]): Unit = {
+    updateExtraTimeMetric(
+      metricData,
+      extraTime,
+      outputRows,
+      outputBytes,
+      Seq(inputRows),
+      inputBytes,
+      includingMetrics,
+      planNodeNames)
   }
 }

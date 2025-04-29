@@ -49,7 +49,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[ClickHouseAdaptiveQueryExecSuite]
     .includeAllGlutenTests()
     .includeByPrefix(
-      "SPARK-29906",
+      // exclude SPARK-29906 because gluten columnar operator will have different number of shuffle
       "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
@@ -382,6 +382,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-39749: cast Decimal to string")
     .exclude("SPARK-42176: cast boolean to timestamp")
     .exclude("null cast #2")
+    .exclude("cast array element from integer to string")
+    .exclude("cast array element from double to string")
+    .exclude("cast array element from bool to string")
+    .exclude("cast array element from date to string")
+    .exclude("cast array from timestamp to string")
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     .excludeByPrefix("determining the number of reducers")
     .excludeCH("SPARK-46590 adaptive query execution works correctly with broadcast join and union")
@@ -434,6 +439,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
+    // Gluten columnar operator will have different number of jobs
+    .exclude("SPARK-40211: customize initialNumPartitions for take")
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
     .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")

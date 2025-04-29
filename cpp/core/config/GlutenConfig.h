@@ -46,6 +46,9 @@ const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.si
 const std::string kMemoryReservationBlockSize = "spark.gluten.memory.reservationBlockSize";
 const uint64_t kMemoryReservationBlockSizeDefault = 8 << 20;
 
+const std::string kCheckUsageLeak = "spark.gluten.sql.columnar.backend.velox.checkUsageLeak";
+const bool kCheckUsageLeakDefault = true;
+
 const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
 
 const std::string kParquetBlockSize = "parquet.block.size";
@@ -65,6 +68,8 @@ const std::string kUGITokens = "spark.gluten.ugi.tokens";
 const std::string kShuffleCompressionCodec = "spark.gluten.sql.columnar.shuffle.codec";
 const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.shuffle.codecBackend";
 const std::string kShuffleSpillDiskWriteBufferSize = "spark.shuffle.spill.diskWriteBufferSize";
+const std::string kSortShuffleReaderDeserializerBufferSize =
+    "spark.gluten.sql.columnar.shuffle.sort.deserializerBufferSize";
 const std::string kQatBackendName = "qat";
 const std::string kIaaBackendName = "iaa";
 
