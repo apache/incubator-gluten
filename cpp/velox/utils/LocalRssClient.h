@@ -17,13 +17,28 @@
 
 #pragma once
 
-#include <cstdint>
+#include "shuffle/rss/RssClient.h"
+#include "utils/Common.h"
+#include "utils/Macros.h"
 
-class RssClient {
+#include <arrow/buffer.h>
+
+#include <map>
+
+namespace gluten {
+
+/// A local implementation of the RssClient interface for testing purposes.
+class LocalRssClient : public RssClient {
  public:
-  virtual ~RssClient() = default;
+  LocalRssClient(std::string dataFile) : dataFile_(dataFile) {}
 
-  virtual int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) = 0;
+  int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) override;
 
-  virtual void stop() = 0;
+  void stop() override;
+
+ private:
+  std::string dataFile_;
+  std::vector<std::unique_ptr<arrow::ResizableBuffer>> buffers_;
+  std::map<uint32_t, uint32_t> partitionBufferMap_;
 };
+} // namespace gluten
