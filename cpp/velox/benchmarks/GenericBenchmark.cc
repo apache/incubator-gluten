@@ -36,11 +36,11 @@
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/Exception.h"
+#include "utils/LocalRssClient.h"
 #include "utils/StringUtil.h"
+#include "utils/TestAllocationListener.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/LocalRssClient.h"
-#include "utils/TestAllocationListener.h"
 #include "velox/exec/PlanNodeStats.h"
 
 using namespace gluten;

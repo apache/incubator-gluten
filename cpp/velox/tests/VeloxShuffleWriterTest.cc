@@ -23,9 +23,9 @@
 #include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "shuffle/VeloxSortShuffleWriter.h"
 #include "tests/VeloxShuffleWriterTestBase.h"
+#include "utils/TestAllocationListener.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/TestAllocationListener.h"
 
 #include "velox/vector/tests/utils/VectorTestBase.h"
 

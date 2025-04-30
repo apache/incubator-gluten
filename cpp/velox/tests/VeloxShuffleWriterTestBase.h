@@ -27,9 +27,9 @@
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/rss/RssPartitionWriter.h"
-#include "utils/VeloxArrowUtils.h"
 #include "utils/LocalRssClient.h"
 #include "utils/TestAllocationListener.h"
+#include "utils/VeloxArrowUtils.h"
 #include "velox/type/Type.h"
 
 #include "velox/vector/tests/VectorTestUtils.h"
