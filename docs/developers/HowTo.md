@@ -44,7 +44,7 @@ You can generate the example files by the following steps:
 1. Build Velox and Gluten CPP:
 
 ```
-${GLUTEN_HOME}/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_type=Debug
+${GLUTEN_HOME}/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_examples=ON --build_type=Debug
 ```
 
 - Compiling with `--build_type=Debug` is good for debugging.
@@ -54,8 +54,7 @@ ${GLUTEN_HOME}/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON -
 
 ```
 cd ${GLUTEN_HOME}
-mvn clean package -Pspark-3.2 -Pbackends-velox -Pceleborn -Puniffle
-mvn test -Pspark-3.2 -Pbackends-velox -Pceleborn -pl backends-velox \
+mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox \
 -am -DtagsToInclude="org.apache.gluten.tags.GenerateExample" \
 -Dtest=none -DfailIfNoTests=false \
 -Dexec.skip
@@ -68,24 +67,28 @@ mvn test -Pspark-3.2 -Pbackends-velox -Pceleborn -pl backends-velox \
 ```shell
 $ tree ${GLUTEN_HOME}/backends-velox/generated-native-benchmark/
 /some-dir-to-gluten-home/backends-velox/generated-native-benchmark/
-├── example.json
-├── example_lineitem
-│   ├── part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet
-│   └── _SUCCESS
-└── example_orders
-    ├── part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet
-    └── _SUCCESS
+|-- conf_12_0.ini
+|-- data_12_0_0.parquet
+|-- data_12_0_1.parquet
+`-- plan_12_0.json
 ```
 
 3. Now, run benchmarks with GDB
 
 ```shell
-cd ${GLUTEN_HOME}/cpp/build/velox/benchmarks/
-gdb generic_benchmark
+cd ${GLUTEN_HOME}
+gdb cpp/build/velox/benchmarks/generic_benchmark
 ```
 
-- When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with command `b main`, and then run with command `r`,
-  then the process `generic_benchmark` will start and stop at the `main` function.
+- When GDB load `generic_benchmark` successfully, you can set `breakpoint` on the `main` function with command `b main`, and then run using the `r` command with
+  arguments for the example files like:
+  ```
+  r --with-shuffle --partitioning hash --threads 1 --iterations 1 \
+    --conf backends-velox/generated-native-benchmark/conf_12_0.ini \
+    --plan backends-velox/generated-native-benchmark/plan_12_0.json \
+    --data backends-velox/generated-native-benchmark/data_12_0_0.parquet,backends-velox/generated-native-benchmark/data_12_0_1.parquet
+  ```
+  The process `generic_benchmark` will start and stop at the `main` function.
 - You can check the variables' state with command `p variable_name`, or execute the program line by line with command `n`, or step-in the function been
   called with command `s`.
 - Actually, you can debug `generic_benchmark` with any gdb commands as debugging normal C++ program, because the `generic_benchmark` is a pure C++
@@ -95,9 +98,7 @@ gdb generic_benchmark
 [gdb-tui](https://sourceware.org/gdb/onlinedocs/gdb/TUI.html)
 
 5. You can start `generic_benchmark` with specific JSON plan and input files
-- If you omit them, the `example.json, example_lineitem + example_orders` under the directory of `${GLUTEN_HOME}/backends-velox/generated-native-benchmark`
-  will be used as default.
-- You can also edit the file `example.json` to custom the Substrait plan or specify the inputs files placed in the other directory.
+- You can also edit the file `plan_12_0.json` to custom the Substrait plan or specify the inputs files placed in the other directory.
 
 6. Get more detail information about benchmarks from [MicroBenchmarks](./MicroBenchmarks.md)
 

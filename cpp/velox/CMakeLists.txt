@@ -166,15 +166,13 @@ set(VELOX_SRCS
     udf/UdfLoader.cc
     utils/Common.cc
     utils/ConfigExtractor.cc
+    utils/LocalRssClient.cc
+    utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
     utils/VeloxBatchResizer.cc)
 
 if(ENABLE_S3)
   find_package(ZLIB)
-endif()
-
-if(BUILD_TESTS OR BUILD_BENCHMARKS)
-  list(APPEND VELOX_SRCS utils/tests/MemoryPoolUtils.cc)
 endif()
 
 add_library(velox SHARED ${VELOX_SRCS})

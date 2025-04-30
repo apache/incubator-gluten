@@ -17,10 +17,12 @@
 
 #pragma once
 
-#include <arrow/ipc/options.h>
-#include <arrow/util/compression.h>
 #include "shuffle/Partitioning.h"
 #include "utils/Compression.h"
+#include "utils/Macros.h"
+
+#include <arrow/ipc/options.h>
+#include <arrow/util/compression.h>
 
 namespace gluten {
 
@@ -30,7 +32,8 @@ static constexpr int64_t kDefaultSortBufferThreshold = 64 << 20;
 static constexpr int64_t kDefaultPushMemoryThreshold = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
-static constexpr int32_t kDefaultSortEvictBufferSize = 32 * 1024;
+static constexpr int32_t kDefaultCompressionBufferSize = 32 * 1024;
+static constexpr int32_t kDefaultDiskWriteBufferSize = 1024 * 1024;
 static const std::string kDefaultCompressionTypeStr = "lz4";
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
@@ -39,19 +42,28 @@ static constexpr bool kEnableBufferedWrite = true;
 static constexpr bool kDefaultUseRadixSort = true;
 static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
+static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
 
-enum ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
-enum PartitionWriterType { kLocal, kRss };
-enum SortAlgorithm { kRadixSort, kQuickSort };
+enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
+
+enum class PartitionWriterType { kLocal, kRss };
 
 struct ShuffleReaderOptions {
+  ShuffleWriterType shuffleWriterType = ShuffleWriterType::kHashShuffle;
+
+  // Compression options.
   arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
-  std::string compressionTypeStr = "lz4";
-  ShuffleWriterType shuffleWriterType = kHashShuffle;
   CodecBackend codecBackend = CodecBackend::NONE;
+
+  // Output batch size.
   int32_t batchSize = kDefaultBatchSize;
-  int64_t bufferSize = kDefaultReadBufferSize;
+
+  // Buffer size when reading data from the input stream.
+  int64_t readerBufferSize = kDefaultReadBufferSize;
+
+  // Buffer size when deserializing rows into columnar batches. Only used for sort-based shuffle.
+  int64_t deserializerBufferSize = kDefaultDeserializerBufferSize;
 };
 
 struct ShuffleWriterOptions {
@@ -62,20 +74,21 @@ struct ShuffleWriterOptions {
   int64_t taskAttemptId = -1;
   int32_t startPartitionId = 0;
   int64_t threadId = -1;
-  ShuffleWriterType shuffleWriterType = kHashShuffle;
+  ShuffleWriterType shuffleWriterType = ShuffleWriterType::kHashShuffle;
 
   // Sort shuffle writer.
-  int32_t sortBufferInitialSize = kDefaultSortBufferSize;
-  int32_t sortEvictBufferSize = kDefaultSortEvictBufferSize;
-  bool useRadixSort = kDefaultUseRadixSort;
+  int32_t initialSortBufferSize = kDefaultSortBufferSize; // spark.shuffle.sort.initialBufferSize
+  int32_t diskWriteBufferSize = kDefaultDiskWriteBufferSize; // spark.shuffle.spill.diskWriteBufferSize
+  bool useRadixSort = kDefaultUseRadixSort; // spark.shuffle.sort.useRadixSort
 };
 
 struct PartitionWriterOptions {
   int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
   double mergeThreshold = kDefaultMergeBufferThreshold;
+  int32_t compressionBufferSize =
+      kDefaultCompressionBufferSize; // spark.io.compression.lz4.blockSize,spark.io.compression.zstd.bufferSize
   int32_t compressionThreshold = kDefaultCompressionThreshold;
   arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
-  std::string compressionTypeStr = kDefaultCompressionTypeStr;
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t compressionLevel = arrow::util::kUseDefaultCompressionLevel;
   CompressionMode compressionMode = CompressionMode::BUFFER;

@@ -20,15 +20,10 @@
 #include "ConfigExtractor.h"
 #include <stdexcept>
 
+#include "config/VeloxConfig.h"
 #include "utils/Exception.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/storage_adapters/s3fs/S3Config.h"
-
-namespace {
-
-const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
-const bool kVeloxFileHandleCacheEnabledDefault = false;
-} // namespace
 
 namespace gluten {
 
@@ -221,6 +216,25 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
+      conf->get<std::string>(kMaxCoalescedBytes, "67108864"); // 64M
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kMaxCoalescedDistance] =
+      conf->get<std::string>(kMaxCoalescedDistance, "512KB"); // 512KB
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
+      conf->get<std::string>(kPrefetchRowGroups, "1");
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kLoadQuantum] =
+      conf->get<std::string>(kLoadQuantum, "268435456"); // 256M
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
+      conf->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
+      conf->get<std::string>(kFilePreloadThreshold, "1048576"); // 1M
+
+  // read as UTC
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
+
+  // Maps table field names to file field names using names, not indices.
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
 
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
 }

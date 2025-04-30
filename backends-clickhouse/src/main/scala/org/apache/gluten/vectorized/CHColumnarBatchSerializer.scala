@@ -64,10 +64,7 @@ private class CHColumnarBatchSerializerInstance(
   private lazy val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
   private lazy val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private lazy val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(
-      conf,
-      compressionCodec,
-      GlutenConfig.get.columnarShuffleCodecBackend.orNull)
+    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec)
 
   private val useColumnarShuffle: Boolean = GlutenConfig.get.isUseColumnarShuffleManager
 

@@ -196,6 +196,27 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  testWithMinSparkVersion("Test array_compact function", "3.4") {
+    withTempPath {
+      path =>
+        Seq[Array[String]](
+          Array("a", "b"),
+          Array(),
+          Array("a", "b", null.asInstanceOf[String]),
+          Array(null.asInstanceOf[String])
+        )
+          .toDF("arr")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("tbl")
+
+        runQueryAndCompare("select arr, array_compact(arr) from tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test round function") {
     runQueryAndCompare(
       "SELECT round(cast(l_orderkey as int), 2)" +
@@ -933,7 +954,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           .toDF("a")
           .write
           .parquet(path.getCanonicalPath)
-        spark.sparkContext.setLogLevel("info")
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("url_tbl")
         runQueryAndCompare("select url_decode(a) from url_tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -948,7 +968,6 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
           .toDF("a")
           .write
           .parquet(path.getCanonicalPath)
-        spark.sparkContext.setLogLevel("info")
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("url_tbl")
         runQueryAndCompare("select url_encode(a) from url_tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -1704,6 +1723,34 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         runQueryAndCompare("select equal_null(val1, val2) from tbl") {
           checkGlutenOperatorMatch[ProjectExecTransformer]
         }
+    }
+  }
+
+  test("date_trunc") {
+    withTable("t") {
+      sql("create table t (c0 TIMESTAMP) using parquet")
+      sql("insert into t values(Timestamp('2015-07-22 10:01:40.123456'))")
+      runQueryAndCompare("""
+                           |SELECT
+                           |  date_trunc('yy',c0) as t1,
+                           |  date_trunc('yyyy', c0) as t2,
+                           |  date_trunc('year', c0) as t3,
+                           |  date_trunc('quarter', c0) as t4,
+                           |  date_trunc('mon', c0) as t5,
+                           |  date_trunc('month', c0) as t6,
+                           |  date_trunc('mm', c0) as t7,
+                           |  date_trunc('week', c0) as t8,
+                           |  date_trunc('dd', c0) as t9,
+                           |  date_trunc('day', c0) as t10,
+                           |  date_trunc('hour', c0) as t11,
+                           |  date_trunc('minute', c0) as t12,
+                           |  date_trunc('second', c0) as t13,
+                           |  date_trunc('millisecond', c0) as t14,
+                           |  date_trunc('microsecond', c0) as t15
+                           |FROM t
+                           |""".stripMargin) {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
     }
   }
 }

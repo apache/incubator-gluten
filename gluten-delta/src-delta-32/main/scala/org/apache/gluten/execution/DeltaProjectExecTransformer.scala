@@ -24,7 +24,7 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, CaseWhen, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
 import org.apache.spark.sql.delta.metric.IncrementMetric
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -49,11 +49,10 @@ case class DeltaProjectExecTransformer(projectList: Seq[NamedExpression], child:
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     val newProjectList = genNewProjectList(projectList)
     val columnarProjExprs: Seq[ExpressionTransformer] = ExpressionConverter
       .replaceWithExpressionTransformer(newProjectList, attributeSeq = originalInputAttributes)
-    val projExprNodeList = columnarProjExprs.map(_.doTransform(args)).asJava
+    val projExprNodeList = columnarProjExprs.map(_.doTransform(context)).asJava
     val emitStartIndex = originalInputAttributes.size
     if (!validation) {
       RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId, emitStartIndex)
@@ -81,35 +80,12 @@ case class DeltaProjectExecTransformer(projectList: Seq[NamedExpression], child:
   def genNewProjectList(projectList: Seq[NamedExpression]): Seq[NamedExpression] = {
     projectList.map {
       case alias: Alias =>
-        alias.child match {
-          case IncrementMetric(child, metric) =>
-            extraMetrics :+= (alias.child.prettyName, metric)
-            Alias(child = child, name = alias.name)()
-
-          case CaseWhen(branches, elseValue) =>
-            val newBranches = branches.map {
-              case (expr1, expr2: IncrementMetric) =>
-                extraMetrics :+= (expr2.prettyName, expr2.metric)
-                (expr1, expr2.child)
-              case other => other
-            }
-
-            val newElseValue = elseValue match {
-              case Some(IncrementMetric(child: IncrementMetric, metric)) =>
-                extraMetrics :+= (child.prettyName, metric)
-                extraMetrics :+= (child.prettyName, child.metric)
-                Some(child.child)
-              case _ => elseValue
-            }
-
-            Alias(
-              child = CaseWhen(newBranches, newElseValue),
-              name = alias.name
-            )(alias.exprId)
-
-          case _ =>
-            alias
+        val newChild = alias.child.transformUp {
+          case im @ IncrementMetric(child, metric) =>
+            extraMetrics :+= (im.prettyName, metric)
+            child
         }
+        Alias(child = newChild, name = alias.name)(alias.exprId)
       case other => other
     }
   }

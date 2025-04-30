@@ -35,7 +35,7 @@ class SparkMergeTreeDataWriter
 {
 public:
     explicit SparkMergeTreeDataWriter(DB::MergeTreeData & data_) : data(data_), log(getLogger(data.getLogName() + " (Writer)")) { }
-    DB::MergeTreeDataWriter::TemporaryPart writeTempPart(
+    DB::MergeTreeTemporaryPartPtr writeTempPart(
         DB::BlockWithPartition & block_with_partition,
         const DB::StorageMetadataPtr & metadata_snapshot,
         const DB::ContextPtr & context,

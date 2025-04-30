@@ -4,6 +4,8 @@ vcpkg_from_github(
     REF "v${VERSION}"
     HEAD_REF master
     SHA512 893ce0cb380b1418438f5910262325031f8071c4577589a491713f91c980964b4105c1e1aa7f2b9373deed40ecf6b48fe48a1aa243151e424f138f5418e4821c
+    PATCHES
+      add-definition.patch
 )
 
 vcpkg_check_features(

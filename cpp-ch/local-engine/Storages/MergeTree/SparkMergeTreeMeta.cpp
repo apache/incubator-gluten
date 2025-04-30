@@ -292,10 +292,7 @@ RangesInDataParts MergeTreeTableInstance::extractRange(DataPartsVector parts_vec
         std::inserter(ranges_in_data_parts, ranges_in_data_parts.end()),
         [&](const MergeTreePart & part)
         {
-            RangesInDataPart ranges_in_data_part;
-            ranges_in_data_part.data_part = name_index.at(part.name);
-            ranges_in_data_part.part_index_in_query = 0;
-            ranges_in_data_part.ranges.emplace_back(MarkRange(part.begin, part.end));
+            RangesInDataPart ranges_in_data_part{name_index.at(part.name), 0, 0, {MarkRange(part.begin, part.end)}};
             return ranges_in_data_part;
         });
     return ranges_in_data_parts;

@@ -36,8 +36,6 @@ class Payload {
 
   virtual arrow::Status serialize(arrow::io::OutputStream* outputStream) = 0;
 
-  virtual arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) = 0;
-
   virtual int64_t rawSize() = 0;
 
   int64_t getCompressTime() const {
@@ -101,7 +99,7 @@ class BlockPayload final : public Payload {
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
-  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t pos) override;
+  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t pos);
 
   int64_t rawSize() override;
 
@@ -127,15 +125,18 @@ class InMemoryPayload final : public Payload {
   InMemoryPayload(
       uint32_t numRows,
       const std::vector<bool>* isValidityBuffer,
-      std::vector<std::shared_ptr<arrow::Buffer>> buffers)
-      : Payload(Type::kUncompressed, numRows, isValidityBuffer), buffers_(std::move(buffers)) {}
+      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      bool hasComplexType = false)
+      : Payload(Type::kUncompressed, numRows, isValidityBuffer),
+        buffers_(std::move(buffers)),
+        hasComplexType_(hasComplexType) {}
 
   static arrow::Result<std::unique_ptr<InMemoryPayload>>
   merge(std::unique_ptr<InMemoryPayload> source, std::unique_ptr<InMemoryPayload> append, arrow::MemoryPool* pool);
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
-  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) override;
+  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index);
 
   arrow::Result<std::unique_ptr<BlockPayload>> toBlockPayload(
       Payload::Type payloadType,
@@ -147,8 +148,11 @@ class InMemoryPayload final : public Payload {
 
   int64_t rawSize() override;
 
+  bool mergeable() const;
+
  private:
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
+  bool hasComplexType_;
 };
 
 class UncompressedDiskBlockPayload final : public Payload {
@@ -161,8 +165,6 @@ class UncompressedDiskBlockPayload final : public Payload {
       uint64_t rawSize,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec);
-
-  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) override;
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
@@ -188,8 +190,6 @@ class CompressedDiskBlockPayload final : public Payload {
       arrow::MemoryPool* pool);
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
-
-  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) override;
 
   int64_t rawSize() override;
 

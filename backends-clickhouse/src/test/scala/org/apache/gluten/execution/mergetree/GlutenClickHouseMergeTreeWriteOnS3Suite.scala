@@ -28,12 +28,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
-import io.minio.{BucketExistsArgs, ListObjectsArgs, MakeBucketArgs, MinioClient, RemoveBucketArgs, RemoveObjectsArgs}
-import io.minio.messages.DeleteObject
-import org.apache.commons.io.FileUtils
-
 import java.io.File
-import java.util
 
 import scala.concurrent.duration.DurationInt
 
@@ -46,12 +41,6 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  private val client = MinioClient
-    .builder()
-    .endpoint(MINIO_ENDPOINT)
-    .credentials(S3_ACCESS_KEY, S3_SECRET_KEY)
-    .build()
 
   override protected def createTPCHNotNullTables(): Unit = {
     createNotNullTPCHTablesInParquet(tablesPath)
@@ -71,27 +60,16 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
-    if (client.bucketExists(BucketExistsArgs.builder().bucket(BUCKET_NAME).build())) {
-      val results =
-        client.listObjects(ListObjectsArgs.builder().bucket(BUCKET_NAME).recursive(true).build())
-      val objects = new util.LinkedList[DeleteObject]()
-      results.forEach(
-        obj => {
-          objects.add(new DeleteObject(obj.get().objectName()))
-        })
-      val removeResults = client.removeObjects(
-        RemoveObjectsArgs.builder().bucket(BUCKET_NAME).objects(objects).build())
-      removeResults.forEach(result => result.get().message())
-      client.removeBucket(RemoveBucketArgs.builder().bucket(BUCKET_NAME).build())
+    if (minioHelper.bucketExists(BUCKET_NAME)) {
+      minioHelper.clearBucket(BUCKET_NAME)
     }
-    client.makeBucket(MakeBucketArgs.builder().bucket(BUCKET_NAME).build())
-    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
-    FileUtils.forceMkdir(new File(S3_METADATA_PATH))
+    minioHelper.createBucket(BUCKET_NAME)
+    minioHelper.resetMeta()
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
-    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
+    minioHelper.resetMeta()
   }
 
   test("test mergetree table write") {
@@ -128,7 +106,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | insert into table lineitem_mergetree_s3
                  | select * from lineitem
                  |""".stripMargin)
-    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
+    minioHelper.resetMeta()
 
     runTPCHQueryBySQL(1, q1("lineitem_mergetree_s3")) {
       df =>
@@ -160,41 +138,25 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
   }
 
   private def verifyS3CompactFileExist(table: String): Unit = {
-    val args = ListObjectsArgs
-      .builder()
-      .bucket(BUCKET_NAME)
-      .recursive(true)
-      .prefix(table)
-      .build()
-    var objectCount: Int = 0
-    var metadataGlutenExist: Boolean = false
-    var metadataBinExist: Boolean = false
-    var dataBinExist: Boolean = false
+    val objectNames = minioHelper.listObjects(BUCKET_NAME, table)
+    var metadataGlutenExist = false
+    var metadataBinExist = false
+    var dataBinExist = false
     var hasCommits = false
-    client
-      .listObjects(args)
-      .forEach(
-        obj => {
-          objectCount += 1
-          val objectName = obj.get().objectName()
-          if (objectName.contains("metadata.gluten")) {
-            metadataGlutenExist = true
-          } else if (objectName.contains("part_meta.gluten")) {
-            metadataBinExist = true
-          } else if (objectName.contains("part_data.gluten")) {
-            dataBinExist = true
-          } else if (objectName.contains("_commits")) {
-            // Spark 35 has _commits directory
-            // table/_delta_log/_commits/
-            hasCommits = true
-          }
-        })
+
+    objectNames.foreach {
+      objectName =>
+        if (objectName.contains("metadata.gluten")) metadataGlutenExist = true
+        else if (objectName.contains("part_meta.gluten")) metadataBinExist = true
+        else if (objectName.contains("part_data.gluten")) dataBinExist = true
+        else if (objectName.contains("_commits")) hasCommits = true
+    }
 
     if (isSparkVersionGE("3.5")) {
-      assertResult(6)(objectCount)
+      assertResult(6)(objectNames.size)
       assert(hasCommits)
     } else {
-      assertResult(5)(objectCount)
+      assertResult(5)(objectNames.size)
     }
 
     assert(metadataGlutenExist)
@@ -615,7 +577,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | select * from lineitem
                  |""".stripMargin)
 
-    FileUtils.forceDelete(new File(S3_METADATA_PATH))
+    minioHelper.resetMeta()
 
     withSQLConf(CHConfig.runtimeSettings("enabled_driver_filter_mergetree_index") -> "true") {
       runTPCHQueryBySQL(6, q6(tableName)) {
@@ -675,7 +637,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | select /*+ REPARTITION(3) */ * from lineitem
                  |""".stripMargin)
 
-    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
+    minioHelper.resetMeta()
     spark.sql("optimize lineitem_mergetree_bucket_s3")
     spark.sql("drop table lineitem_mergetree_bucket_s3")
   }

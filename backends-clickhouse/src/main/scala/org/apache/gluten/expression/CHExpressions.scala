@@ -18,26 +18,24 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.extension.ExpressionExtensionTrait
-import org.apache.gluten.substrait.expression.ExpressionBuilder
+import org.apache.gluten.substrait.SubstraitContext
 
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 
 // Static helper object for handling expressions that are specifically used in CH backend.
 object CHExpressions {
   // Since https://github.com/apache/incubator-gluten/pull/1937.
-  def createAggregateFunction(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+  def createAggregateFunction(context: SubstraitContext, aggregateFunc: AggregateFunction): Long = {
     val expressionExtensionTransformer =
       ExpressionExtensionTrait.findExpressionExtension(aggregateFunc.getClass)
     if (expressionExtensionTransformer.nonEmpty) {
       val (substraitAggFuncName, inputTypes) =
         expressionExtensionTransformer.get.buildCustomAggregateFunction(aggregateFunc)
       assert(substraitAggFuncName.isDefined)
-      return ExpressionBuilder.newScalarFunction(
-        functionMap,
+      return context.registerFunction(
         ConverterUtils.makeFuncName(substraitAggFuncName.get, inputTypes, FunctionConfig.REQ))
     }
 
-    AggregateFunctionsBuilder.create(args, aggregateFunc)
+    AggregateFunctionsBuilder.create(context, aggregateFunc)
   }
 }

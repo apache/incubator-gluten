@@ -73,35 +73,43 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
       const std::shared_ptr<arrow::util::Codec>& codec,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
-      int64_t bufferSize,
+      int64_t readerBufferSize,
+      int64_t deserializerBufferSize,
       arrow::MemoryPool* memoryPool,
       facebook::velox::memory::MemoryPool* veloxPool,
       int64_t& deserializeTime,
       int64_t& decompressTime);
+
+  ~VeloxSortShuffleReaderDeserializer() override;
 
   std::shared_ptr<ColumnarBatch> next() override;
 
  private:
   std::shared_ptr<ColumnarBatch> deserializeToBatch();
 
-  void readLargeRow(std::vector<std::shared_ptr<arrow::Buffer>>& arrowBuffers);
+  void readNextRow();
 
-  std::shared_ptr<arrow::io::InputStream> in_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
+
   uint32_t batchSize_;
-  arrow::MemoryPool* arrowPool_;
-  facebook::velox::memory::MemoryPool* veloxPool_;
+  int64_t deserializerBufferSize_;
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
 
-  std::list<std::pair<uint32_t, facebook::velox::BufferPtr>> cachedInputs_;
+  facebook::velox::memory::MemoryPool* veloxPool_;
+
+  facebook::velox::BufferPtr rowBuffer_{nullptr};
+  char* rowBufferPtr_{nullptr};
+  uint32_t bytesRead_{0};
+  uint32_t lastRowSize_{0};
+  std::vector<std::string_view> data_;
+
+  std::shared_ptr<arrow::io::InputStream> in_;
+
   uint32_t cachedRows_{0};
   bool reachedEos_{false};
-
-  uint32_t rowOffset_{0};
-  size_t byteOffset_{0};
 };
 
 class VeloxRssSortShuffleReaderDeserializer : public ColumnarBatchIterator {
@@ -138,10 +146,11 @@ class VeloxShuffleReaderDeserializerFactory {
   VeloxShuffleReaderDeserializerFactory(
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
-      const facebook::velox::common::CompressionKind veloxCompressionType,
+      facebook::velox::common::CompressionKind veloxCompressionType,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
-      int64_t bufferSize,
+      int64_t readerBufferSize,
+      int64_t deserializerBufferSize,
       arrow::MemoryPool* memoryPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       ShuffleWriterType shuffleWriterType);
@@ -162,7 +171,8 @@ class VeloxShuffleReaderDeserializerFactory {
   facebook::velox::common::CompressionKind veloxCompressionType_;
   facebook::velox::RowTypePtr rowType_;
   int32_t batchSize_;
-  int64_t bufferSize_;
+  int64_t readerBufferSize_;
+  int64_t deserializerBufferSize_;
   arrow::MemoryPool* memoryPool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 

@@ -43,16 +43,17 @@ mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am \
 
 The generated example files are placed in gluten/backends-velox:
 
+- stageId means Spark stage id in web ui.
+- partitionedId means Spark partition id in web stage ui.
+- vId means backends internal virtual id.
+
 ```shell
 $ tree gluten/backends-velox/generated-native-benchmark/
 gluten/backends-velox/generated-native-benchmark/
-├── example.json
-├── example_lineitem
-│   ├── part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet
-│   └── _SUCCESS
-└── example_orders
-    ├── part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet
-    └── _SUCCESS
+├── conf_12_10_3.ini
+├── data_12_10_3_0.parquet
+├── data_12_10_3_1.parquet
+├── plan_12_10_3.json
 ```
 
 Run micro benchmark with the generated files as input. You need to specify the **absolute** path to
@@ -61,9 +62,10 @@ the input files:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example.json \
---data /home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example_orders/part-00000-1e66fb98-4dd6-47a6-8679-8625dbc437ee-c000.snappy.parquet,\
-/home/sparkuser/github/apache/incubator-gluten/backends-velox/generated-native-benchmark/example_lineitem/part-00000-3ec19189-d20e-4240-85ae-88631d46b612-c000.snappy.parquet \
+--plan <path-to-gluten>/backends-velox/generated-native-benchmark/plan_{stageId}_{partitionId}_{vId}.json \
+--data <path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet,\
+<path-to-gluten>/backends-velox/generated-native-benchmark/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet \
+--conf <path-to-gluten>/backends-velox/generated-native-benchmark/conf_{stageId}_{partitionId}_{vId}.ini \
 --threads 1 --iterations 1 --noprint-result
 ```
 
@@ -128,15 +130,15 @@ And then re-run the query with below configurations to dump the inputs to micro 
 Check the files in `spark.gluten.saveDir`. If the simulated stage is a first stage, you will get 3
 or 4 types of dumped file:
 
-- Configuration file: INI formatted, file name `conf_[stageId]_[partitionId].ini`. Contains the
+- Configuration file: INI formatted, file name `conf_{stageId}_{partitionId}_{vId}.ini`. Contains the
   configurations to init Velox backend and runtime session.
-- Plan file: JSON formatted, file name `plan_[stageId]_[partitionId].json`. Contains the substrait
+- Plan file: JSON formatted, file name `plan_{stageId}_{partitionId}_{vId}.json`. Contains the substrait
   plan to the stage, without input file splits.
-- Split file: JSON formatted, file name `split_[stageId]_[partitionId]_[splitIndex].json`. There can
+- Split file: JSON formatted, file name `split_{stageId}_{partitionId}_{vId}_{splitIdx}.json`. There can
   be more than one split file in a first stage task. Contains the substrait plan piece to the input
   file splits.
 - Data file(optional): Parquet formatted, file
-  name `data_[stageId]_[partitionId]_[iteratorIndex].parquet`. If the first stage contains one or
+  name `data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet`. If the first stage contains one or
   more BHJ operators, there can be one or more input data files. The input data files of a first
   stage will be loaded as iterators to serve as the inputs for the pipeline:
 
@@ -158,29 +160,29 @@ Sample command:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---conf /absolute_path/to/conf_[stageId]_[partitionId].ini \
---plan /absolute_path/to/plan_[stageId]_[partitionId].json \
---split /absolut_path/to/split_[stageId]_[partitionId]_0.json,/absolut_path/to/split_[stageId]_[partitionId]_1.json \
+--conf /absolute_path/to/conf_{stageId}_{partitionId}_{vId}.ini \
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--split /absolut_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json,/absolut_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json \
 --threads 1 --noprint-result
 
 # If the stage requires data files, use --data-file to specify the absolute path.
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---conf /absolute_path/to/conf_[stageId]_[partitionId].ini \
---plan /absolute_path/to/plan_[stageId]_[partitionId].json \
---split /absolut_path/to/split_[stageId]_[partitionId]_0.json,/absolut_path/to/split_[stageId]_[partitionId]_1.json \
---data /absolut_path/to/data_[stageId]_[partitionId]_0.parquet,/absolut_path/to/data_[stageId]_[partitionId]_1.parquet \
+--conf /absolute_path/to/conf_{stageId}_{partitionId}_{vId}.ini \
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--split /absolut_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json,/absolut_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json \
+--data /absolut_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet,/absolut_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet \
 --threads 1 --noprint-result
 ```
 
 If the simulated stage is a middle stage, which means pure shuffle stage, you will get 3 types of
 dumped file:
 
-- Configuration file: INI formatted, file name `conf_[stageId]_[partitionId].ini`. Contains the
+- Configuration file: INI formatted, file name `conf_{stageId}_{partitionId}_{vId}.ini`. Contains the
   configurations to init Velox backend and runtime session.
-- Plan file: JSON formatted, file name `plan_[stageId]_[partitionId].json`. Contains the substrait
+- Plan file: JSON formatted, file name `plan_{stageId}_{partitionId}_{vId}.json`. Contains the substrait
   plan to the stage.
-- Data file: Parquet formatted, file name `data_[stageId]_[partitionId]_[iteratorIndex].parquet`.
+- Data file: Parquet formatted, file name `data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet`.
   There can be more than one input data file in a middle stage task. The input data files of a
   middle stage will be loaded as iterators to serve as the inputs for the pipeline:
 
@@ -199,22 +201,22 @@ Sample command:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---conf /absolute_path/to/conf_[stageId]_[partitionId].ini \
---plan /absolute_path/to/plan_[stageId]_[partitionId].json \
---data /absolut_path/to/data_[stageId]_[partitionId]_0.parquet,/absolut_path/to/data_[stageId]_[partitionId]_1.parquet \
+--conf /absolute_path/to/conf_{stageId}_{partitionId}_{vId}.ini \
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--data /absolut_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet,/absolut_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet \
 --threads 1 --noprint-result
 ```
 
 For some complex queries, stageId may cannot represent the Substrait plan input, please get the
 taskId from spark UI, and get your target parquet from saveDir.
 
-In this example, only one partition input with partition id 2, taskId is 36, iterator length is 2.
+In this example, only one partition input with stage id 3 partition id 2, partitionId is 36, iterator length is 2.
 
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /absolute_path/to/complex_plan.json \
---data /absolute_path/to/data_36_2_0.parquet,/absolute_path/to/data_36_2_1.parquet \
+--plan /absolute_path/to/plan_3_36_0.json \
+--data /absolute_path/to/data_3_36_0_0.parquet,/absolute_path/to/data_3_36_0_1.parquet \
 --threads 1 --noprint-result
 ```
 
@@ -229,8 +231,8 @@ details.
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /absolute_path/to/plan.json \
---data /absolute_path/to/data.parquet
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--data /absolute_path/to/data_{stageId}_{partitionId}_{vId}_{iteratorIdx}.parquet
 --threads 1 --noprint-result --save-output /absolute_path/to/result.parquet
 ```
 
@@ -245,8 +247,8 @@ details.
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /absolute_path/to/plan.json \
---split /absolute_path/to/split.json \
+--plan /absolute_path/to/plan_{stageId}_{partitionId}_{vId}.json \
+--split /absolute_path/to/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json \
 --threads 1 --noprint-result --with-shuffle
 ```
 
@@ -311,9 +313,9 @@ General configurations for shuffle write:
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
---plan /path/to/saveDir/plan_1_0.json \
---conf /path/to/saveDir/conf_1_0.ini \
---split /path/to/saveDir/split_1_0_0.json \
+--plan /path/to/saveDir/plan_{stageId}_{partitionId}_{vId}.json \
+--conf /path/to/saveDir/conf_{stageId}_{partitionId}_{vId}.ini \
+--split /path/to/saveDir/split_{stageId}_{partitionId}_{vId}_{splitIdx}.json \
 --with-shuffle \
 --shuffle-writer sort \
 --partitioning hash \

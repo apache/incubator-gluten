@@ -354,6 +354,7 @@ arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
     std::unique_ptr<InMemoryPayload> source,
     std::unique_ptr<InMemoryPayload> append,
     arrow::MemoryPool* pool) {
+  GLUTEN_DCHECK(source->mergeable() && append->mergeable(), "Cannot merge payloads.");
   auto mergedRows = source->numRows() + append->numRows();
   auto isValidityBuffer = source->isValidityBuffer();
 
@@ -435,10 +436,19 @@ arrow::Result<std::unique_ptr<BlockPayload>> InMemoryPayload::toBlockPayload(
 }
 
 arrow::Status InMemoryPayload::serialize(arrow::io::OutputStream* outputStream) {
-  return arrow::Status::Invalid("Cannot serialize InMemoryPayload.");
+  for (auto& buffer : buffers_) {
+    RETURN_NOT_OK(outputStream->Write(buffer->data(), buffer->size()));
+    buffer = nullptr;
+  }
+  buffers_.clear();
+  return arrow::Status::OK();
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> InMemoryPayload::readBufferAt(uint32_t index) {
+  GLUTEN_CHECK(
+      index < buffers_.size(),
+      "buffer index out of range: index = " + std::to_string(index) +
+          " vs buffer size = " + std::to_string(buffers_.size()));
   return std::move(buffers_[index]);
 }
 
@@ -462,6 +472,10 @@ int64_t InMemoryPayload::rawSize() {
   return getBufferSize(buffers_);
 }
 
+bool InMemoryPayload::mergeable() const {
+  return !hasComplexType_;
+}
+
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(
     Type type,
     uint32_t numRows,
@@ -475,10 +489,6 @@ UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(
       rawSize_(rawSize),
       pool_(pool),
       codec_(codec) {}
-
-arrow::Result<std::shared_ptr<arrow::Buffer>> UncompressedDiskBlockPayload::readBufferAt(uint32_t index) {
-  return arrow::Status::Invalid("Cannot read buffer from UncompressedDiskBlockPayload.");
-}
 
 arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
   ARROW_RETURN_IF(
@@ -554,10 +564,6 @@ arrow::Status CompressedDiskBlockPayload::serialize(arrow::io::OutputStream* out
   ARROW_ASSIGN_OR_RAISE(auto block, inputStream_->Read(rawSize_));
   RETURN_NOT_OK(outputStream->Write(block));
   return arrow::Status::OK();
-}
-
-arrow::Result<std::shared_ptr<arrow::Buffer>> CompressedDiskBlockPayload::readBufferAt(uint32_t index) {
-  return arrow::Status::Invalid("Cannot read buffer from CompressedDiskBlockPayload.");
 }
 
 int64_t CompressedDiskBlockPayload::rawSize() {

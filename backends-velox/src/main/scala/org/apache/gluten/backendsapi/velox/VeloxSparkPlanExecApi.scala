@@ -28,6 +28,7 @@ import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSeria
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -41,7 +42,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
@@ -181,6 +182,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       function: ExpressionTransformer,
       expr: ArrayFilter): ExpressionTransformer = {
     expr.function match {
+      // Transformer for array_compact.
+      case LambdaFunction(_: IsNotNull, _, _) =>
+        GenericExpressionTransformer(ExpressionNames.ARRAY_COMPACT, Seq(argument), expr)
       case LambdaFunction(_, arguments, _) if arguments.size == 2 =>
         throw new GlutenNotSupportException(
           "filter on array with lambda using index argument is not supported yet")
@@ -358,19 +362,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       }
     }
 
-    def maybeAddAppendBatchesExec(plan: SparkPlan): SparkPlan = {
-      plan match {
-        case shuffle: ColumnarShuffleExchangeExec
-            if !shuffle.useSortBasedShuffle &&
-              VeloxConfig.get.veloxResizeBatchesShuffleInput =>
-          val range = VeloxConfig.get.veloxResizeBatchesShuffleInputRange
-          val appendBatches =
-            VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
-          shuffle.withNewChildren(Seq(appendBatches))
-        case _ => plan
-      }
-    }
-
     val child = shuffle.child
 
     val newShuffle = shuffle.outputPartitioning match {
@@ -433,7 +424,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       case _ =>
         ColumnarShuffleExchangeExec(shuffle, child, null)
     }
-    maybeAddAppendBatchesExec(newShuffle)
+    newShuffle
   }
 
   /** Generate ShuffledHashJoinExecTransformer. */
@@ -646,9 +637,11 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       .filter(_.getNumRows != 0)
       .collect
     val rawSize = serialized.map(_.getSerialized.length).sum
-    if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
+    if (rawSize >= GlutenConfig.get.maxBroadcastTableSize) {
       throw new SparkException(
-        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+        "Cannot broadcast the table that is larger than " +
+          s"${SparkMemoryUtil.bytesToString(GlutenConfig.get.maxBroadcastTableSize)}: " +
+          s"${SparkMemoryUtil.bytesToString(rawSize)}")
     }
     numOutputRows += serialized.map(_.getNumRows).sum
     dataSize += rawSize
@@ -914,8 +907,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   override def genColumnarCollectLimitExec(
       limit: Int,
-      child: SparkPlan): ColumnarCollectLimitBaseExec =
-    ColumnarCollectLimitExec(limit, child)
+      child: SparkPlan,
+      offset: Int): ColumnarCollectLimitBaseExec =
+    ColumnarCollectLimitExec(limit, child, offset)
 
   override def genColumnarRangeExec(
       start: Long,

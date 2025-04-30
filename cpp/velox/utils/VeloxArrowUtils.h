@@ -19,13 +19,17 @@
 
 #pragma once
 
-#include <arrow/memory_pool.h>
-#include <arrow/type.h>
 #include "memory/ColumnarBatch.h"
+
 #include "velox/buffer/Buffer.h"
+#include "velox/common/compression/Compression.h"
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/type/Type.h"
 #include "velox/vector/arrow/Bridge.h"
+
+#include <arrow/memory_pool.h>
+#include <arrow/type.h>
+#include <arrow/util/compression.h>
 
 namespace gluten {
 
@@ -56,4 +60,5 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> toArrowBuffer(facebook::velox::Buf
  */
 arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb);
 
+facebook::velox::common::CompressionKind arrowCompressionTypeToVelox(arrow::Compression::type type);
 } // namespace gluten

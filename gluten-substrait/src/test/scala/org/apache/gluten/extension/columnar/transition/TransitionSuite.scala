@@ -16,12 +16,9 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backend.Backend
-import org.apache.gluten.component.Component
+import org.apache.gluten.component.WithDummyBackend
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
-import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster}
-import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
@@ -31,7 +28,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class TransitionSuite extends SharedSparkSession {
+class TransitionSuite extends SharedSparkSession with WithDummyBackend {
   import TransitionSuite._
 
   override protected def sparkConf: SparkConf =
@@ -40,7 +37,6 @@ class TransitionSuite extends SharedSparkSession {
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    new DummyBackend().ensureRegistered()
     Convention.ensureSparkRowAndBatchTypesRegistered()
     TypeA.ensureRegistered()
     TypeB.ensureRegistered()
@@ -151,13 +147,5 @@ object TransitionSuite extends TransitionSuiteBase {
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
     override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] =
       throw new UnsupportedOperationException()
-  }
-
-  class DummyBackend extends Backend {
-    override def name(): String = "dummy-backend"
-    override def buildInfo(): Component.BuildInfo =
-      Component.BuildInfo("DUMMY_BACKEND", "N/A", "N/A", "N/A")
-    override def injectRules(injector: Injector): Unit = {}
-    override def costers(): Seq[LongCoster] = Seq(LegacyCoster)
   }
 }

@@ -106,3 +106,11 @@
   (time > 1e7 ? time / 1e6 : ((time > 1e4) ? time / 1e3 : time)) << (time > 1e7 ? "ms" : (time > 1e4 ? "us" : "ns"))
 
 #define ROUND_TO_LINE(n, round) (((n) + (round)-1) & ~((round)-1))
+
+#if defined(__GNUC__) || __has_builtin(__builtin_unreachable)
+#define GLUTEN_UNREACHABLE() __builtin_unreachable()
+#elif defined(_MSC_VER)
+#define GLUTEN_UNREACHABLE() __assume(false)
+#else
+#define GLUTEN_UNREACHABLE() ((void)0)
+#endif

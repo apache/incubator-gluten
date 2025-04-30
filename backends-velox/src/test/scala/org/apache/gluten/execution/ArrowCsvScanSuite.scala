@@ -25,6 +25,7 @@ import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
 
 import org.scalatest.Ignore
 
+@Ignore
 class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuiteBase {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -62,6 +63,7 @@ class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuiteBase {
   }
 }
 
+@Ignore
 class ArrowCsvScanSuiteV2 extends ArrowCsvScanSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf

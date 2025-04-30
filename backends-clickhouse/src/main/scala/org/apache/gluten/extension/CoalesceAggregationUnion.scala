@@ -336,7 +336,7 @@ object CoalesceUnionUtil extends Logging {
  * really slow. The rewritten query only scan `t` once, and the performance is much better.
  */
 
-class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
+case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
   case class PlanAnalyzer(originalAggregate: Aggregate) extends AbstractPlanAnalyzer {
 
@@ -825,7 +825,7 @@ class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPlan] wi
  * select array(if(d=1, named_struct('f0', a, 'f1', b, 'f2', 1), null), if(d=2, named_struct('f0',
  * a, 'f1', b, 'f2', 2), null)) as s from t where d = 1 or d = 2 ) ) where s is not null
  */
-class CoalesceProjectionUnion(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
+case class CoalesceProjectionUnion(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
   case class PlanAnalyzer(originalPlan: LogicalPlan) extends AbstractPlanAnalyzer {
     def extractFilter(): Option[Filter] = {

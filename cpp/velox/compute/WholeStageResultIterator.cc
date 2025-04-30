@@ -82,13 +82,12 @@ WholeStageResultIterator::WholeStageResultIterator(
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
-  static std::atomic<uint32_t> vtId{0}; // Velox task ID to distinguish from Spark task ID.
   task_ = velox::exec::Task::create(
       fmt::format(
           "Gluten_Stage_{}_TID_{}_VTID_{}",
           std::to_string(taskInfo_.stageId),
           std::to_string(taskInfo_.taskId),
-          std::to_string(vtId++)),
+          std::to_string(taskInfo.vId)),
       std::move(planFragment),
       0,
       std::move(queryCtx),
@@ -179,7 +178,6 @@ WholeStageResultIterator::WholeStageResultIterator(
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
   std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
-  static std::atomic<uint32_t> vqId{0}; // Velox query ID, same with taskId.
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
       nullptr,
       facebook::velox::core::QueryConfig{getQueryContextConf()},
@@ -191,7 +189,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
           "Gluten_Stage_{}_TID_{}_VTID_{}",
           std::to_string(taskInfo_.stageId),
           std::to_string(taskInfo_.taskId),
-          std::to_string(vqId++)));
+          std::to_string(taskInfo_.vId)));
   return ctx;
 }
 
@@ -483,14 +481,17 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
     {
       // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
-      // FIXME this uses process-wise off-heap memory which is not for task
-      // partial aggregation memory config
+      // Partial aggregation memory configurations.
+      // TODO: Move the calculations to Java side.
       auto offHeapMemory = veloxCfg_->get<int64_t>(kSparkTaskOffHeapMemory, facebook::velox::memory::kMaxMemory);
-      auto maxPartialAggregationMemory = veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).has_value()
-          ? veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).value()
-          : static_cast<int64_t>((veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
-      auto maxExtendedPartialAggregationMemory =
-          static_cast<long>((veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
+      auto maxPartialAggregationMemory = std::max<int64_t>(
+          1 << 24,
+          veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).has_value()
+              ? veloxCfg_->get<int64_t>(kMaxPartialAggregationMemory).value()
+              : static_cast<int64_t>(veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory));
+      auto maxExtendedPartialAggregationMemory = std::max<int64_t>(
+          1 << 26,
+          static_cast<long>(veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.15) * offHeapMemory));
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
       configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
           std::to_string(maxExtendedPartialAggregationMemory);

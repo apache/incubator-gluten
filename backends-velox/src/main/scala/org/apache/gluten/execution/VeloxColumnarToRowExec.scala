@@ -22,7 +22,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.runtime.Runtimes
-import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
+import org.apache.gluten.vectorized.{NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -145,8 +145,6 @@ object VeloxColumnarToRowExec {
         }
 
         if (output.isEmpty) {
-          numInputBatches += 1
-          numOutputRows += batch.numRows()
           val rows = ColumnarBatches.emptyRowIterator(batch.numRows()).asScala
           batch.close()
           return rows
@@ -156,12 +154,8 @@ object VeloxColumnarToRowExec {
 
         val cols = batch.numCols()
         val rows = batch.numRows()
-        val beforeConvert = System.currentTimeMillis()
         val batchHandle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
-        var info =
-          jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, 0)
-
-        convertTime += (System.currentTimeMillis() - beforeConvert)
+        var info: NativeColumnarToRowInfo = null
 
         new Iterator[InternalRow] {
           var rowId = 0
@@ -173,8 +167,12 @@ object VeloxColumnarToRowExec {
           }
 
           override def next: UnsafeRow = {
-            if (rowId == baseLength + info.lengths.length) {
-              baseLength += info.lengths.length
+            if (rowId == 0 || rowId == baseLength + info.lengths.length) {
+              baseLength = if (info == null) {
+                baseLength
+              } else {
+                baseLength + info.lengths.length
+              }
               val before = System.currentTimeMillis()
               info = jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, rowId)
               convertTime += (System.currentTimeMillis() - before)

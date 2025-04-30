@@ -197,7 +197,6 @@ object MiscColumnarRules {
       isCalledByTableCachePlaning: Boolean,
       allowedBatchTypes: Set[BatchType])
     extends Rule[SparkPlan] {
-    import PreventColumnarTypeMismatchInTableCache._
     override def apply(plan: SparkPlan): SparkPlan = {
       if (!isCalledByTableCachePlaning) {
         return plan
@@ -214,22 +213,20 @@ object MiscColumnarRules {
         case other => other
       }
     }
-
-    private object PreventColumnarTypeMismatchInTableCache {
-      // Having this unary node on the top of the query plan would prevent the c2r from being
-      // removed by Spark code in
-      // org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible.
-      case class ColumnarToRowRemovalGuard(c2r: SparkPlan) extends UnaryExecNode {
-        override def supportsColumnar: Boolean = false
-        override protected def doExecute(): RDD[InternalRow] = c2r.execute()
-        override def doExecuteBroadcast[T](): Broadcast[T] = c2r.executeBroadcast()
-        override def output: Seq[Attribute] = c2r.output
-        override def outputPartitioning: Partitioning = c2r.outputPartitioning
-        override def outputOrdering: Seq[SortOrder] = c2r.outputOrdering
-        override def child: SparkPlan = c2r
-        override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-          copy(c2r = newChild)
-      }
-    }
   }
+}
+
+// Having this unary node on the top of the query plan would prevent the c2r from being
+// removed by Spark code in
+// org.apache.spark.sql.execution.columnar.InMemoryRelation.convertToColumnarIfPossible.
+case class ColumnarToRowRemovalGuard(c2r: SparkPlan) extends UnaryExecNode {
+  override def supportsColumnar: Boolean = false
+  override protected def doExecute(): RDD[InternalRow] = c2r.execute()
+  override def doExecuteBroadcast[T](): Broadcast[T] = c2r.executeBroadcast()
+  override def output: Seq[Attribute] = c2r.output
+  override def outputPartitioning: Partitioning = c2r.outputPartitioning
+  override def outputOrdering: Seq[SortOrder] = c2r.outputOrdering
+  override def child: SparkPlan = c2r
+  override protected def withNewChildInternal(newChild: SparkPlan): ColumnarToRowRemovalGuard =
+    copy(c2r = newChild)
 }

@@ -39,7 +39,7 @@ FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     auto input_header = query_plan->getCurrentHeader();
     DB::ActionsDAG actions_dag{input_header.getColumnsWithTypeAndName()};
     const auto condition_node = parseExpression(actions_dag, filter_rel.condition());
-    if (filter_rel.condition().has_scalar_function())
+    if (filter_rel.condition().has_scalar_function() || filter_rel.condition().has_literal())
     {
         actions_dag.addOrReplaceInOutputs(*condition_node);
     }

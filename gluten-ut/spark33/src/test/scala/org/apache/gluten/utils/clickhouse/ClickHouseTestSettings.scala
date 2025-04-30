@@ -626,6 +626,12 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36924: Cast YearMonthIntervalType to IntegralType")
     .exclude("SPARK-36924: Cast IntegralType to YearMonthIntervalType")
     .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
+    .exclude("cast timestamp to Int64 with floor division")
+    .exclude("cast array element from integer to string")
+    .exclude("cast array element from double to string")
+    .exclude("cast array element from bool to string")
+    .exclude("cast array element from date to string")
+    .exclude("cast array from timestamp to string")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -1158,6 +1164,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "- single join")
     .exclude("SPARK-35455: Unify empty relation optimization between normal and AQE optimizer " +
       "- multi join")
+    // Gluten columnar operator will have different number of shuffle
+    .exclude("SPARK-29906: AQE should not introduce extra shuffle for outermost limit")
     .excludeGlutenTest("Empty stage coalesced to 1-partition RDD")
     .excludeGlutenTest(
       "Avoid changing merge join to broadcast join if too many empty partitions on build plan")

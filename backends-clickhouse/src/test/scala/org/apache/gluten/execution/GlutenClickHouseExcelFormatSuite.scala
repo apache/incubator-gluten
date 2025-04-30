@@ -1471,7 +1471,8 @@ class GlutenClickHouseExcelFormatSuite
      * close the hdfs file, and hence the file is not flushed.HDFS file is closed when LocalExecutor
      * is destroyed, but before that, the file moved by spark committer.
      */
-    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/write_into_hdfs/"
+
+    val tablePath = hdfsHelper.getHdfsUrl(s"$SPARK_DIR_NAME/write_into_hdfs/")
     val format = "parquet"
     val sql =
       s"""
@@ -1487,7 +1488,7 @@ class GlutenClickHouseExcelFormatSuite
   // TODO: pass spark configuration to FileFormatWriter in Spark 3.3 and 3.2
   testWithMinSparkVersion("write succeed even if set wrong snappy compression codec level", "3.5") {
     // TODO: remove duplicated test codes
-    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/failed_test/"
+    val tablePath = hdfsHelper.getHdfsUrl(s"$SPARK_DIR_NAME/failed_test/")
     val format = "parquet"
     val sql =
       s"""

@@ -23,6 +23,7 @@ import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.proto.ConfigMap
 import org.apache.gluten.runtime.Runtimes
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.InputPartitionsUtil
 import org.apache.gluten.vectorized.PlanEvaluatorJniWrapper
@@ -73,7 +74,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   }
 
   override def createCheckOverflowExprNode(
-      args: java.lang.Object,
+      context: SubstraitContext,
       substraitExprName: String,
       childNode: ExpressionNode,
       childResultType: DataType,

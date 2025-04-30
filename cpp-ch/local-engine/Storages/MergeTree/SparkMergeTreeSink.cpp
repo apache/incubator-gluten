@@ -232,7 +232,7 @@ void SinkHelper::writeTempPart(
     else
         part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
     const auto tmp = dataRef().getWriter().writeTempPart(block_with_partition, metadata_snapshot, context, part_dir);
-    part_with_stats.data_part = tmp.part;
+    part_with_stats.data_part = tmp->part;
     new_parts.emplace_back(std::move(part_with_stats));
 }
 

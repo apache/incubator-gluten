@@ -19,10 +19,7 @@ package org.apache.gluten.sql.shims.delta32
 import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.{DeltaExpressionExtensionTransformer, ExpressionExtensionTrait}
 import org.apache.gluten.sql.shims.DeltaShims
-import org.apache.gluten.vectorized.DeltaWriterJNIWrapper
 
-import org.apache.spark.SparkContext
-import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.delta.actions.DeletionVectorDescriptor
 import org.apache.spark.sql.delta.util.JsonUtils
@@ -42,10 +39,6 @@ class Delta32Shims extends DeltaShims {
 
   override def offloadDeltaOptimizedWriterExec(plan: SparkPlan): GlutenPlan = {
     DeltaOptimizedWriterTransformer.from(plan)
-  }
-
-  override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
-    DeltaWriterJNIWrapper.registerNativeReference()
   }
 
   override def registerExpressionExtension(): Unit = {

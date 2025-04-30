@@ -16,14 +16,41 @@
  */
 package org.apache.gluten.metrics
 
+import org.apache.gluten.metrics.ProjectMetricsUpdater.{DELTA_INPUT_ROW_METRIC_NAMES, UNSUPPORTED_METRIC_NAMES}
+
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-class FilterMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+class FilterMetricsUpdater(
+    val metrics: Map[String, SQLMetric],
+    val extraMetrics: Seq[(String, SQLMetric)]
+) extends MetricsUpdater
+  with Logging {
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
       if (!operatorMetrics.metricsList.isEmpty) {
+        var numInputRows = Seq(metrics("numInputRows"))
+        extraMetrics.foreach {
+          case (name, metric) =>
+            name match {
+              case "increment_metric" =>
+                metric.name match {
+                  case Some(input) if DELTA_INPUT_ROW_METRIC_NAMES.contains(input) =>
+                    numInputRows = numInputRows :+ metric
+                  case Some(unSupport) if UNSUPPORTED_METRIC_NAMES.contains(unSupport) =>
+                    logTrace(s"Unsupported metric name: $unSupport")
+                  case Some(other) =>
+                    logTrace(s"Unknown metric name: $other")
+                  case _ => // do nothing
+                }
+              case o: String =>
+                logTrace(s"Unknown metric name: $o")
+              case _ => // do nothing
+            }
+        }
+
         val metricsData = operatorMetrics.metricsList.get(0)
         metrics("totalTime") += (metricsData.time / 1000L).toLong
         metrics("inputWaitTime") += (metricsData.inputWaitTime / 1000L).toLong
@@ -35,7 +62,7 @@ class FilterMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsU
           metrics("extraTime"),
           metrics("numOutputRows"),
           metrics("outputBytes"),
-          metrics("numInputRows"),
+          numInputRows,
           metrics("inputBytes"),
           FilterMetricsUpdater.INCLUDING_PROCESSORS,
           FilterMetricsUpdater.INCLUDING_PROCESSORS

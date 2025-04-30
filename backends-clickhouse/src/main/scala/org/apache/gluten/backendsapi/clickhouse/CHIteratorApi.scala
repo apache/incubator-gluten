@@ -201,8 +201,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 fileSizes.add(JLong.valueOf(size))
                 modificationTimes.add(JLong.valueOf(time))
               case _ =>
-                fileSizes.add(0)
-                modificationTimes.add(0)
             }
 
             val otherConstantMetadataColumnValues =

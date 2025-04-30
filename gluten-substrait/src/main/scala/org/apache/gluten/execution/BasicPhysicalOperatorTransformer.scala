@@ -79,7 +79,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     assert(condExpr != null)
     val condExprNode = ExpressionConverter
       .replaceWithExpressionTransformer(condExpr, originalInputAttributes)
-      .doTransform(context.registeredFunction)
+      .doTransform(context)
     RelBuilder.makeFilterRel(
       context,
       condExprNode,
@@ -222,10 +222,9 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     val columnarProjExprs: Seq[ExpressionTransformer] = ExpressionConverter
       .replaceWithExpressionTransformer(projectList, originalInputAttributes)
-    val projExprNodeList = columnarProjExprs.map(_.doTransform(args)).asJava
+    val projExprNodeList = columnarProjExprs.map(_.doTransform(context)).asJava
     RelBuilder.makeProjectRel(
       originalInputAttributes.asJava,
       input,

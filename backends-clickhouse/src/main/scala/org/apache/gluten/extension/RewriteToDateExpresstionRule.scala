@@ -38,7 +38,9 @@ import org.apache.spark.sql.types._
 // Under ch backend, the StringType can be directly converted into DateType,
 //     and the functions `from_unixtime` and `unix_timestamp` can be optimized here.
 // Optimized result is `to_date(stringType)`
-class RewriteToDateExpresstionRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
+case class RewriteToDateExpresstionRule(spark: SparkSession)
+  extends Rule[LogicalPlan]
+  with Logging {
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (

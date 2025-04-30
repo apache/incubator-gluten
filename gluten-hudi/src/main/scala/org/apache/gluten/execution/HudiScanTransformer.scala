@@ -90,4 +90,18 @@ object HudiScanTransformer {
       scanExec.disableBucketedScan
     )
   }
+
+  /**
+   * Check if the Hudi file format is supported for native engine execution.
+   *
+   * If not, Gluten will fall back to Spark execution.
+   */
+  def isSupportedHudiFileFormat(fileFormatName: String): Boolean = {
+    // Support formats like:
+    // "org.apache.spark.sql.execution.datasources.parquet.Spark35LegacyHoodieParquetFileFormat"
+    // "org.apache.spark.sql.execution.datasources.parquet.HoodieParquetFileFormat"
+    // But exclude "NewHoodieParquetFileFormat"
+    !fileFormatName.endsWith("NewHoodieParquetFileFormat") &&
+    fileFormatName.endsWith("HoodieParquetFileFormat")
+  }
 }

@@ -356,7 +356,7 @@ object ExtendedGeneratorNestedColumnAliasing {
 
 // ExtendedColumnPruning process Project(Filter(Generate)),
 // which is ignored by vanilla spark in optimization rule: ColumnPruning
-class ExtendedColumnPruning(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
+case class ExtendedColumnPruning(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
   override def apply(plan: LogicalPlan): LogicalPlan =
     plan.transformWithPruning(AlwaysProcess.fn) {

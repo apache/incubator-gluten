@@ -18,6 +18,7 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarPartialProjectExec
+import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -28,15 +29,34 @@ case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
     if (!GlutenConfig.get.enableColumnarPartialProject) {
       return plan
     }
-    plan.transformUp {
-      case plan: ProjectExec =>
-        val transformer = ColumnarPartialProjectExec.create(plan)
-        if (
-          transformer.doValidate().ok() &&
-          transformer.child.asInstanceOf[ColumnarPartialProjectExec].doValidate().ok()
-        ) {
-          transformer
-        } else plan
+
+    val newPlan = plan match {
+      // If the root node of the plan is a ProjectExec and its child is a gluten columnar op,
+      // we try to add a ColumnarPartialProjectExec
+      case p: ProjectExec if PlanUtil.isGlutenColumnarOp(p.child) =>
+        tryAddColumnarPartialProjectExec(p)
+      case _ => plan
     }
+
+    newPlan.transformUp {
+      case parent: SparkPlan
+          if parent.children.exists(_.isInstanceOf[ProjectExec]) &&
+            PlanUtil.isGlutenColumnarOp(parent) =>
+        parent.mapChildren {
+          case p: ProjectExec if PlanUtil.isGlutenColumnarOp(p.child) =>
+            tryAddColumnarPartialProjectExec(p)
+          case other => other
+        }
+    }
+  }
+
+  private def tryAddColumnarPartialProjectExec(plan: ProjectExec): SparkPlan = {
+    val transformer = ColumnarPartialProjectExec.create(plan)
+    if (
+      transformer.doValidate().ok() &&
+      transformer.child.asInstanceOf[ColumnarPartialProjectExec].doValidate().ok()
+    ) {
+      transformer
+    } else plan
   }
 }

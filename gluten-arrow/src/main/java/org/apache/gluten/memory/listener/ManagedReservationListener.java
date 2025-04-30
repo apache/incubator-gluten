@@ -50,7 +50,7 @@ public class ManagedReservationListener implements ReservationListener {
         sharedUsage.inc(granted);
         return granted;
       } catch (Exception e) {
-        LOG.error("Error reserving memory from target", e);
+        LOG.warn("Error reserving memory from target", e);
         throw e;
       }
     }
@@ -64,7 +64,7 @@ public class ManagedReservationListener implements ReservationListener {
         sharedUsage.inc(-freed);
         return freed;
       } catch (Exception e) {
-        LOG.error("Error unreserving memory from target", e);
+        LOG.warn("Error unreserving memory from target", e);
         throw e;
       }
     }

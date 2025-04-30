@@ -35,6 +35,9 @@ object GlutenShuffleUtils {
   val HashPartitioningShortName = "hash"
   val RangePartitioningShortName = "range"
 
+  // Follow arrow default compression level `kUseDefaultCompressionLevel`
+  val DEFAULT_COMPRESSION_LEVEL: Int = Int.MinValue
+
   def getStartPartitionId(partition: NativePartitioning, partitionId: Int): Int = {
     partition.getShortName match {
       case RoundRobinPartitioningShortName =>
@@ -80,18 +83,17 @@ object GlutenShuffleUtils {
     }
   }
 
-  def getCompressionLevel(conf: SparkConf, codec: String, compressionCodecBackend: String): Int = {
-    if ("zstd" == codec && compressionCodecBackend == null) {
+  def getCompressionLevel(conf: SparkConf, codec: String): Int = {
+    if ("zstd" == codec) {
       conf.getInt(
         IO_COMPRESSION_ZSTD_LEVEL.key,
         IO_COMPRESSION_ZSTD_LEVEL.defaultValue.getOrElse(1))
     } else {
-      // Follow arrow default compression level `kUseDefaultCompressionLevel`
-      Int.MinValue
+      DEFAULT_COMPRESSION_LEVEL
     }
   }
 
-  def getSortEvictBufferSize(conf: SparkConf, codec: String): Int = {
+  def getCompressionBufferSize(conf: SparkConf, codec: String): Int = {
     def checkAndGetBufferSize(entry: ConfigEntry[Long]): Int = {
       val bufferSize = conf.get(entry).toInt
       if (bufferSize < 4) {
@@ -104,7 +106,7 @@ object GlutenShuffleUtils {
     } else if ("zstd" == codec) {
       checkAndGetBufferSize(IO_COMPRESSION_ZSTD_BUFFERSIZE)
     } else {
-      checkAndGetBufferSize(SHUFFLE_DISK_WRITE_BUFFER_SIZE)
+      throw new UnsupportedOperationException(s"Unsupported compression codec $codec.")
     }
   }
 

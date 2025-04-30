@@ -41,7 +41,7 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
       return VeloxRssSortShuffleWriter::create(
           numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
     default:
-      return arrow::Status::Invalid("Unsupported shuffle writer type: ", std::to_string(type));
+      return arrow::Status::Invalid("Unsupported shuffle writer type: ", typeToString(type));
   }
 }
 

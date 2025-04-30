@@ -261,8 +261,7 @@ int main(int argc, char** argv) {
   LOG(INFO) << "datafile = " << datafile;
   LOG(INFO) << "cpu = " << cpu;
 
-  auto backendConf = gluten::defaultConf();
-  gluten::initVeloxBackend(backendConf);
+  gluten::initVeloxBackend();
   memory::MemoryManager::testingSetInstance({});
 
   gluten::GoogleBenchmarkColumnarToRowCacheScanBenchmark bck(datafile);

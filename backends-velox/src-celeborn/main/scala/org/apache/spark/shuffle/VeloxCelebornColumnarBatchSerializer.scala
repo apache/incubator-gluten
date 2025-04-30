@@ -90,14 +90,16 @@ private class CelebornColumnarBatchSerializerInstance(
       .replace(GLUTEN_SORT_SHUFFLE_WRITER, GLUTEN_RSS_SORT_SHUFFLE_WRITER)
     val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val batchSize = GlutenConfig.get.maxBatchSize
-    val bufferSize = GlutenConfig.get.columnarShuffleReaderBufferSize
+    val readerBufferSize = GlutenConfig.get.columnarShuffleReaderBufferSize
+    val deserializerBufferSize = GlutenConfig.get.columnarSortShuffleDeserializerBufferSize
     val handle = jniWrapper
       .make(
         cSchema.memoryAddress(),
         compressionCodec,
         compressionCodecBackend,
         batchSize,
-        bufferSize,
+        readerBufferSize,
+        deserializerBufferSize,
         shuffleWriterType
       )
     // Close shuffle reader instance as lately as the end of task processing,

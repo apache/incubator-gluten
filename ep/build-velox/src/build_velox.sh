@@ -26,7 +26,7 @@ ENABLE_GCS=OFF
 ENABLE_HDFS=OFF
 # Enable ABFS connector.
 ENABLE_ABFS=OFF
-
+# Enable GPU support
 ENABLE_GPU=OFF
 # CMake build type for Velox.
 BUILD_TYPE=release
@@ -128,7 +128,9 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_BENCHMARKS=ON"
   fi
   if [ $ENABLE_GPU == "ON" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GPU=ON -DVELOX_ENABLE_CUDF=ON"
+    # the cuda default options are for Centos9 image from Meta
+    echo "enable GPU support."
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GPU=ON -DVELOX_ENABLE_CUDF=ON -DCMAKE_CUDA_ARCHITECTURES=70 -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc"
   fi
   if [ -n "${GLUTEN_VCPKG_ENABLED:-}" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_GFLAGS_TYPE=static"
@@ -194,6 +196,7 @@ echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "ENABLE_ABFS=${ENABLE_ABFS}"
+echo "ENABLE_GPU=${ENABLE_GPU}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
 cd ${VELOX_HOME}

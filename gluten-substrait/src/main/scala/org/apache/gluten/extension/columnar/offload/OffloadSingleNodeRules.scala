@@ -27,7 +27,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.CollectLimitExec
 import org.apache.spark.sql.execution.RDDScanTransformer
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -343,12 +342,6 @@ object OffloadOthers {
             plan.withReplacement,
             plan.seed,
             child)
-        case plan: CollectLimitExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarCollectLimitExec(
-            plan.limit,
-            plan.child
-          )
         case plan: RDDScanExec if RDDScanTransformer.isSupportRDDScanExec(plan) =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           RDDScanTransformer.getRDDScanTransform(plan)

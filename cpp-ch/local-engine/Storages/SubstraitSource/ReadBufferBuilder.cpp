@@ -82,11 +82,11 @@ extern const SettingsUInt64 max_read_buffer_size;
 }
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
-    extern const int CANNOT_OPEN_FILE;
-    extern const int UNKNOWN_FILE_SIZE;
-    extern const int CANNOT_SEEK_THROUGH_FILE;
-    extern const int CANNOT_READ_FROM_FILE_DESCRIPTOR;
+extern const int BAD_ARGUMENTS;
+extern const int CANNOT_OPEN_FILE;
+extern const int UNKNOWN_FILE_SIZE;
+extern const int CANNOT_SEEK_THROUGH_FILE;
+extern const int CANNOT_READ_FROM_FILE_DESCRIPTOR;
 }
 
 namespace FileCacheSetting
@@ -219,7 +219,7 @@ adjustReadRangeIfNeeded(std::unique_ptr<SeekableReadBuffer> read_buffer, const s
     if (dynamic_cast<DB::ReadBufferFromHDFS *>(read_buffer.get()) || dynamic_cast<DB::AsynchronousReadBufferFromHDFS *>(read_buffer.get())
         || dynamic_cast<DB::ReadBufferFromFile *>(read_buffer.get()))
         read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
-#else 
+#else
     if (dynamic_cast<DB::ReadBufferFromFile *>(read_buffer.get()))
         read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
 #endif
@@ -236,8 +236,7 @@ public:
 
     bool isRemote() const override { return false; }
 
-    std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::ReadBufferFromFileBase> read_buffer;
@@ -258,13 +257,14 @@ public:
 #if USE_HDFS
 class HDFSFileReadBufferBuilder : public ReadBufferBuilder
 {
-    using ReadBufferCreator = std::function<std::unique_ptr<DB::ReadBufferFromFileBase>(bool restricted_seek, const DB::StoredObject & object)>;
+    using ReadBufferCreator
+        = std::function<std::unique_ptr<DB::ReadBufferFromFileBase>(bool restricted_seek, const DB::StoredObject & object)>;
+
 public:
     explicit HDFSFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_), context(context_) { }
     ~HDFSFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         DB::ReadSettings read_settings = getReadSettings();
         const auto & config = context->getConfigRef();
@@ -304,13 +304,13 @@ public:
             bool use_async_prefetch
                 = read_settings.remote_fs_prefetch && thread_pool_read && (file_info.has_text() || file_info.has_json());
             auto raw_read_buffer = std::make_unique<ReadBufferFromHDFS>(
-                    hdfs_uri,
-                    hdfs_file_path,
-                    config,
-                    read_settings,
-                    /* read_until_position */ 0,
-                    /* use_external_buffer */ false,
-                    file_size);
+                hdfs_uri,
+                hdfs_file_path,
+                config,
+                read_settings,
+                /* read_until_position */ 0,
+                /* use_external_buffer */ false,
+                file_size);
 
             if (use_async_prefetch)
                 read_buffer = std::make_unique<AsynchronousReadBufferFromHDFS>(
@@ -338,15 +338,15 @@ public:
 
             ReadBufferCreator read_buffer_creator
                 = [this, hdfs_uri = hdfs_uri, hdfs_file_path = hdfs_file_path, read_settings, &config](
-                      bool /* restricted_seek */, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromHDFS> {
+                      bool /* restricted_seek */, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromHDFS>
+            {
                 return std::make_unique<DB::ReadBufferFromHDFS>(
                     hdfs_uri, hdfs_file_path, config, read_settings, 0, true, object.bytes_size);
             };
 
             auto remote_path = uri.getPath().substr(1);
             DB::StoredObjects stored_objects{DB::StoredObject{remote_path, "", *file_size}};
-            auto cache_creator = wrapWithCache(
-                read_buffer_creator, read_settings, remote_path, *modified_time, *file_size);
+            auto cache_creator = wrapWithCache(read_buffer_creator, read_settings, remote_path, *modified_time, *file_size);
             size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
             if (*file_size > 0)
                 buffer_size = std::min(*file_size, buffer_size);
@@ -391,13 +391,12 @@ public:
 
     ~S3FileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
+    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) override
     {
         DB::ReadSettings read_settings = getReadSettings();
         Poco::URI file_uri(file_info.uri_file());
         // file uri looks like: s3a://my-dev-bucket/tpch100/part/0001.parquet
-        const std::string& bucket = file_uri.getHost();
+        const std::string & bucket = file_uri.getHost();
         const auto client = getClient(bucket);
         std::string pathKey = file_uri.getPath().substr(1);
 
@@ -410,25 +409,25 @@ public:
         }
         else
         {
-            DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, pathKey, "");
+            DB::S3::ObjectInfo object_info = DB::S3::getObjectInfo(*client, bucket, pathKey, "");
             object_size = object_info.size;
             object_modified_time = object_info.last_modification_time;
         }
 
-        auto read_buffer_creator
-            = [bucket, client, read_settings, this](bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
+        auto read_buffer_creator = [bucket, client, read_settings, this](
+                                       bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
         {
-                return std::make_unique<DB::ReadBufferFromS3>(
-                    client,
-                    bucket,
-                    object.remote_path,
-                    "",
-                    DB::S3::S3RequestSettings(),
-                    read_settings,
-                    /* use_external_buffer */ true,
-                    /* offset */ 0,
-                    /* read_until_position */ 0,
-                    restricted_seek);
+            return std::make_unique<DB::ReadBufferFromS3>(
+                client,
+                bucket,
+                object.remote_path,
+                "",
+                DB::S3::S3RequestSettings(),
+                read_settings,
+                /* use_external_buffer */ true,
+                /* offset */ 0,
+                /* read_until_position */ 0,
+                restricted_seek);
         };
 
         auto cache_creator = wrapWithCache(read_buffer_creator, read_settings, pathKey, object_modified_time, object_size);
@@ -441,8 +440,8 @@ public:
         size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
         if (object_size > 0)
             buffer_size = std::min(object_size, buffer_size);
-        auto async_reader
-            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, buffer_size,read_settings.remote_read_min_bytes_for_seek);
+        auto async_reader = std::make_unique<DB::AsynchronousBoundedReadBuffer>(
+            std::move(s3_impl), pool_reader, read_settings, buffer_size, read_settings.remote_read_min_bytes_for_seek);
         if (read_settings.remote_fs_prefetch)
             async_reader->prefetch(Priority{});
 
@@ -526,7 +525,8 @@ private:
 
         String config_prefix = "s3";
         auto endpoint = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ENDPOINT, "https://s3.us-west-2.amazonaws.com");
-        if (!endpoint.starts_with("https://"))
+        bool end_point_start_with_http_or_https = endpoint.starts_with("https://") || endpoint.starts_with("http://");
+        if (!end_point_start_with_http_or_https)
         {
             if (endpoint.starts_with("s3"))
                 // as https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.0.1/bk_cloud-data-access/content/s3-config-parameters.html
@@ -586,18 +586,17 @@ private:
             auto new_client = DB::S3::ClientFactory::instance().create(
                 client_configuration,
                 client_settings,
-                ak,     // access_key_id
-                sk,     // secret_access_key
-                "",     // server_side_encryption_customer_key_base64
-                {},     // sse_kms_config
-                {},     // headers
+                ak, // access_key_id
+                sk, // secret_access_key
+                "", // server_side_encryption_customer_key_base64
+                {}, // sse_kms_config
+                {}, // headers
                 DB::S3::CredentialsConfiguration{
                     .use_environment_credentials = true,
                     .use_insecure_imds_request = false,
                     .role_arn = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE),
                     .session_name = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_SESSION_NAME),
-                    .external_id = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_EXTERNAL_ID)
-                });
+                    .external_id = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_EXTERNAL_ID)});
 
             //TODO: support online change config for cached per_bucket_clients
             std::shared_ptr<DB::S3::Client> ret = std::move(new_client);
@@ -609,14 +608,12 @@ private:
             auto new_client = DB::S3::ClientFactory::instance().create(
                 client_configuration,
                 client_settings,
-                ak,     // access_key_id
-                sk,     // secret_access_key
-                "",     // server_side_encryption_customer_key_base64
-                {},     // sse_kms_config
-                {},     // headers
-                DB::S3::CredentialsConfiguration{
-                    .use_environment_credentials = true,
-                    .use_insecure_imds_request = false});
+                ak, // access_key_id
+                sk, // secret_access_key
+                "", // server_side_encryption_customer_key_base64
+                {}, // sse_kms_config
+                {}, // headers
+                DB::S3::CredentialsConfiguration{.use_environment_credentials = true, .use_insecure_imds_request = false});
 
             std::shared_ptr<DB::S3::Client> ret = std::move(new_client);
             cacheClient(bucket_name, is_per_bucket, ret);
@@ -643,7 +640,6 @@ public:
     }
 
 private:
-
     std::shared_ptr<DB::AzureBlobStorage::ContainerClient> shared_client;
 
     std::shared_ptr<DB::AzureBlobStorage::ContainerClient> getClient()
@@ -655,8 +651,7 @@ private:
         const Poco::Util::AbstractConfiguration & config = context->getConfigRef();
         bool is_client_for_disk = false;
         auto new_settings = DB::AzureBlobStorage::getRequestSettings(config, config_prefix, context);
-        DB::AzureBlobStorage::ConnectionParams params
-        {
+        DB::AzureBlobStorage::ConnectionParams params{
             .endpoint = DB::AzureBlobStorage::processEndpoint(config, config_prefix),
             .auth_method = DB::AzureBlobStorage::getAuthMethod(config, config_prefix),
             .client_options = DB::AzureBlobStorage::getClientOptions(*new_settings, is_client_for_disk),
@@ -840,7 +835,7 @@ ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     updateCaches(key, last_modified_time, file_size);
 
     return [read_buffer_creator, read_settings, this](
-                   bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
+               bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
     {
         auto cache_key = DB::FileCacheKey::fromPath(object.remote_path);
         auto modified_read_settings = read_settings.withNestedBuffer();

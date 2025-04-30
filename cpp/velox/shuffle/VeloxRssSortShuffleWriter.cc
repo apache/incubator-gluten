@@ -209,8 +209,7 @@ arrow::Status VeloxRssSortShuffleWriter::stop() {
 arrow::Status VeloxRssSortShuffleWriter::initFromRowVector(const facebook::velox::RowVector& rv) {
   if (!rowType_) {
     rowType_ = facebook::velox::asRowType(rv.type());
-    serdeOptions_ = {
-        false, facebook::velox::common::stringToCompressionKind(partitionWriter_->options().compressionTypeStr)};
+    serdeOptions_ = {false, arrowCompressionTypeToVelox(partitionWriter_->options().compressionType)};
     batch_ = std::make_unique<facebook::velox::VectorStreamGroup>(veloxPool_.get(), serde_.get());
     batch_->createStreamTree(rowType_, options_.bufferSize, &serdeOptions_);
   }

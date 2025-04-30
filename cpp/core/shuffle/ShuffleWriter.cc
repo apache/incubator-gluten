@@ -26,17 +26,29 @@ const std::string kSortShuffleName = "sort";
 const std::string kRssSortShuffleName = "rss_sort";
 } // namespace
 
-ShuffleWriterType ShuffleWriter::stringToType(const std::string& type) {
-  if (type == kHashShuffleName) {
+ShuffleWriterType ShuffleWriter::stringToType(const std::string& typeString) {
+  if (typeString == kHashShuffleName) {
     return ShuffleWriterType::kHashShuffle;
   }
-  if (type == kSortShuffleName) {
+  if (typeString == kSortShuffleName) {
     return ShuffleWriterType::kSortShuffle;
   }
-  if (type == kRssSortShuffleName) {
+  if (typeString == kRssSortShuffleName) {
     return ShuffleWriterType::kRssSortShuffle;
   }
-  throw GlutenException("Unrecognized shuffle writer type: " + type);
+  throw GlutenException("Unrecognized shuffle writer type: " + typeString);
+}
+
+std::string ShuffleWriter::typeToString(ShuffleWriterType type) {
+  switch (type) {
+    case ShuffleWriterType::kHashShuffle:
+      return kHashShuffleName;
+    case ShuffleWriterType::kSortShuffle:
+      return kSortShuffleName;
+    case ShuffleWriterType::kRssSortShuffle:
+      return kRssSortShuffleName;
+  }
+  GLUTEN_UNREACHABLE();
 }
 
 int32_t ShuffleWriter::numPartitions() const {

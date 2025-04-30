@@ -36,7 +36,7 @@ import org.apache.spark.unsafe.types.UTF8String
 // This rule try to make the filter condition into integer comparison, which is more efficient.
 // The above example will be rewritten into
 //    select * from table where to_unixtime('2023-11-02', 'yyyy-MM-dd') >= unix_timestamp
-class RewriteDateTimestampComparisonRule(spark: SparkSession)
+case class RewriteDateTimestampComparisonRule(spark: SparkSession)
   extends Rule[LogicalPlan]
   with Logging {
 

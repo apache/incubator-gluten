@@ -37,8 +37,7 @@ import org.apache.spark.sql.types._
 
 import com.google.protobuf.StringValue
 
-import java.lang.{Long => JLong}
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -201,7 +200,7 @@ abstract class HashAggregateExecTransformer(
 
   // Create aggregate function node and add to list.
   private def addFunctionNode(
-      args: java.lang.Object,
+      context: SubstraitContext,
       aggregateFunction: AggregateFunction,
       childrenNodeList: JList[ExpressionNode],
       aggregateMode: AggregateMode,
@@ -212,7 +211,7 @@ abstract class HashAggregateExecTransformer(
       aggregateMode match {
         case Partial | PartialMerge =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
+            VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
@@ -220,7 +219,7 @@ abstract class HashAggregateExecTransformer(
           aggregateNodeList.add(aggFunctionNode)
         case Final | Complete =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
+            VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -238,7 +237,7 @@ abstract class HashAggregateExecTransformer(
         aggregateMode match {
           case Partial | PartialMerge =>
             val partialNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
+              VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
               ConverterUtils.getTypeNode(
@@ -248,7 +247,7 @@ abstract class HashAggregateExecTransformer(
             aggregateNodeList.add(partialNode)
           case Final | Complete =>
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
+              VeloxAggregateFunctionsBuilder.create(context, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
               ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -296,15 +295,14 @@ abstract class HashAggregateExecTransformer(
 
   // Return a scalar function node representing row construct function in Velox.
   private def getRowConstructNode(
-      args: java.lang.Object,
+      context: SubstraitContext,
       childNodes: JList[ExpressionNode],
       rowConstructAttributes: Seq[Attribute],
       aggFunc: AggregateFunction): ScalarFunctionNode = {
-    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionName = ConverterUtils.makeFuncName(
       VeloxIntermediateData.getRowConstructFuncName(aggFunc),
       rowConstructAttributes.map(attr => attr.dataType))
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
+    val functionId = context.registerFunction(functionName)
 
     // Use struct type to represent Velox RowType.
     val structTypeNodes = rowConstructAttributes
@@ -326,7 +324,6 @@ abstract class HashAggregateExecTransformer(
       operatorId: Long,
       inputRel: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     // Create a projection for row construct.
     val exprNodes = new JArrayList[ExpressionNode]()
     groupingExpressions.foreach(
@@ -334,7 +331,7 @@ abstract class HashAggregateExecTransformer(
         exprNodes.add(
           ExpressionConverter
             .replaceWithExpressionTransformer(expr, originalInputAttributes)
-            .doTransform(args))
+            .doTransform(context))
       })
 
     for (aggregateExpression <- aggregateExpressions) {
@@ -346,7 +343,7 @@ abstract class HashAggregateExecTransformer(
             .map(
               ExpressionConverter
                 .replaceWithExpressionTransformer(_, originalInputAttributes)
-                .doTransform(args)
+                .doTransform(context)
             )
             .asJava
           exprNodes.addAll(childNodes)
@@ -387,7 +384,7 @@ abstract class HashAggregateExecTransformer(
                     val attr = rewrittenInputAttributes(adjustedIdx)
                     val aggFuncInputAttrNode = ExpressionConverter
                       .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                      .doTransform(args)
+                      .doTransform(context)
                     val expressionNode = if (sparkType != veloxType) {
                       newInputAttributes +=
                         attr.copy(dataType = veloxType)(attr.exprId, attr.qualifier)
@@ -403,7 +400,7 @@ abstract class HashAggregateExecTransformer(
                   }
               }
               exprNodes.add(
-                getRowConstructNode(args, childNodes, newInputAttributes.toSeq, aggFunc))
+                getRowConstructNode(context, childNodes, newInputAttributes.toSeq, aggFunc))
             case other =>
               throw new GlutenNotSupportException(s"$other is not supported.")
           }
@@ -415,7 +412,7 @@ abstract class HashAggregateExecTransformer(
             .map(
               ExpressionConverter
                 .replaceWithExpressionTransformer(_, originalInputAttributes)
-                .doTransform(args)
+                .doTransform(context)
             )
             .asJava
           exprNodes.addAll(childNodes)
@@ -469,7 +466,7 @@ abstract class HashAggregateExecTransformer(
             throw new GlutenNotSupportException(
               s"$aggFunc of ${aggExpr.mode.toString} is not supported.")
         }
-        addFunctionNode(args, aggFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
+        addFunctionNode(context, aggFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
       })
 
     val extensionNode = getAdvancedExtension()
@@ -566,7 +563,6 @@ abstract class HashAggregateExecTransformer(
       operatorId: Long,
       input: RelNode = null,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     // Get the grouping nodes.
     // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
     // may be different for each backend.
@@ -574,7 +570,7 @@ abstract class HashAggregateExecTransformer(
       .map(
         ExpressionConverter
           .replaceWithExpressionTransformer(_, child.output)
-          .doTransform(args))
+          .doTransform(context))
       .asJava
     // Get the aggregate function nodes.
     val aggFilterList = new JArrayList[ExpressionNode]()
@@ -584,7 +580,7 @@ abstract class HashAggregateExecTransformer(
         if (aggExpr.filter.isDefined) {
           val exprNode = ExpressionConverter
             .replaceWithExpressionTransformer(aggExpr.filter.get, child.output)
-            .doTransform(args)
+            .doTransform(context)
           aggFilterList.add(exprNode)
         } else {
           // The number of filters should be aligned with that of aggregate functions.
@@ -597,7 +593,7 @@ abstract class HashAggregateExecTransformer(
               expr => {
                 ExpressionConverter
                   .replaceWithExpressionTransformer(expr, originalInputAttributes)
-                  .doTransform(args)
+                  .doTransform(context)
               })
           case PartialMerge | Final =>
             rewriteAggBufferAttributes(
@@ -606,13 +602,13 @@ abstract class HashAggregateExecTransformer(
               attr =>
                 ExpressionConverter
                   .replaceWithExpressionTransformer(attr, originalInputAttributes)
-                  .doTransform(args)
+                  .doTransform(context)
             }
           case other =>
             throw new GlutenNotSupportException(s"$other not supported.")
         }
         addFunctionNode(
-          args,
+          context,
           aggregateFunc,
           childrenNodes.asJava,
           aggExpr.mode,
@@ -662,8 +658,8 @@ object VeloxAggregateFunctionsBuilder {
 
   /**
    * Create a scalar function for the input aggregate function.
-   * @param args:
-   *   the function map.
+   * @param context:
+   *   the SubstraitContext.
    * @param aggregateFunc:
    *   the input aggregate function.
    * @param mode:
@@ -671,10 +667,9 @@ object VeloxAggregateFunctionsBuilder {
    * @return
    */
   def create(
-      args: java.lang.Object,
+      context: SubstraitContext,
       aggregateFunc: AggregateFunction,
       mode: AggregateMode): Long = {
-    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val (sigName, aggFunc) =
       try {
         (AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc), aggregateFunc)
@@ -688,8 +683,7 @@ object VeloxAggregateFunctionsBuilder {
         case e: Throwable => throw e
       }
 
-    ExpressionBuilder.newScalarFunction(
-      functionMap,
+    context.registerFunction(
       ConverterUtils.makeFuncName(
         // Substrait-to-Velox procedure will choose appropriate companion function if needed.
         sigName,

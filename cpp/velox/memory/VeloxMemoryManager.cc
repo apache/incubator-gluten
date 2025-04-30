@@ -168,7 +168,13 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     }
     auto reclaimedFreeBytes = shrinkPool(pool, 0);
     auto neededBytes = velox::bits::roundUp(bytes - reclaimedFreeBytes, memoryPoolTransferCapacity_);
-    listener_->allocationChanged(neededBytes);
+    try {
+      listener_->allocationChanged(neededBytes);
+    } catch (const std::exception&) {
+      // if allocationChanged failed, we need to free the reclaimed bytes
+      listener_->allocationChanged(-reclaimedFreeBytes);
+      std::rethrow_exception(std::current_exception());
+    }
     auto ret = growPool(pool, reclaimedFreeBytes + neededBytes, bytes);
     VELOX_CHECK(
         ret,
@@ -221,12 +227,13 @@ VeloxMemoryManager::VeloxMemoryManager(
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
+  auto checkUsageLeak = backendConf.get<bool>(kCheckUsageLeak, kCheckUsageLeakDefault);
 
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
       .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
       .trackDefaultUsage = true, // memory usage tracking
-      .checkUsageLeak = true, // leak check
+      .checkUsageLeak = checkUsageLeak, // leak check
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),

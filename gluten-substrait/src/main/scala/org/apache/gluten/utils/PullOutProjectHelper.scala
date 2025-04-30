@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Complete, Partial}
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.types.{ByteType, DateType, IntegerType, LongType, ShortType}
@@ -137,16 +137,20 @@ trait PullOutProjectHelper {
   protected def rewriteAggregateExpression(
       ae: AggregateExpression,
       expressionMap: mutable.HashMap[Expression, NamedExpression]): AggregateExpression = {
-    val newAggFuncChildren = ae.aggregateFunction.children.map {
-      case literal: Literal => literal
-      case other => replaceExpressionWithAttribute(other, expressionMap)
+    ae.mode match {
+      case Partial | Complete =>
+        val newAggFuncChildren = ae.aggregateFunction.children.map {
+          case literal: Literal => literal
+          case other => replaceExpressionWithAttribute(other, expressionMap)
+        }
+        val newAggFunc = ae.aggregateFunction
+          .withNewChildren(newAggFuncChildren)
+          .asInstanceOf[AggregateFunction]
+        val newFilter =
+          ae.filter.map(replaceExpressionWithAttribute(_, expressionMap))
+        ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
+      case _ => ae
     }
-    val newAggFunc = ae.aggregateFunction
-      .withNewChildren(newAggFuncChildren)
-      .asInstanceOf[AggregateFunction]
-    val newFilter =
-      ae.filter.map(replaceExpressionWithAttribute(_, expressionMap))
-    ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
   }
 
   private def needPreComputeRangeFrameBoundary(bound: Expression): Boolean = {

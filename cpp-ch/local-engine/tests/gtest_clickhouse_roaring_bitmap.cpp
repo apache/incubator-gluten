@@ -16,6 +16,8 @@
  */
 #include <zlib.h>
 #include <Core/Settings.h>
+#include <IO/ReadBufferFromString.h>
+#include <IO/ReadHelpers.h>
 #include <Interpreters/Context.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
@@ -23,6 +25,7 @@
 #include <gtest/gtest.h>
 #include <tests/utils/gluten_test_util.h>
 #include <roaring.hh>
+#include <Common/Base85Codec.h>
 #include <Common/QueryContext.h>
 
 namespace DB::Setting
@@ -222,4 +225,17 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     EXPECT_FALSE(bitmap_array3.rb_contains(10000000001));
     EXPECT_FALSE(bitmap_array3.rb_contains(5000000001));
     EXPECT_FALSE(bitmap_array3.rb_contains(3000000001));
+}
+
+TEST(Delta_DV, Base85Codec)
+{
+    const String uuid_str = "a5d455b6-92f1-4c89-a26d-93a1d5ce3e89";
+    DB::ReadBufferFromString rb = DB::ReadBufferFromString(uuid_str);
+    UUID uuid;
+    readUUIDText(uuid, rb);
+
+    const String encoded = Base85Codec::encodeUUID(uuid);
+    EXPECT_EQ("RpnINLjqk5Qhu9/!Y{vn", encoded);
+    auto decodeUUID = Base85Codec::decodeUUID(encoded);
+    EXPECT_EQ(uuid_str, toString(decodeUUID));
 }

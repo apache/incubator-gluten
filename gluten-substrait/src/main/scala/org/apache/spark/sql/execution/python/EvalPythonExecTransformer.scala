@@ -67,7 +67,6 @@ case class EvalPythonExecTransformer(
     }
 
     val context = new SubstraitContext
-    val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val expressionNodes = new JArrayList[ExpressionNode]
@@ -76,7 +75,9 @@ case class EvalPythonExecTransformer(
     udfs.foreach(
       udf => {
         expressionNodes.add(
-          ExpressionConverter.replaceWithExpressionTransformer(udf, child.output).doTransform(args))
+          ExpressionConverter
+            .replaceWithExpressionTransformer(udf, child.output)
+            .doTransform(context))
       })
 
     val relNode = RelBuilder.makeProjectRel(null, expressionNodes, context, operatorId)
@@ -86,7 +87,6 @@ case class EvalPythonExecTransformer(
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
     val expressionNodes = new JArrayList[ExpressionNode]
     child.output.zipWithIndex.foreach(
@@ -94,7 +94,9 @@ case class EvalPythonExecTransformer(
     udfs.foreach(
       udf => {
         expressionNodes.add(
-          ExpressionConverter.replaceWithExpressionTransformer(udf, child.output).doTransform(args))
+          ExpressionConverter
+            .replaceWithExpressionTransformer(udf, child.output)
+            .doTransform(context))
       })
 
     val relNode =

@@ -28,10 +28,6 @@ import java.util.Collections;
 import java.util.Map;
 
 public final class ReservationListeners {
-  public static final ReservationListener NOOP =
-      new ManagedReservationListener(
-          new NoopMemoryTarget(), new SimpleMemoryUsageRecorder(), new Object());
-
   public static ReservationListener create(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
     if (!TaskResources.inSparkTask()) {
@@ -43,6 +39,10 @@ public final class ReservationListeners {
 
   private static ReservationListener create0(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
+    if (GlutenConfig.get().memoryUntracked()) {
+      return noop();
+    }
+
     // Memory target.
     final double overAcquiredRatio = GlutenConfig.get().memoryOverAcquiredRatio();
     final long reservationBlockSize = GlutenConfig.get().memoryReservationBlockSize();
@@ -62,5 +62,10 @@ public final class ReservationListeners {
 
     // Listener.
     return new ManagedReservationListener(target, TaskResources.getSharedUsage(), tmm);
+  }
+
+  private static ManagedReservationListener noop() {
+    return new ManagedReservationListener(
+        new NoopMemoryTarget(), new SimpleMemoryUsageRecorder(), new Object());
   }
 }

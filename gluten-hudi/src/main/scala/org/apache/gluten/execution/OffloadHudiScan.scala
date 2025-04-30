@@ -24,9 +24,9 @@ import org.apache.spark.sql.execution.SparkPlan
 case class OffloadHudiScan() extends OffloadSingleNode {
   override def offload(plan: SparkPlan): SparkPlan = {
     plan match {
-      // Hudi has multiple file format definitions whose names end with "HoodieParquetFileFormat".
       case scan: org.apache.spark.sql.execution.FileSourceScanExec
-          if scan.relation.fileFormat.getClass.getName.endsWith("HoodieParquetFileFormat") =>
+          if HudiScanTransformer.isSupportedHudiFileFormat(
+            scan.relation.fileFormat.getClass.getName) =>
         HudiScanTransformer(scan)
       case other => other
     }

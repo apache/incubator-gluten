@@ -72,15 +72,6 @@ public:
         return std::ranges::any_of(block, [](const auto & column) { return isVirtualColumn(column.name); });
     }
 
-    static DB::Block removeVirtualColumns(const DB::Block & block)
-    {
-        DB::ColumnsWithTypeAndName result_columns;
-        std::ranges::copy_if(
-            block.getColumnsWithTypeAndName(),
-            std::back_inserter(result_columns),
-            [](const auto & column) { return !isVirtualColumn(column.name); });
-        return result_columns;
-    }
     ///
 
     explicit FileMetaColumns(const SubstraitInputFile & file);
