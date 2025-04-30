@@ -102,7 +102,7 @@ gluten::JniColumnarBatchIterator::~JniColumnarBatchIterator() {
 
 std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() {
   if (shouldDump_ && dumpedIteratorReader_ == nullptr) {
-    GLUTEN_CHECK(iteratorIndex_ != std::nullopt, "iteratorIndex_ should not be null");
+    GLUTEN_CHECK(iteratorIndex_.has_value(), "iteratorIndex_ should not be null");
 
     const auto iter = std::make_shared<ColumnarBatchIteratorDumper>(this);
     dumpedIteratorReader_ = runtime_->getDumper()->dumpInputIterator(iteratorIndex_.value(), iter);
@@ -116,7 +116,7 @@ std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() 
   return nextInternal();
 }
 
-std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::nextInternal() {
+std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::nextInternal() const {
   JNIEnv* env = nullptr;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
 

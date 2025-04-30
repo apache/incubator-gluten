@@ -61,7 +61,8 @@ std::shared_ptr<ColumnarBatchIterator> VeloxColumnarBatchWriter::retrieveIterato
   GLUTEN_CHECK(writer_ != nullptr, "Writer is not initialized");
   GLUTEN_CHECK(closed_, "Writer is not closed");
 
-  return std::make_shared<ParquetStreamReaderIterator>(path_, batchSize_, pool_);
+  return std::make_shared<ParquetStreamReaderIterator>(
+      path_, batchSize_, pool_->addLeafChild("retrieve_iterator").get());
 }
 
 } // namespace gluten

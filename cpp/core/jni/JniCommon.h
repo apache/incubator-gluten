@@ -288,7 +288,7 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
     JniColumnarBatchIterator* self_;
   };
 
-  std::shared_ptr<ColumnarBatch> nextInternal();
+  std::shared_ptr<ColumnarBatch> nextInternal() const;
 
   JavaVM* vm_;
   jobject jColumnarBatchItr_;
