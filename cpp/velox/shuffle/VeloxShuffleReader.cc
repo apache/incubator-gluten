@@ -19,7 +19,6 @@
 
 #include <arrow/array/array_binary.h>
 #include <arrow/io/buffered.h>
-#include <arrow/io/compressed.h>
 #include <velox/common/caching/AsyncDataCache.h>
 
 #include "memory/VeloxColumnarBatch.h"
@@ -27,7 +26,6 @@
 #include "shuffle/Payload.h"
 #include "shuffle/Utils.h"
 #include "utils/Common.h"
-#include "utils/Compression.h"
 #include "utils/Macros.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
@@ -79,7 +77,7 @@ BufferPtr convertToVeloxBuffer(std::shared_ptr<arrow::Buffer> buffer) {
   return wrapInBufferViewAsOwner(buffer->data(), buffer->size(), buffer);
 }
 
-template <TypeKind kind, typename T = typename TypeTraits<kind>::NativeType>
+template <TypeKind Kind, typename T = typename TypeTraits<Kind>::NativeType>
 VectorPtr readFlatVector(
     std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
@@ -315,12 +313,78 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
+arrow::Result<VectorPtr>
+readDictionaryForBinary(arrow::io::InputStream* in, const TypePtr& type, facebook::velox::memory::MemoryPool* pool) {
+  // Read length buffer.
+  int64_t bufferSize;
+  RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
+  auto lengthBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
+  RETURN_NOT_OK(in->Read(bufferSize, lengthBuffer->asMutable<void>()));
+  const auto* lengthBufferPtr = lengthBuffer->as<int64_t>();
+
+  const auto numElements = bufferSize / sizeof(int64_t);
+
+  // Read value buffer.
+  RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
+  auto valueBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
+  RETURN_NOT_OK(in->Read(bufferSize, valueBuffer->asMutable<void>()));
+  const auto* valueBufferPtr = valueBuffer->as<char>();
+
+  // Build StringViews.
+  auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * numElements, pool, std::nullopt, true);
+  auto* rawValues = values->asMutable<StringView>();
+
+  uint64_t offset = 0;
+  for (int32_t i = 0; i < numElements; ++i) {
+    rawValues[i] = StringView(valueBufferPtr + offset, lengthBufferPtr[i]);
+    offset += lengthBufferPtr[i];
+  }
+
+  std::vector<BufferPtr> stringBuffers;
+  stringBuffers.emplace_back(valueBuffer);
+
+  return std::make_shared<FlatVector<StringView>>(
+      pool, type, BufferPtr(nullptr), numElements, std::move(values), std::move(stringBuffers));
+}
+
+template <TypeKind Kind, typename NativeType = typename TypeTraits<Kind>::NativeType>
+arrow::Result<VectorPtr>
+readDictionary(arrow::io::InputStream* in, const TypePtr& type, facebook::velox::memory::MemoryPool* pool) {
+  int64_t bufferSize;
+  RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
+  auto buffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
+  RETURN_NOT_OK(in->Read(bufferSize, buffer->asMutable<void>()));
+
+  const auto numElements = bufferSize / sizeof(NativeType);
+
+  return std::make_shared<FlatVector<NativeType>>(
+      pool, type, BufferPtr(nullptr), numElements, std::move(buffer), std::vector<BufferPtr>{});
+}
+
+template <>
+arrow::Result<VectorPtr> readDictionary<TypeKind::VARCHAR>(
+    arrow::io::InputStream* in,
+    const TypePtr& type,
+    facebook::velox::memory::MemoryPool* pool) {
+  return readDictionaryForBinary(in, type, pool);
+}
+
+template <>
+arrow::Result<VectorPtr> readDictionary<TypeKind::VARBINARY>(
+    arrow::io::InputStream* in,
+    const TypePtr& type,
+    facebook::velox::memory::MemoryPool* pool) {
+  return readDictionaryForBinary(in, type, pool);
+}
+
+} // namespace
+
 class VeloxDictionaryReader {
  public:
   VeloxDictionaryReader(const facebook::velox::RowTypePtr& rowType, facebook::velox::memory::MemoryPool* veloxPool)
       : rowType_(rowType), veloxPool_(veloxPool) {}
 
-  arrow::Result<std::vector<int32_t>> readFields(arrow::io::InputStream* in) {
+  arrow::Result<std::vector<int32_t>> readFields(arrow::io::InputStream* in) const {
     // Read bitmap.
     auto bitMapSize = arrow::bit_util::RoundUpToMultipleOf8(rowType_->size());
     std::vector<uint8_t> bitMap(bitMapSize);
@@ -337,9 +401,8 @@ class VeloxDictionaryReader {
     return fields;
   }
 
-  arrow::Result<std::vector<VectorPtr>> readDictionaries(
-      arrow::io::InputStream* in,
-      const std::vector<int32_t>& fields) {
+  arrow::Result<std::vector<VectorPtr>> readDictionaries(arrow::io::InputStream* in, const std::vector<int32_t>& fields)
+      const {
     // Read bitmap.
     auto bitMapSize = arrow::bit_util::RoundUpToMultipleOf8(rowType_->size());
     std::vector<uint8_t> bitMap(bitMapSize);
@@ -349,8 +412,8 @@ class VeloxDictionaryReader {
     // Read dictionary buffers.
     std::vector<VectorPtr> dictionaries;
     for (auto i : fields) {
-      auto dictionary =
-          VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(readDictionary, rowType_->childAt(i)->kind(), in, rowType_->childAt(i));
+      auto dictionary = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
+          readDictionary, rowType_->childAt(i)->kind(), in, rowType_->childAt(i), veloxPool_);
       dictionaries.emplace_back();
       ARROW_ASSIGN_OR_RAISE(dictionaries.back(), dictionary);
     }
@@ -361,65 +424,7 @@ class VeloxDictionaryReader {
  private:
   facebook::velox::RowTypePtr rowType_;
   facebook::velox::memory::MemoryPool* veloxPool_;
-
-  template <TypeKind kind, typename NativeType = typename TypeTraits<kind>::NativeType>
-  arrow::Result<VectorPtr> readDictionary(arrow::io::InputStream* in, const TypePtr& type) {
-    int64_t bufferSize;
-    RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
-    auto buffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, veloxPool_, std::nullopt, true);
-    RETURN_NOT_OK(in->Read(bufferSize, buffer->asMutable<void>()));
-
-    const auto numElements = bufferSize / sizeof(NativeType);
-
-    return std::make_shared<FlatVector<NativeType>>(
-        veloxPool_, type, BufferPtr(nullptr), numElements, std::move(buffer), std::vector<BufferPtr>{});
-  }
-
-  template <>
-  arrow::Result<VectorPtr> readDictionary<TypeKind::VARCHAR>(arrow::io::InputStream* in, const TypePtr& type) {
-    return readDictionaryForBinary(in, type);
-  }
-
-  template <>
-  arrow::Result<VectorPtr> readDictionary<TypeKind::VARBINARY>(arrow::io::InputStream* in, const TypePtr& type) {
-    return readDictionaryForBinary(in, type);
-  }
-
-  arrow::Result<VectorPtr> readDictionaryForBinary(arrow::io::InputStream* in, const TypePtr& type) {
-    // Read length buffer.
-    int64_t bufferSize;
-    RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
-    auto lengthBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, veloxPool_, std::nullopt, true);
-    RETURN_NOT_OK(in->Read(bufferSize, lengthBuffer->asMutable<void>()));
-    const auto* lengthBufferPtr = lengthBuffer->as<int64_t>();
-
-    const auto numElements = bufferSize / sizeof(int64_t);
-
-    // Read value buffer.
-    RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
-    auto valueBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, veloxPool_, std::nullopt, true);
-    RETURN_NOT_OK(in->Read(bufferSize, valueBuffer->asMutable<void>()));
-    const auto* valueBufferPtr = valueBuffer->as<char>();
-
-    // Build StringViews.
-    auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * numElements, veloxPool_, std::nullopt, true);
-    auto* rawValues = values->asMutable<StringView>();
-
-    uint64_t offset = 0;
-    for (int32_t i = 0; i < numElements; ++i) {
-      rawValues[i] = StringView(valueBufferPtr + offset, lengthBufferPtr[i]);
-      offset += lengthBufferPtr[i];
-    }
-
-    std::vector<BufferPtr> stringBuffers;
-    stringBuffers.emplace_back(valueBuffer);
-
-    return std::make_shared<FlatVector<StringView>>(
-        veloxPool_, type, BufferPtr(nullptr), numElements, std::move(values), std::move(stringBuffers));
-  }
 };
-
-} // namespace
 
 VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
     std::shared_ptr<arrow::io::InputStream> in,
@@ -447,7 +452,7 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
   GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
 }
 
-bool VeloxHashShuffleReaderDeserializer::shouldSkipMerge() {
+bool VeloxHashShuffleReaderDeserializer::shouldSkipMerge() const {
   // Complex type or dictionary encodings do not support merging.
   return hasComplexType_ || !dictionaryFields_.empty();
 }
