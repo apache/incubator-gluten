@@ -21,7 +21,6 @@
 #include "utils/WholeStageDumper.h"
 
 namespace gluten {
-class VeloxRuntime;
 
 class VeloxWholeStageDumper final : public WholeStageDumper {
  public:
