@@ -23,6 +23,7 @@
 #include "memory/VeloxMemoryManager.h"
 #include "operators/reader/ParquetReaderIterator.h"
 #include "operators/writer/VeloxParquetDataSource.h"
+#include "utils/VeloxArrowUtils.h"
 
 namespace gluten {
 
