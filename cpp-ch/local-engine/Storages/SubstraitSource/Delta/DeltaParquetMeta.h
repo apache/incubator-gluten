@@ -25,11 +25,11 @@ namespace DeltaParquetVirtualMeta
 inline constexpr auto DELTA_INTERNAL_IS_ROW_DELETED = "__delta_internal_is_row_deleted";
 inline bool hasMetaColumns(const DB::Block & header)
 {
-    return header.findByName(DELTA_INTERNAL_IS_ROW_DELETED) != nullptr;
+    return header.findByName(std::string_view{DELTA_INTERNAL_IS_ROW_DELETED}) != nullptr;
 }
 inline DB::DataTypePtr getMetaColumnType(const DB::Block & header)
 {
-    return header.findByName(DELTA_INTERNAL_IS_ROW_DELETED)->type;
+    return header.findByName(std::string_view{DELTA_INTERNAL_IS_ROW_DELETED})->type;
 }
 inline DB::Block removeMetaColumns(const DB::Block & header)
 {

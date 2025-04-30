@@ -101,11 +101,11 @@ namespace ParquetVirtualMeta
 inline constexpr auto TMP_ROWINDEX = "_tmp_metadata_row_index";
 inline bool hasMetaColumns(const DB::Block & header)
 {
-    return header.findByName(TMP_ROWINDEX) != nullptr;
+    return header.findByName(std::string_view{TMP_ROWINDEX}) != nullptr;
 }
 inline DB::DataTypePtr getMetaColumnType(const DB::Block & header)
 {
-    return header.findByName(TMP_ROWINDEX)->type;
+    return header.findByName(std::string_view{TMP_ROWINDEX})->type;
 }
 inline DB::Block removeMetaColumns(const DB::Block & header)
 {
