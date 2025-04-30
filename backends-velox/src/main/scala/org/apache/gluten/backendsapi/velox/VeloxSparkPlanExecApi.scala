@@ -345,7 +345,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       initialInputBufferOffset,
       resultExpressions,
       child,
-      isFromSortAggregate)
+      isFromSortAggregate
+    )
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
