@@ -57,6 +57,25 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(con
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
+facebook::velox::common::CompressionKind arrowCompressionTypeToVelox(arrow::Compression::type type) {
+  switch (type) {
+    case arrow::Compression::UNCOMPRESSED:
+      return facebook::velox::common::CompressionKind::CompressionKind_NONE;
+    case arrow::Compression::LZ4_FRAME:
+      return facebook::velox::common::CompressionKind::CompressionKind_LZ4;
+    case arrow::Compression::ZSTD:
+      return facebook::velox::common::CompressionKind::CompressionKind_ZSTD;
+    case arrow::Compression::GZIP:
+      return facebook::velox::common::CompressionKind::CompressionKind_GZIP;
+    case arrow::Compression::SNAPPY:
+      return facebook::velox::common::CompressionKind::CompressionKind_SNAPPY;
+    case arrow::Compression::LZO:
+      return facebook::velox::common::CompressionKind::CompressionKind_LZO;
+    default:
+      VELOX_UNSUPPORTED("Unsupported arrow compression type {}", arrow::util::Codec::GetCodecAsString(type));
+  }
+}
+
 arrow::Result<std::shared_ptr<arrow::Buffer>> toArrowBuffer(
     facebook::velox::BufferPtr buffer,
     arrow::MemoryPool* pool) {

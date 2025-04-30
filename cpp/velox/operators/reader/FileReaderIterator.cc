@@ -24,12 +24,6 @@ namespace {
 const std::string kParquetSuffix = ".parquet";
 }
 
-FileReaderIterator::FileReaderIterator(const std::string& path) : path_(path) {}
-
-int64_t FileReaderIterator::getCollectBatchTime() const {
-  return collectBatchTime_;
-}
-
 std::shared_ptr<gluten::ResultIterator> FileReaderIterator::getInputIteratorFromFileReader(
     FileReaderType readerType,
     const std::string& path,

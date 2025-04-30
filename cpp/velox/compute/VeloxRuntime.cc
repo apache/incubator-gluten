@@ -295,23 +295,23 @@ std::shared_ptr<VeloxDataSource> VeloxRuntime::createDataSource(
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ShuffleReaderOptions options) {
-  auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
   auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
-  auto ctxVeloxPool = memoryManager()->getLeafMemoryPool();
-  auto veloxCompressionType = facebook::velox::common::stringToCompressionKind(options.compressionTypeStr);
+  const auto veloxCompressionKind = arrowCompressionTypeToVelox(options.compressionType);
+  const auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
+
   auto deserializerFactory = std::make_unique<gluten::VeloxShuffleReaderDeserializerFactory>(
       schema,
       std::move(codec),
-      veloxCompressionType,
+      veloxCompressionKind,
       rowType,
       options.batchSize,
       options.readerBufferSize,
       options.deserializerBufferSize,
       memoryManager()->getArrowMemoryPool(),
-      ctxVeloxPool,
+      memoryManager()->getLeafMemoryPool(),
       options.shuffleWriterType);
-  auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
-  return reader;
+
+  return std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
 }
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(struct ArrowSchema* cSchema) {

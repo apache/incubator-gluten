@@ -122,7 +122,7 @@ Task CacheManager::cachePart(
             }
             auto query_info = buildQueryInfo(names_and_types_list);
             auto read_step = storage->reader.readFromParts(
-                selected_parts,
+                RangesInDataParts({selected_parts}),
                 storage->getMutationsSnapshot({}),
                 names_and_types_list.getNames(),
                 storage_snapshot,

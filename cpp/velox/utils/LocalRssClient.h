@@ -14,31 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
-#include <Core/Block.h>
+#include "shuffle/rss/RssClient.h"
+#include "utils/Common.h"
+#include "utils/Macros.h"
 
-namespace local_engine
-{
-namespace DeltaParquetVirtualMeta
-{
-inline constexpr auto DELTA_INTERNAL_IS_ROW_DELETED = "__delta_internal_is_row_deleted";
-inline bool hasMetaColumns(const DB::Block & header)
-{
-    return header.findByName(std::string_view{DELTA_INTERNAL_IS_ROW_DELETED}) != nullptr;
-}
-inline DB::DataTypePtr getMetaColumnType(const DB::Block & header)
-{
-    return header.findByName(std::string_view{DELTA_INTERNAL_IS_ROW_DELETED})->type;
-}
-inline DB::Block removeMetaColumns(const DB::Block & header)
-{
-    DB::Block new_header;
-    for (const auto & col : header)
-        if (col.name != DELTA_INTERNAL_IS_ROW_DELETED)
-            new_header.insert(col);
-    return new_header;
-}
-}
+#include <arrow/buffer.h>
 
-}
+#include <map>
+
+namespace gluten {
+
+/// A local implementation of the RssClient interface for testing purposes.
+class LocalRssClient : public RssClient {
+ public:
+  LocalRssClient(std::string dataFile) : dataFile_(dataFile) {}
+
+  int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) override;
+
+  void stop() override;
+
+ private:
+  std::string dataFile_;
+  std::vector<std::unique_ptr<arrow::ResizableBuffer>> buffers_;
+  std::map<uint32_t, uint32_t> partitionBufferMap_;
+};
+} // namespace gluten
