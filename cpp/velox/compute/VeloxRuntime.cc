@@ -19,8 +19,6 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
-#include <iomanip>
 
 #include "VeloxBackend.h"
 #include "compute/ResultIterator.h"
@@ -33,6 +31,7 @@
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
+#include "utils/VeloxWholeStageDumper.h"
 
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_bool(velox_memory_use_hugepages);

@@ -25,7 +25,6 @@
 #include "operators/writer/VeloxParquetDataSource.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
-#include "utils/VeloxWholeStageDumper.h"
 
 namespace gluten {
 
