@@ -33,6 +33,8 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       |from tbl group
       |group by 1""".stripMargin
 
+  import testImplicits._
+
   override def beforeAll(): Unit = {
     super.beforeAll()
   }
@@ -56,5 +58,13 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
     dataGenerator.generateRandomData(spark, Some(outputPath))
     spark.read.format("parquet").load(outputPath).createOrReplaceTempView("tbl")
     spark.sql(AGG_SQL)
+  }
+
+  test("Dynamic off-heap sizing with RDD operation") {
+    val data = Seq(1, 2, 3, 4).toDF("col1")
+    val result = data.select("col1").distinct().rdd.flatMap(row => Seq(row.getInt(0))).collect()
+    val expected = Array(1, 2, 3, 4)
+    assert(result.sorted.sameElements(expected),
+      s"Expected ${expected.mkString(", ")}, but got ${result.mkString(", ")}")
   }
 }
