@@ -427,7 +427,7 @@ auto BM_Generic = [](::benchmark::State& state,
       if (!dataFiles.empty()) {
         for (const auto& input : dataFiles) {
           inputIters.push_back(FileReaderIterator::getInputIteratorFromFileReader(
-              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get()));
+              readerType, input, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool()));
         }
         std::transform(
             inputIters.begin(),
@@ -459,7 +459,7 @@ auto BM_Generic = [](::benchmark::State& state,
         GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
 
         auto writer = std::make_shared<VeloxColumnarBatchWriter>(
-            FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getAggregateMemoryPool().get());
+            FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getAggregateMemoryPool());
 
         state.PauseTiming();
 
@@ -534,7 +534,7 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
     ScopedTimer timer(&elapsedTime);
     for (auto _ : state) {
       auto resultIter = FileReaderIterator::getInputIteratorFromFileReader(
-          readerType, inputFile, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
+          readerType, inputFile, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool());
       runShuffle(
           runtime,
           listenerPtr,

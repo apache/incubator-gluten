@@ -28,7 +28,7 @@ class VeloxWholeStageDumper final : public WholeStageDumper {
       const SparkTaskInfo& taskInfo,
       const std::string& saveDir,
       int64_t batchSize,
-      facebook::velox::memory::MemoryPool* pool);
+      facebook::velox::memory::MemoryPool* aggregatePool);
 
   void dumpConf(const std::unordered_map<std::string, std::string>& confMap) override;
 
@@ -44,6 +44,7 @@ class VeloxWholeStageDumper final : public WholeStageDumper {
   SparkTaskInfo taskInfo_;
   std::string saveDir_;
   int64_t batchSize_;
+
   facebook::velox::memory::MemoryPool* pool_;
 };
 

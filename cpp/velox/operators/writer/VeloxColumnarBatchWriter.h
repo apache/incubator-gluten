@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "operators/reader/ParquetReaderIterator.h"
 #include "operators/writer/ColumnarBatchWriter.h"
 
 #include "velox/dwio/parquet/writer/Writer.h"
@@ -26,23 +25,23 @@ namespace gluten {
 
 class VeloxColumnarBatchWriter final : public ColumnarBatchWriter {
  public:
-  VeloxColumnarBatchWriter(const std::string& path, int64_t batchSize, facebook::velox::memory::MemoryPool* pool);
+  VeloxColumnarBatchWriter(
+      const std::string& path,
+      int64_t batchSize,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
   arrow::Status write(const std::shared_ptr<ColumnarBatch>& batch) override;
 
   arrow::Status close() override;
-
-  std::shared_ptr<ColumnarBatchIterator> retrieveIterator();
 
  private:
   arrow::Status initWriter(const facebook::velox::RowTypePtr& rowType);
 
   std::string path_;
   int64_t batchSize_;
-  facebook::velox::memory::MemoryPool* pool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 
   std::unique_ptr<facebook::velox::parquet::Writer> writer_{nullptr};
-  bool closed_{false};
 };
 
 } // namespace gluten

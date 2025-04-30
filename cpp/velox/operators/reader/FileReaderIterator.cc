@@ -28,7 +28,7 @@ std::shared_ptr<gluten::ResultIterator> FileReaderIterator::getInputIteratorFrom
     FileReaderType readerType,
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool) {
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool) {
   std::filesystem::path input{path};
   auto suffix = input.extension().string();
   if (suffix == kParquetSuffix) {

@@ -27,11 +27,11 @@ enum FileReaderType { kBuffered, kStream, kNone };
 
 class FileReaderIterator : public ColumnarBatchIterator {
  public:
-  static std::shared_ptr<gluten::ResultIterator> getInputIteratorFromFileReader(
+  static std::shared_ptr<ResultIterator> getInputIteratorFromFileReader(
       FileReaderType readerType,
       const std::string& path,
       int64_t batchSize,
-      facebook::velox::memory::MemoryPool* pool);
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
   explicit FileReaderIterator(const std::string& path) : path_(path){};
 

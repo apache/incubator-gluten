@@ -308,7 +308,7 @@ void VeloxRuntime::enableDumping() {
       taskInfo.value(),
       saveDir.value(),
       veloxCfg_->get<int64_t>(kSparkBatchSize, 4096),
-      memoryManager()->getAggregateMemoryPool()->addAggregateChild("whole_stage_dumper").get());
+      memoryManager()->getAggregateMemoryPool().get());
 
   dumper_->dumpConf(getConfMap());
 }

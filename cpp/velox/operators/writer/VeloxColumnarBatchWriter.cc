@@ -16,6 +16,7 @@
  */
 
 #include "operators/writer/VeloxColumnarBatchWriter.h"
+#include "memory/VeloxColumnarBatch.h"
 
 #include "velox/dwio/common/FileSink.h"
 #include "velox/dwio/parquet/writer/Writer.h"
@@ -25,15 +26,15 @@ namespace gluten {
 VeloxColumnarBatchWriter::VeloxColumnarBatchWriter(
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : path_(path), batchSize_(batchSize), pool_(pool) {}
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool)
+    : path_(path), batchSize_(batchSize), pool_(std::move(pool)) {}
 
 arrow::Status VeloxColumnarBatchWriter::initWriter(const facebook::velox::RowTypePtr& rowType) {
   auto localWriteFile = std::make_unique<facebook::velox::LocalWriteFile>(path_, false, true);
   auto sink = std::make_unique<facebook::velox::dwio::common::WriteFileSink>(std::move(localWriteFile), path_);
 
   facebook::velox::parquet::WriterOptions writerOptions;
-  writerOptions.memoryPool = pool_;
+  writerOptions.memoryPool = pool_.get();
   writerOptions.compressionKind = facebook::velox::common::CompressionKind::CompressionKind_SNAPPY;
   writerOptions.batchSize = batchSize_;
 
@@ -42,7 +43,7 @@ arrow::Status VeloxColumnarBatchWriter::initWriter(const facebook::velox::RowTyp
 }
 
 arrow::Status VeloxColumnarBatchWriter::write(const std::shared_ptr<ColumnarBatch>& batch) {
-  auto rowVector = VeloxColumnarBatch::from(pool_, batch)->getRowVector();
+  auto rowVector = VeloxColumnarBatch::from(pool_.get(), batch)->getRowVector();
   if (!writer_) {
     RETURN_NOT_OK(initWriter(facebook::velox::asRowType(rowVector->type())));
   }
@@ -53,16 +54,6 @@ arrow::Status VeloxColumnarBatchWriter::write(const std::shared_ptr<ColumnarBatc
 
 arrow::Status VeloxColumnarBatchWriter::close() {
   writer_->close();
-  closed_ = true;
   return arrow::Status::OK();
 }
-
-std::shared_ptr<ColumnarBatchIterator> VeloxColumnarBatchWriter::retrieveIterator() {
-  GLUTEN_CHECK(writer_ != nullptr, "Writer is not initialized");
-  GLUTEN_CHECK(closed_, "Writer is not closed");
-
-  return std::make_shared<ParquetStreamReaderIterator>(
-      path_, batchSize_, pool_->addLeafChild("retrieve_iterator").get());
-}
-
 } // namespace gluten

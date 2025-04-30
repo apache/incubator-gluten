@@ -18,6 +18,7 @@
 #include "utils/VeloxWholeStageDumper.h"
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
+#include "operators/reader/ParquetReaderIterator.h"
 #include "operators/writer/VeloxColumnarBatchWriter.h"
 
 namespace gluten {
@@ -57,8 +58,8 @@ VeloxWholeStageDumper::VeloxWholeStageDumper(
     const SparkTaskInfo& taskInfo,
     const std::string& saveDir,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : taskInfo_(taskInfo), saveDir_(saveDir), batchSize_(batchSize), pool_(pool) {}
+    facebook::velox::memory::MemoryPool* aggregatePool)
+    : taskInfo_(taskInfo), saveDir_(saveDir), batchSize_(batchSize), pool_(aggregatePool) {}
 
 void VeloxWholeStageDumper::dumpConf(const std::unordered_map<std::string, std::string>& confMap) {
   const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->rawConfigs();
@@ -112,14 +113,18 @@ std::shared_ptr<ColumnarBatchIterator> VeloxWholeStageDumper::dumpInputIterator(
       fmt::format("data_{}_{}_{}_{}.parquet", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId, iteratorIndex);
   const auto dumpPath = checkAndGetDumpPath(saveDir_, fileName);
 
-  auto writer = std::make_shared<VeloxColumnarBatchWriter>(dumpPath, batchSize_, pool_);
+  // Velox parquet writer requires aggregate memory pool.
+  auto writer = std::make_shared<VeloxColumnarBatchWriter>(
+      dumpPath, batchSize_, pool_->addAggregateChild(fmt::format("dump_iterator.{}", iteratorIndex)));
 
   while (auto cb = inputIterator->next()) {
     GLUTEN_THROW_NOT_OK(writer->write(cb));
   }
   GLUTEN_THROW_NOT_OK(writer->close());
 
-  return writer->retrieveIterator();
+  // Velox parquet reader requires leaf memory pool.
+  return std::make_shared<ParquetStreamReaderIterator>(
+      dumpPath, batchSize_, pool_->addLeafChild(fmt::format("retrieve_iterator.{}", iteratorIndex)));
 }
 
 } // namespace gluten
