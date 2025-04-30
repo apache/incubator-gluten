@@ -336,7 +336,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
       child: SparkPlan,
-      isFromSortAggregate: Boolean = false): HashAggregateExecBaseTransformer =
+      isFromSortAggregate: Boolean): HashAggregateExecBaseTransformer =
     RegularHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions,

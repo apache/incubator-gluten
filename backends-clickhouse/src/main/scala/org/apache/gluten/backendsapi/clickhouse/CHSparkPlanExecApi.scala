@@ -160,7 +160,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
       child: SparkPlan,
-      isFromSortAggregate: Boolean = false): HashAggregateExecBaseTransformer = {
+      isFromSortAggregate: Boolean): HashAggregateExecBaseTransformer = {
     val replacedResultExpressions = CHHashAggregateExecTransformer.getCHAggregateResultExpressions(
       groupingExpressions,
       aggregateExpressions,

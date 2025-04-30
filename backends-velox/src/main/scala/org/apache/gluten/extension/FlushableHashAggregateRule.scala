@@ -53,7 +53,8 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
                   agg.aggregateAttributes,
                   agg.initialInputBufferOffset,
                   agg.resultExpressions,
-                  agg.child
+                  agg.child,
+                  agg.isFromSortAggregate
                 )
             }
           )

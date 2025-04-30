@@ -41,7 +41,7 @@ abstract class HashAggregateExecBaseTransformer(
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
-    isFromSortAggregate: Boolean = false,
+    isFromSortAggregate: Boolean,
     ignoreNullKeys: Boolean = false)
   extends BaseAggregateExec
   with UnaryTransformSupport {
