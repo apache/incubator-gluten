@@ -46,7 +46,7 @@ class VeloxHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
   std::shared_ptr<ColumnarBatch> next() override;
 
  private:
-  bool shouldSkipMerge();
+  bool shouldSkipMerge() const;
 
   void resolveNextBlockType();
 

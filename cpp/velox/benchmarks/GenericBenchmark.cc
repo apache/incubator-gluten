@@ -197,17 +197,10 @@ std::unique_ptr<PartitionWriter> createPartitionWriter(
   if (FLAGS_rss) {
     auto rssClient = std::make_unique<LocalRssClient>(dataFile);
     partitionWriter = std::make_unique<RssPartitionWriter>(
-        FLAGS_shuffle_partitions,
-        std::move(options),
-        runtime->memoryManager(),
-        std::move(rssClient));
+        FLAGS_shuffle_partitions, std::move(options), runtime->memoryManager(), std::move(rssClient));
   } else {
     partitionWriter = std::make_unique<LocalPartitionWriter>(
-        FLAGS_shuffle_partitions,
-        std::move(options),
-        runtime->memoryManager(),
-        dataFile,
-        localDirs);
+        FLAGS_shuffle_partitions, std::move(options), runtime->memoryManager(), dataFile, localDirs);
   }
   return partitionWriter;
 }
