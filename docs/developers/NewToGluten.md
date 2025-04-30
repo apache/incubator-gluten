@@ -185,8 +185,8 @@ configurations below:
 After compiling with these updated configs, you should have executable files (such as 
 `<gluten_home>/cpp/build/velox/tests/velox_shuffle_writer_test`).
 
-On the `Run and Debug` panel, click the link to create a launch.json file. When prompted, select a debugger like 
-"C++ (GDB/LLDB)". The launch.json will be created at: `<gluten_home>/.vscode/launch.json`.
+Open the `Run and Debug` panel (Ctrl-Shift-D) and then click the link to create a launch.json file. If prompted,
+select a debugger like  "C++ (GDB/LLDB)". The launch.json will be created at: `<gluten_home>/.vscode/launch.json`.
 
 Click the `Add Configuration` button in launch.json, and select gdb "launch" (to start and debug a program) or
 "attach" (to attach and debug a running program).
@@ -234,9 +234,9 @@ Click the `Add Configuration` button in launch.json, and select gdb "launch" (to
           "--with-shuffle",
           "--partitioning=hash",
           "--iterations=1",
-          "--conf=${workspaceFolder}/backends-velox/generated-native-benchmark/conf_12_0.ini",
-          "--plan=${workspaceFolder}/backends-velox/generated-native-benchmark/plan_12_0.json",
-          "--data=${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_0.parquet,${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_1.parquet"
+          "--conf=${workspaceFolder}/backends-velox/generated-native-benchmark/conf_12_0_2.ini",
+          "--plan=${workspaceFolder}/backends-velox/generated-native-benchmark/plan_12_0_2.json",
+          "--data=${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_2_0.parquet,${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_2_1.parquet"
       ],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
@@ -261,7 +261,7 @@ Click the `Add Configuration` button in launch.json, and select gdb "launch" (to
 }
 ```
 
-> Change `name`, `program`, `args` to yours
+> Change `name`, `program`, `args` for your environment. For example, your generated benchmark example file names may vary.
 
 Then you can create breakpoint and debug in `Run and Debug` section.
 
