@@ -170,10 +170,10 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     auto neededBytes = velox::bits::roundUp(bytes - reclaimedFreeBytes, memoryPoolTransferCapacity_);
     try {
       listener_->allocationChanged(neededBytes);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
       // if allocationChanged failed, we need to free the reclaimed bytes
       listener_->allocationChanged(-reclaimedFreeBytes);
-      throw e;
+      std::rethrow_exception(std::current_exception());
     }
     auto ret = growPool(pool, reclaimedFreeBytes + neededBytes, bytes);
     VELOX_CHECK(
