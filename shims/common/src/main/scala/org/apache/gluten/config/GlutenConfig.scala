@@ -17,7 +17,7 @@
 package org.apache.gluten.config
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.network.util.{ByteUnit, JavaUtils}
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf, SQLConfProvider}
 
 import com.google.common.collect.ImmutableList
@@ -156,8 +156,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarShuffle: Boolean = getConf(COLUMNAR_SHUFFLE_ENABLED)
 
-  def enablePreferColumnar: Boolean = getConf(COLUMNAR_PREFER_ENABLED)
-
   def physicalJoinOptimizationThrottle: Integer =
     getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
@@ -195,6 +193,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleReaderBufferSize: Long =
     getConf(COLUMNAR_SHUFFLE_READER_BUFFER_SIZE)
+
+  def columnarSortShuffleDeserializerBufferSize: Long =
+    getConf(COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE)
 
   def maxBatchSize: Int = getConf(COLUMNAR_MAX_BATCH_SIZE)
 
@@ -247,6 +248,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   }
 
   def memoryIsolation: Boolean = getConf(COLUMNAR_MEMORY_ISOLATION)
+
+  def memoryUntracked: Boolean = getConf(COLUMNAR_MEMORY_UNTRACKED)
 
   def offHeapMemorySize: Long = getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
@@ -342,6 +345,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def dynamicOffHeapSizingEnabled: Boolean =
     getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 
+  def dynamicOffHeapSizingMemoryFraction: Double =
+    getConf(DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION)
+
   def enableHiveFileFormatWriter: Boolean = getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = getConf(CELEBORN_FALLBACK_ENABLED)
@@ -357,10 +363,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def autoAdjustStageFallenNodeThreshold: Double =
     getConf(AUTO_ADJUST_STAGE_RESOURCES_FALLEN_NODE_RATIO_THRESHOLD)
-
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
-
   def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
+  def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
+  def getSupportedFlattenedExpressions: String = getConf(GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS)
+
+  def maxBroadcastTableSize: Long =
+    JavaUtils.byteStringAsBytes(conf.getConfString(SPARK_MAX_BROADCAST_TABLE_SIZE, "8GB"))
 }
 
 object GlutenConfig {
@@ -402,6 +411,8 @@ object GlutenConfig {
   val SPARK_S3_RETRY_MAX_ATTEMPTS: String = HADOOP_PREFIX + S3_RETRY_MAX_ATTEMPTS
   val S3_CONNECTION_MAXIMUM = "fs.s3a.connection.maximum"
   val SPARK_S3_CONNECTION_MAXIMUM: String = HADOOP_PREFIX + S3_CONNECTION_MAXIMUM
+  val S3_ENDPOINT_REGION = "fs.s3a.endpoint.region"
+  val SPARK_S3_ENDPOINT_REGION: String = HADOOP_PREFIX + S3_ENDPOINT_REGION
 
   // ABFS config
   val ABFS_PREFIX = "fs.azure."
@@ -437,6 +448,7 @@ object GlutenConfig {
   val SPARK_SHUFFLE_SPILL_DISK_WRITE_BUFFER_SIZE = "spark.shuffle.spill.diskWriteBufferSize"
   val SPARK_SHUFFLE_SPILL_COMPRESS = "spark.shuffle.spill.compress"
   val SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT: Boolean = true
+  val SPARK_MAX_BROADCAST_TABLE_SIZE = "spark.sql.maxBroadcastTableSize"
 
   def get: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
@@ -461,10 +473,8 @@ object GlutenConfig {
       COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       COLUMNAR_MAX_BATCH_SIZE.key,
       SHUFFLE_WRITER_BUFFER_SIZE.key,
-      SQLConf.SESSION_LOCAL_TIMEZONE.key,
-      GLUTEN_DEFAULT_SESSION_TIMEZONE.key,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
-      SQLConf.LEGACY_TIME_PARSER_POLICY.key,
+      SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
       "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems",
@@ -481,9 +491,13 @@ object GlutenConfig {
       SPARK_S3_IAM_SESSION_NAME,
       SPARK_S3_RETRY_MAX_ATTEMPTS,
       SPARK_S3_CONNECTION_MAXIMUM,
+      SPARK_S3_ENDPOINT_REGION,
       "spark.gluten.velox.fs.s3a.connect.timeout",
       "spark.gluten.velox.fs.s3a.retry.mode",
       "spark.gluten.velox.awsSdkLogLevel",
+      "spark.gluten.velox.s3UseProxyFromEnv",
+      "spark.gluten.velox.s3PayloadSigningPolicy",
+      "spark.gluten.velox.s3LogLocation",
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
       SPARK_GCS_AUTH_TYPE,
@@ -494,14 +508,21 @@ object GlutenConfig {
       "spark.gluten.sql.columnar.backend.velox.queryTraceNodeIds",
       "spark.gluten.sql.columnar.backend.velox.queryTraceMaxBytes",
       "spark.gluten.sql.columnar.backend.velox.queryTraceTaskRegExp",
-      "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig"
+      "spark.gluten.sql.columnar.backend.velox.opTraceDirectoryCreateConfig",
+      "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace",
+      "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace",
+      "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages",
+      "spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct",
+      "spark.gluten.sql.columnar.backend.velox.memoryPoolCapacityTransferAcrossTasks"
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
       (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
-      (SQLConf.LEGACY_TIME_PARSER_POLICY.key, SQLConf.LEGACY_TIME_PARSER_POLICY.defaultValueString),
+      (
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.key,
+        SQLConf.LEGACY_STATISTICAL_AGGREGATE.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
@@ -509,7 +530,8 @@ object GlutenConfig {
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString),
       (SPARK_SHUFFLE_SPILL_COMPRESS, SPARK_SHUFFLE_SPILL_COMPRESS_DEFAULT.toString),
-      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString)
+      (SQLConf.MAP_KEY_DEDUP_POLICY.key, SQLConf.MAP_KEY_DEDUP_POLICY.defaultValueString),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
     GlutenConfigUtil.mapByteConfValue(
@@ -586,7 +608,10 @@ object GlutenConfig {
       ("spark.sql.orc.compression.codec", "snappy"),
       ("spark.sql.decimalOperations.allowPrecisionLoss", "true"),
       ("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled", "false"),
-      ("spark.gluten.velox.awsSdkLogLevel", "FATAL")
+      ("spark.gluten.velox.awsSdkLogLevel", "FATAL"),
+      ("spark.gluten.velox.s3UseProxyFromEnv", "false"),
+      ("spark.gluten.velox.s3PayloadSigningPolicy", "Never"),
+      (SESSION_LOCAL_TIMEZONE.key, SESSION_LOCAL_TIMEZONE.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -600,10 +625,11 @@ object GlutenConfig {
       COLUMNAR_OFFHEAP_SIZE_IN_BYTES.key,
       COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES.key,
       SPARK_OFFHEAP_ENABLED,
-      SESSION_LOCAL_TIMEZONE.key,
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX,
-      LEGACY_TIME_PARSER_POLICY.key
+      LEGACY_TIME_PARSER_POLICY.key,
+      LEGACY_STATISTICAL_AGGREGATE.key,
+      COLUMNAR_CUDF_ENABLED.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -646,13 +672,6 @@ object GlutenConfig {
     .booleanConf
     .createWithDefault(true)
 
-  val GLUTEN_DEFAULT_SESSION_TIMEZONE = buildConf("spark.gluten.sql.session.timeZone.default")
-    .doc(
-      "used to hold default session timezone and will be really used by Gluten only if " +
-        "`spark.sql.session.timeZone` is not set.")
-    .stringConf
-    .createWithDefaultString(SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
-
   val GLUTEN_LOAD_LIB_OS =
     buildConf("spark.gluten.loadLibOS")
       .doc("The shared library loader's OS name.")
@@ -691,6 +710,13 @@ object GlutenConfig {
     .doc("Supported scala udf names.")
     .stringConf
     .createWithDefault("")
+
+  val GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS =
+    buildConf("spark.gluten.sql.supported.flattenNestedFunctions")
+      .internal()
+      .doc("Flatten nested functions as one for optimization.")
+      .stringConf
+      .createWithDefault("and,or");
 
   val GLUTEN_SOFT_AFFINITY_ENABLED =
     buildConf("spark.gluten.soft-affinity.enabled")
@@ -956,13 +982,6 @@ object GlutenConfig {
       .intConf
       .createWithDefault(100000)
 
-  val COLUMNAR_PREFER_ENABLED =
-    buildConf("spark.gluten.sql.columnar.preferColumnar")
-      .internal()
-      .doc("Prefer to use columnar operators if set to true.")
-      .booleanConf
-      .createWithDefault(true)
-
   val COLUMNAR_TABLE_CACHE_ENABLED =
     buildConf("spark.gluten.sql.columnar.tableCache")
       .internal()
@@ -1053,6 +1072,14 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.shuffle.readerBufferSize")
       .internal()
       .doc("Buffer size in bytes for shuffle reader reading input stream from local or remote.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1MB")
+
+  val COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.deserializerBufferSize")
+      .internal()
+      .doc("Buffer size in bytes for sort-based shuffle reader deserializing raw input to " +
+        "columnar batch.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
@@ -1231,6 +1258,16 @@ object GlutenConfig {
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
         "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
         "be enabled to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_MEMORY_UNTRACKED =
+    buildStaticConf("spark.gluten.memory.untracked")
+      .internal()
+      .doc(
+        "When enabled, turn all native memory allocations in Gluten into untracked. Spark " +
+          "will be unaware of the allocations so will not trigger spill-to-disk operations " +
+          "or Spark OOMs. Should only be used for testing or other non-production use cases.")
       .booleanConf
       .createWithDefault(false)
 
@@ -1615,7 +1652,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
-    buildConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
+    buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.enabled")
       .internal()
       .doc(
         "Experimental: When set to true, the offheap config (spark.memory.offHeap.size) will " +
@@ -1632,7 +1669,7 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
-    buildConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
+    buildStaticConf("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction")
       .internal()
       .doc(
         "Experimental: Determines the memory fraction used to determine the total " +
@@ -1702,4 +1739,18 @@ object GlutenConfig {
       .doc("Enable or disable columnar range.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_COLLECT_LIMIT_ENABLED =
+    buildConf("spark.gluten.sql.columnar.collectLimit")
+      .internal()
+      .doc("Enable or disable columnar collectLimit.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_CUDF_ENABLED =
+    buildConf("spark.gluten.sql.columnar.cudf")
+      .doc("Enable or disable cudf support. This is an experimental feature.")
+      .booleanConf
+      .createWithDefault(false)
+
 }

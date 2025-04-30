@@ -50,9 +50,9 @@ class DummyRuntime final : public Runtime {
       const std::unordered_map<std::string, std::string>& conf)
       : Runtime(kind, mm, conf) {}
 
-  void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override {}
+  void parsePlan(const uint8_t* data, int32_t size, bool dump) override {}
 
-  void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override {}
+  void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dump) override {}
 
   std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
@@ -99,11 +99,11 @@ class DummyRuntime final : public Runtime {
     throw GlutenException("Not yet implemented");
   }
 
-  void dumpConf(const std::string& path) override {
+  void dumpConf(bool dump) override {
     throw GlutenException("Not yet implemented");
   }
 
-  std::shared_ptr<ArrowWriter> createArrowWriter(const std::string& path) override {
+  std::shared_ptr<ArrowWriter> createArrowWriter(bool dump, int32_t) override {
     throw GlutenException("Not yet implemented");
   }
 
@@ -144,7 +144,7 @@ TEST(TestRuntime, CreateRuntime) {
 }
 
 TEST(TestRuntime, CreateVeloxRuntime) {
-  VeloxBackend::create({});
+  VeloxBackend::create(AllocationListener::noop(), {});
   auto mm = MemoryManager::create(kVeloxBackendKind, AllocationListener::noop());
   auto runtime = Runtime::create(kVeloxBackendKind, mm);
   ASSERT_EQ(typeid(*runtime), typeid(VeloxRuntime));

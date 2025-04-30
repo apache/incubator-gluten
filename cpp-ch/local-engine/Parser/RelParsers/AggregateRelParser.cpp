@@ -357,7 +357,6 @@ void AggregateRelParser::addMergingAggregatedStep()
             true,
             false,
             1,
-            1,
             false,
             settings[Setting::max_block_size],
             settings[Setting::aggregation_in_order_max_block_bytes],

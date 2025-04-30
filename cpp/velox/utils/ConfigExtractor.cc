@@ -20,15 +20,10 @@
 #include "ConfigExtractor.h"
 #include <stdexcept>
 
+#include "config/VeloxConfig.h"
 #include "utils/Exception.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/storage_adapters/s3fs/S3Config.h"
-
-namespace {
-
-const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
-const bool kVeloxFileHandleCacheEnabledDefault = false;
-} // namespace
 
 namespace gluten {
 
@@ -59,6 +54,17 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   const std::string kVeloxAwsSdkLogLevel = "spark.gluten.velox.awsSdkLogLevel";
   const std::string kVeloxAwsSdkLogLevelDefault = "FATAL";
 
+  // Whether to use proxy from env for s3 c++ client
+  const std::string kVeloxS3UseProxyFromEnv = "spark.gluten.velox.s3UseProxyFromEnv";
+  const std::string kVeloxS3UseProxyFromEnvDefault = "false";
+
+  // Payload signing policy
+  const std::string kVeloxS3PayloadSigningPolicy = "spark.gluten.velox.s3PayloadSigningPolicy";
+  const std::string kVeloxS3PayloadSigningPolicyDefault = "Never";
+
+  // Log location of AWS C++ SDK
+  const std::string kVeloxS3LogLocation = "spark.gluten.velox.s3LogLocation";
+
   const std::unordered_map<S3Config::Keys, std::pair<std::string, std::optional<std::string>>> sparkSuffixes = {
       {S3Config::Keys::kAccessKey, std::make_pair("access.key", std::nullopt)},
       {S3Config::Keys::kSecretKey, std::make_pair("secret.key", std::nullopt)},
@@ -72,6 +78,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       {S3Config::Keys::kUseInstanceCredentials, std::make_pair("instance.credentials", "false")},
       {S3Config::Keys::kIamRole, std::make_pair("iam.role", std::nullopt)},
       {S3Config::Keys::kIamRoleSessionName, std::make_pair("iam.role.session.name", "gluten-session")},
+      {S3Config::Keys::kEndpointRegion, std::make_pair("endpoint.region", std::nullopt)},
   };
 
   // get Velox S3 config key from Spark Suffix.
@@ -124,10 +131,17 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   setConfigIfPresent(S3Config::Keys::kPathStyleAccess);
   setConfigIfPresent(S3Config::Keys::kMaxConnections);
   setConfigIfPresent(S3Config::Keys::kConnectTimeout);
+  setConfigIfPresent(S3Config::Keys::kEndpointRegion);
 
-  hiveConfMap[facebook::velox::filesystems::S3Config::kS3LogLevel] =
-      conf->get<std::string>(kVeloxAwsSdkLogLevel, kVeloxAwsSdkLogLevelDefault);
-  ;
+  hiveConfMap[S3Config::kS3LogLevel] = conf->get<std::string>(kVeloxAwsSdkLogLevel, kVeloxAwsSdkLogLevelDefault);
+  hiveConfMap[S3Config::baseConfigKey(S3Config::Keys::kUseProxyFromEnv)] =
+      conf->get<std::string>(kVeloxS3UseProxyFromEnv, kVeloxS3UseProxyFromEnvDefault);
+  hiveConfMap[S3Config::kS3PayloadSigningPolicy] =
+      conf->get<std::string>(kVeloxS3PayloadSigningPolicy, kVeloxS3PayloadSigningPolicyDefault);
+  auto logLocation = conf->get<std::string>(kVeloxS3LogLocation);
+  if (logLocation.hasValue()) {
+    hiveConfMap[S3Config::kS3LogLocation] = logLocation.value();
+  };
 
   // Convert all Spark bucket configs to Velox bucket configs.
   for (const auto& [key, value] : conf->rawConfigs()) {
@@ -202,6 +216,25 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
+      conf->get<std::string>(kMaxCoalescedBytes, "67108864"); // 64M
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kMaxCoalescedDistance] =
+      conf->get<std::string>(kMaxCoalescedDistance, "512KB"); // 512KB
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
+      conf->get<std::string>(kPrefetchRowGroups, "1");
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kLoadQuantum] =
+      conf->get<std::string>(kLoadQuantum, "268435456"); // 256M
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
+      conf->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
+      conf->get<std::string>(kFilePreloadThreshold, "1048576"); // 1M
+
+  // read as UTC
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kReadTimestampPartitionValueAsLocalTime] = "false";
+
+  // Maps table field names to file field names using names, not indices.
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kParquetUseColumnNames] = "true";
+  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kOrcUseColumnNames] = "true";
 
   return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
 }

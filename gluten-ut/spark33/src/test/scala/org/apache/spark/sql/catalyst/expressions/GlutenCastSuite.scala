@@ -43,6 +43,69 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
   UDTRegistration.register(classOf[IExampleBaseType].getName, classOf[ExampleBaseTypeUDT].getName)
   UDTRegistration.register(classOf[IExampleSubType].getName, classOf[ExampleSubTypeUDT].getName)
 
+  test("cast array element from integer to string") {
+    val inputWithNull = Literal.create(Seq(1, null, 3), ArrayType(IntegerType))
+    val expectedWithNull = Seq("1", null, "3")
+    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
+
+    val emptyInput = Literal.create(Seq.empty[Int], ArrayType(IntegerType))
+    val expectedEmpty = Seq.empty[String]
+    checkEvaluation(cast(emptyInput, ArrayType(StringType)), expectedEmpty)
+
+    val inputNegative = Literal.create(Seq(-1, 0, 999999), ArrayType(IntegerType))
+    val expectedNegative = Seq("-1", "0", "999999")
+    checkEvaluation(cast(inputNegative, ArrayType(StringType)), expectedNegative)
+  }
+
+  test("cast array element from double to string") {
+    val inputWithNull = Literal.create(Seq(1.1, null, 3.3), ArrayType(DoubleType))
+    val expectedWithNull = Seq("1.1", null, "3.3")
+    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
+
+    val inputScientific = Literal.create(Seq(1.23e4, -5.67e-3), ArrayType(DoubleType))
+    val expectedScientific = Seq("12300.0", "-0.00567")
+    checkEvaluation(cast(inputScientific, ArrayType(StringType)), expectedScientific)
+  }
+
+  test("cast array element from bool to string") {
+    val inputWithNull = Literal.create(Seq(true, null, false), ArrayType(BooleanType))
+    val expectedWithNull = Seq("true", null, "false")
+    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
+
+    val emptyInput = Literal.create(Seq.empty[Boolean], ArrayType(BooleanType))
+    val expectedEmpty = Seq.empty[String]
+    checkEvaluation(cast(emptyInput, ArrayType(StringType)), expectedEmpty)
+  }
+
+  test("cast array element from date to string") {
+    val inputWithNull = Literal.create(
+      Seq(Date.valueOf("2024-01-01"), null, Date.valueOf("2024-01-03")),
+      ArrayType(DateType)
+    )
+    val expectedWithNull = Seq("2024-01-01", null, "2024-01-03")
+    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
+
+    val inputLeapYear = Literal.create(
+      Seq(Date.valueOf("2020-02-29")), // Leap day
+      ArrayType(DateType)
+    )
+    val expectedLeapYear = Seq("2020-02-29")
+    checkEvaluation(cast(inputLeapYear, ArrayType(StringType)), expectedLeapYear)
+  }
+
+  test("cast array from timestamp to string") {
+    val inputWithNull = Literal.create(
+      Seq(Timestamp.valueOf("2023-01-01 12:00:00"), null, Timestamp.valueOf("2023-12-31 23:59:59")),
+      ArrayType(TimestampType)
+    )
+    val expectedWithNull = Seq("2023-01-01 12:00:00", null, "2023-12-31 23:59:59")
+    checkEvaluation(cast(inputWithNull, ArrayType(StringType)), expectedWithNull)
+
+    val emptyInput = Literal.create(Seq.empty[Timestamp], ArrayType(TimestampType))
+    val expectedEmpty = Seq.empty[String]
+    checkEvaluation(cast(emptyInput, ArrayType(StringType)), expectedEmpty)
+  }
+
   testGluten("missing cases - from boolean") {
     (DataTypeTestUtils.numericTypeWithoutDecimal + BooleanType).foreach {
       t =>
@@ -154,6 +217,32 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     checkEvaluation(cast(123, IntegerType), 123)
 
     checkEvaluation(cast(Literal.create(null, IntegerType), ShortType), null)
+  }
+
+  test("cast timestamp to Int64 with floor division") {
+    val originalDefaultTz = TimeZone.getDefault
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+      val testCases = Seq(
+        ("1970-01-01 00:00:00.000", 0L),
+        ("1970-01-01 00:00:00.999", 0L),
+        ("1970-01-01 00:00:01.000", 1L),
+        ("1970-01-01 00:00:59.999", 59L),
+        ("1970-01-01 00:01:00.000", 60L),
+        ("2000-01-01 00:00:00.000", 946684800L),
+        ("2024-02-16 12:34:56.789", 1708086896L),
+        ("9999-12-31 23:59:59.999", 253402300799L),
+        ("1969-12-31 23:59:59.999", -1L),
+        ("1969-12-31 23:59:58.500", -2L),
+        ("1900-01-01 12:00:00.000", -2208945600L)
+      )
+
+      for ((inputStr, expectedOutput) <- testCases) {
+        checkEvaluation(cast(Timestamp.valueOf(inputStr), LongType), expectedOutput)
+      }
+    } finally {
+      TimeZone.setDefault(originalDefaultTz)
+    }
   }
 
   testGluten("cast string to timestamp") {

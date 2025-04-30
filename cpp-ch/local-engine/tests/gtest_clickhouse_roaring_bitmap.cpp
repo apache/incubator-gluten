@@ -16,6 +16,8 @@
  */
 #include <zlib.h>
 #include <Core/Settings.h>
+#include <IO/ReadBufferFromString.h>
+#include <IO/ReadHelpers.h>
 #include <Interpreters/Context.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Storages/SubstraitSource/Delta/Bitmap/DeltaDVRoaringBitmapArray.h>
@@ -23,6 +25,7 @@
 #include <gtest/gtest.h>
 #include <tests/utils/gluten_test_util.h>
 #include <roaring.hh>
+#include <Common/Base85Codec.h>
 #include <Common/QueryContext.h>
 
 namespace DB::Setting
@@ -138,8 +141,8 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     const std::string file_uri(test::gtest_uri("deletion_vector_multiple.bin"));
     const std::string file_uri1(test::gtest_uri("deletion_vector_only_one.bin"));
 
-    DeltaDVRoaringBitmapArray bitmap_array(context);
-    bitmap_array.rb_read(file_uri, 426433, 426424);
+    DeltaDVRoaringBitmapArray bitmap_array{};
+    bitmap_array.rb_read(file_uri, 426433, 426424, context);
     EXPECT_TRUE(bitmap_array.rb_contains(5));
     EXPECT_TRUE(bitmap_array.rb_contains(3618));
     EXPECT_TRUE(bitmap_array.rb_contains(155688));
@@ -157,8 +160,8 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     bitmap_array.rb_add(10000000000);
     EXPECT_TRUE(bitmap_array.rb_contains(10000000000));
 
-    DeltaDVRoaringBitmapArray bitmap_array1(context);
-    bitmap_array1.rb_read(file_uri1, 1, 539);
+    DeltaDVRoaringBitmapArray bitmap_array1{};
+    bitmap_array1.rb_read(file_uri1, 1, 539, context);
     EXPECT_TRUE(bitmap_array1.rb_contains(0));
     EXPECT_TRUE(bitmap_array1.rb_contains(1003));
     EXPECT_TRUE(bitmap_array1.rb_contains(880));
@@ -173,10 +176,10 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
 
     const std::string file_uri2(test::gtest_uri("deletion_vector_long_values.bin"));
 
-    DeltaDVRoaringBitmapArray bitmap_array2(context);
-    bitmap_array2.rb_read(file_uri2, 1, 4047);
+    DeltaDVRoaringBitmapArray bitmap_array2{};
+    bitmap_array2.rb_read(file_uri2, 1, 4047, context);
     EXPECT_FALSE(bitmap_array2.rb_is_empty());
-    EXPECT_EQ(2098, bitmap_array2.rb_size());
+    EXPECT_EQ(2098, bitmap_array2.cardinality());
     EXPECT_TRUE(bitmap_array2.rb_contains(0));
     EXPECT_TRUE(bitmap_array2.rb_contains(1003));
     EXPECT_TRUE(bitmap_array2.rb_contains(880));
@@ -212,7 +215,7 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     bitmap_array2.rb_clear();
     EXPECT_TRUE(bitmap_array2.rb_is_empty());
 
-    DeltaDVRoaringBitmapArray bitmap_array3(context);
+    DeltaDVRoaringBitmapArray bitmap_array3{};
     bitmap_array3.rb_add(3000000000);
     bitmap_array3.rb_add(5000000000);
     bitmap_array3.rb_add(10000000000);
@@ -222,4 +225,17 @@ TEST(Delta_DV, DeltaDVRoaringBitmapArray)
     EXPECT_FALSE(bitmap_array3.rb_contains(10000000001));
     EXPECT_FALSE(bitmap_array3.rb_contains(5000000001));
     EXPECT_FALSE(bitmap_array3.rb_contains(3000000001));
+}
+
+TEST(Delta_DV, Base85Codec)
+{
+    const String uuid_str = "a5d455b6-92f1-4c89-a26d-93a1d5ce3e89";
+    DB::ReadBufferFromString rb = DB::ReadBufferFromString(uuid_str);
+    UUID uuid;
+    readUUIDText(uuid, rb);
+
+    const String encoded = Base85Codec::encodeUUID(uuid);
+    EXPECT_EQ("RpnINLjqk5Qhu9/!Y{vn", encoded);
+    auto decodeUUID = Base85Codec::decodeUUID(encoded);
+    EXPECT_EQ(uuid_str, toString(decodeUUID));
 }

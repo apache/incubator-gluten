@@ -83,7 +83,7 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
         |)
         |SELECT * FROM t WHERE rn = 1
         |""".stripMargin
-    ) {}
+    )
   }
 
   test("collect_list / collect_set") {

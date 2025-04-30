@@ -17,7 +17,7 @@
 package org.apache.gluten.sql.shims.spark35
 
 import org.apache.gluten.expression.{ExpressionNames, Sig}
-import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
@@ -71,7 +71,6 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 class Spark35Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
 
   override def getDistribution(
       leftKeys: Seq[Expression],
@@ -92,7 +91,9 @@ class Spark35Shims extends SparkShims {
       Sig[RoundCeil](ExpressionNames.CEIL),
       Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT),
       Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT),
-      Sig[ArrayAppend](ExpressionNames.ARRAY_APPEND)
+      Sig[ArrayAppend](ExpressionNames.ARRAY_APPEND),
+      Sig[UrlEncode](ExpressionNames.URL_ENCODE),
+      Sig[UrlDecode](ExpressionNames.URL_DECODE)
     )
   }
 
@@ -103,6 +104,18 @@ class Spark35Shims extends SparkShims {
       Sig[RegrIntercept](ExpressionNames.REGR_INTERCEPT),
       Sig[RegrSXY](ExpressionNames.REGR_SXY),
       Sig[RegrReplacement](ExpressionNames.REGR_REPLACEMENT)
+    )
+  }
+
+  override def runtimeReplaceableExpressionMappings: Seq[Sig] = {
+    Seq(
+      Sig[ArrayCompact](ExpressionNames.ARRAY_COMPACT),
+      Sig[ArrayPrepend](ExpressionNames.ARRAY_PREPEND),
+      Sig[ArraySize](ExpressionNames.ARRAY_SIZE),
+      Sig[EqualNull](ExpressionNames.EQUAL_NULL),
+      Sig[ILike](ExpressionNames.ILIKE),
+      Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY),
+      Sig[Get](ExpressionNames.GET)
     )
   }
 
@@ -671,8 +684,10 @@ class Spark35Shims extends SparkShims {
     }
   }
 
-  override def isColumnarLimitExecSupported(): Boolean = false
-
   override def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
     file.otherConstantMetadataColumnValues.asJava.asInstanceOf[JMap[String, Object]]
+
+  override def getCollectLimitOffset(plan: CollectLimitExec): Int = {
+    plan.offset
+  }
 }

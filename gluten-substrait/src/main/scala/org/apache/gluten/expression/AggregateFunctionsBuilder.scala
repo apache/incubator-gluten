@@ -19,15 +19,13 @@ package org.apache.gluten.expression
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.substrait.expression.ExpressionBuilder
+import org.apache.gluten.substrait.SubstraitContext
 
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.types.DataType
 
 object AggregateFunctionsBuilder {
-  def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-
+  def create(context: SubstraitContext, aggregateFunc: AggregateFunction): Long = {
     // First handle the custom aggregate functions
     val substraitAggFuncName = getSubstraitFunctionName(aggregateFunc)
 
@@ -42,8 +40,7 @@ object AggregateFunctionsBuilder {
 
     val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)
 
-    ExpressionBuilder.newScalarFunction(
-      functionMap,
+    context.registerFunction(
       ConverterUtils.makeFuncName(substraitAggFuncName, inputTypes, FunctionConfig.REQ))
   }
 

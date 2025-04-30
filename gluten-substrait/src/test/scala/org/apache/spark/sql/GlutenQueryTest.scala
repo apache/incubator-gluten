@@ -25,7 +25,7 @@ import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.execution.TransformSupport
 import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.SPARK_VERSION_SHORT
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -60,7 +60,21 @@ abstract class GlutenQueryTest extends PlanTest {
     maxVersion(0) > version(0) || maxVersion(0) == version(0) && maxVersion(1) >= version(1)
   }
 
-  def shouldRun(
+  /**
+   * Check if the current spark version is between the minVersion and maxVersion.
+   *
+   * If the maxVersion is not specified, it will check if the current spark version is greater than
+   * or equal to, and if the minVersion is not specified, it will check if the current spark version
+   * is less than or equal to.
+   *
+   * @param minSparkVersion
+   *   the minimum spark version
+   * @param maxSparkVersion
+   *   the maximum spark version
+   * @return
+   *   true if the current spark version is between the minVersion and maxVersion
+   */
+  def matchSparkVersion(
       minSparkVersion: Option[String] = None,
       maxSparkVersion: Option[String] = None): Boolean = {
     var shouldRun = true
@@ -77,31 +91,49 @@ abstract class GlutenQueryTest extends PlanTest {
     shouldRun
   }
 
-  def ignore(
+  /** Ignore the test if the current spark version is between the minVersion and maxVersion */
+  def ignoreWithSpecifiedSparkVersion(
       testName: String,
       minSparkVersion: Option[String] = None,
       maxSparkVersion: Option[String] = None)(testFun: => Any): Unit = {
-    if (shouldRun(minSparkVersion, maxSparkVersion)) {
+    if (matchSparkVersion(minSparkVersion, maxSparkVersion)) {
       ignore(testName) {
         testFun
       }
     }
   }
 
-  def testWithSpecifiedSparkVersion(
-      testName: String,
-      minSparkVersion: Option[String] = None,
-      maxSparkVersion: Option[String] = None)(testFun: => Any): Unit = {
-    if (shouldRun(minSparkVersion, maxSparkVersion)) {
+  /** Run the test if the current spark version is between the minVersion and maxVersion */
+  def testWithRangeSparkVersion(testName: String, minSparkVersion: String, maxSparkVersion: String)(
+      testFun: => Any): Unit = {
+    if (matchSparkVersion(Some(minSparkVersion), Some(maxSparkVersion))) {
       test(testName) {
         testFun
       }
     }
   }
 
-  def testWithSpecifiedSparkVersion(testName: String, versions: Array[String])(
-      testFun: => Any): Unit = {
-    if (versions.exists(v => shouldRun(Some(v), Some(v)))) {
+  /** Run the test if the current spark version less than the maxVersion */
+  def testWithMaxSparkVersion(testName: String, maxVersion: String)(testFun: => Any): Unit = {
+    if (matchSparkVersion(maxSparkVersion = Some(maxVersion))) {
+      test(testName) {
+        testFun
+      }
+    }
+  }
+
+  /** Run the test if the current spark version greater than the minVersion */
+  def testWithMinSparkVersion(testName: String, minVersion: String)(testFun: => Any): Unit = {
+    if (matchSparkVersion(Some(minVersion))) {
+      test(testName) {
+        testFun
+      }
+    }
+  }
+
+  /** Run the test on the specified spark version */
+  def testWithSpecifiedSparkVersion(testName: String, versions: String*)(testFun: => Any): Unit = {
+    if (versions.exists(v => matchSparkVersion(Some(v), Some(v)))) {
       test(testName) {
         testFun
       }
@@ -397,6 +429,28 @@ abstract class GlutenQueryTest extends PlanTest {
     val executedPlan = getExecutedPlan(df)
     assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
   }
+
+  /**
+   * Check whether the executed plan of a dataframe contains expected number of expected plans.
+   *
+   * @param df:
+   *   the input dataframe.
+   * @param count:
+   *   expected number of expected plan.
+   * @param tag:
+   *   class of the expected plan.
+   * @tparam T:
+   *   type of the expected plan.
+   */
+  def checkGlutenOperatorCount[T <: GlutenPlan](df: DataFrame, count: Int)(implicit
+      tag: ClassTag[T]): Unit = {
+    val executedPlan = getExecutedPlan(df)
+    assert(
+      executedPlan.count(plan => tag.runtimeClass.isInstance(plan)) == count,
+      s"Expect $count ${tag.runtimeClass.getSimpleName} " +
+        s"in executedPlan:\n ${executedPlan.last}"
+    )
+  }
 }
 
 object GlutenQueryTest extends Assertions {
@@ -683,6 +737,11 @@ object GlutenQueryTest extends Assertions {
 }
 
 class QueryTestSuite extends QueryTest with test.SharedSparkSession {
+
+  override protected def sparkConf: SparkConf =
+    super.sparkConf
+      .set("spark.ui.enabled", "false")
+
   test("SPARK-16940: checkAnswer should raise TestFailedException for wrong results") {
     intercept[org.scalatest.exceptions.TestFailedException] {
       checkAnswer(sql("SELECT 1"), Row(2) :: Nil)

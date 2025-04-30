@@ -21,15 +21,15 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <IO/ReadBufferFromString.h>
+#include <Parser/SubstraitParserUtils.h>
+#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
+#include <Storages/SubstraitSource/Delta/DeltaReader.h>
+#include <Storages/SubstraitSource/Iceberg/IcebergReader.h>
 #include <Storages/SubstraitSource/ParquetFormatFile.h>
-#include <Storages/SubstraitSource/iceberg/IcebergReader.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/GlutenStringUtils.h>
-#include <Parser/SubstraitParserUtils.h>
-#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
-#include <Storages/SubstraitSource/Delta/DeltaReader.h>
 
 namespace DB
 {
@@ -59,12 +59,12 @@ DB::Columns BaseReader::addVirtualColumn(DB::Chunk dataChunk, size_t rowNum) con
         std::back_inserter(res_columns),
         [&](const auto & column) -> DB::ColumnPtr
         {
-            if (readHeader.has(column.name))
-                return read_columns[readHeader.getPositionByName(column.name)];
             if (auto it = normalized_partition_values.find(boost::to_lower_copy(column.name)); it != normalized_partition_values.end())
                 return createPartitionColumn(it->second, column.type, rows);
             if (file->fileMetaColumns().virtualColumn(column.name))
                 return file->fileMetaColumns().createMetaColumn(column.name, column.type, rows);
+            if (readHeader.has(column.name))
+                return read_columns[readHeader.getPositionByName(column.name)];
             throw DB::Exception(
                 DB::ErrorCodes::LOGICAL_ERROR, "Not found column = {} when reading file: {}.", column.name, file->getURIPath());
         });
@@ -243,6 +243,7 @@ NormalFileReader::NormalFileReader(
     const FormatFile::InputFormatPtr & input_format_)
     : BaseReader(file_, to_read_header_, output_header_), input_format(input_format_)
 {
+    assert(input_format);
 }
 
 bool NormalFileReader::pull(DB::Chunk & chunk)
@@ -308,7 +309,8 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
                     row_index_filter_type = toString(column.value());
             }
         }
-        return delta::DeltaReader::create(file, to_read_header_, output_header_, input_format, row_index_ids_encoded, row_index_filter_type);
+        return delta::DeltaReader::create(
+            file, to_read_header_, output_header_, input_format, row_index_ids_encoded, row_index_filter_type);
     }
 
     return std::make_unique<NormalFileReader>(file, to_read_header_, output_header_, input_format);

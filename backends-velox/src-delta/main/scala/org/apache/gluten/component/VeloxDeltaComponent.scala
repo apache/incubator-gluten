@@ -37,6 +37,7 @@ class VeloxDeltaComponent extends Component {
     legacy.injectTransform {
       c =>
         val offload = Seq(OffloadDeltaScan(), OffloadDeltaProject(), OffloadDeltaFilter())
+          .map(_.toStrcitRule())
         HeuristicTransform.Simple(Validators.newValidator(c.glutenConf, offload), offload)
     }
     val offloads: Seq[RasOffload] = Seq(

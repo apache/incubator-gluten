@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-#include "BenchmarkUtils.h"
+#include "benchmarks/common/BenchmarkUtils.h"
+
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
@@ -23,28 +24,17 @@
 #include "utils/StringUtil.h"
 #include "velox/dwio/common/Options.h"
 
+#include <benchmark/benchmark.h>
+
 DEFINE_int64(batch_size, 4096, "To set velox::core::QueryConfig::kPreferredOutputBatchSize.");
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
 namespace gluten {
-namespace {
-std::unordered_map<std::string, std::string> bmConfMap = defaultConf();
-} // namespace
 
-std::unordered_map<std::string, std::string> defaultConf() {
-  return {
-      {gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)},
-  };
-}
-
-void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
-  gluten::VeloxBackend::create(conf);
-}
-
-void initVeloxBackend() {
-  initVeloxBackend(bmConfMap);
+void initVeloxBackend(const std::unordered_map<std::string, std::string>& conf) {
+  gluten::VeloxBackend::create(AllocationListener::noop(), conf);
 }
 
 std::string getPlanFromFile(const std::string& type, const std::string& filePath) {
@@ -123,6 +113,8 @@ bool endsWith(const std::string& data, const std::string& suffix) {
 }
 
 void setCpu(uint32_t cpuIndex) {
+#ifdef __APPLE__
+#else
   static const auto kTotalCores = std::thread::hardware_concurrency();
   cpuIndex = cpuIndex % kTotalCores;
   cpu_set_t cs;
@@ -132,28 +124,7 @@ void setCpu(uint32_t cpuIndex) {
     LOG(WARNING) << "Error binding CPU " << std::to_string(cpuIndex);
     std::exit(EXIT_FAILURE);
   }
+#endif
 }
 
-void BenchmarkAllocationListener::allocationChanged(int64_t diff) {
-  if (diff > 0 && usedBytes_ + diff >= limit_) {
-    LOG(INFO) << fmt::format(
-        "reach hard limit {} when need {}, current used {}.",
-        facebook::velox::succinctBytes(limit_),
-        facebook::velox::succinctBytes(diff),
-        facebook::velox::succinctBytes(usedBytes_));
-    auto neededBytes = usedBytes_ + diff - limit_;
-    int64_t spilledBytes = 0;
-    if (iterator_) {
-      spilledBytes += iterator_->spillFixedSize(neededBytes);
-    }
-    if (spilledBytes < neededBytes && shuffleWriter_) {
-      int64_t reclaimed = 0;
-      GLUTEN_THROW_NOT_OK(shuffleWriter_->reclaimFixedSize(neededBytes - spilledBytes, &reclaimed));
-      spilledBytes += reclaimed;
-    }
-    LOG(INFO) << fmt::format("spill finish, got {}.", facebook::velox::succinctBytes(spilledBytes));
-  } else {
-    usedBytes_ += diff;
-  }
-}
 } // namespace gluten

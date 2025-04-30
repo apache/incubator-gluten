@@ -32,7 +32,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 ##### For compiling clickhouse backend
 
 Following softwares are required,
-- Clang 18.0
+- Clang 19.0
 - cmake 3.20 or higher version
 - ninja-build 1.8.2
 

@@ -18,12 +18,12 @@ package org.apache.gluten.sql.shims
 
 import org.apache.gluten.execution.GlutenPlan
 
+import org.apache.spark.SparkContext
+import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 
 import java.util.{HashMap => JHashMap, Map => JMap}
-
-sealed abstract class ShimDescriptor
 
 trait DeltaShims {
   def supportDeltaOptimizedWriterExec(plan: SparkPlan): Boolean = false
@@ -32,6 +32,10 @@ trait DeltaShims {
     throw new UnsupportedOperationException(
       s"Can't transform ColumnarDeltaOptimizedWriterExec from ${plan.getClass.getSimpleName}")
   }
+
+  def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {}
+
+  def registerExpressionExtension(): Unit = {}
 
   def convertRowIndexFilterIdEncoded(
       partitionColsCnt: Int,

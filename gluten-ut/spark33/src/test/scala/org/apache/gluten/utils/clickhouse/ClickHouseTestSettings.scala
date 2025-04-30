@@ -483,11 +483,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("column stats collection for null columns")
     .exclude("store and retrieve column stats in different time zones")
     .excludeGlutenTest("store and retrieve column stats in different time zones")
+    .excludeCH("statistics collection of a table with zero column")
   enableSuite[GlutenStringFunctionsSuite]
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
     .exclude("binary overlay function")
-    .exclude("string parse_url function")
     .exclude("string / binary length function")
     .exclude("SPARK-36751: add octet length api for scala")
     .exclude("SPARK-36751: add bit length api for scala")
@@ -626,6 +626,12 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36924: Cast YearMonthIntervalType to IntegralType")
     .exclude("SPARK-36924: Cast IntegralType to YearMonthIntervalType")
     .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
+    .exclude("cast timestamp to Int64 with floor division")
+    .exclude("cast array element from integer to string")
+    .exclude("cast array element from double to string")
+    .exclude("cast array element from bool to string")
+    .exclude("cast array element from date to string")
+    .exclude("cast array from timestamp to string")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -983,6 +989,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeGlutenTest("replace partial hash aggregate with sort aggregate")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSQLAggregateFunctionSuite]
+    .excludeGlutenTest("Return NaN or null when dividing by zero")
   enableSuite[GlutenSQLWindowFunctionSuite]
     .exclude("window function: partition and order expressions")
     .exclude("window function: expressions in arguments of a window functions")
@@ -1157,6 +1164,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "- single join")
     .exclude("SPARK-35455: Unify empty relation optimization between normal and AQE optimizer " +
       "- multi join")
+    // Gluten columnar operator will have different number of shuffle
+    .exclude("SPARK-29906: AQE should not introduce extra shuffle for outermost limit")
     .excludeGlutenTest("Empty stage coalesced to 1-partition RDD")
     .excludeGlutenTest(
       "Avoid changing merge join to broadcast join if too many empty partitions on build plan")

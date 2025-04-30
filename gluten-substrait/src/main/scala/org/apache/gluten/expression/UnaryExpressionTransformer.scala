@@ -21,6 +21,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ListNode
 import org.apache.gluten.substrait.`type`.MapNode
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, StructLiteralNode}
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -35,18 +36,18 @@ case class ChildTransformer(
   extends UnaryExpressionTransformer {
   override def dataType: DataType = child.dataType
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    child.doTransform(args)
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
+    child.doTransform(context)
   }
 }
 
 case class CastTransformer(substraitExprName: String, child: ExpressionTransformer, original: Cast)
   extends UnaryExpressionTransformer {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
     ExpressionBuilder.makeCast(
       typeNode,
-      child.doTransform(args),
+      child.doTransform(context),
       SparkShimLoader.getSparkShims.withAnsiEvalMode(original))
   }
 }
@@ -57,12 +58,10 @@ case class ExplodeTransformer(
     original: Explode)
   extends UnaryExpressionTransformer {
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode: ExpressionNode = child.doTransform(args)
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
+    val childNode: ExpressionNode = child.doTransform(context)
 
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
+    val functionId = context.registerFunction(
       ConverterUtils.makeFuncName(substraitExprName, Seq(original.child.dataType)))
 
     val expressionNodes = Lists.newArrayList(childNode)
@@ -83,11 +82,11 @@ case class CheckOverflowTransformer(
     child: ExpressionTransformer,
     original: CheckOverflow)
   extends UnaryExpressionTransformer {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     BackendsApiManager.getTransformerApiInstance.createCheckOverflowExprNode(
-      args,
+      context,
       substraitExprName,
-      child.doTransform(args),
+      child.doTransform(context),
       original.child.dataType,
       original.dataType,
       original.nullable,
@@ -103,13 +102,13 @@ case class GetStructFieldTransformer(
   override def left: ExpressionTransformer = child
   override def right: ExpressionTransformer = LiteralTransformer(original.ordinal)
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.doTransform(args)
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
+    val childNode = child.doTransform(context)
     childNode match {
       case node: StructLiteralNode =>
         node.getFieldLiteral(original.ordinal)
       case _ =>
-        super.doTransform(args)
+        super.doTransform(context)
     }
   }
 }

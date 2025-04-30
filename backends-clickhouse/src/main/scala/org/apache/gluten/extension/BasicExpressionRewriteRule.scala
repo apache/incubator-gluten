@@ -44,7 +44,9 @@ object PlanResolvedChecker {
   }
 }
 
-class RepalceFromJsonWithGetJsonObject(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
+case class RepalceFromJsonWithGetJsonObject(spark: SparkSession)
+  extends Rule[LogicalPlan]
+  with Logging {
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       !CHBackendSettings.enableReplaceFromJsonWithGetJsonObject || !PlanResolvedChecker.check(plan)

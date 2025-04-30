@@ -101,23 +101,11 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
   }
 
   override def supportsColumnarInput(schema: Seq[Attribute]): Boolean = {
-    // Note, there is a issue that, if gluten columnar scan is disabled and vanilla Spark
-    // columnar is enabled, then the following plan would fail.
-    // InMemoryTableScan
-    //   InMemoryRelation
-    //     (vanilla Spark columnar Scan) Parquet
-    // The reason is that, Spark will remove the top level `ColumnarToRow` and call
-    // `convertColumnarBatchToCachedBatch`, but the inside ColumnarBatch is not arrow-based.
-    // See: `InMemoryRelation.apply()`.
-    // So we should disallow columnar input if using vanilla Spark columnar scan.
-    val noVanillaSparkColumnarScan = glutenConf.getConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED) ||
-      !glutenConf.getConf(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED)
-    glutenConf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(
-      schema) && noVanillaSparkColumnarScan
+    glutenConf.enableGluten && validateSchema(schema)
   }
 
   override def supportsColumnarOutput(schema: StructType): Boolean = {
-    glutenConf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(schema)
+    glutenConf.enableGluten && validateSchema(schema)
   }
 
   override def convertInternalRowToCachedBatch(

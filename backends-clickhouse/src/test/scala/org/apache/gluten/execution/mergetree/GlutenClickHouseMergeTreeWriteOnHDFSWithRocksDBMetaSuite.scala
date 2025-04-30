@@ -28,11 +28,8 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
-import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
-
-import java.io.File
 
 import scala.concurrent.duration.DurationInt
 
@@ -71,13 +68,12 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
     conf.set("fs.defaultFS", HDFS_URL)
     val fs = FileSystem.get(conf)
     fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
-    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
+    hdfsHelper.resetMeta()
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
+    hdfsHelper.resetMeta()
   }
 
   test("test mergetree table write") {
@@ -114,7 +110,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
                  | insert into table lineitem_mergetree_hdfs
                  | select * from lineitem
                  |""".stripMargin)
-    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
+    hdfsHelper.resetMeta()
 
     runTPCHQueryBySQL(1, q1("lineitem_mergetree_hdfs")) {
       df =>

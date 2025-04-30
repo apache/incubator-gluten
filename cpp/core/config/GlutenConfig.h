@@ -37,8 +37,6 @@ const std::string kAllowPrecisionLoss = "spark.sql.decimalOperations.allowPrecis
 
 const std::string kIgnoreMissingFiles = "spark.sql.files.ignoreMissingFiles";
 
-const std::string kDefaultSessionTimezone = "spark.gluten.sql.session.timeZone.default";
-
 const std::string kSparkOverheadMemory = "spark.gluten.memoryOverhead.size.in.bytes";
 
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
@@ -47,6 +45,9 @@ const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.si
 
 const std::string kMemoryReservationBlockSize = "spark.gluten.memory.reservationBlockSize";
 const uint64_t kMemoryReservationBlockSizeDefault = 8 << 20;
+
+const std::string kCheckUsageLeak = "spark.gluten.sql.columnar.backend.velox.checkUsageLeak";
+const bool kCheckUsageLeakDefault = true;
 
 const std::string kSparkBatchSize = "spark.gluten.sql.columnar.maxBatchSize";
 
@@ -67,6 +68,8 @@ const std::string kUGITokens = "spark.gluten.ugi.tokens";
 const std::string kShuffleCompressionCodec = "spark.gluten.sql.columnar.shuffle.codec";
 const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.shuffle.codecBackend";
 const std::string kShuffleSpillDiskWriteBufferSize = "spark.shuffle.spill.diskWriteBufferSize";
+const std::string kSortShuffleReaderDeserializerBufferSize =
+    "spark.gluten.sql.columnar.shuffle.sort.deserializerBufferSize";
 const std::string kQatBackendName = "qat";
 const std::string kIaaBackendName = "iaa";
 
@@ -76,6 +79,8 @@ const std::string kSparkRedactionString = "*********(redacted)";
 const std::string kSparkLegacyTimeParserPolicy = "spark.sql.legacy.timeParserPolicy";
 const std::string kShuffleFileBufferSize = "spark.shuffle.file.buffer";
 const std::string kSparkMapKeyDedupPolicy = "spark.sql.mapKeyDedupPolicy";
+
+const std::string kSparkLegacyStatisticalAggregate = "spark.sql.legacy.statisticalAggregate";
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);

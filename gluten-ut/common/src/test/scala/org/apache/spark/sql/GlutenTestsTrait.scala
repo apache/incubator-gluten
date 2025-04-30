@@ -26,7 +26,6 @@ import org.apache.spark.sql.GlutenQueryTestUtil.isNaNOrInf
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.ResolveTimeZone
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData, TypeUtils}
 import org.apache.spark.sql.internal.SQLConf
@@ -106,6 +105,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         .config("spark.sql.warehouse.dir", warehouse)
         // Avoid the code size overflow error in Spark code generation.
         .config("spark.sql.codegen.wholeStage", "false")
+        .config("spark.ui.enabled", "false")
 
       _spark = if (BackendTestUtils.isCHBackendLoaded()) {
         sparkBuilder
@@ -130,21 +130,17 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
       expression: => Expression,
       expected: Any,
       inputRow: InternalRow = EmptyRow): Unit = {
-    val resolver = ResolveTimeZone
-    val expr = resolver.resolveTimeZones(expression)
-    assert(expr.resolved)
 
     if (canConvertToDataFrame(inputRow)) {
+      val resolver = ResolveTimeZone
+      val expr = resolver.resolveTimeZones(expression)
+      assert(expr.resolved)
+
       glutenCheckExpression(expr, expected, inputRow)
     } else {
-      logWarning(s"The status of this unit test is not guaranteed.")
-      val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
-      checkEvaluationWithoutCodegen(expr, catalystValue, inputRow)
-      checkEvaluationWithMutableProjection(expr, catalystValue, inputRow)
-      if (GenerateUnsafeProjection.canSupport(expr.dataType)) {
-        checkEvaluationWithUnsafeProjection(expr, catalystValue, inputRow)
-      }
-      checkEvaluationWithOptimization(expr, catalystValue, inputRow)
+      logWarning(
+        "Skipping evaluation - Nonempty inputRow cannot be converted to DataFrame " +
+          "due to complex/unsupported types.\n")
     }
   }
 

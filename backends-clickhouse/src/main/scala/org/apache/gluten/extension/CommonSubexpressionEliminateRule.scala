@@ -32,7 +32,9 @@ import scala.collection.mutable
 // 2. append two options to spark config
 //    --conf spark.sql.planChangeLog.level=error
 //    --conf spark.sql.planChangeLog.batches=all
-class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
+case class CommonSubexpressionEliminateRule(spark: SparkSession)
+  extends Rule[LogicalPlan]
+  with Logging {
 
   private var lastPlan: LogicalPlan = null
 
@@ -89,16 +91,16 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
 
   private def replaceAggCommonExprWithAttribute(
       expr: Expression,
-      commonExprMap: mutable.HashMap[ExpressionEquals, AliasAndAttribute]): Expression = {
+      commonExprMap: mutable.HashMap[ExpressionEquals, AliasAndAttribute],
+      inAgg: Boolean = false): Expression = {
     val exprEquals = commonExprMap.get(ExpressionEquals(expr))
-    if (expr.isInstanceOf[AggregateExpression]) {
-      if (exprEquals.isDefined) {
+    expr match {
+      case _ if exprEquals.isDefined && inAgg =>
         exprEquals.get.attribute
-      } else {
-        expr
-      }
-    } else {
-      expr.mapChildren(replaceAggCommonExprWithAttribute(_, commonExprMap))
+      case _: AggregateExpression =>
+        expr.mapChildren(replaceAggCommonExprWithAttribute(_, commonExprMap, true))
+      case _ =>
+        expr.mapChildren(replaceAggCommonExprWithAttribute(_, commonExprMap, inAgg))
     }
   }
 

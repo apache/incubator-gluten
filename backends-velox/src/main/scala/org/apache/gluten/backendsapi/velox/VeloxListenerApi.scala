@@ -26,12 +26,15 @@ import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
+import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
+import org.apache.gluten.memory.listener.ReservationListener
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
 
 import org.apache.spark.{HdfsConfGenerator, ShuffleDependency, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.GlobalOffHeapMemory
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.shuffle.{ColumnarShuffleDependency, LookupKey, ShuffleManagerRegistry}
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager
@@ -44,6 +47,7 @@ import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
 
 import org.apache.commons.lang3.StringUtils
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 class VeloxListenerApi extends ListenerApi with Logging {
@@ -115,7 +119,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     SparkDirectoryUtil.init(conf)
-    UDFResolver.resolveUdfConf(conf, isDriver = true)
     initialize(conf, isDriver = true)
     UdfJniWrapper.registerFunctionSignatures()
   }
@@ -142,13 +145,28 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     SparkDirectoryUtil.init(conf)
-    UDFResolver.resolveUdfConf(conf, isDriver = false)
     initialize(conf, isDriver = false)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
+    // Sets this configuration only once, since not undoable.
+    // DebugInstance should be created first.
+    if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
+      val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
+      JniWorkspace.enableDebug(debugDir)
+    } else {
+      JniWorkspace.initializeDefault(
+        () =>
+          SparkDirectoryUtil.get
+            .namespace("jni")
+            .mkChildDirRandomly(UUID.randomUUID.toString)
+            .getAbsolutePath)
+    }
+
+    UDFResolver.resolveUdfConf(conf, isDriver)
+
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
     ArrowJavaBatch.ensureRegistered()
@@ -168,12 +186,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
         classOf[ColumnarShuffleManager].getName
       )
 
-    // Sets this configuration only once, since not undoable.
-    if (conf.getBoolean(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE.key, defaultValue = false)) {
-      val debugDir = conf.get(GlutenConfig.DEBUG_KEEP_JNI_WORKSPACE_DIR.key)
-      JniWorkspace.enableDebug(debugDir)
-    }
-
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.
     System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")
@@ -190,11 +202,11 @@ class VeloxListenerApi extends ListenerApi with Logging {
     // Load backend libraries.
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH.key, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
-      JniLibLoader.loadFromPath(libPath, false)
+      JniLibLoader.loadFromPath(libPath)
     } else {
       val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME.key, "gluten")
-      loader.load(s"$platformLibDir/${System.mapLibraryName(baseLibName)}", false)
-      loader.load(s"$platformLibDir/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}", false)
+      loader.load(s"$platformLibDir/${System.mapLibraryName(baseLibName)}")
+      loader.load(s"$platformLibDir/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}")
     }
 
     // Initial native backend with configurations.
@@ -204,7 +216,9 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (isDriver && !inLocalMode(conf)) {
       parsed += (COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
     }
-    NativeBackendInitializer.forBackend(VeloxBackend.BACKEND_NAME).initialize(parsed)
+    NativeBackendInitializer
+      .forBackend(VeloxBackend.BACKEND_NAME)
+      .initialize(newGlobalOffHeapMemoryListener(), parsed)
 
     // Inject backend-specific implementations to override spark classes.
     GlutenFormatFactory.register(new VeloxParquetWriterInjects)
@@ -237,5 +251,27 @@ object VeloxListenerApi {
 
   private def inLocalMode(conf: SparkConf): Boolean = {
     SparkResourceUtil.isLocalMaster(conf)
+  }
+
+  private def newGlobalOffHeapMemoryListener(): ReservationListener = {
+    new ReservationListener {
+      private val recorder: MemoryUsageRecorder = new SimpleMemoryUsageRecorder()
+
+      override def reserve(size: Long): Long = {
+        GlobalOffHeapMemory.acquire(size)
+        recorder.inc(size)
+        size
+      }
+
+      override def unreserve(size: Long): Long = {
+        GlobalOffHeapMemory.release(size)
+        recorder.inc(-size)
+        size
+      }
+
+      override def getUsedBytes: Long = {
+        recorder.current()
+      }
+    }
   }
 }

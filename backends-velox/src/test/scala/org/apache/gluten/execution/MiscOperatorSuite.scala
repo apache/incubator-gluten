@@ -16,14 +16,14 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.expression.VeloxDummyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
@@ -312,7 +312,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 5)
   }
 
-  testWithSpecifiedSparkVersion("coalesce validation", Some("3.4")) {
+  testWithMinSparkVersion("coalesce validation", "3.4") {
     withTempPath {
       path =>
         val data = "2019-09-09 01:02:03.456789"
@@ -2009,5 +2009,87 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
     }
+  }
+
+  test("test get_struct_field with scalar function as input") {
+    withSQLConf("spark.sql.json.enablePartialResults" -> "true") {
+      withTable("t") {
+        withTempPath {
+          path =>
+            Seq[String](
+              "{\"a\":1,\"b\":[10, 11, 12]}",
+              "{\"a\":2,\"b\":[20, 21, 22]}"
+            ).toDF("json_str").write.parquet(path.getCanonicalPath)
+            spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+
+            val query =
+              """
+                | select
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').a,
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').b
+                | from t
+                |""".stripMargin
+
+            runQueryAndCompare(query)(
+              df => {
+                val executedPlan = getExecutedPlan(df)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExecTransformer]) == 1)
+              })
+        }
+      }
+    }
+  }
+
+  test("Blacklist expression can be handled by ColumnarPartialProject") {
+    withSQLConf("spark.gluten.expression.blacklist" -> "regexp_replace") {
+      runQueryAndCompare(
+        "SELECT c_custkey, c_name, regexp_replace(c_comment, '\\w', 'something') FROM customer") {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+          assert(executedPlan.count(_.isInstanceOf[ColumnarPartialProjectExec]) == 1)
+      }
+    }
+  }
+
+  test("Check VeloxResizeBatches is added in ShuffleRead") {
+    Seq(true, false).foreach(
+      coalesceEnabled => {
+        withSQLConf(
+          VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_OUTPUT.key -> "true",
+          SQLConf.SHUFFLE_PARTITIONS.key -> "10",
+          SQLConf.COALESCE_PARTITIONS_ENABLED.key -> coalesceEnabled.toString
+        ) {
+          runQueryAndCompare(
+            "SELECT l_orderkey, count(1) from lineitem group by l_orderkey".stripMargin) {
+            df =>
+              val executedPlan = getExecutedPlan(df)
+              if (coalesceEnabled) {
+                // VeloxResizeBatches(AQEShuffleRead(ShuffleQueryStage(ColumnarShuffleExchange)))
+                assert(executedPlan.sliding(4).exists {
+                  case Seq(
+                        _: ColumnarShuffleExchangeExec,
+                        _: ShuffleQueryStageExec,
+                        _: AQEShuffleReadExec,
+                        _: VeloxResizeBatchesExec
+                      ) =>
+                    true
+                  case _ => false
+                })
+              } else {
+                // VeloxResizeBatches(ShuffleQueryStage(ColumnarShuffleExchange))
+                assert(executedPlan.sliding(3).exists {
+                  case Seq(
+                        _: ColumnarShuffleExchangeExec,
+                        _: ShuffleQueryStageExec,
+                        _: VeloxResizeBatchesExec) =>
+                    true
+                  case _ => false
+                })
+              }
+          }
+        }
+      })
   }
 }
