@@ -37,7 +37,7 @@ trait WritingColumnarBatchSparkTask[W <: DataWriter[ColumnarBatch]]
   protected def write(writer: W, row: ColumnarBatch): Unit
 
   def run(
-      factor: ColumnarBatchDataWriterFactory,
+      factory: ColumnarBatchDataWriterFactory,
       context: TaskContext,
       iter: Iterator[ColumnarBatch],
       customMetrics: Map[String, SQLMetric]): DataWritingColumnarBatchSparkTaskResult = {
@@ -46,7 +46,7 @@ trait WritingColumnarBatchSparkTask[W <: DataWriter[ColumnarBatch]]
     val partId = context.partitionId()
     val taskId = context.taskAttemptId()
     val attemptId = context.attemptNumber()
-    val dataWriter = factor.createWriter().asInstanceOf[W]
+    val dataWriter = factory.createWriter().asInstanceOf[W]
 
     var count = 0
     // write the data and commit this writer.
