@@ -57,13 +57,13 @@ std::unique_ptr<PartitionWriter> createPartitionWriter(
     uint32_t numPartitions,
     const std::string& dataFile,
     const std::vector<std::string>& localDirs,
-    const PartitionWriterOptions& options,
-    arrow::MemoryPool* pool) {
+    const PartitionWriterOptions& options) {
   if (partitionWriterType == PartitionWriterType::kRss) {
     auto rssClient = std::make_unique<LocalRssClient>(dataFile);
-    return std::make_unique<RssPartitionWriter>(numPartitions, options, pool, std::move(rssClient));
+    return std::make_unique<RssPartitionWriter>(
+        numPartitions, options, getDefaultMemoryManager(), std::move(rssClient));
   }
-  return std::make_unique<LocalPartitionWriter>(numPartitions, options, pool, dataFile, localDirs);
+  return std::make_unique<LocalPartitionWriter>(numPartitions, options, getDefaultMemoryManager(), dataFile, localDirs);
 }
 } // namespace
 

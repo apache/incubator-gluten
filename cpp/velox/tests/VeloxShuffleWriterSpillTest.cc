@@ -54,7 +54,7 @@ class VeloxHashShuffleWriterSpillTest : public VeloxShuffleWriterTestBase, publi
     auto veloxPool = getDefaultMemoryManager()->getLeafMemoryPool();
 
     auto partitionWriter = createPartitionWriter(
-        PartitionWriterType::kLocal, numPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
+        PartitionWriterType::kLocal, numPartitions, dataFile_, localDirs_, partitionWriterOptions_);
 
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,

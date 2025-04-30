@@ -30,7 +30,7 @@ class LocalPartitionWriter : public PartitionWriter {
   explicit LocalPartitionWriter(
       uint32_t numPartitions,
       PartitionWriterOptions options,
-      MemoryManager* memory_manager,
+      MemoryManager* memoryManager,
       const std::string& dataFile,
       const std::vector<std::string>& localDirs);
 

@@ -41,6 +41,6 @@ using DictionaryWriterFactory = std::function<std::unique_ptr<DictionaryWriter>(
 
 void registerShuffleDictionaryWriterFactory(DictionaryWriterFactory factory);
 
-inline std::unique_ptr<DictionaryWriter> createDictionaryWriter(MemoryManager*);
+std::unique_ptr<DictionaryWriter> createDictionaryWriter(MemoryManager*);
 
 } // namespace gluten

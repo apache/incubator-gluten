@@ -255,8 +255,8 @@ class SinglePartitioningShuffleWriter : public VeloxShuffleWriterTest {
     shuffleWriterOptions_.partitioning = Partitioning::kSingle;
     shuffleWriterOptions_.bufferSize = 10;
 
-    auto partitionWriter = createPartitionWriter(
-        GetParam().partitionWriterType, 1, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
+    auto partitionWriter =
+        createPartitionWriter(GetParam().partitionWriterType, 1, dataFile_, localDirs_, partitionWriterOptions_);
 
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
@@ -337,7 +337,7 @@ class HashPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
     shuffleWriterOptions_.bufferSize = 4;
 
     auto partitionWriter = createPartitionWriter(
-        GetParam().partitionWriterType, numPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
+        GetParam().partitionWriterType, numPartitions, dataFile_, localDirs_, partitionWriterOptions_);
 
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
@@ -382,7 +382,7 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
     shuffleWriterOptions_.bufferSize = 4;
 
     auto partitionWriter = createPartitionWriter(
-        GetParam().partitionWriterType, numPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
+        GetParam().partitionWriterType, numPartitions, dataFile_, localDirs_, partitionWriterOptions_);
 
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
@@ -423,7 +423,7 @@ class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWr
     shuffleWriterOptions_.bufferSize = 4;
 
     auto partitionWriter = createPartitionWriter(
-        GetParam().partitionWriterType, numPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
+        GetParam().partitionWriterType, numPartitions, dataFile_, localDirs_, partitionWriterOptions_);
 
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
