@@ -17,33 +17,21 @@
 
 #pragma once
 
-#include <parquet/arrow/writer.h>
-#include "memory/ColumnarBatch.h"
-
 namespace gluten {
-/**
- * @brief Used to print RecordBatch to a parquet file
- *
- */
-class ArrowWriter {
+
+class WholeStageDumper {
  public:
-  explicit ArrowWriter(const std::string& path) : path_(path) {}
+  virtual ~WholeStageDumper() = default;
 
-  virtual ~ArrowWriter() = default;
+  virtual void dumpConf() = 0;
 
-  arrow::Status initWriter(arrow::Schema& schema);
+  virtual void dumpPlan(const std::string& plan) = 0;
 
-  arrow::Status writeInBatches(std::shared_ptr<arrow::RecordBatch> batch);
+  virtual void dumpInputSplit(int32_t splitIndex, const std::string& splitInfo) = 0;
 
-  arrow::Status closeWriter();
-
-  bool closed() const;
-
-  virtual std::shared_ptr<ColumnarBatch> retrieveColumnarBatch() = 0;
-
- protected:
-  std::unique_ptr<parquet::arrow::FileWriter> writer_;
-  std::string path_;
-  bool closed_{false};
+  virtual std::shared_ptr<ColumnarBatchIterator> dumpInputIterator(
+      int32_t iteratorIndex,
+      const std::shared_ptr<ColumnarBatchIterator>& inputIterator) = 0;
 };
+
 } // namespace gluten

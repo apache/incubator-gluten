@@ -31,7 +31,7 @@
 #include "config/GlutenConfig.h"
 #include "config/VeloxConfig.h"
 #include "operators/reader/FileReaderIterator.h"
-#include "operators/writer/VeloxArrowWriter.h"
+#include "operators/writer/VeloxColumnarBatchWriter.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
@@ -438,10 +438,10 @@ auto BM_Generic = [](::benchmark::State& state,
             });
       }
       *Runtime::localWriteFilesTempPath() = FLAGS_write_path;
-      runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), false);
+      runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
       for (auto i = 0; i < splits.size(); i++) {
         auto split = splits[i];
-        runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), i, false);
+        runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), i);
       }
 
       auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters), runtime->getConfMap());
@@ -457,33 +457,34 @@ auto BM_Generic = [](::benchmark::State& state,
         ArrowSchema cSchema;
         toArrowSchema(veloxPlan->outputType(), runtime->memoryManager()->getLeafMemoryPool().get(), &cSchema);
         GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
-        auto writer = std::make_shared<VeloxArrowWriter>(
+
+        auto writer = std::make_shared<VeloxColumnarBatchWriter>(
             FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
+
         state.PauseTiming();
-        if (!FLAGS_save_output.empty()) {
-          GLUTEN_THROW_NOT_OK(writer->initWriter(*(outputSchema.get())));
-        }
+
         state.ResumeTiming();
 
         while (resultIter->hasNext()) {
-          auto array = resultIter->next()->exportArrowArray();
-          state.PauseTiming();
-          auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
-          if (!maybeBatch.ok()) {
-            state.SkipWithError(maybeBatch.status().message().c_str());
-            return;
+          auto cb = resultIter->next();
+          if (!FLAGS_save_output.empty()) {
+            GLUTEN_THROW_NOT_OK(writer->write(cb));
           }
           if (FLAGS_print_result) {
+            auto array = cb->exportArrowArray();
+            state.PauseTiming();
+            auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
+            if (!maybeBatch.ok()) {
+              state.SkipWithError(maybeBatch.status().message().c_str());
+              return;
+            }
             LOG(WARNING) << maybeBatch.ValueOrDie()->ToString();
-          }
-          if (!FLAGS_save_output.empty()) {
-            GLUTEN_THROW_NOT_OK(writer->writeInBatches(maybeBatch.ValueOrDie()));
           }
         }
 
         state.PauseTiming();
         if (!FLAGS_save_output.empty()) {
-          GLUTEN_THROW_NOT_OK(writer->closeWriter());
+          GLUTEN_THROW_NOT_OK(writer->close());
         }
         state.ResumeTiming();
       }

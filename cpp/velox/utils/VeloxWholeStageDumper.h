@@ -15,25 +15,33 @@
  * limitations under the License.
  */
 
-#include "operators/writer/VeloxArrowWriter.h"
+#pragma once
+
+#include "compute/VeloxRuntime.h"
+#include "utils/WholeStageDumper.h"
 
 namespace gluten {
+class VeloxRuntime;
 
-VeloxArrowWriter::VeloxArrowWriter(
-    const std::string& path,
-    int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : ArrowWriter(path), batchSize_(batchSize), pool_(pool) {}
+class VeloxWholeStageDumper final : public WholeStageDumper {
+ public:
+  VeloxWholeStageDumper(VeloxRuntime* runtime, const std::string& saveDir, int64_t batchSize);
 
-std::shared_ptr<ColumnarBatch> VeloxArrowWriter::retrieveColumnarBatch() {
-  if (writer_ == nullptr) {
-    // No data to read.
-    return nullptr;
-  }
-  if (reader_ == nullptr) {
-    reader_ = std::make_unique<ParquetStreamReaderIterator>(path_, batchSize_, pool_);
-  }
-  return reader_->next();
-}
+  void dumpConf() override;
+
+  void dumpPlan(const std::string& planJson) override;
+
+  void dumpInputSplit(int32_t splitIndex, const std::string& splitJson) override;
+
+  std::shared_ptr<ColumnarBatchIterator> dumpInputIterator(
+      int32_t iteratorIndex,
+      const std::shared_ptr<ColumnarBatchIterator>& inputIterator) override;
+
+ private:
+  VeloxRuntime* runtime_;
+  std::string saveDir_;
+  int64_t batchSize_;
+  SparkTaskInfo taskInfo_;
+};
 
 } // namespace gluten

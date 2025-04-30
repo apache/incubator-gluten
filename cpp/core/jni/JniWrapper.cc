@@ -375,7 +375,7 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrap
   auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
   auto ctx = getRuntime(env, wrapper);
-  ctx->parsePlan(planData, planSize, false);
+  ctx->parsePlan(planData, planSize);
   auto& conf = ctx->getConfMap();
   auto planString = ctx->planString(details, conf);
   return env->NewStringUTF(planString.c_str());
@@ -414,29 +414,32 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
-  ctx->dumpConf(saveInput);
+  if (saveInput) {
+    ctx->enableDumping();
+  }
 
   auto spillDirStr = jStringToCString(env, spillDir);
 
   auto safePlanArray = getByteArrayElementsSafe(env, planArr);
   auto planSize = env->GetArrayLength(planArr);
-  ctx->parsePlan(safePlanArray.elems(), planSize, saveInput);
+
+  ctx->parsePlan(safePlanArray.elems(), planSize);
 
   for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
     jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
     jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
     auto safeSplitArray = getByteArrayElementsSafe(env, splitInfoArray);
     auto splitInfoData = safeSplitArray.elems();
-    ctx->parseSplitInfo(splitInfoData, splitInfoSize, i, saveInput);
+
+    ctx->parseSplitInfo(splitInfoData, splitInfoSize, i);
   }
 
   // Handle the Java iters
   jsize itersLen = env->GetArrayLength(iterArr);
   std::vector<std::shared_ptr<ResultIterator>> inputIters;
   for (int idx = 0; idx < itersLen; idx++) {
-    auto writer = ctx->createArrowWriter(saveInput, idx);
     jobject iter = env->GetObjectArrayElement(iterArr, idx);
-    auto arrayIter = makeJniColumnarBatchIterator(env, iter, ctx, writer);
+    auto arrayIter = std::make_unique<JniColumnarBatchIterator>(env, iter, ctx, idx);
     auto resultIter = std::make_shared<ResultIterator>(std::move(arrayIter));
     inputIters.push_back(std::move(resultIter));
   }

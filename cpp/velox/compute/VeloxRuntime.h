@@ -25,6 +25,7 @@
 #include "operators/writer/VeloxParquetDataSource.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
+#include "utils/VeloxWholeStageDumper.h"
 
 namespace gluten {
 
@@ -37,13 +38,13 @@ class VeloxRuntime final : public Runtime {
 
   void setSparkTaskInfo(SparkTaskInfo taskInfo) override {
     static std::atomic<uint32_t> vtId{0};
+    taskInfo.vId = vtId++;
     taskInfo_ = taskInfo;
-    taskInfo_.vId = vtId++;
   }
 
-  void parsePlan(const uint8_t* data, int32_t size, bool dumpPlan) override;
+  void parsePlan(const uint8_t* data, int32_t size) override;
 
-  void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dumpSplitInfo) override;
+  void parseSplitInfo(const uint8_t* data, int32_t size, int32_t splitIndex) override;
 
   VeloxMemoryManager* memoryManager() override;
 
@@ -80,9 +81,7 @@ class VeloxRuntime final : public Runtime {
 
   std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override;
 
-  void dumpConf(bool dump) override;
-
-  std::shared_ptr<ArrowWriter> createArrowWriter(bool dumpData, int32_t idx) override;
+  void enableDumping() override;
 
   std::shared_ptr<VeloxDataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
 
