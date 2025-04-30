@@ -17,13 +17,19 @@
 
 #pragma once
 
+#include "memory/ColumnarBatchIterator.h"
+
+#include <memory>
+#include <string>
+#include <unordered_map>
+
 namespace gluten {
 
 class WholeStageDumper {
  public:
   virtual ~WholeStageDumper() = default;
 
-  virtual void dumpConf() = 0;
+  virtual void dumpConf(const std::unordered_map<std::string, std::string>& confMap) = 0;
 
   virtual void dumpPlan(const std::string& plan) = 0;
 

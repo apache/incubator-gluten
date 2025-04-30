@@ -301,8 +301,15 @@ void VeloxRuntime::enableDumping() {
   auto saveDir = veloxCfg_->get<std::string>(kGlutenSaveDir);
   GLUTEN_CHECK(saveDir.has_value(), kGlutenSaveDir + " is not set");
 
-  dumper_ =
-      std::make_shared<VeloxWholeStageDumper>(this, saveDir.value(), veloxCfg_->get<int64_t>(kSparkBatchSize, 4096));
-  dumper_->dumpConf();
+  auto taskInfo = getSparkTaskInfo();
+  GLUTEN_CHECK(taskInfo.has_value(), "Task info is not set. Please set task info before enabling dumping.");
+
+  dumper_ = std::make_shared<VeloxWholeStageDumper>(
+      taskInfo.value(),
+      saveDir.value(),
+      veloxCfg_->get<int64_t>(kSparkBatchSize, 4096),
+      memoryManager()->getAggregateMemoryPool().get());
+
+  dumper_->dumpConf(getConfMap());
 }
 } // namespace gluten

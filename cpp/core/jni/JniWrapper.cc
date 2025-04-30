@@ -405,7 +405,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jint stageId,
     jint partitionId,
     jlong taskId,
-    jboolean saveInput,
+    jboolean enableDumping,
     jstring spillDir) {
   JNI_METHOD_START
 
@@ -414,7 +414,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
-  if (saveInput) {
+  if (enableDumping) {
     ctx->enableDumping();
   }
 

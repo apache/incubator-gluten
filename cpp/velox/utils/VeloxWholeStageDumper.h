@@ -24,9 +24,13 @@ namespace gluten {
 
 class VeloxWholeStageDumper final : public WholeStageDumper {
  public:
-  VeloxWholeStageDumper(VeloxRuntime* runtime, const std::string& saveDir, int64_t batchSize);
+  VeloxWholeStageDumper(
+      const SparkTaskInfo& taskInfo,
+      const std::string& saveDir,
+      int64_t batchSize,
+      facebook::velox::memory::MemoryPool* pool);
 
-  void dumpConf() override;
+  void dumpConf(const std::unordered_map<std::string, std::string>& confMap) override;
 
   void dumpPlan(const std::string& planJson) override;
 
@@ -37,10 +41,10 @@ class VeloxWholeStageDumper final : public WholeStageDumper {
       const std::shared_ptr<ColumnarBatchIterator>& inputIterator) override;
 
  private:
-  VeloxRuntime* runtime_;
+  SparkTaskInfo taskInfo_;
   std::string saveDir_;
   int64_t batchSize_;
-  SparkTaskInfo taskInfo_;
+  facebook::velox::memory::MemoryPool* pool_;
 };
 
 } // namespace gluten

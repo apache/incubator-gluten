@@ -53,18 +53,18 @@ void dumpToStorage(const std::string& saveDir, const std::string& fileName, cons
 }
 } // namespace
 
-VeloxWholeStageDumper::VeloxWholeStageDumper(VeloxRuntime* runtime, const std::string& saveDir, int64_t batchSize)
-    : runtime_(runtime), saveDir_(saveDir), batchSize_(batchSize) {
-  auto taskInfo = runtime->getSparkTaskInfo();
-  GLUTEN_CHECK(taskInfo.has_value(), "Task info is not set. Please set task info before enabling dumping.");
-  taskInfo_ = taskInfo.value();
-}
+VeloxWholeStageDumper::VeloxWholeStageDumper(
+    const SparkTaskInfo& taskInfo,
+    const std::string& saveDir,
+    int64_t batchSize,
+    facebook::velox::memory::MemoryPool* pool)
+    : taskInfo_(taskInfo), saveDir_(saveDir), batchSize_(batchSize), pool_(pool) {}
 
-void VeloxWholeStageDumper::dumpConf() {
+void VeloxWholeStageDumper::dumpConf(const std::unordered_map<std::string, std::string>& confMap) {
   const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->rawConfigs();
   auto allConfMap = backendConfMap;
 
-  for (const auto& pair : runtime_->getConfMap()) {
+  for (const auto& pair : confMap) {
     allConfMap.insert_or_assign(pair.first, pair.second);
   }
 
@@ -86,7 +86,7 @@ void VeloxWholeStageDumper::dumpConf() {
 
   // Dump session conf.
   out << std::endl << "[Session Conf]" << std::endl;
-  for (const auto& pair : runtime_->getConfMap()) {
+  for (const auto& pair : confMap) {
     out << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
   }
 
@@ -112,8 +112,7 @@ std::shared_ptr<ColumnarBatchIterator> VeloxWholeStageDumper::dumpInputIterator(
       fmt::format("data_{}_{}_{}_{}.parquet", taskInfo_.stageId, taskInfo_.partitionId, taskInfo_.vId, iteratorIndex);
   const auto dumpPath = checkAndGetDumpPath(saveDir_, fileName);
 
-  auto writer = std::make_shared<VeloxColumnarBatchWriter>(
-      dumpPath, batchSize_, runtime_->memoryManager()->getLeafMemoryPool().get());
+  auto writer = std::make_shared<VeloxColumnarBatchWriter>(dumpPath, batchSize_, pool_);
 
   while (auto cb = inputIterator->next()) {
     GLUTEN_THROW_NOT_OK(writer->write(cb));

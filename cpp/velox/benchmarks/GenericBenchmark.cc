@@ -459,7 +459,7 @@ auto BM_Generic = [](::benchmark::State& state,
         GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
 
         auto writer = std::make_shared<VeloxColumnarBatchWriter>(
-            FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getLeafMemoryPool().get());
+            FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getAggregateMemoryPool().get());
 
         state.PauseTiming();
 
