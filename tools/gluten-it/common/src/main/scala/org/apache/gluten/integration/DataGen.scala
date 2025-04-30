@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.integration
 
-import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.types.{DataType, DecimalType, DoubleType, StructField, StructType}
 
 trait DataGen {
   def gen(): Unit
@@ -29,6 +29,13 @@ abstract class TypeModifier(val predicate: DataType => Boolean, val to: DataType
 
 class NoopModifier(t: DataType) extends TypeModifier(_ => true, t) {
   override def modValue(value: Any): Any = value
+}
+
+class DecimalTypeModifier extends TypeModifier({
+  case _: DecimalType => true;
+  case _ => false
+}, DoubleType) {
+  override def modValue(value: Any): Any = value.asInstanceOf[BigDecimal].doubleValue()
 }
 
 object DataGen {

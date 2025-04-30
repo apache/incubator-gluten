@@ -80,6 +80,9 @@ public class BaseMixin {
   @CommandLine.Option(names = {"--scan-partitions"}, description = "Scan partition number. This is an approximate value, so the actual scan partition number might vary around this value. -1 for letting Spark choose an appropriate number.", defaultValue = "-1")
   private int scanPartitions;
 
+  @CommandLine.Option(names = {"--decimal-as-double"}, description = "Generate double value for decimal type column", defaultValue = "false")
+  private boolean decimalAsDouble;
+
   @CommandLine.Option(names = {"--extra-conf"}, description = "Extra Spark config entries applying to generated Spark session. E.g. --extra-conf=k1=v1 --extra-conf=k2=v2")
   private Map<String, String> extraSparkConf = Collections.emptyMap();
 
@@ -126,19 +129,19 @@ public class BaseMixin {
         suite = new TpchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
             enableHsUi, hsUiPort, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, scanPartitions, baselineMetricMapper, testMetricMapper);
+            disableWscg, shufflePartitions, scanPartitions, decimalAsDouble, baselineMetricMapper, testMetricMapper);
         break;
       case "ds":
         suite = new TpcdsSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
             enableHsUi, hsUiPort, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, scanPartitions, baselineMetricMapper, testMetricMapper);
+            disableWscg, shufflePartitions, scanPartitions,  decimalAsDouble, baselineMetricMapper, testMetricMapper);
         break;
       case "clickbench":
         suite = new ClickBenchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
             enableHsUi, hsUiPort, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, scanPartitions, baselineMetricMapper, testMetricMapper);
+            disableWscg, shufflePartitions, scanPartitions, decimalAsDouble, baselineMetricMapper, testMetricMapper);
         break;
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);

@@ -46,6 +46,7 @@ abstract class Suite(
     private val disableWscg: Boolean,
     private val shufflePartitions: Int,
     private val scanPartitions: Int,
+    private val decimalAsDouble: Boolean,
     private val baselineMetricMapper: MetricMapper,
     private val testMetricMapper: MetricMapper) {
 
@@ -194,6 +195,10 @@ abstract class Suite(
   private[integration] def queryResource(): String
 
   private[integration] def allQueryIds(): Array[String]
+
+  protected[integration] def typeModifiers(): List[TypeModifier] = {
+    if (decimalAsDouble) List(new DecimalTypeModifier()) else List()
+  }
 
   private[integration] def desc(): String
 }
