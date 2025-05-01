@@ -21,7 +21,8 @@ import org.apache.iceberg.spark.source.TestSparkStagedScan;
 import java.util.Map;
 
 public class GlutenTestSparkStagedScan extends TestSparkStagedScan {
-    public GlutenTestSparkStagedScan(String catalogName, String implementation, Map<String, String> config) {
-        super(catalogName, implementation, config);
-    }
+  public GlutenTestSparkStagedScan(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
 }

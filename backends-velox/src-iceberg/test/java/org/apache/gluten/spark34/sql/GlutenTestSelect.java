@@ -21,7 +21,7 @@ import org.apache.iceberg.spark.sql.TestSelect;
 import java.util.Map;
 
 public class GlutenTestSelect extends TestSelect {
-    public GlutenTestSelect(String catalogName, String implementation, Map<String, String> config) {
-        super(catalogName, implementation, config);
-    }
+  public GlutenTestSelect(String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
 }
