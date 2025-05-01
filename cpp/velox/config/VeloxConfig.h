@@ -150,6 +150,8 @@ const uint32_t kGlogSeverityLevelDefault = 1;
 #ifdef GLUTEN_ENABLE_GPU
 const std::string kCudfEnabled = "spark.gluten.sql.columnar.cudf";
 const bool kCudfEnabledDefault = "false";
+const std::string kDebugCudf = "spark.gluten.sql.debug.cudf";
+const bool kDebugCudfDefault = "false";
 #endif
 
 // Query trace

@@ -24,22 +24,40 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class GlutenTestMergeOnReadUpdate extends TestMergeOnReadUpdate {
-    public GlutenTestMergeOnReadUpdate(String catalogName, String implementation, Map<String, String> config, String fileFormat, boolean vectorized, String distributionMode, boolean fanoutEnabled, String branch, PlanningMode planningMode) {
-        super(catalogName, implementation, config, fileFormat, vectorized, distributionMode, fanoutEnabled, branch, planningMode);
-    }
+  public GlutenTestMergeOnReadUpdate(
+      String catalogName,
+      String implementation,
+      Map<String, String> config,
+      String fileFormat,
+      boolean vectorized,
+      String distributionMode,
+      boolean fanoutEnabled,
+      String branch,
+      PlanningMode planningMode) {
+    super(
+        catalogName,
+        implementation,
+        config,
+        fileFormat,
+        vectorized,
+        distributionMode,
+        fanoutEnabled,
+        branch,
+        planningMode);
+  }
 
-    @Test
-    public synchronized void testUpdateWithConcurrentTableRefresh() {
-        System.out.println("Run timeout");
-    }
+  @Test
+  public synchronized void testUpdateWithConcurrentTableRefresh() {
+    System.out.println("Run timeout");
+  }
 
-    @Test
-    public synchronized void testUpdateWithSerializableIsolation() {
-        System.out.println("Run timeout");
-    }
+  @Test
+  public synchronized void testUpdateWithSerializableIsolation() {
+    System.out.println("Run timeout");
+  }
 
-    @Test
-    public synchronized void testUpdateWithSnapshotIsolation() throws ExecutionException {
-        System.out.println("Run timeout");
-    }
+  @Test
+  public synchronized void testUpdateWithSnapshotIsolation() throws ExecutionException {
+    System.out.println("Run timeout");
+  }
 }

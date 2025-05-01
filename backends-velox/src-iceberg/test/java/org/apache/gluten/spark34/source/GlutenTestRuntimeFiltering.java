@@ -20,7 +20,7 @@ import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.spark.source.TestRuntimeFiltering;
 
 public class GlutenTestRuntimeFiltering extends TestRuntimeFiltering {
-    public GlutenTestRuntimeFiltering(PlanningMode planningMode) {
-        super(planningMode);
-    }
+  public GlutenTestRuntimeFiltering(PlanningMode planningMode) {
+    super(planningMode);
+  }
 }
