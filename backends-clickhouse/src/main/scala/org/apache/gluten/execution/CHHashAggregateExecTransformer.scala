@@ -124,7 +124,8 @@ case class CHHashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child,
-    isFromSortAggregate) {
+    isFromSortAggregate
+  ) {
 
   lazy val aggregateResultAttributes =
     getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
