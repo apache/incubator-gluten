@@ -85,8 +85,8 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     println(s"Switching to $desc session... ")
     stopActiveSession()
     val conf = new SparkConf(false)
-      .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
       .setAllWarningOnOverriding(testDefaults.getAll)
+      .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
     activateSession(conf, desc.appName)
     _activeSessionDesc = desc
     println(s"Successfully switched to $desc session. ")
