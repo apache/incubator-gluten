@@ -30,9 +30,12 @@ gluten::ObjectStore::~ObjectStore() {
   const std::lock_guard<std::mutex> lock(mtx_);
   for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
     const ResourceHandle handle = (*itr).first;
-    const std::string_view description = (*itr).second;
+    const auto& info = (*itr).second;
+    const std::string_view typeName = info.typeName;
+    const size_t size = info.size;
     VLOG(2) << "Unclosed object ["
-            << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", Description: " << description
+            << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", TypeName: " << typeName
+            << ", Size: " << size
             << "] is found when object store is closing. Gluten will"
                " destroy it automatically but it's recommended to manually close"
                " the object through the Java closing API after use,"
