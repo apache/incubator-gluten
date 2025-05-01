@@ -1037,6 +1037,7 @@ jobs:
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Generate function support log
         run: |
+          pip3 install findspark tabulate
           cd $GITHUB_WORKSPACE/tools/scripts
           python3 gen-function-support-docs.py --spark_home=/opt/shims/spark35/spark_home/
       - name: Upload test report
