@@ -17,11 +17,13 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.connector.write.{ColumnarBatchDataWriterFactory, IcebergDataWriteFactory}
-import org.apache.iceberg.spark.source.IcebergWriteUtil
+
 import org.apache.spark.sql.connector.write.Write
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.types.StructType
+
+import org.apache.iceberg.spark.source.IcebergWriteUtil
 
 case class VeloxIcebergAppendDataExec(
     override val query: SparkPlan,
