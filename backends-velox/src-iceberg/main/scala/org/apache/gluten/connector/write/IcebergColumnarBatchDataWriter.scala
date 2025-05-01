@@ -16,18 +16,25 @@
  */
 package org.apache.gluten.connector.write
 
-import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper}
-import com.google.common.collect.ImmutableMap
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.execution.IcebergWriteJniWrapper
-import org.apache.iceberg.spark.source.IcebergWriteUtil
-import org.apache.iceberg._
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.write.{DataWriter, WriterCommitMessage}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class IcebergColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWriteJniWrapper, format: Int) extends DataWriter[ColumnarBatch] with Logging {
+import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper}
+import com.google.common.collect.ImmutableMap
+import org.apache.iceberg._
+import org.apache.iceberg.spark.source.IcebergWriteUtil
+
+case class IcebergColumnarBatchDataWriter(
+    writer: Long,
+    jniWrapper: IcebergWriteJniWrapper,
+    format: Int)
+  extends DataWriter[ColumnarBatch]
+  with Logging {
 
   private val mapper = {
     val mapper = new ObjectMapper()
@@ -40,7 +47,7 @@ case class IcebergColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWrite
   }
 
   override def commit: WriterCommitMessage = {
-    val dataFiles = jniWrapper.commit(writer).map{d => parseDataFile(d)}
+    val dataFiles = jniWrapper.commit(writer).map(d => parseDataFile(d))
     IcebergWriteUtil.commitDataFiles(dataFiles)
   }
 
@@ -55,8 +62,14 @@ case class IcebergColumnarBatchDataWriter(writer: Long, jniWrapper: IcebergWrite
   private def parseDataFile(json: String): DataFile = {
     val dataFile = mapper.readValue(json, classOf[DataFileJson])
     // TODO: add partition
-    val metrics = new Metrics(dataFile.metrics.recordCount, ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of())
-    val builder = DataFiles.builder(PartitionSpec.unpartitioned())
+    val metrics = new Metrics(
+      dataFile.metrics.recordCount,
+      ImmutableMap.of(),
+      ImmutableMap.of(),
+      ImmutableMap.of(),
+      ImmutableMap.of())
+    val builder = DataFiles
+      .builder(PartitionSpec.unpartitioned())
       .withPath(dataFile.path)
       .withFormat(getFileFormat)
       .withFileSizeInBytes(dataFile.fileSizeInBytes)
