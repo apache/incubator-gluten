@@ -20,10 +20,12 @@
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/Set.h>
 #include <gtest/gtest.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
+#include "IO/ReadBufferFromString.h"
 
-TEST(TestFuntion, Hash)
+TEST(TestFunction, murmurHash2_64)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
@@ -53,6 +55,45 @@ TEST(TestFuntion, Hash)
     ASSERT_EQ(result->getUInt(0), result->getUInt(1));
 }
 
+TEST(TestFunction, toDateTime64)
+{
+    using namespace DB;
+    auto & factory = FunctionFactory::instance();
+    auto function = factory.get("toDateTime64", local_engine::QueryContext::globalContext());
+
+    auto d0 = local_engine::STRING();
+    auto c0 = d0->createColumn();
+    c0->insert("2025-01-21 12:58:13.106");
+
+    auto d1 = local_engine::UINT();
+    auto c1 = d1->createColumnConst(1, 6);
+
+    auto d2 = local_engine::STRING();
+    auto c2 = d0->createColumnConst(1, "UTC");
+
+
+    ColumnsWithTypeAndName columns
+        = {ColumnWithTypeAndName(std::move(c0), d0, "string0"), ColumnWithTypeAndName(c1, d1, "int0"), ColumnWithTypeAndName(c2, d2, "tz")};
+
+    Block block(columns);
+    std::cerr << "input:\n";
+    debug::headBlock(block);
+    auto executable = function->build(block.getColumnsWithTypeAndName());
+    auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows(), false);
+    std::cerr << "output:\n";
+    debug::headColumn(result);
+
+    DateTime64 time = 0;
+    {
+        std::string parsedTimeStamp = "2025-01-21 12:58:13.106";
+        DB::ReadBufferFromString in(parsedTimeStamp);
+        readDateTime64Text(time, 6, in, DateLUT::instance("UTC"));
+    }
+    Field expected = Field(DecimalField<DateTime64>(time, 6));
+
+    ASSERT_EQ((*result.get())[0], expected);
+}
+
 TEST(TestFunction, In)
 {
     using namespace DB;
@@ -80,7 +121,7 @@ TEST(TestFunction, In)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
     PreparedSets::Hash empty;
-    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(empty, nullptr, std::move(set), std::nullopt);
     //TODO: WHY? after https://github.com/ClickHouse/ClickHouse/pull/63723 we need pass 4 instead of 1
     auto arg = ColumnSet::create(4, future_set);
 
@@ -124,7 +165,7 @@ TEST(TestFunction, NotIn1)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
     PreparedSets::Hash empty;
-    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(empty, nullptr, std::move(set), std::nullopt);
 
     //TODO: WHY? after https://github.com/ClickHouse/ClickHouse/pull/63723 we need pass 4 instead of 1
     auto arg = ColumnSet::create(4, future_set);
@@ -168,7 +209,7 @@ TEST(TestFunction, NotIn2)
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
     PreparedSets::Hash empty;
-    auto future_set = std::make_shared<FutureSetFromStorage>(empty, std::move(set));
+    auto future_set = std::make_shared<FutureSetFromStorage>(empty, nullptr, std::move(set), std::nullopt);
 
     //TODO: WHY? after https://github.com/ClickHouse/ClickHouse/pull/63723 we need pass 4 instead of 1
     auto arg = ColumnSet::create(4, future_set);

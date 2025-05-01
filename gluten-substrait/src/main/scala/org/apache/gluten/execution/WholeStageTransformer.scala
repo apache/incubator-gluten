@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.{GlutenConfig, GlutenNumaBindingInfo}
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.ValidationResult
@@ -39,14 +39,12 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.viewfs.ViewFileSystemUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -62,9 +60,35 @@ case class WholeStageTransformContext(root: PlanNode, substraitContext: Substrai
  * Since https://github.com/apache/incubator-gluten/pull/2185.
  */
 trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
-  protected def glutenConf: GlutenConfig = GlutenConfig.getConf
+  protected def glutenConf: GlutenConfig = GlutenConfig.get
 
   protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
+
+  protected lazy val validationFailFast = glutenConf.validationFailFast
+
+  // Wraps a validation function f that can also throw a GlutenNotSupportException.
+  // Returns ValidationResult.failed if f throws a GlutenNotSupportException,
+  // otherwise returns the result of f.
+  protected def failValidationWithException(f: => ValidationResult)(
+      finallyBlock: => Unit = ()): ValidationResult = {
+    try {
+      f
+    } catch {
+      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
+        if (!e.isInstanceOf[GlutenNotSupportException]) {
+          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
+        }
+        val message = s"Validation failed with exception from: $nodeName, reason: ${e.getMessage}"
+        if (glutenConf.printStackOnValidationFailure) {
+          logOnLevel(glutenConf.validationLogLevel, message, e)
+        }
+        ValidationResult.failed(message)
+      case t: Throwable =>
+        throw t
+    } finally {
+      finallyBlock
+    }
+  }
 
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
@@ -79,29 +103,21 @@ trait ValidatablePlan extends GlutenPlan with LogLevelUtil {
       .getOrElse(ValidationResult.succeeded)
     if (!schemaValidationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
-      return schemaValidationResult
-    }
-    try {
-      TransformerState.enterValidation
-      val res = doValidateInternal()
-      if (!res.ok()) {
-        TestStats.addFallBackClassName(this.getClass.toString)
+      if (validationFailFast) {
+        return schemaValidationResult
       }
-      res
-    } catch {
-      case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        if (!e.isInstanceOf[GlutenNotSupportException]) {
-          logDebug(s"Just a warning. This exception perhaps needs to be fixed.", e)
-        }
-        // FIXME: Use a validation-specific method to catch validation failures
-        TestStats.addFallBackClassName(this.getClass.toString)
-        logValidationMessage(
-          s"Validation failed with exception for plan: $nodeName, due to: ${e.getMessage}",
-          e)
-        ValidationResult.failed(e.getMessage)
-    } finally {
+    }
+    val validationResult = failValidationWithException {
+      TransformerState.enterValidation
+      doValidateInternal()
+    } {
       TransformerState.finishValidation
     }
+    if (!validationResult.ok()) {
+      TestStats.addFallBackClassName(this.getClass.toString)
+    }
+    if (validationFailFast) validationResult
+    else ValidationResult.merge(schemaValidationResult, validationResult)
   }
 
   protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
@@ -140,7 +156,7 @@ trait TransformSupport extends ValidatablePlan {
 
   // Since https://github.com/apache/incubator-gluten/pull/2185.
   protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
-    if (node != null && glutenConf.enableNativeValidation) {
+    if (node != null && enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
       BackendsApiManager.getValidatorApiInstance
         .doNativeValidateWithFailureReason(planNode)
@@ -186,6 +202,8 @@ trait TransformSupport extends ValidatablePlan {
 
 trait LeafTransformSupport extends TransformSupport with LeafExecNode {
   final override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = Seq.empty
+  def getSplitInfos: Seq[SplitInfo]
+  def getPartitions: Seq[InputPartition]
 }
 
 trait UnaryTransformSupport extends TransformSupport with UnaryExecNode {
@@ -211,10 +229,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   val sparkConf: SparkConf = sparkContext.getConf
 
-  val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
-    sparkContext.hadoopConfiguration)
-
-  val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   @transient
   private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
@@ -271,7 +286,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
   override def verboseStringWithOperatorId(): String = {
-    val nativePlan = if (conf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
+    val nativePlan = if (glutenConf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
       s"Native Plan:\n${nativePlanString()}"
     } else {
       ""
@@ -315,40 +330,157 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   def doWholeStageTransform(): WholeStageTransformContext = {
     val context = generateWholeStageTransformContext()
-    if (conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
+    if (glutenConf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
       wholeStageTransformerContext = Some(context)
     }
     context
   }
 
-  /** Find all BasicScanExecTransformer in one WholeStageTransformer */
-  private def findAllScanTransformers(): Seq[BasicScanExecTransformer] = {
-    val basicScanExecTransformers = new mutable.ListBuffer[BasicScanExecTransformer]()
+  /** Find all [[LeafTransformSupport]] in one WholeStageTransformer */
+  private def findAllLeafTransformers(): Seq[LeafTransformSupport] = {
+    val allLeafTransformers = new mutable.ListBuffer[LeafTransformSupport]()
 
     def transformChildren(
         plan: SparkPlan,
-        basicScanExecTransformers: mutable.ListBuffer[BasicScanExecTransformer]): Unit = {
+        leafTransformers: mutable.ListBuffer[LeafTransformSupport]): Unit = {
       if (plan != null && plan.isInstanceOf[TransformSupport]) {
         plan match {
-          case transformer: BasicScanExecTransformer =>
-            basicScanExecTransformers.append(transformer)
+          case transformer: LeafTransformSupport =>
+            leafTransformers.append(transformer)
           case _ =>
         }
+
         // according to the substrait plan order
-        // SHJ may include two scans in a whole stage.
+        // SHJ may include two leaves in a whole stage.
         plan match {
           case shj: HashJoinLikeExecTransformer =>
-            transformChildren(shj.streamedPlan, basicScanExecTransformers)
-            transformChildren(shj.buildPlan, basicScanExecTransformers)
+            transformChildren(shj.streamedPlan, leafTransformers)
+            transformChildren(shj.buildPlan, leafTransformers)
           case t: TransformSupport =>
             t.children
-              .foreach(transformChildren(_, basicScanExecTransformers))
+              .foreach(transformChildren(_, leafTransformers))
         }
       }
     }
 
-    transformChildren(child, basicScanExecTransformers)
-    basicScanExecTransformers.toSeq
+    transformChildren(child, allLeafTransformers)
+    allLeafTransformers.toSeq
+  }
+
+  private def generateWholeStageRDD(
+      leafTransformers: Seq[LeafTransformSupport],
+      wsCtx: WholeStageTransformContext,
+      inputRDDs: ColumnarInputRDDsWrapper,
+      pipelineTime: SQLMetric): RDD[ColumnarBatch] = {
+    val isKeyGroupPartition = leafTransformers.exists {
+      // TODO: May can apply to BatchScanExecTransformer without key group partitioning
+      case b: BatchScanExecTransformerBase if b.keyGroupedPartitioning.isDefined => true
+      case _ => false
+    }
+
+    /**
+     * If containing leaf exec transformer this "whole stage" generates a RDD which itself takes
+     * care of [[LeafTransformSupport]] there won't be any other RDD for leaf operator. As a result,
+     * genFirstStageIterator rather than genFinalStageIterator will be invoked
+     */
+    val allInputPartitions = leafTransformers.map(
+      leafTransformer => {
+        if (isKeyGroupPartition) {
+          leafTransformer.asInstanceOf[BatchScanExecTransformerBase].getPartitionsWithIndex
+        } else {
+          Seq(leafTransformer.getPartitions)
+        }
+      })
+
+    val allSplitInfos = getSplitInfosFromPartitions(isKeyGroupPartition, leafTransformers)
+
+    if (GlutenConfig.get.enableHdfsViewfs) {
+      val viewfsToHdfsCache: mutable.Map[String, String] = mutable.Map.empty
+      allSplitInfos.foreach {
+        splitInfos =>
+          splitInfos.foreach {
+            case splitInfo: LocalFilesNode =>
+              val newPaths = ViewFileSystemUtils.convertViewfsToHdfs(
+                splitInfo.getPaths.asScala.toSeq,
+                viewfsToHdfsCache,
+                sparkContext.hadoopConfiguration)
+              splitInfo.setPaths(newPaths.asJava)
+          }
+      }
+    }
+
+    val inputPartitions =
+      BackendsApiManager.getIteratorApiInstance.genPartitions(
+        wsCtx,
+        allSplitInfos,
+        leafTransformers)
+
+    val rdd = new GlutenWholeStageColumnarRDD(
+      sparkContext,
+      inputPartitions,
+      inputRDDs,
+      pipelineTime,
+      leafInputMetricsUpdater(),
+      BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
+        child,
+        wsCtx.substraitContext.registeredRelMap,
+        wsCtx.substraitContext.registeredJoinParams,
+        wsCtx.substraitContext.registeredAggregationParams
+      )
+    )
+
+    SoftAffinity.updateFilePartitionLocations(allInputPartitions, rdd.id)
+
+    rdd
+  }
+
+  private def getSplitInfosFromPartitions(
+      isKeyGroupPartition: Boolean,
+      leafTransformers: Seq[LeafTransformSupport]): Seq[Seq[SplitInfo]] = {
+    val allSplitInfos = if (isKeyGroupPartition) {
+      // If these are two batch scan transformer with keyGroupPartitioning,
+      // they have same partitionValues,
+      // but some partitions maybe empty for those partition values that are not present,
+      // otherwise, exchange will be inserted. We should combine the two leaf
+      // transformers' partitions with same index, and set them together in
+      // the substraitContext. We use transpose to do that, You can refer to
+      // the diagram below.
+      // leaf1  Seq(p11) Seq(p12, p13) Seq(p14) ... Seq(p1n)
+      // leaf2  Seq(p21) Seq(p22)      Seq()    ... Seq(p2n)
+      // transpose =>
+      // leaf1 | leaf2
+      //  Seq(p11)       |  Seq(p21)    => substraitContext.setSplitInfo([Seq(p11), Seq(p21)])
+      //  Seq(p12, p13)  |  Seq(p22)    => substraitContext.setSplitInfo([Seq(p12, p13), Seq(p22)])
+      //  Seq(p14)       |  Seq()    ...
+      //                ...
+      //  Seq(p1n)       |  Seq(p2n)    => substraitContext.setSplitInfo([Seq(p1n), Seq(p2n)])
+      leafTransformers.map(_.asInstanceOf[BatchScanExecTransformerBase].getSplitInfosWithIndex)
+    } else {
+      // If these are two leaf transformers, they must have same partitions,
+      // otherwise, exchange will be inserted. We should combine the two leaf
+      // transformers' partitions with same index, and set them together in
+      // the substraitContext. We use transpose to do that, You can refer to
+      // the diagram below.
+      // leaf1  p11 p12 p13 p14 ... p1n
+      // leaf2  p21 p22 p23 p24 ... p2n
+      // transpose =>
+      // leaf1 | leaf2
+      //  p11  |  p21    => substraitContext.setSplitInfo([p11, p21])
+      //  p12  |  p22    => substraitContext.setSplitInfo([p12, p22])
+      //  p13  |  p23    ...
+      //  p14  |  p24
+      //      ...
+      //  p1n  |  p2n    => substraitContext.setSplitInfo([p1n, p2n])
+      leafTransformers.map(_.getSplitInfos)
+    }
+
+    val partitionLength = allSplitInfos.head.size
+    if (allSplitInfos.exists(_.size != partitionLength)) {
+      throw new GlutenException(
+        "The partition length of all the leaf transformer are not the same.")
+    }
+
+    allSplitInfos.transpose
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -360,78 +492,17 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     }(
       t =>
         logOnLevel(
-          GlutenConfig.getConf.substraitPlanLogLevel,
+          GlutenConfig.get.substraitPlanLogLevel,
           s"$nodeName generating the substrait plan took: $t ms."))
     val inputRDDs = new ColumnarInputRDDsWrapper(columnarInputRDDs)
-    // Check if BatchScan exists.
-    val basicScanExecTransformers = findAllScanTransformers()
 
-    if (basicScanExecTransformers.nonEmpty) {
-
-      /**
-       * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
-       * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
-       * rather than genFinalStageIterator will be invoked
-       */
-      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions.toIndexedSeq)
-      val allScanSplitInfos =
-        getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
-      if (GlutenConfig.getConf.enableHdfsViewfs) {
-        allScanSplitInfos.foreach {
-          splitInfos =>
-            splitInfos.foreach {
-              case splitInfo: LocalFilesNode =>
-                val paths = splitInfo.getPaths.asScala
-                if (paths.nonEmpty && paths.head.startsWith("viewfs")) {
-                  // Convert the viewfs path into hdfs
-                  val newPaths = paths.map {
-                    viewfsPath =>
-                      val viewPath = new Path(viewfsPath)
-                      val viewFileSystem =
-                        FileSystem.get(viewPath.toUri, serializableHadoopConf.value)
-                      viewFileSystem.resolvePath(viewPath).toString
-                  }
-                  splitInfo.setPaths(newPaths.asJava)
-                }
-            }
-        }
-      }
-
-      val inputPartitions =
-        BackendsApiManager.getIteratorApiInstance.genPartitions(
-          wsCtx,
-          allScanSplitInfos,
-          basicScanExecTransformers)
-
-      val rdd = new GlutenWholeStageColumnarRDD(
-        sparkContext,
-        inputPartitions,
-        inputRDDs,
-        pipelineTime,
-        leafInputMetricsUpdater(),
-        BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
-          child,
-          wsCtx.substraitContext.registeredRelMap,
-          wsCtx.substraitContext.registeredJoinParams,
-          wsCtx.substraitContext.registeredAggregationParams
-        )
-      )
-      (0 until allScanPartitions.head.size).foreach(
-        i => {
-          val currentPartitions = allScanPartitions.map(_(i))
-          currentPartitions.indices.foreach(
-            i =>
-              currentPartitions(i) match {
-                case f: FilePartition =>
-                  SoftAffinity.updateFilePartitionLocations(f, rdd.id)
-                case _ =>
-              })
-        })
-      rdd
+    val leafTransformers = findAllLeafTransformers()
+    if (leafTransformers.nonEmpty) {
+      generateWholeStageRDD(leafTransformers, wsCtx, inputRDDs, pipelineTime)
     } else {
 
       /**
-       * the whole stage contains NO BasicScanExecTransformer. this the default case for:
+       * the whole stage contains NO [[LeafTransformSupport]]. this the default case for:
        *   1. SCAN with clickhouse backend (check ColumnarCollapseTransformStages#separateScanRDD())
        *      2. test case where query plan is constructed from simple dataframes (e.g.
        *      GlutenDataFrameAggregateSuite) in these cases, separate RDDs takes care of SCAN as a
@@ -485,37 +556,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
     copy(child = newChild, materializeInput = materializeInput)(transformStageId)
-
-  private def getSplitInfosFromPartitions(
-      basicScanExecTransformers: Seq[BasicScanExecTransformer],
-      allScanPartitions: Seq[Seq[InputPartition]]): Seq[Seq[SplitInfo]] = {
-    // If these are two scan transformers, they must have same partitions,
-    // otherwise, exchange will be inserted. We should combine the two scan
-    // transformers' partitions with same index, and set them together in
-    // the substraitContext. We use transpose to do that, You can refer to
-    // the diagram below.
-    // scan1  p11 p12 p13 p14 ... p1n
-    // scan2  p21 p22 p23 p24 ... p2n
-    // transpose =>
-    // scan1 | scan2
-    //  p11  |  p21    => substraitContext.setSplitInfo([p11, p21])
-    //  p12  |  p22    => substraitContext.setSplitInfo([p12, p22])
-    //  p13  |  p23    ...
-    //  p14  |  p24
-    //      ...
-    //  p1n  |  p2n    => substraitContext.setSplitInfo([p1n, p2n])
-    val allScanSplitInfos =
-      allScanPartitions.zip(basicScanExecTransformers).map {
-        case (partition, transformer) =>
-          transformer.getSplitInfosFromPartitions(partition)
-      }
-    val partitionLength = allScanSplitInfos.head.size
-    if (allScanSplitInfos.exists(_.size != partitionLength)) {
-      throw new GlutenException(
-        "The partition length of all the scan transformer are not the same.")
-    }
-    allScanSplitInfos.transpose
-  }
 }
 
 /**

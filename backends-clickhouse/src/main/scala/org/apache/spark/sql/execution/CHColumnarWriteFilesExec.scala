@@ -104,7 +104,6 @@ class CHColumnarWriteFilesRDD(
          * otherwise, we need to access ColumnarBatch row by row, which is not efficient.
          */
         val writeResults = CHExecUtil.c2r(resultColumnarBatch).map(_.copy()).toSeq
-        // TODO: we need close iterator here before processing the result.
         // TODO: task commit time
         // TODO: get the schema from result ColumnarBatch and verify it.
         assert(!iter.hasNext)

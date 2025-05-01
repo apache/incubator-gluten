@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.delta.catalog
 
-import org.apache.gluten.expression.ConverterUtils
-
 import org.apache.spark.sql.catalyst.analysis.Resolver
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogUtils}
 import org.apache.spark.sql.delta.Snapshot
@@ -37,8 +35,8 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
 
   def configuration: Map[String, String] = deltaProperties
 
-  override lazy val partitionColumns: Seq[String] =
-    deltaSnapshot.metadata.partitionColumns.map(ConverterUtils.normalizeColName)
+  override protected def rawPartitionColumns: Seq[String] =
+    deltaSnapshot.metadata.partitionColumns
 
   lazy val dataBaseName: String = deltaCatalog
     .map(_.identifier.database.getOrElse(StorageMeta.DEFAULT_CREATE_TABLE_DATABASE))
@@ -51,16 +49,6 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
   lazy val clickhouseTableConfigs: Map[String, String] = {
     Map(StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"))
   }
-
-  def primaryKey(): String = StorageMeta.columnsToStr(primaryKeyOption)
-
-  def orderByKey(): String =
-    StorageMeta.columnsToStr(orderByKeyOption, StorageMeta.DEFAULT_ORDER_BY_KEY)
-
-  def lowCardKey(): String = StorageMeta.columnsToStr(lowCardKeyOption)
-  def minmaxIndexKey(): String = StorageMeta.columnsToStr(minmaxIndexKeyOption)
-  def bfIndexKey(): String = StorageMeta.columnsToStr(bfIndexKeyOption)
-  def setIndexKey(): String = StorageMeta.columnsToStr(setIndexKeyOption)
 
   def normalizedBucketSpec(tableCols: Seq[String], resolver: Resolver): Option[BucketSpec] = {
     if (deltaCatalog.isDefined) {

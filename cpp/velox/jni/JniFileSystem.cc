@@ -17,6 +17,7 @@
 
 #include "JniFileSystem.h"
 #include "jni/JniCommon.h"
+#include "velox/common/io/IoStatistics.h"
 
 namespace {
 constexpr std::string_view kJniFsScheme("jni:");
@@ -84,7 +85,11 @@ class JniReadFile : public facebook::velox::ReadFile {
     }
   }
 
-  std::string_view pread(uint64_t offset, uint64_t length, void* buf) const override {
+  std::string_view pread(
+      uint64_t offset,
+      uint64_t length,
+      void* buf,
+      facebook::velox::filesystems::File::IoStats* stats = nullptr) const override {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     env->CallVoidMethod(
@@ -338,11 +343,12 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     JNIEnv* env = nullptr;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     std::vector<std::string> out;
-    jobjectArray jarray = (jobjectArray)env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path));
+    jobjectArray jarray =
+        static_cast<jobjectArray>(env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path)));
     checkException(env);
     jsize length = env->GetArrayLength(jarray);
     for (jsize i = 0; i < length; ++i) {
-      jstring element = (jstring)env->GetObjectArrayElement(jarray, i);
+      jstring element = static_cast<jstring>(env->GetObjectArrayElement(jarray, i));
       std::string cElement = jStringToCString(env, element);
       out.push_back(cElement);
     }

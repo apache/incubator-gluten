@@ -16,8 +16,9 @@
  */
 package org.apache.gluten.vectorized
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.ReservedKeys
 import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
@@ -55,7 +56,7 @@ class ColumnarBatchSerializer(
   with Serializable {
 
   private val shuffleWriterType =
-    if (isSort) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
+    if (isSort) ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER else ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
@@ -97,9 +98,10 @@ private class ColumnarBatchSerializerInstance(
         null // uncompressed
       }
     val compressionCodecBackend =
-      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
-    val batchSize = GlutenConfig.getConf.maxBatchSize
-    val bufferSize = GlutenConfig.getConf.columnarShuffleReaderBufferSize
+      GlutenConfig.get.columnarShuffleCodecBackend.orNull
+    val batchSize = GlutenConfig.get.maxBatchSize
+    val readerBufferSize = GlutenConfig.get.columnarShuffleReaderBufferSize
+    val deserializerBufferSize = GlutenConfig.get.columnarSortShuffleDeserializerBufferSize
     val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleReader")
     val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val shuffleReaderHandle = jniWrapper.make(
@@ -107,7 +109,8 @@ private class ColumnarBatchSerializerInstance(
       compressionCodec,
       compressionCodecBackend,
       batchSize,
-      bufferSize,
+      readerBufferSize,
+      deserializerBufferSize,
       shuffleWriterType)
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that

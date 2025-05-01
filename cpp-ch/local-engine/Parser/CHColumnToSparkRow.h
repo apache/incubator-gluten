@@ -16,11 +16,14 @@
  */
 #pragma once
 #include <vector>
+#include <jni.h>
 #include <Core/Block.h>
 #include <Core/Field.h>
+#include <DataTypes/IDataType.h>
 #include <Common/Allocator.h>
 #include <Common/Arena.h>
 
+struct StringRef;
 
 namespace local_engine
 {
@@ -84,7 +87,7 @@ private:
 
 using SparkRowInfoPtr = std::unique_ptr<local_engine::SparkRowInfo>;
 
-class CHColumnToSparkRow : private Allocator<false/* clear_memory */>
+class CHColumnToSparkRow : private Allocator<false /* clear_memory */>
 // class CHColumnToSparkRow : public DB::Arena
 {
 public:
@@ -197,5 +200,12 @@ private:
     const DB::DataTypePtr type_without_nullable;
     const DB::WhichDataType which;
 };
+
+namespace SparkRowInfoJNI
+{
+void init(JNIEnv *);
+void destroy(JNIEnv *);
+jobject create(JNIEnv * env, const SparkRowInfo & spark_row_info);
+}
 
 }

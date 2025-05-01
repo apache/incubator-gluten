@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.velox
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.internal.SQLConf
 
@@ -33,12 +33,17 @@ class VeloxParquetWriterInjects extends VeloxFormatWriterInjects {
     sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, compressionCodec)
     val blockSize = options.getOrElse(
       GlutenConfig.PARQUET_BLOCK_SIZE,
-      GlutenConfig.getConf.columnarParquetWriteBlockSize.toString)
+      GlutenConfig.get.columnarParquetWriteBlockSize.toString)
     sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
     val blockRows = options.getOrElse(
       GlutenConfig.PARQUET_BLOCK_ROWS,
-      GlutenConfig.getConf.columnarParquetWriteBlockRows.toString)
+      GlutenConfig.get.columnarParquetWriteBlockRows.toString)
     sparkOptions.put(GlutenConfig.PARQUET_BLOCK_ROWS, blockRows)
+    sparkOptions.put(
+      SQLConf.SESSION_LOCAL_TIMEZONE.key,
+      options.getOrElse(
+        SQLConf.SESSION_LOCAL_TIMEZONE.key,
+        SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString))
     options
       .get(GlutenConfig.PARQUET_GZIP_WINDOW_SIZE)
       .foreach(sparkOptions.put(GlutenConfig.PARQUET_GZIP_WINDOW_SIZE, _))

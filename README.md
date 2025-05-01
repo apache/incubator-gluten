@@ -6,46 +6,43 @@
 
 *<b>This project is still under active development now, and doesn't have a stable release. Welcome to evaluate it.</b>*
 
-# 1 Introduction
-
-## 1.1 Problem Statement
-
-Apache Spark is a stable, mature project that has been developed for many years. It is one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most optimizations are at query plan level. Single operator's performance almost stops growing.
+# 1. Introduction
+## Problem Statement
+Apache Spark is a stable, mature project that has been developed for many years. It is one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address
+performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most
+optimizations are at query plan level. Single operator's performance almost stops growing.
 
 <p align="center">
 <img src="https://user-images.githubusercontent.com/47296334/199853029-b6d0ea19-f8e4-4f62-9562-2838f7f159a7.png" width="800">
 </p>
 
-On the other side, SQL engines have been researched for many years. There are a few libraries like Clickhouse, Arrow and Velox, etc. By using features like native implementation, columnar data format and vectorized data processing, these libraries can outperform Spark's JVM based SQL engine. However, these libraries only support single node execution.
+On the other side, native SQL engines have been developed for a few years, such as Clickhouse, Arrow and Velox, etc. With features like native execution, columnar data format and vectorized
+data processing, these native engines can outperform Spark's JVM based SQL engine. However, they only support single node execution.
 
-## 1.2 Gluten's Solution
+## Gluten's Basic Design
+“Gluten” is Latin for "glue". The main goal of Gluten project is to glue native engines with SparkSQL. Thus, we can benefit from high scalability of Spark SQL framework and high performance of native engines.
 
-“Gluten” is Latin for glue. The main goal of Gluten project is to “glue" native libraries with SparkSQL. Thus, we can benefit from high scalability of Spark SQL framework and high performance of native libraries.
+The basic design rule is that we would reuse Spark's whole control flow and as much JVM code as possible but offload the compute-intensive data processing to native side. Here is what Gluten does basically:
+* Transform Spark’s physical plan to Substrait plan, then transform it to native engine's plan.
+* Offload performance-critical data processing to native engine.
+* Define clear JNI interfaces for native SQL engines.
+* Switch available native backends easily.
+* Reuse Spark’s distributed control flow.
+* Manage data sharing between JVM and native.
+* Extensible to support more native engines.
 
-The basic rule of Gluten's design is that we would reuse spark's whole control flow and as many JVM code as possible but offload the compute-intensive data processing part to native code. Here is what Gluten does:
-* Transform Spark’s whole stage physical plan to Substrait plan and send to native
-* Offload performance-critical data processing to native library
-* Define clear JNI interfaces for native libraries
-* Switch available native backends easily
-* Reuse Spark’s distributed control flow
-* Manage data sharing between JVM and native
-* Extensible to support more native accelerators
-
-## 1.3 Target User
-
-Gluten's target user is anyone who wants to accelerate SparkSQL fundamentally. As a plugin to Spark, Gluten doesn't require any change for dataframe API or SQL query, but only requires user to make correct configuration.
+## Target User
+Gluten's target user is anyone who aspires to accelerate SparkSQL fundamentally. As a plugin to Spark, Gluten doesn't require any change for dataframe API or SQL query, but only requires user to make correct configuration.
 See Gluten configuration properties [here](https://github.com/apache/incubator-gluten/blob/main/docs/Configuration.md).
 
-## 1.4 References
-
+## References
 You can click below links for more related information.
 - [Gluten Intro Video at Data AI Summit 2022](https://www.youtube.com/watch?v=0Q6gHT_N-1U)
 - [Gluten Intro Article at Medium.com](https://medium.com/intel-analytics-software/accelerate-spark-sql-queries-with-gluten-9000b65d1b4e)
 - [Gluten Intro Article at Kyligence.io(in Chinese)](https://cn.kyligence.io/blog/gluten-spark/)
 - [Velox Intro from Meta](https://engineering.fb.com/2023/03/09/open-source/velox-open-source-execution-engine/)
 
-# 2 Architecture
-
+# 2. Architecture
 The overview chart is like below. Substrait provides a well-defined cross-language specification for data compute operations (see more details [here](https://substrait.io/)). Spark physical plan is transformed to Substrait plan. Then Substrait plan is passed to native through JNI call.
 On native side, the native operator chain will be built out and offloaded to native engine. Gluten will return Columnar Batch to Spark and Spark Columnar API (since Spark-3.0) will be used at execution time. Gluten uses Apache Arrow data format as its basic data format, so the returned data to Spark JVM is ArrowColumnarBatch.
 <p align="center">
@@ -61,84 +58,60 @@ There are several key components in Gluten:
 * **Metrics**: collected from Gluten native engine to help identify bugs, performance bottlenecks, etc. The metrics are displayed in Spark UI.
 * **Shim Layer**: supports multiple Spark versions. We plan to only support Spark's latest 2 or 3 releases. Currently, Spark-3.2, Spark-3.3 & Spark-3.4 (experimental) are supported.
 
-# 3 How to Use
-
-There are two ways to use Gluten.
-
-# 3.1 Use Released Jar
-
-One way is to use released jar. Here is a simple example. Currently, only centos7/8 and ubuntu20.04/22.04 are well supported.
+# 3. User Guide
+Here is a basic configuration to enable Gluten in Spark.
 
 ```
-spark-shell \
- --master yarn --deploy-mode client \
- --conf spark.plugins=org.apache.gluten.GlutenPlugin \
- --conf spark.memory.offHeap.enabled=true \
- --conf spark.memory.offHeap.size=20g \
- --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
- --jars https://github.com/apache/incubator-gluten/releases/download/v1.1.1/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.1.1.jar
-```
-
-# 3.2 Custom Build
-
-Alternatively, you can build gluten from source, then do some configurations to enable Gluten plugin for Spark. Here is a simple example. Please refer to the corresponding backend part below for more details.
-
-```
-export gluten_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
+export GLUTEN_JAR=/PATH/TO/GLUTEN_JAR
 spark-shell \
   --master yarn --deploy-mode client \
   --conf spark.plugins=org.apache.gluten.GlutenPlugin \
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=20g \
-  --conf spark.driver.extraClassPath=${gluten_jar} \
-  --conf spark.executor.extraClassPath=${gluten_jar} \
+  --conf spark.driver.extraClassPath=${GLUTEN_JAR} \
+  --conf spark.executor.extraClassPath=${GLUTEN_JAR} \
   --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager
   ...
 ```
 
-### 3.2.1 Build and install Gluten with Velox backend
+There are two ways to acquire Gluten jar for the above configuration.
 
-If you want to use Gluten **Velox** backend, see [Build with Velox](./docs/get-started/Velox.md) to build and install the necessary libraries.
+### Use Released Jar
+Please download a tar package [here](https://downloads.apache.org/incubator/gluten/), then extract out Gluten jar from it.
+It was verified on Centos-7, Centos-8, Ubuntu-20.04 and Ubuntu-22.04.
 
-### 3.2.2 Build and install Gluten with ClickHouse backend
+### Build From Source
+For **Velox** backend, please refer to [Velox.md](./docs/get-started/Velox.md) and [build-guide.md](./docs/get-started/build-guide.md).
 
-If you want to use Gluten **ClickHouse** backend, see [Build with ClickHouse Backend](./docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
+For **ClickHouse** backend, please refer to [ClickHouse.md](./docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more information.
 
-### 3.2.3 Build options
+Gluten jar will be generated under `/PATH/TO/GLUTEN/package/target/` after the build.
 
-See [Gluten build guide](./docs/get-started/build-guide.md).
-
-# 4 Contribution
-
-Welcome to contribute to Gluten project! See [contributing guide](CONTRIBUTING.md) about how to make contributions.
-
-## 4.1 Community
-
-Gluten successfully joined Apache Incubator since March'24. We welcome developers and users who are interested in Gluten project. Here are several ways to contact us:
-
-### Gluten website
+# 4. Gluten Website
 https://gluten.apache.org/
 
-### Mailing lists
+# 5. Contribution
+Welcome to contribute to Gluten project! See [CONTRIBUTING.md](CONTRIBUTING.md) about how to make contributions.
+
+# 6. Community
+Gluten successfully became Apache incubator project in March 2024. Here are several ways to contact us:
+
+## GitHub
+Welcome to report any issue or create any discussion related to Gluten in GitHub. Please do a search from GitHub issue list before creating a new one to avoid repetition.
+
+## Mail Lists
 For any technical discussion, please send email to [dev@gluten.apache.org](mailto:dev@gluten.apache.org). You can go to [archives](https://lists.apache.org/list.html?dev@gluten.apache.org)
 for getting historical discussions. Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe the mail list.
 
-### Wechat group
-We also have a Wechat group (in Chinese) which may be more friendly for PRC developers/users. Due to the limitation of wechat group, please contact with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 
+## Slack Channel (English communication)
+Please click [here](https://github.com/apache/incubator-gluten/discussions/8429) to get invitation for ASF Slack workspace where you can find "incubator-gluten" channel.
 
-### Slack channel
-There's also a Spark channel in Velox Slack group (in English) for community communication for Velox backend. Please check Velox document here: https://github.com/facebookincubator/velox?tab=readme-ov-file#community
+The ASF Slack login entry: https://the-asf.slack.com/.
 
-## 4.2 Issue Report
+## WeChat Group (Chinese communication)
+For PRC developers/users, please contact weitingchen at apache.org or zhangzc at apache.org for getting invited to the WeChat group. 
 
-Please feel free to create Github issue for reporting bug or proposing enhancement. For contributing code, please submit an issue firstly and mention that issue in your PR.
-
-## 4.3 Documentation
-
-Currently, all gluten documents are held at [docs](https://github.com/apache/incubator-gluten/tree/main/docs). The documents may not reflect the latest designs. Please feel free to contact us for getting design details or sharing your design ideas.
-
-# 5 Performance
-
+# 7. Performance
 We use Decision Support Benchmark1 (TPC-H like) to evaluate Gluten's performance.
 Decision Support Benchmark1 is a query set modified from [TPC-H benchmark](http://tpc.org/tpch/default5.asp). We use Parquet file format for Velox testing & MergeTree file format for Clickhouse testing, compared to Parquet file format as baseline. See [Decision Support Benchmark1](./tools/workload/tpch).
 
@@ -150,22 +123,35 @@ The below testing environment: a 8-nodes AWS cluster with 1TB data; Spark-3.1.1 
 
 ![Performance](./docs/image/clickhouse_decision_support_bench1_22queries_performance.png)
 
-# 6 License
+# 8. Qualification Tool
 
+The Qualification Tool is a utility to analyze Spark event log files and assess the compatibility and performance of SQL workloads with Gluten. This tool helps users understand how their workloads can benefit from Gluten.
+
+## Features
+- Analyzes Spark SQL execution plans for compatibility with Gluten.
+- Supports various types of event log files, including single files, folders, compressed files, and rolling event logs.
+- Generates detailed reports highlighting supported and unsupported operations.
+- Provides metrics on SQL execution times and operator impact.
+- Offers configurable options such as threading, output directory, and date-based filtering.
+
+## Usage
+
+To use the Qualification Tool, follow the instructions in its [README](tools/qualification-tool/README.MD).
+
+## Example Command
+```bash
+java -jar target/qualification-tool-1.3.0-SNAPSHOT-jar-with-dependencies.jar -f /path/to/eventlog
+```
+For detailed usage instructions and advanced options, see the Qualification Tool README.
+
+# 9. License
 Gluten is licensed under [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
-# 7 Contact
-
-Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, etc. If you are interested in Gluten project, please contact and subscribe below mailing lists for further discussion.
-
-* For community activity: dev@gluten.apache.org
-* For code repository activity: commits@gluten.apache.org
-
-# 8 Thanks to our contributors
+# 10. Acknowledgements
+Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, IBM, Google, etc.
 
 <a href="https://github.com/apache/incubator-gluten/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=apache/incubator-gluten&columns=25" />
 </a>
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.
-

@@ -56,8 +56,7 @@ cmake_install.cmake
 build/
 *-build/
 Testing/
-cmake-build-debug/
-cmake-build-release/
+cmake-build-*/
 ep/_ep/
 
 # Editor temporary/working/backup files #
@@ -98,3 +97,5 @@ dist/
 
 # For Hive
 metastore_db/
+
+.ipynb_checkpoints

@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, Row, TestUtils}
+import org.apache.spark.sql.{DataFrame, GlutenTestUtils, Row}
 import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
@@ -39,7 +39,7 @@ class GlutenClickHouseTPCHBucketSuite
   override protected val queriesResults: String = rootPath + "bucket-queries-output"
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
@@ -590,7 +590,7 @@ class GlutenClickHouseTPCHBucketSuite
             case o => o
           })
       }
-      TestUtils.compareAnswers(sortedRes, exceptedResult)
+      GlutenTestUtils.compareAnswers(sortedRes, exceptedResult)
     }
 
     val SQL =

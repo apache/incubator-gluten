@@ -19,8 +19,6 @@ package org.apache.gluten.extension.columnar.transition
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 import org.apache.spark.util.SparkVersionUtil
 
-import java.util.concurrent.atomic.AtomicBoolean
-
 import scala.collection.mutable
 
 /**
@@ -33,6 +31,13 @@ sealed trait Convention {
 }
 
 object Convention {
+  def ensureSparkRowAndBatchTypesRegistered(): Unit = {
+    RowType.None.ensureRegistered()
+    RowType.VanillaRow.ensureRegistered()
+    BatchType.None.ensureRegistered()
+    BatchType.VanillaBatch.ensureRegistered()
+  }
+
   implicit class ConventionOps(val conv: Convention) extends AnyVal {
     def isNone: Boolean = {
       conv.rowType == RowType.None && conv.batchType == BatchType.None
@@ -80,10 +85,17 @@ object Convention {
   }
 
   sealed trait RowType extends TransitionGraph.Vertex with Serializable {
-    Transition.graph.addVertex(this)
+    import RowType._
+
+    final protected[this] def register0(): Unit = BatchType.synchronized {
+      assert(all.add(this))
+    }
   }
 
   object RowType {
+    private val all: mutable.Set[RowType] = mutable.Set()
+    def values(): Set[RowType] = all.toSet
+
     // None indicates that the plan doesn't support row-based processing.
     final case object None extends RowType
     final case object VanillaRow extends RowType
@@ -91,23 +103,11 @@ object Convention {
 
   trait BatchType extends TransitionGraph.Vertex with Serializable {
     import BatchType._
-    private val initialized: AtomicBoolean = new AtomicBoolean(false)
 
-    final def ensureRegistered(): Unit = {
-      if (!initialized.compareAndSet(false, true)) {
-        // Already registered.
-        return
-      }
-      register()
-    }
-
-    final private def register(): Unit = BatchType.synchronized {
+    final protected[this] def register0(): Unit = BatchType.synchronized {
       assert(all.add(this))
-      Transition.graph.addVertex(this)
       registerTransitions()
     }
-
-    ensureRegistered()
 
     /**
      * User batch type could override this method to define transitions from/to this batch type by
@@ -116,21 +116,21 @@ object Convention {
     protected[this] def registerTransitions(): Unit
 
     final protected[this] def fromRow(transition: Transition): Unit = {
-      Transition.graph.addEdge(RowType.VanillaRow, this, transition)
+      Transition.factory.update(graph => graph.addEdge(RowType.VanillaRow, this, transition))
     }
 
     final protected[this] def toRow(transition: Transition): Unit = {
-      Transition.graph.addEdge(this, RowType.VanillaRow, transition)
+      Transition.factory.update(graph => graph.addEdge(this, RowType.VanillaRow, transition))
     }
 
     final protected[this] def fromBatch(from: BatchType, transition: Transition): Unit = {
       assert(from != this)
-      Transition.graph.addEdge(from, this, transition)
+      Transition.factory.update(graph => graph.addEdge(from, this, transition))
     }
 
     final protected[this] def toBatch(to: BatchType, transition: Transition): Unit = {
       assert(to != this)
-      Transition.graph.addEdge(this, to, transition)
+      Transition.factory.update(graph => graph.addEdge(this, to, transition))
     }
   }
 

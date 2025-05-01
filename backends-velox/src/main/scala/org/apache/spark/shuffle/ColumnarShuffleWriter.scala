@@ -16,16 +16,17 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.ReservedKeys
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
+import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_DISK_WRITE_BUFFER_SIZE, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -63,8 +64,8 @@ class ColumnarShuffleWriter[K, V](
     .mkString(",")
 
   private lazy val nativeBufferSize = {
-    val bufferSize = GlutenConfig.getConf.shuffleWriterBufferSize
-    val maxBatchSize = GlutenConfig.getConf.maxBatchSize
+    val bufferSize = GlutenConfig.get.shuffleWriterBufferSize
+    val maxBatchSize = GlutenConfig.get.maxBatchSize
     if (bufferSize > maxBatchSize) {
       logInfo(
         s"${GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE.key} ($bufferSize) exceeds max " +
@@ -75,30 +76,36 @@ class ColumnarShuffleWriter[K, V](
     }
   }
 
-  private val nativeMergeBufferSize = GlutenConfig.getConf.maxBatchSize
+  private val nativeMergeBufferSize = GlutenConfig.get.maxBatchSize
 
-  private val nativeMergeThreshold = GlutenConfig.getConf.columnarShuffleMergeThreshold
+  private val nativeMergeThreshold = GlutenConfig.get.columnarShuffleMergeThreshold
 
-  private val compressionCodec =
+  private val compressionCodec: Option[String] =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
-      GlutenShuffleUtils.getCompressionCodec(conf)
+      Some(GlutenShuffleUtils.getCompressionCodec(conf))
     } else {
-      null // uncompressed
+      None
     }
 
-  private val compressionCodecBackend =
-    GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
+  private val compressionCodecBackend: Option[String] =
+    GlutenConfig.get.columnarShuffleCodecBackend
 
-  private val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
+  private val compressionLevel = {
+    compressionCodec
+      .map(codec => GlutenShuffleUtils.getCompressionLevel(conf, codec))
+      .getOrElse(GlutenShuffleUtils.DEFAULT_COMPRESSION_LEVEL)
+  }
 
-  private val sortEvictBufferSize =
-    GlutenShuffleUtils.getSortEvictBufferSize(conf, compressionCodec)
+  private val compressionBufferSize = {
+    compressionCodec
+      .map(codec => GlutenShuffleUtils.getCompressionBufferSize(conf, codec))
+      .getOrElse(0)
+  }
 
   private val bufferCompressThreshold =
-    GlutenConfig.getConf.columnarShuffleCompressionThreshold
+    GlutenConfig.get.columnarShuffleCompressionThreshold
 
-  private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
+  private val reallocThreshold = GlutenConfig.get.columnarShuffleReallocThreshold
 
   private val runtime = Runtimes.contextInstance(BackendsApiManager.getBackendName, "ShuffleWriter")
 
@@ -113,7 +120,7 @@ class ColumnarShuffleWriter[K, V](
   private val taskContext: TaskContext = TaskContext.get()
 
   private val shuffleWriterType: String =
-    if (isSort) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
+    if (isSort) ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER else ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
 
   private def availableOffHeapPerTask(): Long = {
     val perTask =
@@ -144,12 +151,13 @@ class ColumnarShuffleWriter[K, V](
             nativeBufferSize,
             nativeMergeBufferSize,
             nativeMergeThreshold,
-            compressionCodec,
-            compressionCodecBackend,
+            compressionCodec.orNull,
+            compressionCodecBackend.orNull,
             compressionLevel,
-            sortEvictBufferSize,
+            compressionBufferSize,
+            conf.get(SHUFFLE_DISK_WRITE_BUFFER_SIZE).toInt,
             bufferCompressThreshold,
-            GlutenConfig.getConf.columnarShuffleCompressionMode,
+            GlutenConfig.get.columnarShuffleCompressionMode,
             conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
             conf.get(SHUFFLE_SORT_USE_RADIXSORT),
             dataTmp.getAbsolutePath,

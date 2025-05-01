@@ -16,13 +16,13 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.GlutenNumaBindingInfo
 import org.apache.gluten.backendsapi.IteratorApi
+import org.apache.gluten.config.GlutenNumaBindingInfo
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics.IMetrics
-import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.sql.shims.{DeltaShimLoader, SparkShimLoader}
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -73,6 +73,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       splitInfoByteArray: Array[Array[Byte]],
       wsPlan: Array[Byte],
       materializeInput: Boolean,
+      partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]]): BatchIterator = {
 
     /** Generate closeable ColumnBatch iterator. */
@@ -88,7 +89,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       wsPlan,
       splitInfoByteArray,
       listIterator,
-      materializeInput
+      materializeInput,
+      partitionIndex
     )
 
   }
@@ -106,12 +108,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       updateInputMetrics,
       updateInputMetrics.map(_ => context.taskMetrics().inputMetrics).orNull)
 
-    context.addTaskFailureListener(
-      (ctx, _) => {
-        if (ctx.isInterrupted()) {
-          iter.cancel()
-        }
-      })
+    context.addTaskFailureListener((ctx, _) => { iter.cancel() })
+
     context.addTaskCompletionListener[Unit](_ => iter.close())
     new CloseableCHColumnBatchIterator(iter, Some(pipelineTime))
   }
@@ -149,7 +147,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             p.setIndexKey,
             p.primaryKey,
             PartSerializer.fromMergeTreePartSplits(p.partList.toSeq),
-            p.tableSchemaJson,
+            p.tableSchema,
             p.clickhouseTableConfigs.asJava,
             CHAffinity.getNativeMergeTreePartitionLocations(p).toList.asJava
           )
@@ -161,6 +159,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val modificationTimes = new JArrayList[JLong]()
         val partitionColumns = new JArrayList[JMap[String, String]]
         val metadataColumns = new JArrayList[JMap[String, String]]
+        val otherMetadataColumns = new JArrayList[JMap[String, Object]]
         f.files.foreach {
           file =>
             paths.add(new URI(file.filePath.toString()).toASCIIString)
@@ -202,9 +201,15 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 fileSizes.add(JLong.valueOf(size))
                 modificationTimes.add(JLong.valueOf(time))
               case _ =>
-                fileSizes.add(0)
-                modificationTimes.add(0)
             }
+
+            val otherConstantMetadataColumnValues =
+              DeltaShimLoader.getDeltaShims.convertRowIndexFilterIdEncoded(
+                partitionColumn.size(),
+                file,
+                SparkShimLoader.getSparkShims.getOtherConstantMetadataColumnValues(file)
+              )
+            otherMetadataColumns.add(otherConstantMetadataColumnValues)
         }
         val preferredLocations =
           CHAffinity.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
@@ -219,7 +224,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           metadataColumns,
           fileFormat,
           preferredLocations.toList.asJava,
-          mapAsJavaMap(properties)
+          mapAsJavaMap(properties),
+          otherMetadataColumns
         )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
@@ -234,28 +240,31 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genPartitions(
       wsCtx: WholeStageTransformContext,
       splitInfos: Seq[Seq[SplitInfo]],
-      scans: Seq[BasicScanExecTransformer]): Seq[BaseGlutenPartition] = {
+      leaves: Seq[LeafTransformSupport]): Seq[BaseGlutenPartition] = {
     // Only serialize plan once, save lots time when plan is complex.
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
       case (splits, index) =>
-        val (splitInfosByteArray, files) = splits.zipWithIndex.map {
+        val splitInfosByteArray = splits.zipWithIndex.map {
           case (split, i) =>
             split match {
-              case filesNode: LocalFilesNode =>
-                setFileSchemaForLocalFiles(filesNode, scans(i))
-                (filesNode.toProtobuf.toByteArray, filesNode.getPaths.asScala.toSeq)
+              case filesNode: LocalFilesNode if leaves(i).isInstanceOf[BasicScanExecTransformer] =>
+                setFileSchemaForLocalFiles(
+                  filesNode,
+                  leaves(i).asInstanceOf[BasicScanExecTransformer])
+                filesNode.toProtobuf.toByteArray
               case extensionTableNode: ExtensionTableNode =>
-                (extensionTableNode.toProtobuf.toByteArray, extensionTableNode.getPartList)
+                extensionTableNode.toProtobuf.toByteArray
+              case kafkaSourceNode: StreamKafkaSourceNode =>
+                kafkaSourceNode.toProtobuf.toByteArray
             }
-        }.unzip
+        }
 
         GlutenPartition(
           index,
           planByteArray,
           splitInfosByteArray.toArray,
-          locations = splits.flatMap(_.preferredLocations().asScala).toArray,
-          files.flatten.toArray
+          locations = splits.flatMap(_.preferredLocations().asScala).toArray
         )
     }
   }
@@ -291,7 +300,13 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         pipelineTime,
         updateNativeMetrics,
         Some(updateInputMetrics),
-        createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
+        createNativeIterator(
+          splitInfoByteArray,
+          wsPlan,
+          materializeInput,
+          partitionIndex,
+          inputIterators)
+      )
     )
   }
 
@@ -319,7 +334,13 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       pipelineTime,
       updateNativeMetrics,
       None,
-      createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
+      createNativeIterator(
+        splitInfoByteArray,
+        wsPlan,
+        materializeInput,
+        partitionIndex,
+        inputIterators)
+    )
   }
 
 }

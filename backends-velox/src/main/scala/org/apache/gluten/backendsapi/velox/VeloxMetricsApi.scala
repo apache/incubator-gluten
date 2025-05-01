@@ -100,7 +100,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "remaining filter time"),
-      "ioWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "io wait time")
+      "ioWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "io wait time"),
+      "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
+      "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
     )
 
   override def genBatchScanTransformerMetricsUpdater(
@@ -138,7 +141,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "remaining filter time"),
-      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time")
+      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time"),
+      "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
+      "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
@@ -176,7 +182,10 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "remaining filter time"),
-      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time")
+      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time"),
+      "storageReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "storage read bytes"),
+      "localReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "local ssd read bytes"),
+      "ramReadBytes" -> SQLMetrics.createSizeMetric(sparkContext, "ram read bytes")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(
@@ -327,7 +336,11 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of memory allocations")
+        "number of memory allocations"),
+      "spilledBytes" -> SQLMetrics.createSizeMetric(sparkContext, "bytes written for spilling"),
+      "spilledRows" -> SQLMetrics.createMetric(sparkContext, "total rows written for spilling"),
+      "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "total spilled partitions"),
+      "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files")
     )
 
   override def genWindowTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =

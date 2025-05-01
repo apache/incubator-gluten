@@ -19,25 +19,12 @@
 #include "config.h"
 
 #if USE_PARQUET
-#include <memory>
-#include <DataTypes/DataTypeFixedString.h>
-#include <DataTypes/DataTypeString.h>
-#include <DataTypes/DataTypesNumber.h>
-#include <IO/ReadBuffer.h>
+#include <Storages/Parquet/ParquetMeta.h>
 #include <Storages/SubstraitSource/FormatFile.h>
-#include <parquet/metadata.h>
-#include <parquet/statistics.h>
 
 namespace local_engine
 {
-struct RowGroupInformation
-{
-    UInt32 index = 0;
-    UInt64 start = 0;
-    UInt64 total_compressed_size = 0;
-    UInt64 total_size = 0;
-    UInt64 num_rows = 0;
-};
+
 class ParquetFormatFile : public FormatFile
 {
 public:
@@ -48,22 +35,31 @@ public:
         bool use_local_format_);
     ~ParquetFormatFile() override = default;
 
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+    InputFormatPtr createInputFormat(const DB::Block & header) override;
+
     std::optional<size_t> getTotalRows() override;
 
     bool supportSplit() const override { return true; }
 
     String getFileFormat() const override { return "Parquet"; }
 
-    static bool pageindex_reader_support(const DB::Block & header);
+    static bool onlyHasFlatType(const DB::Block & header);
+
+    void initialize(const ColumnIndexFilterPtr &) override;
 
 private:
     bool use_pageindex_reader;
     std::mutex mutex;
     std::optional<size_t> total_rows;
 
-    std::vector<RowGroupInformation> collectRequiredRowGroups(int & total_row_groups) const;
-    std::vector<RowGroupInformation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups) const;
+    /// We need the file schema when reading iceberg parquet, and hence we need the read buffer when ParquetFormatFile is
+    /// created. To avoid opening the file twice, We have to keep read_buffer_ alive until createInputFormat is called.
+    /// After that, the read_buffer_ will be moved to the InputFormat
+    std::unique_ptr<DB::ReadBuffer> read_buffer_;
+
+    /// TODO: we should use KeyCondition instead of ColumnIndexFilter, this is a temporary solution
+    /// initialized at initialize() to avoid defining special createInputFormat, and reset once createInputFormat is called.
+    ColumnIndexFilterPtr column_index_filter_;
 };
 
 }

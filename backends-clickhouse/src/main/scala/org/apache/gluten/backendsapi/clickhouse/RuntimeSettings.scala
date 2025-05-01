@@ -20,8 +20,46 @@ import org.apache.spark.sql.internal.SQLConf
 
 object RuntimeSettings {
 
-  import CHConf._
+  import CHConfig.runtimeSettings
   import SQLConf._
+
+  /** Clickhouse settings */
+  // scalastyle:off line.size.limit
+  val MIN_INSERT_BLOCK_SIZE_ROWS =
+    buildConf(runtimeSettings("min_insert_block_size_rows"))
+      .doc("https://clickhouse.com/docs/en/operations/settings/settings#min_insert_block_size_rows")
+      .longConf
+      .createWithDefault(1048449)
+
+  val MAX_BYTES_BEFORE_EXTERNAL_SORT =
+    buildConf(runtimeSettings("max_bytes_before_external_sort"))
+      .doc("https://clickhouse.com/docs/en/operations/settings/query-complexity#settings-max_bytes_before_external_sort")
+      .longConf
+      .createWithDefault(0)
+
+  // TODO: support check value
+  val OUTPUT_FORMAT_COMPRESSION_LEVEL =
+    buildConf(runtimeSettings("output_format_compression_level"))
+      .doc(s"""https://clickhouse.com/docs/en/operations/settings/settings#output_format_compression_level
+              | Notes: we always use Snappy compression, and Snappy doesn't support compression level.
+              | Currently, we ONLY set it in UT.
+              |""".stripMargin)
+      .longConf
+      .createWithDefault(Integer.MIN_VALUE & 0xffffffffL)
+  // .checkValue(v => v >= 0, "COMPRESSION LEVEL must be greater than 0")
+  // scalastyle:on line.size.limit
+
+  /** Gluten Configuration */
+  // scalastyle:off line.size.limit
+  val COLLECT_METRICS =
+    buildConf(runtimeSettings("collect_metrics"))
+      .doc(s"""If true, we need disable query_plan_enable_optimizations, otherwise clickhouse optimize the query plan
+              |and cause collecting metrics failed.
+              |see https://clickhouse.com/docs/en/operations/settings/settings#query_plan_enable_optimizations
+              |""".stripMargin)
+      .booleanConf
+      .createWithDefault(true)
+  // scalastyle:on line.size.limit
 
   val NATIVE_WRITE_RESERVE_PARTITION_COLUMNS =
     buildConf(runtimeSettings("gluten.write.reserve_partition_columns"))
@@ -58,4 +96,10 @@ object RuntimeSettings {
       .doc("The bucket directory for writing data")
       .stringConf
       .createWithDefault("")
+
+  val ENABLE_MEMORY_SPILL_SCHEDULER =
+    buildConf(runtimeSettings("enable_adaptive_memory_spill_scheduler"))
+      .doc("Enable memory spill scheduler")
+      .booleanConf
+      .createWithDefault(true)
 }

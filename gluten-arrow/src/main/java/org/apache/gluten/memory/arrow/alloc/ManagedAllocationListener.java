@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.arrow.alloc;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 
@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ManagedAllocationListener implements AllocationListener, AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(ManagedAllocationListener.class);
 
-  public static long BLOCK_SIZE = GlutenConfig.getConf().memoryReservationBlockSize();
+  public static long BLOCK_SIZE = GlutenConfig.get().memoryReservationBlockSize();
 
   private final MemoryTarget target;
   private final SimpleMemoryUsageRecorder sharedUsage;

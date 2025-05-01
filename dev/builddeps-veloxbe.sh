@@ -1,4 +1,20 @@
 #!/bin/bash
+
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 ####################################################################################################
 #  The main function of this script is to allow developers to build the environment with one click #
 #  Recommended commands for first-time installation:                                               #
@@ -22,8 +38,8 @@ ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
-ENABLE_EP_CACHE=OFF
 ENABLE_VCPKG=OFF
+ENABLE_GPU=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
 VELOX_BRANCH=""
@@ -31,6 +47,7 @@ VELOX_HOME=""
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
 SPARK_VERSION=ALL
+INSTALL_PREFIX=${INSTALL_PREFIX:-}
 
 # set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -96,12 +113,12 @@ do
         ENABLE_ABFS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --enable_ep_cache=*)
-        ENABLE_EP_CACHE=("${arg#*=}")
-        shift # Remove argument name from processing
-        ;;
         --enable_vcpkg=*)
         ENABLE_VCPKG=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --enable_gpu=*)
+        ENABLE_GPU=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --run_setup_script=*)
@@ -192,7 +209,7 @@ function build_velox {
   cd $GLUTEN_DIR/ep/build-velox/src
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
   ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-                   --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS \
+                   --enable_abfs=$ENABLE_ABFS --enable_gpu=$ENABLE_GPU --build_test_utils=$BUILD_TESTS \
                    --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS \
                    --velox_home=$VELOX_HOME
 }
@@ -203,11 +220,33 @@ function build_gluten_cpp {
   rm -rf build
   mkdir build
   cd build
-  cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-        -DVELOX_HOME=${VELOX_HOME} \
-        -DBUILD_TESTS=$BUILD_TESTS -DBUILD_EXAMPLES=$BUILD_EXAMPLES -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DENABLE_JEMALLOC_STATS=$ENABLE_JEMALLOC_STATS \
-        -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_GCS=$ENABLE_GCS \
-        -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS -DENABLE_ABFS=$ENABLE_ABFS ..
+
+  GLUTEN_CMAKE_OPTIONS="-DBUILD_VELOX_BACKEND=ON \
+    -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+    -DVELOX_HOME=$VELOX_HOME \
+    -DBUILD_TESTS=$BUILD_TESTS \
+    -DBUILD_EXAMPLES=$BUILD_EXAMPLES \
+    -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS \
+    -DENABLE_JEMALLOC_STATS=$ENABLE_JEMALLOC_STATS \
+    -DENABLE_HBM=$ENABLE_HBM \
+    -DENABLE_QAT=$ENABLE_QAT \
+    -DENABLE_IAA=$ENABLE_IAA \
+    -DENABLE_GCS=$ENABLE_GCS \
+    -DENABLE_S3=$ENABLE_S3 \
+    -DENABLE_HDFS=$ENABLE_HDFS \
+    -DENABLE_ABFS=$ENABLE_ABFS \
+    -DENABLE_GPU=$ENABLE_GPU"
+
+  if [ $OS == 'Darwin' ]; then
+    if [ -n "$INSTALL_PREFIX" ]; then
+      DEPS_INSTALL_DIR=$INSTALL_PREFIX
+    else
+      DEPS_INSTALL_DIR=$VELOX_HOME/deps-install
+    fi
+    GLUTEN_CMAKE_OPTIONS+=" -DCMAKE_PREFIX_PATH=$DEPS_INSTALL_DIR"
+  fi
+
+  cmake $GLUTEN_CMAKE_OPTIONS ..
   make -j $NUM_THREADS
 }
 
@@ -246,20 +285,7 @@ if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     exit 1
   fi
   if [ $ENABLE_S3 == "ON" ]; then
-    if [ $OS == 'Darwin' ]; then
-      echo "S3 is not supported on MacOS."
-      exit 1
-    fi
     ${VELOX_HOME}/scripts/setup-adapters.sh aws
-  fi
-  if [ $ENABLE_HDFS == "ON" ]; then
-    if [ $OS == 'Darwin' ]; then
-      echo "HDFS is not supported on MacOS."
-      exit 1
-    fi
-    pushd $VELOX_HOME
-    install_libhdfs3
-    popd
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     ${VELOX_HOME}/scripts/setup-adapters.sh gcs

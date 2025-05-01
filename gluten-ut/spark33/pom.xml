@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-ut</artifactId>
     <groupId>org.apache.gluten</groupId>
-    <version>1.3.0-SNAPSHOT</version>
+    <version>1.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -87,9 +87,6 @@
           <scope>test</scope>
         </dependency>
       </dependencies>
-      <properties>
-        <clickhouse.lib.path></clickhouse.lib.path>
-      </properties>
     </profile>
   </profiles>
 
@@ -133,12 +130,6 @@
             <goals>
               <goal>test</goal>
             </goals>
-            <configuration>
-              <systemProperties>
-                <clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
-                <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
-              </systemProperties>
-            </configuration>
           </execution>
         </executions>
       </plugin>

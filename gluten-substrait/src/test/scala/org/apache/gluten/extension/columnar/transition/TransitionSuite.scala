@@ -16,9 +16,11 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
+import org.apache.gluten.component.WithDummyBackend
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
 
+import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -26,37 +28,43 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-class TransitionSuite extends SharedSparkSession {
+class TransitionSuite extends SharedSparkSession with WithDummyBackend {
   import TransitionSuite._
+
+  override protected def sparkConf: SparkConf =
+    super.sparkConf
+      .set("spark.ui.enabled", "false")
+
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    Convention.ensureSparkRowAndBatchTypesRegistered()
+    TypeA.ensureRegistered()
+    TypeB.ensureRegistered()
+    TypeC.ensureRegistered()
+    TypeD.ensureRegistered()
+  }
+
   test("Trivial C2R") {
     val in = BatchLeaf(TypeA)
-    val out = ConventionFunc.ignoreBackend {
-      Transitions.insert(in, outputsColumnar = false)
-    }
+    val out = Transitions.insert(in, outputsColumnar = false)
     assert(out == BatchToRow(TypeA, BatchLeaf(TypeA)))
   }
 
   test("Insert C2R") {
     val in = RowUnary(BatchLeaf(TypeA))
-    val out = ConventionFunc.ignoreBackend {
-      Transitions.insert(in, outputsColumnar = false)
-    }
+    val out = Transitions.insert(in, outputsColumnar = false)
     assert(out == RowUnary(BatchToRow(TypeA, BatchLeaf(TypeA))))
   }
 
   test("Insert R2C") {
     val in = BatchUnary(TypeA, RowLeaf())
-    val out = ConventionFunc.ignoreBackend {
-      Transitions.insert(in, outputsColumnar = false)
-    }
+    val out = Transitions.insert(in, outputsColumnar = false)
     assert(out == BatchToRow(TypeA, BatchUnary(TypeA, RowToBatch(TypeA, RowLeaf()))))
   }
 
   test("Insert C2R2C") {
     val in = BatchUnary(TypeA, BatchLeaf(TypeB))
-    val out = ConventionFunc.ignoreBackend {
-      Transitions.insert(in, outputsColumnar = false)
-    }
+    val out = Transitions.insert(in, outputsColumnar = false)
     assert(
       out == BatchToRow(
         TypeA,
@@ -65,9 +73,7 @@ class TransitionSuite extends SharedSparkSession {
 
   test("Insert C2C") {
     val in = BatchUnary(TypeA, BatchLeaf(TypeC))
-    val out = ConventionFunc.ignoreBackend {
-      Transitions.insert(in, outputsColumnar = false)
-    }
+    val out = Transitions.insert(in, outputsColumnar = false)
     assert(
       out == BatchToRow(
         TypeA,
@@ -77,9 +83,7 @@ class TransitionSuite extends SharedSparkSession {
   test("No transitions found") {
     val in = BatchUnary(TypeA, BatchLeaf(TypeD))
     assertThrows[GlutenException] {
-      ConventionFunc.ignoreBackend {
-        Transitions.insert(in, outputsColumnar = false)
-      }
+      Transitions.insert(in, outputsColumnar = false)
     }
   }
 }
@@ -144,5 +148,4 @@ object TransitionSuite extends TransitionSuiteBase {
     override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] =
       throw new UnsupportedOperationException()
   }
-
 }

@@ -16,12 +16,12 @@
  */
 #include <fstream>
 #include <iostream>
-#include <gluten_test_util.h>
 #include <incbin.h>
-#include <Builder/SerializedPlanBuilder.h>
+
 #include <Disks/DiskLocal.h>
 #include <Formats/FormatFactory.h>
 #include <Interpreters/Context.h>
+#include <Interpreters/registerInterpreters.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
@@ -29,18 +29,21 @@
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
+#include <TableFunctions/TableFunctionFactory.h>
+#include <TableFunctions/registerTableFunctions.h>
 #include <gtest/gtest.h>
+#include <tests/utils/gluten_test_util.h>
 #include <config.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
 
 using namespace local_engine;
-using namespace dbms;
+using namespace DB;
 
 TEST(TESTUtil, TestByteToLong)
 {
     Int64 expected = 0xf085460ccf7f0000l;
-    char * arr = new char[8];
+    char arr[8];
     arr[0] = -16;
     arr[1] = -123;
     arr[2] = 70;
@@ -100,10 +103,10 @@ int main(int argc, char ** argv)
         [&](const SparkConfigs::ConfigMap & spark_conf_map) { BackendInitializerUtil::initBackend(spark_conf_map); },
         true);
 
-    auto & factory = FormatFactory::instance();
-    DB::registerOutputFormatParquet(factory);
-
     SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
+
+    DB::registerInterpreters();
+    DB::registerTableFunctions();
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

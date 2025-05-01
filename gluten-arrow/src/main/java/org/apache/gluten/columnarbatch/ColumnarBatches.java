@@ -130,7 +130,7 @@ public final class ColumnarBatches {
    * Ensure the input batch is offloaded as native-based columnar batch (See {@link IndicatorVector}
    * and {@link PlaceholderVector}). This method will close the input column batch after offloaded.
    */
-  private static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
+  static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (ColumnarBatches.isLightBatch(batch)) {
       return batch;
     }
@@ -142,7 +142,7 @@ public final class ColumnarBatches {
    * take place if loading is required, which means when the input batch is not loaded yet. This
    * method will close the input column batch after loaded.
    */
-  private static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
+  static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (isHeavyBatch(batch)) {
       return batch;
     }
@@ -230,7 +230,8 @@ public final class ColumnarBatches {
     if (input.numCols() == 0) {
       throw new IllegalArgumentException("batch with zero columns cannot be offloaded");
     }
-    // Batch-offloading doesn't involve any backend-specific native code. Use the internal
+    // Batch-offloading doesn't involve any backend-specific native code. Use the
+    // internal
     // backend to store native batch references only.
     final Runtime runtime =
         Runtimes.contextInstance(INTERNAL_BACKEND_KIND, "ColumnarBatches#offload");

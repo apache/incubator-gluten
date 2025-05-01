@@ -18,10 +18,13 @@
 
 #if USE_PARQUET
 #include <ranges>
+#include <Interpreters/PreparedSets.h>
+#include <Interpreters/Set.h>
 #include <Interpreters/misc.h>
 #include <Storages/MergeTree/KeyCondition.h>
 #include <Storages/MergeTree/RPNBuilder.h>
 #include <Storages/Parquet/ParquetConverter.h>
+#include <fmt/ranges.h>
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
 #include <Common/logger_useful.h>
@@ -369,7 +372,8 @@ struct ASCENDING : BoundaryOrder
                 [&](const Bounds & b)
                 {
                     return builder.filter(
-                        [&](const Int32 i) {
+                        [&](const Int32 i)
+                        {
                             return i < b.lower || i > b.upper || comparator.compareValueToMin(i) != 0
                                 || comparator.compareValueToMax(i) != 0;
                         });
@@ -522,7 +526,8 @@ struct DESCENDING : BoundaryOrder
                 [&](const Bounds & b)
                 {
                     return builder.filter(
-                        [&](const Int32 i) {
+                        [&](const Int32 i)
+                        {
                             return i < b.lower || i > b.upper || comparator.compareValueToMin(i) != 0
                                 || comparator.compareValueToMin(i) != 0;
                         });
@@ -789,14 +794,11 @@ const ColumnIndexFilter::AtomMap ColumnIndexFilter::atom_map{
 
 ColumnIndexFilter::ColumnIndexFilter(const DB::ActionsDAG & filter_dag, DB::ContextPtr context)
 {
-    const auto inverted_dag = DB::KeyCondition::cloneASTWithInversionPushDown({filter_dag.getOutputs().at(0)}, context);
-
-    assert(inverted_dag.getOutputs().size() == 1);
-
-    const auto * inverted_dag_filter_node = inverted_dag.getOutputs()[0];
+    DB::ActionsDAGWithInversionPushDown inverted_dag(filter_dag.getOutputs().front(), context);
+    assert(inverted_dag.predicate != nullptr);
 
     DB::RPNBuilder<RPNElement> builder(
-        inverted_dag_filter_node,
+        inverted_dag.predicate,
         std::move(context),
         [&](const DB::RPNBuilderTreeNode & node, RPNElement & out) { return extractAtomFromTree(node, out); });
     rpn_ = std::move(builder).extractRPN();

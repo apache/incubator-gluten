@@ -76,7 +76,7 @@ abstract private[hive] class AbstractHiveTableScanExec(
 
   override val output: Seq[Attribute] = {
     // Retrieve the original attributes based on expression ID so that capitalization matches.
-    requestedAttributes.map(originalAttributes).distinct
+    requestedAttributes.map(attr => originalAttributes.getOrElse(attr, attr)).distinct
   }
 
   // Bind all partition key attribute references in the partition pruning predicate for later

@@ -30,6 +30,9 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/QplCodec.h"
 #endif
+#ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/exec/ToCudf.h"
+#endif
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
@@ -52,11 +55,12 @@
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
+DECLARE_bool(velox_ssd_odirect);
 DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
 DECLARE_int32(cache_prefetch_min_pct);
 
-DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
-DEFINE_int32(gluten_velox_aysnc_timeout_on_task_stopping, 30000, "Aysnc timout when task is being stopped");
+DECLARE_int32(gluten_velox_async_timeout_on_task_stopping);
+DEFINE_int32(gluten_velox_async_timeout_on_task_stopping, 30000, "Async timout when task is being stopped");
 
 using namespace facebook;
 
@@ -64,7 +68,7 @@ namespace gluten {
 
 namespace {
 MemoryManager* veloxMemoryManagerFactory(const std::string& kind, std::unique_ptr<AllocationListener> listener) {
-  return new VeloxMemoryManager(kind, std::move(listener));
+  return new VeloxMemoryManager(kind, std::move(listener), *VeloxBackend::get()->getBackendConf());
 }
 
 void veloxMemoryManagerReleaser(MemoryManager* memoryManager) {
@@ -85,9 +89,13 @@ void veloxRuntimeReleaser(Runtime* runtime) {
 }
 } // namespace
 
-void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+void VeloxBackend::init(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
+
+  globalMemoryManager_ = std::make_unique<VeloxMemoryManager>(kVeloxBackendKind, std::move(listener), *backendConf_);
 
   // Register factories.
   MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);
@@ -112,7 +120,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   google::InitGoogleLogging("gluten");
 
   // Allow growing buffer in another task through its memory pool.
-  FLAGS_velox_memory_pool_capacity_transfer_across_tasks = true;
+  FLAGS_velox_memory_pool_capacity_transfer_across_tasks =
+      backendConf_->get<bool>(kMemoryPoolCapacityTransferAcrossTasks, true);
 
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
@@ -129,8 +138,11 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   FLAGS_velox_memory_use_hugepages = backendConf_->get<bool>(kMemoryUseHugePages, kMemoryUseHugePagesDefault);
 
   // Async timeout.
-  FLAGS_gluten_velox_aysnc_timeout_on_task_stopping =
+  FLAGS_gluten_velox_async_timeout_on_task_stopping =
       backendConf_->get<int32_t>(kVeloxAsyncTimeoutOnTaskStopping, kVeloxAsyncTimeoutOnTaskStoppingDefault);
+
+  // Set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
+  FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
@@ -148,8 +160,15 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::filesystems::registerAbfsFileSystem();
 #endif
 
+#ifdef GLUTEN_ENABLE_GPU
+  FLAGS_velox_cudf_debug = backendConf_->get<bool>(kDebugCudf, kDebugCudfDefault);
+  if (backendConf_->get<bool>(kCudfEnabled, kCudfEnabledDefault)) {
+    velox::cudf_velox::registerCudf();
+  }
+
+#endif
+
   initJolFilesystem();
-  initCache();
   initConnector();
 
   velox::dwio::common::registerFileSinks();
@@ -173,7 +192,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   initUdf();
 
-  // Initialize the global memory manager for current process.
+  // Initialize Velox-side memory manager for current process. The memory manager
+  // will be used during spill calls so we don't track it with Spark off-heap memory instead
+  // we rely on overhead memory. If we track it with off-heap memory, recursive reservations from
+  // Spark off-heap memory pool will be conducted to cause unexpected OOMs.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
   int64_t memoryManagerCapacity;
   if (sparkOverhead.hasValue()) {
@@ -184,7 +206,11 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
   }
   LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
-  facebook::velox::memory::MemoryManager::initialize({.allocatorCapacity = memoryManagerCapacity});
+  facebook::velox::memory::initializeMemoryManager({.allocatorCapacity = memoryManagerCapacity});
+
+  // local cache persistent relies on the cache pool from root memory pool so we need to init this
+  // after the memory manager instanced
+  initCache();
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -201,32 +227,45 @@ void VeloxBackend::initJolFilesystem() {
   registerJolFileSystem(maxSpillFileSize);
 }
 
+std::unique_ptr<facebook::velox::cache::SsdCache> VeloxBackend::initSsdCache(uint64_t ssdCacheSize) {
+  FLAGS_velox_ssd_odirect = backendConf_->get<bool>(kVeloxSsdODirectEnabled, false);
+  int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
+  int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
+  std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
+  uint64_t ssdCheckpointIntervalSize = backendConf_->get<uint64_t>(kVeloxSsdCheckpointIntervalBytes, 0);
+  bool disableFileCow = backendConf_->get<bool>(kVeloxSsdDisableFileCow, false);
+  bool checksumEnabled = backendConf_->get<bool>(kVeloxSsdCheckSumEnabled, false);
+  bool checksumReadVerificationEnabled = backendConf_->get<bool>(kVeloxSsdCheckSumReadVerificationEnabled, false);
+
+  cachePathPrefix_ = ssdCachePathPrefix;
+  cacheFilePrefix_ = getCacheFilePrefix();
+  std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
+  ssdCacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ssdCacheIOThreads);
+  const cache::SsdCache::Config config(
+      ssdCachePath,
+      ssdCacheSize,
+      ssdCacheShards,
+      ssdCacheExecutor_.get(),
+      ssdCheckpointIntervalSize,
+      disableFileCow,
+      checksumEnabled,
+      checksumReadVerificationEnabled);
+  auto ssd = std::make_unique<velox::cache::SsdCache>(config);
+  std::error_code ec;
+  const std::filesystem::space_info si = std::filesystem::space(ssdCachePathPrefix, ec);
+  if (si.available < ssdCacheSize) {
+    VELOX_FAIL(
+        "not enough space for ssd cache in " + ssdCachePath + " cache size: " + std::to_string(ssdCacheSize) +
+        "free space: " + std::to_string(si.available));
+  }
+  LOG(INFO) << "Initializing SSD cache with: " << config.toString();
+  return ssd;
+}
+
 void VeloxBackend::initCache() {
   if (backendConf_->get<bool>(kVeloxCacheEnabled, false)) {
-    FLAGS_ssd_odirect = true;
-
-    FLAGS_ssd_odirect = backendConf_->get<bool>(kVeloxSsdODirectEnabled, false);
-
     uint64_t memCacheSize = backendConf_->get<uint64_t>(kVeloxMemCacheSize, kVeloxMemCacheSizeDefault);
     uint64_t ssdCacheSize = backendConf_->get<uint64_t>(kVeloxSsdCacheSize, kVeloxSsdCacheSizeDefault);
-    int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
-    int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
-    std::string ssdCachePathPrefix = backendConf_->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
-
-    cachePathPrefix_ = ssdCachePathPrefix;
-    cacheFilePrefix_ = getCacheFilePrefix();
-    std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
-    ssdCacheExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ssdCacheIOThreads);
-    const cache::SsdCache::Config config(ssdCachePath, ssdCacheSize, ssdCacheShards, ssdCacheExecutor_.get());
-    auto ssd = std::make_unique<velox::cache::SsdCache>(config);
-
-    std::error_code ec;
-    const std::filesystem::space_info si = std::filesystem::space(ssdCachePathPrefix, ec);
-    if (si.available < ssdCacheSize) {
-      VELOX_FAIL(
-          "not enough space for ssd cache in " + ssdCachePath + " cache size: " + std::to_string(ssdCacheSize) +
-          "free space: " + std::to_string(si.available));
-    }
 
     velox::memory::MmapAllocator::Options options;
     options.capacity = memCacheSize;
@@ -237,71 +276,27 @@ void VeloxBackend::initCache() {
       asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get());
     } else {
       // TODO: this is not tracked by Spark.
+      auto ssd = initSsdCache(ssdCacheSize);
       asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get(), std::move(ssd));
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()));
-    LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
-              << ", ssdCache prefix: " << ssdCachePath << ", ssdCache size: " << ssdCacheSize
-              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads;
+    LOG(INFO) << "AsyncDataCache is ready";
   }
 }
 
 void VeloxBackend::initConnector() {
-  // The configs below are used at process level.
-  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->rawConfigs();
-
   auto hiveConf = getHiveConfig(backendConf_);
-  for (auto& [k, v] : hiveConf->rawConfigsCopy()) {
-    connectorConfMap[k] = v;
-  }
-
-#ifdef ENABLE_ABFS
-  const auto& confValue = backendConf_->rawConfigs();
-  for (auto& [k, v] : confValue) {
-    if (k.find("fs.azure.account.key") == 0) {
-      connectorConfMap[k] = v;
-    } else if (k.find("spark.hadoop.fs.azure.account.key") == 0) {
-      constexpr int32_t accountKeyPrefixLength = 13;
-      connectorConfMap[k.substr(accountKeyPrefixLength)] = v;
-    }
-  }
-#endif
-
-  connectorConfMap[velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
-      backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
-
-  connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
-      backendConf_->get<std::string>(kMaxCoalescedBytes, "67108864"); // 64M
-  connectorConfMap[velox::connector::hive::HiveConfig::kMaxCoalescedDistance] =
-      backendConf_->get<std::string>(kMaxCoalescedDistance, "512KB"); // 512KB
-  connectorConfMap[velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
-      backendConf_->get<std::string>(kPrefetchRowGroups, "1");
-  connectorConfMap[velox::connector::hive::HiveConfig::kLoadQuantum] =
-      backendConf_->get<std::string>(kLoadQuantum, "268435456"); // 256M
-  connectorConfMap[velox::connector::hive::HiveConfig::kFooterEstimatedSize] =
-      backendConf_->get<std::string>(kDirectorySizeGuess, "32768"); // 32K
-  connectorConfMap[velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
-      backendConf_->get<std::string>(kFilePreloadThreshold, "1048576"); // 1M
-
-  // set cache_prefetch_min_pct default as 0 to force all loads are prefetched in DirectBufferInput.
-  FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   GLUTEN_CHECK(
       ioThreads >= 0,
       kVeloxIOThreads + " was set to negative number " + std::to_string(ioThreads) + ", this should not happen.");
   if (ioThreads > 0) {
-    LOG(WARNING)
-        << "Velox background IO threads is enabled. Which is highly unrecommended as of now, since it may cause"
-        << " some unexpected issues like query crash or hanging. Please turn it off if you are unsure about"
-        << " this option.";
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
-  velox::connector::registerConnector(std::make_shared<velox::connector::hive::HiveConnector>(
-      kHiveConnectorId,
-      std::make_shared<facebook::velox::config::ConfigBase>(std::move(connectorConfMap)),
-      ioExecutor_.get()));
+  velox::connector::registerConnector(
+      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, hiveConf, ioExecutor_.get()));
 }
 
 void VeloxBackend::initUdf() {
@@ -315,8 +310,10 @@ void VeloxBackend::initUdf() {
 
 std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
 
-void VeloxBackend::create(const std::unordered_map<std::string, std::string>& conf) {
-  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(conf));
+void VeloxBackend::create(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& conf) {
+  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(std::move(listener), conf));
 }
 
 VeloxBackend* VeloxBackend::get() {
@@ -326,5 +323,4 @@ VeloxBackend* VeloxBackend::get() {
   }
   return instance_.get();
 }
-
 } // namespace gluten

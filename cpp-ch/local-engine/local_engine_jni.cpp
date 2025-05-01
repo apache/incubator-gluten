@@ -46,7 +46,7 @@
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/NormalFileWriter.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <Storages/SubstraitSource/Delta/DeltaWriter.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <jni/jni_error.h>
@@ -93,9 +93,6 @@ namespace dbms
 class LocalExecutor;
 }
 
-static jclass spark_row_info_class;
-static jmethodID spark_row_info_constructor;
-
 static jclass block_stripes_class;
 static jmethodID block_stripes_constructor;
 
@@ -113,9 +110,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
     local_engine::JniErrorsGlobalState::instance().initialize(env);
 
-    spark_row_info_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/row/SparkRowInfo;");
-    spark_row_info_constructor = local_engine::GetMethodID(env, spark_row_info_class, "<init>", "([J[JJJJ)V");
-
     block_stripes_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
     block_stripes_constructor = local_engine::GetMethodID(env, block_stripes_class, "<init>", "(J[J[II)V");
 
@@ -125,7 +119,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     block_stats_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/BlockStats;");
     block_stats_constructor = local_engine::GetMethodID(env, block_stats_class, "<init>", "(JZ)V");
 
-    local_engine::ShuffleReader::input_stream_class
+    local_engine::ShuffleReader::shuffle_input_stream_class
         = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/ShuffleInputStream;");
     local_engine::NativeSplitter::iterator_class
         = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/IteratorWrapper;");
@@ -138,8 +132,13 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::SourceFromJavaIter::serialized_record_batch_iterator_next
         = local_engine::GetMethodID(env, local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class, "next", "()[B");
 
-    local_engine::ShuffleReader::input_stream_read
-        = local_engine::GetMethodID(env, local_engine::ShuffleReader::input_stream_class, "read", "(JJ)J");
+    local_engine::ReadBufferFromJavaInputStream::input_stream_class
+        = local_engine::CreateGlobalClassReference(env, "Ljava/io/InputStream;");
+    local_engine::ReadBufferFromJavaInputStream::input_stream_read
+        = local_engine::GetMethodID(env, local_engine::ReadBufferFromJavaInputStream::input_stream_class, "read", "([B)I");
+
+    local_engine::ShuffleReader::shuffle_input_stream_read
+        = local_engine::GetMethodID(env, local_engine::ShuffleReader::shuffle_input_stream_class, "read", "(JJ)J");
 
     local_engine::NativeSplitter::iterator_has_next
         = local_engine::GetMethodID(env, local_engine::NativeSplitter::iterator_class, "hasNext", "()Z");
@@ -164,32 +163,10 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::BroadCastJoinBuilder::init(env);
     local_engine::CacheManager::initJNI(env);
     local_engine::SparkMergeTreeWriterJNI::init(env);
+    local_engine::SparkRowInfoJNI::init(env);
 
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
-}
-
-JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
-{
-    LOG_INFO(&Poco::Logger::get("jni"), "start jni onUnload");
-    local_engine::BackendFinalizerUtil::finalizeGlobally();
-
-    JNIEnv * env;
-    vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8);
-
-    local_engine::JniErrorsGlobalState::instance().destroy(env);
-    local_engine::BroadCastJoinBuilder::destroy(env);
-    local_engine::SparkMergeTreeWriterJNI::destroy(env);
-
-    env->DeleteGlobalRef(spark_row_info_class);
-    env->DeleteGlobalRef(block_stripes_class);
-    env->DeleteGlobalRef(split_result_class);
-    env->DeleteGlobalRef(block_stats_class);
-    env->DeleteGlobalRef(local_engine::ShuffleReader::input_stream_class);
-    env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
-    env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
-    env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
-    env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
@@ -210,6 +187,26 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::BackendFinalizerUtil::finalizeSessionally();
     LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeDestroyNative(JNIEnv * env, jclass)
+{
+    LOG_INFO(&Poco::Logger::get("jni"), "start destroy native");
+    local_engine::BackendFinalizerUtil::finalizeGlobally();
+
+    local_engine::JniErrorsGlobalState::instance().destroy(env);
+    local_engine::BroadCastJoinBuilder::destroy(env);
+    local_engine::SparkMergeTreeWriterJNI::destroy(env);
+    local_engine::SparkRowInfoJNI::destroy(env);
+
+    env->DeleteGlobalRef(block_stripes_class);
+    env->DeleteGlobalRef(split_result_class);
+    env->DeleteGlobalRef(block_stats_class);
+    env->DeleteGlobalRef(local_engine::ShuffleReader::shuffle_input_stream_class);
+    env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
+    env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
+    env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
+    env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
 }
 
 /// Set settings for the current query. It assumes that all parameters are started with `CH_RUNTIME_SETTINGS_PREFIX` prefix,
@@ -234,7 +231,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     jobjectArray split_infos,
     jobjectArray iter_arr,
     jbyteArray conf_plan,
-    jboolean materialize_input)
+    jboolean materialize_input,
+    jint partition_index)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::QueryContext::instance().currentQueryContext();
@@ -248,7 +246,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     const std::string::size_type plan_size = plan_a.length();
     auto plan_pb = local_engine::BinaryToMessage<substrait::Plan>({reinterpret_cast<const char *>(plan_a.elems()), plan_size});
 
-    auto parser_context = local_engine::ParserContext::build(query_context, plan_pb);
+    auto parser_context = local_engine::ParserContext::build(query_context, plan_pb, partition_index);
     local_engine::SerializedPlanParser parser(parser_context);
 
     jsize iter_num = env->GetArrayLength(iter_arr);
@@ -535,12 +533,35 @@ Java_org_apache_gluten_vectorized_CHNativeBlock_nativeBlockStats(JNIEnv * env, j
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_CHNativeBlock_copyBlock(JNIEnv * env, jobject obj, jlong block_address)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+
+    auto copied_block = block->cloneWithColumns(block->getColumns());
+    auto * a = new DB::Block(std::move(copied_block));
+    return reinterpret_cast<jlong>(a);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_CHNativeBlock_nativeSlice(JNIEnv * env, jobject /* obj */, jlong block_address, jint offset, jint limit)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    DB::Block cut_block = block->cloneWithCutColumns(offset, limit);
+
+    return reinterpret_cast<jlong>(new DB::Block(std::move(cut_block)));
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHStreamReader_createNativeShuffleReader(
     JNIEnv * env, jclass /*clazz*/, jobject input_stream, jboolean compressed, jlong max_shuffle_read_rows, jlong max_shuffle_read_bytes)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * input = env->NewGlobalRef(input_stream);
-    auto read_buffer = std::make_unique<local_engine::ReadBufferFromJavaInputStream>(input);
+    auto read_buffer = std::make_unique<local_engine::ReadBufferFromJavaShuffleInputStream>(input);
     auto * shuffle_reader
         = new local_engine::ShuffleReader(std::move(read_buffer), compressed, max_shuffle_read_rows, max_shuffle_read_bytes);
     return reinterpret_cast<jlong>(shuffle_reader);
@@ -553,6 +574,19 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHStreamReader_nativeNext(JNIE
     local_engine::ShuffleReader * reader = reinterpret_cast<local_engine::ShuffleReader *>(shuffle_reader);
     DB::Block * block = reader->read();
     return reinterpret_cast<jlong>(block);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHStreamReader_directRead(
+    JNIEnv * env, jclass /*clazz*/, jobject input_stream, jbyteArray buffer, jint buffer_size)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    // auto * input = env->NewGlobalRef(input_stream);
+    auto rb = std::make_unique<local_engine::ReadBufferFromJavaInputStream>(input_stream, buffer, buffer_size);
+    auto reader = std::make_unique<local_engine::NativeReader>(*rb);
+    DB::Block block = reader->read();
+    DB::Block * res = new DB::Block(block);
+    return reinterpret_cast<jlong>(res);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
@@ -784,9 +818,6 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHBlockConverterJniWrapper_c
     JNIEnv * env, jclass, jlong block_address, jintArray masks)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    local_engine::CHColumnToSparkRow converter;
-
-    std::unique_ptr<local_engine::SparkRowInfo> spark_row_info = nullptr;
     local_engine::MaskVector mask = nullptr;
     DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
     if (masks != nullptr)
@@ -797,21 +828,9 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHBlockConverterJniWrapper_c
             mask->push_back(safeArray.elems()[j]);
     }
 
-    spark_row_info = converter.convertCHColumnToSparkRow(*block, mask);
-
-    auto * offsets_arr = env->NewLongArray(spark_row_info->getNumRows());
-    const auto * offsets_src = spark_row_info->getOffsets().data();
-    env->SetLongArrayRegion(offsets_arr, 0, spark_row_info->getNumRows(), offsets_src);
-    auto * lengths_arr = env->NewLongArray(spark_row_info->getNumRows());
-    const auto * lengths_src = spark_row_info->getLengths().data();
-    env->SetLongArrayRegion(lengths_arr, 0, spark_row_info->getNumRows(), lengths_src);
-    int64_t address = reinterpret_cast<int64_t>(spark_row_info->getBufferAddress());
-    int64_t column_number = spark_row_info->getNumCols();
-    int64_t total_size = spark_row_info->getTotalBytes();
-
-    jobject spark_row_info_object
-        = env->NewObject(spark_row_info_class, spark_row_info_constructor, offsets_arr, lengths_arr, address, column_number, total_size);
-    return spark_row_info_object;
+    local_engine::CHColumnToSparkRow converter;
+    std::unique_ptr<local_engine::SparkRowInfo> spark_row_info = converter.convertCHColumnToSparkRow(*block, mask);
+    return local_engine::SparkRowInfoJNI::create(env, *spark_row_info);
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
@@ -1014,7 +1033,7 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 
     local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
     auto context = local_engine::QueryContext::instance().currentQueryContext();
-    // each task using its own CustomStorageMergeTree, don't reuse
+    // each task, using its own CustomStorageMergeTree, doesn't reuse
     auto temp_storage = merge_tree_table.copyToVirtualStorage(context);
     // prefetch all needed parts metadata before merge
     local_engine::restoreMetaData(temp_storage, merge_tree_table, *context);
@@ -1026,16 +1045,13 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     std::vector<DB::DataPartPtr> selected_parts
         = local_engine::StorageMergeTreeFactory::getDataPartsByNames(temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
 
-    std::vector<DB::MergeTreeDataPartPtr> loaded
-        = local_engine::mergeParts(selected_parts, uuid_str, *temp_storage, partition_dir, bucket_dir);
+    DB::MergeTreeDataPartPtr loaded = local_engine::mergeParts(selected_parts, uuid_str, *temp_storage, partition_dir, bucket_dir);
 
     std::vector<local_engine::PartInfo> res;
-    for (auto & partPtr : loaded)
-    {
-        saveFileStatus(*temp_storage, context, partPtr->name, const_cast<DB::IDataPartStorage &>(partPtr->getDataPartStorage()));
-        res.emplace_back(local_engine::PartInfo{
-            partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count, partition_dir, bucket_dir});
-    }
+
+    saveFileStatus(*temp_storage, context, loaded->name, const_cast<DB::IDataPartStorage &>(loaded->getDataPartStorage()));
+    res.emplace_back(local_engine::PartInfo{
+        loaded->name, loaded->getMarksCount(), loaded->getBytesOnDisk(), loaded->rows_count, partition_dir, bucket_dir});
 
     auto json_info = local_engine::PartInfo::toJson(res);
     return local_engine::charTojstring(env, json_info.c_str());
@@ -1062,7 +1078,7 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket, reserve_);
 
     auto * addresses = env->NewLongArray(bs.block_addresses.size());
-    env->SetLongArrayRegion(addresses, 0, bs.block_addresses.size(), bs.block_addresses.data());
+    env->SetLongArrayRegion(addresses, 0, bs.block_addresses.size(), reinterpret_cast<const jlong *>(bs.block_addresses.data()));
     auto * indices = env->NewIntArray(bs.heading_row_indice.size());
     env->SetIntArrayRegion(indices, 0, bs.heading_row_indice.size(), bs.heading_row_indice.data());
 
@@ -1209,6 +1225,25 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_BlockOutputStream_nativeCreate
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
+JNIEXPORT long Java_org_apache_gluten_vectorized_BlockOutputStream_directWrite(
+    JNIEnv * env,
+    jclass,
+    jobject output_stream,
+    jbyteArray buffer,
+    jint customize_buffer_size,
+    jlong block_address)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    auto wb = std::make_shared<local_engine::WriteBufferFromJavaOutputStream>(output_stream, buffer, customize_buffer_size);
+    auto native_writer = std::make_unique<local_engine::NativeWriter>(*wb, block->cloneEmpty());
+    auto write_size = native_writer->write(*block);
+    native_writer->flush();
+    wb->finalize();
+    return write_size;
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
 JNIEXPORT void Java_org_apache_gluten_vectorized_BlockOutputStream_nativeClose(JNIEnv * env, jobject, jlong instance)
 {
     LOCAL_ENGINE_JNI_METHOD_START
@@ -1352,6 +1387,39 @@ JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_removeFiles
 
     local_engine::CacheManager::removeFiles(file, cache_name);
     LOCAL_ENGINE_JNI_METHOD_END(env, );
+}
+
+JNIEXPORT jlong Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_createDeletionVectorWriter(
+    JNIEnv * env, jclass, jstring table_path_, jint prefix_length_, jlong packingTargetSize_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto table_path = jstring2string(env, table_path_);
+
+    const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
+    auto writer = new local_engine::delta::DeltaWriter(query_context, table_path, prefix_length_, packingTargetSize_);
+    return reinterpret_cast<jlong>(writer);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1);
+}
+
+JNIEXPORT void Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWrite(
+    JNIEnv * env, jclass, jlong writer_address_, jlong blockAddress)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto * block = reinterpret_cast<DB::Block *>(blockAddress);
+    auto * writer = reinterpret_cast<local_engine::delta::DeltaWriter *>(writer_address_);
+    writer->writeDeletionVector(*block);
+    LOCAL_ENGINE_JNI_METHOD_END(env, );
+}
+
+JNIEXPORT jlong
+Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_deletionVectorWriteFinalize(JNIEnv * env, jclass, jlong writer_address_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto * writer = reinterpret_cast<local_engine::delta::DeltaWriter *>(writer_address_);
+    auto * column_batch = writer->finalize();
+    delete writer;
+    return reinterpret_cast<UInt64>(column_batch);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1);
 }
 
 #ifdef __cplusplus

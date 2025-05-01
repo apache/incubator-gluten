@@ -144,11 +144,11 @@ Join type: Inner
 Join condition: None
 
 (22) ProjectExecTransformer
-Output [6]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, l_extendedprice#X, l_discount#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X]
+Output [4]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, (l_extendedprice#X * (1 - l_discount#X)) AS _pre_X#X]
 Input [6]: [o_orderkey#X, o_orderdate#X, o_shippriority#X, l_orderkey#X, l_extendedprice#X, l_discount#X]
 
 (23) FlushableHashAggregateExecTransformer
-Input [6]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, l_extendedprice#X, l_discount#X, _pre_X#X]
+Input [4]: [o_orderdate#X, o_shippriority#X, l_orderkey#X, _pre_X#X]
 Keys [3]: [l_orderkey#X, o_orderdate#X, o_shippriority#X]
 Functions [1]: [partial_sum(_pre_X#X)]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]

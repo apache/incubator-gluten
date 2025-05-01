@@ -71,8 +71,6 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
-set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
-
 function(import_library TARGET_NAME LIB_PATH)
   if(NOT EXISTS ${LIB_PATH})
     message(FATAL_ERROR "Library does not exist: ${LIB_PATH}")
@@ -112,28 +110,19 @@ macro(find_re2)
 endmacro()
 
 macro(find_awssdk)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 macro(find_gcssdk)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(google_cloud_cpp_storage CONFIG 2.22.0 REQUIRED)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 macro(find_azure)
   find_package(CURL REQUIRED)
   find_package(LibXml2 REQUIRED)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
   find_package(azure-storage-files-datalake-cpp CONFIG REQUIRED)
   find_package(azure-identity-cpp CONFIG REQUIRED)
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
 # Build Velox backend.
@@ -177,15 +166,13 @@ set(VELOX_SRCS
     udf/UdfLoader.cc
     utils/Common.cc
     utils/ConfigExtractor.cc
+    utils/LocalRssClient.cc
+    utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
     utils/VeloxBatchResizer.cc)
 
 if(ENABLE_S3)
   find_package(ZLIB)
-endif()
-
-if(BUILD_TESTS OR BUILD_BENCHMARKS)
-  list(APPEND VELOX_SRCS utils/tests/MemoryPoolUtils.cc)
 endif()
 
 add_library(velox SHARED ${VELOX_SRCS})
@@ -250,7 +237,7 @@ if(BUILD_TESTS)
     ${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_temp_path.a)
   import_library(
     facebook::velox::exec_test_lib
-    ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a)
+    ${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_exec_test_lib.a)
   target_link_libraries(
     facebook::velox::exec_test_lib
     INTERFACE facebook::velox::vector_test_lib
@@ -293,18 +280,27 @@ endif()
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
-set(icu_components i18n uc data)
-foreach(component ${icu_components})
-  find_library(ICU_${component}_LIB NAMES icu${component})
-  if(NOT ICU_${component}_LIB)
-    message(FATAL_ERROR "icu${component} library not found")
+# Adopted from Velox's CMakeLists.txt.
+# https://github.com/facebookincubator/velox/pull/11410
+if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  execute_process(
+    COMMAND brew --prefix icu4c
+    RESULT_VARIABLE BREW_ICU4C
+    OUTPUT_VARIABLE BREW_ICU4C_PREFIX
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(BREW_ICU4C EQUAL 0 AND EXISTS "${BREW_ICU4C_PREFIX}")
+    message(STATUS "Found icu4c installed by Homebrew at ${BREW_ICU4C_PREFIX}")
+    list(APPEND CMAKE_PREFIX_PATH "${BREW_ICU4C_PREFIX}")
+  else()
+    list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/icu4c")
   endif()
-  message(STATUS "Found ICU::${component}: ${ICU_${component}_LIB}")
-  add_library(ICU::${component} UNKNOWN IMPORTED)
-  set_target_properties(ICU::${component} PROPERTIES IMPORTED_LOCATION
-                                                     ${ICU_${component}_LIB})
-  target_link_libraries(velox PUBLIC ICU::${component})
-endforeach()
+endif()
+
+find_package(
+  ICU
+  COMPONENTS i18n uc data
+  REQUIRED)
+target_link_libraries(velox PUBLIC ICU::i18n ICU::uc ICU::data)
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
@@ -340,6 +336,16 @@ endif()
 
 if(BUILD_EXAMPLES)
   add_subdirectory(udf/examples)
+endif()
+
+if(ENABLE_GPU)
+  import_library(
+    facebook::velox::velox_cudf_exec
+    ${VELOX_BUILD_PATH}/velox/experimental/cudf/exec/libvelox_cudf_exec.a)
+
+  target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_exec)
+  target_link_libraries(velox
+                        PRIVATE ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so)
 endif()
 
 add_custom_command(

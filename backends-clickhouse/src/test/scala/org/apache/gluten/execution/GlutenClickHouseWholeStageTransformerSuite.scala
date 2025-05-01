@@ -16,9 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
-import org.apache.gluten.utils.UTSystemParameters
+import org.apache.gluten.utils.{HDFSTestHelper, MinioTestHelper, UTSystemParameters}
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 
@@ -42,20 +41,12 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
   val SPARK_DIR_NAME: String = sparkVersion.replace(".", "-")
 
-  val S3_METADATA_PATH = s"/tmp/metadata/s3/$SPARK_DIR_NAME"
-  val S3_CACHE_PATH = s"/tmp/s3_cache/$SPARK_DIR_NAME/"
-  val S3_ENDPOINT = "s3://127.0.0.1:9000/"
-  val MINIO_ENDPOINT: String = S3_ENDPOINT.replace("s3", "http")
+  protected val TMP_PREFIX = s"/tmp/gluten/$SPARK_DIR_NAME"
+
   val BUCKET_NAME: String = SPARK_DIR_NAME
-  val WHOLE_PATH: String = MINIO_ENDPOINT + BUCKET_NAME + "/"
-
-  val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/$SPARK_DIR_NAME"
-  val HDFS_CACHE_PATH = s"/tmp/hdfs_cache/$SPARK_DIR_NAME/"
-  val HDFS_URL_ENDPOINT = "hdfs://127.0.0.1:8020"
-  val HDFS_URL = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME"
-
-  val S3_ACCESS_KEY = "minioadmin"
-  val S3_SECRET_KEY = "minioadmin"
+  val minioHelper = new MinioTestHelper(TMP_PREFIX)
+  val hdfsHelper = new HDFSTestHelper(TMP_PREFIX)
+  val HDFS_URL: String = hdfsHelper.getHdfsUrl(SPARK_DIR_NAME)
 
   val CH_DEFAULT_STORAGE_DIR = "/data"
 
@@ -76,63 +67,20 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     val conf = super.sparkConf
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .set(RuntimeConfig.PATH.key, UTSystemParameters.diskOutputDataPath)
       .set(RuntimeConfig.TMP_PATH.key, s"/tmp/libch/$SPARK_DIR_NAME")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
-      conf
-        .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
-        .set("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
-        .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-        .set("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT)
-        .set("spark.hadoop.fs.s3a.path.style.access", "true")
-        .set("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-        .setCHConfig(
-          "storage_configuration.disks.s3.type" -> "s3_gluten",
-          "storage_configuration.disks.s3.endpoint" -> WHOLE_PATH,
-          "storage_configuration.disks.s3.access_key_id" -> S3_ACCESS_KEY,
-          "storage_configuration.disks.s3.secret_access_key" -> S3_SECRET_KEY,
-          "storage_configuration.disks.s3.metadata_path" -> S3_METADATA_PATH,
-          "storage_configuration.disks.s3_cache.type" -> "cache",
-          "storage_configuration.disks.s3_cache.disk" -> "s3",
-          "storage_configuration.disks.s3_cache.path" -> S3_CACHE_PATH,
-          "storage_configuration.disks.s3_cache.max_size" -> "10Gi",
-          "storage_configuration.policies.__s3_main.volumes" -> "main",
-          "storage_configuration.policies.__s3_main.volumes.main.disk" -> "s3_cache"
-        )
-        .setCHConfig(
-          "storage_configuration.disks.hdfs.type" -> "hdfs_gluten",
-          "storage_configuration.disks.hdfs.endpoint" -> s"$HDFS_URL_ENDPOINT/",
-          "storage_configuration.disks.hdfs.metadata_path" -> HDFS_METADATA_PATH,
-          "storage_configuration.disks.hdfs_cache.type" -> "cache",
-          "storage_configuration.disks.hdfs_cache.disk" -> "hdfs",
-          "storage_configuration.disks.hdfs_cache.path" -> HDFS_CACHE_PATH,
-          "storage_configuration.disks.hdfs_cache.max_size" -> "10Gi",
-          "storage_configuration.policies.__hdfs_main.volumes" -> "main",
-          "storage_configuration.policies.__hdfs_main.volumes.main.disk" -> "hdfs_cache"
-        )
-        .setCHConfig(
-          "storage_configuration.disks.hdfs2.type" -> "hdfs_gluten",
-          "storage_configuration.disks.hdfs2.endpoint" -> s"$HDFS_URL_ENDPOINT/",
-          "storage_configuration.disks.hdfs2.metadata_path" -> HDFS_METADATA_PATH,
-          "storage_configuration.disks.hdfs2.metadata_type" -> "rocksdb",
-          "storage_configuration.disks.hdfs_cache2.type" -> "cache",
-          "storage_configuration.disks.hdfs_cache2.disk" -> "hdfs2",
-          "storage_configuration.disks.hdfs_cache2.path" -> HDFS_CACHE_PATH,
-          "storage_configuration.disks.hdfs_cache2.max_size" -> "10Gi",
-          "storage_configuration.policies.__hdfs_main_rocksdb.volumes" -> "main",
-          "storage_configuration.policies.__hdfs_main_rocksdb.volumes.main.disk" -> "hdfs_cache2"
-        )
-        .setCHConfig(
-          "hdfs.dfs_client_read_shortcircuit" -> "false",
-          "hdfs.dfs_default_replica" -> "1"
-        )
+      minioHelper.setHadoopFileSystemConfig(conf)
+      minioHelper.setObjectStoreConfig(conf, BUCKET_NAME)
+      hdfsHelper.setHDFSStoreConfig(conf)
+      hdfsHelper.setHDFSStoreConfigRocksDB(conf)
+      hdfsHelper.setHdfsClientConfig(conf)
     } else {
       conf
     }

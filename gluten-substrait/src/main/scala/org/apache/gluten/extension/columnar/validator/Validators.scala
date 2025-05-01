@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.validator
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.columnar.FallbackTags
@@ -37,7 +37,7 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 object Validators {
   implicit class ValidatorBuilderImplicits(builder: Validator.Builder) {
-    private val conf = GlutenConfig.getConf
+    private val conf = GlutenConfig.get
     private val settings = BackendsApiManager.getSettings
 
     /** Fails validation if a plan node was already tagged with TRANSFORM_UNSUPPORTED. */
@@ -136,6 +136,9 @@ object Validators {
         fail(p)
       case p: CartesianProductExec if !settings.supportCartesianProductExec() => fail(p)
       case p: TakeOrderedAndProjectExec if !settings.supportColumnarShuffleExec() => fail(p)
+      // Add a tag for failing validation since CH is not supported. This tag is not used explicitly
+      // by post-transform rules, rather marks validation for the appropriate backend.
+      case p: CollectTailExec if !settings.supportCollectTailExec() => fail(p)
       case _ => pass()
     }
   }
@@ -185,6 +188,8 @@ object Validators {
           if !(glutenConf.enableColumnarSample && BackendsApiManager.getSettings
             .supportSampleExec()) =>
         fail(p)
+      case p: RangeExec if !glutenConf.enableColumnarRange => fail(p)
+      case p: CollectLimitExec if !glutenConf.enableColumnarCollectLimit => fail(p)
       case _ => pass()
     }
   }

@@ -89,6 +89,7 @@ case class VeloxResizeBatchesExec(
 
         val out = Iterators
           .wrap(appender.asScala)
+          .protectInvocationFlow()
           .collectReadMillis(outMillis => appendMillis.getAndAdd(outMillis))
           .recyclePayload(_.close())
           .recycleIterator {

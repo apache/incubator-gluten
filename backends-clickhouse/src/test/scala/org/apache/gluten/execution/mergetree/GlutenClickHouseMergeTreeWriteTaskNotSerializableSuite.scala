@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 
 import org.apache.spark.SparkConf
@@ -42,6 +43,8 @@ class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.memory.offHeap.size", "4G")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
+      .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -50,7 +53,7 @@ class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
 
   test("GLUTEN-6470: Fix Task not serializable error when inserting mergetree data") {
 
-    val externalSortKey = CHConf.runtimeSettings("max_bytes_before_external_sort")
+    val externalSortKey = RuntimeSettings.MAX_BYTES_BEFORE_EXTERNAL_SORT.key
     assertResult(3435973836L)(spark.conf.get(externalSortKey).toLong)
 
     spark.sql(s"""

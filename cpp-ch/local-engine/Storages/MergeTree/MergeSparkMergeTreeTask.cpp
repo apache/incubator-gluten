@@ -17,6 +17,7 @@
 #include "MergeSparkMergeTreeTask.h"
 
 #include <Interpreters/TransactionLog.h>
+#include <Storages/MergeTree/Compaction/CompactionStatistics.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeDataMergerMutator.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
@@ -56,7 +57,7 @@ bool MergeSparkMergeTreeTask::executeStep()
     std::optional<ThreadGroupSwitcher> switcher;
     if (merge_list_entry)
     {
-        switcher.emplace((*merge_list_entry)->thread_group);
+        switcher.emplace((*merge_list_entry)->thread_group, "", /*allow_existing_group*/ true);
     }
 
     switch (state)
@@ -149,8 +150,7 @@ void MergeSparkMergeTreeTask::prepare()
         task_context,
         //merge_mutate_entry->tagger->reserved_space,
         storage.tryReserveSpace(
-            MergeTreeDataMergerMutator::estimateNeededDiskSpace(future_part->parts),
-            future_part->parts[0]->getDataPartStorage()),
+            CompactionStatistics::estimateNeededDiskSpace(future_part->parts), future_part->parts[0]->getDataPartStorage()),
         deduplicate,
         deduplicate_by_columns,
         cleanup,

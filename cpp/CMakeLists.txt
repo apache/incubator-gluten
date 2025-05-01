@@ -56,6 +56,7 @@ option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
 option(ENABLE_ORC "Enable ORC" OFF)
 option(ENABLE_ABFS "Enable ABFS" OFF)
+option(ENABLE_GPU "Enable GPU" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
@@ -234,6 +235,10 @@ endif()
 
 if(ENABLE_IAA)
   add_definitions(-DGLUTEN_ENABLE_IAA)
+endif()
+
+if(ENABLE_GPU)
+  add_definitions(-DGLUTEN_ENABLE_GPU)
 endif()
 
 # Subdirectories

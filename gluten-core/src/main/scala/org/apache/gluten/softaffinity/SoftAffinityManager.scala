@@ -16,9 +16,10 @@
  */
 package org.apache.gluten.softaffinity
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.hash.ConsistentHash
 import org.apache.gluten.logging.LogLevelUtil
-import org.apache.gluten.softaffinity.strategy.SoftAffinityStrategy
+import org.apache.gluten.softaffinity.strategy.{ConsistentHashSoftAffinityStrategy, ExecutorNode}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkEnv
@@ -38,16 +39,18 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
   private val resourceRWLock = new ReentrantReadWriteLock(true)
 
-  private val softAffinityAllocation = new SoftAffinityStrategy
+  lazy val softAffinityReplicationNum: Int =
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.defaultValue.get
 
-  lazy val minOnTargetHosts: Int = GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
+  lazy val minOnTargetHosts: Int =
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.defaultValue.get
 
   lazy val usingSoftAffinity: Boolean = true
 
   lazy val detectDuplicateReading: Boolean = true
 
   lazy val duplicateReadingMaxCacheItems: Int =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS.defaultValue.get
 
   // (execId, host) list
   private val idForExecutors = new mutable.ListBuffer[(String, String)]()
@@ -88,6 +91,9 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
         }
       })
 
+  private val hashRing = new ConsistentHash[ExecutorNode](softAffinityReplicationNum)
+  private val softAffinityStrategy = new ConsistentHashSoftAffinityStrategy(hashRing)
+
   private val rand = new Random(System.currentTimeMillis)
 
   def totalExecutors(): Int = totalRegisteredExecutors.intValue()
@@ -107,10 +113,11 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
         executorsSet.add(execHostId._1)
         idForExecutors += execHostId
         sortedIdForExecutors = idForExecutors.sortBy(_._2)
+        hashRing.addNode(ExecutorNode(execHostId._1, execHostId._2))
         totalRegisteredExecutors.addAndGet(1)
       }
       logOnLevel(
-        GlutenConfig.getConf.softAffinityLogLevel,
+        GlutenConfig.get.softAffinityLogLevel,
         s"After adding executor ${execHostId._1} on host ${execHostId._2}, " +
           s"idForExecutors is ${idForExecutors.mkString(",")}, " +
           s"sortedIdForExecutors is ${sortedIdForExecutors.mkString(",")}, " +
@@ -139,10 +146,11 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
           nodesExecutorsMap.remove(findedExecId._2)
         }
         sortedIdForExecutors = idForExecutors.sortBy(_._2)
+        hashRing.removeNode(ExecutorNode(execId, findedExecId._2))
         totalRegisteredExecutors.addAndGet(-1)
       }
       logOnLevel(
-        GlutenConfig.getConf.softAffinityLogLevel,
+        GlutenConfig.get.softAffinityLogLevel,
         s"After removing executor $execId, " +
           s"idForExecutors is ${idForExecutors.mkString(",")}, " +
           s"sortedIdForExecutors is ${sortedIdForExecutors.mkString(",")}, " +
@@ -189,7 +197,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
                   (originalValues ++ value)
                 }
                 logOnLevel(
-                  GlutenConfig.getConf.softAffinityLogLevel,
+                  GlutenConfig.get.softAffinityLogLevel,
                   s"update host for $key: ${values.mkString(",")}")
                 duplicateReadingInfos.put(key, values)
               }
@@ -237,7 +245,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
       if (nodesExecutorsMap.size < 1) {
         Array.empty
       } else {
-        softAffinityAllocation.allocateExecs(file, sortedIdForExecutors)
+        softAffinityStrategy.allocateExecs(file, softAffinityReplicationNum)
       }
     } finally {
       resourceRWLock.readLock().unlock()
@@ -272,7 +280,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
     if (!hosts.isEmpty) {
       rand.shuffle(hosts)
       logOnLevel(
-        GlutenConfig.getConf.softAffinityLogLevel,
+        GlutenConfig.get.softAffinityLogLevel,
         s"get host for $f: ${hosts.distinct.mkString(",")}")
     }
     hosts.distinct.toSeq
@@ -298,23 +306,27 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
 object SoftAffinityManager extends AffinityManager {
   override lazy val usingSoftAffinity: Boolean = SparkEnv.get.conf.getBoolean(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED.defaultValue.get
   )
 
+  override lazy val softAffinityReplicationNum: Int = SparkEnv.get.conf.getInt(
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.defaultValue.get)
+
   override lazy val minOnTargetHosts: Int = SparkEnv.get.conf.getInt(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.defaultValue.get
   )
 
   override lazy val detectDuplicateReading: Boolean = SparkEnv.get.conf.getBoolean(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED.defaultValue.get
   ) &&
     SparkShimLoader.getSparkShims.supportDuplicateReadingTracking
 
   override lazy val duplicateReadingMaxCacheItems: Int = SparkEnv.get.conf.getInt(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS.key,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS.defaultValue.get
   )
 }

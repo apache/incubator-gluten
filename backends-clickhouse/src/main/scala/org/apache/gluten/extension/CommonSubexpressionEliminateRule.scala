@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -32,15 +32,17 @@ import scala.collection.mutable
 // 2. append two options to spark config
 //    --conf spark.sql.planChangeLog.level=error
 //    --conf spark.sql.planChangeLog.batches=all
-class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
+case class CommonSubexpressionEliminateRule(spark: SparkSession)
+  extends Rule[LogicalPlan]
+  with Logging {
 
   private var lastPlan: LogicalPlan = null
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     val newPlan =
       if (
-        plan.resolved && GlutenConfig.getConf.enableGluten
-        && GlutenConfig.getConf.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
+        plan.resolved && GlutenConfig.get.enableGluten
+        && GlutenConfig.get.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
       ) {
         lastPlan = plan
         visitPlan(plan)
@@ -84,6 +86,21 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
       exprEquals.get.attribute
     } else {
       expr.mapChildren(replaceCommonExprWithAttribute(_, commonExprMap))
+    }
+  }
+
+  private def replaceAggCommonExprWithAttribute(
+      expr: Expression,
+      commonExprMap: mutable.HashMap[ExpressionEquals, AliasAndAttribute],
+      inAgg: Boolean = false): Expression = {
+    val exprEquals = commonExprMap.get(ExpressionEquals(expr))
+    expr match {
+      case _ if exprEquals.isDefined && inAgg =>
+        exprEquals.get.attribute
+      case _: AggregateExpression =>
+        expr.mapChildren(replaceAggCommonExprWithAttribute(_, commonExprMap, true))
+      case _ =>
+        expr.mapChildren(replaceAggCommonExprWithAttribute(_, commonExprMap, inAgg))
     }
   }
 
@@ -162,7 +179,14 @@ class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[Logical
     // Replace the common expressions with the first expression that produces it.
     try {
       var newExprs = inputCtx.exprs
-        .map(replaceCommonExprWithAttribute(_, commonExprMap))
+        .map(
+          expr => {
+            if (expr.find(_.isInstanceOf[AggregateExpression]).isDefined) {
+              replaceAggCommonExprWithAttribute(expr, commonExprMap)
+            } else {
+              replaceCommonExprWithAttribute(expr, commonExprMap)
+            }
+          })
       logTrace(s"newExprs after rewrite: $newExprs")
       RewriteContext(newExprs, preProject)
     } catch {

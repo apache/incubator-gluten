@@ -35,8 +35,8 @@
 #include <Core/ServerSettings.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
@@ -44,6 +44,7 @@
 #include <DataTypes/NestedUtils.h>
 #include <Disks/registerDisks.h>
 #include <Disks/registerGlutenDisks.h>
+#include <Formats/registerFormats.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Functions/registerFunctions.h>
@@ -54,20 +55,19 @@
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/Cache/CacheManager.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <arrow/util/compression.h>
 #include <boost/algorithm/string/case_conv.hpp>
-#include <boost/algorithm/string/predicate.hpp>
 #include <sys/resource.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/BitHelpers.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/Config/ConfigProcessor.h>
-#include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
 #include <Common/LoggerExtend.h>
 #include <Common/QueryContext.h>
@@ -81,14 +81,29 @@ namespace ServerSetting
 extern const ServerSettingsString primary_index_cache_policy;
 extern const ServerSettingsUInt64 primary_index_cache_size;
 extern const ServerSettingsDouble primary_index_cache_size_ratio;
+extern const ServerSettingsUInt64 max_prefixes_deserialization_thread_pool_size;
+extern const ServerSettingsUInt64 max_prefixes_deserialization_thread_pool_free_size;
+extern const ServerSettingsUInt64 prefixes_deserialization_thread_pool_thread_pool_queue_size;
+extern const ServerSettingsUInt64 max_thread_pool_size;
+extern const ServerSettingsUInt64 thread_pool_queue_size;
+extern const ServerSettingsUInt64 max_io_thread_pool_size;
+extern const ServerSettingsUInt64 io_thread_pool_queue_size;
+extern const ServerSettingsString vector_similarity_index_cache_policy;
+extern const ServerSettingsUInt64 vector_similarity_index_cache_size;
+extern const ServerSettingsUInt64 vector_similarity_index_cache_max_entries;
+extern const ServerSettingsDouble vector_similarity_index_cache_size_ratio;
 }
 namespace Setting
 {
+extern const SettingsMaxThreads max_threads;
 extern const SettingsUInt64 prefer_external_sort_block_bytes;
 extern const SettingsUInt64 max_bytes_before_external_sort;
+extern const SettingsDouble max_bytes_ratio_before_external_sort;
 extern const SettingsBool query_plan_merge_filters;
 extern const SettingsBool compile_expressions;
 extern const SettingsShortCircuitFunctionEvaluation short_circuit_function_evaluation;
+extern const SettingsUInt64 output_format_compression_level;
+extern const SettingsBool query_plan_optimize_lazy_materialization;
 }
 namespace ErrorCodes
 {
@@ -97,13 +112,7 @@ extern const int UNKNOWN_TYPE;
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
 }
 
-namespace ServerSetting
-{
-extern const ServerSettingsUInt64 max_thread_pool_size;
-extern const ServerSettingsUInt64 thread_pool_queue_size;
-extern const ServerSettingsUInt64 max_io_thread_pool_size;
-extern const ServerSettingsUInt64 io_thread_pool_queue_size;
-}
+extern void registerAggregateFunctionUniqHyperLogLogPlusPlus(AggregateFunctionFactory &);
 }
 
 namespace local_engine
@@ -112,42 +121,17 @@ namespace fs = std::filesystem;
 
 DB::Block BlockUtil::buildRowCountHeader()
 {
-    DB::Block header;
-    auto type = std::make_shared<DB::DataTypeUInt8>();
-    auto col = type->createColumn();
-    DB::ColumnWithTypeAndName named_col(std::move(col), type, VIRTUAL_ROW_COUNT_COLUMN);
-    header.insert(std::move(named_col));
-    return header.cloneEmpty();
+    return DB::Block{createColumn<UInt8>({}, VIRTUAL_ROW_COUNT_COLUMN)};
 }
 
 DB::Chunk BlockUtil::buildRowCountChunk(UInt64 rows)
 {
-    auto data_type = std::make_shared<DB::DataTypeUInt8>();
-    auto col = data_type->createColumnConst(rows, 0);
-    DB::Columns res_columns;
-    res_columns.emplace_back(std::move(col));
-    return DB::Chunk(std::move(res_columns), rows);
+    return DB::Chunk{{createColumnConst<UInt8>(rows, 0)}, rows};
 }
 
 DB::Block BlockUtil::buildRowCountBlock(UInt64 rows)
 {
-    DB::Block block;
-    auto uint8_ty = std::make_shared<DB::DataTypeUInt8>();
-    auto col = uint8_ty->createColumnConst(rows, 0);
-    DB::ColumnWithTypeAndName named_col(col, uint8_ty, VIRTUAL_ROW_COUNT_COLUMN);
-    block.insert(named_col);
-    return block;
-}
-
-DB::Block BlockUtil::buildHeader(const DB::NamesAndTypesList & names_types_list)
-{
-    DB::ColumnsWithTypeAndName cols;
-    for (const auto & name_type : names_types_list)
-    {
-        DB::ColumnWithTypeAndName col(name_type.type->createColumn(), name_type.type, name_type.name);
-        cols.emplace_back(col);
-    }
-    return DB::Block(cols);
+    return DB::Block{createColumnConst<UInt8>(rows, 0, VIRTUAL_ROW_COUNT_COLUMN)};
 }
 
 /// The column names may be different in two blocks.
@@ -316,8 +300,8 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
     for (const auto & block : blocks)
         num_rows += block.rows();
 
-    Block out = blocks[0].cloneEmpty();
-    MutableColumns columns = out.mutateColumns();
+    DB::Block out = blocks[0].cloneEmpty();
+    DB::MutableColumns columns = out.mutateColumns();
 
     for (size_t i = 0; i < columns.size(); ++i)
     {
@@ -338,7 +322,7 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
 size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
 {
     /// According to definition of DEFUALT_BLOCK_SIZE
-    size_t padding_n = 2 * PADDING_FOR_SIMD - 1;
+    size_t padding_n = 2 * DB::PADDING_FOR_SIMD - 1;
     size_t rounded_n = roundUpToPowerOfTwoOrZero(n);
     size_t padded_n = n;
     if (rounded_n > n + n / 2)
@@ -351,86 +335,6 @@ size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
         padded_n = rounded_n - padding_n;
     }
     return padded_n;
-}
-
-std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
-{
-    constexpr DB::QueryPlan::ExplainPlanOptions buf_opt{
-        .header = true,
-        .actions = true,
-        .indexes = true,
-    };
-    DB::WriteBufferFromOwnString buf;
-    plan.explainPlan(buf, buf_opt);
-
-    return buf.str();
-}
-
-void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
-{
-    // QueryPlan::checkInitialized is a private method, so we assume plan is initialized, otherwise there is a core dump here.
-    // It's okay, because it's impossible for us not to initialize where we call this method.
-    const auto & step = *plan.getRootNode()->step;
-
-    if (!step.hasOutputHeader())
-        return;
-    for (const auto & elem : step.getOutputHeader())
-    {
-        const DB::DataTypePtr & ch_type = elem.type;
-        const auto ch_type_without_nullable = DB::removeNullable(ch_type);
-        const DB::WhichDataType which(ch_type_without_nullable);
-        if (which.isDateTime64())
-        {
-            const auto * ch_type_datetime64 = checkAndGetDataType<DataTypeDateTime64>(ch_type_without_nullable.get());
-            if (ch_type_datetime64->getScale() != 6)
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
-        }
-        else if (which.isDecimal())
-        {
-            if (which.isDecimal256())
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
-
-            const auto scale = getDecimalScale(*ch_type_without_nullable);
-            const auto precision = getDecimalPrecision(*ch_type_without_nullable);
-            if (scale == 0 && precision == 0)
-                throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
-        }
-    }
-}
-
-DB::IQueryPlanStep * PlanUtil::adjustQueryPlanHeader(DB::QueryPlan & plan, const DB::Block & to_header, const String & step_desc)
-{
-    auto convert_actions_dag = DB::ActionsDAG::makeConvertingActions(
-        plan.getCurrentHeader().getColumnsWithTypeAndName(),
-        to_header.getColumnsWithTypeAndName(),
-        ActionsDAG::MatchColumnsMode::Name);
-    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(convert_actions_dag));
-    expression_step->setStepDescription(step_desc);
-    auto * step_ptr = expression_step.get();
-    plan.addStep(std::move(expression_step));
-    return step_ptr;
-}
-
-DB::IQueryPlanStep * PlanUtil::addRemoveNullableStep(DB::ContextPtr context, DB::QueryPlan & plan, const std::set<String> & columns)
-{
-    if (columns.empty())
-        return nullptr;
-    DB::ActionsDAG remove_nullable_actions_dag{plan.getCurrentHeader().getColumnsWithTypeAndName()};
-    for (const auto & col_name : columns)
-    {
-        if (const auto * required_node = remove_nullable_actions_dag.tryFindInOutputs(col_name))
-        {
-            auto function_builder = DB::FunctionFactory::instance().get("assumeNotNull", context);
-            DB::ActionsDAG::NodeRawConstPtrs args = {required_node};
-            const auto & node = remove_nullable_actions_dag.addFunction(function_builder, args, col_name);
-            remove_nullable_actions_dag.addOrReplaceInOutputs(node);
-        }
-    }
-    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(remove_nullable_actions_dag));
-    expression_step->setStepDescription("Remove nullable properties");
-    auto * step_ptr = expression_step.get();
-    plan.addStep(std::move(expression_step));
-    return step_ptr;
 }
 
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
@@ -504,9 +408,9 @@ const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     DB::ActionsDAG & actions_dag,
     const DB::ActionsDAG::Node * node,
-    const DataTypePtr & cast_to_type,
+    const DB::DataTypePtr & cast_to_type,
     const std::string & result_name,
-    CastType cast_type)
+    DB::CastType cast_type)
 {
     DB::ColumnWithTypeAndName type_name_col;
     type_name_col.name = cast_to_type->getName();
@@ -515,7 +419,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     const auto * right_arg = &actions_dag.addColumn(std::move(type_name_col));
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
-    ColumnWithTypeAndName left_column{nullptr, node->result_type, {}};
+    DB::ColumnWithTypeAndName left_column{nullptr, node->result_type, {}};
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
     auto func_base_cast = createInternalCast(std::move(left_column), cast_to_type, cast_type, diagnostic);
 
@@ -527,7 +431,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeTypeIfNeeded(
     const DB::ActionsDAG::Node * node,
     const DB::DataTypePtr & dst_type,
     const std::string & result_name,
-    CastType cast_type)
+    DB::CastType cast_type)
 {
     if (node->result_type->equals(*dst_type))
         return node;
@@ -582,7 +486,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
         });
 
     change_func("path");
-    change_func("gluten_cache.local.path");
+    change_func(GlutenCacheConfig::PREFIX + ".path");
 
     return changed_paths;
 }
@@ -637,6 +541,26 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const SparkConf
         BackendFinalizerUtil::paths_need_to_clean.insert(
             BackendFinalizerUtil::paths_need_to_clean.end(), path_need_clean.begin(), path_need_clean.end());
     }
+
+    // FIXMEX: workaround for https://github.com/ClickHouse/ClickHouse/pull/75452#pullrequestreview-2625467710
+    // entry in DiskSelector::initialize
+    // Bug in FileCacheSettings::loadFromConfig
+    auto updateCacheDiskType = [](Poco::Util::AbstractConfiguration & config) {
+        const std::string config_prefix = "storage_configuration.disks";
+        Poco::Util::AbstractConfiguration::Keys keys;
+        config.keys(config_prefix, keys);
+        for (const auto & disk_name : keys)
+        {
+            const auto disk_config_prefix = config_prefix + "." + disk_name;
+            const auto disk_type = config.getString(disk_config_prefix + ".type", "local");
+            if (disk_type == "cache")
+                config.setString(disk_config_prefix, "workaround");
+        }
+        config.setString(GlutenCacheConfig::PREFIX, "workaround");
+    };
+
+    updateCacheDiskType(*config);
+
     return config;
 }
 
@@ -718,16 +642,36 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     settings.set("input_format_parquet_enable_row_group_prefetch", false);
     settings.set("output_format_parquet_use_custom_encoder", false);
 
-    /// Set false after https://github.com/ClickHouse/ClickHouse/pull/71539
-    /// if true, we can't get correct metrics for the query
+    //1.
+    // TODO: we need set Setting::max_threads to 1 by default, but now we can't get correct metrics for the some query if we set it to 1.
+    // settings[Setting::max_threads] = 1;
+
+    /// 2. After https://github.com/ClickHouse/ClickHouse/pull/71539
+    /// Set false to query_plan_merge_filters.
+    /// If true, we can't get correct metrics for the query
     settings[Setting::query_plan_merge_filters] = false;
 
+    /// 3. After https://github.com/ClickHouse/ClickHouse/pull/70598.
+    /// Set false to compile_expressions to avoid dead loop.
+    /// TODO: FIXME set true again.
     /// We now set BuildQueryPipelineSettings according to config.
-    // TODO: FIXME. Set false after https://github.com/ClickHouse/ClickHouse/pull/70598.
     settings[Setting::compile_expressions] = false;
     settings[Setting::short_circuit_function_evaluation] = ShortCircuitFunctionEvaluation::DISABLE;
-    ///
 
+    /// 4. After https://github.com/ClickHouse/ClickHouse/pull/73422
+    /// Since we already set max_bytes_before_external_sort, set max_bytes_ratio_before_external_sort to 0
+    settings[Setting::max_bytes_ratio_before_external_sort] = 0.;
+
+    /// 5. After https://github.com/ClickHouse/ClickHouse/pull/73651.
+    /// See following settings, we always use Snappy compression for Parquet, however after https://github.com/ClickHouse/ClickHouse/pull/73651,
+    /// output_format_compression_level is set to 3, which is wrong, since snappy does not support it.
+    settings[Setting::output_format_compression_level] = arrow::util::kUseDefaultCompressionLevel;
+
+    /// 6. After https://github.com/ClickHouse/ClickHouse/pull/55518
+    /// We currently do not support lazy materialization.
+    /// "test 'order by' two keys" will failed if we enable it.
+    settings[Setting::query_plan_optimize_lazy_materialization] = false;
+    
     for (const auto & [key, value] : spark_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
@@ -837,11 +781,11 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         global_context->setConfig(config);
 
         auto tmp_path = config->getString("tmp_path", PathConfig::DEFAULT_TEMP_FILE_PATH);
-        if(config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
+        if (config->getBool(PathConfig::USE_CURRENT_DIRECTORY_AS_TMP, false))
         {
             char buffer[PATH_MAX];
             if (getcwd(buffer, sizeof(buffer)) != nullptr)
-                tmp_path =  std::string(buffer) + tmp_path;
+                tmp_path = std::string(buffer) + tmp_path;
         };
 
         global_context->setTemporaryStoragePath(tmp_path, 0);
@@ -880,11 +824,27 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
         global_context->setIndexMarkCache(index_mark_cache_policy, index_mark_cache_size, index_mark_cache_size_ratio);
 
+        String vector_similarity_index_cache_policy = server_settings[ServerSetting::vector_similarity_index_cache_policy];
+        size_t vector_similarity_index_cache_size = server_settings[ServerSetting::vector_similarity_index_cache_size];
+        size_t vector_similarity_index_cache_max_count = server_settings[ServerSetting::vector_similarity_index_cache_max_entries];
+        double vector_similarity_index_cache_size_ratio = server_settings[ServerSetting::vector_similarity_index_cache_size_ratio];
+        LOG_INFO(log, "Lowered vector similarity index cache size to {} because the system has limited RAM", formatReadableSizeWithBinarySuffix(vector_similarity_index_cache_size));
+
+        global_context->setVectorSimilarityIndexCache(vector_similarity_index_cache_policy, vector_similarity_index_cache_size, vector_similarity_index_cache_max_count, vector_similarity_index_cache_size_ratio);
+
+        getMergeTreePrefixesDeserializationThreadPool().initialize(
+            server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_size],
+            server_settings[ServerSetting::max_prefixes_deserialization_thread_pool_free_size],
+            server_settings[ServerSetting::prefixes_deserialization_thread_pool_thread_pool_queue_size]);
+
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);
 
-        /// Initialize a dummy query cache.
-        global_context->setQueryCache(0, 0, 0, 0);
+        /// Initialize a dummy query result cache.
+        global_context->setQueryResultCache(0, 0, 0, 0);
+
+        /// Initialize a dummy query condition cache.
+        global_context->setQueryConditionCache(DEFAULT_QUERY_CONDITION_CACHE_POLICY, 0, 0);
 
         // We must set the application type to CLIENT to avoid ServerUUID::get() throw exception
         global_context->setApplicationType(Context::ApplicationType::CLIENT);
@@ -907,22 +867,26 @@ extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCom
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
 extern void registerAggregateFunctionRowNumGroup(AggregateFunctionFactory &);
+extern void registerAggregateFunctionDVRoaringBitmap(AggregateFunctionFactory &);
+
+
 extern void registerFunctions(FunctionFactory &);
 
 void registerAllFunctions()
 {
     DB::registerFunctions();
-
     DB::registerAggregateFunctions();
+
     auto & agg_factory = AggregateFunctionFactory::instance();
     registerAggregateFunctionsBloomFilter(agg_factory);
     registerAggregateFunctionSparkAvg(agg_factory);
     registerAggregateFunctionRowNumGroup(agg_factory);
-    {
-        /// register aggregate function combinators from local_engine
-        auto & factory = AggregateFunctionCombinatorFactory::instance();
-        registerAggregateFunctionCombinatorPartialMerge(factory);
-    }
+    DB::registerAggregateFunctionUniqHyperLogLogPlusPlus(agg_factory);
+    registerAggregateFunctionDVRoaringBitmap(agg_factory);
+
+    /// register aggregate function combinators from local_engine
+    auto & combinator_factory = AggregateFunctionCombinatorFactory::instance();
+    registerAggregateFunctionCombinatorPartialMerge(combinator_factory);
 }
 
 void registerGlutenDisks()
@@ -933,6 +897,8 @@ void registerGlutenDisks()
 
 void BackendInitializerUtil::registerAllFactories()
 {
+    registerFormats();
+
     registerGlutenDisks();
 
     registerReadBufferBuilders();

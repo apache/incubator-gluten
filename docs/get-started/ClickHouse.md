@@ -32,7 +32,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 ##### For compiling clickhouse backend
 
 Following softwares are required,
-- Clang 18.0
+- Clang 19.0
 - cmake 3.20 or higher version
 - ninja-build 1.8.2
 
@@ -241,7 +241,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=org.apache.gluten.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnarToRow=true \
   --conf spark.executorEnv.LD_PRELOAD=/path_to_clickhouse_library/libch.so\
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
@@ -422,7 +421,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=6442450944 \
   --conf spark.plugins=org.apache.gluten.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnarToRow=true \
   --conf spark.executorEnv.LD_PRELOAD=/path_to_clickhouse_library/libch.so\
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
@@ -494,7 +492,6 @@ $spark_cmd \
   --conf spark.sql.shuffle.partitions=112 \
   --conf spark.sql.sources.useV1SourceList=avro \
   --conf spark.sql.files.maxPartitionBytes=1073741824 \
-  --conf spark.gluten.sql.columnar.columnartorow=true \
   --conf spark.gluten.sql.columnar.loadnative=true \
   --conf spark.gluten.sql.columnar.libpath=$ch_lib \
   --conf spark.gluten.sql.columnar.iterator=true \
@@ -614,7 +611,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.serializer=org.apache.spark.serializer.JavaSerializer \
   --conf spark.sql.sources.ignoreDataLocality=true \
   --conf spark.plugins=org.apache.gluten.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.columnarToRow=true \
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \

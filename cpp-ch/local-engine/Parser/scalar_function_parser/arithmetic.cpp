@@ -31,7 +31,7 @@ extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 
 namespace local_engine
 {
-
+using namespace DB;
 class DecimalType
 {
     static constexpr Int32 spark_max_precision = 38;
@@ -315,8 +315,8 @@ protected:
 
             const auto & settings = parser_context->queryContext()->getSettingsRef();
             auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
-                ? "NameSparkDecimalModuloEffect"
-                : "NameSparkDecimalModulo";
+                ? "sparkDecimalModuloEffect"
+                : "sparkDecimalModulo";
             ;
             return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
         }

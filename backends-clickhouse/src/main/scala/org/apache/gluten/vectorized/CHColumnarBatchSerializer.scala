@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.vectorized
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
@@ -35,13 +35,18 @@ import scala.reflect.ClassTag
 class CHColumnarBatchSerializer(
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
-    dataSize: SQLMetric)
+    dataSize: SQLMetric,
+    deserializationTime: SQLMetric)
   extends Serializer
   with Serializable {
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
-    new CHColumnarBatchSerializerInstance(readBatchNumRows, numOutputRows, dataSize)
+    new CHColumnarBatchSerializerInstance(
+      readBatchNumRows,
+      numOutputRows,
+      dataSize,
+      deserializationTime)
   }
 
   override def supportsRelocationOfSerializedObjects: Boolean = true
@@ -50,7 +55,8 @@ class CHColumnarBatchSerializer(
 private class CHColumnarBatchSerializerInstance(
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
-    dataSize: SQLMetric)
+    dataSize: SQLMetric,
+    deserializationTime: SQLMetric)
   extends SerializerInstance
   with Logging {
 
@@ -58,12 +64,9 @@ private class CHColumnarBatchSerializerInstance(
   private lazy val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
   private lazy val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private lazy val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(
-      conf,
-      compressionCodec,
-      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
+    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec)
 
-  private val useColumnarShuffle: Boolean = GlutenConfig.getConf.isUseColumnarShuffleManager
+  private val useColumnarShuffle: Boolean = GlutenConfig.get.isUseColumnarShuffleManager
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     // Don't use GlutenConfig in this method. It will execute in non task Thread.
@@ -74,6 +77,7 @@ private class CHColumnarBatchSerializerInstance(
 
       private var numBatchesTotal: Long = _
       private var numRowsTotal: Long = _
+      private var timeDeSerdeTotal: Long = _
 
       private var isClosed: Boolean = false
 
@@ -90,6 +94,7 @@ private class CHColumnarBatchSerializerInstance(
 
       @throws(classOf[EOFException])
       override def readValue[T: ClassTag](): T = {
+        val start = System.nanoTime()
         if (cb != null) {
           cb.close()
           cb = null
@@ -108,6 +113,7 @@ private class CHColumnarBatchSerializerInstance(
         numBatchesTotal += 1
         numRowsTotal += numRows
         cb = nativeBlock.toColumnarBatch
+        timeDeSerdeTotal += System.nanoTime() - start
         cb.asInstanceOf[T]
       }
 
@@ -122,6 +128,7 @@ private class CHColumnarBatchSerializerInstance(
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
           numOutputRows += numRowsTotal
+          deserializationTime += timeDeSerdeTotal
           if (cb != null) {
             cb.close()
             cb = null

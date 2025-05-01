@@ -16,14 +16,15 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.expression.VeloxDummyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -34,7 +35,6 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters
 
 class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
-
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
@@ -312,7 +312,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 5)
   }
 
-  testWithSpecifiedSparkVersion("coalesce validation", Some("3.4")) {
+  testWithMinSparkVersion("coalesce validation", "3.4") {
     withTempPath {
       path =>
         val data = "2019-09-09 01:02:03.456789"
@@ -1275,12 +1275,14 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
             |""".stripMargin)
 
-      runQueryAndCompare(
-        """
-          |select * from t1 cross join t2 on t1.c1 = t2.c1;
-          |""".stripMargin
-      ) {
-        checkGlutenOperatorMatch[ShuffledHashJoinExecTransformer]
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "true") {
+        runQueryAndCompare(
+          """
+            |select * from t1 cross join t2 on t1.c1 = t2.c1;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[ShuffledHashJoinExecTransformer]
+        }
       }
 
       withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
@@ -1791,6 +1793,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     assert(plan2.find(_.isInstanceOf[ProjectExecTransformer]).isDefined)
   }
 
+  test("cast timestamp to date") {
+    val query = "select cast(ts as date) from values (timestamp'2024-01-01 00:00:00') as tab(ts)"
+    runQueryAndCompare(query) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("timestamp broadcast join") {
     spark.range(0, 5).createOrReplaceTempView("right")
     spark.sql("SELECT id, timestamp_micros(id) as ts from right").createOrReplaceTempView("left")
@@ -1962,11 +1971,11 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("test 'spark.gluten.enabled'") {
-    withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "true") {
+    withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "true") {
       runQueryAndCompare("select * from lineitem limit 1") {
         checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
-      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "false") {
         runQueryAndCompare("select * from lineitem limit 1") {
           checkSparkOperatorMatch[FileSourceScanExec]
         }
@@ -1975,5 +1984,112 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
     }
+  }
+
+  test("support null type in aggregate") {
+    runQueryAndCompare("SELECT max(null), min(null) from range(10)".stripMargin) {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+  }
+
+  test("FullOuter in BroadcastNestLoopJoin") {
+    withTable("t1", "t2") {
+      spark.range(10).write.format("parquet").saveAsTable("t1")
+      spark.range(10).write.format("parquet").saveAsTable("t2")
+
+      // with join condition should fallback.
+      withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
+        runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2 ON t1.id < t2.id") {
+          checkSparkOperatorMatch[BroadcastNestedLoopJoinExec]
+        }
+
+        // without join condition should offload to gluten operator.
+        runQueryAndCompare("SELECT * FROM t1 FULL OUTER JOIN t2") {
+          checkGlutenOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
+        }
+      }
+    }
+  }
+
+  test("test get_struct_field with scalar function as input") {
+    withSQLConf("spark.sql.json.enablePartialResults" -> "true") {
+      withTable("t") {
+        withTempPath {
+          path =>
+            Seq[String](
+              "{\"a\":1,\"b\":[10, 11, 12]}",
+              "{\"a\":2,\"b\":[20, 21, 22]}"
+            ).toDF("json_str").write.parquet(path.getCanonicalPath)
+            spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+
+            val query =
+              """
+                | select
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').a,
+                |  from_json(json_str, 'a INT, b ARRAY<INT>').b
+                | from t
+                |""".stripMargin
+
+            runQueryAndCompare(query)(
+              df => {
+                val executedPlan = getExecutedPlan(df)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+                assert(executedPlan.count(_.isInstanceOf[ProjectExecTransformer]) == 1)
+              })
+        }
+      }
+    }
+  }
+
+  test("Blacklist expression can be handled by ColumnarPartialProject") {
+    withSQLConf("spark.gluten.expression.blacklist" -> "regexp_replace") {
+      runQueryAndCompare(
+        "SELECT c_custkey, c_name, regexp_replace(c_comment, '\\w', 'something') FROM customer") {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(executedPlan.count(_.isInstanceOf[ProjectExec]) == 0)
+          assert(executedPlan.count(_.isInstanceOf[ColumnarPartialProjectExec]) == 1)
+      }
+    }
+  }
+
+  test("Check VeloxResizeBatches is added in ShuffleRead") {
+    Seq(true, false).foreach(
+      coalesceEnabled => {
+        withSQLConf(
+          VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_OUTPUT.key -> "true",
+          SQLConf.SHUFFLE_PARTITIONS.key -> "10",
+          SQLConf.COALESCE_PARTITIONS_ENABLED.key -> coalesceEnabled.toString
+        ) {
+          runQueryAndCompare(
+            "SELECT l_orderkey, count(1) from lineitem group by l_orderkey".stripMargin) {
+            df =>
+              val executedPlan = getExecutedPlan(df)
+              if (coalesceEnabled) {
+                // VeloxResizeBatches(AQEShuffleRead(ShuffleQueryStage(ColumnarShuffleExchange)))
+                assert(executedPlan.sliding(4).exists {
+                  case Seq(
+                        _: ColumnarShuffleExchangeExec,
+                        _: ShuffleQueryStageExec,
+                        _: AQEShuffleReadExec,
+                        _: VeloxResizeBatchesExec
+                      ) =>
+                    true
+                  case _ => false
+                })
+              } else {
+                // VeloxResizeBatches(ShuffleQueryStage(ColumnarShuffleExchange))
+                assert(executedPlan.sliding(3).exists {
+                  case Seq(
+                        _: ColumnarShuffleExchangeExec,
+                        _: ShuffleQueryStageExec,
+                        _: VeloxResizeBatchesExec) =>
+                    true
+                  case _ => false
+                })
+              }
+          }
+        }
+      })
   }
 }

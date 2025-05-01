@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -25,11 +26,11 @@ import scala.collection.JavaConverters._
 
 case class InTransformer(substraitExprName: String, child: ExpressionTransformer, original: In)
   extends UnaryExpressionTransformer {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     assert(original.list.forall(_.foldable))
     // Stores the values in a List Literal.
     val values: Set[Any] = original.list.map(_.eval()).toSet
-    InExpressionTransformer.toTransformer(child.doTransform(args), values, child.dataType)
+    InExpressionTransformer.toTransformer(child.doTransform(context), values, child.dataType)
   }
 }
 
@@ -38,9 +39,9 @@ case class InSetTransformer(
     child: ExpressionTransformer,
     original: InSet)
   extends UnaryExpressionTransformer {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     InExpressionTransformer.toTransformer(
-      child.doTransform(args),
+      child.doTransform(context),
       original.hset,
       original.child.dataType)
   }

@@ -22,6 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeRef
 import org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{DeserializeToObjectExec, LeafExecNode, ProjectExec, SerializeFromObjectExec, SparkPlan, UnionExec}
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 import scala.collection.mutable
 
@@ -44,6 +45,11 @@ object PushDownInputFileExpression {
       case _: InputFileName | _: InputFileBlockStart | _: InputFileBlockLength => true
       case _ => expr.children.exists(containsInputFileRelatedExpr)
     }
+  }
+
+  def addFallbackTag(plan: SparkPlan): SparkPlan = {
+    FallbackTags.add(plan, "fallback input file expression")
+    plan
   }
 
   object PreOffload extends Rule[SparkPlan] {
@@ -82,11 +88,11 @@ object PushDownInputFileExpression {
         replacedExprs: mutable.Map[String, Alias]): SparkPlan =
       plan match {
         case p: LeafExecNode =>
-          ProjectExec(p.output ++ replacedExprs.values, p)
+          addFallbackTag(ProjectExec(p.output ++ replacedExprs.values, p))
         // Output of SerializeFromObjectExec's child and output of DeserializeToObjectExec must be
         // a single-field row.
         case p @ (_: SerializeFromObjectExec | _: DeserializeToObjectExec) =>
-          ProjectExec(p.output ++ replacedExprs.values, p)
+          addFallbackTag(ProjectExec(p.output ++ replacedExprs.values, p))
         case p: ProjectExec =>
           p.copy(
             projectList = p.projectList ++ replacedExprs.values.toSeq.map(_.toAttribute),
@@ -111,15 +117,25 @@ object PushDownInputFileExpression {
       case p @ ProjectExec(projectList, child: FileSourceScanExecTransformer)
           if projectList.exists(containsInputFileRelatedExpr) =>
         child.copy(output = p.output)
+      case p @ ProjectExec(projectList, child: HiveTableScanExecTransformer)
+          if projectList.exists(containsInputFileRelatedExpr) =>
+        child.copy(
+          requestedAttributes = p.output,
+          relation = child.relation,
+          partitionPruningPred = child.partitionPruningPred,
+          prunedOutput = child.prunedOutput
+        )(child.session)
       case p @ ProjectExec(projectList, child: BatchScanExecTransformer)
           if projectList.exists(containsInputFileRelatedExpr) =>
         child.copy(output = p.output.asInstanceOf[Seq[AttributeReference]])
       case p1 @ ProjectExec(_, p2: ProjectExec) if canCollapseProject(p2) =>
-        p2.copy(projectList =
-          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList))
+        addFallbackTag(
+          p2.copy(projectList =
+            CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList)))
       case p1 @ ProjectExecTransformer(_, p2: ProjectExec) if canCollapseProject(p1, p2) =>
-        p2.copy(projectList =
-          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList))
+        addFallbackTag(
+          p2.copy(projectList =
+            CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList)))
     }
 
     private def canCollapseProject(project: ProjectExec): Boolean = {

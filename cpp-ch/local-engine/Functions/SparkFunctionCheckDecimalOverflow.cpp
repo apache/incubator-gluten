@@ -20,11 +20,14 @@
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
 #include <Core/DecimalFunctions.h>
+#include <Core/callOnTypeIndex.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Functions/IFunction.h>
+#include "Columns/ColumnsCommon.h"
+#include <iostream>
 
 namespace DB
 {
@@ -34,6 +37,7 @@ extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 extern const int ILLEGAL_COLUMN;
 extern const int TYPE_MISMATCH;
+extern const int NOT_IMPLEMENTED;
 }
 }
 
@@ -42,6 +46,8 @@ namespace local_engine
 {
 using namespace DB;
 
+namespace
+{
 struct CheckDecimalOverflowSpark
 {
     static constexpr auto name = "checkDecimalOverflowSpark";
@@ -51,14 +57,19 @@ struct CheckDecimalOverflowSparkOrNull
     static constexpr auto name = "checkDecimalOverflowSparkOrNull";
 };
 
-enum class CheckExceptionMode
+enum class CheckExceptionMode: uint8_t
 {
     Throw, /// Throw exception if value cannot be parsed.
     Null /// Return ColumnNullable with NULLs when value cannot be parsed.
 };
 
-namespace
+enum class ScaleDirection: int8_t
 {
+    Up = 1,
+    Down = -1,
+    None = 0
+};
+
 /// Returns received decimal value if and Decimal value has less digits then it's Precision allow, 0 otherwise.
 /// Precision could be set as second argument or omitted. If omitted function uses Decimal precision of the first argument.
 template <typename Name, CheckExceptionMode mode>
@@ -78,7 +89,7 @@ public:
 
     DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
     {
-        if (!isDecimal(arguments[0].type) || !isInteger(arguments[1].type) || !isInteger(arguments[2].type))
+        if ((!isDecimal(arguments[0].type) && !isNativeNumber(arguments[0].type)) || !isInteger(arguments[1].type) || !isInteger(arguments[2].type))
             throw Exception(
                 ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
                 "Illegal type {} {} {} of argument of function {}",
@@ -86,27 +97,30 @@ public:
                 arguments[1].type->getName(),
                 arguments[2].type->getName(),
                 getName());
-
         UInt32 precision = extractArgument(arguments[1]);
         UInt32 scale = extractArgument(arguments[2]);
-
         auto return_type = createDecimal<DataTypeDecimal>(precision, scale);
-        if constexpr (exception_mode == CheckExceptionMode::Null)
-        {
-            if (!arguments[0].type->isNullable())
-                return std::make_shared<DataTypeNullable>(return_type);
-        }
-
+        if (isReturnTypeNullable(arguments[0]))
+            return std::make_shared<DataTypeNullable>(return_type);
         return return_type;
+    }
+
+    bool isReturnTypeNullable(const ColumnWithTypeAndName & arg) const
+    {
+        if constexpr (exception_mode == CheckExceptionMode::Null)
+            return true;
+        if (arg.type->isNullable())
+            return true;
+        return false;
     }
 
     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
     {
-        const auto & src_column = arguments[0];
-        UInt32 precision = extractArgument(arguments[1]);
-        UInt32 scale = extractArgument(arguments[2]);
+        UInt32 to_precision = extractArgument(arguments[1]);
+        UInt32 to_scale = extractArgument(arguments[2]);
 
-        ColumnPtr result_column;
+        const auto & src_col = arguments[0];
+        ColumnPtr dst_col;
 
         auto call = [&](const auto & types) -> bool
         {
@@ -114,14 +128,28 @@ public:
             using FromDataType = typename Types::LeftType;
             using ToDataType = typename Types::RightType;
 
-            if constexpr (IsDataTypeDecimal<FromDataType>)
+            if constexpr (IsDataTypeDecimal<FromDataType> || IsDataTypeNumber<FromDataType>)
             {
                 using FromFieldType = typename FromDataType::FieldType;
-                using ColVecType = ColumnDecimal<FromFieldType>;
 
-                if (const ColVecType * col_vec = checkAndGetColumn<ColVecType>(src_column.column.get()))
+                /// Fast path
+                if constexpr (IsDataTypeDecimal<FromDataType>)
                 {
-                    executeInternal<FromFieldType, ToDataType>(*col_vec, result_column, input_rows_count, precision, scale);
+                    auto from_precision = getDecimalPrecision(*src_col.type);
+                    auto from_scale = getDecimalScale(*src_col.type);
+                    if (from_precision == to_precision && from_scale == to_scale)
+                    {
+                        if (isReturnTypeNullable(arguments[0]))
+                            dst_col = makeNullable(src_col.column);
+                        else
+                            dst_col = src_col.column;
+                        return true;
+                    }
+                }
+
+                if (const ColumnVectorOrDecimal<FromFieldType> * col_vec = checkAndGetColumn<ColumnVectorOrDecimal<FromFieldType>>(src_col.column.get()))
+                {
+                    executeInternal<FromDataType, ToDataType>(*col_vec, dst_col, input_rows_count, to_precision, to_scale);
                     return true;
                 }
             }
@@ -129,129 +157,172 @@ public:
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal column while execute function {}", getName());
         };
 
-        if (precision <= DecimalUtils::max_precision<Decimal32>)
-            callOnIndexAndDataType<DataTypeDecimal<Decimal32>>(src_column.type->getTypeId(), call);
-        else if (precision <= DecimalUtils::max_precision<Decimal64>)
-            callOnIndexAndDataType<DataTypeDecimal<Decimal64>>(src_column.type->getTypeId(), call);
-        else if (precision <= DecimalUtils::max_precision<Decimal128>)
-            callOnIndexAndDataType<DataTypeDecimal<Decimal128>>(src_column.type->getTypeId(), call);
+        if (to_precision <= DecimalUtils::max_precision<Decimal32>)
+            callOnIndexAndDataType<DataTypeDecimal<Decimal32>>(src_col.type->getTypeId(), call);
+        else if (to_precision <= DecimalUtils::max_precision<Decimal64>)
+            callOnIndexAndDataType<DataTypeDecimal<Decimal64>>(src_col.type->getTypeId(), call);
+        else if (to_precision <= DecimalUtils::max_precision<Decimal128>)
+            callOnIndexAndDataType<DataTypeDecimal<Decimal128>>(src_col.type->getTypeId(), call);
         else
-            callOnIndexAndDataType<DataTypeDecimal<Decimal256>>(src_column.type->getTypeId(), call);
+            callOnIndexAndDataType<DataTypeDecimal<Decimal256>>(src_col.type->getTypeId(), call);
 
+        if (!dst_col)
+            throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Wrong call for {} with {}", getName(), src_col.type->getName());
 
-        if (!result_column)
-            throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Wrong call for {} with {}", getName(), src_column.type->getName());
-
-        return result_column;
+        return dst_col;
     }
 
 private:
-    template <typename T, typename ToDataType>
-    static void executeInternal(
-        const ColumnDecimal<T> & col_source, ColumnPtr & result_column, size_t input_rows_count, UInt32 precision, UInt32 scale_to)
+    template <typename FromDataType, typename ToDataType>
+    requires(IsDataTypeDecimal<ToDataType> && (IsDataTypeDecimal<FromDataType> || IsDataTypeNumber<FromDataType>))
+    static void
+    executeInternal(const FromDataType::ColumnType & src_col, ColumnPtr & dst_col, size_t rows, UInt32 to_precision, UInt32 to_scale)
     {
         using ToFieldType = typename ToDataType::FieldType;
+        using ToNativeType = typename ToFieldType::NativeType;
         using ToColumnType = typename ToDataType::ColumnType;
+        using FromFieldType = typename FromDataType::FieldType;
 
-        ColumnUInt8::MutablePtr col_null_map_to;
-        ColumnUInt8::Container * vec_null_map_to [[maybe_unused]] = nullptr;
-        auto scale_from = col_source.getScale();
+        using MaxFieldType = std::conditional_t<
+            is_decimal<FromFieldType>,
+            std::conditional_t<(sizeof(FromFieldType) > sizeof(ToFieldType)), FromFieldType, ToFieldType>,
+            ToFieldType>;
+        using MaxNativeType = typename MaxFieldType::NativeType;
 
-        if constexpr (exception_mode == CheckExceptionMode::Null)
+        /// Calculate const parameters for decimal conversion outside the loop to avoid unnecessary calculations.
+        ScaleDirection scale_direction;
+        UInt32 from_scale = 0;
+        MaxNativeType scale_multiplier = 0;
+        MaxNativeType pow10_to_precision = DecimalUtils::scaleMultiplier<MaxNativeType>(to_precision);
+        if constexpr (IsDataTypeDecimal<FromDataType>)
         {
-            col_null_map_to = ColumnUInt8::create(input_rows_count, false);
-            vec_null_map_to = &col_null_map_to->getData();
-        }
-
-        typename ToColumnType::MutablePtr col_to = ToColumnType::create(input_rows_count, scale_to);
-        auto & vec_to = col_to->getData();
-        vec_to.resize_exact(input_rows_count);
-
-        auto & datas = col_source.getData();
-        for (size_t i = 0; i < input_rows_count; ++i)
-        {
-            // bool overflow = outOfDigits<T>(datas[i], precision, scale_from, scale_to);
-            ToFieldType result;
-            bool success = convertToDecimalImpl<T, ToDataType>(datas[i], precision, scale_from, scale_to, result);
-
-            if (success)
-                vec_to[i] = static_cast<ToFieldType>(result);
+            from_scale = src_col.getScale();
+            if (to_scale > from_scale)
+            {
+                scale_direction = ScaleDirection::Up;
+                scale_multiplier = DecimalUtils::scaleMultiplier<MaxNativeType>(to_scale - from_scale);
+            }
+            else if (to_scale < from_scale)
+            {
+                scale_direction = ScaleDirection::Down;
+                scale_multiplier = DecimalUtils::scaleMultiplier<MaxNativeType>(from_scale - to_scale);
+            }
             else
             {
-                vec_to[i] = static_cast<ToFieldType>(0);
-                if constexpr (exception_mode == CheckExceptionMode::Null)
-                    (*vec_null_map_to)[i] = static_cast<UInt8>(1);
-                else
-                    throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "Decimal value is overflow.");
+                scale_direction = ScaleDirection::None;
+                scale_multiplier = 1;
             }
         }
-
-        if constexpr (exception_mode == CheckExceptionMode::Null)
-            result_column = ColumnNullable::create(std::move(col_to), std::move(col_null_map_to));
         else
-            result_column = std::move(col_to);
-    }
+        {
+            scale_multiplier = DecimalUtils::scaleMultiplier<MaxNativeType>(to_scale);
+        }
 
-    template <is_decimal FromFieldType, typename ToDataType>
-    requires(IsDataTypeDecimal<ToDataType>)
-    static bool convertToDecimalImpl(
-        const FromFieldType & decimal, UInt32 precision_to, UInt32 scale_from, UInt32 scale_to, typename ToDataType::FieldType & result)
-    {
-        if constexpr (std::is_same_v<FromFieldType, Decimal32>)
-            return convertDecimalsImpl<DataTypeDecimal<Decimal32>, ToDataType>(decimal, precision_to, scale_from, scale_to, result);
+        auto & src_data = src_col.getData();
 
-        else if constexpr (std::is_same_v<FromFieldType, Decimal64>)
-            return convertDecimalsImpl<DataTypeDecimal<Decimal64>, ToDataType>(decimal, precision_to, scale_from, scale_to, result);
-        else if constexpr (std::is_same_v<FromFieldType, Decimal128>)
-            return convertDecimalsImpl<DataTypeDecimal<Decimal128>, ToDataType>(decimal, precision_to, scale_from, scale_to, result);
+        auto res_data_col = ToColumnType::create(rows, to_scale);
+        auto & res_data = res_data_col->getData();
+        auto res_nullmap_col = ColumnUInt8::create(rows, 0);
+        auto & res_nullmap_data = res_nullmap_col->getData();
+
+        if constexpr (IsDataTypeDecimal<FromDataType>)
+        {
+            if (scale_direction == ScaleDirection::Up)
+                for (size_t i = 0; i < rows; ++i)
+                    res_nullmap_data[i] = !convertDecimalToDecimalImpl<ScaleDirection::Up, FromDataType, ToDataType, MaxNativeType>(
+                        src_data[i], scale_multiplier, pow10_to_precision, res_data[i]);
+            else if (scale_direction == ScaleDirection::Down)
+                for (size_t i = 0; i < rows; ++i)
+                    res_nullmap_data[i] = !convertDecimalToDecimalImpl<ScaleDirection::Down, FromDataType, ToDataType, MaxNativeType>(
+                        src_data[i], scale_multiplier, pow10_to_precision, res_data[i]);
+            else
+                for (size_t i = 0; i < rows; ++i)
+                    res_nullmap_data[i] = !convertDecimalToDecimalImpl<ScaleDirection::None, FromDataType, ToDataType, MaxNativeType>(
+                        src_data[i], scale_multiplier, pow10_to_precision, res_data[i]);
+        }
         else
-            return convertDecimalsImpl<DataTypeDecimal<Decimal256>, ToDataType>(decimal, precision_to, scale_from, scale_to, result);
+        {
+            for (size_t i = 0; i < rows; ++i)
+                res_nullmap_data[i]
+                    = !convertNumberToDecimalImpl<FromDataType, ToDataType>(src_data[i], scale_multiplier, pow10_to_precision, res_data[i]);
+        }
+
+        if constexpr (exception_mode == CheckExceptionMode::Throw)
+        {
+            if (!memoryIsZero(res_nullmap_data.data(), 0, rows))
+                throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "Decimal value is overflow.");
+
+            dst_col = std::move(res_data_col);
+        }
+        else
+            dst_col = ColumnNullable::create(std::move(res_data_col), std::move(res_nullmap_col));
     }
 
     template <typename FromDataType, typename ToDataType>
+    requires(IsDataTypeNumber<FromDataType> && IsDataTypeDecimal<ToDataType>)
+    static ALWAYS_INLINE bool convertNumberToDecimalImpl(
+        const typename FromDataType::FieldType & from,
+        const typename ToDataType::FieldType::NativeType & scale_multiplier,
+        const typename ToDataType::FieldType::NativeType & pow10_to_precision,
+        typename ToDataType::FieldType & to)
+    {
+        using FromFieldType = typename FromDataType::FieldType;
+        using ToNativeType = typename ToDataType::FieldType::NativeType;
+
+        bool ok = false;
+        if constexpr (std::is_floating_point_v<FromFieldType>)
+        {
+            /// float to decimal
+            auto converted = from * static_cast<FromFieldType>(scale_multiplier);
+            auto float_pow10_to_precision = static_cast<FromFieldType>(pow10_to_precision);
+            ok = isFinite(from) && converted < float_pow10_to_precision && converted > -float_pow10_to_precision;
+            to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
+        }
+        else
+        {
+            /// signed integer to decimal
+            using MaxNativeType = std::conditional_t<(sizeof(FromFieldType) > sizeof(ToNativeType)), FromFieldType, ToNativeType>;
+
+            MaxNativeType converted = 0;
+            ok = !common::mulOverflow(static_cast<MaxNativeType>(from), static_cast<MaxNativeType>(scale_multiplier), converted) && converted < pow10_to_precision
+                && converted > -pow10_to_precision;
+            to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
+        }
+        return ok;
+    }
+
+    template <ScaleDirection scale_direction, typename FromDataType, typename ToDataType, typename MaxNativeType>
     requires(IsDataTypeDecimal<FromDataType> && IsDataTypeDecimal<ToDataType>)
-    static bool convertDecimalsImpl(
-        const typename FromDataType::FieldType & value,
-        UInt32 precision_to,
-        UInt32 scale_from,
-        UInt32 scale_to,
-        typename ToDataType::FieldType & result)
+    static ALWAYS_INLINE bool convertDecimalToDecimalImpl(
+        const typename FromDataType::FieldType & from,
+        const MaxNativeType & scale_multiplier,
+        const MaxNativeType & pow10_to_precision,
+        typename ToDataType::FieldType & to)
     {
         using FromFieldType = typename FromDataType::FieldType;
         using ToFieldType = typename ToDataType::FieldType;
-        using MaxFieldType = std::conditional_t<(sizeof(FromFieldType) > sizeof(ToFieldType)), FromFieldType, ToFieldType>;
-        using MaxNativeType = typename MaxFieldType::NativeType;
+        using ToNativeType = typename ToFieldType::NativeType;
 
-
-        auto false_value = []() -> bool
+        MaxNativeType converted;
+        bool ok = false;
+        if constexpr (scale_direction == ScaleDirection::Up)
         {
-            if constexpr (exception_mode == CheckExceptionMode::Null)
-                return false;
-            else
-                throw Exception(ErrorCodes::DECIMAL_OVERFLOW, "Decimal value is overflow.");
-        };
-
-        MaxNativeType converted_value;
-        if (scale_to > scale_from)
-        {
-            converted_value = DecimalUtils::scaleMultiplier<MaxNativeType>(scale_to - scale_from);
-            if (common::mulOverflow(static_cast<MaxNativeType>(value.value), converted_value, converted_value))
-                return false_value();
+            ok = !common::mulOverflow(static_cast<MaxNativeType>(from.value), scale_multiplier, converted)
+                && converted < pow10_to_precision && converted > -pow10_to_precision;
         }
-        else if (scale_to == scale_from)
-            converted_value = value.value;
+        else if constexpr (scale_direction == ScaleDirection::None)
+        {
+            converted = from.value;
+            ok = converted < pow10_to_precision && converted > -pow10_to_precision;
+        }
         else
-            converted_value = value.value / DecimalUtils::scaleMultiplier<MaxNativeType>(scale_from - scale_to);
+        {
+            converted = from.value / scale_multiplier;
+            ok = converted < pow10_to_precision && converted > -pow10_to_precision;
+        }
 
-        // if constexpr (sizeof(FromFieldType) > sizeof(ToFieldType))
-        // {
-        MaxNativeType pow10 = intExp10OfSize<MaxNativeType>(precision_to);
-        if (converted_value <= -pow10 || converted_value >= pow10)
-            return false_value();
-        // }
-
-        result = static_cast<typename ToFieldType::NativeType>(converted_value);
-        return true;
+        to = ok ? static_cast<ToNativeType>(converted) : static_cast<ToNativeType>(0);
+        return ok;
     }
 };
 

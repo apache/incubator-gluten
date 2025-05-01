@@ -24,14 +24,11 @@
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/Names.h>
-#include <Core/NamesAndTypes.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
-#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
-#include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/ProcessList.h>
 #include <Interpreters/QueryPriorities.h>
@@ -51,18 +48,15 @@
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <QueryPipeline/printPipeline.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
-#include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/BlockTypeUtils.h>
-#include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
-#include <Common/JNIUtils.h>
+#include <Common/PlanUtil.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 
@@ -70,8 +64,8 @@ namespace DB
 {
 namespace Setting
 {
-extern const SettingsBool query_plan_enable_optimizations;
 extern const SettingsUInt64 priority;
+extern const SettingsMilliseconds low_priority_query_wait_time_ms;
 }
 namespace ErrorCodes
 {
@@ -107,25 +101,25 @@ void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, con
     const substrait::PlanRel & root_rel = plan.relations().at(0);
     if (root_rel.root().names_size())
     {
-        ActionsDAG actions_dag{blockToNameAndTypeList(query_plan->getCurrentHeader())};
-        NamesWithAliases aliases;
-        const auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
-        if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
+        auto columns = query_plan->getCurrentHeader().columns();
+        if (columns != static_cast<size_t>(root_rel.root().names_size()))
         {
             debug::dumpPlan(*query_plan, "clickhouse plan", true);
             debug::dumpMessage(plan, "substrait::Plan", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan name size {}.",
-                cols.getNames().size(),
+                columns,
                 root_rel.root().names_size());
         }
-        for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
-            aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
-        actions_dag.project(aliases);
-        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
-        expression_step->setStepDescription("Rename Output");
-        query_plan->addStep(std::move(expression_step));
+        PlanUtil::renamePlanHeader(
+            *query_plan,
+            [&root_rel](const Block & input, NamesWithAliases & aliases)
+            {
+                auto output_name = root_rel.root().names().begin();
+                for (auto input_iter = input.begin(); input_iter != input.end(); ++output_name, ++input_iter)
+                    aliases.emplace_back(DB::NameWithAlias(input_iter->name, *output_name));
+            });
     }
 
     // fixes: issue-1874, to keep the nullability as expected.
@@ -242,35 +236,40 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
     rel_stack.pop_back();
 
-    // source node is special
+    /// Sperical process for read relation because it may be incomplete when reading from scans/mergetrees/ranges.
     if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
     {
-        assert(all_input_rels.empty());
+        chassert(all_input_rels.empty());
         auto read_rel_parser = std::dynamic_pointer_cast<ReadRelParser>(rel_parser);
         const auto & read = rel.read();
-        if (read.has_local_files())
+
+        if (read_rel_parser->isReadRelFromJavaIter(read))
         {
-            if (read_rel_parser->isReadRelFromJava(read))
-            {
-                auto iter = read.local_files().items().at(0).uri_file();
-                auto pos = iter.find(':');
-                auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
-                auto [input_iter, materalize_input] = getInputIter(static_cast<size_t>(iter_index));
-                read_rel_parser->setInputIter(input_iter, materalize_input);
-            }
+            /// If read from java iter, local_files is guranteed to be set in read rel.
+            auto iter = read.local_files().items().at(0).uri_file();
+            auto pos = iter.find(':');
+            auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
+            auto [input_iter, materalize_input] = getInputIter(static_cast<size_t>(iter_index));
+            read_rel_parser->setInputIter(input_iter, materalize_input);
         }
-        else if (read_rel_parser->isReadFromMergeTree(read))
+        else if (read_rel_parser->isReadRelFromMergeTree(read))
         {
             if (!read.has_extension_table())
-            {
                 read_rel_parser->setSplitInfo(nextSplitInfo());
-            }
         }
-        else if (!read.has_local_files() && !read.has_extension_table())
+        else if (read_rel_parser->isReadRelFromRange(read))
         {
-            // read from split files
-            auto split_info = nextSplitInfo();
-            read_rel_parser->setSplitInfo(split_info);
+            if (!read.has_extension_table())
+                read_rel_parser->setSplitInfo(nextSplitInfo());
+        }
+        else if (read_rel_parser->isReadRelFromLocalFile(read))
+        {
+            if (!read.has_local_files())
+                read_rel_parser->setSplitInfo(nextSplitInfo());
+        }
+        else if (read_rel_parser->isReadFromStreamKafka(read))
+        {
+            read_rel_parser->setSplitInfo(nextSplitInfo());
         }
     }
 
@@ -282,7 +281,8 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
     std::vector<DB::IQueryPlanStep *> steps = rel_parser->getSteps();
 
-    if (!parser_context->queryContext()->getSettingsRef()[Setting::query_plan_enable_optimizations])
+    if (const auto & settings = parser_context->queryContext()->getSettingsRef();
+        settingsEqual(settings, RuntimeSettings::COLLECT_METRICS, "true", {RuntimeSettings::COLLECT_METRICS_DEFAULT}))
     {
         if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
         {
@@ -303,14 +303,21 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
     const auto query_status = std::make_shared<QueryStatus>(
         parser_context->queryContext(),
         "",
+        0, // since we set a query to empty string, let's set hash to zero.
         parser_context->queryContext()->getClientInfo(),
-        priorities.insert(settings[Setting::priority]),
+        priorities.insert(
+            settings[Setting::priority], std::chrono::milliseconds(settings[Setting::low_priority_query_wait_time_ms].totalMilliseconds())),
         CurrentThread::getGroup(),
         IAST::QueryKind::Select,
         settings,
         0);
-    const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
-    BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings::fromContext(context);
+    QueryPlanOptimizationSettings optimization_settings{context};
+
+    // TODO: set optimize_plan to true when metrics could be collected while ch query plan optimization is enabled.
+    if (settingsEqual(settings, RuntimeSettings::COLLECT_METRICS, "true", {RuntimeSettings::COLLECT_METRICS_DEFAULT}))
+        optimization_settings.optimize_plan = false;
+
+    BuildQueryPipelineSettings build_settings = BuildQueryPipelineSettings{context};
     build_settings.process_list_element = query_status;
     build_settings.progress_callback = nullptr;
     return query_plan.buildQueryPipeline(optimization_settings, build_settings);
@@ -415,10 +422,9 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
             visitNonNullable(scalar_function.arguments(1).value());
         }
     }
-    else if (expr.has_selection())
+    else if (auto field_index = SubstraitParserUtils::getStructFieldIndex(expr))
     {
-        const auto & selection = expr.selection();
-        auto column_pos = selection.direct_reference().struct_field().field();
+        const auto & column_pos = *field_index;
         auto column_name = header.getByPosition(column_pos).name;
         collected_columns.insert(column_name);
     }

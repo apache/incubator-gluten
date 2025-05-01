@@ -16,26 +16,54 @@
  */
 package org.apache.gluten.substrait.rel;
 
+import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.substrait.SubstraitContext;
 import org.apache.gluten.substrait.expression.AggregateFunctionNode;
 import org.apache.gluten.substrait.expression.ExpressionNode;
 import org.apache.gluten.substrait.expression.WindowFunctionNode;
 import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
+import org.apache.gluten.substrait.extensions.ExtensionBuilder;
 import org.apache.gluten.substrait.type.ColumnTypeNode;
+import org.apache.gluten.substrait.type.TypeBuilder;
 import org.apache.gluten.substrait.type.TypeNode;
 
-import io.substrait.proto.CrossRel;
-import io.substrait.proto.JoinRel;
-import io.substrait.proto.SetRel;
-import io.substrait.proto.SortField;
+import io.substrait.proto.*;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /** Contains helper functions for constructing substrait relations. */
 public class RelBuilder {
   private RelBuilder() {}
+
+  public static AdvancedExtensionNode createExtensionNode(List<Attribute> inputAttributes) {
+    // Use an extension node to send the input types through Substrait plan for validation.
+    List<TypeNode> inputTypeNodeList =
+        inputAttributes.stream()
+            .map(attr -> ConverterUtils.getTypeNode(attr.dataType(), attr.nullable()))
+            .collect(Collectors.toList());
+
+    return ExtensionBuilder.makeAdvancedExtension(
+        BackendsApiManager.getTransformerApiInstance()
+            .packPBMessage(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf()));
+  }
+
+  public static RelNode makeFilterRel(
+      SubstraitContext context,
+      ExpressionNode condExprNode,
+      List<Attribute> inputAttributes,
+      Long operatorId,
+      RelNode input,
+      Boolean validation) {
+    if (!validation) {
+      return RelBuilder.makeFilterRel(input, condExprNode, context, operatorId);
+    } else {
+      return RelBuilder.makeFilterRel(
+          input, condExprNode, createExtensionNode(inputAttributes), context, operatorId);
+    }
+  }
 
   public static RelNode makeFilterRel(
       RelNode input, ExpressionNode condition, SubstraitContext context, Long operatorId) {
@@ -51,6 +79,28 @@ public class RelBuilder {
       Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new FilterRelNode(input, condition, extensionNode);
+  }
+
+  public static RelNode makeProjectRel(
+      List<Attribute> inputAttributes,
+      RelNode input,
+      List<ExpressionNode> projExprNodeList,
+      SubstraitContext context,
+      Long operatorId,
+      Boolean validation) {
+    int emitStartIndex = inputAttributes.size();
+    if (!validation) {
+      return RelBuilder.makeProjectRel(
+          input, projExprNodeList, context, operatorId, emitStartIndex);
+    } else {
+      return RelBuilder.makeProjectRel(
+          input,
+          projExprNodeList,
+          createExtensionNode(inputAttributes),
+          context,
+          operatorId,
+          emitStartIndex);
+    }
   }
 
   public static RelNode makeProjectRel(
@@ -191,10 +241,11 @@ public class RelBuilder {
       List<String> names,
       List<ColumnTypeNode> columnTypeNodes,
       AdvancedExtensionNode extensionNode,
+      WriteRel.BucketSpec bucketSpec,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new WriteRelNode(input, types, names, columnTypeNodes, extensionNode);
+    return new WriteRelNode(input, types, names, columnTypeNodes, extensionNode, bucketSpec);
   }
 
   public static RelNode makeSortRel(

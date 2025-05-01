@@ -18,7 +18,7 @@ parent: /developer-overview/
 
 2. Maven Build Gluten ClickHouse with Profile
    ```
-   mvn clean install -DskipTests -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut
+   mvn clean install -DskipTests -P delta -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut
    ```
    
 3. Set Maven Profiles in IntelliJ IDEA
@@ -31,7 +31,7 @@ parent: /developer-overview/
    ![gluten-debug-idea-config.png](../image/ClickHouse/gluten-debug-idea-config.png)
 
    VM Options: 
-   `-Dtpcds.data.path=/data/tpcds-data-sf1 -Dclickhouse.lib.path=/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so -Dspark.test.home=/path/to/spark33`
+   `-Dgluten.test.data.path=/data -Dspark.gluten.sql.columnar.libpath=/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so -Dspark.test.home=/path/to/spark33`
    > Download tpcds-data in https://gluten-nginx.kyligence.com/dataset/
    > Download spark33 using `git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git /tmp/spark33`
    
@@ -50,7 +50,7 @@ parent: /developer-overview/
    ![gluten-debug-clion-debug](../image/ClickHouse/gluten-debug-clion-debug.png)
 
    CMake Options: 
-   `-DENABLE_PROTOBUF=ON -DENABLE_TESTS=OFF -DENABLE_BENCHMARKS=ON -DENABLE_JEMALLOC=ON -DENABLE_MULTITARGET_CODE=ON -DENABLE_EXTERN_LOCAL_ENGINE=ON -DENABLE_ODBC=OFF -DENABLE_CAPNP=OFF -DENABLE_ROCKSDB=OFF -DENABLE_GRPC=OFF -DENABLE_RUST=OFF -DENABLE_H3=OFF -DENABLE_AMQPCPP=OFF -DENABLE_CASSANDRA=OFF -DENABLE_KAFKA=OFF -DENABLE_NATS=OFF -DENABLE_LIBPQXX=OFF -DENABLE_NURAFT=OFF -DENABLE_DATASKETCHES=OFF -DENABLE_SQLITE=OFF -DENABLE_S2_GEOMETRY=OFF -DENABLE_ANNOY=OFF -DENABLE_ULID=OFF -DENABLE_MYSQL=OFF -DENABLE_BCRYPT=OFF -DENABLE_LDAP=OFF -DENABLE_MSGPACK=OFF -DUSE_REPLXX=OFF -DENABLE_CLICKHOUSE_ALL=OFF -DCOMPILER_FLAGS="-fvisibility=hidden -fvisibility-inlines-hidden" -DENABLE_BUILD_PATH_MAPPING=OFF -DDEBUG_0_LEVEL="0"`
+   `-DENABLE_PROTOBUF=ON -DENABLE_TESTS=OFF -DENABLE_BENCHMARKS=ON -DENABLE_JEMALLOC=ON -DENABLE_MULTITARGET_CODE=ON -DENABLE_EXTERN_LOCAL_ENGINE=ON -DENABLE_ODBC=OFF -DENABLE_CAPNP=OFF -DENABLE_ROCKSDB=OFF -DENABLE_GRPC=OFF -DENABLE_RUST=OFF -DENABLE_H3=OFF -DENABLE_AMQPCPP=OFF -DENABLE_CASSANDRA=OFF -DENABLE_KAFKA=ON -DENABLE_NATS=OFF -DENABLE_LIBPQXX=OFF -DENABLE_NURAFT=OFF -DENABLE_DATASKETCHES=OFF -DENABLE_SQLITE=OFF -DENABLE_S2_GEOMETRY=OFF -DENABLE_ANNOY=OFF -DENABLE_ULID=OFF -DENABLE_MYSQL=OFF -DENABLE_BCRYPT=OFF -DENABLE_LDAP=OFF -DENABLE_MSGPACK=OFF -DUSE_REPLXX=OFF -DENABLE_CLICKHOUSE_ALL=OFF -DCOMPILER_FLAGS="-fvisibility=hidden -fvisibility-inlines-hidden" -DENABLE_BUILD_PATH_MAPPING=OFF -DDEBUG_O_LEVEL="0"`
 
 3. Reload CMake Project
 

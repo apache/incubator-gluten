@@ -111,7 +111,7 @@ object SparkMemoryUtil {
         collectFromTaskMemoryManager(treeMemoryConsumer.getTaskMemoryManager)
       }
 
-      override def visit(node: TreeMemoryTargets.Node): String = {
+      override def visit(node: TreeMemoryConsumer.Node): String = {
         node.parent().accept(this) // walk up to find the one bound with task memory manager
       }
 
@@ -124,12 +124,22 @@ object SparkMemoryUtil {
       }
 
       override def visit(noopMemoryTarget: NoopMemoryTarget): String = {
-        prettyPrintStats("No-op memory manager stats: ", noopMemoryTarget)
+        prettyPrintStats("No-op memory target stats: ", noopMemoryTarget)
       }
 
       override def visit(
           dynamicOffHeapSizingMemoryTarget: DynamicOffHeapSizingMemoryTarget): String = {
-        dynamicOffHeapSizingMemoryTarget.delegated().accept(this)
+        prettyPrintStats(
+          "Dynamic off-heap sizing memory target stats: ",
+          dynamicOffHeapSizingMemoryTarget)
+      }
+
+      override def visit(retryOnOomMemoryTarget: RetryOnOomMemoryTarget): String = {
+        retryOnOomMemoryTarget.target().accept(this)
+      }
+
+      override def visit(globalOffHeapMemoryTarget: GlobalOffHeapMemoryTarget): String = {
+        prettyPrintStats("Global off-heap target stats: ", globalOffHeapMemoryTarget)
       }
     })
   }

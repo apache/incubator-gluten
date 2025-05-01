@@ -80,7 +80,8 @@ abstract class BackendTestSettings {
       return !isExcluded
     }
 
-    throw new IllegalStateException("Unreachable code")
+    throw new IllegalStateException(
+      "Unreachable code from org.apache.gluten.utils.BackendTestSettings.shouldRun")
   }
 
   final protected class SuiteSettings {
@@ -95,6 +96,13 @@ abstract class BackendTestSettings {
     }
     def exclude(testNames: String*): SuiteSettings = {
       exclusion.add(Exclude(testNames: _*))
+      this
+    }
+    def includeCH(testNames: String*): SuiteSettings = {
+      this
+    }
+    def excludeCH(testNames: String*): SuiteSettings = {
+      exclude(testNames: _*)
       this
     }
     def includeByPrefix(prefixes: String*): SuiteSettings = {

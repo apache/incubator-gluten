@@ -20,9 +20,10 @@
 #include <unordered_set>
 #include <utility>
 #include <Columns/IColumn.h>
-#include <Core/ColumnsWithTypeAndName.h>
 #include <Core/Settings.h>
+#include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
 #include <DataTypes/Serializations/ISerialization.h>
 #include <IO/WriteBufferFromString.h>
@@ -35,24 +36,20 @@
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/RelParsers/SortParsingUtils.h>
 #include <Parser/RelParsers/SortRelParser.h>
-#include <Processors/IProcessor.h>
-#include <Processors/Port.h>
-#include <Processors/QueryPlan/BuildQueryPipelineSettings.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
-#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
 #include <Processors/QueryPlan/SortingStep.h>
 #include <Processors/QueryPlan/WindowStep.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <QueryPipeline/QueryPlanResourceHolder.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/AggregateUtil.h>
 #include <Common/ArrayJoinHelper.h>
-#include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
+#include <Common/PlanUtil.h>
 #include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
 
@@ -72,6 +69,7 @@ extern const SettingsMaxThreads max_threads;
 
 namespace local_engine
 {
+using namespace DB;
 GroupLimitRelParser::GroupLimitRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
@@ -103,8 +101,8 @@ static std::vector<size_t> parsePartitionFields(const google::protobuf::Repeated
 {
     std::vector<size_t> fields;
     for (const auto & expr : expressions)
-        if (expr.has_selection())
-            fields.push_back(static_cast<size_t>(expr.selection().direct_reference().struct_field().field()));
+        if (auto field_index = SubstraitParserUtils::getStructFieldIndex(expr))
+            fields.push_back(*field_index);
         else if (expr.has_literal())
             continue;
         else
@@ -118,8 +116,8 @@ std::vector<size_t> parseSortFields(const google::protobuf::RepeatedPtrField<sub
     for (const auto sort_field : sort_fields)
         if (sort_field.expr().has_literal())
             continue;
-        else if (sort_field.expr().has_selection())
-            fields.push_back(static_cast<size_t>(sort_field.expr().selection().direct_reference().struct_field().field()));
+        else if (auto field_index = SubstraitParserUtils::getStructFieldIndex(sort_field.expr()))
+            fields.push_back(*field_index);
         else
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknown expression: {}", sort_field.expr().DebugString());
     return fields;
@@ -248,7 +246,7 @@ DB::QueryPlanPtr AggregateGroupLimitRelParser::parse(
     std::vector<DB::QueryPlanPtr> branch_plans;
     branch_plans.emplace_back(std::move(aggregation_plan));
     branch_plans.emplace_back(std::move(window_plan));
-    auto unite_branches_step = std::make_unique<UniteBranchesStep>(branch_in_header, std::move(branch_plans), 1);
+    auto unite_branches_step = std::make_unique<UniteBranchesStep>(getContext(), branch_in_header, std::move(branch_plans), 1);
     unite_branches_step->setStepDescription("Unite TopK branches");
     steps.push_back(unite_branches_step.get());
 
@@ -269,9 +267,10 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryP
 {
     auto projection_actions = std::make_shared<DB::ActionsDAG>(input_header.getColumnsWithTypeAndName());
 
-
     auto partition_fields = parsePartitionFields(win_rel_def->partition_expressions());
+    auto sort_fields = parseSortFields(win_rel_def->sorts());
     std::set<size_t> unique_partition_fields(partition_fields.begin(), partition_fields.end());
+    std::set<size_t> unique_sort_fields(sort_fields.begin(), sort_fields.end());
     DB::NameSet required_column_names;
     auto build_tuple = [&](const DB::DataTypes & data_types,
                            const Strings & names,
@@ -297,7 +296,7 @@ void AggregateGroupLimitRelParser::prePrejectionForAggregateArguments(DB::QueryP
     for (size_t i = 0; i < input_header.columns(); ++i)
     {
         const auto & col = input_header.getByPosition(i);
-        if (unique_partition_fields.count(i))
+        if (unique_partition_fields.count(i) && !unique_sort_fields.count(i))
         {
             required_column_names.insert(col.name);
             aggregate_grouping_keys.push_back(col.name);
@@ -417,7 +416,7 @@ void AggregateGroupLimitRelParser::addSortStep(DB::QueryPlan & plan)
     auto sort_descr = parseSortFields(header, win_rel_def->sorts());
     full_sort_descr.insert(full_sort_descr.end(), sort_descr.begin(), sort_descr.end());
 
-    DB::SortingStep::Settings settings(*getContext());
+    DB::SortingStep::Settings settings(getContext()->getSettingsRef());
     auto config = MemoryConfig::loadFromContext(getContext());
     double spill_mem_ratio = config.spill_mem_ratio;
     settings.worth_external_sort = [spill_mem_ratio]() -> bool { return currentThreadGroupMemoryUsageRatio() > spill_mem_ratio; };

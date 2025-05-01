@@ -18,8 +18,11 @@
 #include "ORCOutputFormatFile.h"
 
 #if USE_ORC
-#    include <Formats/FormatFactory.h>
-#    include <Processors/Formats/Impl/ORCBlockOutputFormat.h>
+#include <Formats/FormatFactory.h>
+#include <Processors/Formats/Impl/ORCBlockOutputFormat.h>
+#include <Processors/Port.h>
+#include <Poco/Util/AbstractConfiguration.h>
+#include <Common/CHUtil.h>
 
 namespace local_engine
 {
@@ -40,6 +43,12 @@ OutputFormatFile::OutputFormatPtr ORCOutputFormatFile::createOutputFormat(const 
     auto new_header = createHeaderWithPreferredSchema(header);
     // TODO: align all spark orc config with ch orc config
     auto format_settings = DB::getFormatSettings(context);
+    if (context->getConfigRef().has("timezone"))
+    {
+        const String config_timezone = context->getConfigRef().getString("timezone");
+        const String mapped_timezone = DateTimeUtil::convertTimeZone(config_timezone);
+        format_settings.orc.writer_time_zone_name = mapped_timezone;
+    }
     auto output_format = std::make_shared<DB::ORCBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);
     res->output = output_format;
     return res;

@@ -16,6 +16,9 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.IcebergScanTransformer.{containsMetadataColumn, containsUuidOrFixedType}
+import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
@@ -28,7 +31,11 @@ import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
 
-import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
+import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
+import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
+import org.apache.iceberg.types.Type
+import org.apache.iceberg.types.Type.TypeID
+import org.apache.iceberg.types.Types.{ListType, MapType, NestedField}
 
 case class IcebergScanTransformer(
     override val output: Seq[AttributeReference],
@@ -50,6 +57,58 @@ case class IcebergScanTransformer(
     IcebergScanTransformer.supportsBatchScan(scan)
   }
 
+  override def doValidateInternal(): ValidationResult = {
+    val validationResult = super.doValidateInternal();
+    if (!validationResult.ok()) {
+      return validationResult
+    }
+
+    if (!BackendsApiManager.getSettings.supportIcebergEqualityDeleteRead()) {
+      val notSupport = table match {
+        case t: SparkTable =>
+          t.table() match {
+            case t: BaseTable =>
+              t.operations()
+                .current()
+                .schema()
+                .columns()
+                .stream
+                .anyMatch(c => containsUuidOrFixedType(c.`type`()) || containsMetadataColumn(c))
+            case _ => false
+          }
+        case _ => false
+      }
+      if (notSupport) {
+        return ValidationResult.failed("Contains not supported data type or metadata column")
+      }
+      // Delete from command read the _file metadata, which may be not successful.
+      val readMetadata =
+        scan.readSchema().fieldNames.exists(f => MetadataColumns.isMetadataColumn(f))
+      if (readMetadata) {
+        return ValidationResult.failed(s"Read the metadata column")
+      }
+      val containsEqualityDelete = table match {
+        case t: SparkTable =>
+          t.table() match {
+            case t: BaseTable =>
+              t.operations()
+                .current()
+                .currentSnapshot()
+                .summary()
+                .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0")
+                .toInt > 0
+            case _ => false
+          }
+        case _ => false
+      }
+      if (containsEqualityDelete) {
+        return ValidationResult.failed("Contains equality delete files")
+      }
+    }
+
+    ValidationResult.succeeded
+  }
+
   override lazy val getPartitionSchema: StructType =
     GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 
@@ -60,14 +119,28 @@ case class IcebergScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
+  override def getSplitInfosWithIndex: Seq[SplitInfo] = {
+    getPartitionsWithIndex.zipWithIndex.map {
+      case (partitions, index) =>
+        GlutenIcebergSourceUtil.genSplitInfo(partitions, index, getPartitionSchema)
+    }
+  }
+
   override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
-    val groupedPartitions = SparkShimLoader.getSparkShims.orderPartitions(
-      scan,
-      keyGroupedPartitioning,
-      filteredPartitions,
-      outputPartitioning)
+    val groupedPartitions = SparkShimLoader.getSparkShims
+      .orderPartitions(
+        this,
+        scan,
+        keyGroupedPartitioning,
+        filteredPartitions,
+        outputPartitioning,
+        commonPartitionValues,
+        applyPartialClustering,
+        replicatePartitions)
+      .flatten
     groupedPartitions.zipWithIndex.map {
-      case (p, index) => GlutenIcebergSourceUtil.genSplitInfo(p, index, getPartitionSchema)
+      case (p, index) =>
+        GlutenIcebergSourceUtil.genSplitInfoForPartition(p, index, getPartitionSchema)
     }
   }
 
@@ -99,5 +172,24 @@ object IcebergScanTransformer {
 
   def supportsBatchScan(scan: Scan): Boolean = {
     scan.getClass.getName == "org.apache.iceberg.spark.source.SparkBatchQueryScan"
+  }
+
+  private def containsUuidOrFixedType(dataType: Type): Boolean = {
+    dataType match {
+      case l: ListType => containsUuidOrFixedType(l.elementType)
+      case m: MapType => containsUuidOrFixedType(m.keyType) || containsUuidOrFixedType(m.valueType)
+      case s: org.apache.iceberg.types.Types.StructType =>
+        s.fields().stream().anyMatch(f => containsUuidOrFixedType(f.`type`()))
+      case t if t.typeId() == TypeID.UUID || t.typeId() == TypeID.FIXED => true
+      case _ => false
+    }
+  }
+
+  private def containsMetadataColumn(field: NestedField): Boolean = {
+    field.`type`() match {
+      case s: org.apache.iceberg.types.Types.StructType =>
+        s.fields().stream().anyMatch(f => containsMetadataColumn(f))
+      case _ => field.fieldId() >= (Integer.MAX_VALUE - 200)
+    }
   }
 }

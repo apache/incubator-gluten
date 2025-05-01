@@ -31,7 +31,7 @@ class NativeReader;
 namespace local_engine
 {
 void configureCompressedReadBuffer(DB::CompressedReadBuffer & compressedReadBuffer);
-class ReadBufferFromJavaInputStream;
+class ReadBufferFromJavaShuffleInputStream;
 class ShuffleReader : BlockIterator
 {
 public:
@@ -39,8 +39,8 @@ public:
         std::unique_ptr<DB::ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_);
     DB::Block * read();
     ~ShuffleReader();
-    static jclass input_stream_class;
-    static jmethodID input_stream_read;
+    static jclass shuffle_input_stream_class;
+    static jmethodID shuffle_input_stream_read;
 
 private:
     std::unique_ptr<DB::ReadBuffer> in;
@@ -52,11 +52,11 @@ private:
 };
 
 
-class ReadBufferFromJavaInputStream final : public DB::BufferWithOwnMemory<DB::ReadBuffer>
+class ReadBufferFromJavaShuffleInputStream final : public DB::BufferWithOwnMemory<DB::ReadBuffer>
 {
 public:
-    explicit ReadBufferFromJavaInputStream(jobject input_stream);
-    ~ReadBufferFromJavaInputStream() override;
+    explicit ReadBufferFromJavaShuffleInputStream(jobject input_stream);
+    ~ReadBufferFromJavaShuffleInputStream() override;
 
 private:
     jobject java_in;

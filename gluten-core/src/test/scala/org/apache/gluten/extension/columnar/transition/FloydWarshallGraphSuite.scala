@@ -36,7 +36,7 @@ class FloydWarshallGraphSuite extends AnyFunSuite {
     val e42 = Edge(3)
 
     val graph = FloydWarshallGraph
-      .builder(CostModel)
+      .builder()
       .addVertex(v0)
       .addVertex(v1)
       .addVertex(v2)
@@ -47,7 +47,7 @@ class FloydWarshallGraphSuite extends AnyFunSuite {
       .addEdge(v0, v3, e03)
       .addEdge(v3, v4, e34)
       .addEdge(v4, v2, e42)
-      .build()
+      .build(CostModel)
 
     assert(graph.hasPath(v0, v1))
     assert(graph.hasPath(v0, v2))
@@ -87,14 +87,15 @@ private object FloydWarshallGraphSuite {
     }
   }
 
-  private case class LongCost(c: Long) extends FloydWarshallGraph.Cost {
-    override def +(other: FloydWarshallGraph.Cost): FloydWarshallGraph.Cost = other match {
-      case LongCost(o) => LongCost(c + o)
-    }
-  }
+  private case class LongCost(c: Long) extends FloydWarshallGraph.Cost
 
   private object CostModel extends FloydWarshallGraph.CostModel[Edge] {
     override def zero(): FloydWarshallGraph.Cost = LongCost(0)
+    override def sum(
+        one: FloydWarshallGraph.Cost,
+        other: FloydWarshallGraph.Cost): FloydWarshallGraph.Cost = {
+      LongCost(one.asInstanceOf[LongCost].c + other.asInstanceOf[LongCost].c)
+    }
     override def costOf(edge: Edge): FloydWarshallGraph.Cost = LongCost(edge.distance * 10)
     override def costComparator(): Ordering[FloydWarshallGraph.Cost] = Ordering.Long.on {
       case LongCost(c) => c

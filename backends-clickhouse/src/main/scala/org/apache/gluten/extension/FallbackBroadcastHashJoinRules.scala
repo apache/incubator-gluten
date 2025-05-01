@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.columnar.FallbackTags
 
 import org.apache.spark.sql.SparkSession
@@ -37,7 +37,7 @@ import scala.util.control.Breaks.{break, breakable}
 // queryStagePrepRules.
 case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    val glutenConf: GlutenConfig = GlutenConfig.getConf
+    val glutenConf: GlutenConfig = GlutenConfig.get
     plan.foreach {
       case bhj: BroadcastHashJoinExec =>
         val buildSidePlan = bhj.buildSide match {
@@ -106,8 +106,8 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
       case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
         val isTransformable =
           if (
-            !GlutenConfig.getConf.enableColumnarBroadcastExchange ||
-            !GlutenConfig.getConf.enableColumnarBroadcastJoin
+            !GlutenConfig.get.enableColumnarBroadcastExchange ||
+            !GlutenConfig.get.enableColumnarBroadcastJoin
           ) {
             ValidationResult.failed(
               "columnar broadcast exchange is disabled or " +
@@ -146,12 +146,12 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
 case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPlan] {
 
   private val enableColumnarBroadcastJoin: Boolean =
-    GlutenConfig.getConf.enableColumnarBroadcastJoin &&
-      GlutenConfig.getConf.enableColumnarBroadcastExchange
+    GlutenConfig.get.enableColumnarBroadcastJoin &&
+      GlutenConfig.get.enableColumnarBroadcastExchange
 
   private val enableColumnarBroadcastNestedLoopJoin: Boolean =
-    GlutenConfig.getConf.broadcastNestedLoopJoinTransformerTransformerEnabled &&
-      GlutenConfig.getConf.enableColumnarBroadcastExchange
+    GlutenConfig.get.broadcastNestedLoopJoinTransformerTransformerEnabled &&
+      GlutenConfig.get.enableColumnarBroadcastExchange
 
   override def apply(plan: SparkPlan): SparkPlan = {
     plan.foreachUp {

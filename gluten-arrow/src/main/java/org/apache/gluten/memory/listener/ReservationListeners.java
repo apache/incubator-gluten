@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.listener;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.*;
@@ -28,10 +28,6 @@ import java.util.Collections;
 import java.util.Map;
 
 public final class ReservationListeners {
-  public static final ReservationListener NOOP =
-      new ManagedReservationListener(
-          new NoopMemoryTarget(), new SimpleMemoryUsageRecorder(), new Object());
-
   public static ReservationListener create(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
     if (!TaskResources.inSparkTask()) {
@@ -43,27 +39,20 @@ public final class ReservationListeners {
 
   private static ReservationListener create0(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
+    if (GlutenConfig.get().memoryUntracked()) {
+      return noop();
+    }
+
     // Memory target.
-    final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
-    final long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
+    final double overAcquiredRatio = GlutenConfig.get().memoryOverAcquiredRatio();
+    final long reservationBlockSize = GlutenConfig.get().memoryReservationBlockSize();
     final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
     final TreeMemoryTarget consumer =
         MemoryTargets.newConsumer(
             tmm, name, Spillers.withMinSpillSize(spiller, reservationBlockSize), mutableStats);
     final MemoryTarget overConsumer =
         MemoryTargets.newConsumer(
-            tmm,
-            consumer.name() + ".OverAcquire",
-            new Spiller() {
-              @Override
-              public long spill(MemoryTarget self, Phase phase, long size) {
-                if (!Spillers.PHASE_SET_ALL.contains(phase)) {
-                  return 0L;
-                }
-                return self.repay(size);
-              }
-            },
-            Collections.emptyMap());
+            tmm, consumer.name() + ".OverAcquire", Spillers.NOOP, Collections.emptyMap());
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
@@ -73,5 +62,10 @@ public final class ReservationListeners {
 
     // Listener.
     return new ManagedReservationListener(target, TaskResources.getSharedUsage(), tmm);
+  }
+
+  private static ManagedReservationListener noop() {
+    return new ManagedReservationListener(
+        new NoopMemoryTarget(), new SimpleMemoryUsageRecorder(), new Object());
   }
 }

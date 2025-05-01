@@ -17,12 +17,15 @@
 package org.apache.gluten.integration
 
 import org.apache.gluten.integration.action.Action
-import org.apache.log4j.{Level, LogManager}
+import org.apache.gluten.integration.metrics.MetricMapper
+
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
+
+import org.apache.log4j.{Level, LogManager}
 
 import java.io.File
 import java.util.Scanner
@@ -42,9 +45,13 @@ abstract class Suite(
     private val disableBhj: Boolean,
     private val disableWscg: Boolean,
     private val shufflePartitions: Int,
-    private val scanPartitions: Int) {
+    private val scanPartitions: Int,
+    private val baselineMetricMapper: MetricMapper,
+    private val testMetricMapper: MetricMapper) {
 
   resetLogLevel()
+
+  private var hsUiBoundPort: Int = -1
 
   private[integration] val sessionSwitcher: SparkSessionSwitcher =
     new SparkSessionSwitcher(masterUrl, logLevel.toString)
@@ -113,18 +120,18 @@ abstract class Suite(
       .setWarningOnOverriding("spark.sql.files.openCostInBytes", "0")
     sessionSwitcher
       .defaultConf()
-      .setWarningOnOverriding("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1) max 1}")
+      .setWarningOnOverriding("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1).max(1)}")
   }
 
-  extraSparkConf.toStream.foreach { kv =>
-    sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
+  extraSparkConf.toStream.foreach {
+    kv => sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
   }
 
   // register sessions
   sessionSwitcher.registerSession("test", testConf)
   sessionSwitcher.registerSession("baseline", baselineConf)
 
-  def startHistoryServer(): Unit = {
+  private def startHistoryServer(): Int = {
     val hsConf = new SparkConf(false)
     hsConf.setWarningOnOverriding("spark.history.ui.port", s"$hsUiPort")
     hsConf.setWarningOnOverriding("spark.history.fs.logDirectory", historyWritePath())
@@ -133,13 +140,14 @@ abstract class Suite(
 
   // boot up history server
   if (enableHsUi) {
-    startHistoryServer()
+    hsUiBoundPort = startHistoryServer()
   }
 
   def run(): Boolean = {
-    val succeed = actions.forall { action =>
-      resetLogLevel() // to prevent log level from being set by unknown external codes
-      action.execute(this)
+    val succeed = actions.forall {
+      action =>
+        resetLogLevel() // to prevent log level from being set by unknown external codes
+        action.execute(this)
     }
     succeed
   }
@@ -148,7 +156,7 @@ abstract class Suite(
     sessionSwitcher.close()
     // wait for input, if history server was started
     if (enableHsUi) {
-      printf("History server was running at port %d. Press enter to exit... \n", hsUiPort)
+      printf("History server was running at port %d. Press enter to exit... \n", hsUiBoundPort)
       print("> ")
       new Scanner(System.in).nextLine
     }
@@ -157,6 +165,7 @@ abstract class Suite(
   def tableCreator(): TableCreator
 
   private def resetLogLevel(): Unit = {
+    System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, logLevel.toString)
     LogManager.getRootLogger.setLevel(logLevel)
   }
 
@@ -166,6 +175,14 @@ abstract class Suite(
 
   private[integration] def getTestConf(): SparkConf = {
     testConf.clone()
+  }
+
+  private[integration] def getBaselineMetricMapper(): MetricMapper = {
+    baselineMetricMapper
+  }
+
+  private[integration] def getTestMetricMapper(): MetricMapper = {
+    testMetricMapper
   }
 
   protected def historyWritePath(): String
@@ -179,7 +196,6 @@ abstract class Suite(
   private[integration] def allQueryIds(): Array[String]
 
   private[integration] def desc(): String
-
 }
 
 object Suite {}

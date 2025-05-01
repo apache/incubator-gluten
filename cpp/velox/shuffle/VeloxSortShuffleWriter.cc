@@ -17,12 +17,12 @@
 
 #include "shuffle/VeloxSortShuffleWriter.h"
 
-#include <arrow/io/memory.h>
-
-#include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
+#include "shuffle/RadixSort.h"
 #include "utils/Common.h"
 #include "utils/Timer.h"
+
+#include <arrow/io/memory.h>
 
 namespace gluten {
 namespace {
@@ -34,11 +34,11 @@ constexpr uint32_t kPartitionIdEndByteIndex = 7;
 
 uint64_t toCompactRowId(uint32_t partitionId, uint32_t pageNumber, uint32_t offsetInPage) {
   // |63 partitionId(24) |39 inputIndex(13) |26 rowIndex(27) |
-  return (uint64_t)partitionId << 40 | (uint64_t)pageNumber << 27 | offsetInPage;
+  return static_cast<uint64_t>(partitionId) << 40 | static_cast<uint64_t>(pageNumber) << 27 | offsetInPage;
 }
 
 uint32_t extractPartitionId(uint64_t compactRowId) {
-  return (uint32_t)(compactRowId >> 40);
+  return static_cast<uint32_t>(compactRowId >> 40);
 }
 
 std::pair<uint32_t, uint32_t> extractPageNumberAndOffset(uint64_t compactRowId) {
@@ -108,14 +108,8 @@ arrow::Status VeloxSortShuffleWriter::init() {
   // In Spark, sortedBuffer_ memory and compressionBuffer_ memory are pre-allocated and counted into executor
   // memory overhead. To align with Spark, we use arrow::default_memory_pool() to avoid counting these memory in Gluten.
   ARROW_ASSIGN_OR_RAISE(
-      sortedBuffer_, arrow::AllocateBuffer(options_.sortEvictBufferSize, arrow::default_memory_pool()));
-  rawBuffer_ = sortedBuffer_->mutable_data();
-  auto compressedBufferLength = partitionWriter_->getCompressedBufferLength(
-      {std::make_shared<arrow::Buffer>(rawBuffer_, options_.sortEvictBufferSize)});
-  if (compressedBufferLength.has_value()) {
-    ARROW_ASSIGN_OR_RAISE(
-        compressionBuffer_, arrow::AllocateBuffer(*compressedBufferLength, arrow::default_memory_pool()));
-  }
+      sortedBuffer_, arrow::AllocateBuffer(options_.diskWriteBufferSize, arrow::default_memory_pool()));
+  sortedBufferPtr_ = sortedBuffer_->mutable_data();
   return arrow::Status::OK();
 }
 
@@ -123,9 +117,6 @@ void VeloxSortShuffleWriter::initRowType(const facebook::velox::RowVectorPtr& rv
   if (UNLIKELY(!rowType_)) {
     rowType_ = facebook::velox::asRowType(rv->type());
     fixedRowSize_ = facebook::velox::row::CompactRow::fixedRowSize(rowType_);
-    if (fixedRowSize_) {
-      *fixedRowSize_ += sizeof(RowSizeType);
-    }
   }
 }
 
@@ -168,17 +159,16 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
 
   facebook::velox::row::CompactRow row(vector);
 
-  if (!fixedRowSize_) {
+  if (fixedRowSize_.has_value()) {
+    rowSize_.resize(inputRows, fixedRowSize_.value() + sizeof(RowSizeType));
+  } else {
     rowSize_.resize(inputRows);
     rowSizePrefixSum_.resize(inputRows + 1);
     rowSizePrefixSum_[0] = 0;
     for (auto i = 0; i < inputRows; ++i) {
-      auto rowSize = row.rowSize(i) + sizeof(RowSizeType);
-      rowSize_[i] = rowSize;
-      rowSizePrefixSum_[i + 1] = rowSizePrefixSum_[i] + rowSize;
+      rowSize_[i] = row.rowSize(i);
+      rowSizePrefixSum_[i + 1] = rowSizePrefixSum_[i] + rowSize_[i] + sizeof(RowSizeType);
     }
-  } else {
-    rowSize_.resize(inputRows, *fixedRowSize_);
   }
 
   facebook::velox::vector_size_t rowOffset = 0;
@@ -186,8 +176,9 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
     auto remainingRows = inputRows - rowOffset;
     auto rows = maxRowsToInsert(rowOffset, remainingRows);
     if (rows == 0) {
-      auto minSizeRequired = fixedRowSize_ ? fixedRowSize_.value() : rowSize_[rowOffset];
-      acquireNewBuffer((uint64_t)memLimit, minSizeRequired);
+      auto minSizeRequired =
+          (fixedRowSize_.has_value() ? fixedRowSize_.value() : rowSize_[rowOffset]) + sizeof(RowSizeType);
+      acquireNewBuffer(static_cast<uint64_t>(memLimit), minSizeRequired);
       rows = maxRowsToInsert(rowOffset, remainingRows);
       ARROW_RETURN_IF(
           rows == 0, arrow::Status::Invalid("Failed to insert rows. Remaining rows: " + std::to_string(remainingRows)));
@@ -215,7 +206,7 @@ void VeloxSortShuffleWriter::insertRows(
     // size(RowSize) | bytes
     memcpy(currentPage_ + pageCursor_, &rowSize_[row], sizeof(RowSizeType));
     offsets[i] = pageCursor_ + sizeof(RowSizeType);
-    pageCursor_ += rowSize_[row];
+    pageCursor_ += rowSize_[row] + sizeof(RowSizeType);
     VELOX_DCHECK_LE(pageCursor_, currenPageSize_);
   }
   compact.serialize(offset, size, offsets.data(), currentPage_);
@@ -288,61 +279,55 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
   // Serialize [begin, end)
   int64_t offset = 0;
   char* addr;
-  uint32_t size;
+  uint32_t recordSize;
 
   auto index = begin;
   while (index < end) {
     auto pageIndex = extractPageNumberAndOffset(arrayPtr_[index]);
     addr = pageAddresses_[pageIndex.first] + pageIndex.second;
-    size = *(RowSizeType*)addr;
-    if (offset + size > options_.sortEvictBufferSize && offset > 0) {
+    recordSize = *(reinterpret_cast<RowSizeType*>(addr)) + sizeof(RowSizeType);
+    if (offset + recordSize > options_.diskWriteBufferSize && offset > 0) {
       sortTime.stop();
-      RETURN_NOT_OK(evictPartitionInternal(partitionId, index - begin, rawBuffer_, offset));
+      RETURN_NOT_OK(evictPartitionInternal(partitionId, sortedBufferPtr_, offset));
       sortTime.start();
       begin = index;
       offset = 0;
     }
-    if (size > options_.sortEvictBufferSize) {
+    if (recordSize > static_cast<uint32_t>(options_.diskWriteBufferSize)) {
       // Split large rows.
       sortTime.stop();
       RowSizeType bytes = 0;
       auto* buffer = reinterpret_cast<uint8_t*>(addr);
-      while (bytes < size) {
-        auto rawLength = std::min<RowSizeType>((uint32_t)options_.sortEvictBufferSize, size - bytes);
+      while (bytes < recordSize) {
+        auto rawLength = std::min<RowSizeType>((uint32_t)options_.diskWriteBufferSize, recordSize - bytes);
         // Use numRows = 0 to represent a part of row.
-        RETURN_NOT_OK(evictPartitionInternal(partitionId, 0, buffer + bytes, rawLength));
+        RETURN_NOT_OK(evictPartitionInternal(partitionId, buffer + bytes, rawLength));
         bytes += rawLength;
       }
       begin++;
       sortTime.start();
     } else {
       // Copy small rows.
-      gluten::fastCopy(rawBuffer_ + offset, addr, size);
-      offset += size;
+      gluten::fastCopy(sortedBufferPtr_ + offset, addr, recordSize);
+      offset += recordSize;
     }
     index++;
   }
   sortTime.stop();
   if (offset > 0) {
     VELOX_CHECK(index > begin);
-    RETURN_NOT_OK(evictPartitionInternal(partitionId, index - begin, rawBuffer_, offset));
+    RETURN_NOT_OK(evictPartitionInternal(partitionId, sortedBufferPtr_, offset));
   }
   sortTime_ += sortTime.realTimeUsed();
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSortShuffleWriter::evictPartitionInternal(
-    uint32_t partitionId,
-    int32_t numRows,
-    uint8_t* buffer,
-    int64_t rawLength) {
+arrow::Status VeloxSortShuffleWriter::evictPartitionInternal(uint32_t partitionId, uint8_t* buffer, int64_t rawLength) {
   VELOX_CHECK(rawLength > 0);
   auto payload = std::make_unique<InMemoryPayload>(
-      numRows,
-      nullptr,
-      std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(buffer, rawLength)});
+      0, nullptr, std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(buffer, rawLength)});
   updateSpillMetrics(payload);
-  RETURN_NOT_OK(partitionWriter_->sortEvict(partitionId, std::move(payload), compressionBuffer_, stopped_));
+  RETURN_NOT_OK(partitionWriter_->sortEvict(partitionId, std::move(payload), stopped_));
   return arrow::Status::OK();
 }
 
@@ -354,8 +339,10 @@ facebook::velox::vector_size_t VeloxSortShuffleWriter::maxRowsToInsert(
     return 0;
   }
   auto remainingBytes = pages_.back()->size() - pageCursor_;
-  if (fixedRowSize_) {
-    return std::min((facebook::velox::vector_size_t)(remainingBytes / (fixedRowSize_.value())), remainingRows);
+  if (fixedRowSize_.has_value()) {
+    return std::min(
+        static_cast<facebook::velox::vector_size_t>(remainingBytes / (fixedRowSize_.value() + sizeof(RowSizeType))),
+        remainingRows);
   }
   auto beginIter = rowSizePrefixSum_.begin() + 1 + offset;
   auto bytesWritten = rowSizePrefixSum_[offset];
@@ -444,7 +431,7 @@ int64_t VeloxSortShuffleWriter::totalC2RTime() const {
 
 void VeloxSortShuffleWriter::allocateMinimalArray() {
   auto array = facebook::velox::AlignedBuffer::allocate<char>(
-      options_.sortBufferInitialSize * sizeof(uint64_t), veloxPool_.get());
+      options_.initialSortBufferSize * sizeof(uint64_t), veloxPool_.get());
   setUpArray(std::move(array));
 }
 

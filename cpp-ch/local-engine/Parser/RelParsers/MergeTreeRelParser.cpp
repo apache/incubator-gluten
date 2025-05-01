@@ -16,17 +16,22 @@
  */
 
 #include "MergeTreeRelParser.h"
+
 #include <Core/Settings.h>
 #include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
-#include <Parser/InputFileNameParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
+#include <Processors/QueryPlan/ExpressionStep.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
+#include <Storages/SubstraitSource/FormatFile.h>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
-#include <Common/CHUtil.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/GlutenSettings.h>
+#include <Common/PlanUtil.h>
 
 namespace DB
 {
@@ -47,6 +52,58 @@ namespace local_engine
 {
 using namespace DB;
 
+void replaceFilePathNodeCommon(
+    const String & alias_name, DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context)
+{
+    auto concat_func = DB::FunctionFactory::instance().get("concat", context);
+    DB::ActionsDAG::NodeRawConstPtrs args;
+    const auto string_type = std::make_shared<DB::DataTypeString>();
+    const auto * path_node = &actions_dag.addColumn(
+        DB::ColumnWithTypeAndName(string_type->createColumnConst(1, merge_tree_table.absolute_path + "/"), string_type, "path"));
+    args.emplace_back(path_node);
+    const auto & part_name = actions_dag.findInOutputs(MergeTreeRelParser::VIRTUAL_COLUMN_PART);
+    args.emplace_back(&part_name);
+    actions_dag.addOrReplaceInOutputs(actions_dag.addFunction(concat_func, args, alias_name));
+}
+
+void replaceInputFileNameNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context)
+{
+    replaceFilePathNodeCommon(FileMetaColumns::INPUT_FILE_NAME, actions_dag, merge_tree_table, context);
+}
+
+void replaceFilePathNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context)
+{
+    replaceFilePathNodeCommon(FileMetaColumns::FILE_PATH, actions_dag, merge_tree_table, context);
+}
+
+void replaceFileNameNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance &, DB::ContextPtr)
+{
+    const auto & part_name = actions_dag.findInOutputs(MergeTreeRelParser::VIRTUAL_COLUMN_PART);
+    const auto & alias = actions_dag.addAlias(part_name, FileMetaColumns::FILE_NAME);
+    actions_dag.addOrReplaceInOutputs(alias);
+}
+
+void replaceInputFileBlockStartNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance &, DB::ContextPtr)
+{
+    const auto int64_type = std::make_shared<DB::DataTypeInt64>();
+    actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(
+        DB::ColumnWithTypeAndName(int64_type->createColumnConst(1, -1), int64_type, FileMetaColumns::INPUT_FILE_BLOCK_START)));
+}
+
+void replaceInputFileBlockLengthNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance &, DB::ContextPtr)
+{
+    const auto int64_type = std::make_shared<DB::DataTypeInt64>();
+    actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(
+        DB::ColumnWithTypeAndName(int64_type->createColumnConst(1, -1), int64_type, FileMetaColumns::INPUT_FILE_BLOCK_LENGTH)));
+}
+
+void replaceTmpRowIndexNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance &, DB::ContextPtr)
+{
+    const auto & tmp_metadata_row_index = actions_dag.findInOutputs(DB::BlockOffsetColumn::name);
+    const auto & alias = actions_dag.addAlias(tmp_metadata_row_index, ParquetVirtualMeta::TMP_ROWINDEX);
+    actions_dag.addOrReplaceInOutputs(alias);
+}
+
 /// Find minimal position of the column in primary key.
 static Int64 findMinPosition(const NameSet & condition_table_columns, const NameToIndexMap & primary_key_positions)
 {
@@ -62,72 +119,160 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
     return min_position;
 }
 
+
+DB::Block MergeTreeRelParser::parseMergeTreeOutput(const substrait::ReadRel & rel, SparkStorageMergeTreePtr storage)
+{
+    if (rel.has_base_schema() && rel.base_schema().names_size())
+        return TypeParser::buildBlockFromNamedStruct(rel.base_schema());
+
+    NamesAndTypesList one_column_name_type;
+    one_column_name_type.push_back(storage->getInMemoryMetadataPtr()->getColumns().getAll().front());
+    LOG_DEBUG(getLogger("SerializedPlanParser"), "Try to read ({}) instead of empty header", one_column_name_type.front().dump());
+    return toSampleBlock(one_column_name_type);
+}
+
+
+DB::Block MergeTreeRelParser::replaceDeltaNameIfNeeded(const DB::Block & output)
+{
+    DB::ColumnsWithTypeAndName read_block;
+    for (const auto & column : output)
+    {
+        if (DELTA_META_COLUMN_MAP.contains(column.name))
+        {
+            if (auto tuple = DELTA_META_COLUMN_MAP.at(column.name); std::get<0>(tuple).has_value())
+                read_block.emplace_back(ColumnWithTypeAndName(std::get<1>(tuple), std::get<0>(tuple).value()));
+        }
+        else
+        {
+            read_block.emplace_back(column);
+        }
+    }
+    return DB::Block(std::move(read_block));
+}
+
+void MergeTreeRelParser::recoverDeltaNameIfNeeded(
+    DB::QueryPlan & plan, const DB::Block & output, const MergeTreeTableInstance & merge_tree_table)
+{
+    const auto & header = plan.getCurrentHeader();
+    DB::ActionsDAG actions_dag(header.getNamesAndTypesList());
+    NameSet names;
+    bool need_recover = false;
+    for (const auto & column : output)
+    {
+        if (DELTA_META_COLUMN_MAP.contains(column.name))
+        {
+            need_recover = true;
+            auto tuple = DELTA_META_COLUMN_MAP.at(column.name);
+            ReplaceDeltaNodeFunc func = std::get<2>(tuple);
+            func(actions_dag, merge_tree_table, context);
+        }
+
+        names.insert(column.name);
+    }
+
+    if (!need_recover)
+        return;
+
+    actions_dag.removeUnusedActions(names);
+    auto step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(actions_dag));
+    step->setStepDescription("Recover virtual columns");
+    steps.emplace_back(step.get());
+    plan.addStep(std::move(step));
+}
+
+void MergeTreeRelParser::replaceNodeWithCaseSensitive(DB::Block & read_block, SparkStorageMergeTreePtr storage)
+{
+    // case_insensitive_matching
+    if (spark_sql_config.caseSensitive)
+        return;
+
+    auto all = storage->getInMemoryMetadataPtr()->getColumns().getNamesOfPhysical();
+    std::ranges::for_each(
+        read_block,
+        [&all](ColumnWithTypeAndName & column)
+        {
+            const auto found
+                = std::ranges::find_if(all, [&column](const auto & name) -> bool { return boost::iequals(column.name, name); });
+            if (found != all.end())
+                column.name = *found;
+        });
+}
+
+
+void MergeTreeRelParser::recoverNodeWithCaseSensitive(DB::QueryPlan & query_plan, const DB::Block & output)
+{
+    if (spark_sql_config.caseSensitive)
+        return;
+
+    auto read_Header = query_plan.getCurrentHeader();
+    NameToNameMap names;
+    names.reserve(output.columns());
+    for (const auto & elem : output.getColumnsWithTypeAndName())
+        names[Poco::toLower(elem.name)] = elem.name;
+
+    DB::NamesWithAliases aliases;
+    aliases.reserve(read_Header.columns());
+    bool need_alias = false;
+    for (const auto & elem : read_Header)
+    {
+        if (auto lower_name = Poco::toLower(elem.name); names.contains(lower_name))
+        {
+            if (!need_alias && !boost::equals(elem.name, names[lower_name]))
+                need_alias = true;
+
+            aliases.emplace_back(DB::NameWithAlias(elem.name, names[lower_name]));
+        }
+        else
+        {
+            aliases.emplace_back(DB::NameWithAlias(elem.name, elem.name));
+        }
+    }
+
+    if (!need_alias)
+        return;
+
+    DB::ActionsDAG actions_dag{blockToRowType(query_plan.getCurrentHeader())};
+    actions_dag.project(aliases);
+    auto expression_step = std::make_unique<DB::ExpressionStep>(query_plan.getCurrentHeader(), std::move(actions_dag));
+    expression_step->setStepDescription("Rename MergeTree Output(Cause: case sensitive)");
+    steps.emplace_back(expression_step.get());
+    query_plan.addStep(std::move(expression_step));
+}
+
+
 DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     DB::QueryPlanPtr query_plan, const substrait::ReadRel & rel, const substrait::ReadRel::ExtensionTable & extension_table)
 {
     MergeTreeTableInstance merge_tree_table(extension_table);
-    // ignore snapshot id for query
+    // ignore snapshot id for a query
     merge_tree_table.snapshot_id = "";
     auto storage = merge_tree_table.restoreStorage(QueryContext::globalMutableContext());
 
-    DB::Block input;
-    if (rel.has_base_schema() && rel.base_schema().names_size())
-    {
-        input = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-    }
-    else
-    {
-        NamesAndTypesList one_column_name_type;
-        one_column_name_type.push_back(storage->getInMemoryMetadataPtr()->getColumns().getAll().front());
-        input = BlockUtil::buildHeader(one_column_name_type);
-        LOG_DEBUG(
-            &Poco::Logger::get("SerializedPlanParser"), "Try to read ({}) instead of empty header", one_column_name_type.front().dump());
-    }
+    const DB::Block output = parseMergeTreeOutput(rel, storage);
+    DB::Block read_block = replaceDeltaNameIfNeeded(output);
+    replaceNodeWithCaseSensitive(read_block, storage);
 
-    InputFileNameParser input_file_name_parser;
-    if (InputFileNameParser::hasInputFileNameColumn(input))
-    {
-        std::vector<String> parts;
-        for (const auto & part : merge_tree_table.parts)
-        {
-            parts.push_back(merge_tree_table.absolute_path + "/" + part.name);
-        }
-        auto name = Poco::cat<String>(",", parts.begin(), parts.end());
-        input_file_name_parser.setFileName(name);
-    }
-    if (InputFileNameParser::hasInputFileBlockStartColumn(input))
-    {
-        // mergetree doesn't support block start
-        input_file_name_parser.setBlockStart(0);
-    }
-    if (InputFileNameParser::hasInputFileBlockLengthColumn(input))
-    {
-        // mergetree doesn't support block length
-        input_file_name_parser.setBlockLength(0);
-    }
 
-    input = InputFileNameParser::removeInputFileColumn(input);
+    std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
+        storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
-    auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
-    auto names_and_types_list = input.getNamesAndTypesList();
 
+    auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
+    auto names_and_types_list = read_block.getNamesAndTypesList();
     auto query_info = buildQueryInfo(names_and_types_list);
 
     std::set<String> non_nullable_columns;
     if (rel.has_filter())
     {
-        NonNullableColumnsResolver non_nullable_columns_resolver(input, parser_context, rel.filter());
+        NonNullableColumnsResolver non_nullable_columns_resolver(read_block, parser_context, rel.filter());
         non_nullable_columns = non_nullable_columns_resolver.resolve();
-        query_info->prewhere_info = parsePreWhereInfo(rel.filter(), input);
+        query_info->prewhere_info = parsePreWhereInfo(rel.filter(), read_block);
     }
 
-    std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
-        storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
-
     auto read_step = storage->reader.readFromParts(
-        selected_parts,
+        RangesInDataParts({selected_parts}),
         storage->getMutationsSnapshot({}),
         names_and_types_list.getNames(),
         storage_snapshot,
@@ -136,10 +281,10 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         context->getSettingsRef()[Setting::max_block_size],
         1);
 
-    auto * source_step_with_filter = static_cast<SourceStepWithFilter *>(read_step.get());
-    if (const auto & storage_prewhere_info = query_info->prewhere_info)
+    auto * source_step_with_filter = static_cast<SourceStepWithFilterBase *>(read_step.get());
+    if (const auto & storage_preWhere_info = query_info->prewhere_info)
     {
-        source_step_with_filter->addFilter(storage_prewhere_info->prewhere_actions.clone(), storage_prewhere_info->prewhere_column_name);
+        source_step_with_filter->addFilter(storage_preWhere_info->prewhere_actions.clone(), storage_preWhere_info->prewhere_column_name);
         source_step_with_filter->applyFilters();
     }
 
@@ -155,17 +300,17 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     {
         auto input_header = query_plan->getCurrentHeader();
         std::erase_if(non_nullable_columns, [input_header](auto item) -> bool { return !input_header.has(item); });
-        auto * remove_null_step = PlanUtil::addRemoveNullableStep(parser_context->queryContext(), *query_plan, non_nullable_columns);
-        if (remove_null_step)
+        if (auto * remove_null_step = PlanUtil::addRemoveNullableStep(*query_plan, parser_context->queryContext(), non_nullable_columns))
             steps.emplace_back(remove_null_step);
     }
-    auto step = input_file_name_parser.addInputFileProjectStep(*query_plan);
-    if (step.has_value())
-        steps.emplace_back(step.value());
+
+    recoverNodeWithCaseSensitive(*query_plan, output);
+    recoverDeltaNameIfNeeded(*query_plan, output, merge_tree_table);
+
     return query_plan;
 }
 
-PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expression & rel, Block & input)
+PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expression & rel, const Block & input)
 {
     std::string filter_name;
     auto prewhere_info = std::make_shared<PrewhereInfo>();
@@ -179,7 +324,7 @@ PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expressio
     return prewhere_info;
 }
 
-DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block)
+DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, const Block & block)
 {
     Conditions res;
     std::set<Int64> pk_positions;
@@ -210,7 +355,7 @@ DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expre
     {
         DB::ActionsDAG::NodeRawConstPtrs args;
 
-        for (Condition cond : res)
+        for (const Condition & cond : res)
         {
             String ignore;
             parseToAction(filter_action, cond.node, ignore);
@@ -228,7 +373,7 @@ DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expre
     return filter_action;
 }
 
-void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name)
+void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name) const
 {
     if (rel.has_scalar_function())
     {
@@ -244,7 +389,7 @@ void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substra
 }
 
 void MergeTreeRelParser::analyzeExpressions(
-    Conditions & res, const substrait::Expression & rel, std::set<Int64> & pk_positions, Block & block)
+    Conditions & res, const substrait::Expression & rel, std::set<Int64> & pk_positions, const Block & block)
 {
     if (rel.has_scalar_function() && getCHFunctionName(rel.scalar_function()) == "and")
     {
@@ -282,7 +427,7 @@ UInt64 MergeTreeRelParser::getColumnsSize(const NameSet & columns)
     return size;
 }
 
-void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block)
+void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameSet & columns, const Block & block)
 {
     switch (rel.rex_type_case())
     {
@@ -291,9 +436,11 @@ void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameS
         }
 
         case substrait::Expression::RexTypeCase::kSelection: {
-            const size_t idx = rel.selection().direct_reference().struct_field().field();
-            if (const Names names = block.getNames(); names.size() > idx)
-                columns.insert(names[idx]);
+            auto idx = SubstraitParserUtils::getStructFieldIndex(rel);
+            if (!idx)
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Selection node must have direct reference.");
+            if (const Names names = block.getNames(); names.size() > *idx)
+                columns.insert(names[*idx]);
 
             return;
         }
@@ -369,7 +516,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
     auto read_step = storage->reader.readFromParts(
-        selected_parts,
+        RangesInDataParts({selected_parts}),
         /* alter_conversions = */
         {},
         names_and_types_list.getNames(),

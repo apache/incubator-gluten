@@ -203,7 +203,7 @@ class QplGzipCodec final : public arrow::util::Codec {
   int64_t MaxCompressedLen(int64_t input_len, const uint8_t* ARROW_ARG_UNUSED(input)) override {
     ARROW_DCHECK_GE(input_len, 0);
     /// Aligned with ZLIB
-    return ((input_len) + ((input_len) >> 12) + ((input_len) >> 14) + ((input_len) >> 25) + 13);
+    return ((input_len) + ((input_len) >> 12) + ((input_len) >> 14) + ((input_len) >> 25) + 13LL);
   }
 
   arrow::Result<std::shared_ptr<arrow::util::Compressor>> MakeCompressor() override {

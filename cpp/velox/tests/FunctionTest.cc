@@ -73,7 +73,7 @@ TEST_F(FunctionTest, getIdxFromNodeName) {
 
 TEST_F(FunctionTest, getNameBeforeDelimiter) {
   std::string functionSpec = "lte:fp64_fp64";
-  std::string_view funcName = SubstraitParser::getNameBeforeDelimiter(functionSpec);
+  auto funcName = SubstraitParser::getNameBeforeDelimiter(functionSpec);
   ASSERT_EQ(funcName, "lte");
 
   functionSpec = "lte:";
@@ -153,11 +153,13 @@ TEST_F(FunctionTest, setVectorFromVariants) {
 
   // Floats are harder to compare because of low-precision. Just making sure
   // they don't throw.
-  EXPECT_NO_THROW(setVectorFromVariants(REAL(), {variant(float(0.99L)), variant(float(-1.99L))}, pool_.get()));
+  EXPECT_NO_THROW(setVectorFromVariants(
+      REAL(), {variant(static_cast<float>(0.99L)), variant(static_cast<float>(-1.99L))}, pool_.get()));
 
-  resultVec = setVectorFromVariants(DOUBLE(), {variant(double(0.99L)), variant(double(-1.99L))}, pool_.get());
-  ASSERT_EQ(double(0.99L), resultVec->asFlatVector<double>()->valueAt(0));
-  ASSERT_EQ(double(-1.99L), resultVec->asFlatVector<double>()->valueAt(1));
+  resultVec = setVectorFromVariants(
+      DOUBLE(), {variant(static_cast<double>(0.99L)), variant(static_cast<double>(-1.99L))}, pool_.get());
+  ASSERT_EQ(static_cast<double>(0.99L), resultVec->asFlatVector<double>()->valueAt(0));
+  ASSERT_EQ(static_cast<double>(-1.99L), resultVec->asFlatVector<double>()->valueAt(1));
 
   resultVec = setVectorFromVariants(VARCHAR(), {variant(""), variant("asdf")}, pool_.get());
   ASSERT_EQ("", resultVec->asFlatVector<StringView>()->valueAt(0).str());

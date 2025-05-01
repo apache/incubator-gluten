@@ -14,19 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Common/LocalDate.h>
-#include <Common/DateLUT.h>
-#include <Common/DateLUTImpl.h>
+#pragma once
+#include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <Columns/ColumnVector.h>
-#include <Columns/ColumnNullable.h>
-#include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
 #include <IO/ReadBufferFromMemory.h>
 #include <IO/ReadHelpers.h>
 #include <IO/parseDateTimeBestEffort.h>
-
-using namespace DB;
+#include <Common/DateLUT.h>
+#include <Common/DateLUTImpl.h>
 
 namespace DB
 {
@@ -50,12 +47,12 @@ public:
     {
         if (arguments.size() != 1)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1.", getName());
-        
+
         const DB::ColumnWithTypeAndName arg1 = arguments[0];
         const auto * src_col = checkAndGetColumn<DB::ColumnString>(arg1.column.get());
         size_t size = src_col->size();
-        
-        using ColVecTo = ColumnVector<T>;
+
+        using ColVecTo = DB::ColumnVector<T>;
         typename ColVecTo::MutablePtr result_column = ColVecTo::create(size, 0);
         typename ColVecTo::Container & result_container = result_column->getData();
         DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size, 0);
@@ -127,15 +124,15 @@ private:
         Int16 year = 0;
         if (yearNumberCanbeParsed)
         {
-            year = (*(buf.position() + 0) - '0') * 1000 + 
-                    (*(buf.position() + 1) - '0') * 100 + 
-                    (*(buf.position() + 2) - '0') * 10 + 
+            year = (*(buf.position() + 0) - '0') * 1000 +
+                    (*(buf.position() + 1) - '0') * 100 +
+                    (*(buf.position() + 2) - '0') * 10 +
                     (*(buf.position() + 3) - '0');
             x = get_year ? year : 0;
         }
         if (!yearNumberCanbeParsed
             || !checkNumbericASCII(buf, 5, 2)
-            || !checkDelimiter(buf, 7) 
+            || !checkDelimiter(buf, 7)
             || !checkNumbericASCII(buf, 8, 2))
         {
             can_be_parsed = yearNumberCanbeParsed;

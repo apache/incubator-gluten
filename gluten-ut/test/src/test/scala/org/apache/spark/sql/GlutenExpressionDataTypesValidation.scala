@@ -16,14 +16,13 @@
  */
 package org.apache.spark.sql
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{ProjectExecTransformer, TransformSupport, WholeStageTransformerSuite}
-import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{BinaryArrayExpressionWithImplicitCast, _}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.LeafExecNode
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -33,7 +32,6 @@ import scala.collection.mutable.Buffer
 class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
   protected val resourcePath: String = null
   protected val fileFormat: String = null
-  override protected val logLevel: String = "INFO"
 
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf
@@ -46,7 +44,6 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
         .set("spark.gluten.sql.enable.native.validation", "false")
-        .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
     }
     conf
   }

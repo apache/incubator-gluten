@@ -16,16 +16,17 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.execution._
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.aggregate.{Partial, PartialMerge}
+import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.physical.ClusteredDistribution
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern.EXCHANGE
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
+import org.apache.spark.sql.types.{DataType, DoubleType, FloatType}
 
 /**
  * To transform regular aggregation to intermediate aggregation that internally enables
@@ -34,7 +35,7 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
 case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
   import FlushableHashAggregateRule._
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
+    if (!VeloxConfig.get.enableVeloxFlushablePartialAggregation) {
       return plan
     }
     plan.transformUpWithPruning(_.containsPattern(EXCHANGE)) {
@@ -61,6 +62,26 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
     }
   }
 
+  private def aggregatesNotSupportFlush(aggExprs: Seq[AggregateExpression]): Boolean = {
+    if (VeloxConfig.get.floatingPointMode == "loose") {
+      return false
+    }
+
+    def isFloatingPointType(dataType: DataType): Boolean = {
+      dataType == DoubleType || dataType == FloatType
+    }
+
+    def isUnsupportedAggregation(aggExpr: AggregateExpression): Boolean = {
+      aggExpr.aggregateFunction match {
+        case Sum(child, _) if isFloatingPointType(child.dataType) => true
+        case Average(child, _) if isFloatingPointType(child.dataType) => true
+        case _ => false
+      }
+    }
+
+    aggExprs.exists(isUnsupportedAggregation)
+  }
+
   private def replaceEligibleAggregates(plan: SparkPlan)(
       func: RegularHashAggregateExecTransformer => SparkPlan): SparkPlan = {
     def transformDown: SparkPlan => SparkPlan = {
@@ -71,6 +92,9 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
       case agg: RegularHashAggregateExecTransformer
           if isAggInputAlreadyDistributedWithAggKeys(agg) =>
         // Data already grouped by aggregate keys, Skip.
+        agg
+      case agg: RegularHashAggregateExecTransformer
+          if aggregatesNotSupportFlush(agg.aggregateExpressions) =>
         agg
       case agg: RegularHashAggregateExecTransformer =>
         func(agg)

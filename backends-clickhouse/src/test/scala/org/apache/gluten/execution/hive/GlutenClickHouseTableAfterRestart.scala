@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution.hive
 
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig, RuntimeSettings}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 
 import org.apache.spark.SparkConf
@@ -46,7 +48,7 @@ class GlutenClickHouseTableAfterRestart
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -54,11 +56,13 @@ class GlutenClickHouseTableAfterRestart
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .setCHConfig("logger.level", "error")
+      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.ui.enabled", "true")
-      .setCHSettings("min_insert_block_size_rows", 100000)
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
+      .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
+      .set(RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key, "100000")
       .setCHSettings("mergetree.merge_after_insert", false)
       .setCHSettings("input_format_parquet_max_block_size", 8192)
       .setMaster("local[2]")
@@ -75,11 +79,11 @@ class GlutenClickHouseTableAfterRestart
 
   test("test mergetree after restart") {
     spark.sql(s"""
-                 |DROP TABLE IF EXISTS lineitem_mergetree;
+                 |DROP TABLE IF EXISTS LINEITEM_MERGETREE;
                  |""".stripMargin)
 
     spark.sql(s"""
-                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree
+                 |CREATE TABLE IF NOT EXISTS LINEITEM_MERGETREE
                  |(
                  | l_orderkey      bigint,
                  | l_partkey       bigint,

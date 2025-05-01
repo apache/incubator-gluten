@@ -16,10 +16,10 @@
  */
 package org.apache.gluten.expressions
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 import org.apache.gluten.expression.ExpressionMappings
-import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, Row}
@@ -43,12 +43,11 @@ class GlutenExpressionMappingSuite
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
         .set("spark.gluten.sql.enable.native.validation", "false")
-        .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
     }
     conf
   }
 
-  testWithSpecifiedSparkVersion("test expression blacklist", Some("3.2")) {
+  testWithMinSparkVersion("test expression blacklist", "3.2") {
     val names = ExpressionMappings.expressionsMap.values.toSet
     assert(names.contains("regexp_replace"))
     assert(names.contains("regexp_extract"))
@@ -69,7 +68,7 @@ class GlutenExpressionMappingSuite
     }
   }
 
-  testWithSpecifiedSparkVersion("test blacklisting regexp expressions", Some("3.2")) {
+  testWithMinSparkVersion("test blacklisting regexp expressions", "3.2") {
     val names = ExpressionMappings.expressionsMap.values.toSet
     assert(names.contains("rlike"))
     assert(names.contains("regexp_replace"))
@@ -95,9 +94,9 @@ class GlutenExpressionMappingSuite
     }
   }
 
-  testWithSpecifiedSparkVersion(
+  testWithMinSparkVersion(
     "GLUTEN-7213: Check fallback reason with CheckOverflowInTableInsert",
-    Some("3.4")) {
+    "3.4") {
     withSQLConf(GlutenConfig.RAS_ENABLED.key -> "false") {
       withTable("t1", "t2") {
         sql("create table t1 (a float) using parquet")

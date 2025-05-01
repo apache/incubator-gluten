@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 #include "ExpandRelParser.h"
-#include <ratio>
+
 #include <vector>
+#include <Columns/ColumnAggregateFunction.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Operator/AdvancedExpandStep.h>
 #include <Operator/ExpandStep.h>
 #include <Parser/RelParsers/RelParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Common/logger_useful.h>
 
@@ -41,9 +43,7 @@ ExpandRelParser::ExpandRelParser(ParserContextPtr parser_context_) : RelParser(p
 void updateType(DB::DataTypePtr & type, const DB::DataTypePtr & new_type)
 {
     if (type == nullptr || (!type->isNullable() && new_type->isNullable()))
-    {
         type = new_type;
-    }
 }
 
 DB::QueryPlanPtr
@@ -84,17 +84,17 @@ ExpandField ExpandRelParser::buildExpandField(const DB::Block & header, const su
         for (int i = 0; i < expand_col_size; ++i)
         {
             const auto & project_expr = projections.switching_field().duplicates(i);
-            if (project_expr.has_selection())
+            if (auto field_index = SubstraitParserUtils::getStructFieldIndex(project_expr))
             {
-                auto field = project_expr.selection().direct_reference().struct_field().field();
                 kinds.push_back(ExpandFieldKind::EXPAND_FIELD_KIND_SELECTION);
-                fields.push_back(field);
-                if (field >= header.columns())
+                fields.push_back(*field_index);
+                if (*field_index >= header.columns())
                 {
-                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Field index out of range: {}, header: {}", field, header.dumpStructure());
+                    throw DB::Exception(
+                        DB::ErrorCodes::LOGICAL_ERROR, "Field index out of range: {}, header: {}", *field_index, header.dumpStructure());
                 }
-                updateType(types[i], header.getByPosition(field).type);
-                const auto & name = header.getByPosition(field).name;
+                updateType(types[i], header.getByPosition(*field_index).type);
+                const auto & name = header.getByPosition(*field_index).name;
                 if (names[i].empty())
                 {
                     if (distinct_names.contains(name))
@@ -128,10 +128,8 @@ ExpandField ExpandRelParser::buildExpandField(const DB::Block & header, const su
     }
 
     for (int i = 0; i < names.size(); ++i)
-    {
         if (names[i].empty())
             names[i] = getUniqueName("expand_" + std::to_string(i));
-    }
 
     ExpandField expand_field(names, types, expand_kinds, expand_fields);
     return expand_field;
@@ -144,10 +142,8 @@ bool ExpandRelParser::isLazyAggregateExpand(const substrait::ExpandRel & expand_
         return false;
     const auto & aggregate_rel = input_rel.aggregate();
     for (const auto & measure : aggregate_rel.measures())
-    {
         if (measure.measure().phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
             return false;
-    }
     return true;
 }
 
@@ -172,7 +168,7 @@ DB::QueryPlanPtr ExpandRelParser::lazyAggregateExpandParse(
     auto aggregate_rel = rel.expand().input().aggregate();
     auto aggregate_descriptions = buildAggregations(input_header, expand_field, aggregate_rel);
 
-    size_t  grouping_keys = aggregate_rel.groupings(0).grouping_expressions_size();
+    size_t grouping_keys = aggregate_rel.groupings(0).grouping_expressions_size();
 
     auto expand_step
         = std::make_unique<AdvancedExpandStep>(getContext(), input_header, grouping_keys, aggregate_descriptions, expand_field);
@@ -189,10 +185,8 @@ DB::AggregateDescriptions ExpandRelParser::buildAggregations(
     DB::AggregateDescriptions descriptions;
     DB::ColumnsWithTypeAndName aggregate_columns;
     for (const auto & col : header.getColumnsWithTypeAndName())
-    {
         if (typeid_cast<const DB::ColumnAggregateFunction *>(col.column.get()))
             aggregate_columns.push_back(col);
-    }
 
     for (size_t i = 0; i < aggregate_rel.measures_size(); ++i)
     {

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -32,19 +33,19 @@ case class CaseWhenTransformer(
   override def children: Seq[ExpressionTransformer] =
     branches.flatMap(b => b._1 :: b._2 :: Nil) ++ elseValue
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     // generate branches nodes
     val ifNodes = new JArrayList[ExpressionNode]
     val thenNodes = new JArrayList[ExpressionNode]
     branches.foreach(
       branch => {
-        ifNodes.add(branch._1.doTransform(args))
-        thenNodes.add(branch._2.doTransform(args))
+        ifNodes.add(branch._1.doTransform(context))
+        thenNodes.add(branch._2.doTransform(context))
       })
     val branchDataType = original.asInstanceOf[CaseWhen].inputTypesForMerging(0)
     // generate else value node, maybe null
     val elseValueNode = elseValue
-      .map(_.doTransform(args))
+      .map(_.doTransform(context))
       .getOrElse(ExpressionBuilder.makeLiteral(null, branchDataType, true))
     new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
@@ -59,14 +60,14 @@ case class IfTransformer(
   extends ExpressionTransformer {
   override def children: Seq[ExpressionTransformer] = predicate :: trueValue :: falseValue :: Nil
 
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
+  override def doTransform(context: SubstraitContext): ExpressionNode = {
     val ifNodes = new JArrayList[ExpressionNode]
-    ifNodes.add(predicate.doTransform(args))
+    ifNodes.add(predicate.doTransform(context))
 
     val thenNodes = new JArrayList[ExpressionNode]
-    thenNodes.add(trueValue.doTransform(args))
+    thenNodes.add(trueValue.doTransform(context))
 
-    val elseValueNode = falseValue.doTransform(args)
+    val elseValueNode = falseValue.doTransform(context)
     new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
 }

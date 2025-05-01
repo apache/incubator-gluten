@@ -16,12 +16,13 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.clickhouse.CHConf
-import org.apache.gluten.utils.UTSystemParameters
+import org.apache.gluten.backendsapi.clickhouse.CHConfig
 
 import org.apache.spark.SparkConf
+import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+
+import java.util.concurrent.atomic.AtomicInteger
 
 class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
@@ -30,7 +31,7 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
     rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
-  private val joinAlgorithm = CHConf.runtimeSettings("join_algorithm")
+  private val joinAlgorithm = CHConfig.runtimeSettings("join_algorithm")
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -39,9 +40,7 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
-      .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -139,6 +138,40 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
     )
     sql("drop table if exists tj1")
     sql("drop table if exists tj2")
+  }
+
+  test("GLUTEN-8216 Fix OOM when cartesian product with empty data") {
+    // prepare
+    spark.sql("create table test_join(a int, b int, c int) using parquet")
+    var overrideConfs = Map(
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1",
+      "spark.sql.shuffle.partitions" -> "1"
+    )
+    if (isSparkVersionGE("3.5")) {
+      // Range partitions will not be reduced if EliminateSorts is enabled in spark35.
+      overrideConfs += "spark.sql.optimizer.excludedRules" ->
+        "org.apache.spark.sql.catalyst.optimizer.EliminateSorts"
+    }
+
+    withSQLConf(overrideConfs.toSeq: _*) {
+      val taskCount = new AtomicInteger(0)
+      val taskListener = new SparkListener {
+        override def onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit = {
+          taskCount.incrementAndGet()
+          logDebug(s"Task ${taskEnd.taskInfo.id} finished. Total tasks completed: $taskCount")
+        }
+      }
+      spark.sparkContext.addSparkListener(taskListener)
+      spark
+        .sql(
+          "select * from " +
+            "(select a from test_join group by a order by a), " +
+            "(select b from test_join group by b order by b)" +
+            " limit 10000"
+        )
+        .collect()
+      assert(taskCount.get() < 500)
+    }
   }
 
 }

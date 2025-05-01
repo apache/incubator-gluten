@@ -16,10 +16,9 @@
  */
 #include "SparkMergeTreeWriter.h"
 
-#include <Core/Settings.h>
 #include <Interpreters/ActionsDAG.h>
-#include <Processors/Transforms/ApplySquashingTransform.h>
-#include <Processors/Transforms/PlanSquashingTransform.h>
+#include <Interpreters/ExpressionActions.h>
+#include <QueryPipeline/Chain.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
@@ -28,11 +27,6 @@
 #include <Poco/StringTokenizer.h>
 #include <Common/JNIUtils.h>
 
-namespace DB::Setting
-{
-extern const SettingsUInt64 min_insert_block_size_rows;
-extern const SettingsUInt64 min_insert_block_size_bytes;
-}
 using namespace DB;
 namespace
 {
@@ -125,12 +119,6 @@ std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
     //
     // auto stats = std::make_shared<MergeTreeStats>(header, sink_helper);
     // chain.addSink(stats);
-    //
-    chain.addSource(std::make_shared<ApplySquashingTransform>(
-        header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
-    chain.addSource(std::make_shared<PlanSquashingTransform>(
-        header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
-
     return std::make_unique<SparkMergeTreeWriter>(header, sink_helper, QueryPipeline{std::move(chain)}, spark_job_id);
 }
 
@@ -140,7 +128,7 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
 {
 }
 
-void SparkMergeTreeWriter::write(DB::Block & block)
+void SparkMergeTreeWriter::write(const DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
     auto converter = ActionsDAG::makeConvertingActions(
@@ -167,10 +155,10 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
     for (const auto & part : parts)
     {
         res.emplace_back(PartInfo{
-            part->name,
-            part->getMarksCount(),
-            part->getBytesOnDisk(),
-            part->rows_count,
+            part.data_part->name,
+            part.data_part->getMarksCount(),
+            part.data_part->getBytesOnDisk(),
+            part.data_part->rows_count,
             sink_helper.write_settings.partition_settings.partition_dir,
             sink_helper.write_settings.partition_settings.bucket_dir});
     }

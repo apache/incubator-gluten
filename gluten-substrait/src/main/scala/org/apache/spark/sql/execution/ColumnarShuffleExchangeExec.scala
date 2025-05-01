@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.ReservedKeys
 import org.apache.gluten.execution.ValidatablePlan
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -27,7 +27,6 @@ import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
@@ -93,22 +92,6 @@ case class ColumnarShuffleExchangeExec(
       useSortBasedShuffle)
   }
 
-  // 'shuffleDependency' is only needed when enable AQE.
-  // Columnar shuffle will use 'columnarShuffleDependency'
-  @transient
-  lazy val shuffleDependency: ShuffleDependency[Int, InternalRow, InternalRow] =
-    new ShuffleDependency[Int, InternalRow, InternalRow](
-      _rdd = new ColumnarShuffleExchangeExec.DummyPairRDDWithPartitions(
-        sparkContext,
-        inputColumnarRDD.getNumPartitions),
-      partitioner = columnarShuffleDependency.partitioner
-    ) {
-
-      override val shuffleId: Int = columnarShuffleDependency.shuffleId
-
-      override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
-    }
-
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
     .createColumnarBatchSerializer(schema, metrics, useSortBasedShuffle)
@@ -128,9 +111,9 @@ case class ColumnarShuffleExchangeExec(
 
   override def nodeName: String = "ColumnarExchange"
 
-  override def numMappers: Int = shuffleDependency.rdd.getNumPartitions
+  override def numMappers: Int = inputColumnarRDD.getNumPartitions
 
-  override def numPartitions: Int = shuffleDependency.partitioner.numPartitions
+  override def numPartitions: Int = columnarShuffleDependency.partitioner.numPartitions
 
   override def runtimeStatistics: Statistics = {
     val dataSize = metrics("dataSize").value
@@ -144,8 +127,8 @@ case class ColumnarShuffleExchangeExec(
 
   override def stringArgs: Iterator[Any] = {
     val shuffleWriterType = {
-      if (useSortBasedShuffle) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
-      else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
+      if (useSortBasedShuffle) ReservedKeys.GLUTEN_SORT_SHUFFLE_WRITER
+      else ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER
     }
     super.stringArgs ++ Iterator(s"[shuffle_writer_type=$shuffleWriterType]")
   }

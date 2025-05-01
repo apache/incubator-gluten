@@ -36,7 +36,7 @@ import scala.collection.JavaConverters._
 
 object GlutenIcebergSourceUtil {
 
-  def genSplitInfo(
+  def genSplitInfoForPartition(
       inputPartition: InputPartition,
       index: Int,
       readPartitionSchema: StructType): SplitInfo = inputPartition match {
@@ -84,6 +84,56 @@ object GlutenIcebergSourceUtil {
       throw new UnsupportedOperationException("Only support iceberg SparkInputPartition.")
   }
 
+  def genSplitInfo(
+      inputPartitions: Seq[InputPartition],
+      index: Int,
+      readPartitionSchema: StructType): SplitInfo = {
+    val paths = new JArrayList[String]()
+    val starts = new JArrayList[JLong]()
+    val lengths = new JArrayList[JLong]()
+    val partitionColumns = new JArrayList[JMap[String, String]]()
+    val deleteFilesList = new JArrayList[JList[DeleteFile]]()
+    val preferredLocs = new JArrayList[String]()
+    var fileFormat = ReadFileFormat.UnknownFormat
+
+    inputPartitions.foreach {
+      case partition: SparkInputPartition =>
+        val tasks = partition.taskGroup[ScanTask]().tasks().asScala
+        asFileScanTask(tasks.toList).foreach {
+          task =>
+            paths.add(
+              BackendsApiManager.getTransformerApiInstance
+                .encodeFilePathIfNeed(task.file().path().toString))
+            starts.add(task.start())
+            lengths.add(task.length())
+            partitionColumns.add(getPartitionColumns(task, readPartitionSchema))
+            deleteFilesList.add(task.deletes())
+            val currentFileFormat = convertFileFormat(task.file().format())
+            if (fileFormat == ReadFileFormat.UnknownFormat) {
+              fileFormat = currentFileFormat
+            } else if (fileFormat != currentFileFormat) {
+              throw new UnsupportedOperationException(
+                s"Only one file format is supported, " +
+                  s"find different file format $fileFormat and $currentFileFormat")
+            }
+        }
+        preferredLocs.addAll(partition.preferredLocations().toList.asJava)
+    }
+    IcebergLocalFilesBuilder.makeIcebergLocalFiles(
+      index,
+      paths,
+      starts,
+      lengths,
+      partitionColumns,
+      fileFormat,
+      SoftAffinity
+        .getFilePartitionLocations(paths.asScala.toArray, preferredLocs.asScala.toArray)
+        .toList
+        .asJava,
+      deleteFilesList
+    )
+  }
+
   def getFileFormat(sparkScan: Scan): ReadFileFormat = sparkScan match {
     case scan: SparkBatchQueryScan =>
       val tasks = scan.tasks().asScala
@@ -111,12 +161,24 @@ object GlutenIcebergSourceUtil {
             // Iceberg will generate some non-table fields as partition fields, such as x_bucket,
             // which will not appear in readFields, they also cannot be filtered.
             val tableFields = spec.schema().columns().asScala.map(_.name()).toSet
+            val voidTransformFields = scan
+              .table()
+              .spec()
+              .fields()
+              .asScala
+              .filter(
+                f => {
+                  f.transform().isVoid
+                })
+              .map(_.name())
+              .toSet
             val partitionFields =
               spec
                 .partitionType()
                 .fields()
                 .asScala
                 .filter(f => !tableFields.contains(f.name) || readFields.contains(f.name()))
+                .filter(f => !voidTransformFields.contains(f.name()))
             partitionFields.foreach {
               field => TypeUtil.validatePartitionColumnType(field.`type`().typeId())
             }
@@ -174,7 +236,7 @@ object GlutenIcebergSourceUtil {
     partitionColumns
   }
 
-  def convertFileFormat(icebergFileFormat: FileFormat): ReadFileFormat =
+  private def convertFileFormat(icebergFileFormat: FileFormat): ReadFileFormat =
     icebergFileFormat match {
       case FileFormat.PARQUET => ReadFileFormat.ParquetReadFormat
       case FileFormat.ORC => ReadFileFormat.OrcReadFormat

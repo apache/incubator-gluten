@@ -18,10 +18,6 @@
 
 #if USE_PARQUET
 
-#include <memory>
-#include <numeric>
-#include <utility>
-
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Formats/FormatFactory.h>
@@ -31,9 +27,8 @@
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
-#include <parquet/arrow/reader.h>
-#include <parquet/metadata.h>
-#include <Common/Exception.h>
+#include <Storages/Parquet/VirtualColumnRowIndexReader.h>
+#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
 
 namespace DB
 {
@@ -50,62 +45,178 @@ extern const int UNKNOWN_TYPE;
 }
 }
 
+using namespace DB;
+
 namespace local_engine
 {
+struct ShouldIncludeRowGroup
+{
+    const SubstraitInputFile & file_info;
+
+    explicit ShouldIncludeRowGroup(const SubstraitInputFile & file_info) : file_info(file_info) { }
+
+    bool operator()(UInt64 midpoint_offset) const
+    {
+        return file_info.start() <= midpoint_offset && midpoint_offset < file_info.start() + file_info.length();
+    }
+};
+
+namespace
+{
+ParquetMetaBuilder collectRequiredRowGroups(ReadBuffer & read_buffer, const SubstraitInputFile & file_info)
+{
+    ParquetMetaBuilder result;
+    ShouldIncludeRowGroup should_include_row_group{file_info};
+    result.build(read_buffer, should_include_row_group);
+    return result;
+}
+}
+
+using namespace ParquetVirtualMeta;
+class ParquetInputFormat : public FormatFile::InputFormat
+{
+    const Block readHeader;
+    const Block outputHeader;
+    std::unique_ptr<ColumnIndexRowRangesProvider> rowRangesProvider;
+    std::optional<VirtualColumnRowIndexReader> row_index_reader;
+
+public:
+    ParquetInputFormat(
+        std::unique_ptr<ReadBuffer> read_buffer_,
+        const InputFormatPtr & input_,
+        std::unique_ptr<ColumnIndexRowRangesProvider> provider,
+        Block readHeader_,
+        Block outputHeader_)
+        : InputFormat(std::move(read_buffer_), input_)
+        , readHeader(std::move(readHeader_))
+        , outputHeader(std::move(outputHeader_))
+        , rowRangesProvider(std::move(provider))
+        , row_index_reader(
+              outputHeader.columns() > readHeader.columns()
+                  ? std::make_optional<VirtualColumnRowIndexReader>(*rowRangesProvider, getMetaColumnType(outputHeader))
+                  : std::nullopt)
+    {
+    }
+
+    Chunk generate() override
+    {
+        if (readHeader.columns() == 0)
+        {
+            assert(outputHeader.columns());
+            assert(row_index_reader);
+            // TODO: format_settings_.parquet.max_block_size
+            Columns cols{row_index_reader->readBatch(8192)};
+            size_t rows = cols[0]->size();
+            return Chunk(std::move(cols), rows);
+        }
+        auto chunk = input->generate();
+        size_t num_rows = chunk.getNumRows();
+        if (row_index_reader && num_rows)
+        {
+            auto row_index_column = row_index_reader->readBatch(num_rows);
+            assert(outputHeader.columns() > readHeader.columns());
+            size_t column_pos = outputHeader.getPositionByName(TMP_ROWINDEX);
+            if (column_pos < chunk.getNumColumns())
+                chunk.addColumn(column_pos, std::move(row_index_column));
+            else
+                chunk.addColumn(std::move(row_index_column));
+        }
+        return chunk;
+    }
+};
 
 ParquetFormatFile::ParquetFormatFile(
-    const DB::ContextPtr & context_,
+    const ContextPtr & context_,
     const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
     const ReadBufferBuilderPtr & read_buffer_builder_,
     bool use_local_format_)
-    : FormatFile(context_, file_info_, read_buffer_builder_), use_pageindex_reader(use_local_format_)
+    : FormatFile(context_, file_info_, read_buffer_builder_), use_pageindex_reader{use_local_format_}
 {
 }
 
-FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block & header)
+void ParquetFormatFile::initialize(const ColumnIndexFilterPtr & filter)
 {
-    auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = read_buffer_builder->build(file_info);
+    column_index_filter_ = filter;
+    read_buffer_ = read_buffer_builder->build(file_info);
+    if (file_info.has_iceberg())
+        file_schema = ParquetMetaBuilder::collectFileSchema(context, *read_buffer_);
+}
 
-    std::vector<RowGroupInformation> required_row_groups;
-    int total_row_groups = 0;
-    if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(res->read_buffer.get()))
+FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const Block & header)
+{
+    assert(read_buffer_);
+
+    bool readRowIndex = hasMetaColumns(header);
+    bool usePageIndexReader = (use_pageindex_reader || readRowIndex) && onlyHasFlatType(header);
+
+    auto format_settings = getFormatSettings(context);
+    Block output_header = header;
+    Block read_header = DeltaParquetVirtualMeta::removeMetaColumns(removeMetaColumns(header));
+
+    ParquetMetaBuilder metaBuilder{
+        .collectPageIndex = usePageIndexReader || readRowIndex,
+        .collectSkipRowGroup = !usePageIndexReader,
+        .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
+        .allow_missing_columns = format_settings.parquet.allow_missing_columns};
+
+    ShouldIncludeRowGroup should_include_row_group{file_info};
+    if (auto * seekable_in = dynamic_cast<SeekableReadBuffer *>(read_buffer_.get()))
     {
         // reuse the read_buffer to avoid opening the file twice.
         // especially，the cost of opening a hdfs file is large.
-        required_row_groups = collectRequiredRowGroups(seekable_in, total_row_groups);
+        metaBuilder.build(*seekable_in, read_header, column_index_filter_.get(), should_include_row_group);
         seekable_in->seek(0, SEEK_SET);
     }
     else
-        required_row_groups = collectRequiredRowGroups(total_row_groups);
+    {
+        const auto in = read_buffer_builder->build(file_info);
+        metaBuilder.build(*in, read_header, column_index_filter_.get(), should_include_row_group);
+    }
 
-    auto format_settings = DB::getFormatSettings(context);
+    column_index_filter_.reset();
 
-    std::vector<int> total_row_group_indices(total_row_groups);
-    std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
+    if (metaBuilder.readRowGroups.empty())
+        return nullptr;
 
-    std::vector<int> required_row_group_indices(required_row_groups.size());
-    for (size_t i = 0; i < required_row_groups.size(); ++i)
-        required_row_group_indices[i] = required_row_groups[i].index;
+    auto provider = usePageIndexReader || readRowIndex ? std::make_unique<ColumnIndexRowRangesProvider>(metaBuilder) : nullptr;
 
-    std::vector<int> skip_row_group_indices;
-    std::ranges::set_difference(total_row_group_indices, required_row_group_indices, std::back_inserter(skip_row_group_indices));
+    auto createVectorizedFormat = [&]() -> InputFormatPtr
+    {
+        auto input = std::make_shared<VectorizedParquetBlockInputFormat>(*read_buffer_, read_header, *provider, format_settings);
+        return std::make_shared<ParquetInputFormat>(
+            std::move(read_buffer_), input, std::move(provider), std::move(read_header), std::move(output_header));
+    };
 
-    format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
+    auto createParquetBlockInputFormat = [&]() -> InputFormatPtr
+    {
+        const Settings & settings = context->getSettingsRef();
+        format_settings.parquet.skip_row_groups
+            = std::unordered_set<int>(metaBuilder.skipRowGroups.begin(), metaBuilder.skipRowGroups.end());
 
-    const DB::Settings & settings = context->getSettingsRef();
+        if (readRowIndex)
+        {
+            assert(provider);
 
-    if (use_pageindex_reader && pageindex_reader_support(header))
-        res->input = std::make_shared<VectorizedParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
-    else
-        res->input = std::make_shared<DB::ParquetBlockInputFormat>(
-            *(res->read_buffer),
-            header,
+            // In the case of readRowIndex, we need to preserve the order of the rows
+            format_settings.parquet.preserve_order = true;
+
+            // TODO: enable filter push down again
+            // We need to disable fiter push down and read all row groups, so that we can get correct row index.
+            format_settings.parquet.filter_push_down = false;
+        }
+
+        auto input = std::make_shared<ParquetBlockInputFormat>(
+            *read_buffer_,
+            read_header,
             format_settings,
-            settings[DB::Setting::max_parsing_threads],
-            settings[DB::Setting::max_download_threads],
+            settings[Setting::max_parsing_threads],
+            settings[Setting::max_download_threads],
             8192);
-    return res;
+        return std::make_shared<ParquetInputFormat>(
+            std::move(read_buffer_), input, std::move(provider), std::move(read_header), std::move(output_header));
+    };
+
+    return usePageIndexReader ? createVectorizedFormat() : createParquetBlockInputFormat();
 }
 
 std::optional<size_t> ParquetFormatFile::getTotalRows()
@@ -116,11 +227,11 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
             return total_rows;
     }
 
-    int _;
-    auto rowgroups = collectRequiredRowGroups(_);
-    size_t rows = 0;
-    for (const auto & rowgroup : rowgroups)
-        rows += rowgroup.num_rows;
+    auto in = read_buffer_builder->build(file_info);
+    auto result = collectRequiredRowGroups(*in, file_info);
+
+    size_t rows = std::ranges::fold_left(
+        result.readRowGroups, static_cast<size_t>(0), [](size_t sum, const auto & row_group) { return sum + row_group.num_rows; });
 
     {
         std::lock_guard lock(mutex);
@@ -128,77 +239,17 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
         return total_rows;
     }
 }
-bool ParquetFormatFile::pageindex_reader_support(const DB::Block & header)
+
+bool ParquetFormatFile::onlyHasFlatType(const Block & header)
 {
-    const auto result = std::ranges::find_if(
+    return std::ranges::all_of(
         header,
-        [](DB::ColumnWithTypeAndName const & col)
+        [](ColumnWithTypeAndName const & col)
         {
-            const DB::DataTypePtr type_not_nullable = DB::removeNullable(col.type);
-            const DB::WhichDataType which(type_not_nullable);
-            return DB::isArray(which) || DB::isMap(which) || DB::isTuple(which);
+            const DataTypePtr type_not_nullable = removeNullable(col.type);
+            const WhichDataType which(type_not_nullable);
+            return !isArray(which) && !isMap(which) && !isTuple(which);
         });
-
-    return result == header.end();
-}
-
-std::vector<RowGroupInformation> ParquetFormatFile::collectRequiredRowGroups(int & total_row_groups) const
-{
-    auto in = read_buffer_builder->build(file_info);
-    return collectRequiredRowGroups(in.get(), total_row_groups);
-}
-
-std::vector<RowGroupInformation> ParquetFormatFile::collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups) const
-{
-    const DB::FormatSettings format_settings{
-        .seekable_read = true,
-    };
-    std::atomic<int> is_stopped{0};
-    std::unique_ptr<parquet::arrow::FileReader> reader;
-    auto status = parquet::arrow::OpenFile(
-        asArrowFile(*read_buffer, format_settings, is_stopped, "Parquet", PARQUET_MAGIC_BYTES), arrow::default_memory_pool(), &reader);
-    if (!status.ok())
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Open file({}) failed. {}", file_info.uri_file(), status.ToString());
-
-    const auto file_meta = reader->parquet_reader()->metadata();
-    total_row_groups = file_meta->num_row_groups();
-
-    std::vector<RowGroupInformation> row_group_metadatas;
-    row_group_metadatas.reserve(total_row_groups);
-
-    auto get_column_start_offset = [&](const parquet::ColumnChunkMetaData & metadata_)
-    {
-        Int64 offset = metadata_.data_page_offset();
-        if (metadata_.has_dictionary_page() && offset > metadata_.dictionary_page_offset())
-            offset = metadata_.dictionary_page_offset();
-        return offset;
-    };
-
-    for (int i = 0; i < total_row_groups; ++i)
-    {
-        const auto row_group_meta = file_meta->RowGroup(i);
-        Int64 start_offset = 0;
-        Int64 total_bytes = 0;
-        start_offset = get_column_start_offset(*row_group_meta->ColumnChunk(0));
-        total_bytes = row_group_meta->total_compressed_size();
-        if (!total_bytes)
-            for (int j = 0; j < row_group_meta->num_columns(); ++j)
-                total_bytes += row_group_meta->ColumnChunk(j)->total_compressed_size();
-
-        const UInt64 midpoint_offset = static_cast<UInt64>(start_offset + total_bytes / 2);
-        /// Current row group has intersection with the required range.
-        if (file_info.start() <= midpoint_offset && midpoint_offset < file_info.start() + file_info.length())
-        {
-            RowGroupInformation info;
-            info.index = i;
-            info.num_rows = row_group_meta->num_rows();
-            info.start = row_group_meta->file_offset();
-            info.total_compressed_size = row_group_meta->total_compressed_size();
-            info.total_size = row_group_meta->total_byte_size();
-            row_group_metadatas.emplace_back(std::move(info));
-        }
-    }
-    return row_group_metadatas;
 }
 
 }

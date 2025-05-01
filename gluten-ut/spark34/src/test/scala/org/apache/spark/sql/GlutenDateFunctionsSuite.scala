@@ -112,18 +112,9 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
             df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd mm:HH:ss')"),
             Seq(Row(secs(ts4.getTime)), Row(null), Row(secs(ts3.getTime)), Row(null)))
 
-          // legacyParserPolicy is not respected by Gluten.
           // invalid format
-          // val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
-          // if (legacyParserPolicy == "legacy") {
-          //   checkAnswer(invalid,
-          //     Seq(Row(null), Row(null), Row(null), Row(null)))
-          // } else {
-          //   val e = intercept[SparkUpgradeException](invalid.collect())
-          //   assert(e.getCause.isInstanceOf[IllegalArgumentException])
-          //   assert( e.getMessage.contains(
-          //     "You may get a different result due to the upgrading to Spark"))
-          // }
+          val invalid = df1.selectExpr(s"unix_timestamp(x, 'yyyy-MM-dd aa:HH:ss')")
+          checkAnswer(invalid, Seq(Row(null), Row(null), Row(null), Row(null)))
 
           // February
           val y1 = "2016-02-29"
@@ -196,54 +187,99 @@ class GlutenDateFunctionsSuite extends DateFunctionsSuite with GlutenSQLTestsTra
             df2.select(unix_timestamp(col("y"), "yyyy-MM-dd")),
             Seq(Row(secs(ts5.getTime)), Row(null)))
 
-          // Not consistent behavior with gluten + velox.
           // invalid format
-          //        val invalid = df1.selectExpr(s"to_unix_timestamp(x, 'yyyy-MM-dd bb:HH:ss')")
-          //        val e = intercept[IllegalArgumentException](invalid.collect())
-          //        assert(e.getMessage.contains('b'))
+          val invalid = df1.selectExpr(s"to_unix_timestamp(x, 'yyyy-MM-dd bb:HH:ss')")
+          checkAnswer(invalid, Seq(Row(null), Row(null), Row(null), Row(null)))
         }
     }
   }
 
-  // Ported from spark with a test case for legacy mode removed.
-  testGluten("to_timestamp") {
-    Seq("legacy", "corrected").foreach {
-      legacyParserPolicy =>
-        withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy) {
-          val date1 = Date.valueOf("2015-07-24")
-          val date2 = Date.valueOf("2015-07-25")
-          val ts_date1 = Timestamp.valueOf("2015-07-24 00:00:00")
-          val ts_date2 = Timestamp.valueOf("2015-07-25 00:00:00")
-          val ts1 = Timestamp.valueOf("2015-07-24 10:00:00")
-          val ts2 = Timestamp.valueOf("2015-07-25 02:02:02")
-          val s1 = "2015/07/24 10:00:00.5"
-          val s2 = "2015/07/25 02:02:02.6"
-          val ts1m = Timestamp.valueOf("2015-07-24 10:00:00.5")
-          val ts2m = Timestamp.valueOf("2015-07-25 02:02:02.6")
-          val ss1 = "2015-07-24 10:00:00"
-          val ss2 = "2015-07-25 02:02:02"
-          val fmt = "yyyy/MM/dd HH:mm:ss.S"
-          val df = Seq((date1, ts1, s1, ss1), (date2, ts2, s2, ss2)).toDF("d", "ts", "s", "ss")
+  testGluten("function to_date") {
+    val d1 = Date.valueOf("2015-07-22")
+    val d2 = Date.valueOf("2015-07-01")
+    val d3 = Date.valueOf("2014-12-31")
+    val t1 = Timestamp.valueOf("2015-07-22 10:00:00")
+    val t2 = Timestamp.valueOf("2014-12-31 23:59:59")
+    val t3 = Timestamp.valueOf("2014-12-31 23:59:59")
+    val s1 = "2015-07-22 10:00:00"
+    val s2 = "2014-12-31"
+    val s3 = "2014-31-12"
+    val df = Seq((d1, t1, s1), (d2, t2, s2), (d3, t3, s3)).toDF("d", "t", "s")
 
-          checkAnswer(
-            df.select(to_timestamp(col("ss"))),
-            df.select(timestamp_seconds(unix_timestamp(col("ss")))))
-          checkAnswer(df.select(to_timestamp(col("ss"))), Seq(Row(ts1), Row(ts2)))
-          if (legacyParserPolicy == "legacy") {
-            // In Spark 2.4 and earlier, to_timestamp() parses in seconds precision and cuts off
-            // the fractional part of seconds. The behavior was changed by SPARK-27438.
-            // Ignore this test case. Velox returns null for such case.
-            // val legacyFmt = "yyyy/MM/dd HH:mm:ss"
-            // checkAnswer(df.select(to_timestamp(col("s"), legacyFmt)), Seq(
-            //  Row(ts1), Row(ts2)))
-          } else {
-            checkAnswer(df.select(to_timestamp(col("s"), fmt)), Seq(Row(ts1m), Row(ts2m)))
-          }
-          checkAnswer(df.select(to_timestamp(col("ts"), fmt)), Seq(Row(ts1), Row(ts2)))
-          checkAnswer(
-            df.select(to_timestamp(col("d"), "yyyy-MM-dd")),
-            Seq(Row(ts_date1), Row(ts_date2)))
-        }
+    checkAnswer(
+      df.select(to_date(col("t"))),
+      Seq(
+        Row(Date.valueOf("2015-07-22")),
+        Row(Date.valueOf("2014-12-31")),
+        Row(Date.valueOf("2014-12-31"))))
+    checkAnswer(
+      df.select(to_date(col("d"))),
+      Seq(
+        Row(Date.valueOf("2015-07-22")),
+        Row(Date.valueOf("2015-07-01")),
+        Row(Date.valueOf("2014-12-31"))))
+    checkAnswer(
+      df.select(to_date(col("s"))),
+      Seq(Row(Date.valueOf("2015-07-22")), Row(Date.valueOf("2014-12-31")), Row(null)))
+
+    checkAnswer(
+      df.selectExpr("to_date(t)"),
+      Seq(
+        Row(Date.valueOf("2015-07-22")),
+        Row(Date.valueOf("2014-12-31")),
+        Row(Date.valueOf("2014-12-31"))))
+    checkAnswer(
+      df.selectExpr("to_date(d)"),
+      Seq(
+        Row(Date.valueOf("2015-07-22")),
+        Row(Date.valueOf("2015-07-01")),
+        Row(Date.valueOf("2014-12-31"))))
+    checkAnswer(
+      df.selectExpr("to_date(s)"),
+      Seq(Row(Date.valueOf("2015-07-22")), Row(Date.valueOf("2014-12-31")), Row(null)))
+
+    // now with format
+    checkAnswer(
+      df.select(to_date(col("t"), "yyyy-MM-dd")),
+      Seq(
+        Row(Date.valueOf("2015-07-22")),
+        Row(Date.valueOf("2014-12-31")),
+        Row(Date.valueOf("2014-12-31"))))
+    checkAnswer(
+      df.select(to_date(col("d"), "yyyy-MM-dd")),
+      Seq(
+        Row(Date.valueOf("2015-07-22")),
+        Row(Date.valueOf("2015-07-01")),
+        Row(Date.valueOf("2014-12-31"))))
+    val confKey = SQLConf.LEGACY_TIME_PARSER_POLICY.key
+    withSQLConf(confKey -> "corrected") {
+      checkAnswer(
+        df.select(to_date(col("s"), "yyyy-MM-dd")),
+        Seq(Row(null), Row(Date.valueOf("2014-12-31")), Row(null)))
     }
+    // legacyParserPolicy is not respected by Gluten.
+    // withSQLConf(confKey -> "exception") {
+    //   checkExceptionMessage(df.select(to_date(col("s"), "yyyy-MM-dd")))
+    // }
+
+    // now switch format
+    checkAnswer(
+      df.select(to_date(col("s"), "yyyy-dd-MM")),
+      Seq(Row(null), Row(null), Row(Date.valueOf("2014-12-31"))))
+
+    // invalid format
+    checkAnswer(df.select(to_date(col("s"), "yyyy-hh-MM")), Seq(Row(null), Row(null), Row(null)))
+    // velox getTimestamp function does not throw exception when format is "yyyy-dd-aa".
+    // val e =
+    //   intercept[SparkUpgradeException](df.select(to_date(col("s"), "yyyy-dd-aa")).collect())
+    // assert(e.getCause.isInstanceOf[IllegalArgumentException])
+    // assert(
+    //   e.getMessage.contains("You may get a different result due to the upgrading to Spark"))
+
+    // February
+    val x1 = "2016-02-29"
+    val x2 = "2017-02-29"
+    val df1 = Seq(x1, x2).toDF("x")
+    checkAnswer(df1.select(to_date(col("x"))), Row(Date.valueOf("2016-02-29")) :: Row(null) :: Nil)
   }
 }

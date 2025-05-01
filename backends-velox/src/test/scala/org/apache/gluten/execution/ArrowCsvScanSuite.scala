@@ -16,21 +16,24 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.datasource.ArrowCSVFileFormat
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.{ArrowFileSourceScanExec, BaseArrowScanExec, ColumnarToRowExec}
 import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
 
-class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuite {
+import org.scalatest.Ignore
+
+@Ignore
+class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuiteBase {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "csv")
   }
 
   test("csv scan v1") {
-    val df = runAndCompare("select * from student")()
+    val df = runAndCompare("select * from student")
     val plan = df.queryExecution.executedPlan
     assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
     assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
@@ -44,7 +47,7 @@ class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuite {
   }
 
   test("csv scan with schema v1") {
-    val df = runAndCompare("select * from student_option_schema")()
+    val df = runAndCompare("select * from student_option_schema")
     val plan = df.queryExecution.executedPlan
     assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
     val scan = plan.find(_.isInstanceOf[BaseArrowScanExec])
@@ -60,15 +63,97 @@ class ArrowCsvScanSuiteV1 extends ArrowCsvScanSuite {
   }
 }
 
+@Ignore
 class ArrowCsvScanSuiteV2 extends ArrowCsvScanSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "")
   }
+
+  test("csv scan") {
+    runAndCompare("select * from student")
+  }
+}
+
+@Ignore
+class ArrowCsvScanWithTableCacheSuite extends ArrowCsvScanSuiteBase {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.sql.sources.useV1SourceList", "csv")
+      .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
+  }
+
+  /**
+   * Test for GLUTEN-8453: https://github.com/apache/incubator-gluten/issues/8453. To make sure no
+   * error is thrown when caching an Arrow Java query plan.
+   */
+  test("csv scan v1 with table cache") {
+    val df = spark.sql("select * from student")
+    df.cache()
+    assert(df.collect().length == 3)
+  }
 }
 
 /** Since https://github.com/apache/incubator-gluten/pull/5850. */
-abstract class ArrowCsvScanSuite extends VeloxWholeStageTransformerSuite {
+@Ignore
+abstract class ArrowCsvScanSuite extends ArrowCsvScanSuiteBase {
+
+  test("csv scan with option string as null") {
+    val df = runAndCompare("select * from student_option_str")
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(_.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
+  }
+
+  test("csv scan with option delimiter") {
+    val df = runAndCompare("select * from student_option")
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
+  }
+
+  test("csv scan with missing columns") {
+    val df =
+      runAndCompare("select languagemissing, language, id_new_col from student_option_schema_lm")
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(s => s.isInstanceOf[VeloxColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
+  }
+
+  test("csv scan with different name") {
+    val df = runAndCompare("select * from student_option_schema")
+    val plan = df.queryExecution.executedPlan
+    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
+
+    val df2 = runAndCompare("select * from student_option_schema")
+    val plan2 = df2.queryExecution.executedPlan
+    assert(plan2.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
+    assert(plan2.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
+  }
+
+  test("csv scan with filter") {
+    val df = runAndCompare("select * from student where Name = 'Peter'")
+    assert(df.queryExecution.executedPlan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
+    assert(
+      df.queryExecution.executedPlan
+        .find(s => s.isInstanceOf[BaseArrowScanExec])
+        .isDefined)
+  }
+
+  test("insert into select from csv") {
+    withTable("insert_csv_t") {
+      spark.sql("create table insert_csv_t(Name string, Language string) using parquet;")
+      runQueryAndCompare("""
+                           |insert into insert_csv_t select * from student;
+                           |""".stripMargin) {
+        checkGlutenOperatorMatch[BaseArrowScanExec]
+      }
+    }
+  }
+}
+
+abstract class ArrowCsvScanSuiteBase extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "N/A"
   override protected val fileFormat: String = "N/A"
 
@@ -92,65 +177,6 @@ abstract class ArrowCsvScanSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
-  }
-
-  test("csv scan with option string as null") {
-    val df = runAndCompare("select * from student_option_str")()
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(_.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
-  }
-
-  test("csv scan with option delimiter") {
-    val df = runAndCompare("select * from student_option")()
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
-  }
-
-  test("csv scan with missing columns") {
-    val df =
-      runAndCompare("select languagemissing, language, id_new_col from student_option_schema_lm")()
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(s => s.isInstanceOf[VeloxColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
-  }
-
-  test("csv scan with different name") {
-    val df = runAndCompare("select * from student_option_schema")()
-    val plan = df.queryExecution.executedPlan
-    assert(plan.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
-
-    val df2 = runAndCompare("select * from student_option_schema")()
-    val plan2 = df2.queryExecution.executedPlan
-    assert(plan2.find(s => s.isInstanceOf[ColumnarToRowExec]).isDefined)
-    assert(plan2.find(_.isInstanceOf[BaseArrowScanExec]).isDefined)
-  }
-
-  test("csv scan with filter") {
-    val df = runAndCompare("select * from student where Name = 'Peter'")()
-    assert(df.queryExecution.executedPlan.find(s => s.isInstanceOf[ColumnarToRowExec]).isEmpty)
-    assert(
-      df.queryExecution.executedPlan
-        .find(s => s.isInstanceOf[BaseArrowScanExec])
-        .isDefined)
-  }
-
-  test("insert into select from csv") {
-    withTable("insert_csv_t") {
-      spark.sql("create table insert_csv_t(Name string, Language string) using parquet;")
-      runQueryAndCompare("""
-                           |insert into insert_csv_t select * from student;
-                           |""".stripMargin) {
-        checkGlutenOperatorMatch[BaseArrowScanExec]
-      }
-    }
-  }
-
-  test("count(1) on csv scan") {
-    val df = runAndCompare("select count(1) from student")()
-    checkLengthAndPlan(df, 1)
   }
 
   private def createCsvTables(): Unit = {

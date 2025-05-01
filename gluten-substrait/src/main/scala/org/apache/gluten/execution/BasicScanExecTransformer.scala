@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -51,7 +51,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   val fileFormat: ReadFileFormat
 
   def getRootFilePaths: Seq[String] = {
-    if (GlutenConfig.getConf.scanFileSchemeValidationEnabled) {
+    if (GlutenConfig.get.scanFileSchemeValidationEnabled) {
       getRootPathsInternal
     } else {
       Seq.empty
@@ -62,7 +62,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def getProperties: Map[String, String] = Map.empty
 
   /** Returns the split infos that will be processed by the underlying native engine. */
-  def getSplitInfos(): Seq[SplitInfo] = {
+  override def getSplitInfos: Seq[SplitInfo] = {
     getSplitInfosFromPartitions(getPartitions)
   }
 
@@ -73,7 +73,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
           _,
           getPartitionSchema,
           fileFormat,
-          getMetadataColumns.map(_.name),
+          getMetadataColumns().map(_.name),
           getProperties))
   }
 
@@ -91,7 +91,12 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val validationResult = BackendsApiManager.getSettings
-      .validateScanExec(fileFormat, fields, getRootFilePaths, getProperties)
+      .validateScanExec(
+        fileFormat,
+        fields,
+        getRootFilePaths,
+        getProperties,
+        sparkContext.hadoopConfiguration)
     if (!validationResult.ok()) {
       return validationResult
     }
@@ -134,7 +139,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       .map(ExpressionConverter.replaceAttributeReference)
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
-    val filterNodes = transformer.map(_.doTransform(context.registeredFunction))
+    val filterNodes = transformer.map(_.doTransform(context))
     val exprNode = filterNodes.orNull
 
     // used by CH backend

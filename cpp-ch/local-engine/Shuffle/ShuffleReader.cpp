@@ -62,10 +62,10 @@ ShuffleReader::~ShuffleReader()
     input_stream.reset();
 }
 
-jclass ShuffleReader::input_stream_class = nullptr;
-jmethodID ShuffleReader::input_stream_read = nullptr;
+jclass ShuffleReader::shuffle_input_stream_class = nullptr;
+jmethodID ShuffleReader::shuffle_input_stream_read = nullptr;
 
-bool ReadBufferFromJavaInputStream::nextImpl()
+bool ReadBufferFromJavaShuffleInputStream::nextImpl()
 {
     int count = readFromJava();
     if (count > 0)
@@ -73,20 +73,20 @@ bool ReadBufferFromJavaInputStream::nextImpl()
     return count > 0;
 }
 
-int ReadBufferFromJavaInputStream::readFromJava() const
+int ReadBufferFromJavaShuffleInputStream::readFromJava() const
 {
     GET_JNIENV(env)
     jint count = safeCallIntMethod(
-        env, java_in, ShuffleReader::input_stream_read, reinterpret_cast<jlong>(internal_buffer.begin()), internal_buffer.size());
+        env, java_in, ShuffleReader::shuffle_input_stream_read, reinterpret_cast<jlong>(internal_buffer.begin()), internal_buffer.size());
     CLEAN_JNIENV
     return count;
 }
 
-ReadBufferFromJavaInputStream::ReadBufferFromJavaInputStream(jobject input_stream) : java_in(input_stream)
+ReadBufferFromJavaShuffleInputStream::ReadBufferFromJavaShuffleInputStream(jobject input_stream) : java_in(input_stream)
 {
 }
 
-ReadBufferFromJavaInputStream::~ReadBufferFromJavaInputStream()
+ReadBufferFromJavaShuffleInputStream::~ReadBufferFromJavaShuffleInputStream()
 {
     GET_JNIENV(env)
     env->DeleteGlobalRef(java_in);

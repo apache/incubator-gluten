@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>org.apache.gluten</groupId>
-    <version>1.3.0-SNAPSHOT</version>
+    <version>1.5.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -15,10 +15,214 @@
 
   <profiles>
     <profile>
+      <id>celeborn</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-celeborn</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.celeborn</groupId>
+          <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
+          <version>${celeborn.version}</version>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.celeborn</groupId>
+              <artifactId>celeborn-client-spark-${spark.major.version}_${scala.binary.version}</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>org.apache.celeborn</groupId>
+              <artifactId>celeborn-spark-${spark.major.version}-columnar-shuffle_${scala.binary.version}</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>spark-3.3</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>add-spark33-sources</id>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>add-source</goal>
+                </goals>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-spark33/main/scala</source>
+                    <source>${project.basedir}/src-spark33/main/java</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-spark33-resources</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>add-resource</goal>
+                </goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-spark33/main/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-spark33-test-sources</id>
+                <phase>generate-test-sources</phase>
+                <goals>
+                  <goal>add-test-source</goal>
+                </goals>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-spark33/test/scala</source>
+                    <source>${project.basedir}/src-iceberg/test/java-spark33</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-spark33-test-resources</id>
+                <phase>generate-test-resources</phase>
+                <goals>
+                  <goal>add-test-resource</goal>
+                </goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-spark33/test/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>spark-3.5</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>1.7.36</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>log4j-slf4j-impl</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-client</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.apache.logging.log4j</groupId>
+              <artifactId>log4j-slf4j-impl</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>add-spark35-sources</id>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>add-source</goal>
+                </goals>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-spark35/main/scala</source>
+                    <source>${project.basedir}/src-spark35/main/java</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-spark35-resources</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>add-resource</goal>
+                </goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-spark35/main/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-spark35-test-sources</id>
+                <phase>generate-test-sources</phase>
+                <goals>
+                  <goal>add-test-source</goal>
+                </goals>
+                <configuration>
+                  <sources>
+                    <source>${project.basedir}/src-spark35/test/scala</source>
+                    <source>${project.basedir}/src-iceberg/test/java-spark35</source>
+                  </sources>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-spark35-test-resources</id>
+                <phase>generate-test-resources</phase>
+                <goals>
+                  <goal>add-test-resource</goal>
+                </goals>
+                <configuration>
+                  <resources>
+                    <resource>
+                      <directory>${project.basedir}/src-spark35/test/resources</directory>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
       <id>iceberg</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
+      <properties>
+        <flink.version>1.16.2</flink.version>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
@@ -27,60 +231,196 @@
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-spark-${sparkbundle.version}_${scala.binary.version}</artifactId>
+          <artifactId>iceberg-spark-runtime-${sparkbundle.version}_${scala.binary.version}</artifactId>
+          <version>${iceberg.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.scala-lang.modules</groupId>
+          <artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-api</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-api</artifactId>
+          <version>${iceberg.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-flink-runtime-1.16</artifactId>
           <version>${iceberg.version}</version>
           <scope>provided</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.iceberg</groupId>
-          <artifactId>iceberg-spark-runtime-${sparkbundle.version}_${scala.binary.version}</artifactId>
+          <artifactId>iceberg-flink-1.16</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-flink-1.16</artifactId>
+          <version>${iceberg.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-hive-metastore</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-hive-metastore</artifactId>
+          <version>${iceberg.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <!-- flink iceberg ut need junit 5, and use 5.10.1 -->
+        <dependency>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter</artifactId>
+          <scope>test</scope>
+          <version>5.10.1</version>
+        </dependency>
+        <dependency>
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter-engine</artifactId>
+          <scope>test</scope>
+          <version>5.10.1</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.flink</groupId>
+          <artifactId>flink-streaming-java</artifactId>
+          <version>${flink.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.flink</groupId>
+          <artifactId>flink-table-api-bridge-base</artifactId>
+          <version>${flink.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.flink</groupId>
+          <artifactId>flink-table-api-java</artifactId>
+          <version>${flink.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.flink</groupId>
+          <artifactId>flink-table-api-java-bridge</artifactId>
+          <version>${flink.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.flink</groupId>
+          <artifactId>flink-test-utils</artifactId>
+          <version>${flink.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <!-- flink not support scala 2.13 -->
+        <dependency>
+          <groupId>org.apache.flink</groupId>
+          <artifactId>flink-table-planner_2.12</artifactId>
+          <version>${flink.version}</version>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.scala-lang</groupId>
+              <artifactId>scala-library</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-spark-${sparkbundle.version}_${scala.binary.version}</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-spark-${sparkbundle.version}_${scala.binary.version}</artifactId>
+          <version>${iceberg.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-data</artifactId>
+          <version>${iceberg.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.iceberg</groupId>
+          <artifactId>iceberg-data</artifactId>
           <version>${iceberg.version}</version>
           <scope>test</scope>
         </dependency>
       </dependencies>
-      <build>
-        <resources>
-          <resource>
-            <directory>${project.basedir}/src/main-iceberg/resource</directory>
-          </resource>
-        </resources>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-iceberg-sources</id>
-                <phase>generate-sources</phase>
-                <goals>
-                  <goal>add-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src/main-iceberg/scala</source>
-                    <source>${project.basedir}/src/main-iceberg/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-iceberg-test-sources</id>
-                <phase>generate-test-sources</phase>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src/test-iceberg/scala</source>
-                    <source>${project.basedir}/src/test-iceberg/java</source>
-                  </sources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
+    </profile>
+    <profile>
+      <id>kafka</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-kafka</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-kafka</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql-kafka-0-10_${scala.binary.version}</artifactId>
+          <version>${spark.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>delta</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-delta</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-delta</artifactId>
+          <version>${project.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>io.delta</groupId>
+          <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
   </profiles>
+
+  <properties>
+    <surefire.skipTests>true</surefire.skipTests>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -96,9 +436,9 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>io.glutenproject</groupId>
+      <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${custom.protobuf.version}</version>
+      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -206,40 +546,44 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-       <groupId>org.apache.hive.hcatalog</groupId>
-       <artifactId>hive-hcatalog-core</artifactId>
-	    <version>2.3.9</version>
-	    <scope>test</scope>
-	    <exclusions>
-          <exclusion>
-            <groupId>org.pentaho</groupId>
-            <artifactId>pentaho-aggdesigner-algorithm</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>net.minidev</groupId>
-            <artifactId>json-smart</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>hive-exec</artifactId>
-          </exclusion>
-          <exclusion>
-            <artifactId>guava</artifactId>
-            <groupId>com.google.guava</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>hadoop-common</artifactId>
-            <groupId>org.apache.hadoop</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>hadoop-hdfs</artifactId>
-            <groupId>org.apache.hadoop</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>protobuf-java</artifactId>
-            <groupId>com.google.protobuf</groupId>
-          </exclusion>
-        </exclusions>
+      <groupId>org.apache.hive.hcatalog</groupId>
+      <artifactId>hive-hcatalog-core</artifactId>
+      <version>2.3.9</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.pentaho</groupId>
+          <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>net.minidev</groupId>
+          <artifactId>json-smart</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-exec</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>guava</artifactId>
+          <groupId>com.google.guava</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hadoop-common</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hadoop-hdfs</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>protobuf-java</artifactId>
+          <groupId>com.google.protobuf</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jdk.tools</artifactId>
+          <groupId>jdk.tools</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -323,11 +667,6 @@
   </dependencies>
 
   <build>
-    <resources>
-      <resource>
-        <directory>${project.basedir}/src/main/resources</directory>
-      </resource>
-    </resources>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
@@ -349,6 +688,27 @@
               </protocArtifact>
               <protoSourceRoot>src/main/resources/org/apache/spark/sql/execution/datasources/v1</protoSourceRoot>
               <clearOutputDirectory>false</clearOutputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-delta-profile</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireActiveProfile>
+                  <!--ClickHouse backend requires -P delta to be set-->
+                  <profiles>delta</profiles>
+                  <message>"-P delta" must be set when building Gluten with ClickHouse backend.</message>
+                </requireActiveProfile>
+              </rules>
             </configuration>
           </execution>
         </executions>
@@ -436,15 +796,18 @@
             <includes>
               <include>src/main/scala/**/*.scala</include>
               <include>src/test/scala/**/*.scala</include>
-              <include>src/main/delta-${delta.binary.version}/**/*.scala</include>
-              <include>src/test/delta-${delta.binary.version}/**/*.scala</include>
+              <include>src-delta/main/scala/**/*.scala</include>
+              <include>src-delta/test/scala/**/*.scala</include>
+              <include>src-delta-${delta.binary.version}/main/scala/**/*.scala</include>
+              <include>src-delta-${delta.binary.version}/test/scala/**/*.scala</include>
             </includes>
             <excludes>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/commands/*.scala</exclude>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/commands/merge/*.scala</exclude>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/stats/*.scala</exclude>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
-              <exclude>src/main/delta-${delta.binary.version}/org/apache/spark/sql/delta/Snapshot.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/*.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/commands/merge/*.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/stats/*.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/Snapshot.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/ClickhouseOptimisticTransaction.scala</exclude>
             </excludes>
           </scala>
         </configuration>
@@ -462,12 +825,6 @@
             <goals>
               <goal>test</goal>
             </goals>
-            <configuration>
-              <systemProperties>
-                <clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
-                <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
-              </systemProperties>
-            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -485,36 +842,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>add-sources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>src/main/delta-${delta.binary.version}</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-          <id>add-test-sources</id>
-          <phase>generate-test-sources</phase>
-          <goals>
-            <goal>add-test-source</goal>
-          </goals>
-          <configuration>
-            <sources>
-              <source>src/test/delta-${delta.binary.version}</source>
-            </sources>
-          </configuration>
-        </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.antlr</groupId>
         <artifactId>antlr4-maven-plugin</artifactId>
         <executions>
@@ -528,6 +855,17 @@
           <visitor>true</visitor>
           <sourceDirectory>../backends-clickhouse/src/main/antlr4</sourceDirectory>
           <treatWarningsAsErrors>true</treatWarningsAsErrors>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <includes>
+            <include>**/*Test.java</include>
+            <include>**/Test*.java</include>
+          </includes>
+          <skipTests>${surefire.skipTests}</skipTests>
         </configuration>
       </plugin>
     </plugins>

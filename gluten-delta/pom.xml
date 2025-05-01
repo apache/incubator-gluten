@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>org.apache.gluten</groupId>
-    <version>1.3.0-SNAPSHOT</version>
+    <version>1.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -13,10 +13,6 @@
   <artifactId>gluten-delta</artifactId>
   <packaging>jar</packaging>
   <name>Gluten DeltaLake</name>
-
-  <properties>
-    <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-  </properties>
 
   <dependencies>
     <dependency>
@@ -72,6 +68,12 @@
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>
       <version>${hadoop.version}</version>
       <scope>test</scope>
@@ -80,7 +82,7 @@
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>${protobuf.version}</version>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.scalatest</groupId>
@@ -92,11 +94,6 @@
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
-    <resources>
-      <resource>
-        <directory>${resource.dir}</directory>
-      </resource>
-    </resources>
     <plugins>
       <plugin>
         <groupId>net.alchim31.maven</groupId>
@@ -125,8 +122,8 @@
             <includes>
               <include>src/main/scala/**/*.scala</include>
               <include>src/test/scala/**/*.scala</include>
-              <include>src/main/delta-${delta.binary.version}/**/*.scala</include>
-              <include>src/test/delta-${delta.binary.version}/**/*.scala</include>
+              <include>src-delta-${delta.binary.version}/main/scala/**/*.scala</include>
+              <include>src-delta-${delta.binary.version}/test/scala/**/*.scala</include>
             </includes>
           </scala>
         </configuration>
@@ -148,28 +145,6 @@
             <goals>
               <goal>test-jar</goal>
             </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-resources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>src/main/scala/org/apache/gluten/execution</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>src/main/delta-${delta.binary.version}/org/apache/gluten/execution</directory>
-                </resource>
-              </resources>
-              <overwrite>true</overwrite>
-            </configuration>
           </execution>
         </executions>
       </plugin>

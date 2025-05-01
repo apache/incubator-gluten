@@ -19,7 +19,8 @@ package org.apache.gluten.sql.shims.spark33
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.expression.ExpressionNames.{CEIL, FLOOR, KNOWN_NULLABLE, TIMESTAMP_ADD}
-import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
+import org.apache.gluten.sql.shims.SparkShims
+import org.apache.gluten.utils.ExceptionUtils
 
 import org.apache.spark._
 import org.apache.spark.scheduler.TaskInfo
@@ -53,15 +54,16 @@ import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
+import org.apache.parquet.crypto.ParquetCryptoRuntimeException
+import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 
 class Spark33Shims extends SparkShims {
-  override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
-
   override def getDistribution(
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression]): Seq[Distribution] = {
@@ -84,6 +86,14 @@ class Spark33Shims extends SparkShims {
   override def aggregateExpressionMappings: Seq[Sig] = {
     Seq(
       Sig[RegrR2](ExpressionNames.REGR_R2)
+    )
+  }
+
+  override def runtimeReplaceableExpressionMappings: Seq[Sig] = {
+    Seq(
+      Sig[ArraySize](ExpressionNames.ARRAY_SIZE),
+      Sig[ILike](ExpressionNames.ILIKE),
+      Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY)
     )
   }
 
@@ -284,7 +294,8 @@ class Spark33Shims extends SparkShims {
 
   override def supportDuplicateReadingTracking: Boolean = true
 
-  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
+  def getFileStatus(partition: PartitionDirectory): Seq[(FileStatus, Map[String, Any])] =
+    partition.files.map(f => (f, Map.empty[String, Any]))
 
   def isFileSplittable(
       relation: HadoopFsRelation,
@@ -301,7 +312,8 @@ class Spark33Shims extends SparkShims {
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
-      partitionValues: InternalRow): Seq[PartitionedFile] = {
+      partitionValues: InternalRow,
+      metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile] = {
     PartitionedFileUtil.splitFiles(
       sparkSession,
       file,
@@ -328,8 +340,6 @@ class Spark33Shims extends SparkShims {
   override def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = {
     batchScan.keyGroupedPartitioning
   }
-  override def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
-    null
 
   override def extractExpressionTimestampAddUnit(exp: Expression): Option[Seq[String]] = {
     exp match {
@@ -377,4 +387,19 @@ class Spark33Shims extends SparkShims {
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
     plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
+  override def isParquetFileEncrypted(
+      fileStatus: LocatedFileStatus,
+      conf: Configuration): Boolean = {
+    try {
+      ParquetFileReader.readFooter(new Configuration(), fileStatus.getPath).toString
+      false
+    } catch {
+      case e: Exception if ExceptionUtils.hasCause(e, classOf[ParquetCryptoRuntimeException]) =>
+        true
+      case e: Throwable =>
+        e.printStackTrace()
+        false
+    }
+  }
+
 }

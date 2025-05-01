@@ -28,9 +28,11 @@
 #include <Operator/StreamingAggregatingStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/AggregateFunctionParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
+#include <boost/algorithm/string/join.hpp>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
@@ -53,7 +55,7 @@ extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 }
 namespace local_engine
 {
-
+using namespace DB;
 AggregateRelParser::AggregateRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
@@ -185,10 +187,13 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     if (aggregate_rel->groupings_size() == 1)
     {
         for (const auto & expr : aggregate_rel->groupings(0).grouping_expressions())
-            if (expr.has_selection() && expr.selection().has_direct_reference())
-                grouping_keys.push_back(input_header.getByPosition(expr.selection().direct_reference().struct_field().field()).name);
+        {
+            auto field_index = SubstraitParserUtils::getStructFieldIndex(expr);
+            if (field_index)
+                grouping_keys.push_back(input_header.getByPosition(*field_index).name);
             else
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "unsupported group expression: {}", expr.DebugString());
+        }
     }
     else if (aggregate_rel->groupings_size() != 0)
     {
@@ -351,7 +356,6 @@ void AggregateRelParser::addMergingAggregatedStep()
             grouping_sets_params_list,
             true,
             false,
-            1,
             1,
             false,
             settings[Setting::max_block_size],

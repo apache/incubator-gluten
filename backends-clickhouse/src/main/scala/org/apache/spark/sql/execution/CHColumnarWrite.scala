@@ -24,9 +24,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
-import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
-import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, GenericInternalRow}
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, BasicWriteTaskStats, ExecutedWriteSummary, PartitioningUtils, WriteJobDescription, WriteTaskResult, WriteTaskStatsTracker}
+import org.apache.spark.sql.types.{LongType, StringType}
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
@@ -60,11 +60,6 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     .find(_.isInstanceOf[BasicWriteJobStatsTracker])
     .map(_.newTaskInstance())
     .get
-
-  lazy val deltaWriteJobStatsTracker: Option[DeltaJobStatisticsTracker] =
-    description.statsTrackers
-      .find(_.isInstanceOf[DeltaJobStatisticsTracker])
-      .map(_.asInstanceOf[DeltaJobStatisticsTracker])
 
   lazy val (taskAttemptContext: TaskAttemptContext, jobId: String) = {
     // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
@@ -162,26 +157,39 @@ case class HadoopMapReduceAdapter(sparkCommitter: HadoopMapReduceCommitProtocol)
   }
 }
 
-/**
- * {{{
- * val schema =
- *   StructType(
- *     StructField("filename", StringType, false) ::
- *     StructField("partition_id", StringType, false) ::
- *     StructField("record_count", LongType, false) :: Nil)
- * }}}
- */
 case class NativeFileWriteResult(filename: String, partition_id: String, record_count: Long) {
-  lazy val relativePath: String = if (partition_id == "__NO_PARTITION_ID__") {
-    filename
-  } else {
+  lazy val relativePath: String = if (CHColumnarWrite.validatedPartitionID(partition_id)) {
     s"$partition_id/$filename"
+  } else {
+    filename
   }
 }
 
 object NativeFileWriteResult {
   implicit def apply(row: InternalRow): NativeFileWriteResult = {
     NativeFileWriteResult(row.getString(0), row.getString(1), row.getLong(2))
+  }
+
+  /**
+   * {{{
+   * val schema =
+   *   StructType(
+   *     StructField("filename", StringType, false) ::
+   *     StructField("partition_id", StringType, false) ::
+   *     StructField("record_count", LongType, false) :: <= overlap with vanilla =>
+   *     min...
+   *     max...
+   *     null_count...)
+   * }}}
+   */
+  private val inputBasedSchema: Seq[AttributeReference] = Seq(
+    AttributeReference("filename", StringType, nullable = false)(),
+    AttributeReference("partittion_id", StringType, nullable = false)(),
+    AttributeReference("record_count", LongType, nullable = false)()
+  )
+
+  def nativeStatsSchema(vanilla: Seq[AttributeReference]): Seq[AttributeReference] = {
+    inputBasedSchema.take(2) ++ vanilla
   }
 }
 
@@ -198,13 +206,13 @@ case class NativeStatCompute(rows: Seq[InternalRow]) {
 }
 
 case class NativeBasicWriteTaskStatsTracker(
-    description: WriteJobDescription,
+    writeDir: String,
     basicWriteJobStatsTracker: WriteTaskStatsTracker)
   extends (NativeFileWriteResult => Unit) {
   private var numWrittenRows: Long = 0
   override def apply(stat: NativeFileWriteResult): Unit = {
-    val absolutePath = s"${description.path}/${stat.relativePath}"
-    if (stat.partition_id != "__NO_PARTITION_ID__") {
+    val absolutePath = s"$writeDir/${stat.relativePath}"
+    if (CHColumnarWrite.validatedPartitionID(stat.partition_id)) {
       basicWriteJobStatsTracker.newPartition(new GenericInternalRow(Array[Any](stat.partition_id)))
     }
     basicWriteJobStatsTracker.newFile(absolutePath)
@@ -225,7 +233,7 @@ case class FileCommitInfo(description: WriteJobDescription)
 
   def apply(stat: NativeFileWriteResult): Unit = {
     val tmpAbsolutePath = s"${description.path}/${stat.relativePath}"
-    if (stat.partition_id != "__NO_PARTITION_ID__") {
+    if (CHColumnarWrite.validatedPartitionID(stat.partition_id)) {
       partitions += stat.partition_id
       val customOutputPath =
         description.customPartitionLocations.get(
@@ -248,6 +256,8 @@ case class HadoopMapReduceCommitProtocolWrite(
   extends CHColumnarWrite[HadoopMapReduceCommitProtocol]
   with Logging {
 
+  private var stageDir: String = _
+
   private lazy val adapter: HadoopMapReduceAdapter = HadoopMapReduceAdapter(committer)
 
   /**
@@ -257,11 +267,12 @@ case class HadoopMapReduceCommitProtocolWrite(
   override def doSetupNativeTask(): Unit = {
     val (writePath, writeFilePattern) =
       adapter.getTaskAttemptTempPathAndFilePattern(taskAttemptContext, description)
-    logDebug(s"Native staging write path: $writePath and file pattern: $writeFilePattern")
+    stageDir = writePath
+    logDebug(s"Native staging write path: $stageDir and file pattern: $writeFilePattern")
 
     val settings =
       Map(
-        RuntimeSettings.TASK_WRITE_TMP_DIR.key -> writePath,
+        RuntimeSettings.TASK_WRITE_TMP_DIR.key -> stageDir,
         RuntimeSettings.TASK_WRITE_FILENAME_PATTERN.key -> writeFilePattern)
     NativeExpressionEvaluator.updateQueryRuntimeSettings(settings)
   }
@@ -272,7 +283,7 @@ case class HadoopMapReduceCommitProtocolWrite(
       None
     } else {
       val commitInfo = FileCommitInfo(description)
-      val basicNativeStat = NativeBasicWriteTaskStatsTracker(description, basicWriteJobStatsTracker)
+      val basicNativeStat = NativeBasicWriteTaskStatsTracker(stageDir, basicWriteJobStatsTracker)
       val basicNativeStats = Seq(commitInfo, basicNativeStat)
       NativeStatCompute(stats)(basicNativeStats)
       val (partitions, addedAbsPathFiles) = commitInfo.result
@@ -313,4 +324,8 @@ object CHColumnarWrite {
         .asInstanceOf[CHColumnarWrite[FileCommitProtocol]]
     case other => CHDeltaColumnarWrite(jobTrackerID, description, other)
   }
+
+  private val EMPTY_PARTITION_ID = "__NO_PARTITION_ID__"
+
+  def validatedPartitionID(partitionID: String): Boolean = partitionID != EMPTY_PARTITION_ID
 }

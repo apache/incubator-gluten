@@ -14,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <bit>
-#include <IO/Operators.h>
-#include <IO/PeekableReadBuffer.h>
-#include <base/hex.h>
-#include <Common/PODArray.h>
-#include <Common/StringUtils.h>
-#include <Common/memcpySmall.h>
-
 #include "ExcelStringReader.h"
 
+#include <IO/PeekableReadBuffer.h>
+#include <IO/ReadHelpers.h>
+#include <Common/PODArray.h>
 
 #ifdef __SSE2__
-#    include <emmintrin.h>
+#include <emmintrin.h>
 #endif
 
 #if defined(__aarch64__) && defined(__ARM_NEON)
-#    include <arm_neon.h>
-#    pragma clang diagnostic ignored "-Wreserved-identifier"
+#include <arm_neon.h>
+#pragma clang diagnostic ignored "-Wreserved-identifier"
 #endif
 
+
+namespace DB::ErrorCodes
+{
+extern const int INCORRECT_DATA;
+}
 
 namespace local_engine
 {

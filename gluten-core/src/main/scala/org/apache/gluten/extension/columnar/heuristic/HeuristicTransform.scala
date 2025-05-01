@@ -18,12 +18,12 @@ package org.apache.gluten.extension.columnar.heuristic
 
 import org.apache.gluten.component.Component
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.extension.caller.CallerInfo
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.offload.OffloadSingleNode
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.extension.injector.Injector
-import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 
 import org.apache.spark.internal.Logging
@@ -126,7 +126,7 @@ object HeuristicTransform {
     val session = SparkSession.getActiveSession.getOrElse(
       throw new GlutenException(
         "HeuristicTransform#static can only be called when an active Spark session exists"))
-    val call = new ColumnarRuleCall(session, AdaptiveContext(session), false)
+    val call = new ColumnarRuleCall(session, CallerInfo.create(), false)
     dummyInjector.gluten.legacy.createHeuristicTransform(call)
   }
 }

@@ -120,10 +120,9 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
       context: SubstraitContext,
       ordering: SortOrder,
       attributes: Seq[Attribute]): Int = {
-    val funcs = context.registeredFunction
     val projExprNode = ExpressionConverter
       .replaceWithExpressionTransformer(ordering.child, attributes)
-      .doTransform(funcs)
+      .doTransform(context)
     val pb = projExprNode.toProtobuf
     if (!pb.hasSelection) {
       throw new IllegalArgumentException(s"A sorting field should be an attribute")
@@ -135,7 +134,6 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
   private def buildProjectionPlan(
       context: SubstraitContext,
       sortExpressions: Seq[NamedExpression]): PlanNode = {
-    val args = context.registeredFunction
     val columnarProjExprs = sortExpressions.map(
       expr => {
         ExpressionConverter
@@ -143,7 +141,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
       })
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     for (expr <- columnarProjExprs) {
-      projExprNodeList.add(expr.doTransform(args))
+      projExprNodeList.add(expr.doTransform(context))
     }
     val projectRel = RelBuilder.makeProjectRel(null, projExprNodeList, context, 0)
     val outNames = new util.ArrayList[String]
@@ -210,27 +208,30 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
     arrayNode
   }
 
-  private def buildRangeBoundsJson(jsonMapper: ObjectMapper, arrayNode: ArrayNode): Unit = {
+  private def buildRangeBoundsJson(jsonMapper: ObjectMapper, arrayNode: ArrayNode): Int = {
     val bounds = getRangeBounds
     bounds.foreach {
       bound =>
         val row = bound.asInstanceOf[UnsafeRow]
         arrayNode.add(buildRangeBoundJson(row, ordering, jsonMapper))
     }
+    bounds.length
   }
 
   // Make a json structure that can be passed to native engine
-  def getRangeBoundsJsonString: String = {
+  def getRangeBoundsJsonString: RangeBoundsInfo = {
     val context = new SubstraitContext()
     val mapper = new ObjectMapper
     val rootNode = mapper.createObjectNode
     val orderingArray = rootNode.putArray("ordering")
     buildOrderingJson(context, ordering, inputAttributes, mapper, orderingArray)
     val boundArray = rootNode.putArray("range_bounds")
-    buildRangeBoundsJson(mapper, boundArray)
-    mapper.writeValueAsString(rootNode)
+    val boundLength = buildRangeBoundsJson(mapper, boundArray)
+    RangeBoundsInfo(mapper.writeValueAsString(rootNode), boundLength)
   }
 }
+
+case class RangeBoundsInfo(json: String, boundsSize: Int)
 
 object RangePartitionerBoundsGenerator {
   def supportedFieldType(dataType: DataType): Boolean = {

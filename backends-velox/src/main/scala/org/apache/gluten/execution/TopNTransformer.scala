@@ -16,13 +16,10 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
+import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -90,13 +87,12 @@ case class TopNTransformer(
       inputAttributes: Seq[Attribute],
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     val sortFieldList = sortOrder.map {
       order =>
         val builder = SortField.newBuilder()
         val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-          .doTransform(args)
+          .doTransform(context)
         builder.setExpr(exprNode.toProtobuf)
 
         builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
@@ -105,12 +101,13 @@ case class TopNTransformer(
     if (!validation) {
       RelBuilder.makeTopNRel(input, count, sortFieldList.asJava, context, operatorId)
     } else {
-      val inputTypeNodes =
-        inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodes).toProtobuf))
-      RelBuilder.makeTopNRel(input, count, sortFieldList.asJava, extensionNode, context, operatorId)
+      RelBuilder.makeTopNRel(
+        input,
+        count,
+        sortFieldList.asJava,
+        RelBuilder.createExtensionNode(inputAttributes.asJava),
+        context,
+        operatorId)
     }
   }
 

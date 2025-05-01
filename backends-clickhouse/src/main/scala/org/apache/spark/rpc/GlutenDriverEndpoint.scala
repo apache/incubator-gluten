@@ -16,7 +16,7 @@
  */
 package org.apache.spark.rpc
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
@@ -40,7 +40,8 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
   private val driverEndpoint: RpcEndpointRef =
     rpcEnv.setupEndpoint(GlutenRpcConstants.GLUTEN_DRIVER_ENDPOINT_NAME, this)
 
-  // TODO(yuan): get thread cnt from spark context
+  // With Apache Spark, endpoint uses a dedicated thread pool for delivering messages and
+  // ensured to be thread-safe by default.
   override def threadCount(): Int = 1
   override def receive: PartialFunction[Any, Unit] = {
     case GlutenOnExecutionStart(executionId) =>
@@ -96,8 +97,8 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
 
 object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Set[String]] {
   private lazy val executionResourceExpiredTime = SparkEnv.get.conf.getLong(
-    GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME,
-    GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME_DEFAULT
+    GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME.key,
+    GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME.defaultValue.get
   )
 
   var glutenDriverEndpointRef: RpcEndpointRef = _

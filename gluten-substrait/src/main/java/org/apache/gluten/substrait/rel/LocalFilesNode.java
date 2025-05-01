@@ -16,8 +16,9 @@
  */
 package org.apache.gluten.substrait.rel;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.expression.ConverterUtils;
+import org.apache.gluten.substrait.utils.SubstraitUtil;
 
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
@@ -38,6 +39,7 @@ public class LocalFilesNode implements SplitInfo {
   private final List<Long> modificationTimes = new ArrayList<>();
   private final List<Map<String, String>> partitionColumns = new ArrayList<>();
   private final List<Map<String, String>> metadataColumns = new ArrayList<>();
+  private final List<Map<String, Object>> otherMetadataColumns = new ArrayList<>();
   private final List<String> preferredLocations = new ArrayList<>();
 
   // The format of file to read.
@@ -49,6 +51,7 @@ public class LocalFilesNode implements SplitInfo {
     MergeTreeReadFormat(),
     TextReadFormat(),
     JsonReadFormat(),
+    KafkaReadFormat(),
     UnknownFormat()
   }
 
@@ -68,7 +71,8 @@ public class LocalFilesNode implements SplitInfo {
       List<Map<String, String>> metadataColumns,
       ReadFileFormat fileFormat,
       List<String> preferredLocations,
-      Map<String, String> properties) {
+      Map<String, String> properties,
+      List<Map<String, Object>> otherMetadataColumns) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
@@ -80,6 +84,7 @@ public class LocalFilesNode implements SplitInfo {
     this.metadataColumns.addAll(metadataColumns);
     this.preferredLocations.addAll(preferredLocations);
     this.fileReadProperties = properties;
+    this.otherMetadataColumns.addAll(otherMetadataColumns);
   }
 
   LocalFilesNode(String iterPath) {
@@ -193,12 +198,25 @@ public class LocalFilesNode implements SplitInfo {
       NamedStruct namedStruct = buildNamedStruct();
       fileBuilder.setSchema(namedStruct);
 
+      if (!otherMetadataColumns.isEmpty()) {
+        Map<String, Object> otherMetadatas = otherMetadataColumns.get(i);
+        if (!otherMetadatas.isEmpty()) {
+          otherMetadatas.forEach(
+              (key, value) -> {
+                ReadRel.LocalFiles.FileOrFiles.otherConstantMetadataColumnValues.Builder builder =
+                    ReadRel.LocalFiles.FileOrFiles.otherConstantMetadataColumnValues.newBuilder();
+                builder.setKey(key).setValue(SubstraitUtil.convertJavaObjectToAny(value));
+                fileBuilder.addOtherConstMetadataColumns(builder.build());
+              });
+        }
+      }
+
       switch (fileFormat) {
         case ParquetReadFormat:
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
               ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
                   .setEnableRowGroupMaxminIndex(
-                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                      GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
                   .build();
           fileBuilder.setParquet(parquetReadOptions);
           break;
@@ -225,15 +243,15 @@ public class LocalFilesNode implements SplitInfo {
                   .setHeader(Long.parseLong(header))
                   .setEscape(escape)
                   .setNullValue(nullValue)
-                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
-                  .setEmptyAsDefault(GlutenConfig.getConf().textIputEmptyAsDefault())
+                  .setMaxBlockSize(GlutenConfig.get().textInputMaxBlockSize())
+                  .setEmptyAsDefault(GlutenConfig.get().textIputEmptyAsDefault())
                   .build();
           fileBuilder.setText(textReadOptions);
           break;
         case JsonReadFormat:
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
               ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
-                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
+                  .setMaxBlockSize(GlutenConfig.get().textInputMaxBlockSize())
                   .build();
           fileBuilder.setJson(jsonReadOptions);
           break;

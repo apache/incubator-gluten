@@ -16,9 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.utils.UTSystemParameters
-
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
@@ -51,9 +48,7 @@ class GlutenClickHouseSyntheticDataSuite
       .set("spark.databricks.delta.snapshotPartitions", "1")
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
-      .set("spark.gluten.sql.columnar.columnarToRow", "true")
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -71,8 +66,6 @@ class GlutenClickHouseSyntheticDataSuite
   override protected def afterAll(): Unit = {
     DeltaLog.clearCache()
     super.afterAll()
-    // init GlutenConfig in the next beforeAll
-    GlutenConfig.ins = null
   }
 
   test("test all data types all agg") {

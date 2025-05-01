@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, CountDistinct}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -32,9 +32,7 @@ import org.apache.spark.sql.catalyst.trees.TreePattern.AGGREGATE_EXPRESSION
  */
 object CountDistinctWithoutExpand extends Rule[LogicalPlan] {
   def apply(plan: LogicalPlan): LogicalPlan = {
-    if (
-      GlutenConfig.getConf.enableGluten && GlutenConfig.getConf.enableCountDistinctWithoutExpand
-    ) {
+    if (GlutenConfig.get.enableGluten && GlutenConfig.get.enableCountDistinctWithoutExpand) {
       plan.transformAllExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
         case ae: AggregateExpression
             if ae.isDistinct && ae.aggregateFunction.isInstanceOf[Count] &&

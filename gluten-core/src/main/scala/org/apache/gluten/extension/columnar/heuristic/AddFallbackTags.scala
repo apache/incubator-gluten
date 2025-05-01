@@ -25,7 +25,10 @@ import org.apache.spark.sql.execution.SparkPlan
 // Add fallback tags when validator returns negative outcome.
 case class AddFallbackTags(validator: Validator) extends Rule[SparkPlan] {
   def apply(plan: SparkPlan): SparkPlan = {
-    plan.foreachUp { case p => addFallbackTag(p) }
+    plan.foreachUp {
+      case p if FallbackTags.maybeOffloadable(p) => addFallbackTag(p)
+      case _ =>
+    }
     plan
   }
 

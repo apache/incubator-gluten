@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.s3
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SparkSession.Builder
@@ -113,7 +113,7 @@ class S3AuthSuite extends AnyFunSuite {
         .appName("Gluten-S3-Test")
         .master(s"local[1]")
         .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
-        .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
+        .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "1g")
         .config("spark.gluten.sql.enable.native.validation", "false")
@@ -144,7 +144,7 @@ class S3AuthSuite extends AnyFunSuite {
         .appName("Gluten-S3-Test")
         .master(s"local[1]")
         .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
-        .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
+        .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "1g")
         .config("spark.gluten.sql.enable.native.validation", "false")
@@ -182,7 +182,7 @@ class S3AuthSuite extends AnyFunSuite {
         .appName("Gluten-S3-Test")
         .master(s"local[1]")
         .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
-        .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
+        .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "1g")
         .config("spark.gluten.sql.enable.native.validation", "false")
@@ -231,7 +231,7 @@ class S3AuthSuite extends AnyFunSuite {
       .appName("Gluten-S3-Test")
       .master(s"local[1]")
       .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
-      .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
+      .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", "1g")
       .config("spark.gluten.sql.enable.native.validation", "false")
@@ -301,7 +301,7 @@ class S3AuthSuite extends AnyFunSuite {
       .appName("Gluten-S3-Test")
       .master(s"local[1]")
       .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
-      .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
+      .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", "1g")
       .config("spark.gluten.sql.enable.native.validation", "false")

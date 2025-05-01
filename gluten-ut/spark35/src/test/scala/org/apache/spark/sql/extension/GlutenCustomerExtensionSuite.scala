@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.extension
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsTrait
@@ -44,8 +44,8 @@ class GlutenCustomerExtensionSuite extends GlutenSQLTestsTrait {
       val testFileSourceScanExecTransformer = df.queryExecution.executedPlan.collect {
         case f: TestFileSourceScanExecTransformer => f
       }
-      assert(!testFileSourceScanExecTransformer.isEmpty)
-      assert(testFileSourceScanExecTransformer(0).nodeNamePrefix.equals("TestFile"))
+      assert(testFileSourceScanExecTransformer.nonEmpty)
+      assert(testFileSourceScanExecTransformer.head.nodeNamePrefix.equals("TestFile"))
     }
   }
 }

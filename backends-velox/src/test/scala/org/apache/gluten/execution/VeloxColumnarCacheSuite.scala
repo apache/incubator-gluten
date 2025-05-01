@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.SparkConf
@@ -24,7 +24,10 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+import org.apache.spark.sql.types.{LongType, Metadata, MetadataBuilder, StructType}
 import org.apache.spark.storage.StorageLevel
+
+import scala.collection.JavaConverters._
 
 class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   override protected val resourcePath: String = "/tpch-data-parquet"
@@ -55,7 +58,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     )
   }
 
-  test("input columnar batch") {
+  test("Input columnar batch") {
     TPCHTables.map(_.name).foreach {
       table =>
         runQueryAndCompare(s"SELECT * FROM $table", cache = true) {
@@ -64,7 +67,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     }
   }
 
-  test("input columnar batch and column pruning") {
+  test("Input columnar batch and column pruning") {
     val expected = sql("SELECT l_partkey FROM lineitem").collect()
     val cached = sql("SELECT * FROM lineitem").cache()
     try {
@@ -76,7 +79,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     }
   }
 
-  testWithSpecifiedSparkVersion("input row", Some("3.2")) {
+  testWithMinSparkVersion("input row", "3.2") {
     withTable("t") {
       sql("CREATE TABLE t USING json AS SELECT * FROM values(1, 'a', (2, 'b'), (3, 'c'))")
       runQueryAndCompare("SELECT * FROM t", cache = true) {
@@ -85,7 +88,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     }
   }
 
-  test("input vanilla Spark columnar batch") {
+  test("Input vanilla Spark columnar batch") {
     withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
       val df = spark.table("lineitem")
       val expected = df.collect()
@@ -95,6 +98,37 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
       } finally {
         actual.unpersist()
       }
+    }
+  }
+
+  // See issue https://github.com/apache/incubator-gluten/issues/8497.
+  testWithMinSparkVersion("Input fallen back vanilla Spark columnar scan", "3.3") {
+    def withId(id: Int): Metadata =
+      new MetadataBuilder().putLong("parquet.field.id", id).build()
+
+    withTempDir {
+      dir =>
+        val readSchema =
+          new StructType()
+            .add("l_orderkey_read", LongType, true, withId(1))
+        val writeSchema =
+          new StructType()
+            .add("l_orderkey_write", LongType, true, withId(1))
+        withSQLConf("spark.sql.parquet.fieldId.read.enabled" -> "true") {
+          // Write a table with metadata information that Gluten Velox backend doesn't support,
+          // to emulate the scenario that a Spark columnar scan is not offload-able so fallen back,
+          // then user tries to cache it.
+          spark
+            .createDataFrame(
+              spark.sql("select l_orderkey from lineitem").collect().toList.asJava,
+              writeSchema)
+            .write
+            .mode("overwrite")
+            .parquet(dir.getCanonicalPath)
+          val df = spark.read.schema(readSchema).parquet(dir.getCanonicalPath)
+          df.cache()
+          assert(df.collect().length == 60175)
+        }
     }
   }
 

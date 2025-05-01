@@ -20,9 +20,10 @@
 
 #include <arrow/c/bridge.h>
 #include <arrow/util/range.h>
+
 #include <benchmark/benchmark.h>
+
 #include <gflags/gflags.h>
-#include <operators/writer/ArrowWriter.h>
 
 #include "benchmarks/common/BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
@@ -35,10 +36,11 @@
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/Exception.h"
+#include "utils/LocalRssClient.h"
 #include "utils/StringUtil.h"
+#include "utils/TestAllocationListener.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/tests/LocalRssClient.h"
 #include "velox/exec/PlanNodeStats.h"
 
 using namespace gluten;
@@ -78,6 +80,17 @@ DEFINE_string(
     "'stream' mode: Input file scan happens inside of the pipeline."
     "'buffered' mode: First read all data into memory and feed the pipeline with it.");
 DEFINE_bool(debug_mode, false, "Whether to enable debug mode. Same as setting `spark.gluten.sql.debug`");
+DEFINE_bool(query_trace_enabled, false, "Whether to enable query trace.");
+DEFINE_string(query_trace_dir, "", "Base dir of a query to store tracing data.");
+DEFINE_string(
+    query_trace_node_ids,
+    "",
+    "A comma-separated list of plan node ids whose input data will be traced. Empty string if only want to trace the query metadata.");
+DEFINE_int64(query_trace_max_bytes, 0, "The max trace bytes limit. Tracing is disabled if zero.");
+DEFINE_string(
+    query_trace_task_reg_exp,
+    "",
+    "The regexp of traced task id. We only enable trace on a task if its id matches.");
 
 struct WriterMetrics {
   int64_t splitTime{0};
@@ -85,6 +98,7 @@ struct WriterMetrics {
   int64_t writeTime{0};
   int64_t compressTime{0};
 
+  int64_t dataSize{0};
   int64_t bytesSpilled{0};
   int64_t bytesWritten{0};
 };
@@ -158,11 +172,9 @@ PartitionWriterOptions createPartitionWriterOptions() {
   if (FLAGS_compression == "lz4") {
     partitionWriterOptions.codecBackend = CodecBackend::NONE;
     partitionWriterOptions.compressionType = arrow::Compression::LZ4_FRAME;
-    partitionWriterOptions.compressionTypeStr = "lz4";
   } else if (FLAGS_compression == "zstd") {
     partitionWriterOptions.codecBackend = CodecBackend::NONE;
     partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
-    partitionWriterOptions.compressionTypeStr = "zstd";
   } else if (FLAGS_compression == "qat_gzip") {
     partitionWriterOptions.codecBackend = CodecBackend::QAT;
     partitionWriterOptions.compressionType = arrow::Compression::GZIP;
@@ -206,9 +218,9 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
   auto options = ShuffleWriterOptions{};
   options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   if (FLAGS_rss || FLAGS_shuffle_writer == "rss_sort") {
-    options.shuffleWriterType = gluten::kRssSortShuffle;
+    options.shuffleWriterType = gluten::ShuffleWriterType::kRssSortShuffle;
   } else if (FLAGS_shuffle_writer == "sort") {
-    options.shuffleWriterType = gluten::kSortShuffle;
+    options.shuffleWriterType = gluten::ShuffleWriterType::kSortShuffle;
   }
   auto shuffleWriter =
       runtime->createShuffleWriter(FLAGS_shuffle_partitions, std::move(partitionWriter), std::move(options));
@@ -227,6 +239,8 @@ void populateWriterMetrics(
   if (splitTime > 0) {
     metrics.splitTime += splitTime;
   }
+  metrics.dataSize +=
+      std::accumulate(shuffleWriter->rawPartitionLengths().begin(), shuffleWriter->rawPartitionLengths().end(), 0LL);
   metrics.bytesWritten += shuffleWriter->totalBytesWritten();
   metrics.bytesSpilled += shuffleWriter->totalBytesEvicted();
 }
@@ -243,7 +257,7 @@ void setCpu(::benchmark::State& state) {
 
 void runShuffle(
     Runtime* runtime,
-    BenchmarkAllocationListener* listener,
+    TestAllocationListener* listener,
     const std::shared_ptr<gluten::ResultIterator>& resultIter,
     WriterMetrics& writerMetrics,
     ReaderMetrics& readerMetrics,
@@ -278,7 +292,6 @@ void runShuffle(
     readerOptions.shuffleWriterType = shuffleWriter->options().shuffleWriterType;
     readerOptions.compressionType = partitionWriterOptions.compressionType;
     readerOptions.codecBackend = partitionWriterOptions.codecBackend;
-    readerOptions.compressionTypeStr = partitionWriterOptions.compressionTypeStr;
 
     std::shared_ptr<arrow::Schema> schema =
         gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema.get())));
@@ -291,6 +304,9 @@ void runShuffle(
       // Read and discard.
       auto cb = iter->next();
     }
+    // Call the dtor to collect the metrics.
+    iter.reset();
+
     readerMetrics.decompressTime = reader->getDecompressTime();
     readerMetrics.deserializeTime = reader->getDeserializeTime();
   }
@@ -332,10 +348,31 @@ void updateBenchmarkMetrics(
     state.counters["shuffle_split_time"] =
         benchmark::Counter(splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 
+    state.counters["shuffle_data_size"] = benchmark::Counter(
+        writerMetrics.dataSize, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
     state.counters["shuffle_spilled_bytes"] = benchmark::Counter(
         writerMetrics.bytesSpilled, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
     state.counters["shuffle_write_bytes"] = benchmark::Counter(
         writerMetrics.bytesWritten, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
+  }
+}
+
+void setQueryTraceConfig(std::unordered_map<std::string, std::string>& configs) {
+  if (!FLAGS_query_trace_enabled) {
+    return;
+  }
+  configs[kQueryTraceEnabled] = "true";
+  if (FLAGS_query_trace_dir != "") {
+    configs[kQueryTraceDir] = FLAGS_query_trace_dir;
+  }
+  if (FLAGS_query_trace_max_bytes) {
+    configs[kQueryTraceMaxBytes] = std::to_string(FLAGS_query_trace_max_bytes);
+  }
+  if (FLAGS_query_trace_node_ids != "") {
+    configs[kQueryTraceNodeIds] = FLAGS_query_trace_node_ids;
+  }
+  if (FLAGS_query_trace_task_reg_exp != "") {
+    configs[kQueryTraceTaskRegExp] = FLAGS_query_trace_task_reg_exp;
   }
 }
 } // namespace
@@ -351,7 +388,9 @@ auto BM_Generic = [](::benchmark::State& state,
                      FileReaderType readerType) {
   setCpu(state);
 
-  auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
+  auto listener = std::make_unique<TestAllocationListener>();
+  listener->updateLimit(FLAGS_memory_limit);
+
   auto* listenerPtr = listener.get();
   auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
   auto runtime = runtimeFactory(memoryManager);
@@ -399,9 +438,10 @@ auto BM_Generic = [](::benchmark::State& state,
             });
       }
       *Runtime::localWriteFilesTempPath() = FLAGS_write_path;
-      runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), std::nullopt);
-      for (auto& split : splits) {
-        runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
+      runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), false);
+      for (auto i = 0; i < splits.size(); i++) {
+        auto split = splits[i];
+        runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), i, false);
       }
 
       auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters), runtime->getConfMap());
@@ -455,6 +495,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
       auto* rawIter = static_cast<gluten::WholeStageResultIterator*>(resultIter->getInputIter());
       const auto* task = rawIter->task();
+      LOG(WARNING) << task->toString();
       const auto* planNode = rawIter->veloxPlan();
       auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
       LOG(WARNING) << statsStr;
@@ -473,7 +514,9 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
                               FileReaderType readerType) {
   setCpu(state);
 
-  auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
+  auto listener = std::make_unique<TestAllocationListener>();
+  listener->updateLimit(FLAGS_memory_limit);
+
   auto* listenerPtr = listener.get();
   auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
   auto runtime = runtimeFactory(memoryManager);
@@ -530,8 +573,8 @@ int main(int argc, char** argv) {
   ::benchmark::Initialize(&argc, argv);
 
   // Init Velox backend.
-  auto backendConf = gluten::defaultConf();
-  auto sessionConf = gluten::defaultConf();
+  std::unordered_map<std::string, std::string> backendConf{};
+  std::unordered_map<std::string, std::string> sessionConf{};
   backendConf.insert({gluten::kDebugModeEnabled, std::to_string(FLAGS_debug_mode)});
   backendConf.insert({gluten::kGlogVerboseLevel, std::to_string(FLAGS_v)});
   backendConf.insert({gluten::kGlogSeverityLevel, std::to_string(FLAGS_minloglevel)});
@@ -584,6 +627,8 @@ int main(int argc, char** argv) {
   if (sessionConf.empty()) {
     sessionConf = backendConf;
   }
+  setQueryTraceConfig(sessionConf);
+  setQueryTraceConfig(backendConf);
 
   initVeloxBackend(backendConf);
   memory::MemoryManager::testingSetInstance({});

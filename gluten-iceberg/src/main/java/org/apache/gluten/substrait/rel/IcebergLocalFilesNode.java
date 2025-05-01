@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.substrait.rel;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 
 import io.substrait.proto.ReadRel;
 import org.apache.iceberg.DeleteFile;
@@ -49,7 +49,8 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         new ArrayList<>(),
         fileFormat,
         preferredLocations,
-        new HashMap<>());
+        new HashMap<>(),
+        new ArrayList<>());
     this.deleteFilesList = deleteFilesList;
   }
 
@@ -63,8 +64,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
       case ParquetReadFormat:
         ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
             ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
-                .setEnableRowGroupMaxminIndex(
-                    GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                .setEnableRowGroupMaxminIndex(GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
                 .build();
         icebergBuilder.setParquet(parquetReadOptions);
         break;
@@ -104,7 +104,7 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
               ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
                   .setEnableRowGroupMaxminIndex(
-                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                      GlutenConfig.get().enableParquetRowGroupMaxMinIndex())
                   .build();
           deleteFileBuilder.setParquet(parquetReadOptions);
           break;
@@ -116,6 +116,9 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         default:
           throw new UnsupportedOperationException(
               "Unsupported format " + delete.format().name() + " for delete file.");
+      }
+      if (delete.equalityFieldIds() != null && !delete.equalityFieldIds().isEmpty()) {
+        deleteFileBuilder.addAllEqualityFieldIds(delete.equalityFieldIds());
       }
       icebergBuilder.addDeleteFiles(deleteFileBuilder);
     }

@@ -24,7 +24,6 @@ import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan, UnionExec}
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
-import org.apache.spark.util.SparkTestUtil
 
 /** ConventionFunc is a utility to derive [[Convention]] or [[ConventionReq]] from a query plan. */
 sealed trait ConventionFunc {
@@ -43,36 +42,18 @@ object ConventionFunc {
     object Empty extends Override
   }
 
-  // For testing, to make things work without a backend loaded.
-  private var ignoreBackend: Boolean = false
-
-  // Visible for testing.
-  def ignoreBackend[T](body: => T): T = synchronized {
-    assert(SparkTestUtil.isTesting)
-    assert(!ignoreBackend)
-    ignoreBackend = true
-    try {
-      body
-    } finally {
-      ignoreBackend = false
-    }
-  }
-
   def create(): ConventionFunc = {
     val batchOverride = newOverride()
     new BuiltinFunc(batchOverride)
   }
 
   private def newOverride(): Override = {
-    synchronized {
-      if (ignoreBackend) {
-        // For testing
-        return Override.Empty
-      }
-    }
     // Components should override Backend's convention function. Hence, reversed injection order
     // is applied.
     val overrides = Component.sorted().reverse.map(_.convFuncOverride())
+    if (overrides.isEmpty) {
+      return Override.Empty
+    }
     new Override {
       override val rowTypeOf: PartialFunction[SparkPlan, Convention.RowType] = {
         overrides.map(_.rowTypeOf).reduce((l, r) => l.orElse(r))

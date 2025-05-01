@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.CHConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Alias
@@ -204,18 +204,16 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
   }
 
   test("test 'GLUTEN-5016'") {
-    withSQLConf(("spark.gluten.sql.columnar.preferColumnar", "false")) {
-      val sql =
-        """
-          |SELECT
-          |   sum(l_quantity) AS sum_qty
-          |FROM
-          |   lineitem
-          |WHERE
-          |   l_shipdate <= date'1998-09-02'
-          |""".stripMargin
-      runSql(sql, noFallBack = true) { _ => }
-    }
+    val sql =
+      """
+        |SELECT
+        |   sum(l_quantity) AS sum_qty
+        |FROM
+        |   lineitem
+        |WHERE
+        |   l_shipdate <= date'1998-09-02'
+        |""".stripMargin
+    runSql(sql, noFallBack = true) { _ => }
   }
 
   test("test rewrite date conversion") {
@@ -233,7 +231,7 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
 
     Seq(("true", false), ("false", true)).foreach(
       conf => {
-        withSQLConf((GlutenConfig.ENABLE_CH_REWRITE_DATE_CONVERSION.key, conf._1)) {
+        withSQLConf((CHConfig.ENABLE_CH_REWRITE_DATE_CONVERSION.key, conf._1)) {
           runSql(sqlStr)(
             df => {
               val project = df.queryExecution.executedPlan.collect {
@@ -251,5 +249,10 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
             })
         }
       })
+  }
+
+  test("Fix array_sort issue-9038") {
+    val sql = "select array_sort(split(l_comment, ' ')) from lineitem limit 10"
+    runSql(sql) { _ => }
   }
 }

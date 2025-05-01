@@ -16,7 +16,7 @@
  */
 package org.apache.spark.softaffinity
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenPartition
 import org.apache.gluten.softaffinity.{AffinityManager, SoftAffinityManager}
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -45,11 +45,12 @@ object FakeSoftAffinityManager extends AffinityManager {
 class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession with PredicateHelper {
 
   override protected def sparkConf: SparkConf = super.sparkConf
-    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED, "true")
-    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED, "true")
-    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM, "2")
-    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS, "2")
-    .set(GlutenConfig.SOFT_AFFINITY_LOG_LEVEL, "INFO")
+    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED.key, "true")
+    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED.key, "true")
+    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM.key, "2")
+    .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS.key, "2")
+    .set(GlutenConfig.SOFT_AFFINITY_LOG_LEVEL.key, "INFO")
+    .set("spark.ui.enabled", "false")
 
   test("Soft Affinity Scheduler with duplicate reading detection") {
     if (SparkShimLoader.getSparkShims.supportDuplicateReadingTracking) {

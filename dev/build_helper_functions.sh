@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -173,6 +174,17 @@ function setup_linux {
       exit 1
       ;;
     esac
+  elif [[ "$LINUX_DISTRIBUTION" == "openEuler" ]]; then
+    case "$LINUX_VERSION_ID" in
+      24.03)
+        $GLUTEN_VELOX_SCRIPT_HOME/setup-openeuler24.sh
+        export re2_SOURCE=BUNDLED
+        ;;
+      *)
+        echo "Unsupported openEuler version: $LINUX_VERSION_ID"
+        exit 1
+        ;;
+    esac
   elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
     case "${LINUX_VERSION_ID:0:1}" in
     2)
@@ -208,9 +220,3 @@ function setup_linux {
     exit 1
   fi
 }
-
-function install_libhdfs3 {
-  github_checkout oap-project/libhdfs3 master
-  cmake_install
-}
-

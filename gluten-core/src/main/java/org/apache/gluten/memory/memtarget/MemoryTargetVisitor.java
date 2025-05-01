@@ -19,6 +19,8 @@ package org.apache.gluten.memory.memtarget;
 import org.apache.gluten.memory.memtarget.spark.RegularMemoryConsumer;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumer;
 
+import org.apache.spark.memory.GlobalOffHeapMemoryTarget;
+
 public interface MemoryTargetVisitor<T> {
   T visit(OverAcquire overAcquire);
 
@@ -28,11 +30,15 @@ public interface MemoryTargetVisitor<T> {
 
   T visit(TreeMemoryConsumer treeMemoryConsumer);
 
-  T visit(TreeMemoryTargets.Node node);
+  T visit(TreeMemoryConsumer.Node node);
 
   T visit(LoggingMemoryTarget loggingMemoryTarget);
 
   T visit(NoopMemoryTarget noopMemoryTarget);
 
   T visit(DynamicOffHeapSizingMemoryTarget dynamicOffHeapSizingMemoryTarget);
+
+  T visit(RetryOnOomMemoryTarget retryOnOomMemoryTarget);
+
+  T visit(GlobalOffHeapMemoryTarget globalOffHeapMemoryTarget);
 }

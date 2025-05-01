@@ -26,9 +26,9 @@
 
 #include "QatCodec.h"
 
-#define QZ_INIT_FAIL(rc) (QZ_OK != rc && QZ_DUPLICATE != rc)
+#define QZ_INIT_FAIL(rc) ((QZ_OK != (rc)) && (QZ_DUPLICATE != (rc)))
 
-#define QZ_SETUP_SESSION_FAIL(rc) (QZ_PARAMS == rc || QZ_NOSW_NO_HW == rc || QZ_NOSW_LOW_MEM == rc)
+#define QZ_SETUP_SESSION_FAIL(rc) (QZ_PARAMS == (rc) || QZ_NOSW_NO_HW == (rc) || QZ_NOSW_LOW_MEM == (rc))
 
 namespace gluten {
 namespace qat {
@@ -38,8 +38,8 @@ class QatZipCodec : public arrow::util::Codec {
   explicit QatZipCodec(int compressionLevel) : compressionLevel_(compressionLevel) {}
 
   ~QatZipCodec() {
-    (void)qzTeardownSession(&qzSession_);
-    (void)qzClose(&qzSession_);
+    static_cast<void>(qzTeardownSession(&qzSession_));
+    static_cast<void>(qzClose(&qzSession_));
   }
 
   arrow::Result<int64_t> Decompress(int64_t inputLen, const uint8_t* input, int64_t outputLen, uint8_t* output)

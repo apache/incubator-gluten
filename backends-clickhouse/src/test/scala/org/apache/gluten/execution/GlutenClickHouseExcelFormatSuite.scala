@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{functions, DataFrame, Row}
@@ -67,7 +67,7 @@ class GlutenClickHouseExcelFormatSuite
   override protected def createTPCHNotNullTables(): Unit = {}
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     super.sparkConf
       .set("spark.sql.adaptive.enabled", "true")
@@ -208,11 +208,11 @@ class GlutenClickHouseExcelFormatSuite
       "select * from filter_timestamp where account_time = timestamp'2020-10-01 10:10:10'"
     val sql5: String =
       "select * from filter_timestamp where account_date in ('2020-10-01', '2020-10-02')"
-    runAndCompare(sql1) {}
-    runAndCompare(sql2) {}
-    runAndCompare(sql3) {}
-    runAndCompare(sql4) {}
-    runAndCompare(sql5) {}
+    runAndCompare(sql1)
+    runAndCompare(sql2)
+    runAndCompare(sql3)
+    runAndCompare(sql4)
+    runAndCompare(sql5)
   }
   // scalastyle:on line.size.limit
 
@@ -881,7 +881,7 @@ class GlutenClickHouseExcelFormatSuite
       .toDF()
       .createTempView("no_quote_table")
 
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.quote_strict"), "true")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.quote_strict"), "true")) {
       compareResultsAgainstVanillaSpark(
         "select * from no_quote_table",
         compareResult = true,
@@ -1187,7 +1187,7 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   test("issue-2881 null string test") {
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.empty_as_null"), "true")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.empty_as_null"), "true")) {
       val file_path = csvDataPath + "/null_string.csv"
       val schema = StructType.apply(
         Seq(
@@ -1220,7 +1220,7 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   test("issue-3542 null string test") {
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.empty_as_null"), "false")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.empty_as_null"), "false")) {
       val file_path = csvDataPath + "/null_string.csv"
       val schema = StructType.apply(
         Seq(
@@ -1358,7 +1358,7 @@ class GlutenClickHouseExcelFormatSuite
       .createTempView("TEST_MEASURE1")
 
     withSQLConf(
-      (CHConf.runtimeSettings("use_excel_serialization"), "false"),
+      (CHConfig.runtimeSettings("use_excel_serialization"), "false"),
       ("spark.gluten.sql.text.input.empty.as.default", "true")) {
       compareResultsAgainstVanillaSpark(
         """
@@ -1394,7 +1394,7 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   test("issues-3609 int read test") {
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.number_force"), "false")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.number_force"), "false")) {
       val csv_path = csvDataPath + "/int_special.csv"
       val options = new util.HashMap[String, String]()
       options.put("delimiter", ",")
@@ -1423,7 +1423,7 @@ class GlutenClickHouseExcelFormatSuite
       checkAnswer(df, expectedAnswer)
     }
 
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.number_force"), "true")) {
+    withSQLConf((CHConfig.runtimeSettings("use_excel_serialization.number_force"), "true")) {
       val csv_path = csvDataPath + "/int_special.csv"
       val options = new util.HashMap[String, String]()
       options.put("delimiter", ",")
@@ -1464,16 +1464,15 @@ class GlutenClickHouseExcelFormatSuite
     fileName
   }
 
-  /** TODO: fix the issue and test in spark 3.5 */
-  testSparkVersionLE33("write into hdfs") {
+  test("write into hdfs") {
 
     /**
      * There is a bug in pipeline write to HDFS; when a pipeline returns column batch, it doesn't
      * close the hdfs file, and hence the file is not flushed.HDFS file is closed when LocalExecutor
      * is destroyed, but before that, the file moved by spark committer.
      */
-    val tableName = "write_into_hdfs"
-    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/$tableName/"
+
+    val tablePath = hdfsHelper.getHdfsUrl(s"$SPARK_DIR_NAME/write_into_hdfs/")
     val format = "parquet"
     val sql =
       s"""
@@ -1482,6 +1481,36 @@ class GlutenClickHouseExcelFormatSuite
          | where long_field > 30
          |""".stripMargin
     withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
+      testFileFormatBase(tablePath, format, sql, df => {})
+    }
+  }
+
+  // TODO: pass spark configuration to FileFormatWriter in Spark 3.3 and 3.2
+  testWithMinSparkVersion("write succeed even if set wrong snappy compression codec level", "3.5") {
+    // TODO: remove duplicated test codes
+    val tablePath = hdfsHelper.getHdfsUrl(s"$SPARK_DIR_NAME/failed_test/")
+    val format = "parquet"
+    val sql =
+      s"""
+         | select *
+         | from $format.`$tablePath`
+         | where long_field > 30
+         |""".stripMargin
+
+    withSQLConf(
+      (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
+      (
+        RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.key,
+        RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.defaultValueString)
+    ) {
+      testFileFormatBase(tablePath, format, sql, df => {})
+    }
+
+    // we can't pass the configuration to FileFormatWriter in Spark 3.3 and 3.2
+    withSQLConf(
+      (GlutenConfig.NATIVE_WRITER_ENABLED.key, "true"),
+      (RuntimeSettings.OUTPUT_FORMAT_COMPRESSION_LEVEL.key, "3")
+    ) {
       testFileFormatBase(tablePath, format, sql, df => {})
     }
   }

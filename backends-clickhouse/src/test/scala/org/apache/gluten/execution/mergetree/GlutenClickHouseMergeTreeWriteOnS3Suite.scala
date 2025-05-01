@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf._
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig}
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BasicScanExecTransformer, FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
@@ -24,14 +25,10 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
-import _root_.org.apache.commons.io.FileUtils
-import io.minio._
-import io.minio.messages.DeleteObject
-
 import java.io.File
-import java.util
 
 import scala.concurrent.duration.DurationInt
 
@@ -45,12 +42,6 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
-  private val client = MinioClient
-    .builder()
-    .endpoint(MINIO_ENDPOINT)
-    .credentials(S3_ACCESS_KEY, S3_SECRET_KEY)
-    .build()
-
   override protected def createTPCHNotNullTables(): Unit = {
     createNotNullTPCHTablesInParquet(tablesPath)
   }
@@ -62,32 +53,23 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .setCHConfig("logger.level", "error")
+      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
+      .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
+      .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
   }
 
   override protected def beforeEach(): Unit = {
     super.beforeEach()
-    if (client.bucketExists(BucketExistsArgs.builder().bucket(BUCKET_NAME).build())) {
-      val results =
-        client.listObjects(ListObjectsArgs.builder().bucket(BUCKET_NAME).recursive(true).build())
-      val objects = new util.LinkedList[DeleteObject]()
-      results.forEach(
-        obj => {
-          objects.add(new DeleteObject(obj.get().objectName()))
-        })
-      val removeResults = client.removeObjects(
-        RemoveObjectsArgs.builder().bucket(BUCKET_NAME).objects(objects).build())
-      removeResults.forEach(result => result.get().message())
-      client.removeBucket(RemoveBucketArgs.builder().bucket(BUCKET_NAME).build())
+    if (minioHelper.bucketExists(BUCKET_NAME)) {
+      minioHelper.clearBucket(BUCKET_NAME)
     }
-    client.makeBucket(MakeBucketArgs.builder().bucket(BUCKET_NAME).build())
-    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
-    FileUtils.forceMkdir(new File(S3_METADATA_PATH))
+    minioHelper.createBucket(BUCKET_NAME)
+    minioHelper.resetMeta()
   }
 
   override protected def afterEach(): Unit = {
     super.afterEach()
-    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
+    minioHelper.resetMeta()
   }
 
   test("test mergetree table write") {
@@ -124,7 +106,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | insert into table lineitem_mergetree_s3
                  | select * from lineitem
                  |""".stripMargin)
-    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
+    minioHelper.resetMeta()
 
     runTPCHQueryBySQL(1, q1("lineitem_mergetree_s3")) {
       df =>
@@ -139,8 +121,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
+        assert(
+          ClickHouseTableV2
+            .getTable(fileIndex.deltaLog)
+            .orderByKey === StorageMeta.DEFAULT_ORDER_BY_KEY)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKey.isEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
         assertResult(1)(addFiles.size)
@@ -153,41 +138,25 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
   }
 
   private def verifyS3CompactFileExist(table: String): Unit = {
-    val args = ListObjectsArgs
-      .builder()
-      .bucket(BUCKET_NAME)
-      .recursive(true)
-      .prefix(table)
-      .build()
-    var objectCount: Int = 0
-    var metadataGlutenExist: Boolean = false
-    var metadataBinExist: Boolean = false
-    var dataBinExist: Boolean = false
+    val objectNames = minioHelper.listObjects(BUCKET_NAME, table)
+    var metadataGlutenExist = false
+    var metadataBinExist = false
+    var dataBinExist = false
     var hasCommits = false
-    client
-      .listObjects(args)
-      .forEach(
-        obj => {
-          objectCount += 1
-          val objectName = obj.get().objectName()
-          if (objectName.contains("metadata.gluten")) {
-            metadataGlutenExist = true
-          } else if (objectName.contains("part_meta.gluten")) {
-            metadataBinExist = true
-          } else if (objectName.contains("part_data.gluten")) {
-            dataBinExist = true
-          } else if (objectName.contains("_commits")) {
-            // Spark 35 has _commits directory
-            // table/_delta_log/_commits/
-            hasCommits = true
-          }
-        })
+
+    objectNames.foreach {
+      objectName =>
+        if (objectName.contains("metadata.gluten")) metadataGlutenExist = true
+        else if (objectName.contains("part_meta.gluten")) metadataBinExist = true
+        else if (objectName.contains("part_data.gluten")) dataBinExist = true
+        else if (objectName.contains("_commits")) hasCommits = true
+    }
 
     if (isSparkVersionGE("3.5")) {
-      assertResult(6)(objectCount)
+      assertResult(6)(objectNames.size)
       assert(hasCommits)
     } else {
-      assertResult(5)(objectCount)
+      assertResult(5)(objectNames.size)
     }
 
     assert(metadataGlutenExist)
@@ -248,15 +217,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assertResult("l_shipdate,l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .orderByKeyOption
-            .get
-            .mkString(","))
+            .orderByKey)
         assertResult("l_shipdate")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .primaryKeyOption
-            .get
-            .mkString(","))
+            .primaryKey)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
         assertResult(1)(addFiles.size)
@@ -396,15 +361,11 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .orderByKeyOption
-            .get
-            .mkString(","))
+            .orderByKey)
         assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .primaryKeyOption
-            .get
-            .mkString(","))
+            .primaryKey)
         assertResult(1)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
         assertResult("l_returnflag")(
           ClickHouseTableV2
@@ -420,7 +381,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
   }
 
-  test("test mergetree write with bucket table") {
+  testSparkVersionLE33("test mergetree write with bucket table") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_bucket_s3;
                  |""".stripMargin)
@@ -472,16 +433,17 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isDefined)
         if (spark32) {
-          assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
+          assert(
+            ClickHouseTableV2
+              .getTable(fileIndex.deltaLog)
+              .orderByKey === StorageMeta.DEFAULT_ORDER_BY_KEY)
         } else {
           assertResult("l_partkey")(
             ClickHouseTableV2
               .getTable(fileIndex.deltaLog)
-              .orderByKeyOption
-              .get
-              .mkString(","))
+              .orderByKey)
         }
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKey.isEmpty)
         assertResult(1)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
         assertResult("l_returnflag")(
           ClickHouseTableV2
@@ -496,7 +458,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     spark.sql("drop table lineitem_mergetree_bucket_s3")
   }
 
-  test("test mergetree write with the path based") {
+  testSparkVersionLE33("test mergetree write with the path based bucket table") {
     val dataPath = s"s3a://$BUCKET_NAME/lineitem_mergetree_bucket_s3"
 
     val sourceDF = spark.sql(s"""
@@ -530,10 +492,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .orderByKeyOption
-            .get
-            .mkString(","))
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.nonEmpty)
+            .orderByKey)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKey.nonEmpty)
         assertResult(1)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
         assertResult("l_returnflag")(
           ClickHouseTableV2
@@ -559,8 +519,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      runtimeSettings("mergetree.insert_without_local_storage") -> "true",
-      runtimeSettings("mergetree.merge_after_insert") -> "true"
+      CHConfig.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
+      CHConfig.runtimeSettings("mergetree.merge_after_insert") -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;
@@ -617,9 +577,9 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | select * from lineitem
                  |""".stripMargin)
 
-    FileUtils.forceDelete(new File(S3_METADATA_PATH))
+    minioHelper.resetMeta()
 
-    withSQLConf(runtimeSettings("enabled_driver_filter_mergetree_index") -> "true") {
+    withSQLConf(CHConfig.runtimeSettings("enabled_driver_filter_mergetree_index") -> "true") {
       runTPCHQueryBySQL(6, q6(tableName)) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {
@@ -677,7 +637,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | select /*+ REPARTITION(3) */ * from lineitem
                  |""".stripMargin)
 
-    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
+    minioHelper.resetMeta()
     spark.sql("optimize lineitem_mergetree_bucket_s3")
     spark.sql("drop table lineitem_mergetree_bucket_s3")
   }

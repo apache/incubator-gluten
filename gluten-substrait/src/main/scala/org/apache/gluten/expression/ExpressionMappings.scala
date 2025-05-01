@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ExpressionNames._
 import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{StringTrimBoth, _}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
@@ -80,6 +80,7 @@ object ExpressionMappings {
     Sig[StringTrimLeft](LTRIM),
     Sig[StringTrimRight](RTRIM),
     Sig[StringTrim](TRIM),
+    Sig[StringTrimBoth](BTRIM),
     Sig[StringLPad](LPAD),
     Sig[StringRPad](RPAD),
     Sig[StringReplace](REPLACE),
@@ -192,6 +193,7 @@ object ExpressionMappings {
     Sig[MonthsBetween](MONTHS_BETWEEN),
     Sig[DateFromUnixDate](DATE_FROM_UNIX_DATE),
     Sig[UnixDate](UNIX_DATE),
+    Sig[MakeDate](MAKE_DATE),
     Sig[MakeTimestamp](MAKE_TIMESTAMP),
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
@@ -209,6 +211,7 @@ object ExpressionMappings {
     Sig[StructsToJson](TO_JSON),
     Sig[JsonToStructs](FROM_JSON),
     Sig[JsonTuple](JSON_TUPLE),
+    Sig[JsonObjectKeys](JSON_OBJECT_KEYS),
     // Hash functions
     Sig[Murmur3Hash](MURMUR3HASH),
     Sig[XxHash64](XXHASH64),
@@ -257,6 +260,7 @@ object ExpressionMappings {
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
+    Sig[MapConcat](MAP_CONCAT),
     Sig[MapKeys](MAP_KEYS),
     Sig[MapValues](MAP_VALUES),
     Sig[MapFromArrays](MAP_FROM_ARRAYS),
@@ -322,6 +326,7 @@ object ExpressionMappings {
     Sig[Skewness](SKEWNESS),
     Sig[Kurtosis](KURTOSIS),
     Sig[ApproximatePercentile](APPROX_PERCENTILE),
+    Sig[HyperLogLogPlusPlus](APPROX_COUNT_DISTINCT),
     Sig[Percentile](PERCENTILE)
   ) ++ SparkShimLoader.getSparkShims.aggregateExpressionMappings
 
@@ -338,12 +343,37 @@ object ExpressionMappings {
     Sig[NthValue](NTH_VALUE)
   )
 
+  private val RUNTIME_REPLACEABLE_SIGS: Seq[Sig] = Seq(
+    Sig[AssertTrue](ASSERT_TRUE),
+    Sig[NullIf](NULLIF),
+    Sig[Nvl](NVL),
+    Sig[Nvl2](NVL2),
+    Sig[Right](RIGHT)
+  ) ++ SparkShimLoader.getSparkShims.runtimeReplaceableExpressionMappings
+
+  def blacklistExpressionMap: Map[Class[_], String] = {
+    partitionExpressionMapByBlacklist._1
+  }
+
   def expressionsMap: Map[Class[_], String] = {
-    val blacklist = GlutenConfig.getConf.expressionBlacklist
-    val filtered = (defaultExpressionsMap ++ toMap(
-      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)).filterNot(
+    partitionExpressionMapByBlacklist._2
+  }
+
+  private def partitionExpressionMapByBlacklist: (Map[Class[_], String], Map[Class[_], String]) = {
+    val blacklist = GlutenConfig.get.expressionBlacklist
+    val (blacklistedExpr, filteredExpr) = (defaultExpressionsMap ++ toMap(
+      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)).partition(
       kv => blacklist.contains(kv._2))
-    filtered
+    (blacklistedExpr, filteredExpr)
+  }
+
+  // This is needed when generating function support status documentation for Spark built-in
+  // functions.
+  // Used by gluten/tools/scripts/gen-function-support-docs.py
+  def listExpressionMappings(): Array[(String, String)] = {
+    (expressionsMap ++ toMap(RUNTIME_REPLACEABLE_SIGS))
+      .map(kv => (kv._1.getSimpleName, kv._2))
+      .toArray
   }
 
   private lazy val defaultExpressionsMap: Map[Class[_], String] = {

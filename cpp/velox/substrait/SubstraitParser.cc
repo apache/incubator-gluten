@@ -327,7 +327,7 @@ int16_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal&
 template <>
 int32_t SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& literal) {
   if (literal.has_date()) {
-    return int32_t(literal.date());
+    return static_cast<int32_t>(literal.date());
   }
   return literal.i32();
 }
@@ -393,7 +393,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"lte", "lessthanorequal"},
     {"gt", "greaterthan"},
     {"gte", "greaterthanorequal"},
-    {"not_equal", "notequalto"},
     {"char_length", "length"},
     {"strpos", "instr"},
     {"ends_with", "endswith"},
@@ -404,7 +403,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"murmur3hash", "hash_with_seed"},
     {"xxhash64", "xxhash64_with_seed"},
     {"modulus", "remainder"},
-    {"date_format", "format_datetime"},
     {"negative", "unaryminus"},
     {"get_array_item", "get"}};
 

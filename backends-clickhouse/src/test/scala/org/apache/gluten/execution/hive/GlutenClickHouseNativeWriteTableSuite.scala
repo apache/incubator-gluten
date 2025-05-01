@@ -16,19 +16,21 @@
  */
 package org.apache.gluten.execution.hive
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
 import org.apache.gluten.test.AllDataTypesWithComplexType.genTestData
-import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.gluten.NativeWriteChecker
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.types._
 
-import scala.reflect.runtime.universe.TypeTag
+import java.io.File
+import java.sql.Date
 
 class GlutenClickHouseNativeWriteTableSuite
   extends GlutenClickHouseWholeStageTransformerSuite
@@ -37,8 +39,6 @@ class GlutenClickHouseNativeWriteTableSuite
   with NativeWriteChecker {
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConf._
-
     var sessionTimeZone = "GMT"
     if (isSparkVersionGE("3.5")) {
       sessionTimeZone = java.util.TimeZone.getDefault.getID
@@ -57,9 +57,7 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.databricks.delta.snapshotPartitions", "1")
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
-      .set("spark.gluten.sql.columnar.columnartorow", "true")
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
@@ -67,14 +65,8 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
       .set("spark.sql.session.timeZone", sessionTimeZone)
-      .setCHConfig("logger.level", "error")
+      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .setMaster("local[1]")
-  }
-
-  private def getWarehouseDir = {
-    // test non-ascii path, by the way
-    // scalastyle:off nonascii
-    basePath + "/中文/spark-warehouse"
   }
 
   private val table_name_template = "hive_%s_test"
@@ -85,58 +77,7 @@ class GlutenClickHouseNativeWriteTableSuite
     super.afterAll()
   }
 
-  def getColumnName(s: String): String = {
-    s.replaceAll("\\(", "_").replaceAll("\\)", "_")
-  }
-
   import collection.immutable.ListMap
-
-  import java.io.File
-
-  def compareSource(original_table: String, table_name: String, fields: Seq[String]): Unit = {
-    val rowsFromOriginTable =
-      spark.sql(s"select ${fields.mkString(",")} from $original_table").collect()
-    val dfFromWriteTable =
-      spark.sql(
-        s"select " +
-          s"${fields
-              .map(getColumnName)
-              .mkString(",")} " +
-          s"from $table_name")
-    checkAnswer(dfFromWriteTable, rowsFromOriginTable)
-  }
-  def writeAndCheckRead(
-      original_table: String,
-      table_name: String,
-      fields: Seq[String],
-      checkNative: Boolean = true)(write: Seq[String] => Unit): Unit =
-    withDestinationTable(table_name) {
-      withNativeWriteCheck(checkNative) {
-        write(fields)
-      }
-      compareSource(original_table, table_name, fields)
-    }
-
-  def recursiveListFiles(f: File): Array[File] = {
-    val these = f.listFiles
-    these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
-  }
-
-  def getSignature(format: String, filesOfNativeWriter: Array[File]): Array[(Long, Long)] = {
-    filesOfNativeWriter.map(
-      f => {
-        val df = if (format.equals("parquet")) {
-          spark.read.parquet(f.getAbsolutePath)
-        } else {
-          spark.read.orc(f.getAbsolutePath)
-        }
-        (
-          df.count(),
-          df.agg(("int_field", "sum")).collect().apply(0).apply(0).asInstanceOf[Long]
-        )
-      })
-  }
-
   private val fields_ = ListMap(
     ("string_field", "string"),
     ("int_field", "int"),
@@ -149,22 +90,6 @@ class GlutenClickHouseNativeWriteTableSuite
     ("decimal_field", "decimal(23,12)"),
     ("date_field", "date")
   )
-
-  def nativeWrite2(
-      f: String => (String, String, String),
-      extraCheck: (String, String) => Unit = null,
-      checkNative: Boolean = true): Unit = nativeWrite {
-    format =>
-      val (table_name, table_create_sql, insert_sql) = f(format)
-      withDestinationTable(table_name, Option(table_create_sql)) {
-        checkInsertQuery(insert_sql, checkNative)
-        Option(extraCheck).foreach(_(table_name, format))
-      }
-  }
-
-  def withSource[A <: Product: TypeTag](data: Seq[A], viewName: String, pairs: (String, String)*)(
-      block: => Unit): Unit =
-    withSource(spark.createDataFrame(data), viewName, pairs: _*)(block)
 
   private lazy val supplierSchema = StructType.apply(
     Seq(
@@ -622,18 +547,7 @@ class GlutenClickHouseNativeWriteTableSuite
                 .saveAsTable(table_name_vanilla)
             }
           }
-          val sigsOfNativeWriter =
-            getSignature(
-              format,
-              recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
-                .filter(_.getName.endsWith(s".$format"))).sorted
-          val sigsOfVanillaWriter =
-            getSignature(
-              format,
-              recursiveListFiles(new File(getWarehouseDir + "/" + table_name_vanilla))
-                .filter(_.getName.endsWith(s".$format"))).sorted
-
-          assertResult(sigsOfVanillaWriter)(sigsOfNativeWriter)
+          compareWriteFilesSignature(format, table_name, table_name_vanilla, "sum(int_field)")
       }
     }
   }
@@ -684,18 +598,7 @@ class GlutenClickHouseNativeWriteTableSuite
                 .bucketBy(10, "byte_field", "string_field")
                 .saveAsTable(table_name_vanilla)
             }
-            val sigsOfNativeWriter =
-              getSignature(
-                format,
-                recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
-                  .filter(_.getName.endsWith(s".$format"))).sorted
-            val sigsOfVanillaWriter =
-              getSignature(
-                format,
-                recursiveListFiles(new File(getWarehouseDir + "/" + table_name_vanilla))
-                  .filter(_.getName.endsWith(s".$format"))).sorted
-
-            assertResult(sigsOfVanillaWriter)(sigsOfNativeWriter)
+            compareWriteFilesSignature(format, table_name, table_name_vanilla, "sum(int_field)")
           }
       }
     }
@@ -755,6 +658,63 @@ class GlutenClickHouseNativeWriteTableSuite
              |       id, cast(id as string), '2023-05-09'
              |from range(10000000)""".stripMargin
         (table_name, create_sql, insert_sql)
+    }
+  }
+
+  test("test partitioned with escaped characters") {
+
+    val schema = StructType(
+      Seq(
+        StructField.apply("id", IntegerType, nullable = true),
+        StructField.apply("escape", StringType, nullable = true),
+        StructField.apply("bucket/col", StringType, nullable = true),
+        StructField.apply("part=col1", DateType, nullable = true),
+        StructField.apply("part_col2", StringType, nullable = true)
+      ))
+
+    val data: Seq[Row] = Seq(
+      Row(1, "=", "00000", Date.valueOf("2024-01-01"), "2024=01/01"),
+      Row(2, "/", "00000", Date.valueOf("2024-01-01"), "2024=01/01"),
+      Row(3, "#", "00000", Date.valueOf("2024-01-01"), "2024#01:01"),
+      Row(4, ":", "00001", Date.valueOf("2024-01-02"), "2024#01:01"),
+      Row(5, "\\", "00001", Date.valueOf("2024-01-02"), "2024\\01\u000101"),
+      Row(6, "\u0001", "000001", Date.valueOf("2024-01-02"), "2024\\01\u000101"),
+      Row(7, "", "000002", null, null)
+    )
+
+    val df = spark.createDataFrame(spark.sparkContext.parallelize(data), schema)
+    df.createOrReplaceTempView("origin_table")
+    spark.sql("select * from origin_table").show()
+
+    nativeWrite {
+      format =>
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
+        writeAndCheckRead("origin_table", table_name, schema.fieldNames.map(f => s"`$f`")) {
+          _ =>
+            spark
+              .table("origin_table")
+              .write
+              .format(format)
+              .partitionBy("part=col1", "part_col2")
+              .bucketBy(2, "bucket/col")
+              .saveAsTable(table_name)
+        }
+
+        val table_name_vanilla = table_name_vanilla_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name_vanilla")
+        withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "false")) {
+          withNativeWriteCheck(checkNative = false) {
+            spark
+              .table("origin_table")
+              .write
+              .format(format)
+              .partitionBy("part=col1", "part_col2")
+              .bucketBy(2, "bucket/col")
+              .saveAsTable(table_name_vanilla)
+          }
+          compareWriteFilesSignature(format, table_name, table_name_vanilla, "sum(id)")
+        }
     }
   }
 

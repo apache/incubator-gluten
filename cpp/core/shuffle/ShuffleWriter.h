@@ -17,18 +17,11 @@
 
 #pragma once
 
-#include <numeric>
-#include <utility>
-
-#include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/Reclaimable.h"
 #include "shuffle/Options.h"
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/Partitioner.h"
-#include "shuffle/Partitioning.h"
-#include "shuffle/ShuffleMemoryPool.h"
-#include "utils/Compression.h"
 
 namespace gluten {
 
@@ -38,7 +31,9 @@ class ShuffleWriter : public Reclaimable {
 
   static constexpr int64_t kMaxMemLimit = 1LL * 1024 * 1024 * 1024;
 
-  static ShuffleWriterType stringToType(const std::string& type);
+  static ShuffleWriterType stringToType(const std::string& typeString);
+
+  static std::string typeToString(ShuffleWriterType type);
 
   virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
@@ -73,7 +68,7 @@ class ShuffleWriter : public Reclaimable {
  protected:
   ShuffleWriter(int32_t numPartitions, ShuffleWriterOptions options, arrow::MemoryPool* pool);
 
-  virtual ~ShuffleWriter() = default;
+  ~ShuffleWriter() override = default;
 
   int32_t numPartitions_;
 

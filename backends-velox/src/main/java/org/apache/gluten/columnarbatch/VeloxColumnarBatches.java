@@ -17,6 +17,7 @@
 package org.apache.gluten.columnarbatch;
 
 import org.apache.gluten.backendsapi.BackendsApiManager;
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 
@@ -46,16 +47,8 @@ public final class VeloxColumnarBatches {
             COMPREHENSIVE_TYPE_VELOX, ColumnarBatches.getComprehensiveLightBatchType(batch)));
   }
 
-  public static void checkNonVeloxBatch(ColumnarBatch batch) {
-    if (ColumnarBatches.isZeroColumnBatch(batch)) {
-      return;
-    }
-    Preconditions.checkArgument(
-        !isVeloxBatch(batch),
-        String.format("Comprehensive batch type is already %s", COMPREHENSIVE_TYPE_VELOX));
-  }
-
   public static ColumnarBatch toVeloxBatch(ColumnarBatch input) {
+    ColumnarBatches.checkOffloaded(input);
     if (ColumnarBatches.isZeroColumnBatch(input)) {
       return input;
     }
@@ -87,6 +80,26 @@ public final class VeloxColumnarBatches {
   }
 
   /**
+   * Check if a columnar batch is in Velox format. If not, convert it to Velox format then return.
+   * If already in Velox format, return the batch directly.
+   *
+   * <p>Should only be used for certain conditions when unable to insert explicit to-Velox
+   * transitions through query planner.
+   *
+   * <p>For example, used by {@link org.apache.spark.sql.execution.ColumnarCachedBatchSerializer} as
+   * Spark directly calls API ColumnarCachedBatchSerializer#convertColumnarBatchToCachedBatch for
+   * query plan that returns supportsColumnar=true without generating a cache-write query plan node.
+   */
+  public static ColumnarBatch ensureVeloxBatch(ColumnarBatch input) {
+    final ColumnarBatch light =
+        ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), input);
+    if (isVeloxBatch(light)) {
+      return light;
+    }
+    return toVeloxBatch(light);
+  }
+
+  /**
    * Combine multiple columnar batches horizontally, assuming each of them is already offloaded.
    * Otherwise {@link UnsupportedOperationException} will be thrown.
    */
@@ -100,5 +113,32 @@ public final class VeloxColumnarBatches {
             .toArray();
     final long handle = VeloxColumnarBatchJniWrapper.create(runtime).compose(handles);
     return ColumnarBatches.create(handle);
+  }
+
+  /**
+   * Returns a new ColumnarBatch that contains at most `limit` rows from the given batch.
+   *
+   * <p>If `limit >= batch.numRows()`, returns the original batch. Otherwise, copies up to `limit`
+   * rows into new column vectors.
+   *
+   * @param batch the original batch
+   * @param limit the maximum number of rows to include
+   * @return a new pruned [[ColumnarBatch]] with row count = `limit`, or the original batch if no
+   *     pruning is required
+   */
+  public static ColumnarBatch slice(ColumnarBatch batch, int offset, int limit) {
+    int totalRows = batch.numRows();
+    if (limit >= totalRows) {
+      // No need to prune
+      return batch;
+    } else {
+      Runtime runtime =
+          Runtimes.contextInstance(
+              BackendsApiManager.getBackendName(), "VeloxColumnarBatches#sliceBatch");
+      long nativeHandle =
+          ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName(), batch);
+      long handle = VeloxColumnarBatchJniWrapper.create(runtime).slice(nativeHandle, offset, limit);
+      return ColumnarBatches.create(handle);
+    }
   }
 }

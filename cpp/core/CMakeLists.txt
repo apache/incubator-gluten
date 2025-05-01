@@ -52,6 +52,25 @@ endif(CCACHE_FOUND)
 macro(find_protobuf)
   set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+
+  if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    # brew --prefix protobuf will not return the correct path. Update `brew
+    # --prefix protobuf@21` if protobuf version is changed.
+    execute_process(
+      COMMAND brew --prefix protobuf@21
+      RESULT_VARIABLE BREW_PROTOBUF
+      OUTPUT_VARIABLE BREW_PROTOBUF_PREFIX
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(BREW_PROTOBUF EQUAL 0 AND EXISTS "${BREW_PROTOBUF_PREFIX}")
+      message(
+        STATUS "Found protobuf installed by Homebrew at ${BREW_PROTOBUF_PREFIX}"
+      )
+      list(APPEND CMAKE_PREFIX_PATH "${BREW_PROTOBUF_PREFIX}")
+    else()
+      message(WARNING "Homebrew protobuf not found.")
+    endif()
+  endif()
+
   find_package(Protobuf)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
   if("${Protobuf_LIBRARY}" STREQUAL "Protobuf_LIBRARY-NOTFOUND")
@@ -120,7 +139,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     shuffle/RandomPartitioner.cc
     shuffle/RoundRobinPartitioner.cc
     shuffle/ShuffleMemoryPool.cc
-    shuffle/ShuffleReader.cc
     shuffle/ShuffleWriter.cc
     shuffle/SinglePartitioner.cc
     shuffle/Spill.cc
@@ -218,10 +236,6 @@ set_target_properties(gluten PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
-endif()
-
-if(BUILD_BENCHMARKS)
-  add_subdirectory(benchmarks)
 endif()
 
 if(DEFINED ENV{HADOOP_HOME})

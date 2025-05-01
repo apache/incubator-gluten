@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.benchmarks
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
 
 import org.apache.spark.SparkConf
@@ -49,6 +49,7 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.sql.session.timeZone", "GMT+08:00")
   }
 
   test("Test plan json non-empty - AQE off") {

@@ -42,10 +42,6 @@
 using namespace gluten;
 
 namespace {
-jclass javaReservationListenerClass;
-
-jmethodID reserveMemoryMethod;
-jmethodID unreserveMemoryMethod;
 
 jclass byteArrayClass;
 
@@ -229,19 +225,14 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
   metricsBuilderConstructor = getMethodIdOrError(
-      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      env,
+      metricsBuilderClass,
+      "<init>",
+      "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
   nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", "([I[IJ)V");
-
-  javaReservationListenerClass = createGlobalClassReference(
-      env,
-      "Lorg/apache/gluten/memory/listener/"
-      "ReservationListener;");
-
-  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
-  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", "(J)J");
 
   shuffleReaderMetricsClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ShuffleReaderMetrics;");
@@ -313,8 +304,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrap
   auto backendType = jStringToCString(env, jBackendType);
   auto safeArray = getByteArrayElementsSafe(env, sessionConf);
   auto sparkConf = parseConfMap(env, safeArray.elems(), safeArray.length());
-  std::unique_ptr<AllocationListener> listener =
-      std::make_unique<SparkAllocationListener>(vm, jListener, reserveMemoryMethod, unreserveMemoryMethod);
+  std::unique_ptr<AllocationListener> listener = std::make_unique<SparkAllocationListener>(vm, jListener);
   bool backtrace = sparkConf.at(kBacktraceAllocation) == "true";
   if (backtrace) {
     listener = std::make_unique<BacktraceAllocationListener>(std::move(listener));
@@ -385,7 +375,7 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrap
   auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
   auto ctx = getRuntime(env, wrapper);
-  ctx->parsePlan(planData, planSize, std::nullopt);
+  ctx->parsePlan(planData, planSize, false);
   auto& conf = ctx->getConfMap();
   auto planString = ctx->planString(details, conf);
   return env->NewStringUTF(planString.c_str());
@@ -424,58 +414,27 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
-  std::string saveDir{};
-  std::string fileIdentifier = "_" + std::to_string(stageId) + "_" + std::to_string(partitionId);
-  if (saveInput) {
-    if (conf.find(kGlutenSaveDir) == conf.end()) {
-      throw GlutenException(kGlutenSaveDir + " is not configured.");
-    }
-    saveDir = conf.at(kGlutenSaveDir);
-    std::filesystem::path f{saveDir};
-    if (std::filesystem::exists(f)) {
-      if (!std::filesystem::is_directory(f)) {
-        throw GlutenException("Invalid path for " + kGlutenSaveDir + ": " + saveDir);
-      }
-    } else {
-      std::error_code ec;
-      std::filesystem::create_directory(f, ec);
-      if (ec) {
-        throw GlutenException("Failed to create directory: " + saveDir + ", error message: " + ec.message());
-      }
-    }
-    ctx->dumpConf(saveDir + "/conf" + fileIdentifier + ".ini");
-  }
+  ctx->dumpConf(saveInput);
 
   auto spillDirStr = jStringToCString(env, spillDir);
 
   auto safePlanArray = getByteArrayElementsSafe(env, planArr);
   auto planSize = env->GetArrayLength(planArr);
-  ctx->parsePlan(
-      safePlanArray.elems(),
-      planSize,
-      saveInput ? std::optional<std::string>(saveDir + "/plan" + fileIdentifier + ".json") : std::nullopt);
+  ctx->parsePlan(safePlanArray.elems(), planSize, saveInput);
 
   for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
     jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
     jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
     auto safeSplitArray = getByteArrayElementsSafe(env, splitInfoArray);
     auto splitInfoData = safeSplitArray.elems();
-    ctx->parseSplitInfo(
-        splitInfoData,
-        splitInfoSize,
-        saveInput ? std::optional<std::string>(saveDir + "/split" + fileIdentifier + "_" + std::to_string(i) + ".json")
-                  : std::nullopt);
+    ctx->parseSplitInfo(splitInfoData, splitInfoSize, i, saveInput);
   }
 
   // Handle the Java iters
   jsize itersLen = env->GetArrayLength(iterArr);
   std::vector<std::shared_ptr<ResultIterator>> inputIters;
   for (int idx = 0; idx < itersLen; idx++) {
-    std::shared_ptr<ArrowWriter> writer = nullptr;
-    if (saveInput) {
-      auto file = saveDir + "/data" + fileIdentifier + "_" + std::to_string(idx) + ".parquet";
-      writer = ctx->createArrowWriter(file);
-    }
+    auto writer = ctx->createArrowWriter(saveInput, idx);
     jobject iter = env->GetObjectArrayElement(iterArr, idx);
     auto arrayIter = makeJniColumnarBatchIterator(env, iter, ctx, writer);
     auto resultIter = std::make_shared<ResultIterator>(std::move(arrayIter));
@@ -574,6 +533,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_metrics_IteratorMetricsJniWrapp
       longArray[Metrics::kProcessedStrides],
       longArray[Metrics::kRemainingFilterTime],
       longArray[Metrics::kIoWaitTime],
+      longArray[Metrics::kStorageReadBytes],
+      longArray[Metrics::kLocalReadBytes],
+      longArray[Metrics::kRamReadBytes],
       longArray[Metrics::kPreloadSplits],
       longArray[Metrics::kPhysicalWrittenBytes],
       longArray[Metrics::kWriteIOTime],
@@ -832,10 +794,11 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     jstring codecJstr,
     jstring codecBackendJstr,
     jint compressionLevel,
-    jint sortEvictBufferSize,
+    jint compressionBufferSize,
+    jint diskWriteBufferSize,
     jint compressionThreshold,
     jstring compressionModeJstr,
-    jint sortBufferInitialSize,
+    jint initialSortBufferSize,
     jboolean useRadixSort,
     jstring dataFileJstr,
     jint numSubDirs,
@@ -863,17 +826,17 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .taskAttemptId = static_cast<int64_t>(taskAttemptId),
       .startPartitionId = startPartitionId,
       .shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
-      .sortBufferInitialSize = sortBufferInitialSize,
-      .sortEvictBufferSize = sortEvictBufferSize,
+      .initialSortBufferSize = initialSortBufferSize,
+      .diskWriteBufferSize = diskWriteBufferSize,
       .useRadixSort = static_cast<bool>(useRadixSort)};
 
   // Build PartitionWriterOptions.
   auto partitionWriterOptions = PartitionWriterOptions{
       .mergeBufferSize = mergeBufferSize,
       .mergeThreshold = mergeThreshold,
+      .compressionBufferSize = compressionBufferSize,
       .compressionThreshold = compressionThreshold,
       .compressionType = getCompressionType(env, codecJstr),
-      .compressionTypeStr = getCompressionTypeStr(env, codecJstr),
       .compressionLevel = compressionLevel,
       .bufferedWrite = true,
       .numSubDirs = numSubDirs,
@@ -1070,19 +1033,20 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     jstring compressionType,
     jstring compressionBackend,
     jint batchSize,
-    jlong bufferSize,
+    jlong readerBufferSize,
+    jlong deserializerBufferSize,
     jstring shuffleWriterType) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
 
   ShuffleReaderOptions options = ShuffleReaderOptions{};
   options.compressionType = getCompressionType(env, compressionType);
-  options.compressionTypeStr = getCompressionTypeStr(env, compressionType);
   if (compressionType != nullptr) {
     options.codecBackend = getCodecBackend(env, compressionBackend);
   }
   options.batchSize = batchSize;
-  options.bufferSize = bufferSize;
+  options.readerBufferSize = readerBufferSize;
+  options.deserializerBufferSize = deserializerBufferSize;
 
   options.shuffleWriterType = ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterType));
   std::shared_ptr<arrow::Schema> schema =
@@ -1126,7 +1090,6 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
     jlong shuffleReaderHandle) {
   JNI_METHOD_START
   auto reader = ObjectStore::retrieve<ShuffleReader>(shuffleReaderHandle);
-  GLUTEN_THROW_NOT_OK(reader->close());
   ObjectStore::release(shuffleReaderHandle);
   JNI_METHOD_END()
 }
@@ -1190,6 +1153,22 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerialize
   int32_t size = env->GetArrayLength(data);
   auto safeArray = getByteArrayElementsSafe(env, data);
   auto batch = serializer->deserialize(safeArray.elems(), size);
+  return ctx->saveObject(batch);
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_deserializeDirect( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong serializerHandle,
+    jlong address,
+    jint size) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+
+  auto serializer = ObjectStore::retrieve<ColumnarBatchSerializer>(serializerHandle);
+  GLUTEN_DCHECK(serializer != nullptr, "ColumnarBatchSerializer cannot be null");
+  auto batch = serializer->deserialize((uint8_t*)address, size);
   return ctx->saveObject(batch);
   JNI_METHOD_END(kInvalidObjectHandle)
 }

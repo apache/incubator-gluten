@@ -16,11 +16,10 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 import org.apache.gluten.extension.columnar.transition.Transitions
-import org.apache.gluten.jni.JniLibLoader
-import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.benchmark.Benchmark
@@ -70,7 +69,6 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       .set("spark.memory.offHeap.enabled", "true")
       .setIfMissing("spark.memory.offHeap.size", offheapSize)
       .setIfMissing("spark.sql.columnVector.offheap.enabled", "true")
-      .set("spark.gluten.sql.columnar.columnarToRow", "true")
       .set("spark.sql.adaptive.enabled", "false")
       .setIfMissing("spark.driver.memory", memorySize)
       .setIfMissing("spark.executor.memory", memorySize)
@@ -83,7 +81,6 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
         .set("spark.gluten.sql.enable.native.validation", "false")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")
-        .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
         .set(
           "spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
@@ -225,11 +222,6 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
   }
 
   override def afterAll(): Unit = {
-    if (BackendTestUtils.isCHBackendLoaded()) {
-      val libPath =
-        spark.conf.get(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
-      JniLibLoader.unloadFromPath(libPath)
-    }
     super.afterAll()
   }
 }

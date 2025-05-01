@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.test;
 
-import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.config.GlutenConfig;
 
 import java.util.*;
 
@@ -37,7 +37,7 @@ public class TestStats {
   public static int offloadGlutenTestNumber = 0;
 
   private static boolean enabled() {
-    return GlutenConfig.getConf().collectUtStats();
+    return GlutenConfig.get().collectUtStats();
   }
 
   public static void reset() {

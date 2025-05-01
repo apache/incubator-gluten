@@ -17,11 +17,11 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.benchmarks.RandomParquetDataGenerator
-import org.apache.gluten.tags.SkipTestTags
+import org.apache.gluten.tags.SkipTest
 
 import org.apache.spark.SparkConf
 
-@SkipTestTags
+@SkipTest
 class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
@@ -51,7 +51,7 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
     getRootCause(e.getCause)
   }
 
-  test("Dynamic Off-Heap Sizing") {
+  test("Dynamic off-heap sizing") {
     System.gc()
     dataGenerator.generateRandomData(spark, Some(outputPath))
     spark.read.format("parquet").load(outputPath).createOrReplaceTempView("tbl")

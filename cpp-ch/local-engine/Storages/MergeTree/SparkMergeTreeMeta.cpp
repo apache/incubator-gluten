@@ -18,6 +18,7 @@
 
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Parsers/ASTExpressionList.h>
@@ -114,15 +115,15 @@ doBuildMetadata(const DB::NamesAndTypesList & columns, const ContextPtr & contex
 
     setSecondaryIndex(columns, context, table, metadata);
 
-    metadata->partition_key.expression_list_ast = std::make_shared<ASTExpressionList>();
-    metadata->sorting_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
+    metadata->partition_key = KeyDescription::buildEmptyKey();
+    metadata->sorting_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context, true);
     if (table.primary_key.empty())
         if (table.order_by_key != MergeTreeTable::TUPLE)
-            metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
+            metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context, true);
         else
             metadata->primary_key.expression = std::make_shared<ExpressionActions>(ActionsDAG{});
     else
-        metadata->primary_key = KeyDescription::parse(table.primary_key, metadata->getColumns(), context);
+        metadata->primary_key = KeyDescription::parse(table.primary_key, metadata->getColumns(), context, true);
     return metadata;
 }
 
@@ -262,15 +263,6 @@ MergeTreeTable::MergeTreeTable(const local_engine::Write & write, const substrai
     table_configs.storage_policy = merge_tree_write.storage_policy();
 }
 
-std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config)
-{
-    auto settings = std::make_unique<DB::MergeTreeSettings>();
-    settings->set("allow_nullable_key", Field(1));
-    if (!config.storage_policy.empty())
-        settings->set("storage_policy", Field(config.storage_policy));
-    return settings;
-}
-
 std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list)
 {
     std::unique_ptr<SelectQueryInfo> query_info = std::make_unique<SelectQueryInfo>();
@@ -300,10 +292,7 @@ RangesInDataParts MergeTreeTableInstance::extractRange(DataPartsVector parts_vec
         std::inserter(ranges_in_data_parts, ranges_in_data_parts.end()),
         [&](const MergeTreePart & part)
         {
-            RangesInDataPart ranges_in_data_part;
-            ranges_in_data_part.data_part = name_index.at(part.name);
-            ranges_in_data_part.part_index_in_query = 0;
-            ranges_in_data_part.ranges.emplace_back(MarkRange(part.begin, part.end));
+            RangesInDataPart ranges_in_data_part{name_index.at(part.name), 0, 0, {MarkRange(part.begin, part.end)}};
             return ranges_in_data_part;
         });
     return ranges_in_data_parts;

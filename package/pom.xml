@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.apache.gluten</groupId>
     <artifactId>gluten-parent</artifactId>
-    <version>1.3.0-SNAPSHOT</version>
+    <version>1.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -68,7 +68,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-celeborn-package</artifactId>
+          <artifactId>gluten-celeborn</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -78,7 +78,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-          <artifactId>gluten-uniffle-package</artifactId>
+          <artifactId>gluten-uniffle</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -224,7 +224,7 @@
               <arguments>
                 <argument>target/gluten-package-${project.version}.jar</argument>
                 <argument>
-                  target/${jar.assembly.name.prefix}-${backend_type}-bundle-spark${sparkbundle.version}_${scala.binary.version}-${os.detected.release}_${os.detected.release.version}_${os.detected.arch}-${project.version}.jar
+                  target/${jar.assembly.name.prefix}-${backend_type}-bundle-spark${sparkbundle.version}_${scala.binary.version}-${os.full.name}-${project.version}.jar
                 </argument>
               </arguments>
             </configuration>
@@ -253,7 +253,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.3.0</version>
         <dependencies>
           <dependency>
             <groupId>org.codehaus.mojo</groupId>
@@ -353,8 +352,6 @@
                     <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$ChainedIterator</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.MemoryConsumer</ignoreClass>
                     <ignoreClass>org.apache.spark.memory.TaskMemoryManager </ignoreClass>
-                    <!-- protobuf -->
-                    <ignoreClass>com.google.protobuf.*</ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>

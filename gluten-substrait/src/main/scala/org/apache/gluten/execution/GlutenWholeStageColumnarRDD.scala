@@ -16,14 +16,13 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.metrics.{GlutenTimeMetric, IMetrics}
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.InputFileBlockHolderProxy
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -39,7 +38,7 @@ case class GlutenPartition(
     splitInfosByteArray: Array[Array[Byte]] = Array.empty[Array[Byte]],
     locations: Array[String] = Array.empty[String],
     files: Array[String] =
-      Array.empty[String] // touched files, for implementing UDF input_file_names
+      Array.empty[String] // touched files, for implementing UDF input_file_name
 ) extends BaseGlutenPartition {
 
   override def preferredLocations(): Array[String] = locations
@@ -59,20 +58,9 @@ class GlutenWholeStageColumnarRDD(
     updateInputMetrics: InputMetricsWrapper => Unit,
     updateNativeMetrics: IMetrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
-  private val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  private val numaBindingInfo = GlutenConfig.get.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-
-    // To support input_file_name(). According to semantic we should return
-    // the exact file name a row belongs to. However in columnar engine it's
-    // not easy to accomplish this. so we return a list of file(part) names
-    split match {
-      case FirstZippedPartitionsPartition(_, g: GlutenPartition, _) =>
-        InputFileBlockHolderProxy.set(g.files.mkString(","))
-      case _ =>
-        InputFileBlockHolderProxy.unset()
-    }
-
     GlutenTimeMetric.millis(pipelineTime) {
       _ =>
         ExecutorManager.tryTaskSet(numaBindingInfo)

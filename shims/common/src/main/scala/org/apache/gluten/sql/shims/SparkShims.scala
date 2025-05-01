@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.sql.shims
 
+import org.apache.gluten.GlutenBuildInfo.SPARK_COMPILE_VERSION
 import org.apache.gluten.expression.Sig
 
 import org.apache.spark.{SparkContext, TaskContext}
@@ -36,36 +37,51 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
-import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
+import org.apache.spark.sql.execution.{CollectLimitExec, FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
+import org.apache.spark.util.SparkVersionUtil
 
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
 import org.apache.parquet.schema.MessageType
 
 import java.util.{Map => JMap, Properties}
 
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-sealed abstract class ShimDescriptor
-
-case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimDescriptor {
+case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) {
   override def toString(): String = s"$major.$minor.$patch"
 
-  def toMajorMinorVersion: String = s"$major.$minor"
+  def matches(other: SparkShimDescriptor): Boolean = {
+    major == other.major && minor == other.minor
+  }
+}
+
+object SparkShimDescriptor {
+  def apply(version: String): SparkShimDescriptor = {
+    SparkVersionUtil.majorMinorPatchVersion(version) match {
+      case Some((major, minor, patch)) => SparkShimDescriptor(major, minor, patch)
+      case None =>
+        val (major, minor) = SparkVersionUtil.majorMinorVersion(version)
+        SparkShimDescriptor(major, minor, 0)
+    }
+  }
+
+  // Default shim descriptor being detected from the Spark version at compile time
+  val DESCRIPTOR: SparkShimDescriptor = SparkShimDescriptor(SPARK_COMPILE_VERSION)
 }
 
 trait SparkShims {
-  def getShimDescriptor: ShimDescriptor
-
   // for this purpose, change HashClusteredDistribution to ClusteredDistribution
   // https://github.com/apache/spark/pull/32875
   def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
@@ -73,6 +89,8 @@ trait SparkShims {
   def scalarExpressionMappings: Seq[Sig]
 
   def aggregateExpressionMappings: Seq[Sig]
+
+  def runtimeReplaceableExpressionMappings: Seq[Sig]
 
   def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec])
 
@@ -191,7 +209,7 @@ trait SparkShims {
   // Because above, this feature is only supported after spark 3.3
   def supportDuplicateReadingTracking: Boolean
 
-  def getFileStatus(partition: PartitionDirectory): Seq[FileStatus]
+  def getFileStatus(partition: PartitionDirectory): Seq[(FileStatus, Map[String, Any])]
 
   def isFileSplittable(relation: HadoopFsRelation, filePath: Path, sparkSchema: StructType): Boolean
 
@@ -205,7 +223,8 @@ trait SparkShims {
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
-      partitionValues: InternalRow): Seq[PartitionedFile]
+      partitionValues: InternalRow,
+      metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile]
 
   def structFromAttributes(attrs: Seq[Attribute]): StructType
 
@@ -221,15 +240,20 @@ trait SparkShims {
   // For compatibility with Spark-3.5.
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan]
 
-  def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]]
+  def getKeyGroupedPartitioning(batchScan: BatchScanExec): Option[Seq[Expression]] = Option(Seq())
 
-  def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]]
+  def getCommonPartitionValues(batchScan: BatchScanExec): Option[Seq[(InternalRow, Int)]] =
+    Option(Seq())
 
   def orderPartitions(
+      batchScan: DataSourceV2ScanExecBase,
       scan: Scan,
       keyGroupedPartitioning: Option[Seq[Expression]],
       filteredPartitions: Seq[Seq[InputPartition]],
-      outputPartitioning: Partitioning): Seq[InputPartition] = filteredPartitions.flatten
+      outputPartitioning: Partitioning,
+      commonPartitionValues: Option[Seq[(InternalRow, Int)]],
+      applyPartialClustering: Boolean,
+      replicatePartitions: Boolean): Seq[Seq[InputPartition]] = filteredPartitions
 
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
     Option.empty
@@ -285,4 +309,11 @@ trait SparkShims {
 
   /** Shim method for usages from GlutenExplainUtils.scala. */
   def unsetOperatorId(plan: QueryPlan[_]): Unit
+
+  def isParquetFileEncrypted(fileStatus: LocatedFileStatus, conf: Configuration): Boolean
+
+  def getOtherConstantMetadataColumnValues(file: PartitionedFile): JMap[String, Object] =
+    Map.empty[String, Any].asJava.asInstanceOf[JMap[String, Object]]
+
+  def getCollectLimitOffset(plan: CollectLimitExec): Int = 0
 }

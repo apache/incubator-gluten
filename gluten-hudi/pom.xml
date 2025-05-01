@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>org.apache.gluten</groupId>
-    <version>1.3.0-SNAPSHOT</version>
+    <version>1.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -13,10 +13,6 @@
   <artifactId>gluten-hudi</artifactId>
   <packaging>jar</packaging>
   <name>Gluten Hudi</name>
-
-  <properties>
-    <resource.dir>${project.basedir}/src/main/resources</resource.dir>
-  </properties>
 
   <dependencies>
     <dependency>
@@ -51,19 +47,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>backends-velox</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>backends-velox</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
       <type>test-jar</type>
@@ -92,12 +75,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-      <version>${protobuf.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest_${scala.binary.version}</artifactId>
       <scope>test</scope>
@@ -107,11 +84,6 @@
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
-    <resources>
-      <resource>
-        <directory>${resource.dir}</directory>
-      </resource>
-    </resources>
     <plugins>
       <plugin>
         <groupId>net.alchim31.maven</groupId>

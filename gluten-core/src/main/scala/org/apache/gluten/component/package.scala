@@ -16,14 +16,9 @@
  */
 package org.apache.gluten
 
-import org.apache.gluten.backend.Backend
-
 import org.apache.spark.internal.Logging
 
-import java.util.ServiceLoader
 import java.util.concurrent.atomic.AtomicBoolean
-
-import scala.collection.JavaConverters._
 
 package object component extends Logging {
   private val allComponentsLoaded: AtomicBoolean = new AtomicBoolean(false)
@@ -34,9 +29,7 @@ package object component extends Logging {
     }
 
     // Load all components in classpath.
-    val discoveredBackends = ServiceLoader.load(classOf[Backend]).asScala
-    val discoveredComponents = ServiceLoader.load(classOf[Component]).asScala
-    val all = discoveredBackends ++ discoveredComponents
+    val all = Discovery.discoverAll()
 
     // Register all components.
     all.foreach(_.ensureRegistered())
@@ -44,6 +37,12 @@ package object component extends Logging {
     // Output log so user could view the component loading order.
     // Call #sortedUnsafe than on #sorted to avoid unnecessary recursion.
     val components = Component.sortedUnsafe()
+    require(
+      components.nonEmpty,
+      s"No component files found in container directories named with " +
+        s"'META-INF/gluten-components' from classpath. JVM classpath value " +
+        s"is: ${System.getProperty("java.class.path")}"
+    )
     logInfo(s"Components registered within order: ${components.map(_.name()).mkString(", ")}")
   }
 }

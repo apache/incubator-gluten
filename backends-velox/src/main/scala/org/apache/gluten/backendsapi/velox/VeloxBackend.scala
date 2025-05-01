@@ -17,25 +17,28 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenBuildInfo._
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.component.Component.BuildInfo
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.cost.{LegacyCoster, LongCoster, RoughCoster}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 import org.apache.gluten.utils._
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, NamedExpression, NthValue, NTile, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Percentile}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, HyperLogLogPlusPlus, Percentile}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, CharVarcharUtils}
+import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.{ColumnarCachedBatchSerializer, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
@@ -46,6 +49,7 @@ import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 import scala.util.control.Breaks.breakable
@@ -56,7 +60,6 @@ class VeloxBackend extends SubstraitBackend {
   override def name(): String = VeloxBackend.BACKEND_NAME
   override def buildInfo(): BuildInfo =
     BuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
-  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def iteratorApi(): IteratorApi = new VeloxIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
   override def transformerApi(): TransformerApi = new VeloxTransformerApi
@@ -65,6 +68,8 @@ class VeloxBackend extends SubstraitBackend {
   override def listenerApi(): ListenerApi = new VeloxListenerApi
   override def ruleApi(): RuleApi = new VeloxRuleApi
   override def settings(): BackendSettingsApi = VeloxBackendSettings
+  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
+  override def costers(): Seq[LongCoster] = Seq(LegacyCoster, RoughCoster)
 }
 
 object VeloxBackend {
@@ -97,13 +102,15 @@ object VeloxBackendSettings extends BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       rootPaths: Seq[String],
-      properties: Map[String, String]): ValidationResult = {
+      properties: Map[String, String],
+      hadoopConf: Configuration): ValidationResult = {
 
     def validateScheme(): Option[String] = {
       val filteredRootPaths = distinctRootPaths(rootPaths)
       if (
-        filteredRootPaths.nonEmpty && !VeloxFileSystemValidationJniWrapper
-          .allSupportedByRegisteredFileSystems(filteredRootPaths.toArray)
+        filteredRootPaths.nonEmpty &&
+        !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
+          filteredRootPaths.toArray)
       ) {
         Some(s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
       } else {
@@ -125,7 +132,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
       def isCharType(stringType: StringType, metadata: Metadata): Boolean = {
         val charTypePattern = "char\\((\\d+)\\)".r
-        GlutenConfig.getConf.forceOrcCharTypeScanFallbackEnabled && charTypePattern
+        GlutenConfig.get.forceOrcCharTypeScanFallbackEnabled && charTypePattern
           .findFirstIn(
             CharVarcharUtils
               .getRawTypeString(metadata)
@@ -135,23 +142,17 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
       format match {
         case ParquetReadFormat =>
-          val typeValidator: PartialFunction[StructField, String] = {
-            // Parquet timestamp is not fully supported yet
-            case StructField(_, TimestampType, _, _)
-                if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
-              "TimestampType(force fallback)"
-          }
           val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
           if (parquetOptions.mergeSchema) {
             // https://github.com/apache/incubator-gluten/issues/7174
             Some(s"not support when merge schema is true")
           } else {
-            validateTypes(typeValidator)
+            None
           }
         case DwrfReadFormat => None
         case OrcReadFormat =>
-          if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
-            Some(s"Velox ORC scan is turned off, ${GlutenConfig.VELOX_ORC_SCAN_ENABLED.key}")
+          if (!VeloxConfig.get.veloxOrcScanEnabled) {
+            Some(s"Velox ORC scan is turned off, ${VeloxConfig.VELOX_ORC_SCAN_ENABLED.key}")
           } else {
             val typeValidator: PartialFunction[StructField, String] = {
               case StructField(_, arrayType: ArrayType, _, _)
@@ -173,14 +174,40 @@ object VeloxBackendSettings extends BackendSettingsApi {
             }
             validateTypes(typeValidator)
           }
-        case _ => Some(s"Unsupported file format for $format.")
+        case _ => Some(s"Unsupported file format $format.")
       }
     }
 
-    validateScheme().orElse(validateFormat()) match {
-      case Some(reason) => ValidationResult.failed(reason)
-      case _ => ValidationResult.succeeded
+    def validateEncryption(): Option[String] = {
+
+      val encryptionValidationEnabled = GlutenConfig.get.parquetEncryptionValidationEnabled
+      if (!encryptionValidationEnabled) {
+        return None
+      }
+
+      val fileLimit = GlutenConfig.get.parquetEncryptionValidationFileLimit
+      val encryptionResult =
+        ParquetMetadataUtils.validateEncryption(format, rootPaths, hadoopConf, fileLimit)
+      if (encryptionResult.ok()) {
+        None
+      } else {
+        Some(s"Detected encrypted parquet files: ${encryptionResult.reason()}")
+      }
     }
+
+    val validationChecks = Seq(
+      validateScheme(),
+      validateFormat(),
+      validateEncryption()
+    )
+
+    for (check <- validationChecks) {
+      if (check.isDefined) {
+        return ValidationResult.failed(check.get)
+      }
+    }
+
+    ValidationResult.succeeded
   }
 
   def distinctRootPaths(paths: Seq[String]): Seq[String] = {
@@ -194,10 +221,31 @@ object VeloxBackendSettings extends BackendSettingsApi {
       .toSeq
   }
 
+  override def getSubstraitReadFileFormatV1(
+      fileFormat: FileFormat): LocalFilesNode.ReadFileFormat = {
+    fileFormat.getClass.getSimpleName match {
+      case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
+      case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
+      case "CSVFileFormat" => ReadFileFormat.TextReadFormat
+      case _ => ReadFileFormat.UnknownFormat
+    }
+  }
+
+  override def getSubstraitReadFileFormatV2(scan: Scan): LocalFilesNode.ReadFileFormat = {
+    scan.getClass.getSimpleName match {
+      case "OrcScan" => ReadFileFormat.OrcReadFormat
+      case "ParquetScan" => ReadFileFormat.ParquetReadFormat
+      case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+      case _ => ReadFileFormat.UnknownFormat
+    }
+  }
+
   override def supportWriteFilesExec(
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
+      isPartitionedTable: Boolean,
       options: Map[String, String]): ValidationResult = {
 
     // Validate if HiveFileFormat write is supported based on output file type
@@ -275,7 +323,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     def validateFileFormat(): Option[String] = {
       format match {
         case _: ParquetFileFormat => None // Parquet is directly supported
-        case h: HiveFileFormat if GlutenConfig.getConf.enableHiveFileFormatWriter =>
+        case h: HiveFileFormat if GlutenConfig.get.enableHiveFileFormatWriter =>
           validateHiveFileFormat(h) // Parquet via Hive SerDe
         case _ =>
           Some(
@@ -297,10 +345,17 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     def validateBucketSpec(): Option[String] = {
-      if (bucketSpec.nonEmpty) {
-        Some("Unsupported native write: bucket write is not supported.")
-      } else {
+      val isHiveCompatibleBucketTable = bucketSpec.nonEmpty && options
+        .getOrElse("__hive_compatible_bucketed_table_insertion__", "false")
+        .equals("true")
+      // Currently, the velox backend only supports bucketed tables compatible with Hive and
+      // is limited to partitioned tables. Therefore, we should add this condition restriction.
+      // After velox supports bucketed non-partitioned tables, we can remove the restriction on
+      // partitioned tables.
+      if (bucketSpec.isEmpty || (isHiveCompatibleBucketTable && isPartitionedTable)) {
         None
+      } else {
+        Some("Unsupported native write: non-compatible hive bucket write is not supported.")
       }
     }
 
@@ -326,16 +381,12 @@ object VeloxBackendSettings extends BackendSettingsApi {
     true
   }
 
-  override def supportNativeMetadataColumns(): Boolean = true
-
-  override def supportNativeRowIndexColumn(): Boolean = true
-
   override def supportExpandExec(): Boolean = true
 
   override def supportSortExec(): Boolean = true
 
   override def supportSortMergeJoinExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarSortMergeJoin
+    GlutenConfig.get.enableColumnarSortMergeJoin
   }
 
   override def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
@@ -406,7 +457,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
             case l: Lead if !l.input.foldable =>
             case aggrExpr: AggregateExpression
                 if !aggrExpr.aggregateFunction.isInstanceOf[ApproximatePercentile]
-                  && !aggrExpr.aggregateFunction.isInstanceOf[Percentile] =>
+                  && !aggrExpr.aggregateFunction.isInstanceOf[Percentile]
+                  && !aggrExpr.aggregateFunction.isInstanceOf[HyperLogLogPlusPlus] =>
             case _ =>
               allSupported = false
           }
@@ -416,9 +468,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarShuffle && (GlutenConfig.getConf.isUseColumnarShuffleManager
-      || GlutenConfig.getConf.isUseCelebornShuffleManager
-      || GlutenConfig.getConf.isUseUniffleShuffleManager)
+    val conf = GlutenConfig.get
+    conf.enableColumnarShuffle && (conf.isUseGlutenShuffleManager
+      || conf.isUseColumnarShuffleManager
+      || conf.isUseCelebornShuffleManager
+      || conf.isUseUniffleShuffleManager)
   }
 
   override def enableJoinKeysRewrite(): Boolean = false
@@ -471,7 +525,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def alwaysFailOnMapExpression(): Boolean = true
 
   override def requiredChildOrderingForWindow(): Boolean = {
-    GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")
+    VeloxConfig.get.veloxColumnarWindowType.equals("streaming")
   }
 
   override def requiredChildOrderingForWindowGroupLimit(): Boolean = false
@@ -481,13 +535,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def allowDecimalArithmetic: Boolean = true
 
   override def enableNativeWriteFiles(): Boolean = {
-    GlutenConfig.getConf.enableNativeWriter.getOrElse(
+    GlutenConfig.get.enableNativeWriter.getOrElse(
       SparkShimLoader.getSparkShims.enableNativeWriteFilesByDefault()
     )
   }
 
   override def enableNativeArrowReadFiles(): Boolean = {
-    GlutenConfig.getConf.enableNativeArrowReader
+    GlutenConfig.get.enableNativeArrowReader
   }
 
   override def shouldRewriteCount(): Boolean = {
@@ -498,11 +552,16 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportCartesianProductExec(): Boolean = true
 
-  override def supportBroadcastNestedLoopJoinExec(): Boolean = true
-
   override def supportSampleExec(): Boolean = true
 
   override def supportColumnarArrowUdf(): Boolean = true
 
   override def needPreComputeRangeFrameBoundary(): Boolean = true
+
+  override def supportCollectTailExec(): Boolean = true
+
+  override def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = true
+
+  override def supportIcebergEqualityDeleteRead(): Boolean = false
+
 }

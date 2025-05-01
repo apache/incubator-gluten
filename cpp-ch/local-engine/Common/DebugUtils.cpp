@@ -17,17 +17,27 @@
 #include "DebugUtils.h"
 #include <iostream>
 #include <sstream>
+#include <AggregateFunctions/AggregateFunctionCount.h>
+#include <AggregateFunctions/IAggregateFunction.h>
+#include <Columns/ColumnAggregateFunction.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <Functions/FunctionHelpers.h>
+#include <Functions/IFunction.h>
 #include <IO/WriteBufferFromString.h>
+#include <Interpreters/ActionsDAG.h>
 #include <Processors/QueryPlan/QueryPlan.h>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/join.hpp>
 #include <google/protobuf/json/json.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
+#include <Common/PlanUtil.h>
 #include <Common/QueryContext.h>
+#include <Common/formatReadable.h>
 #include <Common/logger_useful.h>
 
 namespace pb_util = google::protobuf::util;
@@ -38,7 +48,7 @@ namespace Utils
 {
 
 /**
- * Return the number of half widths in a given string. Note that a full width character
+ * Return the number of half-widths in a given string. Note that a full width character
  * occupies two half widths.
  *
  * For a string consisting of 1 million characters, the execution of this method requires
@@ -114,6 +124,47 @@ static std::string truncate(const std::string & str, size_t width)
 using NameAndColumn = std::pair<std::string, DB::ColumnPtr>;
 using NameAndColumns = std::vector<NameAndColumn>;
 
+template <typename T>
+const T & toAggType(DB::ConstAggregateDataPtr data)
+{
+    return *reinterpret_cast<const T *>(data);
+}
+
+std::string get(const DB::ColumnAggregateFunction & agg, size_t row)
+{
+    auto funcName = agg.getAggregateFunction()->getName();
+
+    if (funcName == "count")
+    {
+        DB::ConstAggregateDataPtr data = agg.getData()[row];
+        return std::to_string(toAggType<DB::AggregateFunctionCountData>(data).count);
+    }
+    return "Nan";
+}
+
+
+static std::string toString(const DB::IColumn * const col, size_t row, size_t width)
+{
+    assert(col != nullptr);
+    auto getDataType = [](const DB::IColumn * col)
+    {
+        if (const auto * column_nullable = DB::checkAndGetColumn<DB::ColumnNullable>(col))
+            return column_nullable->getNestedColumn().getDataType();
+        return col->getDataType();
+    };
+    DB::WhichDataType which(getDataType(col));
+    if (which.isAggregateFunction())
+        return get(static_cast<const DB::ColumnAggregateFunction &>(*col), row);
+
+    if (col->isNullAt(row))
+        return "null";
+
+    std::string str = DB::toString((*col)[row]);
+    if (str.size() <= width)
+        return str;
+    return str.substr(0, width - 3) + "...";
+}
+
 /**
  * Get rows represented in Sequence by specific truncate and vertical requirement.
  *
@@ -135,13 +186,6 @@ static std::vector<std::vector<std::string>> getRows(const NameAndColumns & bloc
         headRow.emplace_back(debug::Utils::truncate(name, truncate));
     }
 
-    auto getDataType = [](const DB::IColumn * col)
-    {
-        if (const auto * column_nullable = DB::checkAndGetColumn<DB::ColumnNullable>(col))
-            return column_nullable->getNestedColumn().getDataType();
-        return col->getDataType();
-    };
-
     for (size_t row = 0; row < numRows - 1; ++row)
     {
         results.emplace_back(std::vector<std::string>());
@@ -149,22 +193,7 @@ static std::vector<std::vector<std::string>> getRows(const NameAndColumns & bloc
         currentRow.reserve(block.size());
 
         for (const auto & column : block)
-        {
-            const auto * const col = column.second.get();
-            DB::WhichDataType which(getDataType(col));
-            if (which.isAggregateFunction())
-                currentRow.emplace_back("Nan");
-            else
-            {
-                if (col->isNullAt(row))
-                    currentRow.emplace_back("null");
-                else
-                {
-                    std::string str = DB::toString((*col)[row]);
-                    currentRow.emplace_back(Utils::truncate(str, truncate));
-                }
-            }
-        }
+            currentRow.emplace_back(toString(column.second.get(), row, truncate));
     }
     return results;
 }
@@ -289,6 +318,17 @@ static std::string showString(const NameAndColumns & block, size_t numRows, size
 
 ///
 
+void dumpMemoryUsage(const char * type)
+{
+    auto logger = getLogger("QueryContextManager");
+    if (!logger)
+        return;
+    auto task_id = local_engine::QueryContext::instance().currentTaskIdOrEmpty();
+    task_id = task_id.empty() ? "" : "(" + task_id + ")";
+    auto usage = local_engine::currentThreadGroupMemoryUsage();
+    LOG_ERROR(logger, "{}{} Memory Usage {}", type, task_id, formatReadableSizeWithBinarySuffix(usage));
+}
+
 void dumpPlan(DB::QueryPlan & plan, const char * type, bool force, LoggerPtr logger)
 {
     if (!logger)
@@ -339,6 +379,24 @@ void headBlock(const DB::Block & block, size_t count)
     std::cerr << showString(block, count) << std::endl;
 }
 
+void printBlockHeader(const DB::Block & block, const std::string & prefix)
+{
+    auto nameColumn = local_engine::STRING()->createColumn();
+    auto typeColumn = local_engine::STRING()->createColumn();
+
+    for (const auto & column : block.getColumnsWithTypeAndName())
+    {
+        nameColumn->insert(column.name);
+        typeColumn->insert(column.type->getName());
+    }
+
+    if (!prefix.empty())
+        std::cerr << prefix << std::endl;
+
+    std::cerr << Utils::showString({{"[Name]", nameColumn->getPtr()}, {"[type]", typeColumn->getPtr()}}, nameColumn->size(), 100, false)
+              << std::endl;
+}
+
 void headColumn(const DB::ColumnPtr & column, size_t count)
 {
     std::cerr << Utils::showString({{"Column", column}}, count, 20, false) << std::endl;
@@ -365,4 +423,89 @@ std::string showString(const DB::Block & block, size_t numRows, size_t truncate,
         [](const DB::ColumnWithTypeAndName & col) { return std::make_pair(col.name, col.column); });
     return Utils::showString(name_and_columns, numRows, truncate, vertical);
 }
+
+std::string showString(const DB::ColumnPtr & column, size_t numRows, size_t truncate, bool vertical)
+{
+    return Utils::showString({{"Column", column}}, numRows, truncate, vertical);
+}
+
+std::string dumpColumn(const std::string & name, const DB::ColumnPtr & column)
+{
+    //TODO: ColumnSet
+
+    if (isColumnConst(*column))
+        return toString(assert_cast<const DB::ColumnConst &>(*column).getField());
+
+    size_t size = std::min(static_cast<size_t>(10), column->size());
+    std::vector<std::string> results;
+    results.reserve(size);
+    for (int row = 0; row < size; ++row)
+        results.push_back(Utils::toString(column.get(), row, 20));
+    return fmt::format("{}:[{}]", name, boost::algorithm::join(results, ", "));
+}
+
+std::string dumpActionsDAG(const DB::ActionsDAG & dag)
+{
+    std::stringstream ss;
+    ss << "digraph ActionsDAG {\n";
+    ss << "  rankdir=BT;\n"; // Invert the vertical direction
+    ss << "  nodesep=0.1;\n"; // Reduce space between nodes
+    ss << "  ranksep=0.1;\n"; // Reduce space between ranks
+    ss << "  margin=0.1;\n"; // Reduce graph margin
+
+    std::unordered_map<const DB::ActionsDAG::Node *, size_t> node_to_id;
+    size_t id = 0;
+    for (const auto & node : dag.getNodes())
+        node_to_id[&node] = id++;
+
+    std::unordered_set<const DB::ActionsDAG::Node *> output_nodes(dag.getOutputs().begin(), dag.getOutputs().end());
+
+    for (const auto & node : dag.getNodes())
+    {
+        ss << "  n" << node_to_id[&node] << " [label=\"";
+        ss << "id:" << node_to_id[&node] << "\\l";
+        switch (node.type)
+        {
+            case DB::ActionsDAG::ActionType::COLUMN:
+                ss << "Literal = " << (node.column ? dumpColumn(node.result_name, node.column) : "null") << "\\l";
+                break;
+            case DB::ActionsDAG::ActionType::ALIAS:
+                ss << "alias" << "\\l";
+                break;
+            case DB::ActionsDAG::ActionType::FUNCTION:
+                ss << "function: " << (node.function_base ? node.function_base->getName() : "null");
+                if (node.is_function_compiled)
+                    ss << " [compiled]";
+                ss << "\\l";
+                break;
+            case DB::ActionsDAG::ActionType::ARRAY_JOIN:
+                ss << "array join" << "\\l";
+                break;
+            case DB::ActionsDAG::ActionType::INPUT:
+                ss << "Input Column:" << node.result_name << "\\l";
+                break;
+        }
+
+        ss << "result type: " << (node.result_type ? node.result_type->getName() : "null") << "\\l";
+
+        ss << "children:";
+        for (const auto * child : node.children)
+            ss << " " << node_to_id[child];
+        ss << "\\l";
+
+        ss << "\"";
+        if (output_nodes.contains(&node))
+            ss << ", shape=doublecircle";
+
+        ss << "];\n";
+    }
+
+    for (const auto & node : dag.getNodes())
+        for (const auto * child : node.children)
+            ss << "  n" << node_to_id[child] << " -> n" << node_to_id[&node] << ";\n";
+
+    ss << "}\n";
+    return ss.str();
+}
+
 }

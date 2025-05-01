@@ -16,8 +16,9 @@
  */
 package org.apache.gluten
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.benchmarks.GenTPCHTableScripts
+import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -92,16 +93,15 @@ object RunTPCHTest {
       .config("spark.databricks.delta.snapshotPartitions", 1)
       .config("spark.databricks.delta.properties.defaults.checkpointInterval", 5)
       .config("spark.databricks.delta.stalenessLimit", 3600 * 1000)
-      .config("spark.gluten.sql.columnar.columnarToRow", columnarColumnToRow)
       .config(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
+      .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
       .config("spark.gluten.sql.columnar.iterator", "true")
       .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .config("spark.gluten.sql.enable.native.validation", "false")
       .config("spark.sql.columnVector.offheap.enabled", "true")
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", offHeapSize)
-      .config(CHConf.runtimeConfig("logger.level"), "error")
+      .config(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .config("spark.sql.warehouse.dir", warehouse)
       .config(
         "javax.jdo.option.ConnectionURL",

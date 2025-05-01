@@ -16,12 +16,10 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.WindowFunctionNode
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
@@ -88,7 +86,7 @@ case class WindowExecTransformer(
     val windowParametersStr = new StringBuffer("WindowParameters:")
     // isStreaming: 1 for streaming, 0 for sort
     val isStreaming: Int =
-      if (GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")) 1 else 0
+      if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) 1 else 0
 
     windowParametersStr
       .append("isStreaming=")
@@ -107,14 +105,13 @@ case class WindowExecTransformer(
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val args = context.registeredFunction
     // WindowFunction Expressions
     val windowExpressions = new JArrayList[WindowFunctionNode]()
     BackendsApiManager.getSparkPlanExecApiInstance.genWindowFunctionsNode(
       windowExpression,
       windowExpressions,
       originalInputAttributes,
-      args
+      context
     )
 
     // Partition By Expressions
@@ -122,7 +119,7 @@ case class WindowExecTransformer(
       .map(
         ExpressionConverter
           .replaceWithExpressionTransformer(_, attributeSeq = child.output)
-          .doTransform(args))
+          .doTransform(context))
       .asJava
 
     // Sort By Expressions
@@ -132,7 +129,7 @@ case class WindowExecTransformer(
           val builder = SortField.newBuilder()
           val exprNode = ExpressionConverter
             .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-            .doTransform(args)
+            .doTransform(context)
           builder.setExpr(exprNode.toProtobuf)
           builder.setDirectionValue(SortExecTransformer.transformSortDirection(order))
           builder.build()
@@ -148,20 +145,12 @@ case class WindowExecTransformer(
         context,
         operatorId)
     } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        .asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.packPBMessage(
-          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-
       RelBuilder.makeWindowRel(
         input,
         windowExpressions,
         partitionsExpressions,
         sortFieldList,
-        extensionNode,
+        RelBuilder.createExtensionNode(originalInputAttributes.asJava),
         context,
         operatorId)
     }

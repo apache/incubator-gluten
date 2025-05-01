@@ -16,15 +16,15 @@
  */
 package org.apache.spark.task
 
+import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.memory.SimpleMemoryUsageRecorder
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.task.TaskListener
 
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException, UnknownReason}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.{TaskCompletionListener, TaskFailureListener}
-
-import _root_.org.apache.gluten.memory.SimpleMemoryUsageRecorder
-import _root_.org.apache.gluten.sql.shims.SparkShimLoader
 
 import java.util
 import java.util.{Collections, Properties, UUID}
@@ -65,8 +65,8 @@ object TaskResources extends TaskListener with Logging {
         properties.put(key, value)
       case _ =>
     }
-    properties.setIfMissing("spark.memory.offHeap.enabled", "true")
-    properties.setIfMissing("spark.memory.offHeap.size", "1TB")
+    properties.setIfMissing(GlutenConfig.SPARK_OFFHEAP_ENABLED, "true")
+    properties.setIfMissing(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, "1TB")
     TaskContext.setTaskContext(newUnsafeTaskContext(properties))
   }
 
@@ -298,9 +298,14 @@ class TaskResourceRegistry extends Logging {
           o1: util.Map.Entry[Int, util.LinkedHashSet[TaskResource]],
           o2: util.Map.Entry[Int, util.LinkedHashSet[TaskResource]]) => {
         val diff = o2.getKey - o1.getKey // descending by priority
-        if (diff > 0) 1
-        else if (diff < 0) -1
-        else throw new IllegalStateException("Unreachable code")
+        if (diff > 0) {
+          1
+        } else if (diff < 0) {
+          -1
+        } else {
+          throw new IllegalStateException(
+            "Unreachable code from org.apache.spark.task.TaskResourceRegistry.releaseAll")
+        }
       }
     )
     table.forEach {

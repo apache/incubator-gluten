@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.{ArrayType, IntegerType, MapType, StringType, StructType}
+import org.apache.spark.sql.types._
 
 import scala.collection.JavaConverters._
 
@@ -43,7 +43,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
   }
 
   // IdMapping is supported in Delta 2.2 (related to Spark3.3.1)
-  testWithSpecifiedSparkVersion("column mapping mode = id", Some("3.3")) {
+  testWithMinSparkVersion("column mapping mode = id", "3.3") {
     withTable("delta_cm1") {
       spark.sql(s"""
                    |create table delta_cm1 (id int, name string) using delta
@@ -63,7 +63,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
   }
 
   // NameMapping is supported in Delta 2.0 (related to Spark3.2.0)
-  testWithSpecifiedSparkVersion("column mapping mode = name", Some("3.2")) {
+  testWithMinSparkVersion("column mapping mode = name", "3.2") {
     withTable("delta_cm2") {
       spark.sql(s"""
                    |create table delta_cm2 (id int, name string) using delta
@@ -82,7 +82,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("delta: time travel", Some("3.3")) {
+  testWithMinSparkVersion("delta: time travel", "3.3") {
     withTable("delta_tm") {
       spark.sql(s"""
                    |create table delta_tm (id int, name string) using delta
@@ -107,7 +107,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("delta: partition filters", Some("3.2")) {
+  testWithMinSparkVersion("delta: partition filters", "3.2") {
     withTable("delta_pf") {
       spark.sql(s"""
                    |create table delta_pf (id int, name string) using delta partitioned by (name)
@@ -126,7 +126,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("basic test with stats.skipping disabled", Some("3.2")) {
+  testWithMinSparkVersion("basic test with stats.skipping disabled", "3.2") {
     withTable("delta_test2") {
       withSQLConf("spark.databricks.delta.stats.skipping" -> "false") {
         spark.sql(s"""
@@ -146,7 +146,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("column mapping with complex type", Some("3.2")) {
+  testWithMinSparkVersion("column mapping with complex type", "3.2") {
     withTable("t1") {
       val simpleNestedSchema = new StructType()
         .add("a", StringType, true)
@@ -196,7 +196,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("deletion vector", Some("3.4")) {
+  testWithMinSparkVersion("deletion vector", "3.4") {
     withTempPath {
       p =>
         import testImplicits._
@@ -213,7 +213,7 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
     }
   }
 
-  testWithSpecifiedSparkVersion("delta: push down input_file_name expression", Some("3.2")) {
+  testWithMinSparkVersion("delta: push down input_file_name expression", "3.2") {
     withTable("source_table") {
       withTable("target_table") {
         spark.sql(s"""
@@ -247,6 +247,65 @@ abstract class DeltaSuite extends WholeStageTransformerSuite {
 
         val df1 = runQueryAndCompare("SELECT * FROM target_table") { _ => }
         checkAnswer(df1, Row(1, "a", 10) :: Row(2, "b", 20) :: Row(3, "c", 30) :: Nil)
+      }
+    }
+  }
+
+  testWithMinSparkVersion("delta: need to validate delta expression before execution", "3.2") {
+    withTable("source_table") {
+      withTable("target_table") {
+        spark.sql(s"""
+                     |CREATE TABLE source_table
+                     |(id BIGINT, name STRING, age STRING, dt STRING, month STRING)
+                     |USING DELTA
+                     |PARTITIONED BY (month)
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |CREATE TABLE target_table
+                     |(id BIGINT, name STRING, age BIGINT, dt STRING, month STRING)
+                     |USING DELTA
+                     |PARTITIONED BY (month)
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |INSERT INTO source_table VALUES
+                     |(1, 'a', '10', '2025-03-12', '2025-03'),
+                     |(2, 'b', '20', '2025-03-11', '2025-03');
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |INSERT INTO target_table VALUES
+                     |(1, 'c', 10, '2025-03-12', '2025-03'),
+                     |(3, 'c', 30, '2025-03-12', '2025-03');
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |MERGE INTO target_table tar
+                     |USING source_table src
+                     |ON tar.id = src.id
+                     |WHEN MATCHED THEN UPDATE
+                     |SET
+                     |tar.id = src.id,
+                     |tar.name = src.name,
+                     |tar.age = src.age,
+                     |tar.dt = '2025-03-12',
+                     |tar.month = src.month
+                     |WHEN NOT MATCHED THEN INSERT
+                     |(tar.id, tar.name, tar.age, tar.dt, tar.month)
+                     |VALUES
+                     |(src.id, src.name, src.age, '2025-03-12', src.month)
+                     |""".stripMargin)
+
+        val df1 = runQueryAndCompare("SELECT * FROM target_table") { _ => }
+        checkAnswer(
+          df1,
+          Seq(
+            Row(1, "a", 10, "2025-03-12", "2025-03"),
+            Row(3, "c", 30, "2025-03-12", "2025-03"),
+            Row(2, "b", 20, "2025-03-12", "2025-03")
+          )
+        )
       }
     }
   }

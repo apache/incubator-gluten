@@ -37,7 +37,17 @@ class PartitionWriter : public Reclaimable {
     codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend, options_.compressionLevel);
   }
 
-  virtual ~PartitionWriter() = default;
+  static inline std::string typeToString(PartitionWriterType type) {
+    switch (type) {
+      case PartitionWriterType::kLocal:
+        return "LocalPartitionWriter";
+      case PartitionWriterType::kRss:
+        return "RssPartitionWriter";
+    }
+    GLUTEN_UNREACHABLE();
+  }
+
+  ~PartitionWriter() override = default;
 
   virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
 
@@ -46,14 +56,10 @@ class PartitionWriter : public Reclaimable {
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
-      bool reuseBuffers,
-      bool hasComplexType) = 0;
+      bool reuseBuffers) = 0;
 
-  virtual arrow::Status sortEvict(
-      uint32_t partitionId,
-      std::unique_ptr<InMemoryPayload> inMemoryPayload,
-      std::shared_ptr<arrow::Buffer> compressed,
-      bool isFinal) = 0;
+  virtual arrow::Status
+  sortEvict(uint32_t partitionId, std::unique_ptr<InMemoryPayload> inMemoryPayload, bool isFinal) = 0;
 
   std::optional<int64_t> getCompressedBufferLength(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
     if (!codec_) {
@@ -87,4 +93,5 @@ class PartitionWriter : public Reclaimable {
   int64_t spillTime_{0};
   int64_t writeTime_{0};
 };
+
 } // namespace gluten

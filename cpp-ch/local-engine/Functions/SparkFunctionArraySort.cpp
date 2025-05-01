@@ -14,25 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Functions/FunctionHelpers.h>
-#include <Functions/FunctionFactory.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnFunction.h>
 #include <Columns/ColumnNullable.h>
-#include <Common/Exception.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeFunction.h>
 #include <DataTypes/DataTypeLowCardinality.h>
-#include <Poco/Logger.h>
-#include <Common/logger_useful.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <Functions/FunctionFactory.h>
+#include <Functions/FunctionHelpers.h>
 #include <base/sort.h>
+#include <Common/Exception.h>
+#include <Common/logger_useful.h>
+#include <Columns/ColumnFixedString.h>
+#include <Columns/ColumnString.h>
+#include <Columns/ColumnsDateTime.h>
 
-namespace DB::ErrorCodes
+
+namespace DB
+{
+namespace ErrorCodes
 {
     extern const int TOO_FEW_ARGUMENTS_FOR_FUNCTION;
+    extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
     extern const int ILLEGAL_TYPE_OF_ARGUMENT;
     extern const int TYPE_MISMATCH;
     extern const int ILLEGAL_COLUMN;
+}
 }
 
 /// The usage of `arraySort` in CH is different from Spark's `sort_array` function.
@@ -40,30 +48,31 @@ namespace DB::ErrorCodes
 namespace local_engine
 {
 
+using namespace DB;
 struct LambdaLess
 {
-    const DB::IColumn & column;
-    DB::DataTypePtr type;
-    const DB::ColumnFunction & lambda;
-    explicit LambdaLess(const DB::IColumn & column_, DB::DataTypePtr type_, const DB::ColumnFunction & lambda_)
+    const IColumn & column;
+    DataTypePtr type;
+    const ColumnFunction & lambda;
+    explicit LambdaLess(const IColumn & column_, DataTypePtr type_, const ColumnFunction & lambda_)
         : column(column_), type(type_), lambda(lambda_) {}
 
     /// May not efficient
     bool operator()(size_t lhs, size_t rhs) const
     {
         /// The column name seems not matter.
-        auto left_value_col = DB::ColumnWithTypeAndName(oneRowColumn(lhs), type, "left");
-        auto right_value_col = DB::ColumnWithTypeAndName(oneRowColumn(rhs), type, "right");
+        auto left_value_col = ColumnWithTypeAndName(oneRowColumn(lhs), type, "left");
+        auto right_value_col = ColumnWithTypeAndName(oneRowColumn(rhs), type, "right");
         auto cloned_lambda = lambda.cloneResized(1);
-        auto * lambda_ = typeid_cast<DB::ColumnFunction *>(cloned_lambda.get());
+        auto * lambda_ = typeid_cast<ColumnFunction *>(cloned_lambda.get());
         lambda_->appendArguments({std::move(left_value_col), std::move(right_value_col)});
         auto compare_res_col = lambda_->reduce();
-        DB::Field field;
+        Field field;
         compare_res_col.column->get(0, field);
         return field.safeGet<Int32>() < 0;
     }
 private:
-    ALWAYS_INLINE DB::ColumnPtr oneRowColumn(size_t i) const
+    ALWAYS_INLINE ColumnPtr oneRowColumn(size_t i) const
     {
         auto res = column.cloneEmpty();
         res->insertFrom(column, i);
@@ -71,11 +80,11 @@ private:
     }
 };
 
-struct Less
+struct GenericLess
 {
-    const DB::IColumn & column;
+    const IColumn & column;
 
-    explicit Less(const DB::IColumn & column_) : column(column_) { }
+    explicit GenericLess(const IColumn & column_) : column(column_) { }
 
     bool operator()(size_t lhs, size_t rhs) const
     {
@@ -83,139 +92,249 @@ struct Less
     }
 };
 
-class FunctionSparkArraySort : public DB::IFunction
+
+template <typename ColumnType>
+struct Less
+{
+    const ColumnType & column;
+
+    explicit Less(const IColumn & column_)
+        : column(assert_cast<const ColumnType &>(column_))
+    {
+    }
+
+    bool operator()(size_t lhs, size_t rhs) const { return column.compareAt(lhs, rhs, column, 1) < 0; }
+};
+
+template <typename ColumnType>
+struct NullableLess
+{
+    const ColumnType & nested_column;
+    const NullMap & null_map;
+
+    explicit NullableLess(const IColumn & nested_column_, const NullMap & null_map_)
+        : nested_column(assert_cast<const ColumnType &>(nested_column_))
+        , null_map(null_map_)
+    {
+    }
+
+    bool operator()(size_t lhs, size_t rhs) const
+    {
+        bool lhs_is_null = null_map[lhs];
+        bool rhs_is_null = null_map[rhs];
+
+        if (lhs_is_null) [[unlikely]]
+            return false;
+
+        if (rhs_is_null) [[unlikely]]
+            return true;
+
+        return nested_column.compareAt(lhs, rhs, nested_column, 1) < 0;
+    }
+};
+
+class FunctionSparkArraySort : public IFunction
 {
 public:
     static constexpr auto name = "arraySortSpark";
-    static DB::FunctionPtr create(DB::ContextPtr /*context*/) { return std::make_shared<FunctionSparkArraySort>(); }
+    static FunctionPtr create(ContextPtr /*context*/) { return std::make_shared<FunctionSparkArraySort>(); }
 
     bool isVariadic() const override { return true; }
     size_t getNumberOfArguments() const override { return 0; }
-    bool isSuitableForShortCircuitArgumentsExecution(const DB::DataTypesWithConstInfo &) const override { return true; }
+    bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo &) const override { return true; }
 
     bool useDefaultImplementationForNulls() const override { return false; }
     bool useDefaultImplementationForLowCardinalityColumns() const override { return false; }
+    bool useDefaultImplementationForConstants() const { return true; }
 
-    void getLambdaArgumentTypes(DB::DataTypes & arguments) const override
+    void getLambdaArgumentTypes(DataTypes & arguments) const override
     {
         if (arguments.size() < 2)
-            throw DB::Exception(DB::ErrorCodes::TOO_FEW_ARGUMENTS_FOR_FUNCTION, "Function {} requires as arguments a lambda function and an array", getName());
+            throw Exception(ErrorCodes::TOO_FEW_ARGUMENTS_FOR_FUNCTION, "Function {} requires as arguments a lambda function and an array", getName());
 
-        if (arguments.size() > 1)
-        {
-            const auto * lambda_function_type = DB::checkAndGetDataType<DB::DataTypeFunction>(arguments[0].get());
-            if (!lambda_function_type || lambda_function_type->getArgumentTypes().size() != 2)
-                throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "First argument of function {} must be a lambda function with 2 arguments, found {} instead.",
-                        getName(), arguments[0]->getName());
-            auto array_nesteed_type = DB::checkAndGetDataType<DB::DataTypeArray>(arguments.back().get())->getNestedType();
-            DB::DataTypes lambda_args = {array_nesteed_type, array_nesteed_type};
-            arguments[0] = std::make_shared<DB::DataTypeFunction>(lambda_args);
-        }
+        const auto * lambda_function_type = checkAndGetDataType<DataTypeFunction>(arguments[0].get());
+        if (!lambda_function_type || lambda_function_type->getArgumentTypes().size() != 2)
+            throw Exception(
+                ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                "First argument of function {} must be a lambda function with 2 arguments, found {} instead.",
+                getName(),
+                arguments[0]->getName());
+
+        auto array_nesteed_type = checkAndGetDataType<DataTypeArray>(arguments.back().get())->getNestedType();
+        DataTypes lambda_args = {array_nesteed_type, array_nesteed_type};
+        arguments[0] = std::make_shared<DataTypeFunction>(lambda_args);
     }
 
-    DB::DataTypePtr getReturnTypeImpl(const DB::ColumnsWithTypeAndName & arguments) const override
+    DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override
     {
+        if (arguments.empty() || arguments.size() > 2)
+            throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires 1 or 2 arguments", getName());
+
+        const auto * array_type = checkAndGetDataType<DataTypeArray>(removeNullable(arguments.back().type).get());
+        if (!array_type)
+            throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Last argument for function {} must be an array", getName());
+
         if (arguments.size() > 1)
         {
-            const auto * lambda_function_type = checkAndGetDataType<DB::DataTypeFunction>(arguments[0].type.get());
+            const auto * lambda_function_type = checkAndGetDataType<DataTypeFunction>(arguments[0].type.get());
             if (!lambda_function_type)
-                throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "First argument for function {} must be a function", getName());
+                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "First argument for function {} must be a function", getName());
         }
 
         return arguments.back().type;
     }
 
-    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr &, size_t input_rows_count) const override
+    ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
     {
-        auto array_col = arguments.back().column;
+        auto array_column = arguments.back().column;
         auto array_type = arguments.back().type;
-        DB::ColumnPtr null_map = nullptr;
-        if (const auto * null_col = typeid_cast<const DB::ColumnNullable *>(array_col.get()))
+        ColumnPtr nullmap_column = nullptr;
+        if (const auto * nullable_array_column = checkAndGetColumn<ColumnNullable>(array_column.get()))
         {
-            null_map = null_col->getNullMapColumnPtr();
-            array_col = null_col->getNestedColumnPtr();
-            array_type = typeid_cast<const DB::DataTypeNullable *>(array_type.get())->getNestedType();
+            array_column = nullable_array_column->getNestedColumnPtr();
+            array_type = assert_cast<const DataTypeNullable *>(array_type.get())->getNestedType();
+            nullmap_column = nullable_array_column->getNullMapColumnPtr();
         }
 
-        const auto * array_col_concrete = DB::checkAndGetColumn<DB::ColumnArray>(array_col.get());
-        if (!array_col_concrete)
-        {
-            const auto * aray_col_concrete_const = DB::checkAndGetColumnConst<DB::ColumnArray>(array_col.get());
-            if (!aray_col_concrete_const)
-            {
-                throw DB::Exception(DB::ErrorCodes::ILLEGAL_COLUMN, "Expected array column, found {}", array_col->getName());
-            }
-            array_col = DB::recursiveRemoveLowCardinality(aray_col_concrete_const->convertToFullColumn());
-            array_col_concrete = DB::checkAndGetColumn<DB::ColumnArray>(array_col.get());
-        }
-        auto array_nested_type = DB::checkAndGetDataType<DB::DataTypeArray>(array_type.get())->getNestedType();
+        auto array_nested_type = assert_cast<const DataTypeArray *>(array_type.get())->getNestedType();
+        const auto * concrete_array_column = checkAndGetColumn<ColumnArray>(array_column.get());
+        if (!concrete_array_column)
+            throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Last argument for function {} must be an array or nullable array column", getName());
 
-        DB::ColumnPtr sorted_array_col = nullptr;
+        ColumnPtr result = nullptr;
         if (arguments.size() > 1)
-            sorted_array_col = executeWithLambda(*array_col_concrete, array_nested_type, *checkAndGetColumn<DB::ColumnFunction>(arguments[0].column.get()));
+            result
+                = executeWithLambda(*concrete_array_column, array_nested_type, assert_cast<const ColumnFunction &>(*arguments[0].column));
         else
-            sorted_array_col = executeWithoutLambda(*array_col_concrete);
+            result = executeWithoutLambda(*concrete_array_column);
 
-        if (null_map)
-        {
-            sorted_array_col = DB::ColumnNullable::create(sorted_array_col, null_map);
-        }
-        return sorted_array_col;
+        if (nullmap_column)
+            result = ColumnNullable::create(std::move(result), std::move(nullmap_column));
+
+        return result;
     }
 private:
-    static DB::ColumnPtr executeWithLambda(const DB::ColumnArray & array_col, DB::DataTypePtr array_nested_type, const DB::ColumnFunction & lambda)
+    static ColumnPtr executeWithLambda(const ColumnArray & array_column, DataTypePtr array_nested_type, const ColumnFunction & lambda)
     {
-        const auto & offsets = array_col.getOffsets();
-        auto rows = array_col.size();
+        const auto & offsets = array_column.getOffsets();
+        auto rows = array_column.size();
 
-        size_t nested_size = array_col.getData().size();
-        DB::IColumn::Permutation permutation(nested_size);
+        size_t nested_size = array_column.getData().size();
+        IColumn::Permutation permutation(nested_size);
         for (size_t i = 0; i < nested_size; ++i)
             permutation[i] = i;
 
-        DB::ColumnArray::Offset current_offset = 0;
+        ColumnArray::Offset current_offset = 0;
         for (size_t i = 0; i < rows; ++i)
         {
             auto next_offset = offsets[i];
-            ::sort(&permutation[current_offset],
-                &permutation[next_offset],
-                LambdaLess(array_col.getData(),
-                    array_nested_type,
-                    lambda));
+            ::sort(&permutation[current_offset], &permutation[next_offset], LambdaLess(array_column.getData(), array_nested_type, lambda));
             current_offset = next_offset;
         }
-        auto res = DB::ColumnArray::create(array_col.getData().permute(permutation, 0), array_col.getOffsetsPtr());
+        auto res = ColumnArray::create(array_column.getData().permute(permutation, 0), array_column.getOffsetsPtr());
         return res;
     }
 
-    static DB::ColumnPtr executeWithoutLambda(const DB::ColumnArray & array_col)
+    static ColumnPtr executeWithoutLambda(const ColumnArray & array_column)
     {
-        const auto & offsets = array_col.getOffsets();
-        auto rows = array_col.size();
+        const auto & offsets = array_column.getOffsets();
+        auto rows = array_column.size();
 
-        size_t nested_size = array_col.getData().size();
-        DB::IColumn::Permutation permutation(nested_size);
+        size_t nested_size = array_column.getData().size();
+        IColumn::Permutation permutation(nested_size);
         for (size_t i = 0; i < nested_size; ++i)
             permutation[i] = i;
 
-        DB::ColumnArray::Offset current_offset = 0;
-        for (size_t i = 0; i < rows; ++i)
+        const auto & data_column = array_column.getData();
+        ColumnArray::Offset current_offset = 0;
+
+#define APPLY_COMPARATOR(cmp) \
+    for (size_t i = 0; i < rows; ++i) \
+    { \
+        auto next_offset = offsets[i]; \
+        ::sort(&permutation[current_offset], &permutation[next_offset], cmp); \
+        current_offset = next_offset; \
+    }
+
+#define DISPATCH_FOR_NONNULLABLE_COLUMN(TYPE) \
+    else if (checkAndGetColumn<TYPE>(&data_column)) \
+    { \
+        Less<TYPE> cmp(data_column); \
+        APPLY_COMPARATOR(cmp) \
+    }
+
+        if (false)
+            ;
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnUInt8)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnUInt16)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnUInt32)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnUInt64)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnInt8)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnInt16)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnInt32)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnInt64)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnFloat32)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnFloat64)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnDateTime64)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnDecimal<Decimal32>)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnDecimal<Decimal64>)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnDecimal<Decimal128>)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnDecimal<Decimal256>)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnString)
+        DISPATCH_FOR_NONNULLABLE_COLUMN(ColumnFixedString)
+#undef DISPATCH_FOR_NONNULLABLE_COLUMN
+
+        else if (const auto * nullable = checkAndGetColumn<ColumnNullable>(&data_column))
         {
-            auto next_offset = offsets[i];
-            ::sort(&permutation[current_offset],
-                    &permutation[next_offset],
-                    Less(array_col.getData()));
-            current_offset = next_offset;
+            const auto & null_map = nullable->getNullMapData();
+
+#define DISPATCH_FOR_NULLABLE_COLUMN(TYPE) \
+    else if (checkAndGetColumn<TYPE>(&nullable->getNestedColumn())) \
+    { \
+        NullableLess<TYPE> cmp(nullable->getNestedColumn(), null_map); \
+        APPLY_COMPARATOR(cmp) \
+    }
+
+            if (false)
+                ;
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnUInt8)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnUInt16)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnUInt32)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnUInt64)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnInt8)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnInt16)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnInt32)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnInt64)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnFloat32)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnFloat64)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnDateTime64)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnDecimal<Decimal32>)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnDecimal<Decimal64>)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnDecimal<Decimal128>)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnDecimal<Decimal256>)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnString)
+            DISPATCH_FOR_NULLABLE_COLUMN(ColumnFixedString)
+            else
+            {
+                GenericLess cmp(data_column);
+                APPLY_COMPARATOR(cmp)
+            }
+#undef DISPATCH_FOR_NULLABLE_COLUMN
         }
-        auto res = DB::ColumnArray::create(array_col.getData().permute(permutation, 0), array_col.getOffsetsPtr());
-        return res;
+        else
+        {
+            GenericLess cmp(data_column);
+            APPLY_COMPARATOR(cmp)
+        }
+#undef APPLY_COMPARATOR
+
+        return ColumnArray::create(array_column.getData().permute(permutation, 0), array_column.getOffsetsPtr());
     }
 
     String getName() const override
     {
         return name;
     }
-
 };
 
 REGISTER_FUNCTION(ArraySortSpark)

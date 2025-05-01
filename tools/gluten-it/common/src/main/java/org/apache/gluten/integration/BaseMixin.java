@@ -21,6 +21,8 @@ import org.apache.gluten.integration.clickbench.ClickBenchSuite;
 import org.apache.gluten.integration.command.SparkRunModes;
 import org.apache.gluten.integration.ds.TpcdsSuite;
 import org.apache.gluten.integration.h.TpchSuite;
+import org.apache.gluten.integration.metrics.MetricMapper;
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import picocli.CommandLine;
@@ -82,29 +84,14 @@ public class BaseMixin {
   private Map<String, String> extraSparkConf = Collections.emptyMap();
 
   private SparkConf pickSparkConf(String preset) {
-    SparkConf conf;
-    switch (preset) {
-      case "vanilla":
-        conf = Constants.VANILLA_CONF();
-        break;
-      case "velox":
-        conf = Constants.VELOX_CONF();
-        break;
-      case "velox-with-celeborn":
-        conf = Constants.VELOX_WITH_CELEBORN_CONF();
-        break;
-      case "velox-with-uniffle":
-        conf = Constants.VELOX_WITH_UNIFFLE_CONF();
-        break;
-      default:
-        throw new IllegalArgumentException("Preset not found: " + preset);
-    }
-    return conf;
+    return Preset.get(preset).getConf();
+  }
+
+  private MetricMapper pickMetricMapper(String preset) {
+    return Preset.get(preset).getMetricMapper();
   }
 
   public Integer runActions(Action[] actions) {
-    final SparkConf baselineConf = pickSparkConf(baselinePreset);
-    final SparkConf testConf = pickSparkConf(preset);
     final Level level;
     switch (logLevel) {
       case 0:
@@ -119,11 +106,19 @@ public class BaseMixin {
       default:
         throw new IllegalArgumentException("Log level not found: " + logLevel);
     }
+    System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, level.toString());
+    LogManager.getRootLogger().setLevel(level);
+
+    final SparkConf baselineConf = pickSparkConf(baselinePreset);
+    final SparkConf testConf = pickSparkConf(preset);
 
     scala.collection.immutable.Map<String, String> extraSparkConfScala =
         JavaConverters.mapAsScalaMapConverter(
             mergeMapSafe(extraSparkConf, runModeEnumeration.extraSparkConf())).asScala().toMap(
             Predef.conforms());
+
+    final MetricMapper baselineMetricMapper = pickMetricMapper(baselinePreset);
+    final MetricMapper testMetricMapper = pickMetricMapper(preset);
 
     final Suite suite;
     switch (benchmarkType) {
@@ -131,19 +126,19 @@ public class BaseMixin {
         suite = new TpchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
             enableHsUi, hsUiPort, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, scanPartitions);
+            disableWscg, shufflePartitions, scanPartitions, baselineMetricMapper, testMetricMapper);
         break;
       case "ds":
         suite = new TpcdsSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
             enableHsUi, hsUiPort, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, scanPartitions);
+            disableWscg, shufflePartitions, scanPartitions, baselineMetricMapper, testMetricMapper);
         break;
       case "clickbench":
         suite = new ClickBenchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
             enableHsUi, hsUiPort, disableAqe, disableBhj,
-            disableWscg, shufflePartitions, scanPartitions);
+            disableWscg, shufflePartitions, scanPartitions, baselineMetricMapper, testMetricMapper);
         break;
       default:
         throw new IllegalArgumentException("TPC benchmark type not found: " + benchmarkType);

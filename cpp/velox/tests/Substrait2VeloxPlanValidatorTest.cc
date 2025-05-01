@@ -47,12 +47,7 @@ class Substrait2VeloxPlanValidatorTest : public exec::test::HiveConnectorTestBas
   }
 
   bool validatePlan(::substrait::Plan& plan) {
-    auto queryCtx = core::QueryCtx::create();
-
-    // An execution context used for function validation.
-    std::unique_ptr<core::ExecCtx> execCtx = std::make_unique<core::ExecCtx>(pool_.get(), queryCtx.get());
-
-    auto planValidator = std::make_shared<SubstraitToVeloxPlanValidator>(pool_.get(), execCtx.get());
+    auto planValidator = std::make_shared<SubstraitToVeloxPlanValidator>(pool_.get());
     return planValidator->validate(plan);
   }
 };

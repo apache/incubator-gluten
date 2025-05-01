@@ -15,15 +15,19 @@
  * limitations under the License.
  */
 #include "AggregateFunctionParser.h"
+
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Functions/FunctionHelpers.h>
 #include <Parser/ExpressionParser.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -37,6 +41,7 @@ extern const int UNKNOWN_FUNCTION;
 
 namespace local_engine
 {
+using namespace DB;
 AggregateFunctionParser::AggregateFunctionParser(ParserContextPtr parser_context_) : parser_context(parser_context_)
 {
     expression_parser = std::make_unique<ExpressionParser>(parser_context);

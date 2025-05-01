@@ -16,17 +16,21 @@
  */
 package org.apache.gluten.backendsapi
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.substrait.rel.LocalFilesNode
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression}
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.types.StructField
+
+import org.apache.hadoop.conf.Configuration
 
 trait BackendSettingsApi {
 
@@ -37,39 +41,57 @@ trait BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       rootPaths: Seq[String],
-      properties: Map[String, String]): ValidationResult = ValidationResult.succeeded
+      properties: Map[String, String],
+      hadoopConf: Configuration): ValidationResult =
+    ValidationResult.succeeded
+
+  def getSubstraitReadFileFormatV1(fileFormat: FileFormat): LocalFilesNode.ReadFileFormat
+
+  def getSubstraitReadFileFormatV2(scan: Scan): LocalFilesNode.ReadFileFormat
 
   def supportWriteFilesExec(
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
+      isPartitionedTable: Boolean,
       options: Map[String, String]): ValidationResult = ValidationResult.succeeded
 
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
-  def supportNativeMetadataColumns(): Boolean = false
-  def supportNativeRowIndexColumn(): Boolean = false
+
+  def supportNativeMetadataColumns(): Boolean = true
+
+  def supportNativeRowIndexColumn(): Boolean = true
 
   def supportExpandExec(): Boolean = false
+
   def supportSortExec(): Boolean = false
+
   def supportSortMergeJoinExec(): Boolean = true
+
   def supportWindowExec(windowFunctions: Seq[NamedExpression]): Boolean = {
     false
   }
+
   def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = {
     false
   }
+
   def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getConf.enableColumnarShuffle
+    GlutenConfig.get.enableColumnarShuffle
   }
+
   def enableJoinKeysRewrite(): Boolean = true
+
   def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
     case _: InnerLike | RightOuter | FullOuter => true
     case _ => false
   }
+
   def supportHashBuildJoinTypeOnRight: JoinType => Boolean = {
     case _: InnerLike | LeftOuter | FullOuter | LeftSemi | LeftAnti | _: ExistenceJoin => true
     case _ => false
   }
+
   def supportStructType(): Boolean = false
 
   def structFieldToLowerCase(): Boolean = true
@@ -80,6 +102,7 @@ trait BackendSettingsApi {
   def recreateJoinExecOnFallback(): Boolean = false
 
   def excludeScanExecFromCollapsedStage(): Boolean = false
+
   def rescaleDecimalArithmetic: Boolean = false
 
   def allowDecimalArithmetic: Boolean = true
@@ -123,11 +146,16 @@ trait BackendSettingsApi {
 
   def supportCartesianProductExecWithCondition(): Boolean = true
 
-  def supportBroadcastNestedLoopJoinExec(): Boolean = true
-
   def supportSampleExec(): Boolean = false
 
   def supportColumnarArrowUdf(): Boolean = false
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
+
+  def supportCollectTailExec(): Boolean = false
+
+  def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = false
+
+  def supportIcebergEqualityDeleteRead(): Boolean = true
+
 }

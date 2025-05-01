@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerStageCompleted}
-import org.apache.spark.sql.TestUtils
+import org.apache.spark.sql.GlutenTestUtils
 import org.apache.spark.sql.execution.{ColumnarInputAdapter, CommandResultExec, InputIteratorTransformer}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, BroadcastQueryStageExec}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
@@ -101,7 +101,9 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("test shuffle hash join metrics") {
-    withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
       // without preproject
       runQueryAndCompare(
         "SELECT * FROM metrics_t1 join metrics_t2 on metrics_t1.c1 = metrics_t2.c1"
@@ -217,7 +219,7 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
 
-    TestUtils.withListener(spark.sparkContext, inputMetricsListener) {
+    GlutenTestUtils.withListener(spark.sparkContext, inputMetricsListener) {
       _ =>
         val df = spark.sql("""
                              |select /*+ BROADCAST(part) */ * from part join lineitem
@@ -262,5 +264,17 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           }
         }
     }
+  }
+
+  test("Velox cache metrics") {
+    val df = spark.sql(s"SELECT * FROM metrics_t1")
+    val scans = collect(df.queryExecution.executedPlan) {
+      case scan: FileSourceScanExecTransformer => scan
+    }
+    df.collect()
+    assert(scans.length === 1)
+    val metrics = scans.head.metrics
+    assert(metrics("storageReadBytes").value > 0)
+    assert(metrics("ramReadBytes").value == 0)
   }
 }
