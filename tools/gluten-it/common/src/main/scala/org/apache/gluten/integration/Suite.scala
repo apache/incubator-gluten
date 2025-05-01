@@ -57,33 +57,19 @@ abstract class Suite(
     new SparkSessionSwitcher(masterUrl, logLevel.toString)
 
   // define initial configs
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.sources.useV1SourceList", "")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.sql.shuffle.partitions", s"$shufflePartitions")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.executor.heartbeatInterval", "10s")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.worker.timeout", "3600")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.executor.metrics.pollingInterval", "0")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.network.timeout", "3601s")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.broadcastTimeout", "1800")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.network.io.preferDirectBufs", "false")
-  sessionSwitcher
-    .defaultConf()
-    .setWarningOnOverriding("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
+  sessionSwitcher.addDefaultConf("spark.sql.sources.useV1SourceList", "")
+  sessionSwitcher.addDefaultConf("spark.sql.shuffle.partitions", s"$shufflePartitions")
+  sessionSwitcher.addDefaultConf("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
+  sessionSwitcher.addDefaultConf("spark.executor.heartbeatInterval", "10s")
+  sessionSwitcher.addDefaultConf("spark.worker.timeout", "3600")
+  sessionSwitcher.addDefaultConf("spark.executor.metrics.pollingInterval", "0")
+  sessionSwitcher.addDefaultConf("spark.network.timeout", "3601s")
+  sessionSwitcher.addDefaultConf("spark.sql.broadcastTimeout", "1800")
+  sessionSwitcher.addDefaultConf("spark.network.io.preferDirectBufs", "false")
+  sessionSwitcher.addDefaultConf("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
 
   if (!enableUi) {
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.ui.enabled", "false")
+    sessionSwitcher.addDefaultConf("spark.ui.enabled", "false")
   }
 
   if (enableHsUi) {
@@ -92,44 +78,36 @@ abstract class Suite(
         "Unable to create history directory: " +
           historyWritePath())
     }
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.eventLog.enabled", "true")
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.eventLog.dir", historyWritePath())
+    sessionSwitcher.addDefaultConf("spark.eventLog.enabled", "true")
+    sessionSwitcher.addDefaultConf("spark.eventLog.dir", historyWritePath())
   }
 
   if (disableAqe) {
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.adaptive.enabled", "false")
+    sessionSwitcher.addDefaultConf("spark.sql.adaptive.enabled", "false")
   }
 
   if (disableBhj) {
-    sessionSwitcher
-      .defaultConf()
-      .setWarningOnOverriding("spark.sql.autoBroadcastJoinThreshold", "-1")
+    sessionSwitcher.addDefaultConf("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 
   if (disableWscg) {
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.codegen.wholeStage", "false")
+    sessionSwitcher.addDefaultConf("spark.sql.codegen.wholeStage", "false")
   }
 
   if (scanPartitions != -1) {
     // Scan partition number.
-    sessionSwitcher
-      .defaultConf()
-      .setWarningOnOverriding("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
-    sessionSwitcher
-      .defaultConf()
-      .setWarningOnOverriding("spark.sql.files.openCostInBytes", "0")
-    sessionSwitcher
-      .defaultConf()
-      .setWarningOnOverriding("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1).max(1)}")
-  }
-
-  extraSparkConf.toStream.foreach {
-    kv => sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
+    sessionSwitcher.addDefaultConf("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
+    sessionSwitcher.addDefaultConf("spark.sql.files.openCostInBytes", "0")
+    sessionSwitcher.addDefaultConf("spark.sql.files.minPartitionNum", s"${(scanPartitions - 1).max(1)}")
   }
 
   // register sessions
   sessionSwitcher.registerSession("test", testConf)
   sessionSwitcher.registerSession("baseline", baselineConf)
+
+  extraSparkConf.toStream.foreach {
+    kv => sessionSwitcher.addExtraConf(kv._1, kv._2)
+  }
 
   private def startHistoryServer(): Int = {
     val hsConf = new SparkConf(false)
