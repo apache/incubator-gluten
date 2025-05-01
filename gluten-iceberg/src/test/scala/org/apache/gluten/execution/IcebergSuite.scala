@@ -647,10 +647,10 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
   }
 
   test("test read iceberg with special characters in column name") {
-    val testTable = "test_table_with_partition"
+    val testTable = "test_table_with_special_characters"
     withTable(testTable) {
       spark.sql(s"""
-                   |CREATE TABLE $testTable (id INT, my/data STRING)
+                   |CREATE TABLE $testTable (id INT, `my/data` STRING)
                    |USING iceberg
                    |""".stripMargin)
       spark.sql(s"""
