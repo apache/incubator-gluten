@@ -21,7 +21,8 @@ import org.apache.iceberg.spark.sql.TestDeleteFrom;
 import java.util.Map;
 
 public class GlutenTestDeleteFrom extends TestDeleteFrom {
-    public GlutenTestDeleteFrom(String catalogName, String implementation, Map<String, String> config) {
-        super(catalogName, implementation, config);
-    }
+  public GlutenTestDeleteFrom(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
 }

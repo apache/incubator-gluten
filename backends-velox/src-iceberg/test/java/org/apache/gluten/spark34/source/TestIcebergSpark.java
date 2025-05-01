@@ -16,15 +16,8 @@
  */
 package org.apache.gluten.spark34.source;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import java.math.BigDecimal;
-import java.nio.ByteBuffer;
-import java.sql.Date;
-import java.sql.Timestamp;
-import java.util.List;
-
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.iceberg.spark.IcebergSpark;
 import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Types;
@@ -40,14 +33,22 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 public class TestIcebergSpark {
 
   private static SparkSession spark = null;
 
   @BeforeClass
   public static void startSpark() {
-    TestIcebergSpark.spark = SparkSession.builder().master("local[2]")
-            .config(TestConfUtil.GLUTEN_CONF).getOrCreate();
+    TestIcebergSpark.spark =
+        SparkSession.builder().master("local[2]").config(TestConfUtil.GLUTEN_CONF).getOrCreate();
   }
 
   @AfterClass

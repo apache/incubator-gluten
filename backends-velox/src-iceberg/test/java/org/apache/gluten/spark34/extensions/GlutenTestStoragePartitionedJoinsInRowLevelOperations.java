@@ -20,8 +20,10 @@ import org.apache.iceberg.spark.extensions.TestStoragePartitionedJoinsInRowLevel
 
 import java.util.Map;
 
-public class GlutenTestStoragePartitionedJoinsInRowLevelOperations extends TestStoragePartitionedJoinsInRowLevelOperations {
-    public GlutenTestStoragePartitionedJoinsInRowLevelOperations(String catalogName, String implementation, Map<String, String> config) {
-        super(catalogName, implementation, config);
-    }
+public class GlutenTestStoragePartitionedJoinsInRowLevelOperations
+    extends TestStoragePartitionedJoinsInRowLevelOperations {
+  public GlutenTestStoragePartitionedJoinsInRowLevelOperations(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
 }

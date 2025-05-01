@@ -18,8 +18,10 @@ package org.apache.gluten.spark34.extensions;
 
 import java.util.Map;
 
-public class GlutenTestSystemFunctionPushDownInRowLevelOperations extends GlutenTestSystemFunctionPushDownDQL {
-    public GlutenTestSystemFunctionPushDownInRowLevelOperations(String catalogName, String implementation, Map<String, String> config) {
-        super(catalogName, implementation, config);
-    }
+public class GlutenTestSystemFunctionPushDownInRowLevelOperations
+    extends GlutenTestSystemFunctionPushDownDQL {
+  public GlutenTestSystemFunctionPushDownInRowLevelOperations(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
 }

@@ -16,10 +16,10 @@
  */
 package org.apache.spark.shuffle.writer;
 
-import org.apache.gluten.config.GlutenConfig;
-import org.apache.gluten.config.ReservedKeys;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
+import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.ReservedKeys;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
@@ -64,8 +64,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private long nativeShuffleWriter = -1L;
 
   private boolean stopping = false;
-  private final int compressThreshold =
-      GlutenConfig.get().columnarShuffleCompressionThreshold();
+  private final int compressThreshold = GlutenConfig.get().columnarShuffleCompressionThreshold();
   private final double reallocThreshold = GlutenConfig.get().columnarShuffleReallocThreshold();
   private String compressionCodec;
   private int compressionLevel;
