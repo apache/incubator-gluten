@@ -50,7 +50,8 @@ public final class MemoryTargets {
 
   @Experimental
   public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
-    if (SparkEnv.get().conf().getBoolean(GlutenConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(), false)) {
+    if (SparkEnv.get().conf().getBoolean(
+            GlutenConfig.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(), false)) {
       return new DynamicOffHeapSizingMemoryTarget();
     }
 
