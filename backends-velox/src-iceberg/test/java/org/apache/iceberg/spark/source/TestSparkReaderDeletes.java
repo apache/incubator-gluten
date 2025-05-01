@@ -18,14 +18,15 @@ package org.apache.iceberg.spark.source;
 
 import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.*;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.*;
+import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.hive.TestHiveMetastore;
@@ -36,6 +37,7 @@ import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.relocated.com.google.common.collect.Sets;
+import org.apache.iceberg.shaded.org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.iceberg.shaded.org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.iceberg.spark.SparkSchemaUtil;
 import org.apache.iceberg.spark.SparkStructLike;
@@ -44,7 +46,6 @@ import org.apache.iceberg.spark.data.SparkParquetWriters;
 import org.apache.iceberg.spark.source.metrics.NumDeletes;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.*;
-import org.apache.iceberg.shaded.org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -406,22 +407,27 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
     checkDeleteCount(3L);
     // TODO, the query fallbacks because not supports equality delete.
     // Error Source: RUNTIME
-    //Error Code: NOT_IMPLEMENTED
-    //Retriable: False
-    //Context: Split [Hive: /var/folders/63/845y6pk53dx_83hpw8ztdchw0000gn/T/junit-17345315326614809092/junit4173952394189821024.tmp 4 - 647] Task Gluten_Stage_5_TID_5_VTID_1
-    //Additional Context: Operator: TableScan[0] 0
-    //Function: prepareSplit
-    //File: /Users/chengchengjin/code/gluten/ep/build-velox/build/velox_ep/velox/connectors/hive/iceberg/IcebergSplitReader.cpp
-    //Line: 95
-    //Stack trace:
+    // Error Code: NOT_IMPLEMENTED
+    // Retriable: False
+    // Context: Split [Hive:
+    // /var/folders/63/845y6pk53dx_83hpw8ztdchw0000gn/T/junit-17345315326614809092/junit4173952394189821024.tmp 4 - 647] Task Gluten_Stage_5_TID_5_VTID_1
+    // Additional Context: Operator: TableScan[0] 0
+    // Function: prepareSplit
+    // File:
+    // /Users/chengchengjin/code/gluten/ep/build-velox/build/velox_ep/velox/connectors/hive/iceberg/IcebergSplitReader.cpp
+    // Line: 95
+    // Stack trace:
     // Check the table query data because above query is fallback by column _deleted.
-    // This query is fallback by equality delete files, remove this check after equality reader is supported.
+    // This query is fallback by equality delete files, remove this check after equality reader is
+    // supported.
     StructLikeSet actualWithoutMetadata =
-            rowSet(tableName, PROJECTION_SCHEMA_WITHOUT_DELETED.asStruct(), "id", "data");
+        rowSet(tableName, PROJECTION_SCHEMA_WITHOUT_DELETED.asStruct(), "id", "data");
     spark.conf().set(GlutenConfig.GLUTEN_ENABLED().key(), "false");
-    StructLikeSet  expectWithoutMetadata =
-            rowSet(tableName, PROJECTION_SCHEMA_WITHOUT_DELETED.asStruct(), "id", "data");
-    assertThat(actualWithoutMetadata).as("Table should contain expected row").isEqualTo(expectWithoutMetadata);
+    StructLikeSet expectWithoutMetadata =
+        rowSet(tableName, PROJECTION_SCHEMA_WITHOUT_DELETED.asStruct(), "id", "data");
+    assertThat(actualWithoutMetadata)
+        .as("Table should contain expected row")
+        .isEqualTo(expectWithoutMetadata);
     spark.conf().set(GlutenConfig.GLUTEN_ENABLED().key(), "true");
   }
 
@@ -624,9 +630,8 @@ public class TestSparkReaderDeletes extends DeleteReadTests {
           MetadataColumns.IS_DELETED);
 
   private static final Schema PROJECTION_SCHEMA_WITHOUT_DELETED =
-          new Schema(
-                  required(1, "id", Types.IntegerType.get()),
-                  required(2, "data", Types.StringType.get()));
+      new Schema(
+          required(1, "id", Types.IntegerType.get()), required(2, "data", Types.StringType.get()));
 
   private static StructLikeSet expectedRowSet(int... idsToRemove) {
     return expectedRowSet(false, false, idsToRemove);

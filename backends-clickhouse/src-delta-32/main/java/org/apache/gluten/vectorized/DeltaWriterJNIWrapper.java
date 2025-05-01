@@ -16,16 +16,16 @@
  */
 package org.apache.gluten.vectorized;
 
-
 public class DeltaWriterJNIWrapper {
 
-    private DeltaWriterJNIWrapper() {
-        // utility class
-    }
+  private DeltaWriterJNIWrapper() {
+    // utility class
+  }
 
-    public static native long createDeletionVectorWriter(String tablePath, int prefix_length, long packingTargetSize);
+  public static native long createDeletionVectorWriter(
+      String tablePath, int prefix_length, long packingTargetSize);
 
-    public static native void deletionVectorWrite(long writer_address, long block_address);
+  public static native void deletionVectorWrite(long writer_address, long block_address);
 
-    public static native long deletionVectorWriteFinalize(long writer_address);
+  public static native long deletionVectorWriteFinalize(long writer_address);
 }
