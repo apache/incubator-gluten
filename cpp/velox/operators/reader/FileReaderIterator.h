@@ -33,13 +33,13 @@ class FileReaderIterator : public ColumnarBatchIterator {
       int64_t batchSize,
       facebook::velox::memory::MemoryPool* pool);
 
-  explicit FileReaderIterator(const std::string& path);
+  explicit FileReaderIterator(const std::string& path) : path_(path){};
 
   virtual ~FileReaderIterator() = default;
 
-  virtual std::shared_ptr<arrow::Schema> getSchema() = 0;
-
-  int64_t getCollectBatchTime() const;
+  int64_t getCollectBatchTime() const {
+    return collectBatchTime_;
+  }
 
  protected:
   int64_t collectBatchTime_ = 0;
