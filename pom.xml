@@ -1543,6 +1543,20 @@
                 <content>${spotless.license.header}</content>
                 <delimiter>${spotless.delimiter}</delimiter>
               </licenseHeader>
+              <includes>
+                <include>src/main/java/**/*.java</include>
+                <include>src/test/java/**/*.java</include>
+                <include>src-celeborn/main/java/**/*.java</include>
+                <include>src-celeborn/test/java/**/*.java</include>
+                <include>src-delta/main/java/**/*.java</include>
+                <include>src-delta/test/java/**/*.java</include>
+                <include>src-hudi/main/java/**/*.java</include>
+                <include>src-hudi/test/java/**/*.java</include>
+                <include>src-iceberg/main/java/**/*.java</include>
+                <include>src-iceberg/test/java/**/*.java</include>
+                <include>src-uniffle/main/java/**/*.java</include>
+                <include>src-uniffle/test/java/**/*.java</include>
+              </includes>
             </java>
             <scala>
               <!--  make it works `// spotless:off `  -->
@@ -1556,6 +1570,20 @@
                 <content>${spotless.license.header}</content>
                 <delimiter>${spotless.delimiter}</delimiter>
               </licenseHeader>
+              <includes>
+                <include>src/main/scala/**/*.scala</include>
+                <include>src/test/scala/**/*.scala</include>
+                <include>src-celeborn/main/scala/**/*.scala</include>>
+                <include>src-celeborn/test/scala/**/*.scala</include>
+                <include>src-delta/main/scala/**/*.scala</include>>
+                <include>src-delta/test/scala/**/*.scala</include>
+                <include>src-hudi/main/scala/**/*.scala</include>>
+                <include>src-hudi/test/scala/**/*.scala</include>
+                <include>src-iceberg/main/scala/**/*.scala</include>>
+                <include>src-iceberg/test/scala/**/*.scala</include>
+                <include>src-uniffle/main/scala/**/*.scala</include>>
+                <include>src-uniffle/test/scala/**/*.scala</include>
+              </includes>
             </scala>
           </configuration>
           <executions>
