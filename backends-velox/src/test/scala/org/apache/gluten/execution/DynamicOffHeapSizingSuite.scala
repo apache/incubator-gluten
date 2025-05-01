@@ -64,7 +64,8 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
     val data = Seq(1, 2, 3, 4).toDF("col1")
     val result = data.select("col1").distinct().rdd.flatMap(row => Seq(row.getInt(0))).collect()
     val expected = Array(1, 2, 3, 4)
-    assert(result.sorted.sameElements(expected),
+    assert(
+      result.sorted.sameElements(expected),
       s"Expected ${expected.mkString(", ")}, but got ${result.mkString(", ")}")
   }
 }
