@@ -51,26 +51,19 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
   private var _activeSessionDesc: SessionDesc = SparkSessionSwitcher.NONE
 
   def addDefaultConf(key: String, value: String): Unit = {
-    require(sessionMap.isEmpty, "Unable to change the default configuration since sessions were already registered")
-    require(extraConf.getAll.isEmpty, "Unable to change the default configuration since extra configurations were already set")
     testDefaults.setWarningOnOverriding(key, value)
   }
 
   def addExtraConf(key: String, value: String): Unit = {
     extraConf.setWarningOnOverriding(key, value)
-    sessionMap.values().forEach(c => c.setWarningOnOverriding(key, value))
   }
 
   def registerSession(name: String, sessionConf: SparkConf): SessionToken = synchronized {
-    require(extraConf.getAll.isEmpty, "Unable to register sessions since extra configurations were already set")
     val token = SessionToken(name)
     if (sessionMap.containsKey(token)) {
       throw new IllegalArgumentException(s"Session name already registered: $name")
     }
-    sessionMap.put(token, new SparkConf(false)
-      .setAllWarningOnOverriding(testDefaults.getAll)
-      .setAllWarningOnOverriding(sessionConf.getAll)
-    )
+    sessionMap.put(token, new SparkConf(false).setAllWarningOnOverriding(sessionConf.getAll))
     return token
   }
 
@@ -97,9 +90,11 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     }
     println(s"Switching to $desc session... ")
     stopActiveSession()
-    activateSession(
-      new SparkConf(false)
-        .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll), desc.appName)
+    val conf = new SparkConf(false)
+      .setAllWarningOnOverriding(testDefaults.getAll)
+      .setAllWarningOnOverriding(sessionMap.get(desc.sessionToken).getAll)
+      .setAllWarningOnOverriding(extraConf.getAll)
+    activateSession(conf, desc.appName)
     _activeSessionDesc = desc
     println(s"Successfully switched to $desc session. ")
   }
