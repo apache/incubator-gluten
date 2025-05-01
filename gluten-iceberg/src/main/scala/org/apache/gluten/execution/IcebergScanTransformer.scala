@@ -32,6 +32,7 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
 
 import org.apache.iceberg.{BaseTable, MetadataColumns, SnapshotSummary}
+import org.apache.iceberg.avro.AvroSchemaUtil
 import org.apache.iceberg.spark.source.{GlutenIcebergSourceUtil, SparkTable}
 import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
@@ -161,7 +162,7 @@ case class IcebergScanTransformer(
 object IcebergScanTransformer {
   def apply(batchScan: BatchScanExec): IcebergScanTransformer = {
     new IcebergScanTransformer(
-      batchScan.output,
+      batchScan.output.map(a => a.withName(AvroSchemaUtil.makeCompatibleName(a.name))),
       batchScan.scan,
       batchScan.runtimeFilters,
       table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScan),
