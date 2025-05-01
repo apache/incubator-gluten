@@ -20,21 +20,8 @@ import org.apache.gluten.execution._
 import org.apache.gluten.extension.CHRemoveTopmostColumnarToRow
 
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
-class RDDScanSuite extends GlutenClickHouseTPCHAbstractSuite with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "queries-output"
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
+class RDDScanSuite extends ParquetSuite {
 
   test("test RDDScanTransform") {
     val test_sql =

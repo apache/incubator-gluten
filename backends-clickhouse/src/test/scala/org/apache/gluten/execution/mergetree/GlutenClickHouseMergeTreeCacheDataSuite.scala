@@ -18,11 +18,10 @@ package org.apache.gluten.execution.mergetree
 
 import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution.{CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.files.TahoeFileIndex
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
 import org.apache.hadoop.conf.Configuration
@@ -32,19 +31,7 @@ import java.io.File
 
 import scala.concurrent.duration.DurationInt
 
-class GlutenClickHouseMergeTreeCacheDataSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
+class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
 
   override protected def sparkConf: SparkConf = {
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._

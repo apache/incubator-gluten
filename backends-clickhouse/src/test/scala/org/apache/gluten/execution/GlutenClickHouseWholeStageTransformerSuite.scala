@@ -20,16 +20,31 @@ import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.utils.{HDFSTestHelper, MinioTestHelper, UTSystemParameters}
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
+import org.apache.spark.internal.Logging
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.Tag
 
 import java.io.File
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
+trait TestDatabase {
 
-class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSuite {
+  /** source parquet data */
+  val testParquetAbsolutePath: String
+
+  /** data path for tests, depends on diskOutputDataPath config */
+  val dataHome: String
+
+  /** Path for storing query files */
+  // val queryPath: String
+
+  protected def prepareTestTables(): Unit
+}
+
+class GlutenClickHouseWholeStageTransformerSuite
+  extends WholeStageTransformerSuite
+  with TestDatabase
+  with Logging {
 
   val DBL_EPSILON = 2.2204460492503131e-16
   val DBL_RELAX_EPSILON: Double = Math.pow(10, -11)
@@ -92,11 +107,11 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
 
   override def beforeAll(): Unit = {
-    // is not exist may cause some ut error
+    // if not exists may cause some ut error
     assert(new File(CH_DEFAULT_STORAGE_DIR).exists())
 
     // prepare working paths
-    val basePathDir = new File(basePath)
+    val basePathDir = new File(dataHome)
     if (basePathDir.exists()) {
       FileUtils.forceDelete(basePathDir)
     }
@@ -104,15 +119,35 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     super.beforeAll()
+    spark.sparkContext.setLogLevel(logLevel)
+    prepareTestTables()
   }
 
-  final protected val rootPath: String = this.getClass.getResource("/").getPath
-  final protected val queryPath: String = s"${rootPath}queries"
-  final protected val basePath: String =
-    if (UTSystemParameters.diskOutputDataPath.equals("/")) rootPath + "tests-working-home"
-    else UTSystemParameters.diskOutputDataPath + "/" + rootPath + "tests-working-home"
-  final protected val warehouse: String = basePath + "/spark-warehouse"
-  final protected val metaStorePathAbsolute: String = basePath + "/meta"
+  /**
+   * Root path for class resources. Usually, it's the path of the class:
+   * `${ProjectDir}/backends-clickhouse/target/scala-2.13/test-classes/`
+   */
+  final protected val resPath: String = this.getClass.getResource("/").getPath
+
+  // source parquet data
+  private val testDataPath: String =
+    "../../../../gluten-core/src/test/resources/tpch-data"
+  final lazy val testParquetAbsolutePath =
+    new File(s"$resPath$testDataPath").getCanonicalPath
+
+  /** Path for storing query files - appends "queries" to `resPath` */
+  final protected lazy val queryPath: String = s"${resPath}queries"
+
+  /** data path for tests, depends on diskOutputDataPath config */
+  final lazy val dataHome: String =
+    if (UTSystemParameters.diskOutputDataPath.equals("/")) resPath + "tests-working-home"
+    else UTSystemParameters.diskOutputDataPath + "/" + resPath + "tests-working-home"
+
+  /** Spark warehouse directory for tests */
+  final protected val warehouse: String = dataHome + "/spark-warehouse"
+
+  /** Path for storing metadata */
+  final protected val metaStorePathAbsolute: String = dataHome + "/meta"
 
   protected val hiveMetaStoreDB: String =
     s"$metaStorePathAbsolute/${getClass.getSimpleName}/metastore_db"
@@ -129,5 +164,6 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
 
   lazy val pruningTimeValueSpark: Int = if (isSparkVersionLE("3.3")) -1 else 0
+
+  override protected def prepareTestTables(): Unit = {}
 }
-// scalastyle:off line.size.limit

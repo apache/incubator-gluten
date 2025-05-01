@@ -17,11 +17,11 @@
 package org.apache.gluten.execution.mergetree
 
 import org.apache.gluten.affinity.{CHUTAffinity, CHUTSoftAffinityManager}
-import org.apache.gluten.execution.{GlutenClickHouseTPCHAbstractSuite, GlutenMergeTreePartition, MergeTreePartSplit}
+import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, GlutenMergeTreePartition, MergeTreePartSplit}
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePartsPartitionsUtil
 import org.apache.spark.sql.types.StructType
 
@@ -33,15 +33,14 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class GlutenClickhouseMergetreeSoftAffinitySuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+  extends GlutenClickHouseWholeStageTransformerSuite {
 
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(
+        "spark.sql.catalog.spark_catalog",
+        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
+      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
   }
 
   override def beforeAll(): Unit = {
