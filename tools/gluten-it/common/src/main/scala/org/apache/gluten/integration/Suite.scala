@@ -16,15 +16,14 @@
  */
 package org.apache.gluten.integration
 
+import org.apache.gluten.integration.Constants.TYPE_MODIFIER_DECIMAL_AS_DOUBLE
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
-
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
-
 import org.apache.log4j.{Level, LogManager}
 
 import java.io.File
@@ -188,6 +187,10 @@ abstract class Suite(
 
   protected def historyWritePath(): String
 
+  protected[integration] def typeModifiers(): List[TypeModifier] = {
+    if (decimalAsDouble) List(TYPE_MODIFIER_DECIMAL_AS_DOUBLE) else List()
+  }
+
   private[integration] def dataWritePath(scale: Double, genPartitionedData: Boolean): String
 
   private[integration] def createDataGen(scale: Double, genPartitionedData: Boolean): DataGen
@@ -195,10 +198,6 @@ abstract class Suite(
   private[integration] def queryResource(): String
 
   private[integration] def allQueryIds(): Array[String]
-
-  protected[integration] def typeModifiers(): List[TypeModifier] = {
-    if (decimalAsDouble) List(new DecimalTypeModifier()) else List()
-  }
 
   private[integration] def desc(): String
 }

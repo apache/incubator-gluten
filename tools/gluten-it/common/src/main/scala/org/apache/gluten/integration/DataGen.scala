@@ -31,13 +31,6 @@ class NoopModifier(t: DataType) extends TypeModifier(_ => true, t) {
   override def modValue(value: Any): Any = value
 }
 
-class DecimalTypeModifier extends TypeModifier({
-  case _: DecimalType => true;
-  case _ => false
-}, DoubleType) {
-  override def modValue(value: Any): Any = value.asInstanceOf[BigDecimal].doubleValue()
-}
-
 object DataGen {
   def getRowModifier(
       schema: StructType,
