@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
@@ -1750,6 +1751,46 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
                            |FROM t
                            |""".stripMargin) {
         checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
+  test("factorial function with project") {
+    withTable("factorial_input") {
+      sql("CREATE TABLE factorial_input(id INT) USING parquet")
+      sql("""
+            |INSERT INTO factorial_input VALUES
+            |(0), (1), (2), (3), (4), (5), (6), (7), (8), (9), (10)
+            |""".stripMargin)
+
+      val query =
+        """
+          |SELECT
+          |  id,
+          |  factorial(id)
+          |FROM factorial_input
+          |""".stripMargin
+
+      val expectedResults = Seq(
+        Row(0, 1L),
+        Row(1, 1L),
+        Row(2, 2L),
+        Row(3, 6L),
+        Row(4, 24L),
+        Row(5, 120L),
+        Row(6, 720L),
+        Row(7, 5040L),
+        Row(8, 40320L),
+        Row(9, 362880L),
+        Row(10, 3628800L)
+      )
+
+      runSql(query) {
+        df =>
+          checkGlutenOperatorMatch[ProjectExecTransformer](df)
+          val result = df.collect()
+          assert(result.length == expectedResults.length)
+          assert(result === expectedResults)
       }
     }
   }
