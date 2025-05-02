@@ -17,13 +17,15 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.hadoop.fs.Path
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
+
+import org.apache.hadoop.fs.Path
 
 case class InputPartitionsUtil(
     relation: HadoopFsRelation,
