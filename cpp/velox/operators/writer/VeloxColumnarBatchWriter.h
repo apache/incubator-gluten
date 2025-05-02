@@ -15,25 +15,33 @@
  * limitations under the License.
  */
 
-#include "operators/writer/VeloxArrowWriter.h"
+#pragma once
+
+#include "operators/writer/ColumnarBatchWriter.h"
+
+#include "velox/dwio/parquet/writer/Writer.h"
 
 namespace gluten {
 
-VeloxArrowWriter::VeloxArrowWriter(
-    const std::string& path,
-    int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : ArrowWriter(path), batchSize_(batchSize), pool_(pool) {}
+class VeloxColumnarBatchWriter final : public ColumnarBatchWriter {
+ public:
+  VeloxColumnarBatchWriter(
+      const std::string& path,
+      int64_t batchSize,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
-std::shared_ptr<ColumnarBatch> VeloxArrowWriter::retrieveColumnarBatch() {
-  if (writer_ == nullptr) {
-    // No data to read.
-    return nullptr;
-  }
-  if (reader_ == nullptr) {
-    reader_ = std::make_unique<ParquetStreamReaderIterator>(path_, batchSize_, pool_);
-  }
-  return reader_->next();
-}
+  arrow::Status write(const std::shared_ptr<ColumnarBatch>& batch) override;
+
+  arrow::Status close() override;
+
+ private:
+  arrow::Status initWriter(const facebook::velox::RowTypePtr& rowType);
+
+  std::string path_;
+  int64_t batchSize_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
+
+  std::unique_ptr<facebook::velox::parquet::Writer> writer_{nullptr};
+};
 
 } // namespace gluten

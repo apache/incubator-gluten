@@ -25,7 +25,7 @@ object DebugUtil {
   // if stageId is not specified or doesn't match, then do nothing
   // if specify stageId but no partitionId, then do all partitions for that stage
   // if specify stageId and partitionId, then only do that partition for that stage
-  def saveInputToFile(): Boolean = {
+  def isDumpingEnabledForTask: Boolean = {
     def taskIdMatches =
       GlutenConfig.get.benchmarkTaskId.nonEmpty &&
         GlutenConfig.get.benchmarkTaskId
@@ -41,12 +41,11 @@ object DebugUtil {
             .map(_.toInt)
             .contains(TaskContext.get().partitionId()))
 
-    val saveInput = taskIdMatches || partitionIdMatches
-    if (saveInput) {
-      if (GlutenConfig.get.benchmarkSaveDir.isEmpty) {
-        throw new IllegalArgumentException(GlutenConfig.BENCHMARK_SAVE_DIR.key + " is not set.")
-      }
+    val matches = taskIdMatches || partitionIdMatches
+    if (matches && GlutenConfig.get.benchmarkSaveDir.isEmpty) {
+      throw new IllegalArgumentException(GlutenConfig.BENCHMARK_SAVE_DIR.key + " is not set.")
     }
-    saveInput
+
+    matches
   }
 }

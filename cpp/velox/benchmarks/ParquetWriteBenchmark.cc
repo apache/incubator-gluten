@@ -61,7 +61,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark {
       // Init VeloxParquetDataSource
       auto reader = [&] {
         ScopedTimer timer(&elapseRead);
-        return std::make_unique<ParquetBufferedReaderIterator>(fileName_, kBatchBufferSize, veloxPool.get());
+        return std::make_unique<ParquetBufferedReaderIterator>(fileName_, kBatchBufferSize, veloxPool);
       }();
 
       const auto localSchema = toArrowSchema(reader->getRowType(), veloxPool.get());

@@ -17,33 +17,35 @@
 
 #pragma once
 
-#include "compute/ResultIterator.h"
-#include "memory/ColumnarBatchIterator.h"
-#include "velox/common/memory/MemoryPool.h"
+#include "compute/VeloxRuntime.h"
+#include "utils/WholeStageDumper.h"
 
 namespace gluten {
 
-enum FileReaderType { kBuffered, kStream, kNone };
-
-class FileReaderIterator : public ColumnarBatchIterator {
+class VeloxWholeStageDumper final : public WholeStageDumper {
  public:
-  static std::shared_ptr<ResultIterator> getInputIteratorFromFileReader(
-      FileReaderType readerType,
-      const std::string& path,
+  VeloxWholeStageDumper(
+      const SparkTaskInfo& taskInfo,
+      const std::string& saveDir,
       int64_t batchSize,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
+      facebook::velox::memory::MemoryPool* aggregatePool);
 
-  explicit FileReaderIterator(const std::string& path) : path_(path){};
+  void dumpConf(const std::unordered_map<std::string, std::string>& confMap) override;
 
-  virtual ~FileReaderIterator() = default;
+  void dumpPlan(const std::string& planJson) override;
 
-  int64_t getCollectBatchTime() const {
-    return collectBatchTime_;
-  }
+  void dumpInputSplit(int32_t splitIndex, const std::string& splitJson) override;
 
- protected:
-  int64_t collectBatchTime_ = 0;
-  std::string path_;
+  std::shared_ptr<ColumnarBatchIterator> dumpInputIterator(
+      int32_t iteratorIndex,
+      const std::shared_ptr<ColumnarBatchIterator>& inputIterator) override;
+
+ private:
+  SparkTaskInfo taskInfo_;
+  std::string saveDir_;
+  int64_t batchSize_;
+
+  facebook::velox::memory::MemoryPool* pool_;
 };
 
 } // namespace gluten

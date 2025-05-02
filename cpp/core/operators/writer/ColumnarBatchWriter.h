@@ -17,21 +17,17 @@
 
 #pragma once
 
-#include "operators/reader/ParquetReaderIterator.h"
-#include "operators/writer/ArrowWriter.h"
+#include "memory/ColumnarBatch.h"
 
 namespace gluten {
 
-class VeloxArrowWriter : public ArrowWriter {
+/// Helper class to dump ColumnarBatch to a parquet file.
+class ColumnarBatchWriter {
  public:
-  explicit VeloxArrowWriter(const std::string& path, int64_t batchSize, facebook::velox::memory::MemoryPool* pool);
+  virtual ~ColumnarBatchWriter() = default;
 
-  std::shared_ptr<ColumnarBatch> retrieveColumnarBatch() override;
+  virtual arrow::Status write(const std::shared_ptr<ColumnarBatch>& batch) = 0;
 
- private:
-  int64_t batchSize_;
-  facebook::velox::memory::MemoryPool* pool_;
-  std::unique_ptr<ParquetStreamReaderIterator> reader_{nullptr};
+  virtual arrow::Status close() = 0;
 };
-
 } // namespace gluten
