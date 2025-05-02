@@ -121,8 +121,8 @@ jobs:
           ccache -s
       - name: Generate function support log
         run: |
-          cd /opt \
-          wget https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz \
+          cd /opt &&
+          wget https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz &&
           tar xf spark-3.5.2-bin-hadoop3.tgz && rm spark-3.5.2-bin-hadoop3.tgz -f
           pip3 install findspark tabulate
           cd $GITHUB_WORKSPACE/tools/scripts
