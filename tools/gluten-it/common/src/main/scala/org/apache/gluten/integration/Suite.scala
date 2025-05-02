@@ -16,15 +16,14 @@
  */
 package org.apache.gluten.integration
 
+import org.apache.gluten.integration.Constants.TYPE_MODIFIER_DECIMAL_AS_DOUBLE
 import org.apache.gluten.integration.action.Action
 import org.apache.gluten.integration.metrics.MetricMapper
-
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
-
 import org.apache.log4j.{Level, LogManager}
 
 import java.io.File
@@ -46,6 +45,7 @@ abstract class Suite(
     private val disableWscg: Boolean,
     private val shufflePartitions: Int,
     private val scanPartitions: Int,
+    private val decimalAsDouble: Boolean,
     private val baselineMetricMapper: MetricMapper,
     private val testMetricMapper: MetricMapper) {
 
@@ -186,6 +186,10 @@ abstract class Suite(
   }
 
   protected def historyWritePath(): String
+
+  protected[integration] def typeModifiers(): List[TypeModifier] = {
+    if (decimalAsDouble) List(TYPE_MODIFIER_DECIMAL_AS_DOUBLE) else List()
+  }
 
   private[integration] def dataWritePath(scale: Double, genPartitionedData: Boolean): String
 

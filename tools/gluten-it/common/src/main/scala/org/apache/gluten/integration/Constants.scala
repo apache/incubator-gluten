@@ -162,7 +162,6 @@ object Constants {
       }
     }
 
-  @deprecated
   val TYPE_MODIFIER_DECIMAL_AS_DOUBLE: TypeModifier =
     new TypeModifier(TypeUtils.decimalAccepts, DoubleType) {
       override def modValue(from: Any): Any = {

@@ -22,7 +22,6 @@ import org.apache.gluten.integration.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE
 import org.apache.gluten.integration.metrics.MetricMapper
 
 import org.apache.spark.SparkConf
-
 import org.apache.log4j.Level
 
 import java.io.File
@@ -44,6 +43,7 @@ class TpcdsSuite(
     val disableWscg: Boolean,
     val shufflePartitions: Int,
     val scanPartitions: Int,
+    val decimalAsDouble: Boolean,
     val baselineMetricMapper: MetricMapper,
     val testMetricMapper: MetricMapper)
   extends Suite(
@@ -62,6 +62,7 @@ class TpcdsSuite(
     disableWscg,
     shufflePartitions,
     scanPartitions,
+    decimalAsDouble,
     baselineMetricMapper,
     testMetricMapper
   ) {
@@ -86,10 +87,6 @@ class TpcdsSuite(
 
   override private[integration] def queryResource(): String = {
     "/tpcds-queries"
-  }
-
-  private def typeModifiers(): List[TypeModifier] = {
-    List()
   }
 
   override private[integration] def allQueryIds(): Array[String] = ALL_QUERY_IDS
