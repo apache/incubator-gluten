@@ -76,7 +76,7 @@ gluten::JniColumnarBatchIterator::JniColumnarBatchIterator(
     jobject jColumnarBatchItr,
     Runtime* runtime,
     std::optional<int32_t> iteratorIndex)
-    : runtime_(runtime), iteratorIndex_(iteratorIndex) {
+    : runtime_(runtime), iteratorIndex_(iteratorIndex), shouldDump_(runtime_->getDumper() != nullptr) {
   // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
   if (env->GetJavaVM(&vm_) != JNI_OK) {
     std::string errorMessage = "Unable to get JavaVM instance";
@@ -88,8 +88,6 @@ gluten::JniColumnarBatchIterator::JniColumnarBatchIterator(
       getMethodIdOrError(env, serializedColumnarBatchIteratorClass_, "hasNext", "()Z");
   serializedColumnarBatchIteratorNext_ = getMethodIdOrError(env, serializedColumnarBatchIteratorClass_, "next", "()J");
   jColumnarBatchItr_ = env->NewGlobalRef(jColumnarBatchItr);
-
-  shouldDump_ = runtime->getDumper() != nullptr;
 }
 
 gluten::JniColumnarBatchIterator::~JniColumnarBatchIterator() {
@@ -106,7 +104,6 @@ std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() 
 
     const auto iter = std::make_shared<ColumnarBatchIteratorDumper>(this);
     dumpedIteratorReader_ = runtime_->getDumper()->dumpInputIterator(iteratorIndex_.value(), iter);
-    shouldDump_ = false;
   }
 
   if (dumpedIteratorReader_ != nullptr) {

@@ -452,34 +452,28 @@ auto BM_Generic = [](::benchmark::State& state,
             runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, false, shuffleSpillDirs, dataFileDir);
       } else {
         // May write the output into file.
-        auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
-
-        ArrowSchema cSchema;
-        toArrowSchema(veloxPlan->outputType(), runtime->memoryManager()->getLeafMemoryPool().get(), &cSchema);
-        GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
-
-        auto writer = std::make_shared<VeloxColumnarBatchWriter>(
-            FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getAggregateMemoryPool());
-
-        state.PauseTiming();
-
-        state.ResumeTiming();
+        std::shared_ptr<VeloxColumnarBatchWriter> writer{nullptr};
 
         while (resultIter->hasNext()) {
           auto cb = resultIter->next();
+
+          state.PauseTiming();
+
           if (!FLAGS_save_output.empty()) {
+            if (writer == nullptr) {
+              writer = std::make_shared<VeloxColumnarBatchWriter>(
+                  FLAGS_save_output, FLAGS_batch_size, runtime->memoryManager()->getAggregateMemoryPool());
+            }
             GLUTEN_THROW_NOT_OK(writer->write(cb));
           }
+
           if (FLAGS_print_result) {
-            auto array = cb->exportArrowArray();
-            state.PauseTiming();
-            auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
-            if (!maybeBatch.ok()) {
-              state.SkipWithError(maybeBatch.status().message().c_str());
-              return;
-            }
-            LOG(WARNING) << maybeBatch.ValueOrDie()->ToString();
+            auto rowVector =
+                VeloxColumnarBatch::from(runtime->memoryManager()->getLeafMemoryPool().get(), cb)->getRowVector();
+            LOG(WARNING) << rowVector->toString(0, 20);
           }
+
+          state.ResumeTiming();
         }
 
         state.PauseTiming();

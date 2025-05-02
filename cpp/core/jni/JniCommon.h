@@ -294,12 +294,12 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
   jobject jColumnarBatchItr_;
   Runtime* runtime_;
   std::optional<int32_t> iteratorIndex_;
+  const bool shouldDump_;
 
   jclass serializedColumnarBatchIteratorClass_;
   jmethodID serializedColumnarBatchIteratorHasNext_;
   jmethodID serializedColumnarBatchIteratorNext_;
 
-  bool shouldDump_{false};
   std::shared_ptr<ColumnarBatchIterator> dumpedIteratorReader_{nullptr};
 };
 
