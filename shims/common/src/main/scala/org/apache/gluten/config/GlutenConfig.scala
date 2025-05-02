@@ -1388,6 +1388,12 @@ object GlutenConfig {
       .stringConf
       .createWithDefault("/tmp")
 
+  val DEBUG_CUDF =
+    buildStaticConf("spark.gluten.sql.debug.cudf")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
   val UT_STATISTIC =
     buildStaticConf("spark.gluten.sql.ut.statistic")
       .internal()

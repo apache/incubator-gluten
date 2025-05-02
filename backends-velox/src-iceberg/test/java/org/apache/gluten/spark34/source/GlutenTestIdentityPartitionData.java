@@ -20,7 +20,8 @@ import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.spark.source.TestIdentityPartitionData;
 
 public class GlutenTestIdentityPartitionData extends TestIdentityPartitionData {
-    public GlutenTestIdentityPartitionData(String format, boolean vectorized, PlanningMode planningMode) {
-        super(format, vectorized, planningMode);
-    }
+  public GlutenTestIdentityPartitionData(
+      String format, boolean vectorized, PlanningMode planningMode) {
+    super(format, vectorized, planningMode);
+  }
 }

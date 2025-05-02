@@ -152,6 +152,8 @@ trait BackendSettingsApi {
 
   def needPreComputeRangeFrameBoundary(): Boolean = false
 
+  def supportCollectTailExec(): Boolean = false
+
   def broadcastNestedLoopJoinSupportsFullOuterJoin(): Boolean = false
 
   def supportIcebergEqualityDeleteRead(): Boolean = true

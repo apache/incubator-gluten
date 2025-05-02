@@ -20,7 +20,8 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.spark.source.TestSparkMetadataColumns;
 
 public class GlutenTestSparkMetadataColumns extends TestSparkMetadataColumns {
-    public GlutenTestSparkMetadataColumns(FileFormat fileFormat, boolean vectorized, int formatVersion) {
-        super(fileFormat, vectorized, formatVersion);
-    }
+  public GlutenTestSparkMetadataColumns(
+      FileFormat fileFormat, boolean vectorized, int formatVersion) {
+    super(fileFormat, vectorized, formatVersion);
+  }
 }

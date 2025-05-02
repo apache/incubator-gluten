@@ -18,5 +18,4 @@ package org.apache.gluten.spark34.sql;
 
 import org.apache.iceberg.spark.sql.TestPartitionedWritesAsSelect;
 
-public class GlutenTestPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {
-}
+public class GlutenTestPartitionedWritesAsSelect extends TestPartitionedWritesAsSelect {}

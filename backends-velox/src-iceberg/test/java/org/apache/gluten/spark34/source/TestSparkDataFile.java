@@ -17,6 +17,7 @@
 package org.apache.gluten.spark34.source;
 
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.*;
 import org.apache.iceberg.hadoop.HadoopTables;
@@ -91,8 +92,8 @@ public class TestSparkDataFile {
 
   @BeforeClass
   public static void startSpark() {
-    TestSparkDataFile.spark = SparkSession.builder().master("local[2]")
-            .config(TestConfUtil.GLUTEN_CONF).getOrCreate();
+    TestSparkDataFile.spark =
+        SparkSession.builder().master("local[2]").config(TestConfUtil.GLUTEN_CONF).getOrCreate();
     TestSparkDataFile.sparkContext = JavaSparkContext.fromSparkContext(spark.sparkContext());
   }
 

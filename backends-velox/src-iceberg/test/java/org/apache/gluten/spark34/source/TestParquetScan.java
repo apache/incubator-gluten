@@ -17,34 +17,32 @@
 package org.apache.gluten.spark34.source;
 
 import org.apache.gluten.spark34.TestConfUtil;
-import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
-import org.apache.iceberg.relocated.com.google.common.collect.Lists;
-import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.*;
 import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.io.FileAppender;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
+import org.apache.iceberg.relocated.com.google.common.collect.Lists;
+import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
 import org.apache.iceberg.spark.data.AvroDataTest;
 import org.apache.iceberg.spark.data.RandomData;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.spark.sql.Dataset;
-import org.apache.iceberg.types.Type;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import scala.collection.JavaConverters;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import static org.apache.iceberg.Files.localOutput;
 import static org.apache.iceberg.types.Types.NestedField.optional;
@@ -60,29 +58,28 @@ public class TestParquetScan extends AvroDataTest {
   private static SparkSession spark = null;
 
   protected static final Types.StructType GLUTEN_SUPPORTED_PRIMITIVES =
-          Types.StructType.of(
-                  required(100, "id", Types.LongType.get()),
-                  optional(101, "data", Types.StringType.get()),
-                  required(102, "b", Types.BooleanType.get()),
-                  optional(103, "i", Types.IntegerType.get()),
-                  required(104, "l", Types.LongType.get()),
-                  optional(105, "f", Types.FloatType.get()),
-                  required(106, "d", Types.DoubleType.get()),
-                  optional(107, "date", Types.DateType.get()),
-                  required(108, "ts", Types.TimestampType.withZone()),
-                  required(110, "s", Types.StringType.get()),
-                  optional(113, "bytes", Types.BinaryType.get()),
-                  required(114, "dec_9_0", Types.DecimalType.of(9, 0)), // int encoded
-                  required(115, "dec_11_2", Types.DecimalType.of(11, 2)), // long encoded
-                  required(116, "dec_20_5", Types.DecimalType.of(20, 5)), // requires padding
-                  required(117, "dec_38_10", Types.DecimalType.of(38, 10)) // Spark's maximum precision
+      Types.StructType.of(
+          required(100, "id", Types.LongType.get()),
+          optional(101, "data", Types.StringType.get()),
+          required(102, "b", Types.BooleanType.get()),
+          optional(103, "i", Types.IntegerType.get()),
+          required(104, "l", Types.LongType.get()),
+          optional(105, "f", Types.FloatType.get()),
+          required(106, "d", Types.DoubleType.get()),
+          optional(107, "date", Types.DateType.get()),
+          required(108, "ts", Types.TimestampType.withZone()),
+          required(110, "s", Types.StringType.get()),
+          optional(113, "bytes", Types.BinaryType.get()),
+          required(114, "dec_9_0", Types.DecimalType.of(9, 0)), // int encoded
+          required(115, "dec_11_2", Types.DecimalType.of(11, 2)), // long encoded
+          required(116, "dec_20_5", Types.DecimalType.of(20, 5)), // requires padding
+          required(117, "dec_38_10", Types.DecimalType.of(38, 10)) // Spark's maximum precision
           );
 
   @BeforeClass
   public static void startSpark() {
-    TestParquetScan.spark = SparkSession.builder().master("local[2]")
-            .config(TestConfUtil.GLUTEN_CONF)
-            .getOrCreate();
+    TestParquetScan.spark =
+        SparkSession.builder().master("local[2]").config(TestConfUtil.GLUTEN_CONF).getOrCreate();
   }
 
   @AfterClass
@@ -132,9 +129,9 @@ public class TestParquetScan extends AvroDataTest {
 
     spark.conf().set("spark.gluten.enabled", "true");
     // Cannot use this helper test function because the order is not same.
-//    for (int i = 0; i < expected.size(); i += 1) {
-//      TestHelpers.assertEqualsSafe(table.schema().asStruct(), expected.get(i), rows.get(i));
-//    }
+    //    for (int i = 0; i < expected.size(); i += 1) {
+    //      TestHelpers.assertEqualsSafe(table.schema().asStruct(), expected.get(i), rows.get(i));
+    //    }
   }
 
   @Test
@@ -164,108 +161,141 @@ public class TestParquetScan extends AvroDataTest {
 
   @Test
   public void testGlutenSimpleStruct() throws IOException {
-    this.writeAndValidate(TypeUtil.assignIncreasingFreshIds(new Schema(GLUTEN_SUPPORTED_PRIMITIVES.fields())));
+    this.writeAndValidate(
+        TypeUtil.assignIncreasingFreshIds(new Schema(GLUTEN_SUPPORTED_PRIMITIVES.fields())));
   }
 
   @Test
   public void testSimpleStruct() throws IOException {
-    this.writeAndValidate(TypeUtil.assignIncreasingFreshIds(new Schema(SUPPORTED_PRIMITIVES.fields())));
+    this.writeAndValidate(
+        TypeUtil.assignIncreasingFreshIds(new Schema(SUPPORTED_PRIMITIVES.fields())));
   }
 
   @Test
   public void testArray() throws IOException {
-    Schema schema = new Schema(new Types.NestedField[]{Types.NestedField.required(0, "id", Types.LongType.get()), Types.NestedField.optional(1, "data", Types.ListType.ofOptional(2, Types.StringType.get()))});
+    Schema schema =
+        new Schema(
+            new Types.NestedField[] {
+              Types.NestedField.required(0, "id", Types.LongType.get()),
+              Types.NestedField.optional(
+                  1, "data", Types.ListType.ofOptional(2, Types.StringType.get()))
+            });
     this.writeAndValidate(schema);
   }
 
   // The result is right but order is not same.
   // Use @Test to overwrite the super class test
   @Test
-  public void testMap() throws IOException {
-  }
+  public void testMap() throws IOException {}
 
   // The result is right but order is not same.
   // Use @Test to overwrite the super class test
   @Test
-  public void testMapOfStructs() throws IOException {
-  }
+  public void testMapOfStructs() throws IOException {}
 
   @Test
   public void testMixedTypes() throws IOException {
     Types.StructType structType =
-            Types.StructType.of(
-                    required(0, "id", Types.LongType.get()),
-                    optional(
-                            1,
-                            "list_of_maps",
-                            Types.ListType.ofOptional(
-                                    2, Types.MapType.ofOptional(3, 4, Types.StringType.get(), GLUTEN_SUPPORTED_PRIMITIVES))),
-                    optional(
-                            5,
-                            "map_of_lists",
+        Types.StructType.of(
+            required(0, "id", Types.LongType.get()),
+            optional(
+                1,
+                "list_of_maps",
+                Types.ListType.ofOptional(
+                    2,
+                    Types.MapType.ofOptional(
+                        3, 4, Types.StringType.get(), GLUTEN_SUPPORTED_PRIMITIVES))),
+            optional(
+                5,
+                "map_of_lists",
+                Types.MapType.ofOptional(
+                    6,
+                    7,
+                    Types.StringType.get(),
+                    Types.ListType.ofOptional(8, GLUTEN_SUPPORTED_PRIMITIVES))),
+            required(
+                9,
+                "list_of_lists",
+                Types.ListType.ofOptional(
+                    10, Types.ListType.ofOptional(11, GLUTEN_SUPPORTED_PRIMITIVES))),
+            required(
+                12,
+                "map_of_maps",
+                Types.MapType.ofOptional(
+                    13,
+                    14,
+                    Types.StringType.get(),
+                    Types.MapType.ofOptional(
+                        15, 16, Types.StringType.get(), GLUTEN_SUPPORTED_PRIMITIVES))),
+            required(
+                17,
+                "list_of_struct_of_nested_types",
+                Types.ListType.ofOptional(
+                    19,
+                    Types.StructType.of(
+                        Types.NestedField.required(
+                            20,
+                            "m1",
                             Types.MapType.ofOptional(
-                                    6, 7, Types.StringType.get(), Types.ListType.ofOptional(8, GLUTEN_SUPPORTED_PRIMITIVES))),
-                    required(
-                            9,
-                            "list_of_lists",
-                            Types.ListType.ofOptional(10, Types.ListType.ofOptional(11, GLUTEN_SUPPORTED_PRIMITIVES))),
-                    required(
-                            12,
-                            "map_of_maps",
+                                21, 22, Types.StringType.get(), GLUTEN_SUPPORTED_PRIMITIVES)),
+                        Types.NestedField.optional(
+                            23, "l1", Types.ListType.ofRequired(24, GLUTEN_SUPPORTED_PRIMITIVES)),
+                        Types.NestedField.required(
+                            25, "l2", Types.ListType.ofRequired(26, GLUTEN_SUPPORTED_PRIMITIVES)),
+                        Types.NestedField.optional(
+                            27,
+                            "m2",
                             Types.MapType.ofOptional(
-                                    13,
-                                    14,
-                                    Types.StringType.get(),
-                                    Types.MapType.ofOptional(15, 16, Types.StringType.get(), GLUTEN_SUPPORTED_PRIMITIVES))),
-                    required(
-                            17,
-                            "list_of_struct_of_nested_types",
-                            Types.ListType.ofOptional(
-                                    19,
-                                    Types.StructType.of(
-                                            Types.NestedField.required(
-                                                    20,
-                                                    "m1",
-                                                    Types.MapType.ofOptional(
-                                                            21, 22, Types.StringType.get(), GLUTEN_SUPPORTED_PRIMITIVES)),
-                                            Types.NestedField.optional(
-                                                    23, "l1", Types.ListType.ofRequired(24, GLUTEN_SUPPORTED_PRIMITIVES)),
-                                            Types.NestedField.required(
-                                                    25, "l2", Types.ListType.ofRequired(26, GLUTEN_SUPPORTED_PRIMITIVES)),
-                                            Types.NestedField.optional(
-                                                    27,
-                                                    "m2",
-                                                    Types.MapType.ofOptional(
-                                                            28, 29, Types.StringType.get(), GLUTEN_SUPPORTED_PRIMITIVES))))));
+                                28, 29, Types.StringType.get(), GLUTEN_SUPPORTED_PRIMITIVES))))));
 
     Schema schema =
-            new Schema(
-                    TypeUtil.assignFreshIds(structType, new AtomicInteger(0)::incrementAndGet)
-                            .asStructType()
-                            .fields());
+        new Schema(
+            TypeUtil.assignFreshIds(structType, new AtomicInteger(0)::incrementAndGet)
+                .asStructType()
+                .fields());
 
     writeAndValidate(schema);
   }
 
   @Test
   public void testStructWithOptionalFields() throws IOException {
-    this.writeAndValidate(TypeUtil.assignIncreasingFreshIds(new Schema(Lists.transform(GLUTEN_SUPPORTED_PRIMITIVES.fields(), Types.NestedField::asOptional))));
+    this.writeAndValidate(
+        TypeUtil.assignIncreasingFreshIds(
+            new Schema(
+                Lists.transform(
+                    GLUTEN_SUPPORTED_PRIMITIVES.fields(), Types.NestedField::asOptional))));
   }
 
   @Test
   public void testStructWithRequiredFields() throws IOException {
-    this.writeAndValidate(TypeUtil.assignIncreasingFreshIds(new Schema(Lists.transform(GLUTEN_SUPPORTED_PRIMITIVES.fields(), Types.NestedField::asRequired))));
+    this.writeAndValidate(
+        TypeUtil.assignIncreasingFreshIds(
+            new Schema(
+                Lists.transform(
+                    GLUTEN_SUPPORTED_PRIMITIVES.fields(), Types.NestedField::asRequired))));
   }
 
   @Test
   public void testArrayOfStructs() throws IOException {
-    Schema schema = TypeUtil.assignIncreasingFreshIds(new Schema(new Types.NestedField[]{Types.NestedField.required(0, "id", Types.LongType.get()), Types.NestedField.optional(1, "data", Types.ListType.ofOptional(2, GLUTEN_SUPPORTED_PRIMITIVES))}));
+    Schema schema =
+        TypeUtil.assignIncreasingFreshIds(
+            new Schema(
+                new Types.NestedField[] {
+                  Types.NestedField.required(0, "id", Types.LongType.get()),
+                  Types.NestedField.optional(
+                      1, "data", Types.ListType.ofOptional(2, GLUTEN_SUPPORTED_PRIMITIVES))
+                }));
     this.writeAndValidate(schema);
   }
 
   @Test
   public void testNestedStruct() throws IOException {
-    this.writeAndValidate(TypeUtil.assignIncreasingFreshIds(new Schema(new Types.NestedField[]{Types.NestedField.required(1, "struct", GLUTEN_SUPPORTED_PRIMITIVES)})));
+    this.writeAndValidate(
+        TypeUtil.assignIncreasingFreshIds(
+            new Schema(
+                new Types.NestedField[] {
+                  Types.NestedField.required(1, "struct", GLUTEN_SUPPORTED_PRIMITIVES)
+                })));
   }
 
   private Table createTable(Schema schema) throws IOException {

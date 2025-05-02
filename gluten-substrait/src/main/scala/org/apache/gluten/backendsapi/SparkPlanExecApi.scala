@@ -725,6 +725,8 @@ trait SparkPlanExecApi {
       outputAttributes: Seq[Attribute],
       child: Seq[SparkPlan]): ColumnarRangeBaseExec
 
+  def genColumnarTailExec(limit: Int, plan: SparkPlan): ColumnarCollectTailBaseExec
+
   def expressionFlattenSupported(expr: Expression): Boolean = false
 
   def genFlattenedExpressionTransformer(

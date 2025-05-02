@@ -17,6 +17,7 @@
 package org.apache.gluten.spark34.source;
 
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.*;
 import org.apache.iceberg.TestHelpers.Row;
@@ -155,7 +156,7 @@ public class TestSparkReaderWithBloomFilter {
         SparkSession.builder()
             .master("local[2]")
             .config("spark.hadoop." + METASTOREURIS.varname, hiveConf.get(METASTOREURIS.varname))
-                .config(TestConfUtil.GLUTEN_CONF)
+            .config(TestConfUtil.GLUTEN_CONF)
             .enableHiveSupport()
             .getOrCreate();
 

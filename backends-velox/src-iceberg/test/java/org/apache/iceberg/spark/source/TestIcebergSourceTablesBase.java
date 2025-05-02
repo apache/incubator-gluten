@@ -16,8 +16,6 @@
  */
 package org.apache.iceberg.spark.source;
 
-import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
-import org.apache.iceberg.shaded.org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.iceberg.*;
 import org.apache.iceberg.actions.DeleteOrphanFiles;
 import org.apache.iceberg.actions.RewriteManifests;
@@ -41,6 +39,8 @@ import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
+import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
+import org.apache.iceberg.shaded.org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.iceberg.spark.*;
 import org.apache.iceberg.spark.actions.SparkActions;
 import org.apache.iceberg.spark.data.TestHelpers;
@@ -1995,13 +1995,8 @@ public abstract class TestIcebergSourceTablesBase extends SparkTestBase {
         .save(loadLocation(tableIdentifier));
 
     List<Integer> actual =
-        spark
-            .read()
-            .format("iceberg")
-            .load(loadLocation(tableIdentifier, "files"))
-            .sort(DataFile.SPEC_ID.name())
-            .collectAsList()
-            .stream()
+        spark.read().format("iceberg").load(loadLocation(tableIdentifier, "files"))
+            .sort(DataFile.SPEC_ID.name()).collectAsList().stream()
             .map(r -> (Integer) r.getAs(DataFile.SPEC_ID.name()))
             .collect(Collectors.toList());
 

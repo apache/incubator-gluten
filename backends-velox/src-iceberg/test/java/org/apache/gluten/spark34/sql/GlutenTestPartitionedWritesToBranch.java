@@ -21,7 +21,8 @@ import org.apache.iceberg.spark.sql.TestPartitionedWritesToBranch;
 import java.util.Map;
 
 public class GlutenTestPartitionedWritesToBranch extends TestPartitionedWritesToBranch {
-    public GlutenTestPartitionedWritesToBranch(String catalogName, String implementation, Map<String, String> config) {
-        super(catalogName, implementation, config);
-    }
+  public GlutenTestPartitionedWritesToBranch(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
 }

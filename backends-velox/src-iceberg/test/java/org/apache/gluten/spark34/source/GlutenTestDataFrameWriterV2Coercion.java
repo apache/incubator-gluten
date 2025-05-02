@@ -17,7 +17,6 @@
 package org.apache.gluten.spark34.source;
 
 import org.apache.iceberg.FileFormat;
-
 import org.apache.iceberg.spark.source.TestDataFrameWriterV2Coercion;
 
 public class GlutenTestDataFrameWriterV2Coercion extends TestDataFrameWriterV2Coercion {

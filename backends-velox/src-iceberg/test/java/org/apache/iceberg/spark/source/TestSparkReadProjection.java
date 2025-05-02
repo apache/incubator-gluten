@@ -17,6 +17,7 @@
 package org.apache.iceberg.spark.source;
 
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.iceberg.*;
 import org.apache.iceberg.data.GenericAppenderFactory;
 import org.apache.iceberg.data.Record;
@@ -79,8 +80,8 @@ public class TestSparkReadProjection extends TestReadProjection {
 
   @BeforeClass
   public static void startSpark() {
-    TestSparkReadProjection.spark = SparkSession.builder().master("local[2]")
-            .config(TestConfUtil.GLUTEN_CONF).getOrCreate();
+    TestSparkReadProjection.spark =
+        SparkSession.builder().master("local[2]").config(TestConfUtil.GLUTEN_CONF).getOrCreate();
     ImmutableMap<String, String> config =
         ImmutableMap.of(
             "type", "hive",

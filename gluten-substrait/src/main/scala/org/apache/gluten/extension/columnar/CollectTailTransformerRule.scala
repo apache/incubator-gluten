@@ -14,16 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.spark34.source;
+package org.apache.gluten.extension.columnar
 
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.spark.source.TestPositionDeletesTable;
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.config.GlutenConfig
 
-import java.util.Map;
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.{CollectTailExec, SparkPlan}
 
-public class GlutenTestPositionDeletesTable extends TestPositionDeletesTable {
-  public GlutenTestPositionDeletesTable(
-      String catalogName, String implementation, Map<String, String> config, FileFormat format) {
-    super(catalogName, implementation, config, format);
+case class CollectTailTransformerRule() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
+    if (!GlutenConfig.get.enableColumnarCollectLimit) {
+      return plan
+    }
+
+    val transformed = plan.transformUp {
+      case exec: CollectTailExec if exec.child.supportsColumnar =>
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genColumnarTailExec(exec.limit, exec.child)
+    }
+
+    transformed
   }
 }

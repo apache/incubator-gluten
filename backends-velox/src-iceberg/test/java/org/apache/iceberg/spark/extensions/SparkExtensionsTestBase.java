@@ -17,6 +17,7 @@
 package org.apache.iceberg.spark.extensions;
 
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.hive.TestHiveMetastore;
@@ -60,7 +61,7 @@ public abstract class SparkExtensionsTestBase extends SparkCatalogTestBase {
             .config("spark.sql.legacy.respectNullabilityInTextDatasetConversion", "true")
             .config(
                 SQLConf.ADAPTIVE_EXECUTION_ENABLED().key(), String.valueOf(RANDOM.nextBoolean()))
-                .config(TestConfUtil.GLUTEN_CONF)
+            .config(TestConfUtil.GLUTEN_CONF)
             .enableHiveSupport()
             .getOrCreate();
 

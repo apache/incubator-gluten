@@ -18,5 +18,4 @@ package org.apache.gluten.spark34.source;
 
 import org.apache.iceberg.spark.source.TestDataSourceOptions;
 
-public class GlutenTestDataSourceOptions extends TestDataSourceOptions {
-}
+public class GlutenTestDataSourceOptions extends TestDataSourceOptions {}
