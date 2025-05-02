@@ -75,6 +75,7 @@ RUN jupyter notebook --generate-config; \
     echo 'div.output_stderr { background: #ffdd; display: none; }'  >> ~/.jupyter/custom/custom.css; \
     echo '.CodeMirror{font-family: "Courier New";font-size: 12pt;}' >> ~/.jupyter/custom/custom.css; \
     echo '.rendered_html table, .rendered_html td, .rendered_html th {font-size: 20px;}' >> ~/.jupyter/custom/custom.css; \
+    echo '{ "NotebookApp": { "password": "argon2:$argon2id$v=19$m=10240,t=10,p=8$JL+YUwQ5lsg9rFXeCpBfgQ$Xv2GOkdfxoe41FaedCHVAOvxisbd9i3Xjn+KkDtBD44" } } ' > ~/.jupyter/jupyter_notebook_config.json; \
     jupyter nbextension install --py jupyter_highlight_selected_word --user; \
     jupyter nbextension enable highlight_selected_word/main; \
     jupyter nbextension install --py widgetsnbextension --user; \

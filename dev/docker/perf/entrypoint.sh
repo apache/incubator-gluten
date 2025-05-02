@@ -60,10 +60,9 @@ SPARK_MASTER_URL="spark://$(hostname):7077"
 sudo chown -R spark:spark "${SPARK_HOME}"
 
 
-nohup ${SPARK_HOME}/sbin/start-master.sh &
+${SPARK_HOME}/sbin/start-master.sh
+${SPARK_HOME}/sbin/start-worker.sh "$SPARK_MASTER_URL"
 
-# Worker constants
-EXEC=$(command -v ${SPARK_HOME}/sbin/start-worker.sh)
-ARGS=("$SPARK_MASTER_URL")
+nohup jupyter notebook --ip=0.0.0.0 --port=8989 --no-browser --notebook-dir=/opt/spark/work-dir/ipython &
 
-exec "$EXEC" "${ARGS[@]-}"
+sleep infinity
