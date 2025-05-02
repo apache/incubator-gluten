@@ -211,8 +211,7 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
   if (name == "concat") {
     for (const auto& type : types) {
-      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
-          type.find("list") != std::string::npos) {
+      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos) {
         LOG_VALIDATION_MSG(type + " is not supported in concat.");
         return false;
       }
