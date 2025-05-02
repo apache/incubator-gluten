@@ -100,3 +100,34 @@ jobs:
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
+
+  spark-function-support-check:
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos8-release-default
+      - name: Build Gluten native libraries
+        run: |
+          df -a
+          bash dev/ci-velox-buildshared-centos-8.sh
+          ccache -s
+      - name: Generate function support log
+        run: |
+          cd /opt \
+          wget https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz \
+          tar xf spark-3.5.2-bin-hadoop3.tgz && rm spark-3.5.2-bin-hadoop3.tgz -f
+          pip3 install findspark tabulate
+          cd $GITHUB_WORKSPACE/tools/scripts
+          python3 gen-function-support-docs.py --spark_home=/opt/spark-3.5.2-bin-hadoop3/
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.job }}-report
+          path: 'docs/velox-backend-*-function-support.md'
