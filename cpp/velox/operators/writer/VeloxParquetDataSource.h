@@ -25,7 +25,6 @@
 #include <arrow/util/type_fwd.h>
 #include <boost/algorithm/string.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
-#include <parquet/properties.h>
 
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxColumnarBatch.h"

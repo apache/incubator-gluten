@@ -24,17 +24,11 @@ namespace {
 const std::string kParquetSuffix = ".parquet";
 }
 
-FileReaderIterator::FileReaderIterator(const std::string& path) : path_(path) {}
-
-int64_t FileReaderIterator::getCollectBatchTime() const {
-  return collectBatchTime_;
-}
-
 std::shared_ptr<gluten::ResultIterator> FileReaderIterator::getInputIteratorFromFileReader(
     FileReaderType readerType,
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool) {
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool) {
   std::filesystem::path input{path};
   auto suffix = input.extension().string();
   if (suffix == kParquetSuffix) {

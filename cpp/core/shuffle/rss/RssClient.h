@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 class RssClient {
  public:
   virtual ~RssClient() = default;

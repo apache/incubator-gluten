@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <set>
+#include <map>
 #include "utils/ResourceMap.h"
 
 namespace gluten {
@@ -33,6 +33,16 @@ namespace gluten {
 using StoreHandle = int32_t;
 using ObjectHandle = int64_t;
 constexpr static ObjectHandle kInvalidObjectHandle = -1;
+
+template <typename T>
+struct SafeSizeOf {
+  static constexpr size_t value = sizeof(T);
+};
+
+template <>
+struct SafeSizeOf<void> {
+  static constexpr size_t value = 0;
+};
 
 // A store for caching shared-ptrs and enlarging lifecycles of the ptrs to match lifecycle of the store itself by
 // default, and also serving release calls to release a ptr in advance. This is typically used in JNI scenario to bind
@@ -70,10 +80,23 @@ class ObjectStore {
     return storeId_;
   }
 
-  ObjectHandle save(std::shared_ptr<void> obj);
+  template <typename T>
+  ObjectHandle save(std::shared_ptr<T> obj) {
+    const std::lock_guard<std::mutex> lock(mtx_);
+    const std::string_view typeName = typeid(T).name();
+    const size_t size = SafeSizeOf<T>::value;
+    ResourceHandle handle = store_.insert(std::move(obj));
+    aliveObjects_.emplace(handle, ObjectDebugInfo{typeName, size});
+    return toObjHandle(handle);
+  }
 
  private:
   static ResourceMap<ObjectStore*>& stores();
+
+  struct ObjectDebugInfo {
+    const std::string_view typeName;
+    const size_t size;
+  };
 
   ObjectHandle toObjHandle(ResourceHandle rh) {
     ObjectHandle prefix = static_cast<ObjectHandle>(storeId_) << (sizeof(ResourceHandle) * 8);
@@ -95,7 +118,8 @@ class ObjectStore {
   ObjectStore(StoreHandle storeId) : storeId_(storeId){};
   StoreHandle storeId_;
   ResourceMap<std::shared_ptr<void>> store_;
-  std::set<ResourceHandle> aliveObjects_;
+  // Preserves handles of objects in the store in order, with additional attributes associated with them.
+  std::map<ResourceHandle, ObjectDebugInfo> aliveObjects_{};
   std::mutex mtx_;
 };
 } // namespace gluten

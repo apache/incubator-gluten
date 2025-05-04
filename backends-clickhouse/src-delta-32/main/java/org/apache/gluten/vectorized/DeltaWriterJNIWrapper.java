@@ -16,29 +16,16 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.spark.sql.execution.DeletionVectorWriteTransformer;
-
 public class DeltaWriterJNIWrapper {
 
-    private DeltaWriterJNIWrapper() {
-        // utility class
-    }
+  private DeltaWriterJNIWrapper() {
+    // utility class
+  }
 
-    public static native void registerNativeReference();
+  public static native long createDeletionVectorWriter(
+      String tablePath, int prefix_length, long packingTargetSize);
 
-    public static native long createDeletionVectorWriter(String tablePath, int prefix_length, long packingTargetSize);
+  public static native void deletionVectorWrite(long writer_address, long block_address);
 
-    public static native void deletionVectorWrite(long writer_address, long block_address);
-
-    public static native long deletionVectorWriteFinalize(long writer_address);
-
-    // call from native
-    public static String encodeUUID(String uuid, String randomPrefix) {
-        return DeletionVectorWriteTransformer.encodeUUID(uuid, randomPrefix);
-    }
-
-    // call from native
-    public static String decodeUUID(String encodedUuid) {
-        return DeletionVectorWriteTransformer.decodeUUID(encodedUuid);
-    }
+  public static native long deletionVectorWriteFinalize(long writer_address);
 }

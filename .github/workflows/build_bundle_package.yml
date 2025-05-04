@@ -34,12 +34,18 @@ on:
         description: 'Hadoop version: 2.7.4, 3.2.0, 3.2.2, 3.3.1, 3.3.3 or 3.3.6'
         required: true
         default: '3.3.3'
+      ref:
+        description: 'Checkout repo ref to build'
+        required: true
+        default: 'main'
 
 jobs:
   build-native-lib:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -59,13 +65,13 @@ jobs:
             cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
           "
       - name: Upload native libs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: ./cpp/build/releases/
           name: velox-native-lib-${{github.sha}}
           retention-days: 1
       - name: Upload Artifact Arrow Jar
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: ${{ github.workspace }}/.m2/repository/org/apache/arrow/
           name: velox-arrow-jar-centos-7-${{github.sha}}
@@ -75,14 +81,16 @@ jobs:
     runs-on: ubuntu-22.04
     container: centos:8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
       - name: Download All Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
       - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
@@ -101,7 +109,7 @@ jobs:
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gluten-velox-bundle-package
           path: package/target/gluten-velox-bundle-*.jar

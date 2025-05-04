@@ -17,82 +17,120 @@
 
 #include "operators/reader/ParquetReaderIterator.h"
 #include "memory/VeloxColumnarBatch.h"
-
-#include <arrow/util/range.h>
+#include "utils/Timer.h"
 
 namespace gluten {
+namespace {
+std::unique_ptr<facebook::velox::parquet::ParquetReader> createReader(
+    const std::string& path,
+    const facebook::velox::dwio::common::ReaderOptions& opts) {
+  auto input = std::make_unique<facebook::velox::dwio::common::BufferedInput>(
+      std::make_shared<facebook::velox::LocalReadFile>(path), opts.memoryPool());
+  return std::make_unique<facebook::velox::parquet::ParquetReader>(std::move(input), opts);
+}
+
+std::shared_ptr<facebook::velox::common::ScanSpec> makeScanSpec(const facebook::velox::RowTypePtr& rowType) {
+  auto scanSpec = std::make_shared<facebook::velox::common::ScanSpec>("");
+  scanSpec->addAllChildFields(*rowType);
+  return scanSpec;
+}
+} // namespace
 
 ParquetReaderIterator::ParquetReaderIterator(
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : FileReaderIterator(path), batchSize_(batchSize), pool_(pool) {}
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool)
+    : FileReaderIterator(path), pool_(std::move(pool)), batchSize_(batchSize) {}
 
-void ParquetReaderIterator::createReader() {
-  parquet::ArrowReaderProperties properties = parquet::default_arrow_reader_properties();
-  properties.set_batch_size(batchSize_);
-  GLUTEN_THROW_NOT_OK(parquet::arrow::FileReader::Make(
-      arrow::default_memory_pool(), parquet::ParquetFileReader::OpenFile(path_), properties, &fileReader_));
-  GLUTEN_THROW_NOT_OK(
-      fileReader_->GetRecordBatchReader(arrow::internal::Iota(fileReader_->num_row_groups()), &recordBatchReader_));
+void ParquetReaderIterator::createRowReader() {
+  facebook::velox::dwio::common::ReaderOptions readerOptions{pool_.get()};
+  auto reader = createReader(path_, readerOptions);
 
-  auto schema = recordBatchReader_->schema();
-  DLOG(INFO) << "Schema:\n" << schema->ToString();
-}
+  rowType_ = reader->rowType();
 
-std::shared_ptr<arrow::Schema> ParquetReaderIterator::getSchema() {
-  return recordBatchReader_->schema();
+  facebook::velox::dwio::common::RowReaderOptions rowReaderOpts;
+  rowReaderOpts.select(std::make_shared<facebook::velox::dwio::common::ColumnSelector>(rowType_, rowType_->names()));
+  rowReaderOpts.setScanSpec(makeScanSpec(rowType_));
+
+  rowReader_ = reader->createRowReader(rowReaderOpts);
+
+  DLOG(INFO) << "Opened file for read: " << path_;
 }
 
 ParquetStreamReaderIterator::ParquetStreamReaderIterator(
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : ParquetReaderIterator(path, batchSize, pool) {
-  createReader();
-  DLOG(INFO) << "ParquetStreamReaderIterator open file: " << path;
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool)
+    : ParquetReaderIterator(path, batchSize, std::move(pool)) {
+  createRowReader();
 }
 
 std::shared_ptr<gluten::ColumnarBatch> ParquetStreamReaderIterator::next() {
-  auto startTime = std::chrono::steady_clock::now();
-  GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
-  DLOG(INFO) << "ParquetStreamReaderIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0);
-  collectBatchTime_ +=
-      std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
-  if (batch == nullptr) {
+  ScopedTimer timer(&collectBatchTime_);
+
+  static constexpr int32_t kBatchSize = 4096;
+
+  auto result = facebook::velox::BaseVector::create(rowType_, kBatchSize, pool_.get());
+  auto numRows = rowReader_->next(kBatchSize, result);
+
+  if (numRows == 0) {
     return nullptr;
   }
-  return VeloxColumnarBatch::from(pool_, std::make_shared<gluten::ArrowColumnarBatch>(batch));
+
+  // Load lazy vector.
+  result = facebook::velox::BaseVector::loadedVectorShared(result);
+
+  auto rowVector = std::dynamic_pointer_cast<facebook::velox::RowVector>(result);
+  GLUTEN_DCHECK(rowVector != nullptr, "Error casting to RowVector");
+
+  DLOG(INFO) << "ParquetStreamReaderIterator read rows: " << numRows;
+
+  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
 ParquetBufferedReaderIterator::ParquetBufferedReaderIterator(
     const std::string& path,
     int64_t batchSize,
-    facebook::velox::memory::MemoryPool* pool)
-    : ParquetReaderIterator(path, batchSize, pool) {
-  createReader();
+    std::shared_ptr<facebook::velox::memory::MemoryPool> pool)
+    : ParquetReaderIterator(path, batchSize, std::move(pool)) {
+  createRowReader();
   collectBatches();
-  iter_ = batches_.begin();
-  DLOG(INFO) << "ParquetBufferedReaderIterator open file: " << path;
-  DLOG(INFO) << "Number of input batches: " << std::to_string(batches_.size());
-  if (iter_ != batches_.cend()) {
-    DLOG(INFO) << "columns: " << (*iter_)->num_columns();
-    DLOG(INFO) << "rows: " << (*iter_)->num_rows();
-  }
 }
 
 std::shared_ptr<gluten::ColumnarBatch> ParquetBufferedReaderIterator::next() {
   if (iter_ == batches_.cend()) {
     return nullptr;
   }
-  return VeloxColumnarBatch::from(pool_, std::make_shared<gluten::ArrowColumnarBatch>(*iter_++));
+  return *iter_++;
 }
 
 void ParquetBufferedReaderIterator::collectBatches() {
-  auto startTime = std::chrono::steady_clock::now();
-  GLUTEN_ASSIGN_OR_THROW(batches_, recordBatchReader_->ToRecordBatches());
-  auto endTime = std::chrono::steady_clock::now();
-  collectBatchTime_ += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
+  ScopedTimer timer(&collectBatchTime_);
+
+  static constexpr int32_t kBatchSize = 4096;
+
+  uint64_t numRows = 0;
+  while (true) {
+    auto result = facebook::velox::BaseVector::create(rowType_, kBatchSize, pool_.get());
+    numRows = rowReader_->next(kBatchSize, result);
+    if (numRows == 0) {
+      break;
+    }
+
+    // Load lazy vector.
+    result = facebook::velox::BaseVector::loadedVectorShared(result);
+
+    auto rowVector = std::dynamic_pointer_cast<facebook::velox::RowVector>(result);
+    GLUTEN_DCHECK(rowVector != nullptr, "Error casting to RowVector");
+
+    DLOG(INFO) << "ParquetStreamReaderIterator read rows: " << numRows;
+
+    batches_.push_back(std::make_shared<VeloxColumnarBatch>(std::move(rowVector)));
+  }
+
+  iter_ = batches_.begin();
+
+  DLOG(INFO) << "Number of input batches: " << std::to_string(batches_.size());
 }
 
 } // namespace gluten

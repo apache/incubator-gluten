@@ -29,17 +29,20 @@ gluten::ObjectStore::~ObjectStore() {
   // destructing in reversed order (the last added object destructed first)
   const std::lock_guard<std::mutex> lock(mtx_);
   for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
-    ResourceHandle handle = *itr;
+    const ResourceHandle handle = (*itr).first;
+    const auto& info = (*itr).second;
+    const std::string_view typeName = info.typeName;
+    const size_t size = info.size;
+    VLOG(2) << "Unclosed object ["
+            << "Store ID: " << storeId_ << ", Resource handle ID: " << handle << ", TypeName: " << typeName
+            << ", Size: " << size
+            << "] is found when object store is closing. Gluten will"
+               " destroy it automatically but it's recommended to manually close"
+               " the object through the Java closing API after use,"
+               " to minimize peak memory pressure of the application.";
     store_.erase(handle);
   }
   stores().erase(storeId_);
-}
-
-gluten::ObjectHandle gluten::ObjectStore::save(std::shared_ptr<void> obj) {
-  const std::lock_guard<std::mutex> lock(mtx_);
-  ResourceHandle handle = store_.insert(std::move(obj));
-  aliveObjects_.insert(handle);
-  return toObjHandle(handle);
 }
 
 void gluten::ObjectStore::releaseInternal(gluten::ResourceHandle handle) {

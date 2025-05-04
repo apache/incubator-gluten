@@ -16,10 +16,10 @@
  */
 package org.apache.spark.shuffle.writer;
 
-import org.apache.gluten.config.GlutenConfig;
-import org.apache.gluten.config.ReservedKeys;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
+import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.ReservedKeys;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
@@ -64,12 +64,12 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private long nativeShuffleWriter = -1L;
 
   private boolean stopping = false;
-  private final int compressThreshold =
-      GlutenConfig.get().columnarShuffleCompressionThreshold();
+  private final int compressThreshold = GlutenConfig.get().columnarShuffleCompressionThreshold();
   private final double reallocThreshold = GlutenConfig.get().columnarShuffleReallocThreshold();
   private String compressionCodec;
   private int compressionLevel;
   private int compressionBufferSize;
+  private int diskWriteBufferSize;
   private final int partitionId;
 
   private final Runtime runtime =
@@ -124,13 +124,11 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.defaultValue().get());
     if ((boolean) sparkConf.get(package$.MODULE$.SHUFFLE_COMPRESS())) {
       compressionCodec = GlutenShuffleUtils.getCompressionCodec(sparkConf);
-      compressionLevel =
-          GlutenShuffleUtils.getCompressionLevel(
-              sparkConf,
-              compressionCodec,
-              GlutenConfig.get().columnarShuffleCodecBackend().getOrElse(() -> null));
+      compressionLevel = GlutenShuffleUtils.getCompressionLevel(sparkConf, compressionCodec);
       compressionBufferSize =
-          GlutenShuffleUtils.getSortEvictBufferSize(sparkConf, compressionCodec);
+          GlutenShuffleUtils.getCompressionBufferSize(sparkConf, compressionCodec);
+      diskWriteBufferSize =
+          (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_DISK_WRITE_BUFFER_SIZE());
     }
   }
 
@@ -158,6 +156,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   compressionCodec,
                   compressionLevel,
                   compressionBufferSize,
+                  diskWriteBufferSize,
                   compressThreshold,
                   GlutenConfig.get().columnarShuffleCompressionMode(),
                   (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_INIT_BUFFER_SIZE()),

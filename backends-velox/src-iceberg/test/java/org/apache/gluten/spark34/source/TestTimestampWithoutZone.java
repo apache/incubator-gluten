@@ -16,15 +16,6 @@
  */
 package org.apache.gluten.spark34.source;
 
-import static org.apache.iceberg.Files.localOutput;
-
-import java.io.File;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
@@ -55,6 +46,16 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.io.File;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.apache.iceberg.Files.localOutput;
 
 @RunWith(Parameterized.class)
 public class TestTimestampWithoutZone extends SparkTestBase {

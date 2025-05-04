@@ -16,13 +16,13 @@
  */
 package org.apache.iceberg.spark.data;
 
-import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
-import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData.Record;
 import org.apache.iceberg.*;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.relocated.com.google.common.collect.Sets;
 import org.apache.iceberg.relocated.com.google.common.collect.Streams;
+import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
+import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData.Record;
 import org.apache.iceberg.spark.SparkSchemaUtil;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
@@ -40,7 +40,6 @@ import org.apache.spark.sql.types.*;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.junit.Assert;
-import scala.collection.Seq;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -51,6 +50,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import scala.collection.Seq;
 
 import static org.apache.iceberg.spark.SparkSchemaUtil.convert;
 import static org.assertj.core.api.Assertions.assertThat;

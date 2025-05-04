@@ -17,12 +17,13 @@
 package org.apache.gluten.spark34.source;
 
 import org.apache.gluten.spark34.TestConfUtil;
-import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
+
 import org.apache.iceberg.*;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.io.FileAppender;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
+import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
 import org.apache.iceberg.spark.SparkReadOptions;
 import org.apache.iceberg.spark.SparkTestBase;
 import org.apache.iceberg.spark.SparkWriteOptions;
@@ -96,8 +97,8 @@ public class TestPartitionValues extends SparkTestBase {
 
   @BeforeClass
   public static void startSpark() {
-    TestPartitionValues.spark = SparkSession.builder().master("local[2]")
-            .config(TestConfUtil.GLUTEN_CONF).getOrCreate();
+    TestPartitionValues.spark =
+        SparkSession.builder().master("local[2]").config(TestConfUtil.GLUTEN_CONF).getOrCreate();
   }
 
   @AfterClass
@@ -305,17 +306,18 @@ public class TestPartitionValues extends SparkTestBase {
               .collectAsList();
 
       Assert.assertEquals("Number of rows should match", expected.size(), actual.size());
-      Dataset<Row> df = spark
+      Dataset<Row> df =
+          spark
               .read()
               .format("iceberg")
               .option(SparkReadOptions.VECTORIZATION_ENABLED, String.valueOf(vectorized))
               .load(location.toString());
       checkAnswer(df);
       // Remove because the order is changed
-//      for (int i = 0; i < expected.size(); i += 1) {
-//        TestHelpers.assertEqualsSafe(
-//            SUPPORTED_PRIMITIVES.asStruct(), expected.get(i), actual.get(i));
-//      }
+      //      for (int i = 0; i < expected.size(); i += 1) {
+      //        TestHelpers.assertEqualsSafe(
+      //            SUPPORTED_PRIMITIVES.asStruct(), expected.get(i), actual.get(i));
+      //      }
     }
   }
 

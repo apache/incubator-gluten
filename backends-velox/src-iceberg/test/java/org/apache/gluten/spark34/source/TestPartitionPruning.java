@@ -17,6 +17,7 @@
 package org.apache.gluten.spark34.source;
 
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
@@ -71,8 +72,8 @@ public class TestPartitionPruning {
   @Parameterized.Parameters(name = "format = {0}, vectorized = {1}, planningMode = {2}")
   public static Object[][] parameters() {
     return new Object[][] {
-//      {"parquet", false, DISTRIBUTED},
-//      {"parquet", true, LOCAL},
+      //      {"parquet", false, DISTRIBUTED},
+      //      {"parquet", true, LOCAL},
       {"avro", false, DISTRIBUTED},
       {"orc", false, LOCAL},
       {"orc", true, DISTRIBUTED}
@@ -101,9 +102,8 @@ public class TestPartitionPruning {
 
   @BeforeClass
   public static void startSpark() {
-    TestPartitionPruning.spark = SparkSession.builder().master("local[2]")
-            .config(TestConfUtil.GLUTEN_CONF)
-            .getOrCreate();
+    TestPartitionPruning.spark =
+        SparkSession.builder().master("local[2]").config(TestConfUtil.GLUTEN_CONF).getOrCreate();
     TestPartitionPruning.sparkContext = JavaSparkContext.fromSparkContext(spark.sparkContext());
 
     String optionKey = String.format("fs.%s.impl", CountOpenLocalFileSystem.scheme);
@@ -275,7 +275,8 @@ public class TestPartitionPruning {
             .orderBy("id")
             .collectAsList();
 
-    Dataset<Row> ros = spark
+    Dataset<Row> ros =
+        spark
             .read()
             .format("iceberg")
             .option(SparkReadOptions.VECTORIZATION_ENABLED, String.valueOf(vectorized))

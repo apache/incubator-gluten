@@ -37,7 +37,8 @@ class LocalPartitionWriter::LocalSpiller {
       bool isFinal,
       std::shared_ptr<arrow::io::OutputStream> os,
       std::string spillFile,
-      uint32_t compressionThreshold,
+      int32_t compressionBufferSize,
+      int32_t compressionThreshold,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec)
       : isFinal_(isFinal),
@@ -49,7 +50,8 @@ class LocalPartitionWriter::LocalSpiller {
         diskSpill_(std::make_unique<Spill>()) {
     if (codec_ != nullptr) {
       GLUTEN_ASSIGN_OR_THROW(
-          compressedOs_, ShuffleCompressedOutputStream::Make(codec_, os, arrow::default_memory_pool()));
+          compressedOs_,
+          ShuffleCompressedOutputStream::Make(codec_, compressionBufferSize, os, arrow::default_memory_pool()));
     }
   }
 
@@ -151,7 +153,7 @@ class LocalPartitionWriter::LocalSpiller {
   int64_t writePos_{0};
 
   std::string spillFile_;
-  uint32_t compressionThreshold_;
+  int32_t compressionThreshold_;
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
 
@@ -600,7 +602,13 @@ arrow::Status LocalPartitionWriter::requestSpill(bool isFinal) {
       ARROW_ASSIGN_OR_RAISE(os, openFile(spillFile));
     }
     spiller_ = std::make_unique<LocalSpiller>(
-        isFinal, os, std::move(spillFile), options_.compressionThreshold, payloadPool_.get(), codec_.get());
+        isFinal,
+        os,
+        std::move(spillFile),
+        options_.compressionBufferSize,
+        options_.compressionThreshold,
+        payloadPool_.get(),
+        codec_.get());
   }
   return arrow::Status::OK();
 }

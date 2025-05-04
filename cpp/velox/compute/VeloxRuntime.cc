@@ -19,8 +19,6 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
-#include <iomanip>
 
 #include "VeloxBackend.h"
 #include "compute/ResultIterator.h"
@@ -28,16 +26,16 @@
 #include "compute/VeloxPlanConverter.h"
 #include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
-#include "operators/writer/VeloxArrowWriter.h"
+#include "operators/writer/VeloxColumnarBatchWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
+#include "utils/VeloxWholeStageDumper.h"
 
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_bool(velox_memory_use_hugepages);
 DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
-DECLARE_int32(cache_prefetch_min_pct);
 
 #ifdef ENABLE_HDFS
 #include "operators/writer/VeloxParquetDataSourceHDFS.h"
@@ -75,17 +73,21 @@ VeloxRuntime::VeloxRuntime(
   FLAGS_velox_exception_system_stacktrace_enabled =
       veloxCfg_->get<bool>(kEnableSystemExceptionStacktrace, FLAGS_velox_exception_system_stacktrace_enabled);
   FLAGS_velox_memory_use_hugepages = veloxCfg_->get<bool>(kMemoryUseHugePages, FLAGS_velox_memory_use_hugepages);
-  FLAGS_cache_prefetch_min_pct = veloxCfg_->get<bool>(kCachePrefetchMinPct, FLAGS_cache_prefetch_min_pct);
   FLAGS_velox_memory_pool_capacity_transfer_across_tasks = veloxCfg_->get<bool>(
       kMemoryPoolCapacityTransferAcrossTasks, FLAGS_velox_memory_pool_capacity_transfer_across_tasks);
 }
 
-void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
-  if (debugModeEnabled_ || dumpFile.has_value()) {
+void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size) {
+  if (debugModeEnabled_ || dumper_ != nullptr) {
     try {
-      auto planJson = substraitFromPbToJson("Plan", data, size, dumpFile);
-      LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#') << " received substrait::Plan: " << taskInfo_ << std::endl
-                                      << planJson;
+      auto planJson = substraitFromPbToJson("Plan", data, size);
+      if (dumper_ != nullptr) {
+        dumper_->dumpPlan(planJson);
+      }
+
+      LOG_IF(INFO, debugModeEnabled_ && taskInfo_.has_value())
+          << std::string(50, '#') << " received substrait::Plan: " << taskInfo_.value() << std::endl
+          << planJson;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
     }
@@ -94,13 +96,16 @@ void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, std::optional<st
   GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
 }
 
-void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) {
-  if (debugModeEnabled_ || dumpFile.has_value()) {
+void VeloxRuntime::parseSplitInfo(const uint8_t* data, int32_t size, int32_t splitIndex) {
+  if (debugModeEnabled_ || dumper_ != nullptr) {
     try {
-      auto splitJson = substraitFromPbToJson("ReadRel.LocalFiles", data, size, dumpFile);
-      LOG_IF(INFO, debugModeEnabled_) << std::string(50, '#')
-                                      << " received substrait::ReadRel.LocalFiles: " << taskInfo_ << std::endl
-                                      << splitJson;
+      auto splitJson = substraitFromPbToJson("ReadRel.LocalFiles", data, size);
+      if (dumper_ != nullptr) {
+        dumper_->dumpInputSplit(splitIndex, splitJson);
+      }
+      LOG_IF(INFO, debugModeEnabled_ && taskInfo_.has_value())
+          << std::string(50, '#') << " received substrait::ReadRel.LocalFiles: " << taskInfo_.value() << std::endl
+          << splitJson;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
     }
@@ -163,9 +168,16 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(veloxPlanConverter.splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto wholestageIter = std::make_unique<WholeStageResultIterator>(
-      memoryManager(), veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
-  return std::make_shared<ResultIterator>(std::move(wholestageIter), this);
+  auto wholeStageIter = std::make_unique<WholeStageResultIterator>(
+      memoryManager(),
+      veloxPlan_,
+      scanIds,
+      scanInfos,
+      streamIds,
+      spillDir,
+      sessionConf,
+      taskInfo_.has_value() ? taskInfo_.value() : SparkTaskInfo{});
+  return std::make_shared<ResultIterator>(std::move(wholeStageIter), this);
 }
 
 std::shared_ptr<ColumnarToRowConverter> VeloxRuntime::createColumnar2RowConverter(int64_t column2RowMemThreshold) {
@@ -260,22 +272,23 @@ std::shared_ptr<VeloxDataSource> VeloxRuntime::createDataSource(
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ShuffleReaderOptions options) {
-  auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
   auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
-  auto ctxVeloxPool = memoryManager()->getLeafMemoryPool();
-  auto veloxCompressionType = facebook::velox::common::stringToCompressionKind(options.compressionTypeStr);
+  const auto veloxCompressionKind = arrowCompressionTypeToVelox(options.compressionType);
+  const auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
+
   auto deserializerFactory = std::make_unique<gluten::VeloxShuffleReaderDeserializerFactory>(
       schema,
       std::move(codec),
-      veloxCompressionType,
+      veloxCompressionKind,
       rowType,
       options.batchSize,
-      options.bufferSize,
+      options.readerBufferSize,
+      options.deserializerBufferSize,
       memoryManager()->getArrowMemoryPool(),
-      ctxVeloxPool,
+      memoryManager()->getLeafMemoryPool(),
       options.shuffleWriterType);
-  auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
-  return reader;
+
+  return std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
 }
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(struct ArrowSchema* cSchema) {
@@ -284,47 +297,19 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
   return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
 }
 
-void VeloxRuntime::dumpConf(const std::string& path) {
-  const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->rawConfigs();
-  auto allConfMap = backendConfMap;
+void VeloxRuntime::enableDumping() {
+  auto saveDir = veloxCfg_->get<std::string>(kGlutenSaveDir);
+  GLUTEN_CHECK(saveDir.has_value(), kGlutenSaveDir + " is not set");
 
-  for (const auto& pair : confMap_) {
-    allConfMap.insert_or_assign(pair.first, pair.second);
-  }
+  auto taskInfo = getSparkTaskInfo();
+  GLUTEN_CHECK(taskInfo.has_value(), "Task info is not set. Please set task info before enabling dumping.");
 
-  // Open file "velox.conf" for writing, automatically creating it if it doesn't exist,
-  // or overwriting it if it does.
-  std::ofstream outFile(path);
-  if (!outFile.is_open()) {
-    LOG(ERROR) << "Failed to open file for writing: " << path;
-    return;
-  }
+  dumper_ = std::make_shared<VeloxWholeStageDumper>(
+      taskInfo.value(),
+      saveDir.value(),
+      veloxCfg_->get<int64_t>(kSparkBatchSize, 4096),
+      memoryManager()->getAggregateMemoryPool().get());
 
-  // Calculate the maximum key length for alignment.
-  size_t maxKeyLength = 0;
-  for (const auto& pair : allConfMap) {
-    maxKeyLength = std::max(maxKeyLength, pair.first.length());
-  }
-
-  // Write each key-value pair to the file with adjusted spacing for alignment
-  outFile << "[Backend Conf]" << std::endl;
-  for (const auto& pair : backendConfMap) {
-    outFile << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
-  }
-  outFile << std::endl << "[Session Conf]" << std::endl;
-  for (const auto& pair : confMap_) {
-    outFile << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
-  }
-
-  outFile.close();
+  dumper_->dumpConf(getConfMap());
 }
-
-std::shared_ptr<ArrowWriter> VeloxRuntime::createArrowWriter(const std::string& path) {
-  int64_t batchSize = 4096;
-  if (auto it = confMap_.find(kSparkBatchSize); it != confMap_.end()) {
-    batchSize = std::atol(it->second.c_str());
-  }
-  return std::make_shared<VeloxArrowWriter>(path, batchSize, memoryManager()->getLeafMemoryPool().get());
-}
-
 } // namespace gluten

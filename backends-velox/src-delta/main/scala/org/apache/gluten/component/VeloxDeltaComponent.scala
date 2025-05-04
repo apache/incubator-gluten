@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.component
 
 import org.apache.gluten.backendsapi.velox.VeloxBackend
@@ -24,6 +23,7 @@ import org.apache.gluten.extension.columnar.enumerated.RasOffload
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.validator.Validators
 import org.apache.gluten.extension.injector.Injector
+
 import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec, ProjectExec}
 
 class VeloxDeltaComponent extends Component {
@@ -43,7 +43,8 @@ class VeloxDeltaComponent extends Component {
     val offloads: Seq[RasOffload] = Seq(
       RasOffload.from[FileSourceScanExec](OffloadDeltaScan()),
       RasOffload.from[ProjectExec](OffloadDeltaProject()),
-      RasOffload.from[FilterExec](OffloadDeltaFilter()))
+      RasOffload.from[FilterExec](OffloadDeltaFilter())
+    )
     offloads.foreach(
       offload =>
         ras.injectRasRule(

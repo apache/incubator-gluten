@@ -48,6 +48,7 @@ class ClickBenchSuite(
     val disableWscg: Boolean,
     val shufflePartitions: Int,
     val scanPartitions: Int,
+    val decimalAsDouble: Boolean,
     val baselineMetricMapper: MetricMapper,
     val testMetricMapper: MetricMapper)
   extends Suite(
@@ -66,6 +67,7 @@ class ClickBenchSuite(
     disableWscg,
     shufflePartitions,
     scanPartitions,
+    decimalAsDouble,
     baselineMetricMapper,
     testMetricMapper
   ) {

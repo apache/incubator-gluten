@@ -211,8 +211,7 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
   if (name == "concat") {
     for (const auto& type : types) {
-      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
-          type.find("list") != std::string::npos) {
+      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos) {
         LOG_VALIDATION_MSG(type + " is not supported in concat.");
         return false;
       }
@@ -230,6 +229,22 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
 
   return true;
+}
+
+bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
+  static const std::unordered_set<TypeKind> kAllowedArrayElementKinds = {
+      TypeKind::DOUBLE,
+      TypeKind::BOOLEAN,
+      TypeKind::TIMESTAMP,
+  };
+
+  // https://github.com/apache/incubator-gluten/issues/9392
+  // is currently WIP to add support for other types.
+  if (toType->isVarchar()) {
+    return kAllowedArrayElementKinds.count(fromType->kind()) > 0;
+  }
+
+  return false;
 }
 
 bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const TypePtr& toType) {
@@ -253,7 +268,19 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
   }
 
   // Limited support for Timestamp to X.
-  if (fromType->isTimestamp() && !(toType->isDate() || toType->isVarchar())) {
+  if (fromType->isTimestamp()) {
+    if (toType->isDecimal()) {
+      return false;
+    }
+
+    if (toType->isBigint()) {
+      return true;
+    }
+
+    if (toType->isDate() || toType->isVarchar()) {
+      return true;
+    }
+
     return false;
   }
 
@@ -273,6 +300,17 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
       return true;
     }
     return false;
+  }
+
+  if (fromType->isArray() && toType->isArray()) {
+    const auto& toElem = toType->asArray().elementType();
+    const auto& fromElem = fromType->asArray().elementType();
+
+    if (!isAllowedCast(fromElem, toElem)) {
+      return false;
+    }
+
+    return isSupportedArrayCast(fromElem, toElem);
   }
 
   // Limited support for Complex types.

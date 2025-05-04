@@ -24,13 +24,10 @@
 
 #include "compute/ProtobufUtils.h"
 #include "compute/Runtime.h"
-#include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
-#include "operators/writer/ArrowWriter.h"
 #include "shuffle/rss/RssClient.h"
 #include "utils/Compression.h"
 #include "utils/Exception.h"
-#include "utils/ObjectStore.h"
 #include "utils/ResourceMap.h"
 
 static jint jniVersion = JNI_VERSION_1_8;
@@ -266,7 +263,7 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
       JNIEnv* env,
       jobject jColumnarBatchItr,
       Runtime* runtime,
-      std::shared_ptr<ArrowWriter> writer);
+      std::optional<int32_t> iteratorIndex = std::nullopt);
 
   // singleton
   JniColumnarBatchIterator(const JniColumnarBatchIterator&) = delete;
@@ -274,26 +271,40 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
   JniColumnarBatchIterator& operator=(const JniColumnarBatchIterator&) = delete;
   JniColumnarBatchIterator& operator=(JniColumnarBatchIterator&&) = delete;
 
-  virtual ~JniColumnarBatchIterator();
+  ~JniColumnarBatchIterator() override;
 
   std::shared_ptr<ColumnarBatch> next() override;
 
  private:
+  class ColumnarBatchIteratorDumper final : public ColumnarBatchIterator {
+   public:
+    ColumnarBatchIteratorDumper(JniColumnarBatchIterator* self) : self_(self){};
+
+    std::shared_ptr<ColumnarBatch> next() override {
+      return self_->nextInternal();
+    }
+
+   private:
+    JniColumnarBatchIterator* self_;
+  };
+
+  std::shared_ptr<ColumnarBatch> nextInternal() const;
+
   JavaVM* vm_;
   jobject jColumnarBatchItr_;
   Runtime* runtime_;
-  std::shared_ptr<ArrowWriter> writer_;
+  std::optional<int32_t> iteratorIndex_;
+  const bool shouldDump_;
 
   jclass serializedColumnarBatchIteratorClass_;
   jmethodID serializedColumnarBatchIteratorHasNext_;
   jmethodID serializedColumnarBatchIteratorNext_;
+
+  std::shared_ptr<ColumnarBatchIterator> dumpedIteratorReader_{nullptr};
 };
 
-std::unique_ptr<JniColumnarBatchIterator> makeJniColumnarBatchIterator(
-    JNIEnv* env,
-    jobject jColumnarBatchItr,
-    Runtime* runtime,
-    std::shared_ptr<ArrowWriter> writer);
+std::unique_ptr<JniColumnarBatchIterator>
+makeJniColumnarBatchIterator(JNIEnv* env, jobject jColumnarBatchItr, Runtime* runtime);
 } // namespace gluten
 
 // TODO: Move the static functions to namespace gluten
@@ -321,20 +332,6 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
 
   env->ReleaseStringUTFChars(codecJstr, codec);
   return compressionType;
-}
-
-static inline const std::string getCompressionTypeStr(JNIEnv* env, jstring codecJstr) {
-  if (codecJstr == NULL) {
-    return "none";
-  }
-  auto codec = env->GetStringUTFChars(codecJstr, JNI_FALSE);
-
-  // Convert codec string into lowercase.
-  std::string codecLower;
-  std::transform(codec, codec + std::strlen(codec), std::back_inserter(codecLower), ::tolower);
-
-  env->ReleaseStringUTFChars(codecJstr, codec);
-  return codecLower;
 }
 
 static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {

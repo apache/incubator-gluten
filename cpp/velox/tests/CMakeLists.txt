@@ -35,6 +35,10 @@ endfunction()
 set(VELOX_TEST_COMMON_SRCS JsonToProtoConverter.cc FilePathGenerator.cc)
 
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
+
+add_velox_test(velox_shuffle_writer_spill_test SOURCES
+               VeloxShuffleWriterSpillTest.cc)
+
 # TODO: ORC is not well supported. add_velox_test(orc_test SOURCES OrcTest.cc)
 add_velox_test(
   velox_operators_test

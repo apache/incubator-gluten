@@ -146,7 +146,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
-    operators/writer/VeloxArrowWriter.cc
+    operators/writer/VeloxColumnarBatchWriter.cc
     operators/writer/VeloxParquetDataSource.cc
     shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxRssSortShuffleWriter.cc
@@ -166,15 +166,14 @@ set(VELOX_SRCS
     udf/UdfLoader.cc
     utils/Common.cc
     utils/ConfigExtractor.cc
+    utils/LocalRssClient.cc
+    utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
-    utils/VeloxBatchResizer.cc)
+    utils/VeloxBatchResizer.cc
+    utils/VeloxWholeStageDumper.cc)
 
 if(ENABLE_S3)
   find_package(ZLIB)
-endif()
-
-if(BUILD_TESTS OR BUILD_BENCHMARKS)
-  list(APPEND VELOX_SRCS utils/tests/MemoryPoolUtils.cc)
 endif()
 
 add_library(velox SHARED ${VELOX_SRCS})

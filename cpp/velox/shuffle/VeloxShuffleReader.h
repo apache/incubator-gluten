@@ -73,7 +73,8 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
       const std::shared_ptr<arrow::util::Codec>& codec,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
-      int64_t bufferSize,
+      int64_t readerBufferSize,
+      int64_t deserializerBufferSize,
       arrow::MemoryPool* memoryPool,
       facebook::velox::memory::MemoryPool* veloxPool,
       int64_t& deserializeTime,
@@ -91,10 +92,13 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
+
   uint32_t batchSize_;
-  facebook::velox::memory::MemoryPool* veloxPool_;
+  int64_t deserializerBufferSize_;
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
+
+  facebook::velox::memory::MemoryPool* veloxPool_;
 
   facebook::velox::BufferPtr rowBuffer_{nullptr};
   char* rowBufferPtr_{nullptr};
@@ -142,10 +146,11 @@ class VeloxShuffleReaderDeserializerFactory {
   VeloxShuffleReaderDeserializerFactory(
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
-      const facebook::velox::common::CompressionKind veloxCompressionType,
+      facebook::velox::common::CompressionKind veloxCompressionType,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
-      int64_t bufferSize,
+      int64_t readerBufferSize,
+      int64_t deserializerBufferSize,
       arrow::MemoryPool* memoryPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       ShuffleWriterType shuffleWriterType);
@@ -166,7 +171,8 @@ class VeloxShuffleReaderDeserializerFactory {
   facebook::velox::common::CompressionKind veloxCompressionType_;
   facebook::velox::RowTypePtr rowType_;
   int32_t batchSize_;
-  int64_t bufferSize_;
+  int64_t readerBufferSize_;
+  int64_t deserializerBufferSize_;
   arrow::MemoryPool* memoryPool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 

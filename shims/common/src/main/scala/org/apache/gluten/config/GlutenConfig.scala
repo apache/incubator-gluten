@@ -194,6 +194,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleReaderBufferSize: Long =
     getConf(COLUMNAR_SHUFFLE_READER_BUFFER_SIZE)
 
+  def columnarSortShuffleDeserializerBufferSize: Long =
+    getConf(COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE)
+
   def maxBatchSize: Int = getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def shuffleWriterBufferSize: Int = getConf(SHUFFLE_WRITER_BUFFER_SIZE)
@@ -1072,6 +1075,14 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1MB")
 
+  val COLUMNAR_SORT_SHUFFLE_DESERIALIZER_BUFFER_SIZE =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.deserializerBufferSize")
+      .internal()
+      .doc("Buffer size in bytes for sort-based shuffle reader deserializing raw input to " +
+        "columnar batch.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1MB")
+
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf("spark.gluten.sql.columnar.maxBatchSize")
       .internal()
@@ -1376,6 +1387,12 @@ object GlutenConfig {
       .internal()
       .stringConf
       .createWithDefault("/tmp")
+
+  val DEBUG_CUDF =
+    buildStaticConf("spark.gluten.sql.debug.cudf")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
 
   val UT_STATISTIC =
     buildStaticConf("spark.gluten.sql.ut.statistic")
