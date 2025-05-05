@@ -346,9 +346,9 @@ class CreateMergeTreeSuite
   with TPCHParquetSource {}
 
 /**
- * `MergeTreeSuite` extends GlutenClickHouseTPCHAbstractSuite and integrates functionality
- * provided by the `MergeTreeResult` trait. It provides the structure necessary to test and validate
- * merge tree query executions against the ClickHouse backend using the TPCH schema.
+ * `MergeTreeSuite` extends GlutenClickHouseTPCHAbstractSuite and integrates functionality provided
+ * by the `MergeTreeResult` trait. It provides the structure necessary to test and validate merge
+ * tree query executions against the ClickHouse backend using the TPCH schema.
  */
 class MergeTreeSuite
   extends GlutenClickHouseTPCHAbstractSuite
