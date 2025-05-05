@@ -113,7 +113,7 @@ object RasOffload {
           }
 
         // 3. Walk the rewritten tree.
-        var offloadSucceeded: Boolean = true
+        var offloadSucceeded: Boolean = false
         val offloaded = rewritten.transformUp {
           case from if typeIdentifier.isInstance(from) =>
             // 4. Validate current node. If passed, offload it.
