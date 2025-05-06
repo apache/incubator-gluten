@@ -26,11 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
-  protected val tablesPath: String = basePath + "/tpch-data"
-  protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  protected val queriesResults: String = rootPath + "queries-output"
-
   private val joinAlgorithm = CHConfig.runtimeSettings("join_algorithm")
 
   override protected def sparkConf: SparkConf = {

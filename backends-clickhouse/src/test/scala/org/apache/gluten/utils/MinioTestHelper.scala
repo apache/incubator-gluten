@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.backendsapi.clickhouse.CHConfig.GlutenCHConf
+import org.apache.gluten.backendsapi.clickhouse.GlutenObjectStorageConfig
 
 import org.apache.spark.SparkConf
 
@@ -27,7 +27,7 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import java.util
 
-import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class MinioTestHelper(TMP_PREFIX: String) {
 
@@ -40,6 +40,9 @@ class MinioTestHelper(TMP_PREFIX: String) {
   val S3_METADATA_PATH = s"$TMP_PREFIX/s3/metadata"
   val S3_CACHE_PATH = s"$TMP_PREFIX/s3/cache"
   val S3A_ENDPOINT = "s3a://"
+
+  val STORE_POLICY = "__s3_main"
+  val STORE_POLICY_NOCACHE = "__s3_main_2"
 
   private lazy val client = MinioClient
     .builder()
@@ -77,12 +80,12 @@ class MinioTestHelper(TMP_PREFIX: String) {
 
   def listObjects(bucketName: String, prefix: String): Iterable[String] = {
     val args = ListObjectsArgs.builder().bucket(bucketName).recursive(true).prefix(prefix).build()
-    val objectNames = new util.ArrayList[String]()
-    client.listObjects(args).forEach(obj => objectNames.add(obj.get().objectName()))
-    objectNames.asScala
+    val objectNames = mutable.ArrayBuffer[String]()
+    client.listObjects(args).forEach(obj => objectNames.append(obj.get().objectName()))
+    objectNames
   }
 
-  def setHadoopFileSystemConfig(conf: SparkConf): SparkConf = {
+  def setFileSystem(conf: SparkConf): SparkConf = {
     conf
       .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
       .set("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
@@ -92,22 +95,23 @@ class MinioTestHelper(TMP_PREFIX: String) {
       .set("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
   }
 
-  def setObjectStoreConfig(conf: SparkConf, BUCKET_NAME: String): SparkConf = {
-    val wholePath: String = MINIO_ENDPOINT + BUCKET_NAME + "/"
-    conf
-      .setCHConfig(
-        "storage_configuration.disks.s3.type" -> "s3_gluten",
-        "storage_configuration.disks.s3.endpoint" -> wholePath,
-        "storage_configuration.disks.s3.access_key_id" -> S3_ACCESS_KEY,
-        "storage_configuration.disks.s3.secret_access_key" -> S3_SECRET_KEY,
-        "storage_configuration.disks.s3.metadata_path" -> S3_METADATA_PATH,
-        "storage_configuration.disks.s3_cache.type" -> "cache",
-        "storage_configuration.disks.s3_cache.disk" -> "s3",
-        "storage_configuration.disks.s3_cache.path" -> S3_CACHE_PATH,
-        "storage_configuration.disks.s3_cache.max_size" -> "10Gi",
-        "storage_configuration.policies.__s3_main.volumes" -> "main",
-        "storage_configuration.policies.__s3_main.volumes.main.disk" -> "s3_cache"
-      )
+  def builder(policyName: String): StoreConfigBuilder =
+    new StoreConfigBuilder(policyName, GlutenObjectStorageConfig.S3_DISK_TYPE)
+
+  def setStoreConfig(conf: SparkConf, BUCKET_NAME: String): SparkConf = {
+    builder(STORE_POLICY)
+      .withEndpoint(s"$MINIO_ENDPOINT$BUCKET_NAME/")
+      .withMetadataPath(S3_METADATA_PATH)
+      .withCachePath(S3_CACHE_PATH)
+      .withAKSK(S3_ACCESS_KEY, S3_SECRET_KEY)
+      .build(conf)
+
+    builder(STORE_POLICY_NOCACHE)
+      .withEndpoint(s"$MINIO_ENDPOINT$BUCKET_NAME/")
+      .withMetadataPath(S3_METADATA_PATH)
+      .withDiskcache(false)
+      .withAKSK(S3_ACCESS_KEY, S3_SECRET_KEY)
+      .build(conf)
   }
 
   def resetMeta(): Unit = {

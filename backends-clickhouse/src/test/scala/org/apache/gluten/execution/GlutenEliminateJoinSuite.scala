@@ -30,11 +30,6 @@ import java.nio.file.Files
 
 class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuite with Logging {
 
-  protected val tablesPath: String = basePath + "/tpch-data"
-  protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  protected val queriesResults: String = rootPath + "queries-output"
-
   private var parquetPath: String = _
 
   override protected def sparkConf: SparkConf = {
@@ -82,11 +77,11 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
 
     val schema1 = StructType(
       Array(
-        StructField("k1", IntegerType, true),
-        StructField("k2", IntegerType, true),
-        StructField("v1", IntegerType, true),
-        StructField("v2", IntegerType, true),
-        StructField("v3", IntegerType, true)
+        StructField("k1", IntegerType, nullable = true),
+        StructField("k2", IntegerType, nullable = true),
+        StructField("v1", IntegerType, nullable = true),
+        StructField("v2", IntegerType, nullable = true),
+        StructField("v3", IntegerType, nullable = true)
       )
     )
 
@@ -130,7 +125,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -160,7 +155,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -271,7 +266,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -296,7 +291,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
   test("aggregate min/max") {
@@ -320,7 +315,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -345,7 +340,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -370,7 +365,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -420,7 +415,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 
@@ -445,7 +440,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           val joins = df.queryExecution.executedPlan.collect {
             case join: ShuffledHashJoinExecTransformerBase => join
           }
-          assert(joins.length == 0)
+          assert(joins.isEmpty)
       })
   }
 

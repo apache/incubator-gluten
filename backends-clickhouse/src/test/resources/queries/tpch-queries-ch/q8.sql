@@ -8,7 +8,7 @@ SELECT
         END) / sum(volume) AS mkt_share
 FROM (
     SELECT /*+ SHUFFLE_MERGE(orders), SHUFFLE_MERGE(customer) */
-        extract(year FROM o_orderdate) AS o_year,
+        year(o_orderdate) as o_year,
         l_extendedprice * (1 - l_discount) AS volume,
         n2.n_name AS nation
     FROM
