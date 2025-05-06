@@ -574,6 +574,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         if (rowtimeFieldIndex == -1) {
             return inputTransform;
         }
+        /// These codes are changed for gluten
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 createTransformationMeta(
@@ -592,6 +593,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 inputTransform.getOutputType(),
                 sinkParallelism,
                 sinkParallelismConfigured);
+        /// end gluten
     }
 
     private InternalTypeInfo<RowData> getInputTypeInfo() {

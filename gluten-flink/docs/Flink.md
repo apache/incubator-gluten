@@ -111,7 +111,7 @@ TODO
 We are working on supporting the [Nexmark](https://github.com/nexmark/nexmark) benchmark for Flink.
 Now the q0 has been supported.
 
-Results show than running with gluten can be 2.x times faster than Flink.
+Results show that running with gluten can be 2.x times faster than Flink.
 
 Result using gluten (will support TPS metric soon):
 ```

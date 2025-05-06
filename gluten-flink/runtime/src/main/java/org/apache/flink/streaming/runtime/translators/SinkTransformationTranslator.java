@@ -177,10 +177,13 @@ public class SinkTransformationTranslator<Input, Output>
             if (sink instanceof SupportsCommitter) {
                 addCommittingTopology(sink, prewritten);
             } else {
+                /// These code are changed for gluten
                 if (sink instanceof DiscardingSink) {
                     RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                             ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
-                    // TODO: this is a constrain of velox
+                    // TODO: this is a constrain of velox.
+                    // The result type should be ignored, as the data is written by velox,
+                    // and no result need to return.
                     RowType ignore = new RowType(List.of("num"), List.of(new BigIntType()));
                     PlanNode plan = new TableWriteNode(
                             PlanNodeIdGenerator.newId(),
@@ -193,7 +196,6 @@ public class SinkTransformationTranslator<Input, Output>
                             ignore,
                             CommitStrategy.NO_COMMIT,
                             null);
-                    // TODO: id needs refine
                     adjustTransformations(
                             prewritten,
                             input ->
@@ -220,6 +222,7 @@ public class SinkTransformationTranslator<Input, Output>
                             false,
                             sink instanceof SupportsConcurrentExecutionAttempts);
                 }
+                /// end gluten
             }
 
             getSinkTransformations(sizeBefore).forEach(context::transform);

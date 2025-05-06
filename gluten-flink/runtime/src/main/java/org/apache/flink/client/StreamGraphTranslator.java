@@ -86,6 +86,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         return pipeline instanceof StreamGraph;
     }
 
+    /// These codes are added for Gluten
     private JobGraph mergeGlutenOperators(JobGraph jobGraph) {
         for (JobVertex vertex : jobGraph.getVertices()) {
             StreamConfig streamConfig = new StreamConfig(vertex.getConfiguration());
@@ -95,6 +96,10 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         return jobGraph;
     }
 
+    // A JobVertex may contain several operators chained like this: Source-->Op1-->Op2-->Sink.
+    // If the operators connected all support translated to gluten, we merge them into
+    // a single GlutenOperator to avoid data transferred between flink and native.
+    // Now we only support that one operator followed by at most one other operator.
     private void buildGlutenChains(
             StreamConfig vertexConfig) {
         Map<Integer, StreamConfig> serializedTasks =
@@ -107,11 +112,9 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         StreamConfig taskConfig = vertexConfig;
         while (true) {
             List<StreamEdge> outEdges = taskConfig.getChainedOutputs(userClassloader);
-            if (outEdges == null || outEdges.isEmpty()) {
+            if (outEdges == null || outEdges.size() != 1) {
                 // only support operators have one output.
-                break;
-            } else if (outEdges.size() > 1) {
-                LOG.info("{} has more than one chained task.", taskConfig.getOperatorName());
+                LOG.debug("{} has no or more than one chained task.", taskConfig.getOperatorName());
                 break;
             }
 
@@ -181,4 +184,5 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         }
         return null;
     }
+    /// end gluten
 }

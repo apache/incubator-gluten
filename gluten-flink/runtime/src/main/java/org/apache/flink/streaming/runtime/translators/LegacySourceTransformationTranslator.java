@@ -80,6 +80,7 @@ public class LegacySourceTransformationTranslator<OUT>
         Function userFunction = transformation.getOperator().getUserFunction();
         StreamOperatorFactory<OUT> operatorFactory;
         String namePrefix = "";
+        /// These codes are changed for gluten
         if (userFunction instanceof DataGeneratorSource) {
             RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                     ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
@@ -99,6 +100,7 @@ public class LegacySourceTransformationTranslator<OUT>
         } else {
             operatorFactory = transformation.getOperatorFactory();
         }
+        /// end gluten
         streamGraph.addLegacySource(
                 transformationId,
                 slotSharingGroup,

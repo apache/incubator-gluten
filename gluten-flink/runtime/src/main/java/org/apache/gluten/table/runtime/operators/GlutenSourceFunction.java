@@ -30,6 +30,7 @@ import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import io.github.zhztheplayer.velox4j.query.Query;
+import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.arrow.memory.BufferAllocator;
@@ -37,10 +38,14 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.table.data.RowData;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 /** Gluten legacy source function, call velox plan to execute. */
 public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
+    private static final Logger LOG = LoggerFactory.getLogger(GlutenSourceFunction.class);
 
     private final PlanNode planNode;
     private final RowType outputType;
@@ -76,6 +81,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
 
     @Override
     public void run(SourceContext<RowData> sourceContext) throws Exception {
+        LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
         final List<BoundSplit> splits = List.of(new BoundSplit(id, -1, split));
         memoryManager = MemoryManager.create(AllocationListener.NOOP);
         session = Velox4j.newSession(memoryManager);
@@ -96,9 +102,9 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
                 }
                 outRv.close();
             } else if (state == UpIterator.State.BLOCKED) {
-                System.out.println("Get empty row");
+                LOG.debug("Get empty row");
             } else {
-                System.out.println("Velox task finished");
+                LOG.info("Velox task finished");
                 break;
             }
         }

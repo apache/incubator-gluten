@@ -22,7 +22,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.codegen.WatermarkGeneratorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -33,26 +32,19 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
-import org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.github.zhztheplayer.velox4j.expression.TypedExpr;
-import io.github.zhztheplayer.velox4j.type.Type;
 import org.apache.calcite.rex.RexNode;
-import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -120,32 +112,17 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        final GeneratedWatermarkGenerator watermarkGenerator =
-                WatermarkGeneratorCodeGenerator.generateWatermarkGenerator(
-                        config,
-                        planner.getFlinkContext().getClassLoader(),
-                        (RowType) inputEdge.getOutputType(),
-                        watermarkExpr,
-                        JavaScalaConversionUtil.toScala(Optional.empty()));
-
+        /// These codes are changed for gluten
         final long idleTimeout =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT).toMillis();
-
-        final WatermarkAssignerOperatorFactory operatorFactory =
-                new WatermarkAssignerOperatorFactory(
-                        rowtimeFieldIndex, idleTimeout, watermarkGenerator);
 
         io.github.zhztheplayer.velox4j.type.RowType inputType =
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(inputEdge.getOutputType());
-        List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
-
-        System.out.println("Watermark " + watermarkExpr);
-        //TypedExpr watermarkExprs = RexNodeConverter.toTypedExpr(watermarkExpr, inNames);
         io.github.zhztheplayer.velox4j.type.RowType outputType =
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(getOutputType());
-        // PlanNode watermark = new WatermarkNode(watermarkExprs, inputType, outputType, idleTimeout, rowtimeFieldIndex);
+        // Watermark assigner has not been supported in gluten.
         final GlutenSingleInputOperator watermarkOperator =
                 new GlutenSingleInputOperator(null, PlanNodeIdGenerator.newId(), inputType, outputType);
 
@@ -156,5 +133,6 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),
                 false);
+        /// end gluten
     }
 }
