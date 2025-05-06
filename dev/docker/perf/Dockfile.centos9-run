@@ -58,8 +58,8 @@ RUN set -ex; \
 
 COPY entrypoint.sh /opt/
 COPY ipython /opt/spark/work-dir/ipython
-COPY --chmod=0775 gluten-velox-bundle-*.jar /opt/gluten/jars/
-COPY --chmod=0775 shared-libs /usr/lib64/gluten-libs
+COPY telegraf.conf /etc/telegraf/telegraf.conf
+COPY spark-defaults.conf /opt/spark/conf//spark-defaults.conf 
 
 RUN echo "/usr/lib64/gluten-libs" > /etc/ld.so.conf.d/gluten.conf && ldconfig
 

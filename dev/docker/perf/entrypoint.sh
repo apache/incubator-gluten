@@ -63,6 +63,7 @@ sudo chown -R spark:spark "${SPARK_HOME}"
 ${SPARK_HOME}/sbin/start-master.sh
 ${SPARK_HOME}/sbin/start-worker.sh "$SPARK_MASTER_URL"
 
-nohup jupyter notebook --ip=0.0.0.0 --port=8989 --no-browser --notebook-dir=/opt/spark/work-dir/ipython &
+jupyter notebook --ip=0.0.0.0 --port=8989 --no-browser --notebook-dir=/opt/spark/work-dir/ipython &
+/usr/bin/telegraf &
 
 sleep infinity
