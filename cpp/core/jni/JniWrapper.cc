@@ -1100,22 +1100,15 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
 JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlongArray handles) {
+    jlong handle) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
 
-  int32_t numBatches = env->GetArrayLength(handles);
-  auto safeArray = getLongArrayElementsSafe(env, handles);
-
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
-  int64_t numRows = 0L;
-  for (int32_t i = 0; i < numBatches; i++) {
-    auto batch = ObjectStore::retrieve<ColumnarBatch>(safeArray.elems()[i]);
-    GLUTEN_DCHECK(
-        batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(safeArray.elems()[i]));
-    numRows += batch->numRows();
-    batches.emplace_back(batch);
-  }
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
+  GLUTEN_DCHECK(
+      batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
+  batches.emplace_back(batch);
 
   auto serializer = ctx->createColumnarBatchSerializer(nullptr);
   auto buffer = serializer->serializeColumnarBatches(batches);
@@ -1126,10 +1119,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSeriali
           " byte(s) to serialize columnar batches");
   env->SetByteArrayRegion(bufferArr, 0, buffer->size(), reinterpret_cast<const jbyte*>(buffer->data()));
 
-  jobject columnarBatchSerializeResult =
-      env->NewObject(columnarBatchSerializeResultClass, columnarBatchSerializeResultConstructor, numRows, bufferArr);
-
-  return columnarBatchSerializeResult;
+  return bufferArr;
   JNI_METHOD_END(nullptr)
 }
 

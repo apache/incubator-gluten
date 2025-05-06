@@ -176,11 +176,11 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with Logging {
                     BackendsApiManager.getBackendName,
                     "ColumnarCachedBatchSerializer#serialize"))
                 .serialize(
-                  Array(ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)))
+                  ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch))
             CachedColumnarBatch(
-              results.getNumRows.toInt,
-              results.getSerialized.length,
-              results.getSerialized)
+              batch.numRows(),
+              results.length,
+              results)
           }
         }
     }

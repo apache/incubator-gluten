@@ -105,7 +105,7 @@ object BroadcastUtils {
             case ColumnarBatchSerializeResult.EMPTY =>
               Array()
             case result: ColumnarBatchSerializeResult =>
-              Array(result.getSerialized)
+              result.getSerialized
           }
           if (useOffheapBuildRelation) {
             new UnsafeColumnarBuildSideRelation(
@@ -131,7 +131,7 @@ object BroadcastUtils {
             case ColumnarBatchSerializeResult.EMPTY =>
               Array()
             case result: ColumnarBatchSerializeResult =>
-              Array(result.getSerialized)
+              result.getSerialized
           }
           if (useOffheapBuildRelation) {
             new UnsafeColumnarBuildSideRelation(
@@ -172,19 +172,21 @@ object BroadcastUtils {
     if (filtered.isEmpty) {
       return ColumnarBatchSerializeResult.EMPTY
     }
-    val handleArray =
-      filtered.map(b => ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b))
-    val serializeResult =
+    var rowNums = 0
+    val values = filtered.map(b => {
+      val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
+      rowNums += b.numRows()
       try {
         ColumnarBatchSerializerJniWrapper
           .create(
             Runtimes
               .contextInstance(BackendsApiManager.getBackendName, "BroadcastUtils#serializeStream"))
-          .serialize(handleArray)
+          .serialize(handle)
       } finally {
-        filtered.foreach(ColumnarBatches.release)
+        ColumnarBatches.release(b)
       }
-    serializeResult
+    })
+    new ColumnarBatchSerializeResult(rowNums, values)
   }
 
   private def reconstructRows(relation: HashedRelation): Iterator[InternalRow] = {

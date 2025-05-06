@@ -636,7 +636,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
       .filter(_.getNumRows != 0)
       .collect
-    val rawSize = serialized.map(_.getSerialized.length).sum
+    val rawSize = serialized.flatMap(_.getSerialized.map(_.length)).sum
     if (rawSize >= GlutenConfig.get.maxBroadcastTableSize) {
       throw new SparkException(
         "Cannot broadcast the table that is larger than " +
@@ -647,10 +647,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     dataSize += rawSize
     if (useOffheapBroadcastBuildRelation) {
       TaskResources.runUnsafe {
-        new UnsafeColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
+        new UnsafeColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
       }
     } else {
-      ColumnarBuildSideRelation(child.output, serialized.map(_.getSerialized), mode)
+      ColumnarBuildSideRelation(child.output, serialized.flatMap(_.getSerialized), mode)
     }
   }
 
