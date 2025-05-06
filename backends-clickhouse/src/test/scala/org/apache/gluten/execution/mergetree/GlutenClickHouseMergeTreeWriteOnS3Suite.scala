@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BasicScanExecTransformer, CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
@@ -40,7 +40,6 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite extends CreateMergeTreeSuite {
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
   }
@@ -506,8 +505,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite extends CreateMergeTreeSuite {
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      CHConfig.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
-      CHConfig.runtimeSettings("mergetree.merge_after_insert") -> "true"
+      RuntimeSettings.INSERT_WITHOUT_LOCAL_STORAGE.key -> "true",
+      RuntimeSettings.MERGE_AFTER_INSERT.key -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;

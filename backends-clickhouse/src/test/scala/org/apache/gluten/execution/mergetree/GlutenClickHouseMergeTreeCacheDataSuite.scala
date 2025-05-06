@@ -16,16 +16,13 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
-
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.FileSystem
 
 import java.io.File
 
@@ -34,7 +31,6 @@ import scala.concurrent.duration.DurationInt
 class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -42,19 +38,16 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set("spark.gluten.soft-affinity.enabled", "true")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
   }
 
+  private val remotePath: String = hdfsHelper.independentHdfsURL("test")
   override protected def beforeEach(): Unit = {
     super.beforeEach()
-    val conf = new Configuration
-    conf.set("fs.defaultFS", HDFS_URL)
-    val fs = FileSystem.get(conf)
-    fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
+    hdfsHelper.deleteDir(remotePath)
     hdfsHelper.resetMeta()
     hdfsHelper.resetCache()
   }
@@ -97,7 +90,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
                  |)
                  |USING clickhouse
                  |PARTITIONED BY (l_shipdate)
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_linenumber,l_orderkey')
                  |""".stripMargin)
@@ -200,7 +193,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
                  |)
                  |USING clickhouse
                  |PARTITIONED BY (l_shipdate)
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_linenumber,l_orderkey')
                  |""".stripMargin)
@@ -307,7 +300,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
                  |)
                  |USING clickhouse
                  |PARTITIONED BY (l_shipdate)
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_linenumber,l_orderkey')
                  |""".stripMargin)
@@ -324,7 +317,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
     val res = spark
       .sql(s"""
               |cache data
-              |  select * from '$HDFS_URL/test/lineitem_mergetree_hdfs'
+              |  select * from '$remotePath/lineitem_mergetree_hdfs'
               |  after l_shipdate AS OF '1995-01-10'
               |  CACHEPROPERTIES(storage_policy='__hdfs_main',
               |                aaa='ccc')""".stripMargin)
@@ -409,7 +402,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
                  | L_COMMENT       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
 
@@ -498,7 +491,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
                  |)
                  |USING clickhouse
                  |PARTITIONED BY (L_SHIPDATE)
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='L_LINENUMBER,L_ORDERKEY')
                  |""".stripMargin)
@@ -515,7 +508,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
     val res = spark
       .sql(s"""
               |cache data
-              |  select * from '$HDFS_URL/test/lineitem_mergetree_hdfs'
+              |  select * from '$remotePath/lineitem_mergetree_hdfs'
               |  after L_SHIPDATE AS OF '1995-01-10'
               |  CACHEPROPERTIES(storage_policy='__hdfs_main',
               |                aaa='ccc')""".stripMargin)
@@ -576,7 +569,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite extends CreateMergeTreeSuite {
   test("test disable cache files return") {
     withSQLConf(CHConfig.ENABLE_GLUTEN_LOCAL_FILE_CACHE.key -> "false") {
       runSql(
-        s"CACHE FILES select * from '${hdfsHelper.getHdfsUrl("tpch-data/lineitem")}'",
+        s"CACHE FILES select * from '${hdfsHelper.hdfsURL("tpch-data/lineitem")}'",
         noFallBack = false) {
         df =>
           val res = df.collect()

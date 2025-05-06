@@ -60,8 +60,7 @@ class GlutenClickHouseWholeStageTransformerSuite
 
   val BUCKET_NAME: String = SPARK_DIR_NAME
   val minioHelper = new MinioTestHelper(TMP_PREFIX)
-  val hdfsHelper = new HDFSTestHelper(TMP_PREFIX)
-  val HDFS_URL: String = hdfsHelper.getHdfsUrl(SPARK_DIR_NAME)
+  val hdfsHelper = new HDFSTestHelper(TMP_PREFIX, SPARK_DIR_NAME)
 
   val CH_DEFAULT_STORAGE_DIR = "/data"
 
@@ -91,11 +90,10 @@ class GlutenClickHouseWholeStageTransformerSuite
       .set(RuntimeConfig.PATH.key, UTSystemParameters.diskOutputDataPath)
       .set(RuntimeConfig.TMP_PATH.key, s"/tmp/libch/$SPARK_DIR_NAME")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
-      minioHelper.setHadoopFileSystemConfig(conf)
-      minioHelper.setObjectStoreConfig(conf, BUCKET_NAME)
-      hdfsHelper.setHDFSStoreConfig(conf)
-      hdfsHelper.setHDFSStoreConfigRocksDB(conf)
-      hdfsHelper.setHdfsClientConfig(conf)
+      minioHelper.setFileSystem(conf)
+      minioHelper.setStoreConfig(conf, BUCKET_NAME)
+      hdfsHelper.setFileSystem(conf)
+      hdfsHelper.setStoreConfig(conf)
     } else {
       conf
     }

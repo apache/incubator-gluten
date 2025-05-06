@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig, RuntimeSettings}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
@@ -28,15 +28,11 @@ import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types._
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, Path}
-
 import scala.concurrent.duration.DurationInt
 
 class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConfig._
 
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -44,18 +40,15 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
   }
 
+  private val remotePath: String = hdfsHelper.independentHdfsURL("test")
   override protected def beforeEach(): Unit = {
     super.beforeEach()
-    val conf = new Configuration
-    conf.set("fs.defaultFS", HDFS_URL)
-    val fs = FileSystem.get(conf)
-    fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
+    hdfsHelper.deleteDir(remotePath)
     hdfsHelper.resetMeta()
   }
 
@@ -90,7 +83,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
 
@@ -155,7 +148,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_shipdate,l_orderkey',
                  |               primaryKey='l_shipdate')
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_orderbykey_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_orderbykey_hdfs'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -222,7 +215,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='l_orderkey',
                  |               primaryKey='l_orderkey')
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_partition_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_partition_hdfs'
                  |""".stripMargin)
 
     // dynamic partitions
@@ -384,7 +377,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
                  |TBLPROPERTIES (storage_policy='__hdfs_main',
                  |               orderByKey='c1',
                  |               primaryKey='c1')
-                 |LOCATION '$HDFS_URL/test/partition_escape'
+                 |LOCATION '$remotePath/partition_escape'
                  |""".stripMargin)
 
     spark.sql("insert into partition_escape select * from origin_table")
@@ -420,7 +413,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
                  |${if (spark32) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
-                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_bucket_hdfs'
+                 |LOCATION '$remotePath/lineitem_mergetree_bucket_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
 
@@ -469,7 +462,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
   }
 
   testSparkVersionLE33("test mergetree write with the path based bucket table") {
-    val dataPath = s"$HDFS_URL/test/lineitem_mergetree_bucket_hdfs"
+    val dataPath = s"$remotePath/lineitem_mergetree_bucket_hdfs"
 
     val sourceDF = spark.sql(s"""
                                 |select * from lineitem
@@ -525,12 +518,12 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
 
   test("test mergetree insert with optimize basic") {
     val tableName = "lineitem_mergetree_insert_optimize_basic_hdfs"
-    val dataPath = s"$HDFS_URL/test/$tableName"
+    val dataPath = s"$remotePath/$tableName"
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      CHConfig.runtimeSettings("mergetree.merge_after_insert") -> "true",
-      CHConfig.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
+      RuntimeSettings.MERGE_AFTER_INSERT.key -> "true",
+      RuntimeSettings.INSERT_WITHOUT_LOCAL_STORAGE.key -> "true",
       RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key -> "10000"
     ) {
       spark.sql(s"""
@@ -547,17 +540,9 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
 
       val ret = spark.sql(s"select count(*) from $tableName").collect()
       assertResult(600572)(ret.apply(0).get(0))
-      val conf = new Configuration
-      conf.set("fs.defaultFS", HDFS_URL)
-      val fs = FileSystem.get(conf)
 
       eventually(timeout(60.seconds), interval(2.seconds)) {
-        val it = fs.listFiles(new Path(dataPath), true)
-        var files = 0
-        while (it.hasNext) {
-          it.next()
-          files += 1
-        }
+        val files = hdfsHelper.countDir(dataPath)
         assertResult(4)(files)
       }
     }
