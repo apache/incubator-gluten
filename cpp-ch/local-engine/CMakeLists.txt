@@ -202,8 +202,8 @@ if(ENABLE_SEPARATE_SYMBOLS)
   separate_symbols(${LOCALENGINE_SHARED_LIB})
 endif()
 
- if(USE_SYMLINK)
-   add_custom_command(
+if(USE_SYMLINK)
+  add_custom_command(
     OUTPUT ${LOCALENGINE_SHARED_LIB_NAME}
     COMMAND
       ${CMAKE_COMMAND} -E create_symlink
@@ -211,15 +211,15 @@ endif()
     COMMENT
       "Creating symlink from $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> to ${LOCALENGINE_SHARED_LIB_NAME}"
     DEPENDS ${LOCALENGINE_SHARED_LIB})
- else()
-   add_custom_command(
+else()
+  add_custom_command(
     OUTPUT ${LOCALENGINE_SHARED_LIB_NAME}
     COMMAND ${CMAKE_COMMAND} -E rename $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}>
             ${LOCALENGINE_SHARED_LIB_NAME}
     COMMENT
       "Renaming $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> to ${LOCALENGINE_SHARED_LIB_NAME}"
     DEPENDS ${LOCALENGINE_SHARED_LIB})
- endif()
+endif()
 
 add_custom_target(libch ALL DEPENDS ${LOCALENGINE_SHARED_LIB_NAME})
 
