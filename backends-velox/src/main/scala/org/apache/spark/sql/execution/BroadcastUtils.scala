@@ -173,19 +173,19 @@ object BroadcastUtils {
       return ColumnarBatchSerializeResult.EMPTY
     }
     var rowNums = 0
-    val values = filtered.map(b => {
-      val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
-      rowNums += b.numRows()
-      try {
-        ColumnarBatchSerializerJniWrapper
-          .create(
-            Runtimes
+    val values = filtered.map(
+      b => {
+        val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
+        rowNums += b.numRows()
+        try {
+          ColumnarBatchSerializerJniWrapper
+            .create(Runtimes
               .contextInstance(BackendsApiManager.getBackendName, "BroadcastUtils#serializeStream"))
-          .serialize(handle)
-      } finally {
-        ColumnarBatches.release(b)
-      }
-    })
+            .serialize(handle)
+        } finally {
+          ColumnarBatches.release(b)
+        }
+      })
     new ColumnarBatchSerializeResult(rowNums, values)
   }
 
