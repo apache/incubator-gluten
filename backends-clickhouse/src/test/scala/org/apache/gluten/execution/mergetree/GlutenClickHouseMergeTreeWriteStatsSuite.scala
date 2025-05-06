@@ -28,9 +28,6 @@ import org.apache.spark.sql.delta.stats.PreparedDeltaFileIndex
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.functions.input_file_name
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.FileSystem
-
 class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
   override protected def sparkConf: SparkConf = {
@@ -51,12 +48,10 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
       .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
   }
 
+  private val remotePath: String = hdfsHelper.independentHdfsURL("stats")
   override protected def beforeEach(): Unit = {
     super.beforeEach()
-    val conf = new Configuration
-    conf.set("fs.defaultFS", HDFS_URL)
-    val fs = FileSystem.get(conf)
-    fs.delete(new org.apache.hadoop.fs.Path(HDFS_URL), true)
+    hdfsHelper.deleteDir(remotePath)
     hdfsHelper.resetMeta()
   }
 
@@ -96,7 +91,7 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
            |     ss_sold_date_sk INT
            |)
            |USING clickhouse
-           |LOCATION '$HDFS_URL/stats/store_sales'
+           |LOCATION '$remotePath/store_sales'
            |TBLPROPERTIES (storage_policy='__hdfs_main')
            |""".stripMargin,
       "store_returns" ->
@@ -125,7 +120,7 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
            |     sr_returned_date_sk INT
            |)
            |USING clickhouse
-           |LOCATION '$HDFS_URL/stats/store_returns'
+           |LOCATION '$remotePath/store_returns'
            |TBLPROPERTIES (storage_policy='__hdfs_main')
            |""".stripMargin,
       "catalog_sales" ->
@@ -168,7 +163,7 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
            |     cs_sold_date_sk INT
            |)
            |USING clickhouse
-           |LOCATION '$HDFS_URL/stats/catalog_sales'
+           |LOCATION '$remotePath/catalog_sales'
            |TBLPROPERTIES (storage_policy='__hdfs_main')
            |""".stripMargin,
       "catalog_returns" ->
@@ -204,7 +199,7 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
            |     cr_returned_date_sk INT
            |)
            |USING clickhouse
-           |LOCATION '$HDFS_URL/stats/catalog_returns'
+           |LOCATION '$remotePath/catalog_returns'
            |TBLPROPERTIES (storage_policy='__hdfs_main')
            |""".stripMargin,
       "web_sales" ->
@@ -247,7 +242,7 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
            |     ws_sold_date_sk INT
            |)
            |USING clickhouse
-           |LOCATION '$HDFS_URL/stats/web_sales'
+           |LOCATION '$remotePath/web_sales'
            |TBLPROPERTIES (storage_policy='__hdfs_main')
            |""".stripMargin,
       "web_returns" ->
@@ -280,7 +275,7 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
            |     wr_returned_date_sk INT
            |)
            |USING clickhouse
-           |LOCATION '$HDFS_URL/stats/web_returns'
+           |LOCATION '$remotePath/web_returns'
            |TBLPROPERTIES (storage_policy='__hdfs_main')
            |""".stripMargin,
       "inventory" ->
@@ -293,7 +288,7 @@ class GlutenClickHouseMergeTreeWriteStatsSuite extends GlutenClickHouseTPCDSAbst
            |     inv_date_sk INT
            |)
            |USING clickhouse
-           |LOCATION '$HDFS_URL/stats/inventory'
+           |LOCATION '$remotePath/inventory'
            |TBLPROPERTIES (storage_policy='__hdfs_main')
            |""".stripMargin
     )

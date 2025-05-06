@@ -60,8 +60,7 @@ class GlutenClickHouseWholeStageTransformerSuite
 
   val BUCKET_NAME: String = SPARK_DIR_NAME
   val minioHelper = new MinioTestHelper(TMP_PREFIX)
-  val hdfsHelper = new HDFSTestHelper(TMP_PREFIX)
-  val HDFS_URL: String = hdfsHelper.getHdfsUrl(SPARK_DIR_NAME)
+  val hdfsHelper = new HDFSTestHelper(TMP_PREFIX, SPARK_DIR_NAME)
 
   val CH_DEFAULT_STORAGE_DIR = "/data"
 
