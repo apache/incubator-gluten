@@ -195,6 +195,32 @@ object GlutenIcebergSourceUtil {
       throw new UnsupportedOperationException("Only support iceberg SparkBatchQueryScan.")
   }
 
+  def isSchemaReAdd(scan: Scan): Boolean = {
+    scan match {
+      case scan: SparkScan =>
+        val readSchema: StructType = scan.readSchema()
+        val readFieldNames = readSchema.fieldNames.toSet
+
+        val schemasMap = scan.table.schemas().asScala.map { case (k, v) => k.intValue() -> v }.toMap
+
+        val nameToIdSet = schemasMap.values
+          .flatMap {
+            schema => schema.idToName().asScala.map { case (id, name) => name -> id.intValue() }
+          }
+          .groupBy(_._1)
+          .mapValues(_.map(_._2).toSet)
+
+        readFieldNames.exists {
+          name =>
+            nameToIdSet.get(name) match {
+              case Some(ids) if ids.size > 1 => true
+              case _ => false
+            }
+        }
+      case _ => false
+    }
+  }
+
   private def asFileScanTask(tasks: List[ScanTask]): List[FileScanTask] = {
     if (tasks.forall(_.isFileScanTask)) {
       tasks.map(_.asFileScanTask())

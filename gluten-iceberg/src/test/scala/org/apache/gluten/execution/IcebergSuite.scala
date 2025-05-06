@@ -18,6 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
 abstract class IcebergSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -662,6 +663,38 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
 
       assert(result.length == 1)
       assert(result.head.getString(1) == "test_data")
+    }
+  }
+
+  test("fallback re add column") {
+    val testTable = "test_table_with_re_add_column"
+    withTable(testTable) {
+      spark.sql(s"""
+                   |CREATE TABLE $testTable (id INT, data STRING)
+                   |USING iceberg
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |INSERT INTO $testTable VALUES
+                   |(1, 'test_data');
+                   |""".stripMargin)
+
+      // drop column
+      spark.sql(s"""
+                   |ALTER TABLE $testTable DROP COLUMN data;
+                   |""".stripMargin)
+
+      // re add column
+      spark.sql(s"""
+                   |ALTER TABLE $testTable ADD COLUMNS (data STRING);
+                   |""".stripMargin)
+      // insert data
+      spark.sql(s"""
+                   |INSERT INTO $testTable VALUES
+                   |  (2, 'new_data');
+                   |  """.stripMargin)
+      val result = spark.sql(s"select data from $testTable where data is not null").collect()
+      assert(result.length == 1)
+      assert(result.head.getString(1) == "new_data")
     }
   }
 }
