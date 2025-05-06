@@ -238,8 +238,8 @@ RowVectorPtr deserialize(
     RowTypePtr type,
     uint32_t numRows,
     std::vector<BufferPtr>& buffers,
-    std::vector<int32_t> dictionaryFields,
-    std::vector<VectorPtr> dictionaries,
+    const std::vector<int32_t>& dictionaryFields,
+    const std::vector<VectorPtr>& dictionaries,
     memory::MemoryPool* pool) {
   std::vector<VectorPtr> children;
   auto types = type->as<TypeKind::ROW>().children();
@@ -254,7 +254,7 @@ RowVectorPtr deserialize(
   int32_t complexIdx = 0;
   int32_t dictionaryIdx = 0;
   for (size_t i = 0; i < types.size(); ++i) {
-    auto kind = types[i]->kind();
+    const auto kind = types[i]->kind();
     switch (kind) {
       case TypeKind::ROW:
       case TypeKind::MAP:
@@ -269,7 +269,7 @@ RowVectorPtr deserialize(
           ++dictionaryIdx;
         }
         auto res = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
-            readFlatVector, types[i]->kind(), buffers, bufferIdx, numRows, types[i], dictionary, pool);
+            readFlatVector, kind, buffers, bufferIdx, numRows, types[i], dictionary, pool);
         children.emplace_back(std::move(res));
       } break;
     }
@@ -282,8 +282,8 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     RowTypePtr type,
     uint32_t numRows,
     std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers,
-    std::vector<int32_t> dictionaryFields,
-    std::vector<VectorPtr> dictionaries,
+    const std::vector<int32_t>& dictionaryFields,
+    const std::vector<VectorPtr>& dictionaries,
     memory::MemoryPool* pool,
     int64_t& deserializeTime) {
   ScopedTimer timer(&deserializeTime);
@@ -403,15 +403,9 @@ class VeloxDictionaryReader {
 
   arrow::Result<std::vector<VectorPtr>> readDictionaries(arrow::io::InputStream* in, const std::vector<int32_t>& fields)
       const {
-    // Read bitmap.
-    auto bitMapSize = arrow::bit_util::RoundUpToMultipleOf8(rowType_->size());
-    std::vector<uint8_t> bitMap(bitMapSize);
-
-    RETURN_NOT_OK(in->Read(bitMapSize, bitMap.data()));
-
     // Read dictionary buffers.
     std::vector<VectorPtr> dictionaries;
-    for (auto i : fields) {
+    for (const auto i : fields) {
       auto dictionary = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
           readDictionary, rowType_->childAt(i)->kind(), in, rowType_->childAt(i), veloxPool_);
       dictionaries.emplace_back();

@@ -31,8 +31,7 @@ using enable_if_dictionary_binary = std::enable_if_t<is_dictionary_binary_type<T
 template <typename T>
 using is_dictionary_fixed_width_type = std::integral_constant<
     bool,
-    (arrow::is_primitive_ctype<T>::value && !std::is_same_v<arrow::BooleanType, T>) || arrow::is_date_type<T>::value ||
-        arrow::is_timestamp_type<T>::value || arrow::is_time_type<T>::value>;
+    (arrow::is_primitive_ctype<T>::value && !std::is_same_v<arrow::BooleanType, T>) || arrow::is_date_type<T>::value>;
 
 template <typename T, typename R = void>
 using enable_if_dictionary_fixed_width = std::enable_if_t<is_dictionary_fixed_width_type<T>::value, R>;
@@ -316,6 +315,7 @@ arrow::Status ArrowDictionaryWriter::initSchema(const std::shared_ptr<arrow::Sch
           break;
         case arrow::BooleanType::type_id:
         case arrow::Decimal128Type::type_id:
+        case arrow::TimestampType::type_id:
           fieldTypes_[i] = FieldType::kFixedWidth;
           break;
         case arrow::ListType::type_id:
