@@ -59,8 +59,7 @@ struct ShuffleTestParams {
 
 std::vector<RowVectorPtr> takeRows(
     const std::vector<RowVectorPtr>& sources,
-    const std::vector<std::vector<int32_t>>& indices,
-    const ShuffleTestParams& params) {
+    const std::vector<std::vector<int32_t>>& indices) {
   std::vector<RowVectorPtr> result;
 
   for (size_t i = 0; i < sources.size(); ++i) {
@@ -77,38 +76,17 @@ std::vector<RowVectorPtr> takeRows(
     result.push_back(std::move(copy));
   }
 
-  if (params.enableDictionary) {
-    std::vector<RowVectorPtr> mergeResult;
+  return result;
+}
 
-    auto copy = RowVector::createEmpty(sources[0]->type(), sources[0]->pool());
-    for (const auto& rv : result) {
-      if (copy->size() > 0 && copy->size() + rv.get()->size() > params.mergeBufferSize) {
-        mergeResult.push_back(std::move(copy));
-        copy = RowVector::createEmpty(sources[0]->type(), sources[0]->pool());
-      }
+RowVectorPtr mergeRowVectors(const std::vector<RowVectorPtr>& sources) {
+  RowVectorPtr result = RowVector::createEmpty(sources[0]->type(), sources[0]->pool());
 
-      if (copy->size() == 0 && rv.get()->size() >= params.mergeBufferSize * kDefaultMergeBufferThreshold) {
-        mergeResult.push_back(rv);
-        continue;
-      }
-
-      copy->append(rv.get());
-    }
-
-    if (copy->size() > 0) {
-      mergeResult.push_back(std::move(copy));
-    }
-
-    return mergeResult;
+  for (const auto& source : sources) {
+    result->append(source.get());
   }
 
-  // All rows are merged on reader side.
-  auto copy = RowVector::createEmpty(sources[0]->type(), sources[0]->pool());
-  for (const auto& rv : result) {
-    copy->append(rv.get());
-  }
-
-  return {copy};
+  return result;
 }
 
 std::vector<ShuffleTestParams> getTestParams() {
@@ -215,8 +193,8 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     ASSERT_EQ(*arrow::internal::FileExists(*arrow::internal::PlatformFilename::FromString(fileName)), true);
   }
 
-  std::shared_ptr<arrow::Schema> getArrowSchema(facebook::velox::RowVectorPtr& rowVector) {
-    return toArrowSchema(rowVector->type(), pool());
+  std::shared_ptr<arrow::Schema> getArrowSchema(const facebook::velox::RowVectorPtr& rowVector) const {
+    return toArrowSchema(rowVector->type(), getDefaultMemoryManager()->getLeafMemoryPool().get());
   }
 
   void setReadableFile(const std::string& fileName) {
@@ -228,11 +206,11 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
   void getRowVectors(
       arrow::Compression::type compressionType,
-      std::shared_ptr<arrow::Schema> schema,
+      const RowTypePtr& rowType,
       std::vector<facebook::velox::RowVectorPtr>& vectors,
       std::shared_ptr<arrow::io::InputStream> in) {
-    const auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
     const auto veloxCompressionType = arrowCompressionTypeToVelox(compressionType);
+    const auto schema = toArrowSchema(rowType, getDefaultMemoryManager()->getLeafMemoryPool().get());
 
     auto codec = createArrowIpcCodec(compressionType, CodecBackend::NONE);
 
@@ -258,6 +236,61 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     }
   }
 
+  void shuffleWriteReadMultiBlocks(
+      VeloxShuffleWriter& shuffleWriter,
+      int32_t expectPartitionLength,
+      const std::vector<std::vector<facebook::velox::RowVectorPtr>>& expectedVectors) {
+    ASSERT_NOT_OK(shuffleWriter.stop());
+
+    checkFileExists(dataFile_);
+
+    const auto& lengths = shuffleWriter.partitionLengths();
+    ASSERT_EQ(lengths.size(), expectPartitionLength);
+
+    int64_t lengthSum = std::accumulate(lengths.begin(), lengths.end(), 0);
+
+    setReadableFile(dataFile_);
+    ASSERT_EQ(*file_->GetSize(), lengthSum);
+    for (int32_t i = 0; i < expectPartitionLength; i++) {
+      if (expectedVectors[i].size() == 0) {
+        ASSERT_EQ(lengths[i], 0);
+      } else {
+        std::vector<facebook::velox::RowVectorPtr> deserializedVectors;
+        GLUTEN_ASSIGN_OR_THROW(
+            auto in, arrow::io::RandomAccessFile::GetStream(file_, i == 0 ? 0 : lengths[i - 1], lengths[i]));
+        getRowVectors(
+            partitionWriterOptions_.compressionType, asRowType(expectedVectors[i][0]->type()), deserializedVectors, in);
+
+        const auto expectedVector = mergeRowVectors(expectedVectors[i]);
+        const auto deserializedVector = mergeRowVectors(deserializedVectors);
+        facebook::velox::test::assertEqualVectors(expectedVector, deserializedVector);
+      }
+    }
+  }
+
+  void testShuffleRoundTrip(
+      VeloxShuffleWriter& shuffleWriter,
+      std::vector<std::shared_ptr<ColumnarBatch>> batches,
+      int32_t expectPartitionLength,
+      std::vector<std::vector<facebook::velox::RowVectorPtr>> expectedVectors) {
+    for (const auto& batch : batches) {
+      ASSERT_NOT_OK(shuffleWriter.write(batch, ShuffleWriter::kMinMemLimit));
+    }
+    shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, expectedVectors);
+  }
+
+  void testShuffleRoundTrip(
+      VeloxShuffleWriter& shuffleWriter,
+      std::vector<RowVectorPtr> inputs,
+      int32_t expectPartitionLength,
+      std::vector<std::vector<facebook::velox::RowVectorPtr>> expectedVectors) {
+    std::vector<std::shared_ptr<ColumnarBatch>> batches;
+    for (const auto& input : inputs) {
+      batches.emplace_back(std::make_shared<VeloxColumnarBatch>(input));
+    }
+    testShuffleRoundTrip(shuffleWriter, batches, expectPartitionLength, expectedVectors);
+  }
+
   inline static TestAllocationListener* listener_{nullptr};
 
   std::shared_ptr<arrow::io::ReadableFile> file_;
@@ -265,32 +298,6 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
 class SinglePartitioningShuffleWriter : public VeloxShuffleWriterTest {
  protected:
-  void testShuffleWrite(VeloxShuffleWriter& shuffleWriter, std::vector<facebook::velox::RowVectorPtr> inputs) {
-    for (auto& vector : inputs) {
-      ASSERT_NOT_OK(splitRowVector(shuffleWriter, vector));
-    }
-    ASSERT_NOT_OK(shuffleWriter.stop());
-
-    // Verify data file exists.
-    checkFileExists(dataFile_);
-
-    // Verify number of output partitions.
-    const auto& lengths = shuffleWriter.partitionLengths();
-    ASSERT_EQ(lengths.size(), 1);
-
-    const auto schema = getArrowSchema(inputs[0]);
-
-    std::vector<facebook::velox::RowVectorPtr> deserializedVectors;
-    setReadableFile(dataFile_);
-    GLUTEN_ASSIGN_OR_THROW(auto in, arrow::io::RandomAccessFile::GetStream(file_, 0, lengths[0]));
-    getRowVectors(partitionWriterOptions_.compressionType, schema, deserializedVectors, in);
-
-    ASSERT_EQ(deserializedVectors.size(), inputs.size());
-    for (int32_t i = 0; i < deserializedVectors.size(); i++) {
-      facebook::velox::test::assertEqualVectors(inputs[i], deserializedVectors[i]);
-    }
-  }
-
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t) override {
     auto* arrowPool = getDefaultMemoryManager()->getArrowMemoryPool();
     auto veloxPool = getDefaultMemoryManager()->getLeafMemoryPool();
@@ -310,56 +317,10 @@ class SinglePartitioningShuffleWriter : public VeloxShuffleWriterTest {
   }
 };
 
-class MultiplePartitioningShuffleWriter : public VeloxShuffleWriterTest {
- protected:
-  void shuffleWriteReadMultiBlocks(
-      VeloxShuffleWriter& shuffleWriter,
-      int32_t expectPartitionLength,
-      facebook::velox::TypePtr dataType,
-      std::vector<std::vector<facebook::velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
-    ASSERT_NOT_OK(shuffleWriter.stop());
-    // verify data file
-    checkFileExists(dataFile_);
-    // verify output temporary files
-    const auto& lengths = shuffleWriter.partitionLengths();
-    ASSERT_EQ(lengths.size(), expectPartitionLength);
-    int64_t lengthSum = std::accumulate(lengths.begin(), lengths.end(), 0);
-    auto schema = toArrowSchema(dataType, pool());
-    setReadableFile(dataFile_);
-    ASSERT_EQ(*file_->GetSize(), lengthSum);
-    for (int32_t i = 0; i < expectPartitionLength; i++) {
-      if (expectedVectors[i].size() == 0) {
-        ASSERT_EQ(lengths[i], 0);
-      } else {
-        std::vector<facebook::velox::RowVectorPtr> deserializedVectors;
-        GLUTEN_ASSIGN_OR_THROW(
-            auto in, arrow::io::RandomAccessFile::GetStream(file_, i == 0 ? 0 : lengths[i - 1], lengths[i]));
-        getRowVectors(partitionWriterOptions_.compressionType, schema, deserializedVectors, in);
-        GLUTEN_CHECK(expectedVectors[i].size() == deserializedVectors.size(), "failed");
-        for (int32_t j = 0; j < expectedVectors[i].size(); j++) {
-          facebook::velox::test::assertEqualVectors(expectedVectors[i][j], deserializedVectors[j]);
-        }
-      }
-    }
-  }
-
-  void testShuffleWriteMultiBlocks(
-      VeloxShuffleWriter& shuffleWriter,
-      std::vector<facebook::velox::RowVectorPtr> vectors,
-      int32_t expectPartitionLength,
-      facebook::velox::TypePtr dataType,
-      std::vector<std::vector<facebook::velox::RowVectorPtr>> expectedVectors) {
-    for (auto& vector : vectors) {
-      ASSERT_NOT_OK(splitRowVector(shuffleWriter, vector));
-    }
-    shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, dataType, expectedVectors);
-  }
-};
-
-class HashPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
+class HashPartitioningShuffleWriter : public VeloxShuffleWriterTest {
  protected:
   void SetUp() override {
-    MultiplePartitioningShuffleWriter::SetUp();
+    VeloxShuffleWriterTest::SetUp();
 
     children1_.insert((children1_.begin()), makeFlatVector<int32_t>({1, 2, 2, 2, 2, 1, 1, 1, 2, 1}));
     hashInputVector1_ = makeRowVector(children1_);
@@ -396,10 +357,10 @@ class HashPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
   facebook::velox::RowVectorPtr hashInputVector2_;
 };
 
-class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
+class RangePartitioningShuffleWriter : public VeloxShuffleWriterTest {
  protected:
   void SetUp() override {
-    MultiplePartitioningShuffleWriter::SetUp();
+    VeloxShuffleWriterTest::SetUp();
 
     auto pid1 = makeRowVector({makeFlatVector<int32_t>({0, 1, 0, 1, 0, 1, 0, 1, 0, 1})});
     auto rangeVector1 = makeRowVector(inputVector1_->children());
@@ -435,23 +396,11 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
     return shuffleWriter;
   }
 
-  void testShuffleWriteMultiBlocks(
-      VeloxShuffleWriter& shuffleWriter,
-      std::vector<std::shared_ptr<ColumnarBatch>> batches,
-      int32_t expectPartitionLength,
-      facebook::velox::TypePtr dataType,
-      std::vector<std::vector<facebook::velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
-    for (auto& batch : batches) {
-      ASSERT_NOT_OK(shuffleWriter.write(batch, ShuffleWriter::kMinMemLimit));
-    }
-    shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, dataType, expectedVectors);
-  }
-
   std::shared_ptr<ColumnarBatch> compositeBatch1_;
   std::shared_ptr<ColumnarBatch> compositeBatch2_;
 };
 
-class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
+class RoundRobinPartitioningShuffleWriter : public VeloxShuffleWriterTest {
  protected:
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) override {
     auto* arrowPool = getDefaultMemoryManager()->getArrowMemoryPool();
@@ -487,13 +436,16 @@ TEST_P(SinglePartitioningShuffleWriter, single) {
   // Split 1 RowVector.
   {
     auto shuffleWriter = createShuffleWriter(1);
-    testShuffleWrite(*shuffleWriter, {inputVector1_});
+    testShuffleRoundTrip(*shuffleWriter, {inputVector1_}, 1, {{inputVector1_}});
   }
   // Split > 1 RowVector.
   {
     auto shuffleWriter = createShuffleWriter(1);
-    auto resultBlock = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{}, {}, {}}, GetParam());
-    testShuffleWrite(*shuffleWriter, resultBlock);
+    testShuffleRoundTrip(
+        *shuffleWriter,
+        {inputVector1_, inputVector2_, inputVector1_},
+        1,
+        {{inputVector1_, inputVector2_, inputVector1_}});
   }
   // Split null RowVector.
   {
@@ -502,7 +454,7 @@ TEST_P(SinglePartitioningShuffleWriter, single) {
         makeNullableFlatVector<int32_t>({std::nullopt}),
         makeNullableFlatVector<StringView>({std::nullopt}),
     });
-    testShuffleWrite(*shuffleWriter, {vector});
+    testShuffleRoundTrip(*shuffleWriter, {vector}, 1, {{vector}});
   }
   // Other types.
   {
@@ -526,7 +478,7 @@ TEST_P(SinglePartitioningShuffleWriter, single) {
         }),
         makeMapVector<int32_t, StringView>({{{1, "str1000"}, {2, "str2000"}}, {{3, "str3000"}, {4, "str4000"}}}),
     });
-    testShuffleWrite(*shuffleWriter, {vector});
+    testShuffleRoundTrip(*shuffleWriter, {vector}, 1, {{vector}});
   }
 }
 
@@ -577,7 +529,7 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeNullableFlatVector<Timestamp>({std::nullopt, Timestamp(0, 0)}),
   });
 
-  testShuffleWriteMultiBlocks(*shuffleWriter, {vector}, 2, dataType, {{firstBlock}, {secondBlock}});
+  testShuffleRoundTrip(*shuffleWriter, {vector}, 2, {{firstBlock}, {secondBlock}});
 }
 
 TEST_P(HashPartitioningShuffleWriter, hashPart1VectorComplexType) {
@@ -586,26 +538,21 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1VectorComplexType) {
   auto children = childrenComplex_;
   children.insert((children.begin()), makeFlatVector<int32_t>({1, 2}));
   auto vector = makeRowVector(children);
-  auto firstBlock = takeRows({inputVectorComplex_}, {{1}}, GetParam());
-  auto secondBlock = takeRows({inputVectorComplex_}, {{0}}, GetParam());
+  auto firstBlock = takeRows({inputVectorComplex_}, {{1}});
+  auto secondBlock = takeRows({inputVectorComplex_}, {{0}});
 
-  testShuffleWriteMultiBlocks(*shuffleWriter, {vector}, 2, inputVectorComplex_->type(), {firstBlock, secondBlock});
+  testShuffleRoundTrip(*shuffleWriter, {vector}, 2, {firstBlock, secondBlock});
 }
 
 TEST_P(HashPartitioningShuffleWriter, hashPart3Vectors) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   auto shuffleWriter = createShuffleWriter(2);
 
-  auto blockPid2 =
-      takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 2, 3, 4, 8}, {0, 1}, {1, 2, 3, 4, 8}}, GetParam());
-  auto blockPid1 = takeRows({inputVector1_, inputVector1_}, {{0, 5, 6, 7, 9}, {0, 5, 6, 7, 9}}, GetParam());
+  auto blockPid2 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 2, 3, 4, 8}, {0, 1}, {1, 2, 3, 4, 8}});
+  auto blockPid1 = takeRows({inputVector1_, inputVector1_}, {{0, 5, 6, 7, 9}, {0, 5, 6, 7, 9}});
 
-  testShuffleWriteMultiBlocks(
-      *shuffleWriter,
-      {hashInputVector1_, hashInputVector2_, hashInputVector1_},
-      2,
-      inputVector1_->type(),
-      {blockPid2, blockPid1});
+  testShuffleRoundTrip(
+      *shuffleWriter, {hashInputVector1_, hashInputVector2_, hashInputVector1_}, 2, {blockPid2, blockPid1});
 }
 
 TEST_P(HashPartitioningShuffleWriter, hashLargeVectors) {
@@ -619,43 +566,32 @@ TEST_P(HashPartitioningShuffleWriter, hashLargeVectors) {
     VELOX_CHECK_EQ(shuffleWriter->maxBatchSize(), expectedMaxBatchSize);
   }
 
-  auto blockPid2 =
-      takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 2, 3, 4, 8}, {}, {1, 2, 3, 4, 8}}, GetParam());
-  auto blockPid1 = takeRows({inputVector1_, inputVector1_}, {{0, 5, 6, 7, 9}, {0, 5, 6, 7, 9}}, GetParam());
+  auto blockPid2 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 2, 3, 4, 8}, {}, {1, 2, 3, 4, 8}});
+  auto blockPid1 = takeRows({inputVector1_, inputVector1_}, {{0, 5, 6, 7, 9}, {0, 5, 6, 7, 9}});
 
   VELOX_CHECK(hashInputVector1_->size() > expectedMaxBatchSize);
-  testShuffleWriteMultiBlocks(
-      *shuffleWriter, {hashInputVector2_, hashInputVector1_}, 2, inputVector1_->type(), {blockPid2, blockPid1});
+  testShuffleRoundTrip(*shuffleWriter, {hashInputVector2_, hashInputVector1_}, 2, {blockPid2, blockPid1});
 }
 
 TEST_P(RangePartitioningShuffleWriter, range) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   auto shuffleWriter = createShuffleWriter(2);
 
-  auto blockPid1 =
-      takeRows({inputVector1_, inputVector2_, inputVector1_}, {{0, 2, 4, 6, 8}, {0}, {0, 2, 4, 6, 8}}, GetParam());
-  auto blockPid2 =
-      takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 3, 5, 7, 9}, {1}, {1, 3, 5, 7, 9}}, GetParam());
+  auto blockPid1 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{0, 2, 4, 6, 8}, {0}, {0, 2, 4, 6, 8}});
+  auto blockPid2 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 3, 5, 7, 9}, {1}, {1, 3, 5, 7, 9}});
 
-  testShuffleWriteMultiBlocks(
-      *shuffleWriter,
-      {compositeBatch1_, compositeBatch2_, compositeBatch1_},
-      2,
-      inputVector1_->type(),
-      {blockPid1, blockPid2});
+  testShuffleRoundTrip(
+      *shuffleWriter, {compositeBatch1_, compositeBatch2_, compositeBatch1_}, 2, {blockPid1, blockPid2});
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, roundRobin) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   auto shuffleWriter = createShuffleWriter(2);
 
-  auto blockPid1 =
-      takeRows({inputVector1_, inputVector2_, inputVector1_}, {{0, 2, 4, 6, 8}, {0}, {0, 2, 4, 6, 8}}, GetParam());
-  auto blockPid2 =
-      takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 3, 5, 7, 9}, {1}, {1, 3, 5, 7, 9}}, GetParam());
+  auto blockPid1 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{0, 2, 4, 6, 8}, {0}, {0, 2, 4, 6, 8}});
+  auto blockPid2 = takeRows({inputVector1_, inputVector2_, inputVector1_}, {{1, 3, 5, 7, 9}, {1}, {1, 3, 5, 7, 9}});
 
-  testShuffleWriteMultiBlocks(
-      *shuffleWriter, {inputVector1_, inputVector2_, inputVector1_}, 2, inputVector1_->type(), {blockPid1, blockPid2});
+  testShuffleRoundTrip(*shuffleWriter, {inputVector1_, inputVector2_, inputVector1_}, 2, {blockPid1, blockPid2});
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
@@ -783,12 +719,12 @@ TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
 
   auto blockPid1 =
-      takeRows({inputVector1_, inputVector1_}, {{0, 2, 4, 6, 8}, {0, 2, 4, 6, 8}, {0, 2, 4, 6, 8}}, GetParam());
+      takeRows({inputVector1_, inputVector1_, inputVector1_}, {{0, 2, 4, 6, 8}, {0, 2, 4, 6, 8}, {0, 2, 4, 6, 8}});
   auto blockPid2 =
-      takeRows({inputVector1_, inputVector1_}, {{1, 3, 5, 7, 9}, {1, 3, 5, 7, 9}, {1, 3, 5, 7, 9}}, GetParam());
+      takeRows({inputVector1_, inputVector1_, inputVector1_}, {{1, 3, 5, 7, 9}, {1, 3, 5, 7, 9}, {1, 3, 5, 7, 9}});
 
   // Stop and verify.
-  shuffleWriteReadMultiBlocks(*shuffleWriter, 2, inputVector1_->type(), {blockPid1, blockPid2});
+  shuffleWriteReadMultiBlocks(*shuffleWriter, 2, {blockPid1, blockPid2});
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, sortMaxRows) {
@@ -801,9 +737,9 @@ TEST_P(RoundRobinPartitioningShuffleWriter, sortMaxRows) {
   // Set memLimit to 0 to force allocate a new buffer for each row.
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_, 0));
 
-  auto blockPid1 = takeRows({inputVector1_}, {{0, 2, 4, 6, 8}}, GetParam());
-  auto blockPid2 = takeRows({inputVector1_}, {{1, 3, 5, 7, 9}}, GetParam());
-  shuffleWriteReadMultiBlocks(*shuffleWriter, 2, inputVector1_->type(), {blockPid1, blockPid2});
+  auto blockPid1 = takeRows({inputVector1_}, {{0, 2, 4, 6, 8}});
+  auto blockPid2 = takeRows({inputVector1_}, {{1, 3, 5, 7, 9}});
+  shuffleWriteReadMultiBlocks(*shuffleWriter, 2, {blockPid1, blockPid2});
 }
 
 INSTANTIATE_TEST_SUITE_P(
