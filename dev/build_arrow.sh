@@ -37,7 +37,6 @@ function build_arrow_cpp() {
  pushd $ARROW_PREFIX/cpp
 
  cmake_install \
-       -DARROW_PARQUET=ON \
        -DARROW_FILESYSTEM=ON \
        -DARROW_PROTOBUF_USE_SHARED=OFF \
        -DARROW_DEPENDENCY_USE_SHARED=OFF \
