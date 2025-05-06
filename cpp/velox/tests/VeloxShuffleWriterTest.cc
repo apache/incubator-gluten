@@ -688,7 +688,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
-  if (GetParam().shuffleWriterType != ShuffleWriterType::kHashShuffle || GetParam().enableDictionary) {
+  if (GetParam().shuffleWriterType != ShuffleWriterType::kHashShuffle) {
     return;
   }
 
