@@ -1106,8 +1106,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSeriali
 
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
   auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
-  GLUTEN_DCHECK(
-      batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
+  GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
   batches.emplace_back(batch);
 
   auto serializer = ctx->createColumnarBatchSerializer(nullptr);
