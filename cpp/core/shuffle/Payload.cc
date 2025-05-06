@@ -187,6 +187,8 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec,
     std::shared_ptr<arrow::Buffer> compressed) {
+  const uint32_t numBuffers = buffers.size();
+
   if (payloadType == Payload::Type::kCompressed) {
     Timer compressionTime;
     compressionTime.start();
@@ -221,14 +223,16 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
     } else {
       RETURN_NOT_OK(std::dynamic_pointer_cast<arrow::ResizableBuffer>(compressedBuffer)->Resize(actualLength));
     }
+
     compressionTime.stop();
     auto payload = std::unique_ptr<BlockPayload>(
-        new BlockPayload(Type::kCompressed, numRows, {compressedBuffer}, isValidityBuffer, pool, codec));
+        new BlockPayload(Type::kCompressed, numRows, numBuffers, {compressedBuffer}, isValidityBuffer, codec));
     payload->setCompressionTime(compressionTime.realTimeUsed());
+
     return payload;
   }
   return std::unique_ptr<BlockPayload>(
-      new BlockPayload(payloadType, numRows, std::move(buffers), isValidityBuffer, pool, codec));
+      new BlockPayload(payloadType, numRows, numBuffers, std::move(buffers), isValidityBuffer, codec));
 }
 
 arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
@@ -237,8 +241,7 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
       ScopedTimer timer(&writeTime_);
       RETURN_NOT_OK(outputStream->Write(&kUncompressedType, sizeof(Type)));
       RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-      uint32_t numBuffers = buffers_.size();
-      RETURN_NOT_OK(outputStream->Write(&numBuffers, sizeof(uint32_t)));
+      RETURN_NOT_OK(outputStream->Write(&numBuffers_, sizeof(uint32_t)));
       for (auto& buffer : buffers_) {
         if (!buffer) {
           RETURN_NOT_OK(outputStream->Write(&kNullBuffer, sizeof(int64_t)));
@@ -255,8 +258,7 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
       ScopedTimer timer(&writeTime_);
 
       // No type and rows metadata for kToBeCompressed payload.
-      uint32_t numBuffers = buffers_.size();
-      RETURN_NOT_OK(outputStream->Write(&numBuffers, sizeof(uint32_t)));
+      RETURN_NOT_OK(outputStream->Write(&numBuffers_, sizeof(uint32_t)));
 
       for (auto& buffer : buffers_) {
         if (!buffer) {
@@ -275,8 +277,7 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
       ScopedTimer timer(&writeTime_);
       RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
       RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-      uint32_t buffers = numBuffers();
-      RETURN_NOT_OK(outputStream->Write(&buffers, sizeof(uint32_t)));
+      RETURN_NOT_OK(outputStream->Write(&numBuffers_, sizeof(uint32_t)));
       RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
     } break;
     case Type::kRaw: {
@@ -471,6 +472,10 @@ arrow::Status InMemoryPayload::copyBuffers(arrow::MemoryPool* pool) {
 
 int64_t InMemoryPayload::rawSize() {
   return getBufferSize(buffers_);
+}
+
+uint32_t InMemoryPayload::numBuffers() const {
+  return buffers_.size();
 }
 
 int64_t InMemoryPayload::rawCapacity() const {
