@@ -118,6 +118,40 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
     checkEvaluation(cast(emptyInput, ArrayType(StringType)), expectedEmpty)
   }
 
+  test("cast array of integer types to array of double") {
+    val intArray = Literal.create(Seq(1, 2, 3), ArrayType(IntegerType))
+    val bigintArray = Literal.create(Seq(10000000000L), ArrayType(LongType))
+    val smallintArray = Literal.create(Seq(1.toShort, -1.toShort), ArrayType(ShortType))
+    val tinyintArray = Literal.create(Seq(1.toByte, -1.toByte), ArrayType(ByteType))
+
+    checkEvaluation(cast(intArray, ArrayType(DoubleType)), Seq(1.0, 2.0, 3.0))
+    checkEvaluation(cast(bigintArray, ArrayType(DoubleType)), Seq(1.0e10))
+    checkEvaluation(cast(smallintArray, ArrayType(DoubleType)), Seq(1.0, -1.0))
+    checkEvaluation(cast(tinyintArray, ArrayType(DoubleType)), Seq(1.0, -1.0))
+  }
+
+  test("cast array of double to array of integer types") {
+    val doubleArray = Literal.create(Seq(1.9, -2.1), ArrayType(DoubleType))
+
+    checkEvaluation(cast(doubleArray, ArrayType(IntegerType)), Seq(1, -2))
+    checkEvaluation(cast(doubleArray, ArrayType(LongType)), Seq(1L, -2L))
+    checkEvaluation(cast(doubleArray, ArrayType(ShortType)), Seq(1.toShort, -2.toShort))
+    checkEvaluation(cast(doubleArray, ArrayType(ByteType)), Seq(1.toByte, -2.toByte))
+  }
+
+  test("cast array element from allowed types to string (varchar)") {
+    val doubleArray = Literal.create(Seq(1.1, null, 3.3), ArrayType(DoubleType))
+    val boolArray = Literal.create(Seq(true, false), ArrayType(BooleanType))
+    val timestampArray = Literal.create(
+      Seq(Timestamp.valueOf("2023-01-01 12:00:00"), null),
+      ArrayType(TimestampType)
+    )
+
+    checkEvaluation(cast(doubleArray, ArrayType(StringType)), Seq("1.1", null, "3.3"))
+    checkEvaluation(cast(boolArray, ArrayType(StringType)), Seq("true", "false"))
+    checkEvaluation(cast(timestampArray, ArrayType(StringType)), Seq("2023-01-01 12:00:00", null))
+  }
+
   testGluten("missing cases - from byte") {
     DataTypeTestUtils.numericTypeWithoutDecimal.foreach {
       t =>
