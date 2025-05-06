@@ -53,9 +53,6 @@ jmethodID jniByteInputStreamClose;
 jclass splitResultClass;
 jmethodID splitResultConstructor;
 
-jclass columnarBatchSerializeResultClass;
-jmethodID columnarBatchSerializeResultConstructor;
-
 jclass metricsBuilderClass;
 jmethodID metricsBuilderConstructor;
 jclass nativeColumnarToRowInfoClass;
@@ -217,11 +214,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/GlutenSplitResult;");
   splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJJ[J[J)V");
 
-  columnarBatchSerializeResultClass =
-      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchSerializeResult;");
-  columnarBatchSerializeResultConstructor =
-      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", "(J[B)V");
-
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
   metricsBuilderConstructor = getMethodIdOrError(
@@ -249,7 +241,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
-  env->DeleteGlobalRef(columnarBatchSerializeResultClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
