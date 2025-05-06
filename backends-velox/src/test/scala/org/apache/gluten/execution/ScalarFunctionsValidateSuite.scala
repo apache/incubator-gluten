@@ -208,8 +208,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("chr function") {
-    val df = runQueryAndCompare(
-      "SELECT chr(l_orderkey + 64) from lineitem limit 1") {
+    val df = runQueryAndCompare("SELECT chr(l_orderkey + 64) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
@@ -225,48 +224,42 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("abs function") {
-    val df = runQueryAndCompare(
-      "SELECT abs(l_orderkey) from lineitem limit 1") {
+    val df = runQueryAndCompare("SELECT abs(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("ceil function") {
-    val df = runQueryAndCompare(
-      "SELECT ceil(cast(l_orderkey as long)) from lineitem limit 1") {
+    val df = runQueryAndCompare("SELECT ceil(cast(l_orderkey as long)) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("floor function") {
-    val df = runQueryAndCompare(
-      "SELECT floor(cast(l_orderkey as long)) from lineitem limit 1") {
+    val df = runQueryAndCompare("SELECT floor(cast(l_orderkey as long)) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("exp function") {
-    val df = runQueryAndCompare(
-      "SELECT exp(l_orderkey) from lineitem limit 1") {
+    val df = runQueryAndCompare("SELECT exp(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("power function") {
-    val df = runQueryAndCompare(
-      "SELECT power(l_orderkey, 2) from lineitem limit 1") {
+    val df = runQueryAndCompare("SELECT power(l_orderkey, 2) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("pmod function") {
-    val df =  runQueryAndCompare(
-      "SELECT pmod(cast(l_orderkey as int), 3) from lineitem limit 1") {
+    val df = runQueryAndCompare("SELECT pmod(cast(l_orderkey as int), 3) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
