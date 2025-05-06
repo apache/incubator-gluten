@@ -231,6 +231,7 @@ class LocalPartitionWriter::PayloadMerger {
       partitionMergePayload_[partitionId] = std::move(payload);
       return merged;
     }
+
     // mergedRows == mergeBufferSize_
     merged.emplace_back(std::move(payload));
     return merged;
@@ -273,11 +274,13 @@ class LocalPartitionWriter::PayloadCache {
       uint32_t numPartitions,
       arrow::util::Codec* codec,
       int32_t compressionThreshold,
+      bool enableDictionary,
       arrow::MemoryPool* pool,
       MemoryManager* memoryManager)
       : numPartitions_(numPartitions),
         codec_(codec),
         compressionThreshold_(compressionThreshold),
+        enableDictionary_(enableDictionary),
         pool_(pool),
         memoryManager_(memoryManager) {}
 
@@ -288,7 +291,7 @@ class LocalPartitionWriter::PayloadCache {
       partitionCachedPayload_[partitionId] = std::list<std::unique_ptr<BlockPayload>>{};
     }
 
-    if (useDictionary_) {
+    if (enableDictionary_) {
       if (partitionDictionaries_.find(partitionId) == partitionDictionaries_.end()) {
         partitionDictionaries_[partitionId] = createDictionaryWriter(memoryManager_);
       }
@@ -413,13 +416,11 @@ class LocalPartitionWriter::PayloadCache {
   }
 
   arrow::Result<bool> tryFlushDictionary(uint32_t partitionId, arrow::io::OutputStream* os) {
-    if (useDictionary_ && partitionDictionaries_.find(partitionId) != partitionDictionaries_.end()) {
+    if (enableDictionary_ && partitionDictionaries_.find(partitionId) != partitionDictionaries_.end()) {
       static constexpr uint8_t kDictionaryBlock = static_cast<uint8_t>(BlockType::kDictionary);
       RETURN_NOT_OK(os->Write(&kDictionaryBlock, sizeof(kDictionaryBlock)));
       RETURN_NOT_OK(partitionDictionaries_[partitionId]->serialize(os));
-
       partitionDictionaries_.erase(partitionId);
-
       return true;
     }
     return false;
@@ -428,6 +429,7 @@ class LocalPartitionWriter::PayloadCache {
   uint32_t numPartitions_;
   arrow::util::Codec* codec_;
   int32_t compressionThreshold_;
+  bool enableDictionary_;
   arrow::MemoryPool* pool_;
   MemoryManager* memoryManager_;
 
@@ -438,7 +440,6 @@ class LocalPartitionWriter::PayloadCache {
 
   std::unordered_map<uint32_t, std::shared_ptr<DictionaryWriter>> partitionDictionaries_;
 
-  bool useDictionary_{false};
   std::optional<uint32_t> partitionInUse_{std::nullopt};
 };
 
@@ -556,7 +557,12 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
         if (maybeMerged.has_value()) {
           if (!payloadCache_) {
             payloadCache_ = std::make_shared<PayloadCache>(
-                numPartitions_, codec_.get(), options_.compressionThreshold, payloadPool_.get(), memoryManager_);
+                numPartitions_,
+                codec_.get(),
+                options_.compressionThreshold,
+                options_.enableDictionary,
+                payloadPool_.get(),
+                memoryManager_);
           }
           // Spill can be triggered by compressing or building dictionaries.
           RETURN_NOT_OK(payloadCache_->cache(pid, std::move(maybeMerged.value())));
@@ -662,7 +668,12 @@ arrow::Status LocalPartitionWriter::hashEvict(
   if (!merged.empty()) {
     if (UNLIKELY(!payloadCache_)) {
       payloadCache_ = std::make_shared<PayloadCache>(
-          numPartitions_, codec_.get(), options_.compressionThreshold, payloadPool_.get(), memoryManager_);
+          numPartitions_,
+          codec_.get(),
+          options_.compressionThreshold,
+          options_.enableDictionary,
+          payloadPool_.get(),
+          memoryManager_);
     }
     for (auto& payload : merged) {
       RETURN_NOT_OK(payloadCache_->cache(partitionId, std::move(payload)));

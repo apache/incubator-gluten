@@ -59,7 +59,7 @@ class VeloxHashShuffleWriterSpillTest : public VeloxShuffleWriterTestBase, publi
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxHashShuffleWriter::create(
-            numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions_), veloxPool, arrowPool));
+            numPartitions, std::move(partitionWriter), shuffleWriterOptions_, veloxPool, arrowPool));
 
     return shuffleWriter;
   }
