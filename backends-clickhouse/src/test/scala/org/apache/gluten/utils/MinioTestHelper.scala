@@ -85,7 +85,7 @@ class MinioTestHelper(TMP_PREFIX: String) {
     objectNames
   }
 
-  def setHadoopFileSystemConfig(conf: SparkConf): SparkConf = {
+  def setFileSystem(conf: SparkConf): SparkConf = {
     conf
       .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
       .set("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
@@ -98,7 +98,7 @@ class MinioTestHelper(TMP_PREFIX: String) {
   def builder(policyName: String): StoreConfigBuilder =
     new StoreConfigBuilder(policyName, GlutenObjectStorageConfig.S3_DISK_TYPE)
 
-  def setObjectStoreConfig(conf: SparkConf, BUCKET_NAME: String): SparkConf = {
+  def setStoreConfig(conf: SparkConf, BUCKET_NAME: String): SparkConf = {
     builder(STORE_POLICY)
       .withEndpoint(s"$MINIO_ENDPOINT$BUCKET_NAME/")
       .withMetadataPath(S3_METADATA_PATH)

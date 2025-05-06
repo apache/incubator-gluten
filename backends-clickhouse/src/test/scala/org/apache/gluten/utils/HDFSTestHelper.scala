@@ -79,30 +79,22 @@ class HDFSTestHelper(TMP_PREFIX: String, independentDir: String) {
     }
   }
 
-  def setCommonHDFSStoreConfig(
-      conf: SparkConf,
-      policyName: String,
-      useDiskcache: Boolean = true,
-      useRocksDB: Boolean = false): SparkConf = {
-
-    builder(policyName)
+  def setStoreConfig(conf: SparkConf): SparkConf = {
+    builder(STORE_POLICY)
       .withEndpoint(s"$HDFS_URL_ENDPOINT/")
       .withMetadataPath(HDFS_METADATA_PATH)
       .withCachePath(HDFS_CACHE_PATH)
-      .withDiskcache(useDiskcache)
-      .withRocksDB(useRocksDB)
+      .build(conf)
+
+    builder(STORE_POLICY_ROCKSDB)
+      .withEndpoint(s"$HDFS_URL_ENDPOINT/")
+      .withMetadataPath(HDFS_METADATA_PATH)
+      .withDiskcache(false)
+      .withRocksDB(true)
       .build(conf)
   }
 
-  def setHDFSStoreConfig(conf: SparkConf): SparkConf = {
-    setCommonHDFSStoreConfig(conf, policyName = STORE_POLICY)
-  }
-
-  def setHDFSStoreConfigRocksDB(conf: SparkConf): SparkConf = {
-    setCommonHDFSStoreConfig(conf, policyName = STORE_POLICY_ROCKSDB, useRocksDB = true)
-  }
-
-  def setHdfsClientConfig(conf: SparkConf): SparkConf = {
+  def setFileSystem(conf: SparkConf): SparkConf = {
     conf.setCHConfig(
       "hdfs.dfs_client_read_shortcircuit" -> "false",
       "hdfs.dfs_default_replica" -> "1"
