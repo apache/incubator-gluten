@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-#include "VeloxHashShuffleWriter.h"
+#include "shuffle/VeloxHashShuffleWriter.h"
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryManager.h"
-#include "shuffle/ShuffleSchema.h"
 #include "shuffle/Utils.h"
 #include "utils/Common.h"
 #include "utils/Macros.h"

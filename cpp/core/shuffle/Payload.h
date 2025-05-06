@@ -55,10 +55,6 @@ class Payload {
     return numRows_;
   }
 
-  uint32_t numBuffers() {
-    return isValidityBuffer_ ? isValidityBuffer_->size() : 1;
-  }
-
   const std::vector<bool>* isValidityBuffer() const {
     return isValidityBuffer_;
   }
@@ -104,20 +100,23 @@ class BlockPayload final : public Payload {
 
   int64_t rawSize() override;
 
- protected:
+ private:
   BlockPayload(
       Type type,
       uint32_t numRows,
+      uint32_t numBuffers,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
-      arrow::MemoryPool* pool,
       arrow::util::Codec* codec)
-      : Payload(type, numRows, isValidityBuffer), buffers_(std::move(buffers)), pool_(pool), codec_(codec) {}
+      : Payload(type, numRows, isValidityBuffer),
+        numBuffers_(numBuffers),
+        buffers_(std::move(buffers)),
+        codec_(codec) {}
 
   void setCompressionTime(int64_t compressionTime);
 
+  uint32_t numBuffers_;
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
-  arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
 };
 
@@ -150,6 +149,8 @@ class InMemoryPayload final : public Payload {
   arrow::Status copyBuffers(arrow::MemoryPool* pool);
 
   int64_t rawSize() override;
+
+  uint32_t numBuffers() const;
 
   int64_t rawCapacity() const;
 
