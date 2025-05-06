@@ -209,14 +209,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   if (name == "extract") {
     return validateExtractExpr(params);
   }
-  if (name == "concat") {
-    for (const auto& type : types) {
-      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos) {
-        LOG_VALIDATION_MSG(type + " is not supported in concat.");
-        return false;
-      }
-    }
-  }
 
   // Validate regex functions.
   if (kRegexFunctions.find(name) != kRegexFunctions.end()) {
