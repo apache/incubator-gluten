@@ -22,7 +22,6 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{functions, DataFrame, Row}
 import org.apache.spark.sql.execution.LocalTableScanExec
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.types._
 
 import java.sql.{Date, Timestamp}
@@ -47,24 +46,11 @@ case class AllDataTypesWithNonPrimitiveType(
     // data: (Seq[Int], (Int, String))
 )
 
-class GlutenClickHouseExcelFormatSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransformerSuite {
   import testImplicits._
 
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
-
-  protected val orcDataPath: String = rootPath + "orc-data"
-  protected val csvDataPath: String = rootPath + "csv-data"
-
-  override protected def createTPCHNullableTables(): Unit = {}
-
-  override protected def createTPCHNotNullTables(): Unit = {}
+  protected val orcDataPath: String = resPath + "orc-data"
+  protected val csvDataPath: String = resPath + "csv-data"
 
   override protected def sparkConf: SparkConf = {
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._
@@ -78,7 +64,7 @@ class GlutenClickHouseExcelFormatSuite
   // in this case, FakeRowAdaptor does R2C
   test("parquet native writer writing a in memory DF") {
     withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
-      val filePath = basePath + "/native_parquet_test"
+      val filePath = dataHome + "/native_parquet_test"
       val format = "parquet"
 
       val df1 = spark.createDataFrame(genTestData())
@@ -102,10 +88,10 @@ class GlutenClickHouseExcelFormatSuite
   test("parquet native writer writing a DF from file") {
     withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
 
-      val filePath = basePath + "/native_parquet_test"
+      val filePath = dataHome + "/native_parquet_test"
       val format = "parquet"
 
-      val df1 = spark.read.parquet(tablesPath + "/customer")
+      val df1 = spark.read.parquet(testParquetAbsolutePath + "/customer")
       df1.write
         .mode("overwrite")
         .format("parquet")
@@ -126,7 +112,7 @@ class GlutenClickHouseExcelFormatSuite
   test("parquet native writer writing a DF from an aggregate") {
     withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
 
-      val filePath = basePath + "/native_parquet_test_agg"
+      val filePath = dataHome + "/native_parquet_test_agg"
       val format = "parquet"
 
       val df0 = spark
@@ -156,7 +142,7 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   test("read data from csv file format") {
-    val filePath = basePath + "/csv_test.csv"
+    val filePath = dataHome + "/csv_test.csv"
     val csvFileFormat = "csv"
     val sql =
       s"""
@@ -178,7 +164,7 @@ class GlutenClickHouseExcelFormatSuite
 
   // scalastyle:off line.size.limit
   test("GLUTEN-7032 timestamp in-filter test") {
-    val filePath = rootPath + "/csv-data/filter_timestamp.csv"
+    val filePath = resPath + "/csv-data/filter_timestamp.csv"
     val schema = StructType.apply(
       Seq(
         StructField.apply("account_id", IntegerType, nullable = false),
@@ -217,7 +203,7 @@ class GlutenClickHouseExcelFormatSuite
   // scalastyle:on line.size.limit
 
   test("read data from csv file format with filter") {
-    val filePath = basePath + "/csv_test_filter.csv"
+    val filePath = dataHome + "/csv_test_filter.csv"
     val csvFileFormat = "csv"
     val sql =
       s"""
@@ -239,7 +225,7 @@ class GlutenClickHouseExcelFormatSuite
   }
 
   test("read data from csv file format with agg") {
-    val filePath = basePath + "/csv_test_agg.csv"
+    val filePath = dataHome + "/csv_test_agg.csv"
     val csvFileFormat = "csv"
     val sql =
       s"""
@@ -1458,7 +1444,7 @@ class GlutenClickHouseExcelFormatSuite
     val schema = new StructType()
       .add("a", StringType)
 
-    val fileName = basePath + "/parquet_test_" + System.currentTimeMillis() + "_empty.parquet"
+    val fileName = dataHome + "/parquet_test_" + System.currentTimeMillis() + "_empty.parquet"
 
     spark.createDataFrame(data, schema).toDF().write.parquet(fileName)
     fileName

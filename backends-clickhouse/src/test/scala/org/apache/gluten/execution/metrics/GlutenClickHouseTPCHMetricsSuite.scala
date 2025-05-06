@@ -29,18 +29,12 @@ import org.apache.spark.task.TaskResources
 
 import scala.collection.JavaConverters._
 
-class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
+class GlutenClickHouseTPCHMetricsSuite extends ParquetTPCHSuite {
   private val parquetMaxBlockSize = 4096
-  override protected val needCopyParquetToTablePath = true
 
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "queries-output"
+  protected val metricsJsonFilePath: String = resPath + "metrics-json"
+  protected val substraitPlansDatPath: String = resPath + "substrait-plans"
 
-  protected val metricsJsonFilePath: String = rootPath + "metrics-json"
-  protected val substraitPlansDatPath: String = rootPath + "substrait-plans"
-
-  // scalastyle:off line.size.limit
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._
@@ -55,14 +49,9 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       .setCHConfig("enable_pre_projection_for_join_conditions", "false")
       .setCHConfig("enable_streaming_aggregating", true)
   }
-  // scalastyle:on line.size.limit
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
 
   test("TPCH Q1 scan metrics") {
-    runTPCHQuery(1) {
+    customCheck(1) {
       df =>
         val plans = df.queryExecution.executedPlan.collect {
           case scanExec: BasicScanExecTransformer => scanExec
@@ -130,7 +119,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("Check the metrics values") {
     withSQLConf(("spark.gluten.sql.columnar.sort", "false")) {
-      runTPCHQuery(1, noFallBack = false) {
+      customCheck(1, native = false) {
         df =>
           val plans = df.queryExecution.executedPlan.collect {
             case scanExec: BasicScanExecTransformer => scanExec
@@ -159,7 +148,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       val nativeMetricsList = GlutenClickHouseMetricsUTUtils
         .executeSubstraitPlan(
           substraitPlansDatPath + "/tpch-q4-wholestage-2.json",
-          basePath,
+          testParquetAbsolutePath,
           inBatchIters,
           outputAttributes
         )
@@ -209,7 +198,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("Check TPCH Q2 metrics updater") {
-    withDataFrame(tpchSQL(2, tpchQueries)) {
+    withDataFrame(2) {
       q2Df =>
         val allWholeStageTransformers = q2Df.queryExecution.executedPlan.collect {
           case wholeStage: WholeStageTransformer => wholeStage
@@ -319,7 +308,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       val nativeMetricsList = GlutenClickHouseMetricsUTUtils
         .executeSubstraitPlan(
           substraitPlansDatPath + "/covar_samp-covar_pop-partial-agg-stage.json",
-          basePath,
+          testParquetAbsolutePath,
           inBatchIters,
           outputAttributes
         )
@@ -402,7 +391,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       val nativeMetricsListFinal = GlutenClickHouseMetricsUTUtils
         .executeSubstraitPlan(
           substraitPlansDatPath + "/covar_samp-covar_pop-final-agg-stage.json",
-          basePath,
+          dataHome,
           inBatchItersFinal,
           outputAttributesFinal
         )
@@ -428,7 +417,6 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("Metrics for input iterator of broadcast exchange") {
-    createTPCHNotNullTables()
     val partTableRecords = spark.sql("select * from part").count()
 
     // Repartition to make sure we have multiple tasks executing the join.

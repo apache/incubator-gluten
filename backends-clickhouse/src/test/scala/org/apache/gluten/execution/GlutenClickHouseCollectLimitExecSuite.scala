@@ -21,11 +21,6 @@ import org.apache.spark.sql.{DataFrame, Row}
 
 class GlutenClickHouseCollectLimitExecSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
-  protected val tablesPath: String = basePath + "/tpch-data"
-  protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  protected val queriesResults: String = rootPath + "queries-output"
-
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")

@@ -22,7 +22,6 @@ import org.apache.gluten.test.AllDataTypesWithComplexType
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.DeltaLog
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
@@ -36,8 +35,7 @@ import scala.reflect.ClassTag
 
 class GlutenClickHouseHiveTableSuite
   extends GlutenClickHouseWholeStageTransformerSuite
-  with ReCreateHiveSession
-  with AdaptiveSparkPlanHelper {
+  with ReCreateHiveSession {
 
   override protected def sparkConf: SparkConf = {
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._
@@ -849,7 +847,7 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("fix reading string from number bug: https://github.com/oap-project/gluten/issues/3023") {
-    val data_path = rootPath + "/text-data/json-settings"
+    val data_path = resPath + "/text-data/json-settings"
     spark.sql(s"""
                  |CREATE TABLE json_settings (
                  |  a string,
@@ -915,7 +913,7 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("GLUTEN-3337: fix get_json_object for abnormal json") {
-    val data_path = rootPath + "/text-data/abnormal-json"
+    val data_path = resPath + "/text-data/abnormal-json"
     spark.sql(s"""
                  |CREATE TABLE test_tbl_3337 (
                  |  id bigint,
@@ -979,7 +977,7 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("GLUTEN-3552: Bug fix csv field whitespaces") {
-    val data_path = rootPath + "/text-data/field_whitespaces"
+    val data_path = resPath + "/text-data/field_whitespaces"
     spark.sql(s"""
                  | CREATE TABLE test_tbl_3552(
                  | a string,
@@ -1002,7 +1000,7 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("GLUTEN-3548: Bug fix csv allow cr end of line") {
-    val data_path = rootPath + "/text-data/cr_end_of_line"
+    val data_path = resPath + "/text-data/cr_end_of_line"
     spark.sql(s"""
                  | CREATE TABLE test_tbl_3548(
                  | a string,
@@ -1026,7 +1024,7 @@ class GlutenClickHouseHiveTableSuite
 
   test("test 'hive udf'") {
     val jarPath = "udfs/hive-test-udfs.jar"
-    val jarUrl = s"file://$rootPath/$jarPath"
+    val jarUrl = s"file://$resPath/$jarPath"
     spark.sql(
       s"CREATE FUNCTION my_add as " +
         s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
@@ -1262,7 +1260,7 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("test mergetree write with column case sensitive on hive") {
-    val dataPath = s"$basePath/lineitem_mergetree_bucket"
+    val dataPath = s"$dataHome/lineitem_mergetree_bucket"
     val sourceDF = spark.sql(s"""
                                 |select
                                 |  string_field,
@@ -1281,7 +1279,7 @@ class GlutenClickHouseHiveTableSuite
 
     assert(new File(dataPath).listFiles().nonEmpty)
 
-    val dataPath2 = s"$basePath/lineitem_mergetree_bucket2"
+    val dataPath2 = s"$dataHome/lineitem_mergetree_bucket2"
     val df2 = spark.sql(s"""
                            |select
                            |  string_field STRING_FIELD,
@@ -1302,7 +1300,7 @@ class GlutenClickHouseHiveTableSuite
       .save(dataPath2)
     assert(new File(dataPath2).listFiles().nonEmpty)
 
-    val dataPath3 = s"$basePath/lineitem_mergetree_bucket3"
+    val dataPath3 = s"$dataHome/lineitem_mergetree_bucket3"
     val df3 = spark.sql(s"""
                            |select
                            |  string_field,
@@ -1323,7 +1321,7 @@ class GlutenClickHouseHiveTableSuite
       .save(dataPath3)
     assert(new File(dataPath3).listFiles().nonEmpty)
 
-    val dataPath4 = s"$basePath/lineitem_mergetree_bucket2"
+    val dataPath4 = s"$dataHome/lineitem_mergetree_bucket2"
     val df4 = spark
       .sql(s"""
               |select
@@ -1349,7 +1347,7 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("GLUTEN-6506: Orc read time zone") {
-    val dataPath = s"$basePath/orc-data/test_reader_time_zone.snappy.orc"
+    val dataPath = s"$dataHome/orc-data/test_reader_time_zone.snappy.orc"
     val create_table_sql = ("create table test_tbl_6506(" +
       "id bigint, t timestamp) stored as orc location '%s'")
       .format(dataPath)

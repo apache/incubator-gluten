@@ -107,7 +107,7 @@ class GlutenClickHouseNativeWriteTableSuite
       .option("delimiter", "|")
       .option("header", "false")
       .schema(supplierSchema)
-      .csv(s"$rootPath/csv-data/supplier.csv")
+      .csv(s"${resPath}csv-data/supplier.csv")
       .toDF()
   }
 
@@ -118,19 +118,19 @@ class GlutenClickHouseNativeWriteTableSuite
         format => {
           val sql =
             s"""insert overwrite local directory
-               |'$basePath/test_insert_into_${format}_supplier'
+               |'$dataHome/test_insert_into_${format}_supplier'
                |stored as $format
                |select /*+ REPARTITION($partitionNumber) */ * from supplier""".stripMargin
           (s"test_insert_into_${format}_supplier", null, sql)
         },
         (table_name, format) => {
           // spark 3.2 without orc or parquet suffix
-          val files = recursiveListFiles(new File(s"$basePath/$table_name"))
+          val files = recursiveListFiles(new File(s"$dataHome/$table_name"))
             .map(_.getName)
             .filterNot(s => s.endsWith(s".crc") || s.equals("_SUCCESS"))
 
           lazy val fileNames = {
-            val dir = s"$basePath/$table_name"
+            val dir = s"$dataHome/$table_name"
             recursiveListFiles(new File(dir))
               .map(f => f.getAbsolutePath.stripPrefix(dir))
               .sorted
@@ -138,7 +138,7 @@ class GlutenClickHouseNativeWriteTableSuite
           }
 
           lazy val errorMessage =
-            s"Search $basePath/$table_name with suffix .$format, all files: \n $fileNames"
+            s"Search $dataHome/$table_name with suffix .$format, all files: \n $fileNames"
           assert(files.length === partitionNumber, errorMessage)
         }
       )
@@ -176,10 +176,10 @@ class GlutenClickHouseNativeWriteTableSuite
       nativeWrite {
         format =>
           Seq(
-            s"""insert overwrite local directory '$basePath/test_insert_into_${format}_dir1'
+            s"""insert overwrite local directory '$dataHome/test_insert_into_${format}_dir1'
                |stored as $format select ${fields_.keys.mkString(",")}
                |from origin_table""".stripMargin,
-            s"""insert overwrite local directory '$basePath/test_insert_into_${format}_dir2'
+            s"""insert overwrite local directory '$dataHome/test_insert_into_${format}_dir2'
                |stored as $format select string_field, sum(int_field) as x
                |from origin_table group by string_field""".stripMargin
           ).foreach(checkInsertQuery(_, checkNative = true))
