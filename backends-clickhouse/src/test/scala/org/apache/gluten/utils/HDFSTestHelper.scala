@@ -29,38 +29,34 @@ class HDFSTestHelper(TMP_PREFIX: String) {
   // HDFS parameters
   val HDFS_CACHE_PATH = s"$TMP_PREFIX/hdfs/cache"
   private val HDFS_METADATA_PATH = s"$TMP_PREFIX/hdfs/metadata"
-  private val HDFS_URL_ENDPOINT = "hdfs://127.0.0.1:8020"
+  private val HDFS_URL_ENDPOINT = "hdfs://127.0.0.1:8020/"
 
   def getHdfsUrl(dirName: String): String = s"$HDFS_URL_ENDPOINT/$dirName"
   def metaPath(dirName: String): String = s"$HDFS_METADATA_PATH/$dirName"
 
+  def builder(policyName: String): StoreConfigBuilder = new StoreConfigBuilder(policyName)
+
+  def setCommonHDFSStoreConfig(
+      conf: SparkConf,
+      policyName: String,
+      useDiskcache: Boolean = true,
+      useRocksDB: Boolean = false): SparkConf = {
+
+    builder(policyName)
+      .withEndpoint(HDFS_URL_ENDPOINT)
+      .withMetadataPath(HDFS_METADATA_PATH)
+      .withCachePath(HDFS_CACHE_PATH)
+      .withDiskcache(useDiskcache)
+      .withRocksDB(useRocksDB)
+      .build(conf)
+  }
+
   def setHDFSStoreConfig(conf: SparkConf): SparkConf = {
-    conf.setCHConfig(
-      "storage_configuration.disks.hdfs.type" -> "hdfs_gluten",
-      "storage_configuration.disks.hdfs.endpoint" -> s"$HDFS_URL_ENDPOINT/",
-      "storage_configuration.disks.hdfs.metadata_path" -> HDFS_METADATA_PATH,
-      "storage_configuration.disks.hdfs_cache.type" -> "cache",
-      "storage_configuration.disks.hdfs_cache.disk" -> "hdfs",
-      "storage_configuration.disks.hdfs_cache.path" -> HDFS_CACHE_PATH,
-      "storage_configuration.disks.hdfs_cache.max_size" -> "10Gi",
-      "storage_configuration.policies.__hdfs_main.volumes" -> "main",
-      "storage_configuration.policies.__hdfs_main.volumes.main.disk" -> "hdfs_cache"
-    )
+    setCommonHDFSStoreConfig(conf, policyName = "__hdfs_main")
   }
 
   def setHDFSStoreConfigRocksDB(conf: SparkConf): SparkConf = {
-    conf.setCHConfig(
-      "storage_configuration.disks.hdfs2.type" -> "hdfs_gluten",
-      "storage_configuration.disks.hdfs2.endpoint" -> s"$HDFS_URL_ENDPOINT/",
-      "storage_configuration.disks.hdfs2.metadata_path" -> HDFS_METADATA_PATH,
-      "storage_configuration.disks.hdfs2.metadata_type" -> "rocksdb",
-      "storage_configuration.disks.hdfs_cache2.type" -> "cache",
-      "storage_configuration.disks.hdfs_cache2.disk" -> "hdfs2",
-      "storage_configuration.disks.hdfs_cache2.path" -> HDFS_CACHE_PATH,
-      "storage_configuration.disks.hdfs_cache2.max_size" -> "10Gi",
-      "storage_configuration.policies.__hdfs_main_rocksdb.volumes" -> "main",
-      "storage_configuration.policies.__hdfs_main_rocksdb.volumes.main.disk" -> "hdfs_cache2"
-    )
+    setCommonHDFSStoreConfig(conf, policyName = "__hdfs_main_rocksdb", useRocksDB = true)
   }
 
   def setHdfsClientConfig(conf: SparkConf): SparkConf = {
