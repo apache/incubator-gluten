@@ -103,45 +103,60 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("Test date_part & extract & weekofyear function") {
-    withTable("t") {
-      sql("create table t (dt date) using parquet")
-      sql("insert into t values(date '2008-02-20'), (date '2022-01-01')")
-      runQueryAndCompare("select weekofyear(dt) from t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
-      runQueryAndCompare(
-        "SELECT date_part('yearofweek', dt), extract(yearofweek from dt)" +
-          " from t") {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+    withTempPath {
+      path =>
+        Seq(
+          java.sql.Date.valueOf("2008-02-20"),
+          java.sql.Date.valueOf("2022-01-01")
+        )
+          .toDF("dt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+        runQueryAndCompare("select weekofyear(dt) from t") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+        runQueryAndCompare(
+          "SELECT date_part('yearofweek', dt), extract(yearofweek from dt)" +
+            " from t") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
   test("Test date_trunc function") {
-    withTable("t") {
-      sql("create table t (c0 TIMESTAMP) using parquet")
-      sql("insert into t values(Timestamp('2015-07-22 10:01:40.123456'))")
-      runQueryAndCompare("""
-                           |SELECT
-                           |  date_trunc('yy',c0) as t1,
-                           |  date_trunc('yyyy', c0) as t2,
-                           |  date_trunc('year', c0) as t3,
-                           |  date_trunc('quarter', c0) as t4,
-                           |  date_trunc('mon', c0) as t5,
-                           |  date_trunc('month', c0) as t6,
-                           |  date_trunc('mm', c0) as t7,
-                           |  date_trunc('week', c0) as t8,
-                           |  date_trunc('dd', c0) as t9,
-                           |  date_trunc('day', c0) as t10,
-                           |  date_trunc('hour', c0) as t11,
-                           |  date_trunc('minute', c0) as t12,
-                           |  date_trunc('second', c0) as t13,
-                           |  date_trunc('millisecond', c0) as t14,
-                           |  date_trunc('microsecond', c0) as t15
-                           |FROM t
-                           |""".stripMargin) {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+    withTempPath {
+      path =>
+        Seq(
+          Timestamp.valueOf("2015-07-22 10:01:40.123456")
+        )
+          .toDF("dt")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("t")
+        runQueryAndCompare("""
+                             |SELECT
+                             |  date_trunc('yy',dt) as t1,
+                             |  date_trunc('yyyy', dt) as t2,
+                             |  date_trunc('year', dt) as t3,
+                             |  date_trunc('quarter', dt) as t4,
+                             |  date_trunc('mon', dt) as t5,
+                             |  date_trunc('month', dt) as t6,
+                             |  date_trunc('mm', dt) as t7,
+                             |  date_trunc('week', dt) as t8,
+                             |  date_trunc('dd', dt) as t9,
+                             |  date_trunc('day', dt) as t10,
+                             |  date_trunc('hour', dt) as t11,
+                             |  date_trunc('minute', dt) as t12,
+                             |  date_trunc('second', dt) as t13,
+                             |  date_trunc('millisecond', dt) as t14,
+                             |  date_trunc('microsecond', dt) as t15
+                             |FROM t
+                             |""".stripMargin) {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
