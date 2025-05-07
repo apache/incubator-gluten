@@ -17,20 +17,20 @@
 
 package org.apache.gluten.table.runtime.operators;
 
-import io.github.zhztheplayer.velox4j.connector.FuzzerConnectorSplit;
-import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
+import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.data.RowVector;
-import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
-import io.github.zhztheplayer.velox4j.iterator.UpIterators;
+import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import io.github.zhztheplayer.velox4j.query.Query;
+import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.arrow.memory.BufferAllocator;
@@ -38,24 +38,35 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.table.data.RowData;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 /** Gluten legacy source function, call velox plan to execute. */
 public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
+    private static final Logger LOG = LoggerFactory.getLogger(GlutenSourceFunction.class);
 
     private final PlanNode planNode;
     private final RowType outputType;
     private final String id;
+    private final ConnectorSplit split;
     private volatile boolean isRunning = true;
 
     private Session session;
     private Query query;
     BufferAllocator allocator;
+    private MemoryManager memoryManager;
 
-    public GlutenSourceFunction(PlanNode planNode, RowType outputType, String id) {
+    public GlutenSourceFunction(
+            PlanNode planNode,
+            RowType outputType,
+            String id,
+            ConnectorSplit split) {
         this.planNode = planNode;
         this.outputType = outputType;
         this.id = id;
+        this.split = split;
     }
 
     public PlanNode getPlanNode() {
@@ -66,30 +77,42 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
 
     public String getId() { return id; }
 
+    public ConnectorSplit getConnectorSplit() { return split; }
+
     @Override
     public void run(SourceContext<RowData> sourceContext) throws Exception {
-        final List<BoundSplit> splits = List.of(new BoundSplit(
-                id,
-                -1,
-                new FuzzerConnectorSplit("connector-fuzzer", 1000)));
-        session = Velox4j.newSession(MemoryManager.create(AllocationListener.NOOP));
+        LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
+        final List<BoundSplit> splits = List.of(new BoundSplit(id, -1, split));
+        memoryManager = MemoryManager.create(AllocationListener.NOOP);
+        session = Velox4j.newSession(memoryManager);
         query = new Query(planNode, splits, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
 
+        UpIterator upIterator = session.queryOps().execute(query);
         while (isRunning) {
-            CloseableIterator<RowVector> result =
-                    UpIterators.asJavaIterator(session.queryOps().execute(query));
-            if (result.hasNext()) {
+            UpIterator.State state = upIterator.advance();
+            if (state == UpIterator.State.AVAILABLE) {
+                final RowVector outRv = upIterator.get();
                 List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                        result.next(),
+                        outRv,
                         allocator,
-                        session,
                         outputType);
                 for (RowData row : rows) {
                     sourceContext.collect(row);
                 }
+                outRv.close();
+            } else if (state == UpIterator.State.BLOCKED) {
+                LOG.debug("Get empty row");
+            } else {
+                LOG.info("Velox task finished");
+                break;
             }
         }
+
+        upIterator.close();
+        session.close();
+        memoryManager.close();
+        allocator.close();
     }
 
     @Override

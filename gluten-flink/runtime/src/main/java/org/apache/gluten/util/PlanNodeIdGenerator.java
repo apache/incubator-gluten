@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.util;
 
-package org.apache.gluten.streaming.api.operators;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
-import io.github.zhztheplayer.velox4j.type.RowType;
+/** Generate a unique id for each velox PlanNode */
+public class PlanNodeIdGenerator {
+    private static final AtomicInteger ID_COUNTER = new AtomicInteger(0);
 
-/** Interface for all gluten operators. */
-public interface GlutenOperator {
-    public PlanNode getPlanNode();
-    public RowType getInputType();
-    public RowType getOutputType();
-    public String getId();
+    public static String newId() {
+        return String.valueOf(ID_COUNTER.incrementAndGet());
+    }
 }

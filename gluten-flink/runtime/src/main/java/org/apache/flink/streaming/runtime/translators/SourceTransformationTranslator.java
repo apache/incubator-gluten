@@ -19,19 +19,18 @@ package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
+import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
-import org.apache.flink.streaming.api.operators.InputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
-import io.github.zhztheplayer.velox4j.connector.FuzzerConnectorSplit;
-import io.github.zhztheplayer.velox4j.connector.FuzzerTableHandle;
+import io.github.zhztheplayer.velox4j.connector.NexmarkConnectorSplit;
+import io.github.zhztheplayer.velox4j.connector.NexmarkTableHandle;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
@@ -46,29 +45,35 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Gluten {@link TransformationTranslator} for the {@link LegacySourceTransformation}.
+ * A {@link TransformationTranslator} for the {@link SourceTransformation}.
  *
- * @param <OUT> The type of the elements that the {@link LegacySourceTransformation} we are
- *     translating is producing.
+ * @param <OUT> The type of the elements that this source produces.
  */
 @Internal
-public class LegacySourceTransformationTranslator<OUT>
-        extends SimpleTransformationTranslator<OUT, LegacySourceTransformation<OUT>> {
+public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, EnumChkT>
+        extends SimpleTransformationTranslator<OUT, SourceTransformation<OUT, SplitT, EnumChkT>> {
 
     @Override
     protected Collection<Integer> translateForBatchInternal(
-            final LegacySourceTransformation<OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
+            final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
+            final Context context) {
+
+        return translateInternal(
+                transformation, context, false /* don't emit progressive watermarks */);
     }
 
     @Override
     protected Collection<Integer> translateForStreamingInternal(
-            final LegacySourceTransformation<OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
+            final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
+            final Context context) {
+
+        return translateInternal(transformation, context, true /* emit progressive watermarks */);
     }
 
     private Collection<Integer> translateInternal(
-            final LegacySourceTransformation<OUT> transformation, final Context context) {
+            final SourceTransformation<OUT, SplitT, EnumChkT> transformation,
+            final Context context,
+            boolean emitProgressiveWatermarks) {
         checkNotNull(transformation);
         checkNotNull(context);
 
@@ -77,50 +82,57 @@ public class LegacySourceTransformationTranslator<OUT>
         final int transformationId = transformation.getId();
         final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
-        Function userFunction = transformation.getOperator().getUserFunction();
-        StreamOperatorFactory<OUT> operatorFactory;
-        String namePrefix = "";
         /// These codes are changed for gluten
-        if (userFunction instanceof DataGeneratorSource) {
+        if (transformation.getSource().getClass().getSimpleName().equals("NexmarkSource")) {
             RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                     ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
             String id = PlanNodeIdGenerator.newId();
-            operatorFactory = SimpleOperatorFactory.of(
+            StreamOperatorFactory<OUT> operatorFactory = SimpleOperatorFactory.of(
                     new GlutenStreamSource(
                             new GlutenSourceFunction(
                                     new TableScanNode(
                                             id,
                                             outputType,
-                                            new FuzzerTableHandle("connector-fuzzer", 12367),
+                                            new NexmarkTableHandle("connector-nexmark"),
                                             List.of()),
                                     outputType,
                                     id,
-                                    new FuzzerConnectorSplit("connector-fuzzer", 1000))));
-            namePrefix = "Gluten ";
+                                    // TODO: should use config to get parameters
+                                    new NexmarkConnectorSplit("connector-nexmark", 100000000))));
+            streamGraph.addLegacySource(
+                    transformationId,
+                    slotSharingGroup,
+                    transformation.getCoLocationGroupKey(),
+                    operatorFactory,
+                    null,
+                    transformation.getOutputType(),
+                    "Source: " + transformation.getName());
         } else {
-            operatorFactory = transformation.getOperatorFactory();
+            SourceOperatorFactory<OUT> operatorFactory =
+                    new SourceOperatorFactory<>(
+                            transformation.getSource(),
+                            transformation.getWatermarkStrategy(),
+                            emitProgressiveWatermarks);
+
+            operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
+            operatorFactory.setCoordinatorListeningID(transformation.getCoordinatorListeningID());
+
+            streamGraph.addSource(
+                    transformationId,
+                    slotSharingGroup,
+                    transformation.getCoLocationGroupKey(),
+                    operatorFactory,
+                    null,
+                    transformation.getOutputType(),
+                    "Source: " + transformation.getName());
         }
         /// end gluten
-        streamGraph.addLegacySource(
-                transformationId,
-                slotSharingGroup,
-                transformation.getCoLocationGroupKey(),
-                operatorFactory,
-                null,
-                transformation.getOutputType(),
-                namePrefix + "Source: " + transformation.getName());
-
-        if (transformation.getOperatorFactory() instanceof InputFormatOperatorFactory) {
-            streamGraph.setInputFormat(
-                    transformationId,
-                    ((InputFormatOperatorFactory<OUT>) transformation.getOperatorFactory())
-                            .getInputFormat());
-        }
 
         final int parallelism =
                 transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
                         ? transformation.getParallelism()
                         : executionConfig.getParallelism();
+
         streamGraph.setParallelism(
                 transformationId, parallelism, transformation.isParallelismConfigured());
         streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());

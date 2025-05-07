@@ -17,131 +17,119 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
-import org.apache.gluten.util.LogicalTypeConverter;
-import org.apache.gluten.rexnode.RexNodeConverter;
-
-import io.github.zhztheplayer.velox4j.expression.TypedExpr;
-import io.github.zhztheplayer.velox4j.plan.FilterNode;
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
-import io.github.zhztheplayer.velox4j.plan.ProjectNode;
-
-import org.apache.calcite.rex.RexNode;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
-import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.gluten.util.PlanNodeIdGenerator;
 
-import javax.annotation.Nullable;
+import org.apache.calcite.rex.RexNode;
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.util.LogicalTypeConverter;
+import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import java.util.Collections;
 import java.util.List;
 
-/** Gluten Stream {@link ExecNode} for Calc to use {@link GlutenSingleInputOperator}. */
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/** Stream {@link ExecNode} which generates watermark based on the input elements. */
 @ExecNodeMetadata(
-        name = "stream-exec-calc",
+        name = "stream-exec-watermark-assigner",
         version = 1,
-        producedTransformations = CommonExecCalc.CALC_TRANSFORMATION,
+        producedTransformations = StreamExecWatermarkAssigner.WATERMARK_ASSIGNER_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<RowData> {
+public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    public StreamExecCalc(
+    public static final String WATERMARK_ASSIGNER_TRANSFORMATION = "watermark-assigner";
+
+    public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
+    public static final String FIELD_NAME_ROWTIME_FIELD_INDEX = "rowtimeFieldIndex";
+
+    @JsonProperty(FIELD_NAME_WATERMARK_EXPR)
+    private final RexNode watermarkExpr;
+
+    @JsonProperty(FIELD_NAME_ROWTIME_FIELD_INDEX)
+    private final int rowtimeFieldIndex;
+
+    public StreamExecWatermarkAssigner(
             ReadableConfig tableConfig,
-            List<RexNode> projection,
-            @Nullable RexNode condition,
+            RexNode watermarkExpr,
+            int rowtimeFieldIndex,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
-                ExecNodeContext.newContext(StreamExecCalc.class),
-                ExecNodeContext.newPersistedConfig(StreamExecCalc.class, tableConfig),
-                projection,
-                condition,
+                ExecNodeContext.newContext(StreamExecWatermarkAssigner.class),
+                ExecNodeContext.newPersistedConfig(StreamExecWatermarkAssigner.class, tableConfig),
+                watermarkExpr,
+                rowtimeFieldIndex,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }
 
     @JsonCreator
-    public StreamExecCalc(
+    public StreamExecWatermarkAssigner(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
-            @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> projection,
-            @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
+            @JsonProperty(FIELD_NAME_WATERMARK_EXPR) RexNode watermarkExpr,
+            @JsonProperty(FIELD_NAME_ROWTIME_FIELD_INDEX) int rowtimeFieldIndex,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(
-                id,
-                context,
-                persistedConfig,
-                projection,
-                condition,
-                TableStreamOperator.class,
-                true, // retainHeader
-                inputProperties,
-                outputType,
-                description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.watermarkExpr = checkNotNull(watermarkExpr);
+        this.rowtimeFieldIndex = rowtimeFieldIndex;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public Transformation<RowData> translateToPlanInternal(
+    protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         /// These codes are changed for gluten
+        final long idleTimeout =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT).toMillis();
+
         io.github.zhztheplayer.velox4j.type.RowType inputType =
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(inputEdge.getOutputType());
-        List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
-        PlanNode filter = null;
-        if (condition != null) {
-            filter = new FilterNode(
-                    PlanNodeIdGenerator.newId(),
-                    List.of(),
-                    RexNodeConverter.toTypedExpr(condition, inNames));
-        }
-        List<TypedExpr> projectExprs = RexNodeConverter.toTypedExpr(projection, inNames);
-        PlanNode project = new ProjectNode(
-                PlanNodeIdGenerator.newId(),
-                filter == null ? List.of() : List.of(filter),
-                Utils.getNamesFromRowType(getOutputType()),
-                projectExprs);
         io.github.zhztheplayer.velox4j.type.RowType outputType =
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(getOutputType());
-        final GlutenSingleInputOperator calOperator =
-                new GlutenSingleInputOperator(
-                        project,
-                        PlanNodeIdGenerator.newId(),
-                        inputType,
-                        outputType);
+        // Watermark assigner has not been supported in gluten.
+        final GlutenSingleInputOperator watermarkOperator =
+                new GlutenSingleInputOperator(null, PlanNodeIdGenerator.newId(), inputType, outputType);
+
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                new TransformationMetadata("gluten-calc", "Gluten cal operator"),
-                calOperator,
+                createTransformationMeta(WATERMARK_ASSIGNER_TRANSFORMATION, config),
+                watermarkOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),
                 false);

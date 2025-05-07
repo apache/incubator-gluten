@@ -19,11 +19,10 @@ package org.apache.gluten.table.runtime.operators;
 
 import io.github.zhztheplayer.velox4j.connector.ExternalStream;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
-import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
+import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
 import io.github.zhztheplayer.velox4j.iterator.DownIterators;
-import io.github.zhztheplayer.velox4j.iterator.UpIterators;
+import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
-import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
@@ -35,7 +34,9 @@ import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.query.Query;
+import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.session.Session;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -44,27 +45,34 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /** Calculate operator in gluten, which will call Velox to run. */
-public class GlutenCalOperator extends TableStreamOperator<RowData>
+public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData>, GlutenOperator {
 
-    private final String glutenPlan;
+    private static final Logger LOG = LoggerFactory.getLogger(GlutenSingleInputOperator.class);
+
+    private final PlanNode glutenPlan;
     private final String id;
-    private final String inputType;
-    private final String outputType;
+    private final RowType inputType;
+    private final RowType outputType;
 
-    private StreamRecord outElement = null;
+    private StreamRecord<RowData> outElement = null;
 
+    private MemoryManager memoryManager;
     private Session session;
     private Query query;
     private BlockingQueue<RowVector> inputQueue;
     BufferAllocator allocator;
+    UpIterator upIterator;
 
-    public GlutenCalOperator(String plan, String id, String inputType, String outputType) {
+    public GlutenSingleInputOperator(PlanNode plan, String id, RowType inputType, RowType outputType) {
         this.glutenPlan = plan;
         this.id = id;
         this.inputType = inputType;
@@ -75,7 +83,8 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
     public void open() throws Exception {
         super.open();
         outElement = new StreamRecord(null);
-        session = Velox4j.newSession(MemoryManager.create(AllocationListener.NOOP));
+        memoryManager = MemoryManager.create(AllocationListener.NOOP);
+        session = Velox4j.newSession(memoryManager);
 
         inputQueue = new LinkedBlockingQueue<>();
         ExternalStream es =
@@ -85,46 +94,63 @@ public class GlutenCalOperator extends TableStreamOperator<RowData>
                         id,
                         -1,
                         new ExternalStreamConnectorSplit("connector-external-stream", es.id())));
-        PlanNode filter = Serde.fromJson(glutenPlan, PlanNode.class);
-        query = new Query(filter, splits, Config.empty(), ConnectorConfig.empty());
+        // add a mock input as velox not allow the source is empty.
+        PlanNode mockInput = new TableScanNode(
+                id,
+                inputType,
+                new ExternalStreamTableHandle("connector-external-stream"),
+                List.of());
+        glutenPlan.setSources(List.of(mockInput));
+        LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
+        query = new Query(glutenPlan, splits, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
-
+        upIterator = session.queryOps().execute(query);
     }
 
     @Override
     public void processElement(StreamRecord<RowData> element) {
-        inputQueue.add(
-                FlinkRowToVLVectorConvertor.fromRowData(
-                        element.getValue(),
-                        allocator,
-                        session,
-                        Serde.fromJson(inputType, RowType.class)));
-        CloseableIterator<RowVector> result =
-                UpIterators.asJavaIterator(session.queryOps().execute(query));
-        if (result.hasNext()) {
+        final RowVector inRv = FlinkRowToVLVectorConvertor.fromRowData(
+            element.getValue(),
+            allocator,
+            session,
+            inputType);
+        inputQueue.add(inRv);
+        UpIterator.State state = upIterator.advance();
+        if (state == UpIterator.State.AVAILABLE) {
+            RowVector outRv = upIterator.get();
             List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                    result.next(),
+                    outRv,
                     allocator,
-                    session,
-                    Serde.fromJson(outputType, RowType.class));
+                    outputType);
             for (RowData row : rows) {
                 output.collect(outElement.replace(row));
             }
+            outRv.close();
         }
+        inRv.close();
+    }
+
+    @Override
+    public void close() throws Exception {
+        upIterator.close();
+        session.close();
+        memoryManager.close();
+        allocator.close();
     }
 
     @Override
     public PlanNode getPlanNode() {
-        // TODO: support wartermark operator
-        if (glutenPlan == "Watermark") {
-            return null;
-        }
-        return Serde.fromJson(glutenPlan, PlanNode.class);
+        return glutenPlan;
+    }
+
+    @Override
+    public RowType getInputType() {
+        return inputType;
     }
 
     @Override
     public RowType getOutputType() {
-        return Serde.fromJson(outputType, RowType.class);
+        return outputType;
     }
 
     @Override

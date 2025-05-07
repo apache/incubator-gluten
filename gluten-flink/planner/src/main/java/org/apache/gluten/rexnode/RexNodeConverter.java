@@ -20,14 +20,7 @@ import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.ConstantTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
-import io.github.zhztheplayer.velox4j.type.BigIntType;
-import io.github.zhztheplayer.velox4j.type.BooleanType;
-import io.github.zhztheplayer.velox4j.type.DecimalType;
-import io.github.zhztheplayer.velox4j.type.IntegerType;
-import io.github.zhztheplayer.velox4j.type.RowType;
-import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
-import io.github.zhztheplayer.velox4j.type.VarCharType;
 import io.github.zhztheplayer.velox4j.variant.BigIntValue;
 import io.github.zhztheplayer.velox4j.variant.BooleanValue;
 import io.github.zhztheplayer.velox4j.variant.DoubleValue;
@@ -44,6 +37,8 @@ import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.gluten.util.LogicalTypeConverter;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -75,7 +70,7 @@ public class RexNodeConverter {
         } else if (rexNode instanceof RexFieldAccess) {
             RexFieldAccess fieldAccess = (RexFieldAccess) rexNode;
             return FieldAccessTypedExpr.create(
-                    toType(fieldAccess.getType()),
+                    toTypedExpr(fieldAccess.getReferenceExpr(), inNames),
                     fieldAccess.getField().getName());
         } else {
             throw new RuntimeException("Unrecognized RexNode: " + rexNode.getClass().getName());
@@ -90,29 +85,9 @@ public class RexNodeConverter {
 
     // TODO: use LogicalRelDataTypeConverter
     public static Type toType(RelDataType relDataType) {
-        switch (relDataType.getSqlTypeName()) {
-            case BOOLEAN:
-                return new BooleanType();
-            case INTEGER:
-                return new IntegerType();
-            case BIGINT:
-                return new BigIntType();
-            case VARCHAR:
-                return new VarCharType();
-            case ROW:
-                List<Type> children = relDataType.getFieldList().stream()
-                        .map(
-                                field ->
-                                        toType(field.getType())
-                        ).collect(Collectors.toList());
-                return new RowType(relDataType.getFieldNames(), children);
-            case TIMESTAMP:
-                return new TimestampType();
-            case DECIMAL:
-                return new DecimalType(relDataType.getPrecision(), relDataType.getScale());
-            default:
-                throw new RuntimeException("Unsupported type: " + relDataType.getSqlTypeName());
-        }
+        return LogicalTypeConverter.toVLType(
+                FlinkTypeFactory.toLogicalType(relDataType)
+        );
     }
 
     public static Variant toVariant(RexLiteral literal) {

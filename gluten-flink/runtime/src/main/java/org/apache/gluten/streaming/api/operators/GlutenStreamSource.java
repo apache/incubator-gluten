@@ -19,6 +19,7 @@ package org.apache.gluten.streaming.api.operators;
 
 import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 
+import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -44,6 +45,11 @@ public class GlutenStreamSource extends StreamSource
     }
 
     @Override
+    public RowType getInputType() {
+        return null;
+    }
+
+    @Override
     public RowType getOutputType() {
         return sourceFunction.getOutputType();
     }
@@ -51,5 +57,9 @@ public class GlutenStreamSource extends StreamSource
     @Override
     public String getId() {
         return sourceFunction.getId();
+    }
+
+    public ConnectorSplit getConnectorSplit() {
+        return sourceFunction.getConnectorSplit();
     }
 }
