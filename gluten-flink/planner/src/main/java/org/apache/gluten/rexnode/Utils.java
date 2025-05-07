@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.List;
-import java.util.stream.Collectors
+import java.util.stream.Collectors;
 
 /** Utility to store some useful functions. */
 public class Utils {
@@ -71,7 +71,7 @@ public class Utils {
     }
 
     public static List<TypedExpr> promoteTypeForNumberExpressions(List<TypedExpr> expressions) {
-        Type highestType = expressions.stream()
+        Type targetType = expressions.stream()
             .map(expr -> {
                 Type returnType = expr.getReturnType();
                 int priority = getNumberTypePriority(returnType.getClass().getSimpleName());
@@ -81,7 +81,7 @@ public class Utils {
         .orElseThrow(() -> new RuntimeException("No expressions found")).f1;
 
         return expressions.stream()
-            .map(expr -> expr.getReturnType().equals(highestType) ? expr : CastTypedExpr.create(highestType, expr, false))
+            .map(expr -> expr.getReturnType().equals(targetType) ? expr : CastTypedExpr.create(targetType, expr, false))
             .collect(Collectors.toList());
     }
 }
