@@ -82,7 +82,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
         final int transformationId = transformation.getId();
         final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
-        /// These codes are changed for gluten
+        // --- Begin Gluten-specific code changes ---
         if (transformation.getSource().getClass().getSimpleName().equals("NexmarkSource")) {
             RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                     ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
@@ -126,7 +126,7 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
                     transformation.getOutputType(),
                     "Source: " + transformation.getName());
         }
-        /// end gluten
+        // --- End Gluten-specific code changes ---
 
         final int parallelism =
                 transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT

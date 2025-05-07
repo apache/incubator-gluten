@@ -86,7 +86,7 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         return pipeline instanceof StreamGraph;
     }
 
-    /// These codes are added for Gluten
+    // --- Begin Gluten-specific code changes ---
     private JobGraph mergeGlutenOperators(JobGraph jobGraph) {
         for (JobVertex vertex : jobGraph.getVertices()) {
             StreamConfig streamConfig = new StreamConfig(vertex.getConfiguration());
@@ -184,5 +184,5 @@ public class StreamGraphTranslator implements FlinkPipelineTranslator {
         }
         return null;
     }
-    /// end gluten
+    // --- End Gluten-specific code changes ---
 }

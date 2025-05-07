@@ -524,7 +524,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
         FileSystem.initialize(configuration, pluginManager);
 
         StateChangelogStorageLoader.initialize(pluginManager);
+        // --- Begin Gluten-specific code changes ---
         Velox4j.initialize();
+        // --- End Gluten-specific code changes ---
 
         int exitCode;
         Throwable throwable = null;

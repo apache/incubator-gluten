@@ -111,7 +111,7 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        /// These codes are changed for gluten
+        // --- Begin Gluten-specific code changes ---
         io.github.zhztheplayer.velox4j.type.RowType inputType =
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(inputEdge.getOutputType());
@@ -145,6 +145,6 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),
                 false);
-        /// end gluten
+        // --- End Gluten-specific code changes ---
     }
 }
