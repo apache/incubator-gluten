@@ -20,9 +20,10 @@ package org.apache.gluten.table.runtime.operators;
 import io.github.zhztheplayer.velox4j.connector.ExternalStream;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
+import io.github.zhztheplayer.velox4j.connector.ExternalStreams;
 import io.github.zhztheplayer.velox4j.iterator.DownIterators;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
-import io.github.zhztheplayer.velox4j.query.BoundSplit;
+import io.github.zhztheplayer.velox4j.query.SerialTask;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
@@ -68,9 +69,9 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
     private MemoryManager memoryManager;
     private Session session;
     private Query query;
-    private BlockingQueue<RowVector> inputQueue;
-    BufferAllocator allocator;
-    UpIterator upIterator;
+    private ExternalStreams.BlockingQueue inputQueue;
+    private BufferAllocator allocator;
+    private SerialTask task;
 
     public GlutenSingleInputOperator(PlanNode plan, String id, RowType inputType, RowType outputType) {
         this.glutenPlan = plan;
@@ -86,14 +87,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         memoryManager = MemoryManager.create(AllocationListener.NOOP);
         session = Velox4j.newSession(memoryManager);
 
-        inputQueue = new LinkedBlockingQueue<>();
-        ExternalStream es =
-                session.externalStreamOps().bind(DownIterators.fromBlockingQueue(inputQueue));
-        List<BoundSplit> splits = List.of(
-                new BoundSplit(
-                        id,
-                        -1,
-                        new ExternalStreamConnectorSplit("connector-external-stream", es.id())));
+        inputQueue = session.externalStreamOps().newBlockingQueue();
         // add a mock input as velox not allow the source is empty.
         PlanNode mockInput = new TableScanNode(
                 id,
@@ -102,9 +96,12 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
                 List.of());
         glutenPlan.setSources(List.of(mockInput));
         LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
-        query = new Query(glutenPlan, splits, Config.empty(), ConnectorConfig.empty());
+        query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
-        upIterator = session.queryOps().execute(query);
+        task = session.queryOps().execute(query);
+        ExternalStreamConnectorSplit split = new ExternalStreamConnectorSplit("connector-external-stream", inputQueue.id());
+        task.addSplit(id, split);
+        task.noMoreSplits(id);
     }
 
     @Override
@@ -114,10 +111,10 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
             allocator,
             session,
             inputType);
-        inputQueue.add(inRv);
-        UpIterator.State state = upIterator.advance();
+        inputQueue.put(inRv);
+        UpIterator.State state = task.advance();
         if (state == UpIterator.State.AVAILABLE) {
-            RowVector outRv = upIterator.get();
+            RowVector outRv = task.get();
             List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
                     outRv,
                     allocator,
@@ -132,7 +129,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
 
     @Override
     public void close() throws Exception {
-        upIterator.close();
+        task.close();
         session.close();
         memoryManager.close();
         allocator.close();

@@ -17,6 +17,7 @@
 
 package org.apache.gluten.table.runtime.operators;
 
+import io.github.zhztheplayer.velox4j.query.SerialTask;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
@@ -28,7 +29,6 @@ import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.memory.AllocationListener;
 import io.github.zhztheplayer.velox4j.memory.MemoryManager;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
-import io.github.zhztheplayer.velox4j.query.BoundSplit;
 import io.github.zhztheplayer.velox4j.query.Query;
 import io.github.zhztheplayer.velox4j.serde.Serde;
 import io.github.zhztheplayer.velox4j.session.Session;
@@ -82,17 +82,18 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     @Override
     public void run(SourceContext<RowData> sourceContext) throws Exception {
         LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode));
-        final List<BoundSplit> splits = List.of(new BoundSplit(id, -1, split));
         memoryManager = MemoryManager.create(AllocationListener.NOOP);
         session = Velox4j.newSession(memoryManager);
-        query = new Query(planNode, splits, Config.empty(), ConnectorConfig.empty());
+        query = new Query(planNode, Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
 
-        UpIterator upIterator = session.queryOps().execute(query);
+        SerialTask task = session.queryOps().execute(query);
+        task.addSplit(id, split);
+        task.noMoreSplits(id);
         while (isRunning) {
-            UpIterator.State state = upIterator.advance();
+            UpIterator.State state = task.advance();
             if (state == UpIterator.State.AVAILABLE) {
-                final RowVector outRv = upIterator.get();
+                final RowVector outRv = task.get();
                 List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
                         outRv,
                         allocator,
@@ -109,7 +110,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
             }
         }
 
-        upIterator.close();
+        task.close();
         session.close();
         memoryManager.close();
         allocator.close();
