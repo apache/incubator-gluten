@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
-        uses: actions/cache/restore@v3
+        uses: infrastructure-actions/stash/restore@v1
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos7-release-default-${{github.sha}}
@@ -48,7 +48,7 @@ jobs:
             bash dev/ci-velox-buildstatic-centos-7.sh
           "
       - name: Save Ccache
-        uses: actions/cache/save@v3
+        uses: infrastructure-actions/stash/save@v1
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
@@ -88,7 +88,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
-        uses: actions/cache/restore@v3
+        uses: infrastructure-actions/stash/restore@v1
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
@@ -100,7 +100,7 @@ jobs:
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
       - name: Save Ccache
-        uses: actions/cache/save@v3
+        uses: infrastructure-actions/stash/save@v1
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
@@ -161,74 +161,4 @@ jobs:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos9-release-shared-${{runner.arch}}-${{github.sha}}
 
-  # ccache-native-lib-ubuntu-velox-ut:
-  #   runs-on: ubuntu-22.04
-  #   env:
-  #     CCACHE_DIR: "${{ github.workspace }}/.ccache"
-  #   container: ghcr.io/facebookincubator/velox-dev:amd64-ubuntu-22.04-avx
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Get Ccache
-  #       uses: actions/cache/restore@v3
-  #       with:
-  #         path: '${{ env.CCACHE_DIR }}'
-  #         key: ccache-ubuntu-release-default
-  #     - name: Ensure Cache Dirs Exists
-  #       working-directory: ${{ github.workspace }}
-  #       run: |
-  #         mkdir -p '${{ env.CCACHE_DIR }}'
-  #     - name: Build Gluten native libraries
-  #       run: |
-  #         rm -rf /opt/miniconda-for-velox/
-  #         cd ep/build-velox/src && \
-  #         ./get_velox.sh
-  #         cd ../build/velox_ep/
-  #         make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON" 
 
-  #     - name: CCache after
-  #       run: |
-  #         ccache -vs
-
-  #     - uses: actions/cache/save@v3
-  #       with:
-  #         path: '${{ env.CCACHE_DIR }}'
-  #         key: ccache-ubuntu-release-default
-#  ccache-native-lib-centos-velox-ut:
-#    runs-on: ubuntu-22.04
-#    env:
-#      CCACHE_DIR: "${{ github.workspace }}/.ccache"
-#    container: ghcr.io/facebookincubator/velox-dev:centos8
-#    steps:
-#      - uses: actions/checkout@v2
-#      - name: Setup java and maven
-#        run: |
-#          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-#          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-#          tar -xvf apache-maven-3.8.8-bin.tar.gz
-#          mv apache-maven-3.8.8 /usr/lib/maven
-#      - name: Get Ccache
-#        uses: actions/cache/restore@v3
-#        with:
-#          path: '${{ env.CCACHE_DIR }}'
-#          key: ccache-centos-release-default
-#      - name: Ensure Cache Dirs Exists
-#        working-directory: ${{ github.workspace }}
-#        run: |
-#          mkdir -p '${{ env.CCACHE_DIR }}'
-#      - name: Build Gluten native libraries
-#        run: |
-#          rm -rf /opt/miniconda-for-velox/
-#          cd ep/build-velox/src && \
-#          ./get_velox.sh
-#          cd ../build/velox_ep/
-#          source /opt/rh/gcc-toolset-9/enable
-#          make EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=ON -DVELOX_BUILD_TEST_UTILS=ON"
-#
-#      - name: CCache after
-#        run: |
-#          ccache -s
-#
-#      - uses: actions/cache/save@v3
-#        with:
-#          path: '${{ env.CCACHE_DIR }}'
-#          key: ccache-centos-release-default

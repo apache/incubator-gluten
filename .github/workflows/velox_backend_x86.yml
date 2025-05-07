@@ -72,12 +72,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
-        uses: actions/cache/restore@v4
+        uses: apache/infrastructure-actions/stash/restore@3354c1565d4b0e335b78a76aedd82153a9e144d4
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos7-release-default-${{github.sha}}
-          restore-keys: |
-            ccache-centos7-release-default
       - name: Build Gluten native libraries
         run: |
           docker pull apache/gluten:vcpkg-centos-7
@@ -95,7 +93,7 @@ jobs:
           "
 
       - name: "Save ccache"
-        uses: actions/cache/save@v4
+        uses: apache/infrastructure-actions/stash/save@3354c1565d4b0e335b78a76aedd82153a9e144d4
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
@@ -1232,19 +1230,23 @@ jobs:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Get Ccache
-        uses: actions/cache/restore@v4
+        uses: apache/infrastructure-actions/stash/restore@3354c1565d4b0e335b78a76aedd82153a9e144d4
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
-          restore-keys: |
-            ccache-centos8-release-shared-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
+      - name: "Save ccache"
+        uses: apache/infrastructure-actions/stash/save@3354c1565d4b0e335b78a76aedd82153a9e144d4
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V

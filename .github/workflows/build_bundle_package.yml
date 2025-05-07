@@ -48,12 +48,10 @@ jobs:
         with:
           ref: ${{ github.event.inputs.ref }}
       - name: Get Ccache
-        uses: actions/cache/restore@v3
+        uses: infrastructure-actions/stash/restore@v1
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos7-release-default-${{github.sha}}
-          restore-keys: |
-            ccache-centos7-release-default
       - name: Build Gluten velox third party
         run: |
           docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
