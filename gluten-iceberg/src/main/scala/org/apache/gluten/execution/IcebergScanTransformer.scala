@@ -63,46 +63,44 @@ case class IcebergScanTransformer(
     if (!validationResult.ok()) {
       return validationResult
     }
+    val baseTable = table match {
+      case t: SparkTable =>
+        t.table() match {
+          case t: BaseTable => t
+          case _ => null
+        }
+      case _ => null
+    }
+    if (baseTable == null) {
+      return ValidationResult.failed("The table is not BaseTable")
+    }
 
     if (!BackendsApiManager.getSettings.supportIcebergEqualityDeleteRead()) {
-      val notSupport = table match {
-        case t: SparkTable =>
-          t.table() match {
-            case t: BaseTable =>
-              t.operations()
-                .current()
-                .schema()
-                .columns()
-                .stream
-                .anyMatch(c => containsUuidOrFixedType(c.`type`()) || containsMetadataColumn(c))
-            case _ => false
-          }
-        case _ => false
-      }
-      if (notSupport) {
+      if (
+        baseTable
+          .operations()
+          .current()
+          .schema()
+          .columns()
+          .stream
+          .anyMatch(c => containsUuidOrFixedType(c.`type`()))
+      ) {
         return ValidationResult.failed("Contains not supported data type or metadata column")
       }
-      // Delete from command read the _file metadata, which may be not successful.
       val readMetadata =
         scan.readSchema().fieldNames.exists(f => MetadataColumns.isMetadataColumn(f))
       if (readMetadata) {
         return ValidationResult.failed(s"Read the metadata column")
       }
-      val containsEqualityDelete = table match {
-        case t: SparkTable =>
-          t.table() match {
-            case t: BaseTable =>
-              t.operations()
-                .current()
-                .currentSnapshot()
-                .summary()
-                .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0")
-                .toInt > 0
-            case _ => false
-          }
-        case _ => false
-      }
-      if (containsEqualityDelete) {
+      if (
+        baseTable
+          .operations()
+          .current()
+          .currentSnapshot()
+          .summary()
+          .getOrDefault(SnapshotSummary.TOTAL_EQ_DELETES_PROP, "0")
+          .toInt > 0
+      ) {
         return ValidationResult.failed("Contains equality delete files")
       }
     }
@@ -183,14 +181,6 @@ object IcebergScanTransformer {
         s.fields().stream().anyMatch(f => containsUuidOrFixedType(f.`type`()))
       case t if t.typeId() == TypeID.UUID || t.typeId() == TypeID.FIXED => true
       case _ => false
-    }
-  }
-
-  private def containsMetadataColumn(field: NestedField): Boolean = {
-    field.`type`() match {
-      case s: org.apache.iceberg.types.Types.StructType =>
-        s.fields().stream().anyMatch(f => containsMetadataColumn(f))
-      case _ => field.fieldId() >= (Integer.MAX_VALUE - 200)
     }
   }
 }
