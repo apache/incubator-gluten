@@ -190,6 +190,7 @@ object Validators {
         fail(p)
       case p: RangeExec if !glutenConf.enableColumnarRange => fail(p)
       case p: CollectLimitExec if !glutenConf.enableColumnarCollectLimit => fail(p)
+      case p: CollectTailExec if !glutenConf.enableColumnarCollectTail => fail(p)
       case _ => pass()
     }
   }
