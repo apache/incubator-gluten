@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_05_06
+VELOX_REPO=https://github.com/ccat3z/velox.git
+VELOX_BRANCH=fb/feature/legacy-binary-exists
 VELOX_HOME=""
 
 OS=`uname -s`
