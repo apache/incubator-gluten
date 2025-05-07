@@ -146,7 +146,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
-    operators/writer/VeloxArrowWriter.cc
+    operators/writer/VeloxColumnarBatchWriter.cc
     operators/writer/VeloxParquetDataSource.cc
     shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxRssSortShuffleWriter.cc
@@ -169,7 +169,8 @@ set(VELOX_SRCS
     utils/LocalRssClient.cc
     utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
-    utils/VeloxBatchResizer.cc)
+    utils/VeloxBatchResizer.cc
+    utils/VeloxWholeStageDumper.cc)
 
 if(ENABLE_S3)
   find_package(ZLIB)

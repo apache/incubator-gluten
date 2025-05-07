@@ -132,6 +132,10 @@
           <scope>provided</scope>
           <exclusions>
             <exclusion>
+              <groupId>com.google.code.gson</groupId>
+              <artifactId>gson</artifactId>
+            </exclusion>
+            <exclusion>
               <groupId>org.apache.logging.log4j</groupId>
               <artifactId>log4j-slf4j-impl</artifactId>
             </exclusion>
@@ -551,6 +555,10 @@
       <version>2.3.9</version>
       <scope>test</scope>
       <exclusions>
+        <exclusion>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>org.pentaho</groupId>
           <artifactId>pentaho-aggdesigner-algorithm</artifactId>

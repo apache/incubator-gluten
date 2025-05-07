@@ -43,8 +43,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   protected val tablesPath: String = UTSystemParameters.tpcdsDecimalDataPath + "/"
   protected val db_name: String = "tpcdsdb"
   protected val tpcdsQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpcds-queries"
-  protected val queriesResults: String = rootPath + "tpcds-decimal-queries-output"
+    resPath + "../../../../tools/gluten-it/common/src/main/resources/tpcds-queries"
+  protected val queriesResults: String = resPath + "tpcds-decimal-queries-output"
 
   /** Return values: (sql num, is fall back) */
   def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean)] =
@@ -162,7 +162,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       }
     }
 
-    FileUtils.forceDelete(new File(basePath))
+    FileUtils.forceDelete(new File(dataHome))
   }
 
   protected def runTPCDSQuery(

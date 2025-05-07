@@ -233,7 +233,8 @@ DB::Chunk VectorizedParquetRecordReader::nextBatch()
             = {vectorized_column_reader.readBatch(format_settings_.parquet.max_block_size), vectorized_column_reader.arrowField()};
 
     if (const size_t num_rows = name_to_column_ptr.begin()->second.column->length(); num_rows > 0)
-        return arrow_column_to_ch_column_.arrowColumnsToCHChunk(name_to_column_ptr, num_rows, nullptr);
+        return arrow_column_to_ch_column_.arrowColumnsToCHChunk(
+            name_to_column_ptr, num_rows, file_reader_->fileMeta()->key_value_metadata(), nullptr);
     return {};
 }
 

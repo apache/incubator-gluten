@@ -59,7 +59,7 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "rlike"};
 
 const std::unordered_set<std::string> kBlackList =
-    {"split_part", "factorial", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
+    {"split_part", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -209,15 +209,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   if (name == "extract") {
     return validateExtractExpr(params);
   }
-  if (name == "concat") {
-    for (const auto& type : types) {
-      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
-          type.find("list") != std::string::npos) {
-        LOG_VALIDATION_MSG(type + " is not supported in concat.");
-        return false;
-      }
-    }
-  }
 
   // Validate regex functions.
   if (kRegexFunctions.find(name) != kRegexFunctions.end()) {
@@ -243,6 +234,12 @@ bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
   // is currently WIP to add support for other types.
   if (toType->isVarchar()) {
     return kAllowedArrayElementKinds.count(fromType->kind()) > 0;
+  }
+
+  if (toType->isDouble()) {
+    if (fromType->isInteger() || fromType->isBigint() || fromType->isSmallint() || fromType->isTinyint()) {
+      return true;
+    }
   }
 
   return false;

@@ -16,24 +16,14 @@
  */
 package org.apache.gluten.execution.tpch
 
-import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
+import org.apache.gluten.execution.ParquetSuite
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import java.sql.Timestamp
 
-class GlutenClickHouseDatetimeExpressionSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
+class GlutenClickHouseDatetimeExpressionSuite extends ParquetSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -44,10 +34,6 @@ class GlutenClickHouseDatetimeExpressionSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.session.timeZone", "GMT+08:00")
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   test("test date_trunc function") {
