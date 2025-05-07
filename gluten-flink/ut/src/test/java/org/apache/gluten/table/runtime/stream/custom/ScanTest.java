@@ -45,9 +45,9 @@ class ScanTest extends GlutenStreamingTestBase {
 
     @Test
     void testFilter() {
-        String query = "select a, b as b,c from MyTable where a > 0";
+        String query = "select a, b + 1 as b,c from MyTable where a > 0";
         LOG.info("execution plan: {}", explainExecutionPlan(query));
-        runAndCheck(query, Arrays.asList("+I[1, 1, 1]", "+I[2, 2, 2]", "+I[3, 3, 3]"));
+        runAndCheck(query, Arrays.asList("+I[1, 2, 1]", "+I[2, 3, 2]", "+I[3, 4, 3]"));
     }
 }
 
