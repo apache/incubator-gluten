@@ -14,16 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.rexnode.functions;
 
-import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
-import io.github.zhztheplayer.velox4j.expression.TypedExpr;
-import io.github.zhztheplayer.velox4j.type.Type;
+package org.apache.gluten.rexnode;
 
 import java.util.List;
 
-/** Interface for converter to velox function. */
-public interface FunctionConverter {
+// In case more information is needed in the future, we can add more fields to this class.
+public class RexConversionContext {
+    private final List<String> inputAttributeNames;
 
-    CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params);
+    public RexConversionContext(List<String> inputAttributeNames) {
+        this.inputAttributeNames = inputAttributeNames;
+    }
+    public List<String> getInputAttributeNames() {
+        return inputAttributeNames;
+    }
 }
