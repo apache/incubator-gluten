@@ -95,7 +95,12 @@ abstract class BatchScanExecTransformerBase(
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
-    BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetrics(
+      sparkContext) ++ customMetrics
+
+  def doPostDriverMetrics(): Unit = {
+    postDriverMetrics()
+  }
 
   // Similar to the problem encountered in https://github.com/oap-project/gluten/pull/3184,
   // we cannot add member variables to BatchScanExecTransformerBase, which inherits from case
