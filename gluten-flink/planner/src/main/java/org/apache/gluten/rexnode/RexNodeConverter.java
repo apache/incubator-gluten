@@ -56,12 +56,9 @@ public class RexNodeConverter {
                     null);
         } else if (rexNode instanceof RexCall) {
             RexCall rexCall = (RexCall) rexNode;
-            List<TypedExpr> params = toTypedExpr(rexCall.getOperands(), inNames);
-            Type nodeType = toType(rexCall.getType());
-            return new CallTypedExpr(
-                    nodeType,
-                    params,
-                    FunctionMappings.toVeloxFunction(rexCall.getOperator().getName()));
+            String operatorName = rexCall.getOperator().getName();
+            RexCallConverter converter = RexCallConverterFactory.getConverter(operatorName);
+            return converter.toTypedExpr(rexCall, inNames);
         } else if (rexNode instanceof RexInputRef) {
             RexInputRef inputRef = (RexInputRef) rexNode;
             return FieldAccessTypedExpr.create(
