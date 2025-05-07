@@ -112,7 +112,7 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        /// These codes are changed for gluten
+        // --- Begin Gluten-specific code changes ---
         final long idleTimeout =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT).toMillis();
 
@@ -133,6 +133,6 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),
                 false);
-        /// end gluten
+        // --- End Gluten-specific code changes ---
     }
 }

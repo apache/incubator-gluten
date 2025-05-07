@@ -23,6 +23,6 @@ public class PlanNodeIdGenerator {
     private static final AtomicInteger ID_COUNTER = new AtomicInteger(0);
 
     public static String newId() {
-        return String.valueOf(ID_COUNTER.incrementAndGet());
+        return String.valueOf(ID_COUNTER.getAndIncrement());
     }
 }

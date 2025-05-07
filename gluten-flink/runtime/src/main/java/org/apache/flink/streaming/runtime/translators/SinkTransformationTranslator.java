@@ -177,7 +177,7 @@ public class SinkTransformationTranslator<Input, Output>
             if (sink instanceof SupportsCommitter) {
                 addCommittingTopology(sink, prewritten);
             } else {
-                /// These code are changed for gluten
+                // --- Begin Gluten-specific code changes ---
                 if (sink instanceof DiscardingSink) {
                     RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                             ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
@@ -222,7 +222,7 @@ public class SinkTransformationTranslator<Input, Output>
                             false,
                             sink instanceof SupportsConcurrentExecutionAttempts);
                 }
-                /// end gluten
+                // --- End Gluten-specific code changes ---
             }
 
             getSinkTransformations(sizeBefore).forEach(context::transform);
