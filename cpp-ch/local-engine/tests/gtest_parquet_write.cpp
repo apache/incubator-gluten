@@ -210,7 +210,7 @@ TEST(ParquetWrite, ComplexTypes)
 
     /// Convert Arrow Table to CH Block
     ArrowColumnToCHColumn arrow2ch(header, "Parquet", true, true, FormatSettings::DateTimeOverflowBehavior::Ignore);
-    Chunk output_chunk = arrow2ch.arrowTableToCHChunk(arrow_table, arrow_table->num_rows());
+    Chunk output_chunk = arrow2ch.arrowTableToCHChunk(arrow_table, arrow_table->num_rows(), nullptr, nullptr);
 
     /// Compare input and output columns
     const auto & input_columns = input_chunks.back().getColumns();
