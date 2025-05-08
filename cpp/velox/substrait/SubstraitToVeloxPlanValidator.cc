@@ -224,21 +224,25 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
 }
 
 bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
-  static const std::unordered_set<TypeKind> kAllowedArrayElementKinds = {
-      TypeKind::DOUBLE,
-      TypeKind::BOOLEAN,
-      TypeKind::TIMESTAMP,
-  };
 
   // https://github.com/apache/incubator-gluten/issues/9392
   // is currently WIP to add support for other types.
   if (toType->isVarchar()) {
-    return kAllowedArrayElementKinds.count(fromType->kind()) > 0;
+    return fromType->kind() == TypeKind::DOUBLE ||
+           fromType->kind() == TypeKind::BOOLEAN ||
+           fromType->kind() == TypeKind::TIMESTAMP;
   }
 
   if (toType->isDouble()) {
     if (fromType->isInteger() || fromType->isBigint() || fromType->isSmallint() || fromType->isTinyint()) {
       return true;
+    }
+  }
+
+  if (toType->isBoolean()) {
+    if( fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() ||
+           fromType->isBigint() || fromType->isReal() || fromType->isDouble()) {
+        return true;
     }
   }
 
