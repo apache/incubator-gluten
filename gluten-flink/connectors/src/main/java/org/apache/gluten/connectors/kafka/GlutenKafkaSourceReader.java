@@ -18,16 +18,22 @@
  package org.apache.gluten.connectors.kafka;
 
  import java.util.concurrent.CompletableFuture;
- import java.util.stream.Collectors;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
  
  import org.apache.arrow.memory.BufferAllocator;
  import org.apache.arrow.memory.RootAllocator;
  import org.apache.flink.api.connector.source.ReaderOutput;
  import org.apache.flink.api.connector.source.SourceReader;
- import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
+import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumStateSerializer;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
  import org.apache.flink.core.io.InputStatus;
- import org.apache.flink.table.data.RowData;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
+import org.apache.flink.table.data.RowData;
  import org.apache.flink.table.types.DataType;
+ import org.apache.kafka.clients.consumer.KafkaConsumer;
+ import org.apache.kafka.common.TopicPartition;
+ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
  import org.apache.gluten.util.LogicalTypeConverter;
  import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
  import org.slf4j.Logger;
@@ -114,26 +120,45 @@
      String bootstrapServers = props.getProperty("bootstrap.servers");
      String groupId = props.getProperty("group.id");
      boolean enableAutoCommit = Boolean.valueOf(props.getProperty(KEY_ENABLE_AUTO_COMMIT, "true"));
-     String autoResetOffset = props.getProperty(KEY_AUTO_OFFSET_RESET, "earliest");
-     Map<String, List<Integer>> topicPartitionsMap = new HashMap<>();
+     String autoResetOffset = props.getProperty(KEY_AUTO_OFFSET_RESET, "latest");
+     List<KafkaConnectorSplit.TopicPartitionOffset> topicPartitionOffsets = new ArrayList<>();
      if (!topicPartitions.isEmpty()) {
-       for (KafkaPartitionSplit tp : topicPartitions) {
-         String topic = tp.getTopic();
-         List<Integer> partitions = topicPartitionsMap.computeIfAbsent(topic, x -> new ArrayList<>());
-         partitions.add(tp.getPartition());
-       }
-     }
-     KafkaConnectorSplit connectorSplit = new KafkaConnectorSplit(
-       CONNECTOR_ID, 
-       0, 
-       false, 
-       bootstrapServers,
-       groupId,
-       format,
-       enableAutoCommit,
-       autoResetOffset,
-       topicPartitionsMap);
-     return connectorSplit;
+      KafkaConsumer<byte[], byte[]> consumer = null;
+      try {
+        String startupMode = props.getProperty(KEY_STARTUP_MODE, "group-offsets");
+        if (startupMode.equals("latest-offsets") || startupMode.equals("earliest-offsets")) {
+          props.setProperty("key.deserializer", ByteArrayDeserializer.class.getName());
+          props.setProperty("value.deserializer", ByteArrayDeserializer.class.getName());
+          consumer = new KafkaConsumer<>(props);
+          List<TopicPartition> topicPartitionList = topicPartitions.stream()
+            .map(x -> new TopicPartition(x.getTopic(), x.getPartition()))
+            .collect(Collectors.toList());
+          Map<TopicPartition, Long> offsetsMap =
+            startupMode.equals("latest-offsets") ? consumer.endOffsets(topicPartitionList) : consumer.beginningOffsets(topicPartitionList);
+          topicPartitionOffsets = offsetsMap.entrySet().stream()
+            .map(x -> new KafkaConnectorSplit.TopicPartitionOffset(x.getKey().topic(), x.getKey().partition(), x.getValue()))
+            .collect(Collectors.toList());
+        } else {
+          topicPartitionOffsets = topicPartitions.stream()
+            .map(x -> new KafkaConnectorSplit.TopicPartitionOffset(x.getTopic(), x.getPartition(), KafkaTopicPartitionStateSentinel.GROUP_OFFSET))
+            .collect(Collectors.toList());
+        }
+      } finally {
+        if (consumer != null) {
+          consumer.close();
+        }
+      }
+    }
+    return new KafkaConnectorSplit(
+      CONNECTOR_ID,
+      0,
+      false,
+      bootstrapServers,
+      groupId,
+      format,
+      enableAutoCommit,
+      autoResetOffset,
+      topicPartitionOffsets);
    }
  
    private KafkaTableHandle getTableHandle() {
