@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.functions
+
+import org.apache.gluten.execution.{BatchScanExecTransformer, ProjectExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row

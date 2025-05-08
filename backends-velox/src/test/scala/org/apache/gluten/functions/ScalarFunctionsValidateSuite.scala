@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.functions
 
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.execution.{BatchScanExecTransformer, FilterExecTransformer, ProjectExecTransformer}
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.catalyst.optimizer.NullPropagation
