@@ -895,8 +895,9 @@ object GlutenConfig {
 
   val COLUMNAR_SORTMERGEJOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.sortMergeJoin")
-      .doc("Enable or disable columnar sortMergeJoin. " +
-        "This should be set with preferSortMergeJoin=false.")
+      .doc(
+        "Enable or disable columnar sortMergeJoin. " +
+          "This should be set with preferSortMergeJoin=false.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1089,18 +1090,15 @@ object GlutenConfig {
       .createOptional
 
   val COLUMNAR_LIMIT_ENABLED =
-    buildConf("spark.gluten.sql.columnar.limit")
-      .booleanConf
+    buildConf("spark.gluten.sql.columnar.limit").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_GENERATE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.generate")
-      .booleanConf
+    buildConf("spark.gluten.sql.columnar.generate").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_TAKE_ORDERED_AND_PROJECT_ENABLED =
-    buildConf("spark.gluten.sql.columnar.takeOrderedAndProject")
-      .booleanConf
+    buildConf("spark.gluten.sql.columnar.takeOrderedAndProject").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_NATIVE_BLOOMFILTER_ENABLED =
