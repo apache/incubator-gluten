@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql.shims.delta32
+package org.apache.gluten.sql.shims.delta33
 
 import org.apache.gluten.sql.shims.{DeltaShimProvider, DeltaShims}
 
-class Delta32ShimProvider extends DeltaShimProvider {
+class Delta33ShimProvider extends DeltaShimProvider {
 
   override def createShim: DeltaShims = {
-    new Delta32Shims()
+    new Delta33Shims()
   }
 
 }

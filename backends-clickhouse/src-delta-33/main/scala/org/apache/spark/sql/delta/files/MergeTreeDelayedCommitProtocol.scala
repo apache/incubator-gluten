@@ -50,8 +50,8 @@ class FileDelayedCommitProtocol(
     addedFiles ++= files
   }
 
-  override def parsePartitions(dir: String): Map[String, String] =
-    super.parsePartitions(dir)
+  override def parsePartitions(dir: String, taskContext: TaskAttemptContext): Map[String, String] =
+    super.parsePartitions(dir, taskContext)
 }
 
 /**

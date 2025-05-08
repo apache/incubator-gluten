@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.sql.shims.delta32
+package org.apache.gluten.sql.shims.delta33
 
 import org.apache.gluten.execution.{GlutenPlan, MergeTreePartRange}
 import org.apache.gluten.extension.{DeltaExpressionExtensionTransformer, ExpressionExtensionTrait}
@@ -34,7 +34,7 @@ import java.util.{HashMap => JHashMap, Map => JMap}
 
 import scala.collection.JavaConverters._
 
-class Delta32Shims extends DeltaShims {
+class Delta33Shims extends DeltaShims {
   override def supportDeltaOptimizedWriterExec(plan: SparkPlan): Boolean =
     DeltaOptimizedWriterTransformer.support(plan)
 
@@ -59,7 +59,7 @@ class Delta32Shims extends DeltaShims {
       new JHashMap[String, Object]
     for ((k, v) <- otherConstantMetadataColumnValues.asScala) {
       if (k.equalsIgnoreCase(DeltaParquetFileFormat.FILE_ROW_INDEX_FILTER_ID_ENCODED)) {
-        val decoded = JsonUtils.fromJson[DeletionVectorDescriptor](v.toString)
+        val decoded = DeletionVectorDescriptor.deserializeFromBase64(v.toString)
         var filePath = new Path(file.filePath.toString()).getParent
         for (_ <- 0 until partitionColsCnt) {
           filePath = filePath.getParent

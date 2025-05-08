@@ -18,37 +18,27 @@
 package org.apache.spark.sql.delta
 
 // scalastyle:off import.ordering.noEmptyLine
-import java.io.IOException
-import java.lang.ref.WeakReference
-import java.net.URI
-import java.util.concurrent.TimeUnit
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.util.control.NonFatal
-
 import com.databricks.spark.util.TagDefinitions._
-import org.apache.spark.sql.delta.actions._
-import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
-import org.apache.spark.sql.delta.commands.WriteIntoDelta
-import org.apache.spark.sql.delta.files.{TahoeBatchFileIndex, TahoeLogFileIndex}
-import org.apache.spark.sql.delta.managedcommit.ManagedCommitUtils
-import org.apache.spark.sql.delta.metering.DeltaLogging
-import org.apache.spark.sql.delta.schema.{SchemaMergingUtils, SchemaUtils}
-import org.apache.spark.sql.delta.sources._
-import org.apache.spark.sql.delta.storage.LogStoreProvider
-import org.apache.spark.sql.delta.util.FileNames
 import com.google.common.cache.{Cache, CacheBuilder, RemovalNotification}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
-
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.{FileSourceOptions, TableIdentifier}
 import org.apache.spark.sql.catalyst.analysis.{Resolver, UnresolvedAttribute}
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Cast, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.logical.AnalysisHelper
 import org.apache.spark.sql.catalyst.util.FailFastMode
+import org.apache.spark.sql.catalyst.{FileSourceOptions, TableIdentifier}
+import org.apache.spark.sql.delta.actions._
+import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
+import org.apache.spark.sql.delta.commands.WriteIntoDelta
+import org.apache.spark.sql.delta.coordinatedcommits.CoordinatedCommitsUtils
+import org.apache.spark.sql.delta.files.{TahoeBatchFileIndex, TahoeLogFileIndex}
+import org.apache.spark.sql.delta.metering.DeltaLogging
+import org.apache.spark.sql.delta.schema.{SchemaMergingUtils, SchemaUtils}
+import org.apache.spark.sql.delta.sources._
+import org.apache.spark.sql.delta.storage.LogStoreProvider
+import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.expressions.UserDefinedFunction
@@ -57,10 +47,18 @@ import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.util._
 
+import java.io.IOException
+import java.lang.ref.WeakReference
+import java.net.URI
+import java.util.concurrent.TimeUnit
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.util.control.NonFatal
+
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 3.2.1, it is modified to overcome the following issues:
+ * This file is copied from Delta 3.3.1, it is modified to overcome the following issues:
  *   1. return ClickhouseOptimisticTransaction
  *   2. return DeltaMergeTreeFileFormat
  *   3. create HadoopFsRelation with the bucket options
@@ -80,13 +78,15 @@ import org.apache.spark.util._
  * @param allOptions All options provided by the user, for example via `df.write.option()`. This
  *                   includes but not limited to filesystem and table properties.
  * @param clock Clock to be used when starting a new transaction.
+ * @param initialCatalogTable The catalog table given when the log is initialized.
  */
 class DeltaLog private(
     val logPath: Path,
     val dataPath: Path,
     val options: Map[String, String],
     val allOptions: Map[String, String],
-    val clock: Clock
+    val clock: Clock,
+    initialCatalogTable: Option[CatalogTable]
   ) extends Checkpoints
   with MetadataCleanup
   with LogStoreProvider
@@ -134,6 +134,9 @@ class DeltaLog private(
   lazy val history = new DeltaHistoryManager(
     this, spark.sessionState.conf.getConf(DeltaSQLConf.DELTA_HISTORY_PAR_SEARCH_THRESHOLD))
 
+  /** Initialize the variables in SnapshotManagement. */
+  createSnapshotAtInit(initialCatalogTable)
+
   /* --------------- *
    |  Configuration  |
    * --------------- */
@@ -148,6 +151,15 @@ class DeltaLog private(
    */
   def maxSnapshotLineageLength: Int =
     spark.sessionState.conf.getConf(DeltaSQLConf.DELTA_MAX_SNAPSHOT_LINEAGE_LENGTH)
+
+  private[delta] def incrementalCommitEnabled: Boolean = {
+    spark.conf.get(DeltaSQLConf.INCREMENTAL_COMMIT_ENABLED)
+  }
+
+  private[delta] def shouldVerifyIncrementalCommit: Boolean = {
+    spark.conf.get(DeltaSQLConf.INCREMENTAL_COMMIT_VERIFY) ||
+      (Utils.isTesting && spark.conf.get(DeltaSQLConf.INCREMENTAL_COMMIT_FORCE_VERIFY_IN_TESTS))
+  }
 
   /** The unique identifier for this table. */
   def tableId: String = unsafeVolatileMetadata.id // safe because table id never changes
@@ -203,7 +215,7 @@ class DeltaLog private(
   def startTransaction(
       catalogTableOpt: Option[CatalogTable],
       snapshotOpt: Option[Snapshot] = None): OptimisticTransaction = {
-    TransactionExecutionObserver.threadObserver.get().startingTransaction {
+    TransactionExecutionObserver.getObserver.startingTransaction {
       // --- modified start
       new ClickhouseOptimisticTransaction(this, catalogTableOpt, snapshotOpt)
       // --- modified end
@@ -211,9 +223,7 @@ class DeltaLog private(
   }
 
   /** Legacy/compat overload that does not require catalog table information. Avoid prod use. */
-  // --- modified start
-  // @deprecated("Please use the CatalogTable overload instead", "3.0")
-  // --- modified end
+  @deprecated("Please use the CatalogTable overload instead", "3.0")
   def startTransaction(): OptimisticTransaction = {
     startTransaction(catalogTableOpt = None, snapshotOpt = None)
   }
@@ -234,9 +244,9 @@ class DeltaLog private(
       catalogTableOpt: Option[CatalogTable],
       snapshotOpt: Option[Snapshot] = None)(
       thunk: OptimisticTransaction => T): T = {
-    try {
       val txn = startTransaction(catalogTableOpt, snapshotOpt)
       OptimisticTransaction.setActive(txn)
+    try {
       thunk(txn)
     } finally {
       OptimisticTransaction.clearActive()
@@ -246,9 +256,9 @@ class DeltaLog private(
   /** Legacy/compat overload that does not require catalog table information. Avoid prod use. */
   @deprecated("Please use the CatalogTable overload instead", "3.0")
   def withNewTransaction[T](thunk: OptimisticTransaction => T): T = {
-    try {
       val txn = startTransaction()
       OptimisticTransaction.setActive(txn)
+    try {
       thunk(txn)
     } finally {
       OptimisticTransaction.clearActive()
@@ -345,7 +355,7 @@ class DeltaLog private(
   def getChangeLogFiles(
       startVersion: Long,
       failOnDataLoss: Boolean = false): Iterator[(Long, FileStatus)] = {
-    val deltasWithVersion = ManagedCommitUtils.commitFilesIterator(this, startVersion)
+    val deltasWithVersion = CoordinatedCommitsUtils.commitFilesIterator(this, startVersion)
     // Subtract 1 to ensure that we have the same check for the inclusive startVersion
     var lastSeenVersion = startVersion - 1
     deltasWithVersion.map { case (status, version) =>
@@ -443,7 +453,7 @@ class DeltaLog private(
     val protocolEnabledFeatures = targetProtocol.writerFeatureNames
       .flatMap(TableFeature.featureNameToFeature)
     val activeFeatures =
-      Protocol.extractAutomaticallyEnabledFeatures(spark, targetMetadata, Some(targetProtocol))
+      Protocol.extractAutomaticallyEnabledFeatures(spark, targetMetadata, targetProtocol)
     val activeButNotEnabled = activeFeatures.diff(protocolEnabledFeatures)
     if (activeButNotEnabled.nonEmpty) {
       throw DeltaErrors.tableFeatureMismatchException(activeButNotEnabled.map(_.name))
@@ -480,8 +490,8 @@ class DeltaLog private(
 
   def isSameLogAs(otherLog: DeltaLog): Boolean = this.compositeId == otherLog.compositeId
 
-  /** Creates the log directory if it does not exist. */
-  def ensureLogDirectoryExist(): Unit = {
+  /** Creates the log directory and commit directory if it does not exist. */
+  def createLogDirectoriesIfNotExists(): Unit = {
     val fs = logPath.getFileSystem(newDeltaHadoopConf())
     def createDirIfNotExists(path: Path): Unit = {
       // Optimistically attempt to create the directory first without checking its existence.
@@ -513,14 +523,6 @@ class DeltaLog private(
     createDirIfNotExists(FileNames.commitDirPath(logPath))
   }
 
-  /**
-   * Create the log directory. Unlike `ensureLogDirectoryExist`, this method doesn't check whether
-   * the log directory exists and it will ignore the return value of `mkdirs`.
-   */
-  def createLogDirectory(): Unit = {
-    logPath.getFileSystem(newDeltaHadoopConf()).mkdirs(logPath)
-  }
-
   /* ------------  *
    |  Integration  |
    * ------------  */
@@ -539,11 +541,24 @@ class DeltaLog private(
     // ensure any partitionSchema changes will be captured, and upon restart, the new snapshot will
     // be initialized with the correct partition schema again.
     val fileIndex = new TahoeBatchFileIndex(spark, actionType, addFiles, this, dataPath, snapshot)
+    // Drop null type columns from the relation's schema if it's not a streaming query until
+    // null type columns are fully supported.
+    val dropNullTypeColumnsFromSchema = if (isStreaming) {
+      // Can force the legacy behavior(dropping nullType columns) with a flag.
+      SQLConf.get.getConf(DeltaSQLConf.DELTA_STREAMING_CREATE_DATAFRAME_DROP_NULL_COLUMNS)
+    } else {
+      // Allow configurable behavior for non-streaming sources. This is used for testing.
+      SQLConf.get.getConf(DeltaSQLConf.DELTA_CREATE_DATAFRAME_DROP_NULL_COLUMNS)
+    }
     // --- modified start
     // TODO: Don't add the bucketOption here, it will cause the OOM when the merge into update
     // key is the bucket column, fix later
     // --- modified end
-    val relation = buildHadoopFsRelationWithFileIndex(snapshot, fileIndex, bucketSpec = None)
+    val relation = buildHadoopFsRelationWithFileIndex(
+      snapshot,
+      fileIndex,
+      bucketSpec = None,
+      dropNullTypeColumnsFromSchema = dropNullTypeColumnsFromSchema)
     Dataset.ofRows(spark, LogicalRelation(relation, isStreaming = isStreaming))
   }
 
@@ -577,21 +592,39 @@ class DeltaLog private(
       } else {
         None
       }
+    // --- modified end
 
     val r = buildHadoopFsRelationWithFileIndex(snapshotToUse, fileIndex, bucketSpec = bucketSpec)
-    new DeltaLog.DeltaHadoopFsRelation(
+    new HadoopFsRelation(
       r.location,
       r.partitionSchema,
       r.dataSchema,
       r.bucketSpec,
       r.fileFormat,
       r.options
-    )(spark, this, catalogTableOpt)
-    // --- modified end
+    )(spark) with InsertableRelation {
+      def insert(data: DataFrame, overwrite: Boolean): Unit = {
+        val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
+        WriteIntoDelta(
+          deltaLog = DeltaLog.this,
+          mode = mode,
+          new DeltaOptions(Map.empty[String, String], spark.sessionState.conf),
+          partitionColumns = Seq.empty,
+          configuration = Map.empty,
+          data = data,
+          catalogTableOpt = catalogTableOpt).run(spark)
+      }
+    }
   }
 
   def buildHadoopFsRelationWithFileIndex(snapshot: SnapshotDescriptor, fileIndex: TahoeFileIndex,
-      bucketSpec: Option[BucketSpec]): HadoopFsRelation = {
+      bucketSpec: Option[BucketSpec],
+      dropNullTypeColumnsFromSchema: Boolean = true): HadoopFsRelation = {
+    val dataSchema = if (dropNullTypeColumnsFromSchema) {
+      SchemaUtils.dropNullTypeColumns(snapshot.metadata.schema)
+    } else {
+      snapshot.metadata.schema
+    }
     HadoopFsRelation(
       fileIndex,
       partitionSchema = DeltaColumnMapping.dropColumnMappingMetadata(
@@ -600,8 +633,8 @@ class DeltaLog private(
       // column locations. Otherwise, for any partition columns not in `dataSchema`, Spark would
       // just append them to the end of `dataSchema`.
       dataSchema = DeltaColumnMapping.dropColumnMappingMetadata(
-        DeltaTableUtils.removeInternalMetadata(spark,
-          SchemaUtils.dropNullTypeColumns(snapshot.metadata.schema))),
+        DeltaTableUtils.removeInternalWriterMetadata(spark, dataSchema)
+      ),
       bucketSpec = bucketSpec,
       fileFormat(snapshot.protocol, snapshot.metadata),
       // `metadata.format.options` is not set today. Even if we support it in future, we shouldn't
@@ -620,8 +653,7 @@ class DeltaLog private(
    */
   protected def checkRequiredConfigurations(): Unit = {
     if (spark.sessionState.conf.getConf(DeltaSQLConf.DELTA_REQUIRED_SPARK_CONFS_CHECK)) {
-      if (spark.conf.getOption(
-        SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key).isEmpty) {
+      if (!spark.conf.contains(SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION.key)) {
         throw DeltaErrors.configureSparkSessionWithExtensionAndCatalog(None)
       }
     }
@@ -671,40 +703,6 @@ class DeltaLog private(
 }
 
 object DeltaLog extends DeltaLogging {
-
-  // --- modified start
-  @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
-  private class DeltaHadoopFsRelation(
-      location: FileIndex,
-      partitionSchema: StructType,
-      // The top-level columns in `dataSchema` should match the actual physical file schema,
-      // otherwise the ORC data source may not work with the by-ordinal mode.
-      dataSchema: StructType,
-      bucketSpec: Option[BucketSpec],
-      fileFormat: FileFormat,
-      options: Map[String, String]
-    )(spark: SparkSession, deltaLog: DeltaLog, catalogTableOpt: Option[CatalogTable])
-    extends HadoopFsRelation(
-      location,
-      partitionSchema,
-      dataSchema,
-      bucketSpec,
-      fileFormat,
-      options)(spark)
-      with InsertableRelation {
-    def insert(data: DataFrame, overwrite: Boolean): Unit = {
-      val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
-      WriteIntoDelta(
-        deltaLog = deltaLog,
-        mode = mode,
-        new DeltaOptions(Map.empty[String, String], spark.sessionState.conf),
-        partitionColumns = Seq.empty,
-        configuration = Map.empty,
-        data = data,
-        catalogTableOpt = catalogTableOpt).run(spark)
-    }
-  }
-  // --- modified end
 
   /**
    * The key type of `DeltaLog` cache. It's a pair of the canonicalized table path and the file
@@ -794,22 +792,27 @@ object DeltaLog extends DeltaLogging {
 
   /** Helper for creating a log when it stored at the root of the data. */
   def forTable(spark: SparkSession, dataPath: String): DeltaLog = {
-    apply(spark, logPathFor(dataPath), Map.empty, new SystemClock)
+    apply(
+      spark,
+      logPathFor(dataPath),
+      options = Map.empty,
+      initialCatalogTable = None,
+      new SystemClock)
   }
 
   /** Helper for creating a log when it stored at the root of the data. */
   def forTable(spark: SparkSession, dataPath: Path): DeltaLog = {
-    apply(spark, logPathFor(dataPath), new SystemClock)
+    apply(spark, logPathFor(dataPath), initialCatalogTable = None, new SystemClock)
   }
 
   /** Helper for creating a log when it stored at the root of the data. */
   def forTable(spark: SparkSession, dataPath: Path, options: Map[String, String]): DeltaLog = {
-    apply(spark, logPathFor(dataPath), options, new SystemClock)
+    apply(spark, logPathFor(dataPath), options, initialCatalogTable = None, new SystemClock)
   }
 
   /** Helper for creating a log when it stored at the root of the data. */
   def forTable(spark: SparkSession, dataPath: Path, clock: Clock): DeltaLog = {
-    apply(spark, logPathFor(dataPath), clock)
+    apply(spark, logPathFor(dataPath), initialCatalogTable = None, clock)
   }
 
   /** Helper for creating a log for the table. */
@@ -832,45 +835,88 @@ object DeltaLog extends DeltaLogging {
   }
 
   /** Helper for creating a log for the table. */
-  def forTable(spark: SparkSession, table: CatalogTable, clock: Clock): DeltaLog = {
-    apply(spark, logPathFor(new Path(table.location)), clock)
+  def forTable(spark: SparkSession, table: CatalogTable, options: Map[String, String]): DeltaLog = {
+    apply(
+      spark,
+      logPathFor(new Path(table.location)),
+      options,
+      Some(table),
+      new SystemClock)
   }
 
-  private def apply(spark: SparkSession, rawPath: Path, clock: Clock = new SystemClock): DeltaLog =
-    apply(spark, rawPath, Map.empty, clock)
+  /** Helper for creating a log for the table. */
+  def forTable(spark: SparkSession, table: CatalogTable, clock: Clock): DeltaLog = {
+    apply(spark, logPathFor(new Path(table.location)), Some(table), clock)
+  }
+
+  private def apply(
+      spark: SparkSession,
+      rawPath: Path,
+      initialCatalogTable: Option[CatalogTable],
+      clock: Clock): DeltaLog =
+    apply(spark, rawPath, options = Map.empty, initialCatalogTable, clock)
 
 
   /** Helper for getting a log, as well as the latest snapshot, of the table */
   def forTableWithSnapshot(spark: SparkSession, dataPath: String): (DeltaLog, Snapshot) =
-    withFreshSnapshot { forTable(spark, new Path(dataPath), _) }
+    withFreshSnapshot { clock =>
+      (forTable(spark, new Path(dataPath), clock), None)
+    }
 
   /** Helper for getting a log, as well as the latest snapshot, of the table */
   def forTableWithSnapshot(spark: SparkSession, dataPath: Path): (DeltaLog, Snapshot) =
-    withFreshSnapshot { forTable(spark, dataPath, _) }
+    withFreshSnapshot { clock =>
+      (forTable(spark, dataPath, clock), None)
+    }
 
   /** Helper for getting a log, as well as the latest snapshot, of the table */
   def forTableWithSnapshot(
       spark: SparkSession,
-      tableName: TableIdentifier): (DeltaLog, Snapshot) =
-    withFreshSnapshot { forTable(spark, tableName, _) }
+      tableName: TableIdentifier): (DeltaLog, Snapshot) = {
+    withFreshSnapshot { clock =>
+      if (DeltaTableIdentifier.isDeltaPath(spark, tableName)) {
+        (forTable(spark, new Path(tableName.table)), None)
+      } else {
+        val catalogTable = spark.sessionState.catalog.getTableMetadata(tableName)
+        (forTable(spark, catalogTable, clock), Some(catalogTable))
+      }
+    }
+  }
 
   /** Helper for getting a log, as well as the latest snapshot, of the table */
   def forTableWithSnapshot(
       spark: SparkSession,
       dataPath: Path,
       options: Map[String, String]): (DeltaLog, Snapshot) =
-    withFreshSnapshot { apply(spark, logPathFor(dataPath), options, _) }
+    withFreshSnapshot { clock =>
+      val deltaLog =
+        apply(spark, logPathFor(dataPath), options, initialCatalogTable = None, clock)
+      (deltaLog, None)
+    }
+
+  /** Helper for getting a log, as well as the latest snapshot, of the table */
+  def forTableWithSnapshot(
+      spark: SparkSession,
+      table: CatalogTable,
+      options: Map[String, String]): (DeltaLog, Snapshot) =
+    withFreshSnapshot { clock =>
+      val deltaLog =
+        apply(spark, logPathFor(new Path(table.location)), options, Some(table), clock)
+      (deltaLog, Some(table))
+    }
 
   /**
    * Helper function to be used with the forTableWithSnapshot calls. Thunk is a
    * partially applied DeltaLog.forTable call, which we can then wrap around with a
    * snapshot update. We use the system clock to avoid back-to-back updates.
    */
-  private[delta] def withFreshSnapshot(thunk: Clock => DeltaLog): (DeltaLog, Snapshot) = {
+  private[delta] def withFreshSnapshot(
+      thunk: Clock => (DeltaLog, Option[CatalogTable])): (DeltaLog, Snapshot) = {
     val clock = new SystemClock
     val ts = clock.getTimeMillis()
-    val deltaLog = thunk(clock)
-    val snapshot = deltaLog.update(checkIfUpdatedSinceTs = Some(ts))
+    val (deltaLog, catalogTableOpt) = thunk(clock)
+    val snapshot =
+      deltaLog.update(checkIfUpdatedSinceTs = Some(ts), catalogTableOpt = catalogTableOpt)
     (deltaLog, snapshot)
   }
 
@@ -878,6 +924,7 @@ object DeltaLog extends DeltaLogging {
       spark: SparkSession,
       rawPath: Path,
       options: Map[String, String],
+      initialCatalogTable: Option[CatalogTable],
       clock: Clock
   ): DeltaLog = {
     val fileSystemOptions: Map[String, String] =
@@ -906,7 +953,8 @@ object DeltaLog extends DeltaLogging {
             dataPath = path.getParent,
             options = fileSystemOptions,
             allOptions = options,
-            clock = clock
+            clock = clock,
+            initialCatalogTable = initialCatalogTable
           )
         }
     }
@@ -1014,7 +1062,7 @@ object DeltaLog extends DeltaLogging {
       partitionFilters
     }
     val expr = rewrittenFilters.reduceLeftOption(And).getOrElse(Literal.TrueLiteral)
-    val columnFilter = new Column(expr)
+    val columnFilter = Column(expr)
     files.filter(columnFilter)
   }
 
