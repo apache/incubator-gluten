@@ -693,7 +693,7 @@ abstract class IcebergSuite extends WholeStageTransformerSuite {
                    |  """.stripMargin)
       val result = spark.sql(s"select data from $testTable where data is not null").collect()
       assert(result.length == 1)
-      assert(result.head.getString(1) == "new_data")
+      assert(result.head.getString(0) == "new_data")
     }
   }
 }
