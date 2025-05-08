@@ -346,9 +346,8 @@ if(ENABLE_GPU)
 
   target_link_libraries(velox PUBLIC facebook::velox::velox_cudf_exec)
   file(COPY ${VELOX_BUILD_PATH}/_deps/cudf-build/libcudf.so
-    DESTINATION ${root_directory}/releases)
-  target_link_libraries(velox
-                        PRIVATE ${root_directory}/releases/libcudf.so)
+       DESTINATION ${root_directory}/releases)
+  target_link_libraries(velox PRIVATE ${root_directory}/releases/libcudf.so)
 endif()
 
 add_custom_command(
