@@ -224,13 +224,10 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
 }
 
 bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
-
   // https://github.com/apache/incubator-gluten/issues/9392
   // is currently WIP to add support for other types.
   if (toType->isVarchar()) {
-    return fromType->kind() == TypeKind::DOUBLE ||
-           fromType->kind() == TypeKind::BOOLEAN ||
-           fromType->kind() == TypeKind::TIMESTAMP;
+    return fromType->isDouble() || fromType->isBoolean() || fromType->isTimestamp();
   }
 
   if (toType->isDouble()) {
@@ -240,9 +237,13 @@ bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
   }
 
   if (toType->isBoolean()) {
-    if( fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() ||
-           fromType->isBigint() || fromType->isReal() || fromType->isDouble()) {
-        return true;
+    if (fromType->isDate() || fromType->isShortDecimal()) {
+      return false;
+    }
+
+    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
+        fromType->isReal() || fromType->isDouble()) {
+      return true;
     }
   }
 
