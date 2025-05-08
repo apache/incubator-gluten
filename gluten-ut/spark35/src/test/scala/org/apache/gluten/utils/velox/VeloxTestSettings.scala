@@ -850,8 +850,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenGeneratorFunctionSuite]
     .exclude("SPARK-45171: Handle evaluated nondeterministic expression")
   enableSuite[GlutenInjectRuntimeFilterSuite]
-    // FIXME: yan
-    .exclude("Merge runtime bloom filters")
+    .include("gluten Runtime bloom filter join: two joins")
+  // FIXME: yan
+  // .exclude("Merge runtime bloom filters")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenJoinSuite]
     // exclude as it check spark plan
