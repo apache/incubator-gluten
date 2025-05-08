@@ -158,4 +158,6 @@ trait BackendSettingsApi {
 
   def supportIcebergEqualityDeleteRead(): Boolean = true
 
+  def supportAppendDataExec(): Boolean = false
+
 }

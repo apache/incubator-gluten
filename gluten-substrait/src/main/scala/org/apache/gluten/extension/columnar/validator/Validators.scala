@@ -29,7 +29,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, BatchScanExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.window.WindowExec
@@ -139,6 +139,7 @@ object Validators {
       // Add a tag for failing validation since CH is not supported. This tag is not used explicitly
       // by post-transform rules, rather marks validation for the appropriate backend.
       case p: CollectTailExec if !settings.supportCollectTailExec() => fail(p)
+      case p: AppendDataExec if !settings.supportAppendDataExec() => fail(p)
       case _ => pass()
     }
   }
@@ -158,6 +159,7 @@ object Validators {
       case p: ShuffledHashJoinExec if !glutenConf.enableColumnarShuffledHashJoin => fail(p)
       case p: ShuffleExchangeExec if !glutenConf.enableColumnarShuffle => fail(p)
       case p: BroadcastExchangeExec if !glutenConf.enableColumnarBroadcastExchange => fail(p)
+      case p: AppendDataExec if !glutenConf.enableAppendData => fail(p)
       case p @ (_: LocalLimitExec | _: GlobalLimitExec) if !glutenConf.enableColumnarLimit =>
         fail(p)
       case p: GenerateExec if !glutenConf.enableColumnarGenerate => fail(p)
