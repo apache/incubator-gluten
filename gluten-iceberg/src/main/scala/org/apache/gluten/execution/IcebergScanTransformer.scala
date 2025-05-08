@@ -23,7 +23,6 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.SplitInfo
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -53,8 +52,7 @@ case class IcebergScanTransformer(
     table = table,
     keyGroupedPartitioning = keyGroupedPartitioning,
     commonPartitionValues = commonPartitionValues
-  )
-  with Logging {
+  ) {
 
   protected[this] def supportsBatchScan(scan: Scan): Boolean = {
     IcebergScanTransformer.supportsBatchScan(scan)
