@@ -124,6 +124,7 @@ object CHRuleApi {
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
             c.session)))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
+    injector.injectPostTransform(_ => CollectTailTransformerRule())
     injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatch))
     injector.injectPostTransform(c => RemoveDuplicatedColumns(c.session))
     injector.injectPostTransform(c => AddPreProjectionForHashJoin(c.session))

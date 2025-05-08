@@ -136,9 +136,6 @@ object Validators {
         fail(p)
       case p: CartesianProductExec if !settings.supportCartesianProductExec() => fail(p)
       case p: TakeOrderedAndProjectExec if !settings.supportColumnarShuffleExec() => fail(p)
-      // Add a tag for failing validation since CH is not supported. This tag is not used explicitly
-      // by post-transform rules, rather marks validation for the appropriate backend.
-      case p: CollectTailExec if !settings.supportCollectTailExec() => fail(p)
       case _ => pass()
     }
   }
