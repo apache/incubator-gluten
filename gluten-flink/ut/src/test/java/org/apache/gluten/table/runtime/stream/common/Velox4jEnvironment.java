@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.runtime.stream.common;
+package org.apache.gluten.table.runtime.stream.common;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
 

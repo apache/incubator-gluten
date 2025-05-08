@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.stream.common;
+package org.apache.gluten.table.runtime.stream.common;
 
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
