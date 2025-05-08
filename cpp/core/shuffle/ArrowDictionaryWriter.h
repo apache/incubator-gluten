@@ -30,13 +30,6 @@
 
 namespace gluten {
 
-class DictionaryStorage {
- public:
-  virtual ~DictionaryStorage() = default;
-
-  virtual arrow::Status serialize(arrow::io::OutputStream* out) = 0;
-};
-
 class ArrowDictionaryWriter : public DictionaryWriter {
  public:
   ArrowDictionaryWriter(arrow::MemoryPool* pool) : pool_(pool) {}

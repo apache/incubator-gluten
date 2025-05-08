@@ -17,37 +17,36 @@
 
 #pragma once
 
-#include <arrow/io/api.h>
+#include "shuffle/Dictionary.h"
 
-#include "memory/MemoryManager.h"
+#include "velox/common/memory/MemoryPool.h"
+#include "velox/type/Type.h"
 
 namespace gluten {
 
-enum class BlockType : uint8_t { kEndOfStream = 0, kPlainPayload = 1, kDictionary = 2, kDictionaryPayload = 3 };
+class DictionaryUpdater;
 
-class DictionaryStorage {
+class VeloxShuffleDictionaryWriter final : public DictionaryWriter {
  public:
-  virtual ~DictionaryStorage() = default;
+  VeloxShuffleDictionaryWriter(facebook::velox::memory::MemoryPool* veloxPool, arrow::MemoryPool* arrowPool);
 
-  virtual arrow::Status serialize(arrow::io::OutputStream* out) = 0;
-};
-
-class DictionaryWriter {
- public:
-  virtual ~DictionaryWriter() = default;
-
-  virtual arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
+  arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
       const std::shared_ptr<arrow::Schema>& schema,
       int32_t numRows,
-      const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) = 0;
+      const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) override;
 
-  virtual arrow::Status serialize(arrow::io::OutputStream* out) = 0;
+  arrow::Status serialize(arrow::io::OutputStream* out) override;
+
+ private:
+  enum class FieldType { kNull, kFixedWidth, kComplex, kSupportsDictionary };
+
+  arrow::Status initSchema(const std::shared_ptr<arrow::Schema>& schema);
+
+  std::shared_ptr<DictionaryUpdater> dictionaryUpdater_;
+
+  facebook::velox::RowTypePtr rowType_{nullptr};
+  std::vector<FieldType> fieldTypes_{};
+  std::vector<int32_t> dictionaryFields_{};
+  bool hasComplexType_{false};
 };
-
-using DictionaryWriterFactory = std::function<std::unique_ptr<DictionaryWriter>(MemoryManager*)>;
-
-void registerShuffleDictionaryWriterFactory(DictionaryWriterFactory factory);
-
-std::unique_ptr<DictionaryWriter> createDictionaryWriter(MemoryManager*);
-
 } // namespace gluten

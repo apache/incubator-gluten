@@ -83,7 +83,7 @@ VectorPtr readFlatVector(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
-    VectorPtr dictionary,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
   auto valuesOrIndices = buffers[bufferIdx++];
@@ -104,7 +104,7 @@ VectorPtr readFlatVector<TypeKind::UNKNOWN>(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
-    VectorPtr dictionary,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   return BaseVector::createNullConstant(type, length, pool);
 }
@@ -115,7 +115,7 @@ VectorPtr readFlatVector<TypeKind::HUGEINT>(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
-    VectorPtr dictionary,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
   auto valueBuffer = buffers[bufferIdx++];
@@ -144,7 +144,7 @@ VectorPtr readFlatVectorStringView(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
-    VectorPtr dictionary,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
   auto lengthOrIndices = buffers[bufferIdx++];
@@ -157,7 +157,7 @@ VectorPtr readFlatVectorStringView(
 
   auto valueBuffer = buffers[bufferIdx++];
 
-  const auto* rawLength = lengthOrIndices->as<BinaryArrayLengthBufferType>();
+  const auto* rawLength = lengthOrIndices->as<StringLengthType>();
   const auto* valueBufferPtr = valueBuffer->as<char>();
 
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
@@ -182,7 +182,7 @@ VectorPtr readFlatVector<TypeKind::VARCHAR>(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
-    VectorPtr dictionary,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   return readFlatVectorStringView(buffers, bufferIdx, length, type, dictionary, pool);
 }
@@ -193,7 +193,7 @@ VectorPtr readFlatVector<TypeKind::VARBINARY>(
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
-    VectorPtr dictionary,
+    const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   return readFlatVectorStringView(buffers, bufferIdx, length, type, dictionary, pool);
 }
@@ -315,17 +315,18 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
 
 arrow::Result<VectorPtr>
 readDictionaryForBinary(arrow::io::InputStream* in, const TypePtr& type, facebook::velox::memory::MemoryPool* pool) {
-  // Read length buffer.
-  int64_t bufferSize;
-  RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
-  auto lengthBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
-  RETURN_NOT_OK(in->Read(bufferSize, lengthBuffer->asMutable<void>()));
-  const auto* lengthBufferPtr = lengthBuffer->as<int64_t>();
+  size_t bufferSize;
 
-  const auto numElements = bufferSize / sizeof(int64_t);
+  // Read length buffer.
+  RETURN_NOT_OK(in->Read(sizeof(bufferSize), &bufferSize));
+  const auto lengthBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
+  RETURN_NOT_OK(in->Read(bufferSize, lengthBuffer->asMutable<void>()));
+  const auto* lengthBufferPtr = lengthBuffer->as<StringLengthType>();
+
+  const auto numElements = bufferSize / sizeof(StringLengthType);
 
   // Read value buffer.
-  RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
+  RETURN_NOT_OK(in->Read(sizeof(bufferSize), &bufferSize));
   auto valueBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
   RETURN_NOT_OK(in->Read(bufferSize, valueBuffer->asMutable<void>()));
   const auto* valueBufferPtr = valueBuffer->as<char>();
@@ -335,7 +336,7 @@ readDictionaryForBinary(arrow::io::InputStream* in, const TypePtr& type, faceboo
   auto* rawValues = values->asMutable<StringView>();
 
   uint64_t offset = 0;
-  for (int32_t i = 0; i < numElements; ++i) {
+  for (size_t i = 0; i < numElements; ++i) {
     rawValues[i] = StringView(valueBufferPtr + offset, lengthBufferPtr[i]);
     offset += lengthBufferPtr[i];
   }
