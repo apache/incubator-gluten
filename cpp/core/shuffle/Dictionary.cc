@@ -16,6 +16,7 @@
  */
 
 #include "shuffle/Dictionary.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 
@@ -23,17 +24,16 @@ static DictionaryWriterFactory dictionaryWriterFactory;
 
 void registerShuffleDictionaryWriterFactory(DictionaryWriterFactory factory) {
   if (dictionaryWriterFactory) {
-    throw std::runtime_error("DictionaryWriter factory already registered.");
+    throw GlutenException("DictionaryWriter factory already registered.");
   }
   dictionaryWriterFactory = std::move(factory);
 }
 
 std::unique_ptr<DictionaryWriter> createDictionaryWriter(MemoryManager* memoryManager) {
-  auto& factory = dictionaryWriterFactory;
-  if (!factory) {
-    throw std::runtime_error("DictionaryWriter factory not registered.");
+  if (!dictionaryWriterFactory) {
+    throw GlutenException("DictionaryWriter factory not registered.");
   }
-  return factory(memoryManager);
+  return dictionaryWriterFactory(memoryManager);
 }
 
 } // namespace gluten

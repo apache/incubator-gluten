@@ -120,7 +120,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
         makeFlatVector<facebook::velox::StringView>(
             {"alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"}),
         makeNullableFlatVector<facebook::velox::StringView>(
-            {"alice", "bob", std::nullopt, std::nullopt, "Alice", "Bob", std::nullopt, "alicE", std::nullopt, "boB"}),
+            {"alice_0", "bob_1", std::nullopt, std::nullopt, "Alice_4", "Bob_5", std::nullopt, "alicE_7", std::nullopt, "boB_9"}),
         facebook::velox::BaseVector::create(facebook::velox::UNKNOWN(), 10, pool())};
 
     children2_ = {

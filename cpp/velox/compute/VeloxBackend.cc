@@ -33,11 +33,12 @@
 #ifdef GLUTEN_ENABLE_GPU
 #include "velox/experimental/cudf/exec/ToCudf.h"
 #endif
+
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkExprToSubfieldFilterParser.h"
-#include "shuffle/ArrowDictionaryWriter.h"
+#include "shuffle/VeloxShuffleDictionaryWriter.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -214,7 +215,9 @@ void VeloxBackend::init(
   initCache();
 
   registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager) {
-    return std::make_unique<ArrowDictionaryWriter>(memoryManager->getArrowMemoryPool());
+    auto vmm = dynamic_cast<VeloxMemoryManager*>(memoryManager);
+    return std::make_unique<VeloxShuffleDictionaryWriter>(
+        vmm->getLeafMemoryPool().get(), memoryManager->getArrowMemoryPool());
   });
 }
 

@@ -106,9 +106,9 @@ arrow::Status collectFlatVectorBufferStringView(
 
   auto rawValues = flatVector->rawValues();
   // last offset is the totalStringSize
-  auto lengthBufferSize = sizeof(gluten::BinaryArrayLengthBufferType) * flatVector->size();
+  auto lengthBufferSize = sizeof(gluten::StringLengthType) * flatVector->size();
   ARROW_ASSIGN_OR_RAISE(auto lengthBuffer, arrow::AllocateResizableBuffer(lengthBufferSize, pool));
-  auto* rawLength = reinterpret_cast<gluten::BinaryArrayLengthBufferType*>(lengthBuffer->mutable_data());
+  auto* rawLength = reinterpret_cast<gluten::StringLengthType*>(lengthBuffer->mutable_data());
   uint64_t offset = 0;
   for (int32_t i = 0; i < flatVector->size(); i++) {
     auto length = rawValues[i].size();
@@ -628,7 +628,7 @@ arrow::Status VeloxHashShuffleWriter::splitBinaryType(
     auto& binaryBuf = dst[pid];
 
     // use 32bit offset
-    auto dstLengthBase = (BinaryArrayLengthBufferType*)(binaryBuf.lengthPtr) + partitionBufferBase_[pid];
+    auto dstLengthBase = (StringLengthType*)(binaryBuf.lengthPtr) + partitionBufferBase_[pid];
 
     auto valueOffset = binaryBuf.valueOffset;
     auto dstValuePtr = binaryBuf.valuePtr + valueOffset;
@@ -666,7 +666,7 @@ arrow::Status VeloxHashShuffleWriter::splitBinaryType(
         binaryBuf.valueCapacity = capacity;
         dstValuePtr = binaryBuf.valuePtr + valueOffset - stringLen;
         // Need to update dstLengthBase because lengthPtr can be updated if Reserve triggers spill.
-        dstLengthBase = (BinaryArrayLengthBufferType*)(binaryBuf.lengthPtr) + partitionBufferBase_[pid];
+        dstLengthBase = (StringLengthType*)(binaryBuf.lengthPtr) + partitionBufferBase_[pid];
       }
 
       // 2. copy value
@@ -822,7 +822,7 @@ void VeloxHashShuffleWriter::calculateSimpleColumnBytes() {
     // `bool(1) >> 3` gets 0, so +7
     fixedWidthBufferBytes_ += ((arrow::bit_width(arrowColumnTypes_[colIdx]->id()) + 7) >> 3);
   }
-  fixedWidthBufferBytes_ += kSizeOfBinaryArrayLengthBuffer * binaryColumnIndices_.size();
+  fixedWidthBufferBytes_ += kSizeOfStringLength * binaryColumnIndices_.size();
 }
 
 uint32_t VeloxHashShuffleWriter::calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit) {
@@ -923,7 +923,7 @@ arrow::Status VeloxHashShuffleWriter::allocatePartitionBuffer(uint32_t partition
         auto binaryIdx = i - fixedWidthColumnCount_;
 
         std::shared_ptr<arrow::ResizableBuffer> lengthBuffer{};
-        auto lengthBufferSize = newSize * kSizeOfBinaryArrayLengthBuffer;
+        auto lengthBufferSize = newSize * kSizeOfStringLength;
         ARROW_ASSIGN_OR_RAISE(
             lengthBuffer, arrow::AllocateResizableBuffer(lengthBufferSize, partitionBufferPool_.get()));
 
@@ -1010,7 +1010,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxHashShuffleWrite
           allBuffers.push_back(nullptr);
         }
         // Length buffer.
-        auto lengthBufferSize = numRows * kSizeOfBinaryArrayLengthBuffer;
+        auto lengthBufferSize = numRows * kSizeOfStringLength;
         ARROW_RETURN_IF(
             !buffers[kBinaryLengthBufferIndex], arrow::Status::Invalid("Offset buffer of binary array is null."));
         if (reuseBuffers) {
@@ -1193,7 +1193,7 @@ arrow::Status VeloxHashShuffleWriter::resizePartitionBuffer(uint32_t partitionId
         auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
         auto& lengthBuffer = buffers[kBinaryLengthBufferIndex];
         ARROW_RETURN_IF(!lengthBuffer, arrow::Status::Invalid("Offset buffer of binary array is null."));
-        RETURN_NOT_OK(lengthBuffer->Resize(newSize * kSizeOfBinaryArrayLengthBuffer));
+        RETURN_NOT_OK(lengthBuffer->Resize(newSize * kSizeOfStringLength));
 
         // Skip Resize value buffer if the spill is triggered by resizing this split binary buffer.
         // Only update length buffer ptr.
