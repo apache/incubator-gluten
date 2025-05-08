@@ -21,9 +21,11 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
+
+import org.apache.hadoop.fs.Path
 
 case class InputPartitionsUtil(
     relation: HadoopFsRelation,
@@ -52,6 +54,22 @@ case class InputPartitionsUtil(
       s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
         s"open cost is considered as scanning $openCostInBytes bytes.")
 
+    // Filter files with bucket pruning if possible
+    val bucketingEnabled = relation.sparkSession.sessionState.conf.bucketingEnabled
+    val shouldProcess: Path => Boolean = optionalBucketSet match {
+      case Some(bucketSet) if bucketingEnabled =>
+        filePath => {
+          BucketingUtils.getBucketId(filePath.getName) match {
+            case Some(id) => bucketSet.get(id)
+            case None =>
+              // Do not prune the file if bucket file name is invalid
+              true
+          }
+        }
+      case _ =>
+        _ => true
+    }
+
     val splitFiles = selectedPartitions
       .flatMap {
         partition =>
@@ -59,17 +77,21 @@ case class InputPartitionsUtil(
             file =>
               // getPath() is very expensive so we only want to call it once in this block:
               val filePath = file._1.getPath
-              val isSplitable =
-                SparkShimLoader.getSparkShims.isFileSplittable(relation, filePath, requiredSchema)
-              SparkShimLoader.getSparkShims.splitFiles(
-                sparkSession = relation.sparkSession,
-                file = file._1,
-                filePath = filePath,
-                isSplitable = isSplitable,
-                maxSplitBytes = maxSplitBytes,
-                partitionValues = partition.values,
-                metadata = file._2
-              )
+              if (shouldProcess(filePath)) {
+                val isSplitable =
+                  SparkShimLoader.getSparkShims.isFileSplittable(relation, filePath, requiredSchema)
+                SparkShimLoader.getSparkShims.splitFiles(
+                  sparkSession = relation.sparkSession,
+                  file = file._1,
+                  filePath = filePath,
+                  isSplitable = isSplitable,
+                  maxSplitBytes = maxSplitBytes,
+                  partitionValues = partition.values,
+                  metadata = file._2
+                )
+              } else {
+                Seq.empty
+              }
           }
       }
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
