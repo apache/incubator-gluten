@@ -13,9 +13,9 @@ CREATE TABLE src_json_Tbl (
     m MAP<string, string>
  ) WITH (
     'connector'='kafka',
-    'topic' = 'test_in_1',
-    'properties.bootstrap.servers' = 'sg-test-kafka-conn1.bigdata.bigo.inner:9093,sg-test-kafka-conn2.bigdata.bigo.inner:9093,sg-test-kafka-conn3.bigdata.bigo.inner:9093',
-    'properties.group.id' = 'abcd123',
+    'topic' = '*****',
+    'properties.bootstrap.servers' = '*****'
+    'properties.group.id' = '*****',
     'scan.startup.mode' = 'latest-offset',
     'format' = 'json'
  );
