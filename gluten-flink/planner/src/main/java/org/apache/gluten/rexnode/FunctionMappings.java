@@ -21,24 +21,25 @@ import java.util.Map;
 
 /** Mapping of flink function and velox function. */
 public class FunctionMappings {
-    // A map stores the relationship between flink function name and velox function.
-    private static Map<String, String> functionMappings = new HashMap() {
+  // A map stores the relationship between flink function name and velox function.
+  private static Map<String, String> functionMappings =
+      new HashMap() {
         {
-            // TODO: support more functions.
-            put(">", "greaterthan");
-            put("<", "lessthan");
-            put("=", "equalto");
-            put("CAST", "cast");
-            put("CASE", "if");
-            put("*", "multiply");
+          // TODO: support more functions.
+          put(">", "greaterthan");
+          put("<", "lessthan");
+          put("=", "equalto");
+          put("CAST", "cast");
+          put("CASE", "if");
+          put("*", "multiply");
         }
-    };
+      };
 
-    public static String toVeloxFunction(String funcName) {
-        if (functionMappings.containsKey(funcName)) {
-            return functionMappings.get(funcName);
-        } else {
-            throw new RuntimeException("Function not supported: " + funcName);
-        }
+  public static String toVeloxFunction(String funcName) {
+    if (functionMappings.containsKey(funcName)) {
+      return functionMappings.get(funcName);
+    } else {
+      throw new RuntimeException("Function not supported: " + funcName);
     }
+  }
 }
