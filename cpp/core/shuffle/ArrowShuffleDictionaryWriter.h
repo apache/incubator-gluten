@@ -30,7 +30,7 @@
 
 namespace gluten {
 
-class ArrowShuffleDictionaryWriter : public DictionaryWriter {
+class ArrowShuffleDictionaryWriter : public ShuffleDictionaryWriter {
  public:
   ArrowShuffleDictionaryWriter(arrow::MemoryPool* pool) : pool_(pool) {}
 
@@ -51,7 +51,7 @@ class ArrowShuffleDictionaryWriter : public DictionaryWriter {
   std::vector<FieldType> fieldTypes_;
   std::vector<int32_t> dictionaryFields_;
   bool hasComplexType_{false};
-  std::unordered_map<int32_t, std::shared_ptr<DictionaryStorage>> dictionaries_;
+  std::unordered_map<int32_t, std::shared_ptr<ShuffleDictionaryStorage>> dictionaries_;
 
   friend class ValueUpdater;
 };

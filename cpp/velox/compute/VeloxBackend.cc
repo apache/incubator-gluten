@@ -214,10 +214,10 @@ void VeloxBackend::init(
   // after the memory manager instanced
   initCache();
 
-  registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager) {
+  registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager, arrow::util::Codec* codec) {
     auto vmm = dynamic_cast<VeloxMemoryManager*>(memoryManager);
     return std::make_unique<VeloxShuffleDictionaryWriter>(
-        vmm->getLeafMemoryPool().get(), memoryManager->getArrowMemoryPool());
+        vmm->getLeafMemoryPool().get(), memoryManager->getArrowMemoryPool(), codec);
   });
 }
 

@@ -26,9 +26,12 @@ namespace gluten {
 
 class DictionaryUpdater;
 
-class VeloxShuffleDictionaryWriter final : public DictionaryWriter {
+class VeloxShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
  public:
-  VeloxShuffleDictionaryWriter(facebook::velox::memory::MemoryPool* veloxPool, arrow::MemoryPool* arrowPool);
+  VeloxShuffleDictionaryWriter(
+      facebook::velox::memory::MemoryPool* veloxPool,
+      arrow::MemoryPool* arrowPool,
+      arrow::util::Codec* codec);
 
   arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
       const std::shared_ptr<arrow::Schema>& schema,

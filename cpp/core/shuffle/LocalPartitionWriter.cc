@@ -293,7 +293,7 @@ class LocalPartitionWriter::PayloadCache {
 
     if (enableDictionary_) {
       if (partitionDictionaries_.find(partitionId) == partitionDictionaries_.end()) {
-        partitionDictionaries_[partitionId] = createDictionaryWriter(memoryManager_);
+        partitionDictionaries_[partitionId] = createDictionaryWriter(memoryManager_, codec_);
       }
       RETURN_NOT_OK(payload->createDictionaries(partitionDictionaries_[partitionId]));
     }
@@ -438,7 +438,7 @@ class LocalPartitionWriter::PayloadCache {
   int64_t writeTime_{0};
   std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionCachedPayload_;
 
-  std::unordered_map<uint32_t, std::shared_ptr<DictionaryWriter>> partitionDictionaries_;
+  std::unordered_map<uint32_t, std::shared_ptr<ShuffleDictionaryWriter>> partitionDictionaries_;
 
   std::optional<uint32_t> partitionInUse_{std::nullopt};
 };
