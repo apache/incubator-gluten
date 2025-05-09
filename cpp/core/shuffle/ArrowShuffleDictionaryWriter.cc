@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "shuffle/ArrowDictionaryWriter.h"
+#include "shuffle/ArrowShuffleDictionaryWriter.h"
 #include "shuffle/Utils.h"
 
 #include <arrow/array/builder_dict.h>
@@ -244,7 +244,7 @@ class ValueUpdater {
     return arrow::Status::TypeError("Not implemented for type: ", type.ToString());
   }
 
-  ArrowDictionaryWriter* writer;
+  ArrowShuffleDictionaryWriter* writer;
   int32_t fieldIdx;
   int32_t numRows;
   std::shared_ptr<arrow::Buffer> nulls{nullptr};
@@ -254,7 +254,7 @@ class ValueUpdater {
   std::vector<std::shared_ptr<arrow::Buffer>>& results;
 };
 
-arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> ArrowDictionaryWriter::updateAndGet(
+arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> ArrowShuffleDictionaryWriter::updateAndGet(
     const std::shared_ptr<arrow::Schema>& schema,
     int32_t numRows,
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
@@ -301,7 +301,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> ArrowDictionaryWriter
   return results;
 }
 
-arrow::Status ArrowDictionaryWriter::serialize(arrow::io::OutputStream* out) {
+arrow::Status ArrowShuffleDictionaryWriter::serialize(arrow::io::OutputStream* out) {
   auto bitMapSize = arrow::bit_util::RoundUpToMultipleOf8(schema_->num_fields());
   std::vector<uint8_t> bitMap(bitMapSize);
 
@@ -323,7 +323,7 @@ arrow::Status ArrowDictionaryWriter::serialize(arrow::io::OutputStream* out) {
   return arrow::Status::OK();
 }
 
-arrow::Status ArrowDictionaryWriter::initSchema(const std::shared_ptr<arrow::Schema>& schema) {
+arrow::Status ArrowShuffleDictionaryWriter::initSchema(const std::shared_ptr<arrow::Schema>& schema) {
   if (!schema_) {
     schema_ = schema;
     fieldTypes_.resize(schema_->num_fields());
