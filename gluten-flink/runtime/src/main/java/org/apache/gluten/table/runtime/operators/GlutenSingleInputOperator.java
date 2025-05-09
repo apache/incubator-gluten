@@ -167,4 +167,3 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         return id;
     }
 }
-

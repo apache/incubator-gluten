@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.util;
 
-import io.github.zhztheplayer.velox4j.type.IntegerType;
-import io.github.zhztheplayer.velox4j.type.Type;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
@@ -28,6 +26,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
+
+import io.github.zhztheplayer.velox4j.type.IntegerType;
+import io.github.zhztheplayer.velox4j.type.Type;
 
 import java.util.List;
 import java.util.stream.Collectors;

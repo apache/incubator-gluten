@@ -16,16 +16,17 @@
  */
 package org.apache.flink.table.planner.loader;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.core.classloading.ComponentClassLoader;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.core.classloading.ComponentClassLoader;
 
 import java.io.IOException;
 import java.io.InputStream;
