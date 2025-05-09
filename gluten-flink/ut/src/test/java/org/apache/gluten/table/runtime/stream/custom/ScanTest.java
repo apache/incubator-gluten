@@ -75,4 +75,3 @@ class ScanTest extends GlutenStreamingTestBase {
         runAndCheck(query, Arrays.asList("+I[1, 1.0]", "+I[2, 2.0]"));
     }
 }
-

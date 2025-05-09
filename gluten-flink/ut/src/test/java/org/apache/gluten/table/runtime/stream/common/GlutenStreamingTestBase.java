@@ -85,4 +85,3 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
         assertThat(actual).isEqualTo(expected);
     }
 }
-
