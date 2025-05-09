@@ -160,7 +160,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
       inputs, memoryManager()->getLeafMemoryPool().get(), sessionConf, *localWriteFilesTempPath());
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
   LOG_IF(INFO, debugModeEnabled_ && taskInfo_.has_value())
-      << " ############### received velox plan ###############" << taskInfo_.value() << std::endl
+      << "############### Velox plan for task " << taskInfo_.value() << " ###############" << std::endl
       << veloxPlan_->toString(true, true);
 
   // Scan node can be required.
