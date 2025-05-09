@@ -363,8 +363,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
       .orElse(validateDataTypes())
-      .orElse(validateWriteFilesOptions())
-      .orElse(validateBucketSpec()) match {
+      .orElse(validateWriteFilesOptions()) match {
       case Some(reason) => ValidationResult.failed(reason)
       case _ => ValidationResult.succeeded
     }
