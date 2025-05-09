@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.rexnode.functions;
 
+import org.apache.flink.util.Preconditions;
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
-import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 

@@ -16,10 +16,11 @@
  */
 package org.apache.gluten.rexnode;
 
-import io.github.zhztheplayer.velox4j.serializable.ISerializableRegistry;
-import io.github.zhztheplayer.velox4j.variant.VariantRegistry;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+
+import io.github.zhztheplayer.velox4j.serializable.ISerializableRegistry;
+import io.github.zhztheplayer.velox4j.variant.VariantRegistry;
 
 import java.util.List;
 

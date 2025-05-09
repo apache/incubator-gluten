@@ -18,10 +18,11 @@ package org.apache.gluten.streaming.api.operators;
 
 import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 
+import org.apache.flink.streaming.api.operators.StreamSource;
+
 import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
-import org.apache.flink.streaming.api.operators.StreamSource;
 
 /** Legacy stream source operator in gluten, which will call Velox to run. */
 public class GlutenStreamSource extends StreamSource implements GlutenOperator {

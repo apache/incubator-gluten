@@ -21,21 +21,6 @@ import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 
-import io.github.zhztheplayer.velox4j.connector.CommitStrategy;
-import io.github.zhztheplayer.velox4j.connector.DiscardDataTableHandle;
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
-import io.github.zhztheplayer.velox4j.plan.TableWriteNode;
-import io.github.zhztheplayer.velox4j.type.BigIntType;
-import io.github.zhztheplayer.velox4j.type.RowType;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
-import org.apache.flink.api.common.operators.SlotSharingGroup;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SupportsCommitter;
-import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
 import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
@@ -56,10 +41,28 @@ import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.CoreOptions;
+import io.github.zhztheplayer.velox4j.connector.CommitStrategy;
+import io.github.zhztheplayer.velox4j.connector.DiscardDataTableHandle;
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.TableWriteNode;
+import io.github.zhztheplayer.velox4j.type.BigIntType;
+import io.github.zhztheplayer.velox4j.type.RowType;
 
 import java.util.ArrayDeque;
 import java.util.Collection;

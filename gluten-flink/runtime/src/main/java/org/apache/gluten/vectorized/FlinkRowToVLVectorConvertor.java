@@ -16,16 +16,10 @@
  */
 package org.apache.gluten.vectorized;
 
-import io.github.zhztheplayer.velox4j.arrow.Arrow;
-import io.github.zhztheplayer.velox4j.data.BaseVector;
-import io.github.zhztheplayer.velox4j.data.RowVector;
-import io.github.zhztheplayer.velox4j.session.Session;
-import io.github.zhztheplayer.velox4j.type.BigIntType;
-import io.github.zhztheplayer.velox4j.type.IntegerType;
-import io.github.zhztheplayer.velox4j.type.RowType;
-import io.github.zhztheplayer.velox4j.type.TimestampType;
-import io.github.zhztheplayer.velox4j.type.Type;
-import io.github.zhztheplayer.velox4j.type.VarCharType;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryStringData;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
@@ -36,9 +30,16 @@ import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.table.Table;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryStringData;
+import io.github.zhztheplayer.velox4j.arrow.Arrow;
+import io.github.zhztheplayer.velox4j.data.BaseVector;
+import io.github.zhztheplayer.velox4j.data.RowVector;
+import io.github.zhztheplayer.velox4j.session.Session;
+import io.github.zhztheplayer.velox4j.type.BigIntType;
+import io.github.zhztheplayer.velox4j.type.IntegerType;
+import io.github.zhztheplayer.velox4j.type.RowType;
+import io.github.zhztheplayer.velox4j.type.TimestampType;
+import io.github.zhztheplayer.velox4j.type.Type;
+import io.github.zhztheplayer.velox4j.type.VarCharType;
 
 import java.util.ArrayList;
 import java.util.List;
