@@ -159,8 +159,9 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   VeloxPlanConverter veloxPlanConverter(
       inputs, memoryManager()->getLeafMemoryPool().get(), sessionConf, *localWriteFilesTempPath());
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
-  LOG_IF(INFO, debugModeEnabled_) << "############### received velox plan: " << taskInfo_ << std::endl
-                                  << veloxPlan_->toString(true, true);
+  LOG_IF(INFO, debugModeEnabled_ && taskInfo_.has_value())
+      << " ############### received velox plan ###############" << taskInfo_.value() << std::endl
+      << veloxPlan_->toString(true, true);
 
   // Scan node can be required.
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
