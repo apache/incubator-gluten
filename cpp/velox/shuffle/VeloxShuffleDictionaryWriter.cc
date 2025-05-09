@@ -82,7 +82,7 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionarySto
           [&](auto&& arg) -> const char* {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, size_t>) {
-              return buffer_.data() + arg;
+              return buffer.data() + arg;
             } else {
               return arg;
             }
@@ -90,7 +90,7 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionarySto
           s.offsetOrData);
     }
 
-    const std::vector<char, facebook::velox::memory::StlAllocator<char>>& buffer_;
+    const std::vector<char, facebook::velox::memory::StlAllocator<char>>& buffer;
   };
 
   struct StringsHash {
@@ -100,6 +100,7 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionarySto
       return std::hash<std::string_view>{}(std::string_view(resolver_.data(s), s.length));
     }
 
+   private:
     StringsResolver resolver_;
   };
 
@@ -110,6 +111,7 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionarySto
       return a.length == b.length && std::memcmp(resolver_.data(a), resolver_.data(b), a.length) == 0;
     }
 
+   private:
     StringsResolver resolver_;
   };
 
