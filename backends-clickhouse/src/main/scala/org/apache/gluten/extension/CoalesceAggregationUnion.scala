@@ -312,6 +312,13 @@ object CoalesceUnionUtil extends Logging {
       Project(reprojectOutputs, coalescePlan)
     }
   }
+
+  def hasListQueryInside(expression: Expression): Boolean = {
+    expression match {
+      case list: ListQuery => true
+      case _ => expression.children.exists(hasListQueryInside)
+    }
+  }
 }
 
 /*
@@ -341,7 +348,7 @@ case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPla
   case class PlanAnalyzer(originalAggregate: Aggregate) extends AbstractPlanAnalyzer {
 
     protected def extractFilter(): Option[Filter] = {
-      originalAggregate.child match {
+      val filter = originalAggregate.child match {
         case filter: Filter => Some(filter)
         case project @ Project(_, filter: Filter) => Some(filter)
         case subquery: SubqueryAlias =>
@@ -356,6 +363,10 @@ case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPla
             case _ => None
           }
         case _ => None
+      }
+      filter match {
+        case Some(f) if CoalesceUnionUtil.hasListQueryInside(f.condition) => None
+        case _ => filter
       }
     }
 
@@ -829,9 +840,13 @@ case class CoalesceProjectionUnion(spark: SparkSession) extends Rule[LogicalPlan
 
   case class PlanAnalyzer(originalPlan: LogicalPlan) extends AbstractPlanAnalyzer {
     def extractFilter(): Option[Filter] = {
-      originalPlan match {
+      val filter = originalPlan match {
         case project @ Project(_, filter: Filter) => Some(filter)
         case _ => None
+      }
+      filter match {
+        case Some(f) if CoalesceUnionUtil.hasListQueryInside(f.condition) => None
+        case _ => filter
       }
     }
 
