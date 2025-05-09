@@ -168,25 +168,30 @@ object BroadcastUtils {
           ColumnarBatches.retain(b)
           b
         })
-      .toArray
-    if (filtered.isEmpty) {
-      return ColumnarBatchSerializeResult.EMPTY
-    }
     var rowNums = 0
-    val values = filtered.map(
-      b => {
-        val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
-        rowNums += b.numRows()
-        try {
-          ColumnarBatchSerializerJniWrapper
-            .create(Runtimes
-              .contextInstance(BackendsApiManager.getBackendName, "BroadcastUtils#serializeStream"))
-            .serialize(handle)
-        } finally {
-          ColumnarBatches.release(b)
-        }
-      })
-    new ColumnarBatchSerializeResult(rowNums, values)
+    val values = filtered
+      .map(
+        b => {
+          val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
+          rowNums += b.numRows()
+          try {
+            ColumnarBatchSerializerJniWrapper
+              .create(
+                Runtimes
+                  .contextInstance(
+                    BackendsApiManager.getBackendName,
+                    "BroadcastUtils#serializeStream"))
+              .serialize(handle)
+          } finally {
+            ColumnarBatches.release(b)
+          }
+        })
+      .toArray
+    if (values.nonEmpty) {
+      new ColumnarBatchSerializeResult(rowNums, values)
+    } else {
+      ColumnarBatchSerializeResult.EMPTY
+    }
   }
 
   private def reconstructRows(relation: HashedRelation): Iterator[InternalRow] = {
