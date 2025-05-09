@@ -25,5 +25,5 @@ import java.util.List;
 /** Interface for converter to velox function. */
 public interface FunctionConverter {
 
-    CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params);
+  CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params);
 }

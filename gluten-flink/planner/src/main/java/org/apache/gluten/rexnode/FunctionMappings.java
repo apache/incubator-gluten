@@ -25,27 +25,28 @@ import java.util.Map;
 
 /** Mapping of flink function and velox function. */
 public class FunctionMappings {
-    // A map stores the relationship between flink function name and velox function.
-    private static Map<String, FunctionConverter> functionMappings = new HashMap() {
+  // A map stores the relationship between flink function name and velox function.
+  private static Map<String, FunctionConverter> functionMappings =
+      new HashMap() {
         {
-            // TODO: support more functions.
-            put(">", new DefaultFunctionConverter("greaterthan"));
-            put("<", new DefaultFunctionConverter("lessthan"));
-            put("=", new DefaultFunctionConverter("equalto"));
-            put("CAST", new DefaultFunctionConverter("cast"));
-            put("CASE", new DefaultFunctionConverter("if"));
-            put("*", new DefaultFunctionConverter("multiply"));
-            put("-", new SubtractFunctionConverter("subtract"));
-            put("MOD", new DefaultFunctionConverter("remainder"));
-            put("AND", new DefaultFunctionConverter("and"));
+          // TODO: support more functions.
+          put(">", new DefaultFunctionConverter("greaterthan"));
+          put("<", new DefaultFunctionConverter("lessthan"));
+          put("=", new DefaultFunctionConverter("equalto"));
+          put("CAST", new DefaultFunctionConverter("cast"));
+          put("CASE", new DefaultFunctionConverter("if"));
+          put("*", new DefaultFunctionConverter("multiply"));
+          put("-", new SubtractFunctionConverter("subtract"));
+          put("MOD", new DefaultFunctionConverter("remainder"));
+          put("AND", new DefaultFunctionConverter("and"));
         }
-    };
+      };
 
-    public static FunctionConverter getFunctionConverter(String funcName) {
-        if (functionMappings.containsKey(funcName)) {
-            return functionMappings.get(funcName);
-        } else {
-            throw new RuntimeException("Function not supported: " + funcName);
-        }
+  public static FunctionConverter getFunctionConverter(String funcName) {
+    if (functionMappings.containsKey(funcName)) {
+      return functionMappings.get(funcName);
+    } else {
+      throw new RuntimeException("Function not supported: " + funcName);
     }
+  }
 }

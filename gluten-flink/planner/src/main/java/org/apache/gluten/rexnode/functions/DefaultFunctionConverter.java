@@ -24,14 +24,14 @@ import java.util.List;
 
 /** Default convertor for velox function. */
 public class DefaultFunctionConverter implements FunctionConverter {
-    private final String function;
+  private final String function;
 
-    public DefaultFunctionConverter(String function) {
-        this.function = function;
-    }
+  public DefaultFunctionConverter(String function) {
+    this.function = function;
+  }
 
-    @Override
-    public CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params) {
-        return new CallTypedExpr(nodeType, params, function);
-    }
+  @Override
+  public CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params) {
+    return new CallTypedExpr(nodeType, params, function);
+  }
 }

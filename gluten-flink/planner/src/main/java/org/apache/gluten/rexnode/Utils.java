@@ -26,24 +26,24 @@ import java.util.List;
 /** Utility to store some useful functions. */
 public class Utils {
 
-    private static boolean registryInitialized = false;
+  private static boolean registryInitialized = false;
 
-    // Get names for project node.
-    public static List<String> getNamesFromRowType(LogicalType logicalType) {
-        if (logicalType instanceof RowType) {
-            RowType rowType = (RowType) logicalType;
-            return rowType.getFieldNames();
-        } else {
-            throw new RuntimeException("Output type is not row type: " + logicalType);
-        }
+  // Get names for project node.
+  public static List<String> getNamesFromRowType(LogicalType logicalType) {
+    if (logicalType instanceof RowType) {
+      RowType rowType = (RowType) logicalType;
+      return rowType.getFieldNames();
+    } else {
+      throw new RuntimeException("Output type is not row type: " + logicalType);
     }
+  }
 
-    // Init serialize related registries.
-    public static void registerRegistry() {
-        if (!registryInitialized) {
-            registryInitialized = true;
-            VariantRegistry.registerAll();
-            ISerializableRegistry.registerAll();
-        }
+  // Init serialize related registries.
+  public static void registerRegistry() {
+    if (!registryInitialized) {
+      registryInitialized = true;
+      VariantRegistry.registerAll();
+      ISerializableRegistry.registerAll();
     }
+  }
 }

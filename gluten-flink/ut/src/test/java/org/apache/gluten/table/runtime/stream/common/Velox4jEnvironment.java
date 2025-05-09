@@ -19,21 +19,20 @@ package org.apache.gluten.table.runtime.stream.common;
 import io.github.zhztheplayer.velox4j.Velox4j;
 
 public class Velox4jEnvironment {
-    private static class Holder {
-        private static final Velox4jEnvironment INSTANCE = new Velox4jEnvironment();
-    }
+  private static class Holder {
+    private static final Velox4jEnvironment INSTANCE = new Velox4jEnvironment();
+  }
 
-    private Velox4jEnvironment() {
-        Velox4j.initialize();
-    }
+  private Velox4jEnvironment() {
+    Velox4j.initialize();
+  }
 
-    public static Velox4jEnvironment getInstance() {
-        return Holder.INSTANCE;
-    }
+  public static Velox4jEnvironment getInstance() {
+    return Holder.INSTANCE;
+  }
 
-    public static boolean initializeOnce() {
-        Velox4jEnvironment instance = Holder.INSTANCE;
-        return instance != null;
-    }
+  public static boolean initializeOnce() {
+    Velox4jEnvironment instance = Holder.INSTANCE;
+    return instance != null;
+  }
 }
-
