@@ -46,6 +46,8 @@ abstract class BatchScanExecShim(
 
   def hasUnsupportedColumns: Boolean = false
 
+  def postDriverMetrics(): Unit = {}
+
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")
   }

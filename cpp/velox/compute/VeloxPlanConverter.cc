@@ -124,9 +124,7 @@ std::shared_ptr<const facebook::velox::core::PlanNode> VeloxPlanConverter::toVel
     parseLocalFileNodes(&substraitVeloxPlanConverter_, localFiles);
   }
 
-  auto veloxPlan = substraitVeloxPlanConverter_.toVeloxPlan(substraitPlan);
-  DLOG(INFO) << "Plan Node: " << std::endl << veloxPlan->toString(true, true);
-  return veloxPlan;
+  return substraitVeloxPlanConverter_.toVeloxPlan(substraitPlan);
 }
 
 std::string VeloxPlanConverter::nextPlanNodeId() {

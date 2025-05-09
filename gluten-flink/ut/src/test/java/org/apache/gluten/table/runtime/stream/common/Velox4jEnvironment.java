@@ -14,22 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.table.runtime.stream.common;
 
-class WindowFunctionsValidateSuite extends FunctionsValidateSuite {
+import io.github.zhztheplayer.velox4j.Velox4j;
 
-  test("lag/lead window function with negative input offset") {
-    runQueryAndCompare(
-      "select lag(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+public class Velox4jEnvironment {
+    private static class Holder {
+        private static final Velox4jEnvironment INSTANCE = new Velox4jEnvironment();
     }
 
-    runQueryAndCompare(
-      "select lead(l_orderkey, -2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem") {
-      checkGlutenOperatorMatch[WindowExecTransformer]
+    private Velox4jEnvironment() {
+        Velox4j.initialize();
     }
-  }
 
+    public static Velox4jEnvironment getInstance() {
+        return Holder.INSTANCE;
+    }
+
+    public static boolean initializeOnce() {
+        Velox4jEnvironment instance = Holder.INSTANCE;
+        return instance != null;
+    }
 }
+

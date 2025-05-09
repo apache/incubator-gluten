@@ -35,7 +35,7 @@ public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public native ColumnarBatchSerializeResult serialize(long[] handles);
+  public native byte[] serialize(long handle);
 
   // Return the native ColumnarBatchSerializer handle
   public native long init(long cSchema);

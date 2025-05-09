@@ -366,6 +366,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def parquetEncryptionValidationFileLimit: Int = getConf(ENCRYPTED_PARQUET_FALLBACK_FILE_LIMIT)
   def enableColumnarRange: Boolean = getConf(COLUMNAR_RANGE_ENABLED)
   def enableColumnarCollectLimit: Boolean = getConf(COLUMNAR_COLLECT_LIMIT_ENABLED)
+  def enableColumnarCollectTail: Boolean = getConf(COLUMNAR_COLLECT_TAIL_ENABLED)
   def getSupportedFlattenedExpressions: String = getConf(GLUTEN_SUPPORTED_FLATTENED_FUNCTIONS)
 
   def maxBroadcastTableSize: Long =
@@ -1759,4 +1760,9 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val COLUMNAR_COLLECT_TAIL_ENABLED =
+    buildConf("spark.gluten.sql.columnar.collectTail")
+      .doc("Enable or disable columnar collectTail.")
+      .booleanConf
+      .createWithDefault(true)
 }

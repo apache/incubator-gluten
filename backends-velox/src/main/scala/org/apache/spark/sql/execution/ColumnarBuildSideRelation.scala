@@ -23,7 +23,7 @@ import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
-import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
+import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection, UnsafeRow}
@@ -156,27 +156,32 @@ case class ColumnarBuildSideRelation(
           } else {
             val cols = batch.numCols()
             val rows = batch.numRows()
-            var info =
-              jniWrapper.nativeColumnarToRowConvert(
-                c2rId,
-                ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch),
-                0)
-            batch.close()
+            var info: NativeColumnarToRowInfo = null
 
             new Iterator[InternalRow] {
               var rowId = 0
               var baseLength = 0
               val row = new UnsafeRow(cols)
+              var closed = false
 
               override def hasNext: Boolean = {
-                rowId < rows
+                val hasNext = rowId < rows
+                if (!hasNext && !closed) {
+                  batch.close()
+                  closed = true
+                }
+                hasNext
               }
 
               override def next: UnsafeRow = {
                 if (rowId >= rows) throw new NoSuchElementException
-                if (rowId == baseLength + info.lengths.length) {
-                  baseLength += info.lengths.length
-                  info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId, rowId)
+                if (rowId == 0 || rowId == baseLength + info.lengths.length) {
+                  baseLength = if (info == null) {
+                    baseLength
+                  } else {
+                    baseLength + info.lengths.length
+                  }
+                  info = jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, rowId)
                 }
                 val (offset, length) =
                   (info.offsets(rowId - baseLength), info.lengths(rowId - baseLength))
