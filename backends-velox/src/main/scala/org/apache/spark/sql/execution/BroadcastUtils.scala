@@ -105,7 +105,7 @@ object BroadcastUtils {
             case ColumnarBatchSerializeResult.EMPTY =>
               Array()
             case result: ColumnarBatchSerializeResult =>
-              Array(result.getSerialized)
+              result.getSerialized
           }
           if (useOffheapBuildRelation) {
             new UnsafeColumnarBuildSideRelation(
@@ -131,7 +131,7 @@ object BroadcastUtils {
             case ColumnarBatchSerializeResult.EMPTY =>
               Array()
             case result: ColumnarBatchSerializeResult =>
-              Array(result.getSerialized)
+              result.getSerialized
           }
           if (useOffheapBuildRelation) {
             new UnsafeColumnarBuildSideRelation(
@@ -168,23 +168,30 @@ object BroadcastUtils {
           ColumnarBatches.retain(b)
           b
         })
+    var rowNums = 0
+    val values = filtered
+      .map(
+        b => {
+          val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
+          rowNums += b.numRows()
+          try {
+            ColumnarBatchSerializerJniWrapper
+              .create(
+                Runtimes
+                  .contextInstance(
+                    BackendsApiManager.getBackendName,
+                    "BroadcastUtils#serializeStream"))
+              .serialize(handle)
+          } finally {
+            ColumnarBatches.release(b)
+          }
+        })
       .toArray
-    if (filtered.isEmpty) {
-      return ColumnarBatchSerializeResult.EMPTY
+    if (values.nonEmpty) {
+      new ColumnarBatchSerializeResult(rowNums, values)
+    } else {
+      ColumnarBatchSerializeResult.EMPTY
     }
-    val handleArray =
-      filtered.map(b => ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b))
-    val serializeResult =
-      try {
-        ColumnarBatchSerializerJniWrapper
-          .create(
-            Runtimes
-              .contextInstance(BackendsApiManager.getBackendName, "BroadcastUtils#serializeStream"))
-          .serialize(handleArray)
-      } finally {
-        filtered.foreach(ColumnarBatches.release)
-      }
-    serializeResult
   }
 
   private def reconstructRows(relation: HashedRelation): Iterator[InternalRow] = {

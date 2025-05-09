@@ -20,13 +20,13 @@ import java.io.Serializable;
 
 public class ColumnarBatchSerializeResult implements Serializable {
   public static final ColumnarBatchSerializeResult EMPTY =
-      new ColumnarBatchSerializeResult(0, new byte[0]);
+      new ColumnarBatchSerializeResult(0, new byte[0][0]);
 
   private long numRows;
 
-  private byte[] serialized;
+  private byte[][] serialized;
 
-  public ColumnarBatchSerializeResult(long numRows, byte[] serialized) {
+  public ColumnarBatchSerializeResult(long numRows, byte[][] serialized) {
     this.numRows = numRows;
     this.serialized = serialized;
   }
@@ -35,7 +35,7 @@ public class ColumnarBatchSerializeResult implements Serializable {
     return numRows;
   }
 
-  public byte[] getSerialized() {
+  public byte[][] getSerialized() {
     return serialized;
   }
 }
