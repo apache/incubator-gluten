@@ -20,20 +20,20 @@
 
 namespace gluten {
 
-static DictionaryWriterFactory dictionaryWriterFactory;
+static ShuffleDictionaryWriterFactory dictionaryWriterFactory;
 
-void registerShuffleDictionaryWriterFactory(DictionaryWriterFactory factory) {
+void registerShuffleDictionaryWriterFactory(ShuffleDictionaryWriterFactory factory) {
   if (dictionaryWriterFactory) {
     throw GlutenException("DictionaryWriter factory already registered.");
   }
   dictionaryWriterFactory = std::move(factory);
 }
 
-std::unique_ptr<DictionaryWriter> createDictionaryWriter(MemoryManager* memoryManager) {
+std::unique_ptr<ShuffleDictionaryWriter> createDictionaryWriter(MemoryManager* memoryManager, arrow::util::Codec* codec) {
   if (!dictionaryWriterFactory) {
     throw GlutenException("DictionaryWriter factory not registered.");
   }
-  return dictionaryWriterFactory(memoryManager);
+  return dictionaryWriterFactory(memoryManager, codec);
 }
 
 } // namespace gluten

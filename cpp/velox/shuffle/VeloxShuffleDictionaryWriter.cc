@@ -27,11 +27,44 @@ namespace gluten {
 
 using DictionaryIndex = int32_t;
 
+namespace {
+
+arrow::Status writeDictionaryBuffer(
+    const uint8_t* data,
+    size_t size,
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec,
+    arrow::io::OutputStream* out) {
+  ARROW_RETURN_NOT_OK(out->Write(&size, sizeof(size_t)));
+
+  if (size == 0) {
+    return arrow::Status::OK();
+  }
+
+  GLUTEN_DCHECK(data != nullptr, "Cannot write null data");
+
+  if (codec != nullptr) {
+    size_t compressedLength = codec->MaxCompressedLen(size, data);
+    auto buffer = facebook::velox::AlignedBuffer::allocate<uint8_t>(compressedLength, pool, std::nullopt, true);
+    ARROW_ASSIGN_OR_RAISE(
+        compressedLength, codec->Compress(size, data, compressedLength, buffer->asMutable<uint8_t>()));
+
+    ARROW_RETURN_NOT_OK(out->Write(&compressedLength, sizeof(size_t)));
+    ARROW_RETURN_NOT_OK(out->Write(buffer->as<void>(), compressedLength));
+  } else {
+    ARROW_RETURN_NOT_OK(out->Write(data, size));
+  }
+
+  return arrow::Status::OK();
+}
+
+} // namespace
+
 template <typename ValueType>
-class VeloxDictionaryStorage : public DictionaryStorage {
+class VeloxDictionaryStorage : public ShuffleDictionaryStorage {
  public:
-  VeloxDictionaryStorage(facebook::velox::memory::MemoryPool* pool)
-      : values_(0, facebook::velox::memory::StlAllocator<ValueType>(*pool)) {}
+  VeloxDictionaryStorage(facebook::velox::memory::MemoryPool* pool, arrow::util::Codec* codec)
+      : pool_(pool), codec_(codec), values_(0, facebook::velox::memory::StlAllocator<ValueType>(*pool)) {}
 
   DictionaryIndex getOrUpdate(const ValueType& value) {
     const auto& [it, inserted] = indexMap_.emplace(value, indexMap_.size());
@@ -42,23 +75,23 @@ class VeloxDictionaryStorage : public DictionaryStorage {
   }
 
   arrow::Status serialize(arrow::io::OutputStream* out) override {
-    const size_t nBytes = values_.size() * sizeof(ValueType);
-
-    RETURN_NOT_OK(out->Write(&nBytes, sizeof(nBytes)));
-    RETURN_NOT_OK(out->Write(values_.data(), nBytes));
-
+    ARROW_RETURN_NOT_OK(writeDictionaryBuffer(
+        reinterpret_cast<const uint8_t*>(values_.data()), values_.size() * sizeof(ValueType), pool_, codec_, out));
     return arrow::Status::OK();
   }
 
  private:
+  facebook::velox::memory::MemoryPool* pool_;
+  arrow::util::Codec* codec_;
   std::vector<ValueType, facebook::velox::memory::StlAllocator<ValueType>> values_;
+
   std::unordered_map<ValueType, DictionaryIndex> indexMap_;
 };
 
 template <>
-class VeloxDictionaryStorage<bool> : public DictionaryStorage {
+class VeloxDictionaryStorage<bool> : public ShuffleDictionaryStorage {
  public:
-  VeloxDictionaryStorage(facebook::velox::memory::MemoryPool*) {}
+  VeloxDictionaryStorage(facebook::velox::memory::MemoryPool* pool, arrow::util::Codec* codec) {}
 
   arrow::Status serialize(arrow::io::OutputStream* out) override {
     throw GlutenException("not implemented");
@@ -70,7 +103,7 @@ class VeloxDictionaryStorage<bool> : public DictionaryStorage {
 };
 
 template <>
-class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionaryStorage {
+class VeloxDictionaryStorage<facebook::velox::StringView> : public ShuffleDictionaryStorage {
   struct Strings {
     std::variant<size_t, const char*> offsetOrData;
     size_t length;
@@ -116,8 +149,10 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionarySto
   };
 
  public:
-  VeloxDictionaryStorage(facebook::velox::memory::MemoryPool* pool)
-      : lengths_(0, facebook::velox::memory::StlAllocator<StringLengthType>(*pool)),
+  VeloxDictionaryStorage(facebook::velox::memory::MemoryPool* pool, arrow::util::Codec* codec)
+      : pool_(pool),
+        codec_(codec),
+        lengths_(0, facebook::velox::memory::StlAllocator<StringLengthType>(*pool)),
         values_(0, facebook::velox::memory::StlAllocator<char>(*pool)),
         indexMap_(0, StringsHash{values_}, StringsEqual{values_}) {}
 
@@ -138,18 +173,22 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionarySto
   }
 
   arrow::Status serialize(arrow::io::OutputStream* out) override {
-    const size_t lengthBufferSize = lengths_.size() * sizeof(StringLengthType);
-    RETURN_NOT_OK(out->Write(&lengthBufferSize, sizeof(lengthBufferSize)));
-    RETURN_NOT_OK(out->Write(lengths_.data(), lengthBufferSize));
+    ARROW_RETURN_NOT_OK(writeDictionaryBuffer(
+        reinterpret_cast<const uint8_t*>(lengths_.data()),
+        lengths_.size() * sizeof(StringLengthType),
+        pool_,
+        codec_,
+        out));
 
-    const size_t valueBufferSize = values_.size() * sizeof(char);
-    RETURN_NOT_OK(out->Write(&valueBufferSize, sizeof(valueBufferSize)));
-    RETURN_NOT_OK(out->Write(values_.data(), valueBufferSize));
+    ARROW_RETURN_NOT_OK(
+        writeDictionaryBuffer(reinterpret_cast<const uint8_t*>(values_.data()), values_.size(), pool_, codec_, out));
 
     return arrow::Status::OK();
   }
 
  private:
+  facebook::velox::memory::MemoryPool* pool_;
+  arrow::util::Codec* codec_;
   std::vector<StringLengthType, facebook::velox::memory::StlAllocator<StringLengthType>> lengths_;
   std::vector<char, facebook::velox::memory::StlAllocator<char>> values_;
   std::unordered_map<Strings, DictionaryIndex, StringsHash, StringsEqual> indexMap_;
@@ -231,14 +270,17 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionary<facebook::velox::
 
 class DictionaryUpdater {
  public:
-  DictionaryUpdater(facebook::velox::memory::MemoryPool* veloxPool, arrow::MemoryPool* arrowPool)
-      : veloxPool_(veloxPool), arrowPool_(arrowPool) {}
+  DictionaryUpdater(
+      facebook::velox::memory::MemoryPool* veloxPool,
+      arrow::MemoryPool* arrowPool,
+      arrow::util::Codec* codec)
+      : veloxPool_(veloxPool), arrowPool_(arrowPool), codec_(codec) {}
 
   template <typename ValueType>
   std::shared_ptr<VeloxDictionaryStorage<ValueType>> getOrCreateDict(int32_t fieldIdx) {
     const auto it = dictionaries_.find(fieldIdx);
     if (it == dictionaries_.end()) {
-      auto dict = std::make_shared<VeloxDictionaryStorage<ValueType>>(veloxPool_);
+      auto dict = std::make_shared<VeloxDictionaryStorage<ValueType>>(veloxPool_, codec_);
       dictionaries_[fieldIdx] = dict;
       return dict;
     }
@@ -263,26 +305,29 @@ class DictionaryUpdater {
     results.push_back(indices);
   }
 
-  const std::unordered_map<int32_t, std::shared_ptr<DictionaryStorage>>& snapshot() {
+  const std::unordered_map<int32_t, std::shared_ptr<ShuffleDictionaryStorage>>& snapshot() {
     return dictionaries_;
   }
 
  private:
   facebook::velox::memory::MemoryPool* veloxPool_;
   arrow::MemoryPool* arrowPool_;
-  std::unordered_map<int32_t, std::shared_ptr<DictionaryStorage>> dictionaries_;
+  arrow::util::Codec* codec_;
+
+  std::unordered_map<int32_t, std::shared_ptr<ShuffleDictionaryStorage>> dictionaries_;
 };
 
 VeloxShuffleDictionaryWriter::VeloxShuffleDictionaryWriter(
     facebook::velox::memory::MemoryPool* veloxPool,
-    arrow::MemoryPool* arrowPool)
-    : dictionaryUpdater_(std::make_shared<DictionaryUpdater>(veloxPool, arrowPool)) {}
+    arrow::MemoryPool* arrowPool,
+    arrow::util::Codec* codec)
+    : dictionaryUpdater_(std::make_shared<DictionaryUpdater>(veloxPool, arrowPool, codec)) {}
 
 arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxShuffleDictionaryWriter::updateAndGet(
     const std::shared_ptr<arrow::Schema>& schema,
     int32_t numRows,
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
-  RETURN_NOT_OK(initSchema(schema));
+  ARROW_RETURN_NOT_OK(initSchema(schema));
 
   std::vector<std::shared_ptr<arrow::Buffer>> results;
 
@@ -329,7 +374,7 @@ arrow::Status VeloxShuffleDictionaryWriter::serialize(arrow::io::OutputStream* o
     arrow::bit_util::SetBit(bitMap.data(), fieldIdx);
   }
 
-  RETURN_NOT_OK(out->Write(bitMap.data(), bitMapSize));
+  ARROW_RETURN_NOT_OK(out->Write(bitMap.data(), bitMapSize));
 
   for (auto fieldIdx : dictionaryFields_) {
     GLUTEN_DCHECK(
@@ -337,7 +382,7 @@ arrow::Status VeloxShuffleDictionaryWriter::serialize(arrow::io::OutputStream* o
         "Invalid dictionary field index: " + std::to_string(fieldIdx));
 
     const auto& dictionary = dictionaries.at(fieldIdx);
-    RETURN_NOT_OK(dictionary->serialize(out));
+    ARROW_RETURN_NOT_OK(dictionary->serialize(out));
   }
 
   return arrow::Status::OK();

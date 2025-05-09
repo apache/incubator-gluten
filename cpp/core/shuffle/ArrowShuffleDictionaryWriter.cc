@@ -40,7 +40,7 @@ template <typename T, typename R = void>
 using enable_if_dictionary_primitive = std::enable_if_t<is_dictionary_primitive_type<T>::value, R>;
 
 template <typename ValueType>
-class DictionaryStorageImpl : public DictionaryStorage {
+class DictionaryStorageImpl : public ShuffleDictionaryStorage {
  public:
   DictionaryStorageImpl(arrow::MemoryPool* pool) {
     values_ = arrow::BufferBuilder{pool};
@@ -70,7 +70,7 @@ class DictionaryStorageImpl : public DictionaryStorage {
 };
 
 template <>
-class DictionaryStorageImpl<std::string_view> : public DictionaryStorage {
+class DictionaryStorageImpl<std::string_view> : public ShuffleDictionaryStorage {
  public:
   DictionaryStorageImpl(arrow::MemoryPool* pool) : pool_(pool) {
     table_ = std::make_shared<arrow::internal::DictionaryMemoTable>(pool, std::make_shared<arrow::LargeBinaryType>());

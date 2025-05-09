@@ -25,16 +25,16 @@ namespace gluten {
 
 enum class BlockType : uint8_t { kEndOfStream = 0, kPlainPayload = 1, kDictionary = 2, kDictionaryPayload = 3 };
 
-class DictionaryStorage {
+class ShuffleDictionaryStorage {
  public:
-  virtual ~DictionaryStorage() = default;
+  virtual ~ShuffleDictionaryStorage() = default;
 
   virtual arrow::Status serialize(arrow::io::OutputStream* out) = 0;
 };
 
-class DictionaryWriter {
+class ShuffleDictionaryWriter {
  public:
-  virtual ~DictionaryWriter() = default;
+  virtual ~ShuffleDictionaryWriter() = default;
 
   virtual arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
       const std::shared_ptr<arrow::Schema>& schema,
@@ -44,10 +44,11 @@ class DictionaryWriter {
   virtual arrow::Status serialize(arrow::io::OutputStream* out) = 0;
 };
 
-using DictionaryWriterFactory = std::function<std::unique_ptr<DictionaryWriter>(MemoryManager*)>;
+using ShuffleDictionaryWriterFactory =
+    std::function<std::unique_ptr<ShuffleDictionaryWriter>(MemoryManager*, arrow::util::Codec* codec)>;
 
-void registerShuffleDictionaryWriterFactory(DictionaryWriterFactory factory);
+void registerShuffleDictionaryWriterFactory(ShuffleDictionaryWriterFactory factory);
 
-std::unique_ptr<DictionaryWriter> createDictionaryWriter(MemoryManager*);
+std::unique_ptr<ShuffleDictionaryWriter> createDictionaryWriter(MemoryManager*, arrow::util::Codec* codec);
 
 } // namespace gluten

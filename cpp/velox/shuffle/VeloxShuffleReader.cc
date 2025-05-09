@@ -313,25 +313,50 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
-arrow::Result<VectorPtr>
-readDictionaryForBinary(arrow::io::InputStream* in, const TypePtr& type, facebook::velox::memory::MemoryPool* pool) {
+arrow::Result<BufferPtr>
+readDictionaryBuffer(arrow::io::InputStream* in, facebook::velox::memory::MemoryPool* pool, arrow::util::Codec* codec) {
   size_t bufferSize;
 
+  ARROW_RETURN_NOT_OK(in->Read(sizeof(bufferSize), &bufferSize));
+  auto buffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
+
+  if (bufferSize == 0) {
+    return buffer;
+  }
+
+  if (codec != nullptr) {
+    size_t compressedSize;
+    ARROW_RETURN_NOT_OK(in->Read(sizeof(compressedSize), &compressedSize));
+    auto compressedBuffer = facebook::velox::AlignedBuffer::allocate<char>(compressedSize, pool, std::nullopt, true);
+    ARROW_RETURN_NOT_OK(in->Read(compressedSize, compressedBuffer->asMutable<void>()));
+    ARROW_ASSIGN_OR_RAISE(
+        auto decompressedSize,
+        codec->Decompress(compressedSize, compressedBuffer->as<uint8_t>(), bufferSize, buffer->asMutable<uint8_t>()));
+    ARROW_RETURN_IF(
+        decompressedSize != bufferSize,
+        arrow::Status::IOError(
+            fmt::format("Decompressed size doesn't equal to original size: ({} vs {})", decompressedSize, bufferSize)));
+  } else {
+    ARROW_RETURN_NOT_OK(in->Read(bufferSize, buffer->asMutable<void>()));
+  }
+  return buffer;
+}
+
+arrow::Result<VectorPtr> readDictionaryForBinary(
+    arrow::io::InputStream* in,
+    const TypePtr& type,
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec) {
   // Read length buffer.
-  RETURN_NOT_OK(in->Read(sizeof(bufferSize), &bufferSize));
-  const auto lengthBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
-  RETURN_NOT_OK(in->Read(bufferSize, lengthBuffer->asMutable<void>()));
+  ARROW_ASSIGN_OR_RAISE(auto lengthBuffer, readDictionaryBuffer(in, pool, codec));
   const auto* lengthBufferPtr = lengthBuffer->as<StringLengthType>();
 
-  const auto numElements = bufferSize / sizeof(StringLengthType);
-
   // Read value buffer.
-  RETURN_NOT_OK(in->Read(sizeof(bufferSize), &bufferSize));
-  auto valueBuffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
-  RETURN_NOT_OK(in->Read(bufferSize, valueBuffer->asMutable<void>()));
+  ARROW_ASSIGN_OR_RAISE(auto valueBuffer, readDictionaryBuffer(in, pool, codec));
   const auto* valueBufferPtr = valueBuffer->as<char>();
 
   // Build StringViews.
+  const auto numElements = lengthBuffer->size() / sizeof(StringLengthType);
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * numElements, pool, std::nullopt, true);
   auto* rawValues = values->asMutable<StringView>();
 
@@ -349,14 +374,14 @@ readDictionaryForBinary(arrow::io::InputStream* in, const TypePtr& type, faceboo
 }
 
 template <TypeKind Kind, typename NativeType = typename TypeTraits<Kind>::NativeType>
-arrow::Result<VectorPtr>
-readDictionary(arrow::io::InputStream* in, const TypePtr& type, facebook::velox::memory::MemoryPool* pool) {
-  int64_t bufferSize;
-  RETURN_NOT_OK(in->Read(sizeof(int64_t), &bufferSize));
-  auto buffer = facebook::velox::AlignedBuffer::allocate<char>(bufferSize, pool, std::nullopt, true);
-  RETURN_NOT_OK(in->Read(bufferSize, buffer->asMutable<void>()));
+arrow::Result<VectorPtr> readDictionary(
+    arrow::io::InputStream* in,
+    const TypePtr& type,
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec) {
+  ARROW_ASSIGN_OR_RAISE(auto buffer, readDictionaryBuffer(in, pool, codec));
 
-  const auto numElements = bufferSize / sizeof(NativeType);
+  const auto numElements = buffer->size() / sizeof(NativeType);
 
   return std::make_shared<FlatVector<NativeType>>(
       pool, type, BufferPtr(nullptr), numElements, std::move(buffer), std::vector<BufferPtr>{});
@@ -366,24 +391,29 @@ template <>
 arrow::Result<VectorPtr> readDictionary<TypeKind::VARCHAR>(
     arrow::io::InputStream* in,
     const TypePtr& type,
-    facebook::velox::memory::MemoryPool* pool) {
-  return readDictionaryForBinary(in, type, pool);
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec) {
+  return readDictionaryForBinary(in, type, pool, codec);
 }
 
 template <>
 arrow::Result<VectorPtr> readDictionary<TypeKind::VARBINARY>(
     arrow::io::InputStream* in,
     const TypePtr& type,
-    facebook::velox::memory::MemoryPool* pool) {
-  return readDictionaryForBinary(in, type, pool);
+    facebook::velox::memory::MemoryPool* pool,
+    arrow::util::Codec* codec) {
+  return readDictionaryForBinary(in, type, pool, codec);
 }
 
 } // namespace
 
 class VeloxDictionaryReader {
  public:
-  VeloxDictionaryReader(const facebook::velox::RowTypePtr& rowType, facebook::velox::memory::MemoryPool* veloxPool)
-      : rowType_(rowType), veloxPool_(veloxPool) {}
+  VeloxDictionaryReader(
+      const facebook::velox::RowTypePtr& rowType,
+      facebook::velox::memory::MemoryPool* veloxPool,
+      arrow::util::Codec* codec)
+      : rowType_(rowType), veloxPool_(veloxPool), codec_(codec) {}
 
   arrow::Result<std::vector<int32_t>> readFields(arrow::io::InputStream* in) const {
     // Read bitmap.
@@ -408,7 +438,7 @@ class VeloxDictionaryReader {
     std::vector<VectorPtr> dictionaries;
     for (const auto i : fields) {
       auto dictionary = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
-          readDictionary, rowType_->childAt(i)->kind(), in, rowType_->childAt(i), veloxPool_);
+          readDictionary, rowType_->childAt(i)->kind(), in, rowType_->childAt(i), veloxPool_, codec_);
       dictionaries.emplace_back();
       ARROW_ASSIGN_OR_RAISE(dictionaries.back(), dictionary);
     }
@@ -419,6 +449,7 @@ class VeloxDictionaryReader {
  private:
   facebook::velox::RowTypePtr rowType_;
   facebook::velox::memory::MemoryPool* veloxPool_;
+  arrow::util::Codec* codec_;
 };
 
 VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
@@ -465,7 +496,7 @@ void VeloxHashShuffleReaderDeserializer::resolveNextBlockType() {
       reachEos_ = true;
       break;
     case BlockType::kDictionary: {
-      VeloxDictionaryReader reader(rowType_, veloxPool_);
+      VeloxDictionaryReader reader(rowType_, veloxPool_, codec_.get());
       GLUTEN_ASSIGN_OR_THROW(dictionaryFields_, reader.readFields(in_.get()));
       GLUTEN_ASSIGN_OR_THROW(dictionaries_, reader.readDictionaries(in_.get(), dictionaryFields_));
 
