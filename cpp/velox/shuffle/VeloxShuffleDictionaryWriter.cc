@@ -71,21 +71,64 @@ class VeloxDictionaryStorage<bool> : public DictionaryStorage {
 
 template <>
 class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionaryStorage {
+  struct Strings {
+    std::variant<size_t, const char*> offsetOrData;
+    size_t length;
+  };
+
+  struct StringsResolver {
+    const char* data(const Strings& s) const {
+      return std::visit(
+          [&](auto&& arg) -> const char* {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, size_t>) {
+              return buffer_.data() + arg;
+            } else {
+              return arg;
+            }
+          },
+          s.offsetOrData);
+    }
+
+    const std::vector<char, facebook::velox::memory::StlAllocator<char>>& buffer_;
+  };
+
+  struct StringsHash {
+    explicit StringsHash(const std::vector<char, facebook::velox::memory::StlAllocator<char>>& buf) : resolver_{buf} {}
+
+    size_t operator()(const Strings& s) const {
+      return std::hash<std::string_view>{}(std::string_view(resolver_.data(s), s.length));
+    }
+
+    StringsResolver resolver_;
+  };
+
+  struct StringsEqual {
+    explicit StringsEqual(const std::vector<char, facebook::velox::memory::StlAllocator<char>>& buf) : resolver_{buf} {}
+
+    bool operator()(const Strings& a, const Strings& b) const {
+      return a.length == b.length && std::memcmp(resolver_.data(a), resolver_.data(b), a.length) == 0;
+    }
+
+    StringsResolver resolver_;
+  };
+
  public:
   VeloxDictionaryStorage(facebook::velox::memory::MemoryPool* pool)
       : lengths_(0, facebook::velox::memory::StlAllocator<StringLengthType>(*pool)),
-        values_(0, facebook::velox::memory::StlAllocator<char>(*pool)) {}
+        values_(0, facebook::velox::memory::StlAllocator<char>(*pool)),
+        indexMap_(0, StringsHash{values_}, StringsEqual{values_}) {}
 
   DictionaryIndex getOrUpdate(const std::string_view& view) {
-    auto it = indexMap_.find(view);
+    auto it = indexMap_.find(Strings{view.data(), view.size()});
     if (it == indexMap_.end()) {
       const auto length = static_cast<StringLengthType>(view.size());
       lengths_.emplace_back(length);
 
-      const auto offset = values_.size();
+      const size_t offset = values_.size();
       values_.insert(values_.end(), view.data(), view.data() + length);
 
-      auto value = std::string_view{values_.data() + offset, length};
+      auto value = Strings{offset, length};
       const auto& [newIt, _] = indexMap_.emplace(value, indexMap_.size());
       it = newIt;
     }
@@ -107,7 +150,7 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public DictionarySto
  private:
   std::vector<StringLengthType, facebook::velox::memory::StlAllocator<StringLengthType>> lengths_;
   std::vector<char, facebook::velox::memory::StlAllocator<char>> values_;
-  std::unordered_map<std::string_view, DictionaryIndex> indexMap_;
+  std::unordered_map<Strings, DictionaryIndex, StringsHash, StringsEqual> indexMap_;
 };
 
 namespace {
@@ -308,9 +351,6 @@ arrow::Status VeloxShuffleDictionaryWriter::initSchema(const std::shared_ptr<arr
           fieldTypes_[i] = FieldType::kNull;
           break;
         case facebook::velox::TypeKind::BOOLEAN:
-        case facebook::velox::TypeKind::HUGEINT:
-        case facebook::velox::TypeKind::TIMESTAMP:
-          // TODO: support HUGEINT and TIMESTAMP
           fieldTypes_[i] = FieldType::kFixedWidth;
           break;
         case facebook::velox::TypeKind::ARRAY:

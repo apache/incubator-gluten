@@ -16,6 +16,9 @@
  */
 
 #include "shuffle/ArrowDictionaryWriter.h"
+#include "shuffle/Utils.h"
+
+#include <arrow/array/builder_dict.h>
 
 namespace gluten {
 
@@ -29,12 +32,12 @@ template <typename T, typename R = void>
 using enable_if_dictionary_binary = std::enable_if_t<is_dictionary_binary_type<T>::value, R>;
 
 template <typename T>
-using is_dictionary_fixed_width_type = std::integral_constant<
+using is_dictionary_primitive_type = std::integral_constant<
     bool,
     (arrow::is_primitive_ctype<T>::value && !std::is_same_v<arrow::BooleanType, T>) || arrow::is_date_type<T>::value>;
 
 template <typename T, typename R = void>
-using enable_if_dictionary_fixed_width = std::enable_if_t<is_dictionary_fixed_width_type<T>::value, R>;
+using enable_if_dictionary_primitive = std::enable_if_t<is_dictionary_primitive_type<T>::value, R>;
 
 template <typename ValueType>
 class DictionaryStorageImpl : public DictionaryStorage {
@@ -69,46 +72,51 @@ class DictionaryStorageImpl : public DictionaryStorage {
 template <>
 class DictionaryStorageImpl<std::string_view> : public DictionaryStorage {
  public:
-  DictionaryStorageImpl(arrow::MemoryPool* pool) {
-    values_ = arrow::BufferBuilder{pool};
-    lengths_ = arrow::BufferBuilder{pool};
+  DictionaryStorageImpl(arrow::MemoryPool* pool) : pool_(pool) {
+    table_ = std::make_shared<arrow::internal::DictionaryMemoTable>(pool, std::make_shared<arrow::LargeBinaryType>());
   }
 
   arrow::Result<ArrowDictionaryIndexType> getOrUpdate(const std::string_view& view) {
-    auto it = indexMap_.find(view);
-    if (it == indexMap_.end()) {
-      const auto length = view.size();
-      RETURN_NOT_OK(lengths_.Append(&length, sizeof(length)));
-
-      const auto offset = values_.length();
-      RETURN_NOT_OK(values_.Append(view));
-
-      auto value = std::string_view{values_.data_as<char>() + offset, length};
-      const auto& [newIt, _] = indexMap_.emplace(value, indexMap_.size());
-      it = newIt;
-    }
-    return it->second;
+    ArrowDictionaryIndexType memoIndex;
+    ARROW_RETURN_NOT_OK(table_->GetOrInsert<arrow::LargeBinaryType>(view, &memoIndex));
+    return memoIndex;
   }
 
   arrow::Status serialize(arrow::io::OutputStream* out) override {
-    ARROW_ASSIGN_OR_RAISE(auto lengthBuffer, lengths_.Finish());
-    ARROW_ASSIGN_OR_RAISE(auto valueBuffer, values_.Finish());
+    std::shared_ptr<arrow::ArrayData> data;
+    ARROW_RETURN_NOT_OK(table_->GetArrayData(0, &data));
 
-    const auto lengthBufferSize = lengthBuffer->size();
+    ARROW_RETURN_IF(data->buffers.size() != 3, arrow::Status::Invalid("Invalid dictionary"));
+
+    ARROW_ASSIGN_OR_RAISE(auto lengths, offsetToLength(data->length, data->buffers[1]));
+    const auto lengthBufferSize = lengths->size();
     RETURN_NOT_OK(out->Write(&lengthBufferSize, sizeof(lengthBufferSize)));
-    RETURN_NOT_OK(out->Write(lengthBuffer->data(), lengthBufferSize));
+    RETURN_NOT_OK(out->Write(lengths->data(), lengthBufferSize));
 
-    const auto valueBufferSize = valueBuffer->size();
+    const auto valueBufferSize = data->buffers[2]->size();
     RETURN_NOT_OK(out->Write(&valueBufferSize, sizeof(valueBufferSize)));
-    RETURN_NOT_OK(out->Write(valueBuffer->data(), valueBufferSize));
+    RETURN_NOT_OK(out->Write(data->buffers[2]->data(), valueBufferSize));
 
     return arrow::Status::OK();
   }
 
  private:
-  arrow::BufferBuilder lengths_;
-  arrow::BufferBuilder values_;
-  std::unordered_map<std::string_view, ArrowDictionaryIndexType> indexMap_;
+  arrow::Result<std::shared_ptr<arrow::Buffer>> offsetToLength(
+      size_t numElements,
+      const std::shared_ptr<arrow::Buffer>& offsets) const {
+    ARROW_ASSIGN_OR_RAISE(auto lengths, arrow::AllocateBuffer(sizeof(StringLengthType) * numElements, pool_));
+    auto* rawLengths = lengths->mutable_data_as<StringLengthType>();
+    const auto* rawOffsets = offsets->data_as<int64_t>();
+
+    for (auto i = 0; i < numElements; ++i) {
+      rawLengths[i] = static_cast<StringLengthType>(rawOffsets[i + 1] - rawOffsets[i]);
+    }
+
+    return lengths;
+  }
+
+  arrow::MemoryPool* pool_;
+  std::shared_ptr<arrow::internal::DictionaryMemoTable> table_;
 };
 
 namespace {
@@ -192,7 +200,7 @@ class ValueUpdater {
   }
 
   template <typename ArrowType>
-  enable_if_dictionary_fixed_width<ArrowType, arrow::Status> Visit(const ArrowType&) {
+  enable_if_dictionary_primitive<ArrowType, arrow::Status> Visit(const ArrowType&) {
     using ValueType = typename ArrowType::c_type;
 
     const auto& dict = getOrCreateDict<ValueType>(fieldIdx);
@@ -214,6 +222,17 @@ class ValueUpdater {
 
     ARROW_ASSIGN_OR_RAISE(
         auto indices, updateDictionaryForBinary(numRows, nulls, values, binaryValues, dict, writer->pool_));
+
+    results.push_back(nulls);
+    results.push_back(indices);
+
+    return arrow::Status::OK();
+  }
+
+  arrow::Status Visit(const arrow::TimestampType&) {
+    const auto& dict = getOrCreateDict<__int128_t>(fieldIdx);
+
+    ARROW_ASSIGN_OR_RAISE(auto indices, updateDictionary(numRows, nulls, values, dict, writer->pool_));
 
     results.push_back(nulls);
     results.push_back(indices);
@@ -281,6 +300,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> ArrowDictionaryWriter
 
   return results;
 }
+
 arrow::Status ArrowDictionaryWriter::serialize(arrow::io::OutputStream* out) {
   auto bitMapSize = arrow::bit_util::RoundUpToMultipleOf8(schema_->num_fields());
   std::vector<uint8_t> bitMap(bitMapSize);
@@ -315,7 +335,6 @@ arrow::Status ArrowDictionaryWriter::initSchema(const std::shared_ptr<arrow::Sch
           break;
         case arrow::BooleanType::type_id:
         case arrow::Decimal128Type::type_id:
-        case arrow::TimestampType::type_id:
           fieldTypes_[i] = FieldType::kFixedWidth;
           break;
         case arrow::ListType::type_id:

@@ -118,25 +118,25 @@ VectorPtr readFlatVector<TypeKind::HUGEINT>(
     const VectorPtr& dictionary,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
-  auto valueBuffer = buffers[bufferIdx++];
+  auto valuesOrIndices = buffers[bufferIdx++];
+
   // Because if buffer does not compress, it will get from netty, the address maynot aligned 16B, which will cause
   // int128_t = xxx coredump by instruction movdqa
-  auto data = valueBuffer->as<int128_t>();
-  BufferPtr values;
-  if ((reinterpret_cast<uintptr_t>(data) & 0xf) == 0) {
-    values = valueBuffer;
-  } else {
-    values = AlignedBuffer::allocate<char>(valueBuffer->size(), pool);
-    gluten::fastCopy(values->asMutable<char>(), valueBuffer->as<char>(), valueBuffer->size());
+  const auto* addr = valuesOrIndices->as<facebook::velox::int128_t>();
+  if ((reinterpret_cast<uintptr_t>(addr) & 0xf) != 0) {
+    auto alignedBuffer = AlignedBuffer::allocate<char>(valuesOrIndices->size(), pool);
+    fastCopy(alignedBuffer->asMutable<char>(), valuesOrIndices->as<char>(), valuesOrIndices->size());
+    valuesOrIndices = alignedBuffer;
   }
-  std::vector<BufferPtr> stringBuffers;
-  if (nulls == nullptr || nulls->size() == 0) {
-    auto vp = std::make_shared<FlatVector<int128_t>>(
-        pool, type, BufferPtr(nullptr), length, std::move(values), std::move(stringBuffers));
-    return vp;
+
+  nulls = nulls == nullptr || nulls->size() == 0 ? BufferPtr(nullptr) : nulls;
+
+  if (dictionary != nullptr) {
+    return BaseVector::wrapInDictionary(nulls, valuesOrIndices, length, dictionary);
   }
+
   return std::make_shared<FlatVector<int128_t>>(
-      pool, type, std::move(nulls), length, std::move(values), std::move(stringBuffers));
+      pool, type, nulls, length, std::move(valuesOrIndices), std::vector<BufferPtr>{});
 }
 
 VectorPtr readFlatVectorStringView(
