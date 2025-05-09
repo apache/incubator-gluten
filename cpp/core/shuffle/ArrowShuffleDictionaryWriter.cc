@@ -39,10 +39,43 @@ using is_dictionary_primitive_type = std::integral_constant<
 template <typename T, typename R = void>
 using enable_if_dictionary_primitive = std::enable_if_t<is_dictionary_primitive_type<T>::value, R>;
 
+namespace {
+
+arrow::Status writeDictionaryBuffer(
+    const uint8_t* data,
+    size_t size,
+    arrow::MemoryPool* pool,
+    arrow::util::Codec* codec,
+    arrow::io::OutputStream* out) {
+  ARROW_RETURN_NOT_OK(out->Write(&size, sizeof(size_t)));
+
+  if (size == 0) {
+    return arrow::Status::OK();
+  }
+
+  GLUTEN_DCHECK(data != nullptr, "Cannot write null data");
+
+  if (codec != nullptr) {
+    size_t compressedLength = codec->MaxCompressedLen(size, data);
+    ARROW_ASSIGN_OR_RAISE(auto buffer, arrow::AllocateBuffer(compressedLength, pool));
+    ARROW_ASSIGN_OR_RAISE(
+        compressedLength, codec->Compress(size, data, compressedLength, buffer->mutable_data_as<uint8_t>()));
+
+    ARROW_RETURN_NOT_OK(out->Write(&compressedLength, sizeof(size_t)));
+    ARROW_RETURN_NOT_OK(out->Write(buffer->data_as<void>(), compressedLength));
+  } else {
+    ARROW_RETURN_NOT_OK(out->Write(data, size));
+  }
+
+  return arrow::Status::OK();
+}
+
+} // namespace
+
 template <typename ValueType>
 class DictionaryStorageImpl : public ShuffleDictionaryStorage {
  public:
-  DictionaryStorageImpl(arrow::MemoryPool* pool) {
+  DictionaryStorageImpl(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {
     values_ = arrow::BufferBuilder{pool};
   }
 
@@ -56,15 +89,15 @@ class DictionaryStorageImpl : public ShuffleDictionaryStorage {
 
   arrow::Status serialize(arrow::io::OutputStream* out) override {
     ARROW_ASSIGN_OR_RAISE(auto valueBuffer, values_.Finish());
-
-    const auto valueBufferSize = valueBuffer->size();
-    RETURN_NOT_OK(out->Write(&valueBufferSize, sizeof(valueBufferSize)));
-    RETURN_NOT_OK(out->Write(valueBuffer->data(), valueBufferSize));
+    ARROW_RETURN_NOT_OK(writeDictionaryBuffer(valueBuffer->data(), valueBuffer->size(), pool_, codec_, out));
 
     return arrow::Status::OK();
   }
 
  private:
+  arrow::MemoryPool* pool_;
+  arrow::util::Codec* codec_;
+
   arrow::BufferBuilder values_;
   std::unordered_map<ValueType, ArrowDictionaryIndexType> indexMap;
 };
@@ -72,11 +105,11 @@ class DictionaryStorageImpl : public ShuffleDictionaryStorage {
 template <>
 class DictionaryStorageImpl<std::string_view> : public ShuffleDictionaryStorage {
  public:
-  DictionaryStorageImpl(arrow::MemoryPool* pool) : pool_(pool) {
+  DictionaryStorageImpl(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {
     table_ = std::make_shared<arrow::internal::DictionaryMemoTable>(pool, std::make_shared<arrow::LargeBinaryType>());
   }
 
-  arrow::Result<ArrowDictionaryIndexType> getOrUpdate(const std::string_view& view) {
+  arrow::Result<ArrowDictionaryIndexType> getOrUpdate(const std::string_view& view) const {
     ArrowDictionaryIndexType memoIndex;
     ARROW_RETURN_NOT_OK(table_->GetOrInsert<arrow::LargeBinaryType>(view, &memoIndex));
     return memoIndex;
@@ -89,13 +122,10 @@ class DictionaryStorageImpl<std::string_view> : public ShuffleDictionaryStorage 
     ARROW_RETURN_IF(data->buffers.size() != 3, arrow::Status::Invalid("Invalid dictionary"));
 
     ARROW_ASSIGN_OR_RAISE(auto lengths, offsetToLength(data->length, data->buffers[1]));
-    const auto lengthBufferSize = lengths->size();
-    RETURN_NOT_OK(out->Write(&lengthBufferSize, sizeof(lengthBufferSize)));
-    RETURN_NOT_OK(out->Write(lengths->data(), lengthBufferSize));
+    ARROW_RETURN_NOT_OK(writeDictionaryBuffer(lengths->data(), lengths->size(), pool_, codec_, out));
 
-    const auto valueBufferSize = data->buffers[2]->size();
-    RETURN_NOT_OK(out->Write(&valueBufferSize, sizeof(valueBufferSize)));
-    RETURN_NOT_OK(out->Write(data->buffers[2]->data(), valueBufferSize));
+    const auto& values = data->buffers[2];
+    ARROW_RETURN_NOT_OK(writeDictionaryBuffer(values->data(), values->size(), pool_, codec_, out));
 
     return arrow::Status::OK();
   }
@@ -116,6 +146,8 @@ class DictionaryStorageImpl<std::string_view> : public ShuffleDictionaryStorage 
   }
 
   arrow::MemoryPool* pool_;
+  arrow::util::Codec* codec_;
+
   std::shared_ptr<arrow::internal::DictionaryMemoTable> table_;
 };
 
@@ -192,7 +224,7 @@ class ValueUpdater {
   std::shared_ptr<DictionaryStorageImpl<ValueType>> getOrCreateDict(int32_t fieldIdx) {
     auto it = writer->dictionaries_.find(fieldIdx);
     if (it == writer->dictionaries_.end()) {
-      auto dict = std::make_shared<DictionaryStorageImpl<ValueType>>(writer->pool_);
+      auto dict = std::make_shared<DictionaryStorageImpl<ValueType>>(writer->pool_, writer->codec_);
       writer->dictionaries_[fieldIdx] = dict;
       return dict;
     }

@@ -32,7 +32,7 @@ namespace gluten {
 
 class ArrowShuffleDictionaryWriter : public ShuffleDictionaryWriter {
  public:
-  ArrowShuffleDictionaryWriter(arrow::MemoryPool* pool) : pool_(pool) {}
+  ArrowShuffleDictionaryWriter(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {}
 
   arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
       const std::shared_ptr<arrow::Schema>& schema,
@@ -47,6 +47,8 @@ class ArrowShuffleDictionaryWriter : public ShuffleDictionaryWriter {
   arrow::Status initSchema(const std::shared_ptr<arrow::Schema>& schema);
 
   arrow::MemoryPool* pool_;
+  arrow::util::Codec* codec_;
+
   std::shared_ptr<arrow::Schema> schema_;
   std::vector<FieldType> fieldTypes_;
   std::vector<int32_t> dictionaryFields_;

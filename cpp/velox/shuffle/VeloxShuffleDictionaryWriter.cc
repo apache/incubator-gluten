@@ -154,7 +154,11 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public ShuffleDictio
         codec_(codec),
         lengths_(0, facebook::velox::memory::StlAllocator<StringLengthType>(*pool)),
         values_(0, facebook::velox::memory::StlAllocator<char>(*pool)),
-        indexMap_(0, StringsHash{values_}, StringsEqual{values_}) {}
+        indexMap_(
+            0,
+            StringsHash{values_},
+            StringsEqual{values_},
+            facebook::velox::memory::StlAllocator<std::pair<const Strings, DictionaryIndex>>(*pool)) {}
 
   DictionaryIndex getOrUpdate(const std::string_view& view) {
     auto it = indexMap_.find(Strings{view.data(), view.size()});
@@ -163,10 +167,12 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public ShuffleDictio
       lengths_.emplace_back(length);
 
       const size_t offset = values_.size();
+      if (values_.capacity() < values_.size() + length) {
+        values_.reserve(std::max(values_.capacity() * 2, values_.size() + length));
+      }
       values_.insert(values_.end(), view.data(), view.data() + length);
 
-      auto value = Strings{offset, length};
-      const auto& [newIt, _] = indexMap_.emplace(value, indexMap_.size());
+      const auto& [newIt, _] = indexMap_.emplace(Strings{offset, length}, indexMap_.size());
       it = newIt;
     }
     return it->second;
@@ -191,7 +197,13 @@ class VeloxDictionaryStorage<facebook::velox::StringView> : public ShuffleDictio
   arrow::util::Codec* codec_;
   std::vector<StringLengthType, facebook::velox::memory::StlAllocator<StringLengthType>> lengths_;
   std::vector<char, facebook::velox::memory::StlAllocator<char>> values_;
-  std::unordered_map<Strings, DictionaryIndex, StringsHash, StringsEqual> indexMap_;
+  std::unordered_map<
+      Strings,
+      DictionaryIndex,
+      StringsHash,
+      StringsEqual,
+      facebook::velox::memory::StlAllocator<std::pair<const Strings, DictionaryIndex>>>
+      indexMap_;
 };
 
 namespace {
