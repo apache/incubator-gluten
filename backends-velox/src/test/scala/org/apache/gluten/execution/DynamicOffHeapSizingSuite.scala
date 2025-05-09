@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.benchmarks.RandomParquetDataGenerator
+import org.apache.gluten.memory.memtarget.DynamicOffHeapSizingMemoryTarget
 import org.apache.gluten.tags.SkipTest
 
 import org.apache.spark.SparkConf
@@ -26,35 +26,45 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
-  private val dataGenerator = RandomParquetDataGenerator(System.currentTimeMillis())
-  private val outputPath = getClass.getResource("/").getPath + "dynamicoffheapsizing_output.parquet"
-  private val AGG_SQL =
-    """select f_1, count(DISTINCT f_1)
-      |from tbl group
-      |group by 1""".stripMargin
-
   override def beforeAll(): Unit = {
     super.beforeAll()
+    createTPCHNotNullTables()
   }
+
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.executor.memory", "6GB")
-      .set("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction", "0.8")
+      .set("spark.executor.memory", "2GB")
+      .set("spark.memory.offHeap.enabled", "false")
+      .set("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction", "0.95")
       .set("spark.gluten.memory.dynamic.offHeap.sizing.enabled", "true")
   }
 
-  def getRootCause(e: Throwable): Throwable = {
-    if (e.getCause == null) {
-      return e
-    }
-    getRootCause(e.getCause)
-  }
-
   test("Dynamic off-heap sizing") {
-    System.gc()
-    dataGenerator.generateRandomData(spark, Some(outputPath))
-    spark.read.format("parquet").load(outputPath).createOrReplaceTempView("tbl")
-    spark.sql(AGG_SQL)
+    val query =
+      """
+        | select l_quantity, c_acctbal, o_orderdate, p_type, n_name, s_suppkey
+        | from customer, orders, lineitem, part, supplier, nation
+        | where c_custkey = o_custkey and o_orderkey = l_orderkey and l_partkey = p_partkey
+        | and l_suppkey = s_suppkey and s_nationkey = n_nationkey
+        | order by c_acctbal desc, o_orderdate, l_suppkey, n_name, p_type
+        | limit 1000
+      """.stripMargin
+    var allocatedSize = 0
+    assert(allocatedSize >= 0)
+    for (i <- 0 until 50) {
+      // scalastyle:off println
+      println(
+        s"Total memory: ${Runtime.getRuntime().totalMemory()} bytes,"
+          + s" free memory: ${Runtime.getRuntime().freeMemory()} bytes,"
+          + s" max memory: ${Runtime.getRuntime().maxMemory()} bytes"
+      )
+      // scalastyle:on println
+      val size = 1024 * 1024 * 1024 - 51
+      val data = new Array[Byte](size + i)
+      allocatedSize += data.length
+      runQueryAndCompare(query) { _ => }
+    }
+    assert(DynamicOffHeapSizingMemoryTarget.getTotalExplicitGCCount() > 0)
   }
 }
