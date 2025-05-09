@@ -322,7 +322,7 @@ class VeloxParquetWriteForHiveSuite
                 (0 until 50).map(i => (i % 13, i.toString)).toDF("i", "j")
               df.write.mode(SaveMode.Overwrite).saveAsTable(source)
 
-              checkNativeWrite(s"INSERT INTO $target SELECT i, j FROM $source", checkNative = false)
+              checkNativeWrite(s"INSERT INTO $target SELECT i, j FROM $source", checkNative = true)
 
               checkAnswer(spark.table(target), df)
             }
