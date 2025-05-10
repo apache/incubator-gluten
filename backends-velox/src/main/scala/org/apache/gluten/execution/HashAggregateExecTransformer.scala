@@ -50,6 +50,7 @@ abstract class HashAggregateExecTransformer(
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
+    isFromSortAggregate: Boolean,
     ignoreNullKeys: Boolean)
   extends HashAggregateExecBaseTransformer(
     requiredChildDistributionExpressions,
@@ -59,6 +60,7 @@ abstract class HashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child,
+    isFromSortAggregate,
     ignoreNullKeys
   ) {
 
@@ -704,6 +706,7 @@ case class RegularHashAggregateExecTransformer(
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
+    isFromSortAggregate: Boolean,
     ignoreNullKeys: Boolean = false)
   extends HashAggregateExecTransformer(
     requiredChildDistributionExpressions,
@@ -713,6 +716,7 @@ case class RegularHashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child,
+    isFromSortAggregate,
     ignoreNullKeys
   ) {
 
@@ -739,6 +743,7 @@ case class FlushableHashAggregateExecTransformer(
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
+    isFromSortAggregate: Boolean,
     ignoreNullKeys: Boolean = false)
   extends HashAggregateExecTransformer(
     requiredChildDistributionExpressions,
@@ -748,6 +753,7 @@ case class FlushableHashAggregateExecTransformer(
     initialInputBufferOffset,
     resultExpressions,
     child,
+    isFromSortAggregate,
     ignoreNullKeys
   ) {
 

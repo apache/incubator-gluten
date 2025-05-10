@@ -41,9 +41,12 @@ abstract class HashAggregateExecBaseTransformer(
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
+    isFromSortAggregate: Boolean,
     ignoreNullKeys: Boolean = false)
   extends BaseAggregateExec
   with UnaryTransformSupport {
+
+  def getIsFromSortAggregate: Boolean = isFromSortAggregate
 
   override lazy val allAttributes: AttributeSeq =
     child.output ++ aggregateBufferAttributes ++ aggregateAttributes ++
@@ -189,6 +192,7 @@ object HashAggregateExecBaseTransformer {
   }
 
   def from(agg: BaseAggregateExec): HashAggregateExecBaseTransformer = {
+    val isFromSortAggregate = agg.isInstanceOf[SortAggregateExec]
     BackendsApiManager.getSparkPlanExecApiInstance
       .genHashAggregateExecTransformer(
         agg.requiredChildDistributionExpressions,
@@ -197,7 +201,8 @@ object HashAggregateExecBaseTransformer {
         agg.aggregateAttributes,
         getInitialInputBufferOffset(agg),
         agg.resultExpressions,
-        agg.child
+        agg.child,
+        isFromSortAggregate
       )
   }
 }
