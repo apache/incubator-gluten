@@ -31,9 +31,9 @@ struct Evict {
 
 class PartitionWriter : public Reclaimable {
  public:
-  PartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, arrow::MemoryPool* pool)
-      : numPartitions_(numPartitions), options_(std::move(options)), pool_(pool) {
-    payloadPool_ = std::make_unique<ShuffleMemoryPool>(pool);
+  PartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, MemoryManager* memoryManager)
+      : numPartitions_(numPartitions), options_(std::move(options)), memoryManager_(memoryManager) {
+    payloadPool_ = std::make_unique<ShuffleMemoryPool>(memoryManager->getArrowMemoryPool());
     codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend, options_.compressionLevel);
   }
 
@@ -81,7 +81,7 @@ class PartitionWriter : public Reclaimable {
  protected:
   uint32_t numPartitions_;
   PartitionWriterOptions options_;
-  arrow::MemoryPool* pool_;
+  MemoryManager* memoryManager_;
 
   // Memory Pool used to track memory allocation of partition payloads.
   // The actual allocation is delegated to options_.memoryPool.

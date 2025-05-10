@@ -303,21 +303,6 @@ class VeloxHashShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit);
 
-  class PartitionBufferGuard {
-   public:
-    PartitionBufferGuard(std::optional<uint32_t>& partitionInUse, uint32_t partitionId)
-        : partitionBufferInUse_(partitionInUse) {
-      partitionBufferInUse_ = partitionId;
-    }
-
-    ~PartitionBufferGuard() {
-      partitionBufferInUse_ = std::nullopt;
-    }
-
-   private:
-    std::optional<uint32_t>& partitionBufferInUse_;
-  };
-
   std::shared_ptr<arrow::Schema> schema_;
 
   // Column index, partition id, buffers.
