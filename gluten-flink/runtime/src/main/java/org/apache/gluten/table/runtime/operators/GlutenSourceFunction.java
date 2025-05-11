@@ -18,7 +18,7 @@
 package org.apache.gluten.table.runtime.operators;
 
 import io.github.zhztheplayer.velox4j.query.SerialTask;
-import org.apache.gluten.util.SerializablePlanNode;
+import org.apache.gluten.util.Velox4JBean;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
@@ -48,10 +48,10 @@ import java.util.List;
 public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(GlutenSourceFunction.class);
 
-    private final SerializablePlanNode planNode;
-    private final RowType outputType;
+    private final Velox4JBean<PlanNode> planNode;
+    private final Velox4JBean<RowType> outputType;
     private final String id;
-    private final ConnectorSplit split;
+    private final Velox4JBean<ConnectorSplit> split;
     private volatile boolean isRunning = true;
 
     private Session session;
@@ -64,32 +64,32 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
             RowType outputType,
             String id,
             ConnectorSplit split) {
-        this.planNode = new SerializablePlanNode(planNode);
-        this.outputType = outputType;
+        this.planNode = Velox4JBean.of(planNode);
+        this.outputType = Velox4JBean.of(outputType);
         this.id = id;
-        this.split = split;
+        this.split = Velox4JBean.of(split);
     }
 
     public PlanNode getPlanNode() {
-        return planNode.node();
+        return planNode.get();
     }
 
-    public RowType getOutputType() { return outputType; }
+    public RowType getOutputType() { return outputType.get(); }
 
     public String getId() { return id; }
 
-    public ConnectorSplit getConnectorSplit() { return split; }
+    public ConnectorSplit getConnectorSplit() { return split.get(); }
 
     @Override
     public void run(SourceContext<RowData> sourceContext) throws Exception {
-        LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode.node()));
+        LOG.debug("Running GlutenSourceFunction: " + Serde.toJson(planNode.get()));
         memoryManager = MemoryManager.create(AllocationListener.NOOP);
         session = Velox4j.newSession(memoryManager);
-        query = new Query(planNode.node(), Config.empty(), ConnectorConfig.empty());
+        query = new Query(planNode.get(), Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
 
         SerialTask task = session.queryOps().execute(query);
-        task.addSplit(id, split);
+        task.addSplit(id, split.get());
         task.noMoreSplits(id);
         while (isRunning) {
             UpIterator.State state = task.advance();
@@ -98,7 +98,7 @@ public class GlutenSourceFunction extends RichParallelSourceFunction<RowData> {
                 List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
                         outRv,
                         allocator,
-                        outputType);
+                        outputType.get());
                 for (RowData row : rows) {
                     sourceContext.collect(row);
                 }
