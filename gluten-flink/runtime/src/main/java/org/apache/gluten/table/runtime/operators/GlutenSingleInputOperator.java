@@ -17,15 +17,14 @@
 
 package org.apache.gluten.table.runtime.operators;
 
-import io.github.zhztheplayer.velox4j.connector.ExternalStream;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreams;
-import io.github.zhztheplayer.velox4j.iterator.DownIterators;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.query.SerialTask;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.util.SerializablePlanNode;
 import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
 
 import io.github.zhztheplayer.velox4j.Velox4j;
@@ -50,8 +49,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /** Calculate operator in gluten, which will call Velox to run. */
 public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
@@ -59,7 +56,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
 
     private static final Logger LOG = LoggerFactory.getLogger(GlutenSingleInputOperator.class);
 
-    private final PlanNode glutenPlan;
+    private final SerializablePlanNode glutenPlan;
     private final String id;
     private final RowType inputType;
     private final RowType outputType;
@@ -74,7 +71,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
     private SerialTask task;
 
     public GlutenSingleInputOperator(PlanNode plan, String id, RowType inputType, RowType outputType) {
-        this.glutenPlan = plan;
+        this.glutenPlan = new SerializablePlanNode(plan);
         this.id = id;
         this.inputType = inputType;
         this.outputType = outputType;
@@ -94,9 +91,9 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
                 inputType,
                 new ExternalStreamTableHandle("connector-external-stream"),
                 List.of());
-        glutenPlan.setSources(List.of(mockInput));
-        LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan));
-        query = new Query(glutenPlan, Config.empty(), ConnectorConfig.empty());
+        glutenPlan.node().setSources(List.of(mockInput));
+        LOG.debug("Gluten Plan: {}", Serde.toJson(glutenPlan.node()));
+        query = new Query(glutenPlan.node(), Config.empty(), ConnectorConfig.empty());
         allocator = new RootAllocator(Long.MAX_VALUE);
         task = session.queryOps().execute(query);
         ExternalStreamConnectorSplit split = new ExternalStreamConnectorSplit("connector-external-stream", inputQueue.id());
@@ -137,7 +134,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
 
     @Override
     public PlanNode getPlanNode() {
-        return glutenPlan;
+        return glutenPlan.node();
     }
 
     @Override
