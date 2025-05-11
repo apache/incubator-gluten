@@ -186,11 +186,8 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
   auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
-  if (gsAuthType.hasValue()) {
-    std::string type = gsAuthType.value();
-    if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      auto gsAuthServiceAccountJsonKeyfile =
-          conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+  auto gsAuthServiceAccountJsonKeyfile = conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+  if (gsAuthType.hasValue() && gsAuthType.value() == "SERVICE_ACCOUNT_JSON_KEYFILE") {
       if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
         hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
             gsAuthServiceAccountJsonKeyfile.value();
@@ -200,6 +197,11 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
         throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
       }
     }
+  else if (gsAuthServiceAccountJsonKeyfile.hasValue()){
+       LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
+                       "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
+       throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
+  }
   }
 #endif
 
