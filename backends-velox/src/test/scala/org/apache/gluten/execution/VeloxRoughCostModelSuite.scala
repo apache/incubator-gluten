@@ -43,7 +43,6 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
   override protected def sparkConf: SparkConf = super.sparkConf
     .set(GlutenConfig.RAS_ENABLED.key, "true")
     .set(GlutenConfig.RAS_COST_MODEL.key, "rough")
-    .set(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.key, "false")
 
   test("fallback trivial project if its neighbor nodes fell back") {
     withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {

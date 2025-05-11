@@ -809,13 +809,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val VANILLA_VECTORIZED_READERS_ENABLED =
-    buildStaticConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
-      .internal()
-      .doc("Enable or disable vanilla vectorized scan.")
-      .booleanConf
-      .createWithDefault(true)
-
   val COLUMNAR_HASHAGG_ENABLED =
     buildConf("spark.gluten.sql.columnar.hashagg")
       .internal()
