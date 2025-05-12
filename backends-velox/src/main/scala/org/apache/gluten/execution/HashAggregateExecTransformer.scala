@@ -47,7 +47,7 @@ abstract class HashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
     ignoreNullKeys: Boolean)
@@ -701,7 +701,7 @@ case class RegularHashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    override val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
     ignoreNullKeys: Boolean = false)
@@ -739,7 +739,7 @@ case class OffloadedSortHashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    override val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
     ignoreNullKeys: Boolean = false)
@@ -776,7 +776,7 @@ case class FlushableHashAggregateExecTransformer(
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute],
-    initialInputBufferOffset: Int,
+    override val initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan,
     ignoreNullKeys: Boolean = false)
