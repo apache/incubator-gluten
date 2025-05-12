@@ -172,6 +172,16 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           ExpressionNames.LUHN_CHECK,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i)
+      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _)
+          if i.objectName.endsWith("Base64") =>
+        return GenericExpressionTransformer(
+          i.objectName.endsWith("UnBase64") match {
+            case true => ExpressionNames.UNBASE64
+            case false => ExpressionNames.BASE64
+          },
+          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
+          i
+        )
       case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
         throw new GlutenNotSupportException(
           s"Not supported to transform StaticInvoke with object: ${clz.getName}, " +
