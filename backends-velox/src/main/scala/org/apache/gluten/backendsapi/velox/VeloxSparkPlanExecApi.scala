@@ -335,15 +335,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       aggregateAttributes: Seq[Attribute],
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
-      child: SparkPlan): HashAggregateExecBaseTransformer =
-    RegularHashAggregateExecTransformer(
-      requiredChildDistributionExpressions,
-      groupingExpressions,
-      aggregateExpressions,
-      aggregateAttributes,
-      initialInputBufferOffset,
-      resultExpressions,
-      child,
+      child: SparkPlan,
       offloadedSortExec: Boolean = false): HashAggregateExecBaseTransformer =
     if (offloadedSortExec) {
       OffloadedSortHashAggregateExecTransformer(
@@ -353,8 +345,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         aggregateAttributes,
         initialInputBufferOffset,
         resultExpressions,
-        child,
-        false
+        child
       )
     } else {
       RegularHashAggregateExecTransformer(
@@ -364,8 +355,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         aggregateAttributes,
         initialInputBufferOffset,
         resultExpressions,
-        child,
-        false
+        child
       )
     }
 
