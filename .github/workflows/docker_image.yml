@@ -264,7 +264,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        digests: [ vcpkg-centos-8, centos-8-jdk8, centos-8-jdk11, centos-8-jdk17 ]
+        digests: [ 1.4-vcpkg-centos-8, 1.4-centos-8-jdk8, 1.4-centos-8-jdk11, 1.4-centos-8-jdk17 ]
     needs:
       - build-vcpkg-centos-8
       - build-centos-8-jdk8
