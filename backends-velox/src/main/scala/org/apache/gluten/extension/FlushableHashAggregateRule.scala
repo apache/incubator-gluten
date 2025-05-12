@@ -98,18 +98,18 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
         agg
       case agg: RegularHashAggregateExecTransformer =>
         func(agg)
-      case agg: RegularHashAggregateExecTransformer
+      case agg: OffloadedSortHashAggregateExecTransformer
         if !agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge) =>
       // Not a intermediate agg. Skip.
       agg
-      case agg: RegularHashAggregateExecTransformer
+      case agg: OffloadedSortHashAggregateExecTransformer
           if isAggInputAlreadyDistributedWithAggKeys(agg) =>
         // Data already grouped by aggregate keys, Skip.
         agg
-      case agg: RegularHashAggregateExecTransformer
+      case agg: OffloadedSortHashAggregateExecTransformer
           if aggregatesNotSupportFlush(agg.aggregateExpressions) =>
         agg
-      case agg: RegularHashAggregateExecTransformer =>
+      case agg: OffloadedSortHashAggregateExecTransformer =>
         func(agg)
       case p if !canPropagate(p) => p
       case other => other.withNewChildren(other.children.map(transformDown))
