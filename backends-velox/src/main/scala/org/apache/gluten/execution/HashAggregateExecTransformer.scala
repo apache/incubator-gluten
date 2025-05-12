@@ -732,7 +732,7 @@ case class RegularHashAggregateExecTransformer(
 }
 
 // Hash aggregation that is offloaded from sort aggregation.
-// Is identical to RegularHashAggregateExecTransformer but with a 
+// Is identical to RegularHashAggregateExecTransformer but with a
 // different value of isOffloadedSortExec.
 case class OffloadedSortHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
