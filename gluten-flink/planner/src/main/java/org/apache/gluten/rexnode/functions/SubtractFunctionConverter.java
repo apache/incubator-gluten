@@ -19,6 +19,7 @@ package org.apache.gluten.rexnode.functions;
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
+import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.flink.util.Preconditions;
@@ -37,7 +38,8 @@ public class SubtractFunctionConverter implements FunctionConverter {
         Preconditions.checkNotNull(params.size() == 2, "Subtract must contain exactly two parameters");
 
         // TODO: need refine for more type cast
-        if (params.get(0).getReturnType() != params.get(1).getReturnType()) {
+        if (params.get(0).getReturnType().getClass() == TimestampType.class ||
+                params.get(1).getReturnType().getClass() == BigIntType.class) {
             // hardcode here for next mark watermark whose param1 is Timestamp and 2 is BigInt.
             Type newType = new BigIntType();
             TypedExpr param0 = new CallTypedExpr(
