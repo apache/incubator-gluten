@@ -38,7 +38,15 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.github.zhztheplayer.velox4j.connector.NexmarkTableHandle;
+import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.plan.ProjectNode;
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.TableScanNode;
+import io.github.zhztheplayer.velox4j.plan.WatermarkAssignerNode;
 import org.apache.calcite.rex.RexNode;
+import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
 import org.apache.gluten.util.PlanNodeIdGenerator;
@@ -119,12 +127,31 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
         io.github.zhztheplayer.velox4j.type.RowType inputType =
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(inputEdge.getOutputType());
+        List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
+
+        TypedExpr watermarkExprs = RexNodeConverter.toTypedExpr(watermarkExpr, inNames);
         io.github.zhztheplayer.velox4j.type.RowType outputType =
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(getOutputType());
-        // Watermark assigner has not been supported in gluten.
+        // This scan can be ignored, it's used only to make ProjectNode valid
+        PlanNode ignore = new TableScanNode(
+                PlanNodeIdGenerator.newId(),
+                outputType,
+                new NexmarkTableHandle("connector-nexmark"),
+                List.of());
+        ProjectNode project = new ProjectNode(
+                PlanNodeIdGenerator.newId(),
+                List.of(ignore),
+                List.of("TIMESTAMP"),
+                List.of(watermarkExprs));
+        PlanNode watermark = new WatermarkAssignerNode(
+                PlanNodeIdGenerator.newId(),
+                null,
+                project,
+                idleTimeout,
+                rowtimeFieldIndex);
         final GlutenSingleInputOperator watermarkOperator =
-                new GlutenSingleInputOperator(null, PlanNodeIdGenerator.newId(), inputType, outputType);
+                new GlutenSingleInputOperator(watermark, PlanNodeIdGenerator.newId(), inputType, outputType);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
