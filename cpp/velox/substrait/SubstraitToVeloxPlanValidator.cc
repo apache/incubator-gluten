@@ -133,10 +133,22 @@ bool SubstraitToVeloxPlanValidator::validateRound(
   // Velox has different result with Spark on negative scale.
   auto typeCase = arguments[1].value().literal().literal_type_case();
   switch (typeCase) {
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI32:
-      return (arguments[1].value().literal().i32() >= 0);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
-      return (arguments[1].value().literal().i64() >= 0);
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI32: {
+      int32_t scale = arguments[1].value().literal().i32();
+      if (scale < 0) {
+        LOG_VALIDATION_MSG("Round scale validation failed: scale " + std::to_string(scale) + " is negative.");
+        return false;
+      }
+      return true;
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI64: {
+      int64_t scale = arguments[1].value().literal().i64();
+      if (scale < 0) {
+        LOG_VALIDATION_MSG("Round scale validation failed: scale " + std::to_string(scale) + " is negative.");
+        return false;
+      }
+      return true;
+    }
     default:
       LOG_VALIDATION_MSG("Round scale validation is not supported for type case " + std::to_string(typeCase));
       return false;
