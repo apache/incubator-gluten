@@ -36,7 +36,7 @@ public class FunctionMappings {
             put("CASE", new DefaultFunctionConverter("if"));
             put("*", new DefaultFunctionConverter("multiply"));
             put("-", new SubtractFunctionConverter("subtract"));
-            put("MOD", new DefaultFunctionConverter("pmod"));
+            put("MOD", new DefaultFunctionConverter("remainder"));
             put("AND", new DefaultFunctionConverter("and"));
         }
     };
