@@ -34,7 +34,9 @@ using enable_if_dictionary_binary = std::enable_if_t<is_dictionary_binary_type<T
 template <typename T>
 using is_dictionary_primitive_type = std::integral_constant<
     bool,
-    (arrow::is_primitive_ctype<T>::value && !std::is_same_v<arrow::BooleanType, T>) || arrow::is_date_type<T>::value>;
+    (arrow::is_primitive_ctype<T>::value && !std::is_same_v<arrow::BooleanType, T> &&
+     !std::is_same_v<arrow::HalfFloatType, T>) ||
+        arrow::is_date_type<T>::value>;
 
 template <typename T, typename R = void>
 using enable_if_dictionary_primitive = std::enable_if_t<is_dictionary_primitive_type<T>::value, R>;
@@ -72,24 +74,30 @@ arrow::Status writeDictionaryBuffer(
 
 } // namespace
 
-template <typename ValueType>
+template <typename ArrowType>
 class DictionaryStorageImpl : public ShuffleDictionaryStorage {
  public:
+  using ValueType = typename ArrowType::c_type;
+
   DictionaryStorageImpl(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {
-    values_ = arrow::BufferBuilder{pool};
+    table_ = std::make_shared<arrow::internal::DictionaryMemoTable>(pool, std::make_shared<ArrowType>());
   }
 
   arrow::Result<ArrowDictionaryIndexType> getOrUpdate(const ValueType& value) {
-    const auto& [it, inserted] = indexMap.emplace(value, indexMap.size());
-    if (inserted) {
-      RETURN_NOT_OK(values_.Append(&value, sizeof(ValueType)));
-    }
-    return it->second;
+    ArrowDictionaryIndexType memoIndex;
+    ARROW_RETURN_NOT_OK(table_->GetOrInsert<ArrowType>(value, &memoIndex));
+    return memoIndex;
   }
 
   arrow::Status serialize(arrow::io::OutputStream* out) override {
-    ARROW_ASSIGN_OR_RAISE(auto valueBuffer, values_.Finish());
-    ARROW_RETURN_NOT_OK(writeDictionaryBuffer(valueBuffer->data(), valueBuffer->size(), pool_, codec_, out));
+    std::shared_ptr<arrow::ArrayData> data;
+    ARROW_RETURN_NOT_OK(table_->GetArrayData(0, &data));
+
+    ARROW_RETURN_IF(
+        data->buffers.size() != 2, arrow::Status::Invalid("Invalid dictionary for type: ", data->type->ToString()));
+
+    const auto& values = data->buffers[1];
+    ARROW_RETURN_NOT_OK(writeDictionaryBuffer(values->data(), values->size(), pool_, codec_, out));
 
     return arrow::Status::OK();
   }
@@ -98,14 +106,12 @@ class DictionaryStorageImpl : public ShuffleDictionaryStorage {
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
 
-  arrow::BufferBuilder values_;
-  std::unordered_map<ValueType, ArrowDictionaryIndexType> indexMap;
+  std::shared_ptr<arrow::internal::DictionaryMemoTable> table_;
 };
 
-template <>
-class DictionaryStorageImpl<std::string_view> : public ShuffleDictionaryStorage {
+class BinaryShuffleDictionaryStorage : public ShuffleDictionaryStorage {
  public:
-  DictionaryStorageImpl(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {
+  BinaryShuffleDictionaryStorage(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {
     table_ = std::make_shared<arrow::internal::DictionaryMemoTable>(pool, std::make_shared<arrow::LargeBinaryType>());
   }
 
@@ -119,7 +125,7 @@ class DictionaryStorageImpl<std::string_view> : public ShuffleDictionaryStorage 
     std::shared_ptr<arrow::ArrayData> data;
     ARROW_RETURN_NOT_OK(table_->GetArrayData(0, &data));
 
-    ARROW_RETURN_IF(data->buffers.size() != 3, arrow::Status::Invalid("Invalid dictionary"));
+    ARROW_RETURN_IF(data->buffers.size() != 3, arrow::Status::Invalid("Invalid dictionary for binary type"));
 
     ARROW_ASSIGN_OR_RAISE(auto lengths, offsetToLength(data->length, data->buffers[1]));
     ARROW_RETURN_NOT_OK(writeDictionaryBuffer(lengths->data(), lengths->size(), pool_, codec_, out));
@@ -152,17 +158,17 @@ class DictionaryStorageImpl<std::string_view> : public ShuffleDictionaryStorage 
 };
 
 namespace {
-template <typename T>
+template <typename ArrowType>
 arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionary(
     int32_t numRows,
     const std::shared_ptr<arrow::Buffer>& validityBuffer,
     const std::shared_ptr<arrow::Buffer>& valueBuffer,
-    const std::shared_ptr<DictionaryStorageImpl<T>>& dictionary,
+    const std::shared_ptr<DictionaryStorageImpl<ArrowType>>& dictionary,
     arrow::MemoryPool* pool) {
   ARROW_ASSIGN_OR_RAISE(auto indices, arrow::AllocateBuffer(sizeof(ArrowDictionaryIndexType) * numRows, pool));
   auto rawIndices = indices->mutable_data_as<ArrowDictionaryIndexType>();
 
-  const auto* values = valueBuffer->data_as<T>();
+  const auto* values = valueBuffer->data_as<typename ArrowType::c_type>();
 
   if (validityBuffer != nullptr) {
     const auto* nulls = validityBuffer->data();
@@ -186,7 +192,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionaryForBinary(
     const std::shared_ptr<arrow::Buffer>& validityBuffer,
     const std::shared_ptr<arrow::Buffer>& lengthBuffer,
     const std::shared_ptr<arrow::Buffer>& valueBuffer,
-    const std::shared_ptr<DictionaryStorageImpl<std::string_view>>& dictionary,
+    const std::shared_ptr<BinaryShuffleDictionaryStorage>& dictionary,
     arrow::MemoryPool* pool) {
   ARROW_ASSIGN_OR_RAISE(auto indices, arrow::AllocateBuffer(sizeof(ArrowDictionaryIndexType) * numRows, pool));
   auto rawIndices = indices->mutable_data_as<ArrowDictionaryIndexType>();
@@ -220,24 +226,18 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> updateDictionaryForBinary(
 
 class ValueUpdater {
  public:
-  template <typename ValueType>
-  std::shared_ptr<DictionaryStorageImpl<ValueType>> getOrCreateDict(int32_t fieldIdx) {
-    auto it = writer->dictionaries_.find(fieldIdx);
-    if (it == writer->dictionaries_.end()) {
-      auto dict = std::make_shared<DictionaryStorageImpl<ValueType>>(writer->pool_, writer->codec_);
-      writer->dictionaries_[fieldIdx] = dict;
-      return dict;
-    }
-    return std::dynamic_pointer_cast<DictionaryStorageImpl<ValueType>>(it->second);
-  }
-
   template <typename ArrowType>
   enable_if_dictionary_primitive<ArrowType, arrow::Status> Visit(const ArrowType&) {
-    using ValueType = typename ArrowType::c_type;
+    auto it = writer->dictionaries_.find(fieldIdx);
+    if (it == writer->dictionaries_.end()) {
+      auto dict = std::make_shared<DictionaryStorageImpl<ArrowType>>(writer->pool_, writer->codec_);
+      const auto& [newIt, _] = writer->dictionaries_.emplace(fieldIdx, dict);
+      it = newIt;
+    }
 
-    const auto& dict = getOrCreateDict<ValueType>(fieldIdx);
+    const auto& dict = std::dynamic_pointer_cast<DictionaryStorageImpl<ArrowType>>(it->second);
 
-    ARROW_ASSIGN_OR_RAISE(auto indices, updateDictionary<ValueType>(numRows, nulls, values, dict, writer->pool_));
+    ARROW_ASSIGN_OR_RAISE(auto indices, updateDictionary<ArrowType>(numRows, nulls, values, dict, writer->pool_));
 
     results.push_back(nulls);
     results.push_back(indices);
@@ -250,21 +250,17 @@ class ValueUpdater {
     using OffsetCType = typename arrow::TypeTraits<ArrowType>::OffsetType::c_type;
     static_assert(std::is_same_v<OffsetCType, int32_t>);
 
-    const auto& dict = getOrCreateDict<std::string_view>(fieldIdx);
+    auto it = writer->dictionaries_.find(fieldIdx);
+    if (it == writer->dictionaries_.end()) {
+      auto dict = std::make_shared<BinaryShuffleDictionaryStorage>(writer->pool_, writer->codec_);
+      const auto& [newIt, _] = writer->dictionaries_.emplace(fieldIdx, dict);
+      it = newIt;
+    }
+
+    const auto& dict = std::dynamic_pointer_cast<BinaryShuffleDictionaryStorage>(it->second);
 
     ARROW_ASSIGN_OR_RAISE(
         auto indices, updateDictionaryForBinary(numRows, nulls, values, binaryValues, dict, writer->pool_));
-
-    results.push_back(nulls);
-    results.push_back(indices);
-
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Visit(const arrow::TimestampType&) {
-    const auto& dict = getOrCreateDict<__int128_t>(fieldIdx);
-
-    ARROW_ASSIGN_OR_RAISE(auto indices, updateDictionary(numRows, nulls, values, dict, writer->pool_));
 
     results.push_back(nulls);
     results.push_back(indices);
@@ -367,6 +363,7 @@ arrow::Status ArrowShuffleDictionaryWriter::initSchema(const std::shared_ptr<arr
           break;
         case arrow::BooleanType::type_id:
         case arrow::Decimal128Type::type_id:
+        case arrow::TimestampType::type_id:
           fieldTypes_[i] = FieldType::kFixedWidth;
           break;
         case arrow::ListType::type_id:
