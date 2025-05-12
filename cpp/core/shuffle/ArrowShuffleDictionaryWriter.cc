@@ -93,6 +93,7 @@ class DictionaryStorageImpl : public ShuffleDictionaryStorage {
     std::shared_ptr<arrow::ArrayData> data;
     ARROW_RETURN_NOT_OK(table_->GetArrayData(0, &data));
 
+    std::cout << "ShuffleDictionaryStorage::serialize num elements: " << data->length << std::endl;
     ARROW_RETURN_IF(
         data->buffers.size() != 2, arrow::Status::Invalid("Invalid dictionary for type: ", data->type->ToString()));
 
@@ -127,6 +128,7 @@ class BinaryShuffleDictionaryStorage : public ShuffleDictionaryStorage {
 
     ARROW_RETURN_IF(data->buffers.size() != 3, arrow::Status::Invalid("Invalid dictionary for binary type"));
 
+    std::cout << "BinaryShuffleDictionaryStorage::serialize num elements: " << table_->size() << std::endl;
     ARROW_ASSIGN_OR_RAISE(auto lengths, offsetToLength(data->length, data->buffers[1]));
     ARROW_RETURN_NOT_OK(writeDictionaryBuffer(lengths->data(), lengths->size(), pool_, codec_, out));
 
@@ -297,6 +299,11 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> ArrowShuffleDictionar
       case FieldType::kComplex:
         break;
       case FieldType::kFixedWidth:
+        results.emplace_back(buffers[bufferIdx++]);
+        results.emplace_back(buffers[bufferIdx++]);
+        break;
+      case FieldType::kBinary:
+        results.emplace_back(buffers[bufferIdx++]);
         results.emplace_back(buffers[bufferIdx++]);
         results.emplace_back(buffers[bufferIdx++]);
         break;

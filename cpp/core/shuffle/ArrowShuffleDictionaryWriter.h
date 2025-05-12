@@ -42,7 +42,7 @@ class ArrowShuffleDictionaryWriter : public ShuffleDictionaryWriter {
   arrow::Status serialize(arrow::io::OutputStream* out) override;
 
  private:
-  enum class FieldType { kNull, kFixedWidth, kComplex, kSupportsDictionary };
+  enum class FieldType { kNull, kFixedWidth, kBinary, kComplex, kSupportsDictionary };
 
   arrow::Status initSchema(const std::shared_ptr<arrow::Schema>& schema);
 
