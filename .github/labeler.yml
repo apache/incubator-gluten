@@ -95,3 +95,8 @@ TOOLS:
       'tools/**/*'
      ]
 
+FLINK:
+  - changed-files:
+      - any-glob-to-any-file: [
+        'gluten-flink/**/*'
+      ]
