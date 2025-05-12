@@ -99,9 +99,9 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
       case agg: RegularHashAggregateExecTransformer =>
         func(agg)
       case agg: OffloadedSortHashAggregateExecTransformer
-        if !agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge) =>
-      // Not a intermediate agg. Skip.
-      agg
+          if !agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge) =>
+        // Not a intermediate agg. Skip.
+        agg
       case agg: OffloadedSortHashAggregateExecTransformer
           if isAggInputAlreadyDistributedWithAggKeys(agg) =>
         // Data already grouped by aggregate keys, Skip.
