@@ -180,9 +180,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
             s"FullOuter join with join condition is not supported with BroadcastNestedLoopJoin")
         }
       case ExistenceJoin(_) =>
-        backendSpecificJoinValidation().getOrElse(
-          ValidationResult.failed("ExistenceJoin not is not supported for this backend.")
-        )
+        ValidationResult.succeeded
       case _ =>
         ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
@@ -195,7 +193,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) | (ExistenceJoin(_), BuildLeft) =>
         ValidationResult.failed(s"$joinType join is not supported with $buildSide")
       case _ =>
-        ValidationResult.succeeded // continue
+        ValidationResult.succeeded
     }
   }
 

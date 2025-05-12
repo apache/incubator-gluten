@@ -140,6 +140,22 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     checkEvaluation(cast(timestampArray, ArrayType(StringType)), Seq("2023-01-01 12:00:00", null))
   }
 
+  test("cast array of numeric types to array of boolean") {
+    val tinyintArray = Literal.create(Seq(0.toByte, 1.toByte, -1.toByte), ArrayType(ByteType))
+    val smallintArray = Literal.create(Seq(0.toShort, 2.toShort, -2.toShort), ArrayType(ShortType))
+    val intArray = Literal.create(Seq(0, 3, -3), ArrayType(IntegerType))
+    val bigintArray = Literal.create(Seq(0L, 100L, -100L), ArrayType(LongType))
+    val floatArray = Literal.create(Seq(0.0f, 1.5f, -2.3f), ArrayType(FloatType))
+    val doubleArray = Literal.create(Seq(0.0, 2.5, -3.7), ArrayType(DoubleType))
+
+    checkEvaluation(cast(tinyintArray, ArrayType(BooleanType)), Seq(false, true, true))
+    checkEvaluation(cast(smallintArray, ArrayType(BooleanType)), Seq(false, true, true))
+    checkEvaluation(cast(intArray, ArrayType(BooleanType)), Seq(false, true, true))
+    checkEvaluation(cast(bigintArray, ArrayType(BooleanType)), Seq(false, true, true))
+    checkEvaluation(cast(floatArray, ArrayType(BooleanType)), Seq(false, true, true))
+    checkEvaluation(cast(doubleArray, ArrayType(BooleanType)), Seq(false, true, true))
+  }
+
   testGluten("missing cases - from boolean") {
     (DataTypeTestUtils.numericTypeWithoutDecimal + BooleanType).foreach {
       t =>

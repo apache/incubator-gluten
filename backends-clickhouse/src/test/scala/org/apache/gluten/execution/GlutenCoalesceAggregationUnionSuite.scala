@@ -69,7 +69,7 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
         StructField("x", StringType, nullable = true),
         StructField("y", IntegerType, nullable = true)
       ))
-    val data = sparkContext.parallelize(
+    val data1 = sparkContext.parallelize(
       Seq(
         Row("a", 1, null, 1),
         Row("a", 2, "a", 2),
@@ -81,9 +81,17 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
         Row("b", 4, "g", null)
       ))
 
-    val dataFrame = spark.createDataFrame(data, schema)
-    createTestTable("coalesce_union_t1", dataFrame)
-    createTestTable("coalesce_union_t2", dataFrame)
+    val dataFrame1 = spark.createDataFrame(data1, schema)
+    createTestTable("coalesce_union_t1", dataFrame1)
+    createTestTable("coalesce_union_t2", dataFrame1)
+
+    val data2 = sparkContext.parallelize(
+      Seq(
+        Row("a", 1, null, 1),
+        Row("a", 2, "a", 2)
+      ))
+    val dataFrame2 = spark.createDataFrame(data2, schema)
+    createTestTable("coalesce_union_t3", dataFrame2)
   }
 
   def checkNoUnion(df: DataFrame): Unit = {
@@ -492,6 +500,18 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
         | union all
         | select a, x, y from coalesce_union_t1 where b % 3 = 1
         |) order by a, x, y
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
+  }
+
+  test("no coalesce project union. case 3") {
+    val sql =
+      """
+        |select a from (
+        |   select a from coalesce_union_t1 where b % 2 = 0
+        |   union all
+        |   select a from coalesce_union_t1 where a in (select a from coalesce_union_t3)
+        |) order by a
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
   }

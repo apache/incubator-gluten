@@ -14,8 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.joins
+package org.apache.gluten.rexnode.functions;
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
+import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.Type;
 
-class GlutenExistenceJoinSuite extends ExistenceJoinSuite with GlutenSQLTestsBaseTrait {}
+import java.util.List;
+
+/** Default convertor for velox function. */
+public class DefaultFunctionConverter implements FunctionConverter {
+    private final String function;
+
+    public DefaultFunctionConverter(String function) {
+        this.function = function;
+    }
+
+    @Override
+    public CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params) {
+        return new CallTypedExpr(nodeType, params, function);
+    }
+}
