@@ -153,7 +153,8 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
         totalHeapMemory = Runtime.getRuntime().totalMemory();
         freeHeapMemory = Runtime.getRuntime().freeMemory();
         if (exceedsMaxMemoryUsage(totalHeapMemory, usedOffHeapMemory, size, 1.0)) {
-          totalHeapMemory = shrinkOnHeapMemory(totalHeapMemory, freeHeapMemory, false);
+          shrinkOnHeapMemory(totalHeapMemory, freeHeapMemory, false);
+          totalHeapMemory = Runtime.getRuntime().totalMemory();
           freeHeapMemory = Runtime.getRuntime().freeMemory();
         }
       }
@@ -299,7 +300,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
     while (!isAsyncGc
         && gcRetryTimes < MAX_GC_RETRY_TIMES
         && newTotalMemory >= totalMemory
-        && newFreeMemory > newTotalMemory * GC_MAX_HEAP_FREE_RATIO) {
+        && canShrinkJVMMemory(newTotalMemory, newFreeMemory)) {
       // System.gc() is just a suggestion; the JVM may ignore it or perform only a partial GC.
       // Here, the total memory is not reduced but the free memory ratio is bigger than the
       // GC_MAX_HEAP_FREE_RATIO. So we need to call System.gc() again to try to reduce the total

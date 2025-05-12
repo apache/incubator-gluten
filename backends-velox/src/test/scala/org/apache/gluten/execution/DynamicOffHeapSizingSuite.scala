@@ -36,6 +36,7 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.executor.memory", "2GB")
       .set("spark.memory.offHeap.enabled", "false")
+      .set("spark.memory.offHeap.size", "0")
       .set("spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction", "0.95")
       .set("spark.gluten.memory.dynamic.offHeap.sizing.enabled", "true")
   }
