@@ -1,5 +1,6 @@
 package org.apache.gluten.util;
 
+import com.google.common.base.Preconditions;
 import io.github.zhztheplayer.velox4j.serde.NativeBean;
 import io.github.zhztheplayer.velox4j.serde.Serde;
 
@@ -16,11 +17,11 @@ import java.io.Serializable;
  * calls to the JSON serdes.
  */
 public class Velox4JBean<T extends NativeBean> implements Serializable {
-  private transient Class<? extends NativeBean> clazz;
+  private transient String className;
   private transient T bean;
 
   private Velox4JBean(T bean) {
-    this.clazz = bean.getClass();
+    this.className = bean.getClass().getName();
     this.bean = bean;
   }
 
@@ -34,12 +35,15 @@ public class Velox4JBean<T extends NativeBean> implements Serializable {
 
   private void writeObject(ObjectOutputStream out) throws IOException {
     final String json = Serde.toJson(bean);
-    out.writeObject(clazz);
+    out.writeUTF(className);
     out.writeUTF(json);
   }
 
   private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-    clazz = (Class<? extends NativeBean>) in.readObject();
-    bean = (T) Serde.fromJson(in.readUTF(), clazz);
+    className = in.readUTF();
+    final Class<?> clazz = Class.forName(className);
+    Preconditions.checkState(NativeBean.class.isAssignableFrom(clazz),
+        "Class %s is not a NativeBean", className);
+    bean = (T) Serde.fromJson(in.readUTF(), (Class<? extends NativeBean>) clazz);
   }
 }
