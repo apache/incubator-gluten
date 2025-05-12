@@ -1215,6 +1215,34 @@ class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
       }
     }
   }
+
+  test("test collect_list with ordering") {
+    withTempView("t1") {
+      Seq((2, "d"), (2, "e"), (2, "f"), (1, "b"), (1, "a"), (1, "c"), (3, "i"), (3, "h"), (3, "g"))
+        .toDF("id", "value")
+        .createOrReplaceTempView("t1")
+      runQueryAndCompare("""
+                           | SELECT 1 - id, collect_list(value) AS values_list
+                           |        FROM (
+                           |        select * from
+                           |        (SELECT id, value
+                           |          FROM t1
+                           |          DISTRIBUTE BY rand())
+                           |          DISTRIBUTE BY id sort by id,value
+                           |        ) t
+                           |        GROUP BY 1
+                           |""".stripMargin) {
+        df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[OffloadedSortHashAggregateExecTransformer]
+                }) == 2)
+          }
+      }
+    }
+  }
 }
 
 class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
