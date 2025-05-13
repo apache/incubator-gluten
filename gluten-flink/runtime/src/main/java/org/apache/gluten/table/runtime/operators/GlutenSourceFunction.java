@@ -16,14 +16,9 @@
  */
 package org.apache.gluten.table.runtime.operators;
 
-import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
-
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-
 import org.apache.flink.table.data.RowData;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import io.github.zhztheplayer.velox4j.Velox4j;
 import io.github.zhztheplayer.velox4j.config.Config;
 import io.github.zhztheplayer.velox4j.config.ConnectorConfig;
@@ -36,10 +31,13 @@ import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.query.Query;
 import io.github.zhztheplayer.velox4j.query.SerialTask;
 import io.github.zhztheplayer.velox4j.serde.Serde;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.type.RowType;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
