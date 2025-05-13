@@ -1188,7 +1188,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
                            |          DISTRIBUTE BY id sort by id,value
                            |        ) t
                            |        GROUP BY 1
-                           |""".stripMargin) {
+                           |""".stripMargin, false) {
         df =>
           {
             assert(
