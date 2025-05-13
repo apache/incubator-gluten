@@ -35,12 +35,69 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /** Convertor to convert Flink LogicalType to velox data Type */
 public class LogicalTypeConverter {
+
+    public static LogicalType fromVLType(Type type) {
+        if (type instanceof io.github.zhztheplayer.velox4j.type.IntegerType) {
+            return new IntType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.BigIntType) {
+            return new BigIntType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.SmallIntType) {
+            return new SmallIntType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.TinyIntType) {
+            return new TinyIntType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.RealType) {
+            return new FloatType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.DoubleType) {
+            return new DoubleType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.BooleanType) {
+            return new BooleanType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.TimestampType) {
+            return new TimestampType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.VarCharType) {
+            return new VarCharType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.VarbinaryType) {
+            return new VarBinaryType();
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.DecimalType) {
+            io.github.zhztheplayer.velox4j.type.DecimalType decimalType =
+                    (io.github.zhztheplayer.velox4j.type.DecimalType) type;
+            return new DecimalType(decimalType.getPrecision(), decimalType.getScale());
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.RowType) {
+            io.github.zhztheplayer.velox4j.type.RowType rowType = (io.github.zhztheplayer.velox4j.type.RowType) type;
+            List<Type> subTypes = rowType.getChildren();
+            List<String> subNames = rowType.getNames();
+            List<RowField> subRowFields = new ArrayList<>();
+            for (int i = 0; i < subTypes.size(); ++i) {
+                Type subType = subTypes.get(i);
+                String subName = subNames.get(i);
+                LogicalType flinkType = fromVLType(subType);
+                RowField rowField = new RowField(subName, flinkType);
+                subRowFields.add(rowField);
+            }
+            return new RowType(subRowFields);
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.MapType) {
+            io.github.zhztheplayer.velox4j.type.MapType mapType = (io.github.zhztheplayer.velox4j.type.MapType) type;
+            List<Type> keyValueTypes = mapType.getChildren();
+            LogicalType flinkKeyType = fromVLType(keyValueTypes.get(0));
+            LogicalType flinkValType = fromVLType(keyValueTypes.get(1));
+            return new MapType(flinkKeyType, flinkValType);
+        } else if (type instanceof io.github.zhztheplayer.velox4j.type.ArrayType) {
+            io.github.zhztheplayer.velox4j.type.ArrayType arrayType =
+                (io.github.zhztheplayer.velox4j.type.ArrayType) type;
+            List<Type> elementTypes = arrayType.getChildren();
+            LogicalType flinkElementType = fromVLType(elementTypes.get(0));
+            return new ArrayType(flinkElementType);
+        } else {
+            throw new RuntimeException("Unsupported type:" + type);
+        }
+    }
 
     public static Type toVLType(LogicalType logicalType) {
         if (logicalType instanceof RowType) {

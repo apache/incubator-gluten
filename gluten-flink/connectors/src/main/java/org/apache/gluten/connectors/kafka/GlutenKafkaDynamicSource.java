@@ -96,8 +96,19 @@ public class GlutenKafkaDynamicSource extends KafkaDynamicSource{
                         getFieldFromKafkaSource(source, "tableIdentifier", String.class));
         copy.producedDataType = getFieldFromKafkaSource(source, "producedDataType", DataType.class);
         copy.metadataKeys = getFieldFromKafkaSource(source, "metadataKeys", List.class);
-        copy.watermarkStrategy = getFieldFromKafkaSource(source, "watermarkStrategy", WatermarkStrategy.class);
+        // copy.watermarkStrategy = getFieldFromKafkaSource(source, "watermarkStrategy", WatermarkStrategy.class);
+        copy.watermarkStrategy = WatermarkStrategy.noWatermarks();
         return copy;
+    }
+
+    @Override
+    public DynamicTableSource copy() {
+        try {
+            final DynamicTableSource source = super.copy();
+            return copyFrom((KafkaDynamicSource) source);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static <T> T getFieldValue(Object source, Class<?> sourceClazz, String fieldName, Class<T> fieldClazz) {
@@ -211,7 +222,7 @@ public class GlutenKafkaDynamicSource extends KafkaDynamicSource{
             @Override
             public DataStream<RowData> produceDataStream(ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
                 if (watermarkStrategy == null) {
-                    watermarkStrategy = WatermarkStrategy.noWatermarks();
+                   watermarkStrategy = WatermarkStrategy.noWatermarks();
                 }
                 DataStreamSource<RowData> sourceStream = execEnv.fromSource(glutenKafkaSource, watermarkStrategy, "kafkasource-" + tableIdentifier);
                 glutenKafkaSource.setPlanNodeId(String.valueOf(sourceStream.getTransformation().getId()));

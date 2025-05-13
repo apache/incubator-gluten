@@ -34,7 +34,8 @@ import org.apache.flink.table.data.RowData;
  import org.apache.kafka.clients.consumer.KafkaConsumer;
  import org.apache.kafka.common.TopicPartition;
  import org.apache.kafka.common.serialization.ByteArrayDeserializer;
- import org.apache.gluten.util.LogicalTypeConverter;
+import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
+import org.apache.gluten.util.LogicalTypeConverter;
  import org.apache.gluten.vectorized.FlinkRowToVLVectorConvertor;
  import org.slf4j.Logger;
  import org.slf4j.LoggerFactory;
@@ -46,7 +47,8 @@ import org.apache.flink.table.data.RowData;
  import io.github.zhztheplayer.velox4j.connector.KafkaTableHandle;
  import io.github.zhztheplayer.velox4j.data.RowVector;
  import io.github.zhztheplayer.velox4j.iterator.CloseableIterator;
- import io.github.zhztheplayer.velox4j.iterator.UpIterators;
+import io.github.zhztheplayer.velox4j.iterator.UpIterator;
+import io.github.zhztheplayer.velox4j.iterator.UpIterators;
  import io.github.zhztheplayer.velox4j.memory.AllocationListener;
  import io.github.zhztheplayer.velox4j.memory.MemoryManager;
  import io.github.zhztheplayer.velox4j.plan.TableScanNode;
@@ -55,8 +57,8 @@ import org.apache.flink.table.data.RowData;
  import io.github.zhztheplayer.velox4j.session.Session;
  
  import java.util.ArrayList;
- import java.util.HashMap;
- import java.util.List;
+import java.util.Arrays;
+import java.util.List;
  import java.util.Map;
  import java.util.Properties;
  import java.util.UUID;
@@ -95,8 +97,8 @@ import org.apache.flink.table.data.RowData;
    private final List<KafkaPartitionSplit> topicPartitions;
  
    private Query query;
- 
-   private CloseableIterator<RowVector> result;
+
+   private UpIterator upIterator;
  
    private boolean running = false;
  
@@ -116,7 +118,7 @@ import org.apache.flink.table.data.RowData;
      this.allocator = new RootAllocator(Long.MAX_VALUE);
    }
  
-   private KafkaConnectorSplit getConnectionSplit(Properties props) {
+   private KafkaConnectorSplit getConnectionSplit() {
      String bootstrapServers = props.getProperty("bootstrap.servers");
      String groupId = props.getProperty("group.id");
      boolean enableAutoCommit = Boolean.valueOf(props.getProperty(KEY_ENABLE_AUTO_COMMIT, "true"));
@@ -161,11 +163,8 @@ import org.apache.flink.table.data.RowData;
       topicPartitionOffsets);
    }
  
-   private KafkaTableHandle getTableHandle() {
-     if (topicPartitions.isEmpty()) {
-       throw new RuntimeException("Failed to get table handle, as the topics is empty.");
-     }
-     String topic = topicPartitions.get(0).getTopic();
+  private KafkaTableHandle getTableHandle() {
+     String topic = topicPartitions.isEmpty() ? "" : topicPartitions.get(0).getTopic();
      Map<String, String> tableParams = props.entrySet()
              .stream()
              .collect(Collectors.toMap(e -> (String) e.getKey(), e -> (String) e.getValue()));
@@ -177,9 +176,22 @@ import org.apache.flink.table.data.RowData;
      tableParams.put(KEY_STARTUP_MODE, props.getProperty(KEY_STARTUP_MODE, "group-offsets"));
      return new KafkaTableHandle(
        CONNECTOR_ID,
-       topic, 
+       topic,
+       false,
+       new ArrayList<>(),
+       null,
        (io.github.zhztheplayer.velox4j.type.RowType) veloxOutputType,
        tableParams);
+   }
+
+   private TableScanNode getTableScanNode() {
+    return new TableScanNode(planNodeId, 
+      LogicalTypeConverter.toVLType(outputType.getLogicalType()), getTableHandle(), new ArrayList<>());
+   }
+
+   public GlutenSourceFunction getSourceFunction() {
+    return new GlutenSourceFunction(getTableScanNode(), 
+      (io.github.zhztheplayer.velox4j.type.RowType)veloxOutputType, planNodeId, getConnectionSplit());
    }
  
    /**
@@ -187,8 +199,8 @@ import org.apache.flink.table.data.RowData;
     */
    @Override
    public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
-     if (running && result != null && result.hasNext()) {
-       RowVector rowVector = result.next();
+     if (running && upIterator != null && upIterator.advance() == UpIterator.State.AVAILABLE) {
+       RowVector rowVector = upIterator.get();
        List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(rowVector, allocator, 
          (io.github.zhztheplayer.velox4j.type.RowType) veloxOutputType);
        for (RowData row : rows) {
@@ -198,21 +210,16 @@ import org.apache.flink.table.data.RowData;
      }
      return running ? InputStatus.MORE_AVAILABLE : InputStatus.NOTHING_AVAILABLE;
    }
- 
-   /**
-    * Create a record fetch task, and submit to the thread pool.
-    * consume the kafka record from kafka partition and put it into a queue.
-    */
+
    @Override
    public void addSplits(List<KafkaPartitionSplit> splits) {
      LOG.info("Add kafka partitons to consume: {}", splits.toString());
      topicPartitions.addAll(splits);
-     KafkaConnectorSplit kafkaConnectorSplit = getConnectionSplit(props);
+     KafkaConnectorSplit kafkaConnectorSplit = getConnectionSplit();
      List<BoundSplit> veloxSplits = List.of(new BoundSplit(planNodeId, -1, kafkaConnectorSplit));
-     TableScanNode kafkaScan = new TableScanNode(planNodeId,
-         LogicalTypeConverter.toVLType(outputType.getLogicalType()), getTableHandle(), new ArrayList<>());
+     TableScanNode kafkaScan = getTableScanNode();
      query = new Query(kafkaScan, veloxSplits, Config.empty(), ConnectorConfig.empty());
-     result = UpIterators.asJavaIterator(session.queryOps().execute(query));
+     upIterator = session.queryOps().execute(query);
    }
  
    @Override
@@ -227,14 +234,17 @@ import org.apache.flink.table.data.RowData;
    @Override
    public void close() throws Exception {
      running = false;
-     if (result != null) {
-       result.close();
+     if (upIterator != null) {
+      upIterator.close();
      }
      if (session != null) {
        session.close();
      }
      if (memoryManager != null) {
       memoryManager.close();
+     }
+     if (allocator != null) {
+      allocator.close();
      }
      if (topicPartitions != null) {
        topicPartitions.clear();

@@ -41,7 +41,8 @@
  import org.slf4j.Logger;
  import org.slf4j.LoggerFactory;
  
- public class GlutenKafkaSource<OUT> implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState>, ResultTypeQueryable<OUT> {
+ public class GlutenKafkaSource<OUT>
+    implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState>, ResultTypeQueryable<OUT> {
  
    private static final Logger LOG = LoggerFactory.getLogger(GlutenKafkaSource.class);
  
@@ -87,7 +88,7 @@
  
    @Override
    public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext) throws Exception {
-     return new GlutenKafkaSourceReader<OUT>(planNodeId, format, outputType, properties);
+     return new GlutenKafkaSourceReader<>(planNodeId, format, outputType, properties);
    }
  
    @Override

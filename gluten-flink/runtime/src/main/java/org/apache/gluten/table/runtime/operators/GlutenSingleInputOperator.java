@@ -20,6 +20,7 @@ package org.apache.gluten.table.runtime.operators;
 import io.github.zhztheplayer.velox4j.connector.ExternalStream;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.ExternalStreamTableHandle;
+import io.github.zhztheplayer.velox4j.iterator.DownIterator;
 import io.github.zhztheplayer.velox4j.iterator.DownIterators;
 import io.github.zhztheplayer.velox4j.iterator.UpIterator;
 import io.github.zhztheplayer.velox4j.query.BoundSplit;
@@ -71,6 +72,8 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
     private BlockingQueue<RowVector> inputQueue;
     BufferAllocator allocator;
     UpIterator upIterator;
+    DownIterator downIterator;
+    ExternalStream es;
 
     public GlutenSingleInputOperator(PlanNode plan, String id, RowType inputType, RowType outputType) {
         this.glutenPlan = plan;
@@ -85,10 +88,9 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         outElement = new StreamRecord(null);
         memoryManager = MemoryManager.create(AllocationListener.NOOP);
         session = Velox4j.newSession(memoryManager);
-
         inputQueue = new LinkedBlockingQueue<>();
-        ExternalStream es =
-                session.externalStreamOps().bind(DownIterators.fromBlockingQueue(inputQueue));
+        downIterator = DownIterators.fromBlockingQueue(inputQueue);
+        es = session.externalStreamOps().bind(downIterator);
         List<BoundSplit> splits = List.of(
                 new BoundSplit(
                         id,
@@ -133,6 +135,8 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
     @Override
     public void close() throws Exception {
         upIterator.close();
+        es.close();
+        downIterator.close();
         session.close();
         memoryManager.close();
         allocator.close();
