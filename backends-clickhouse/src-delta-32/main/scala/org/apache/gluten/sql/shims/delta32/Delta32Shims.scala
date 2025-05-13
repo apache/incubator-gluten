@@ -16,15 +16,16 @@
  */
 package org.apache.gluten.sql.shims.delta32
 
-import org.apache.gluten.execution.GlutenPlan
+import org.apache.gluten.execution.{GlutenPlan, MergeTreePartRange}
 import org.apache.gluten.extension.{DeltaExpressionExtensionTransformer, ExpressionExtensionTrait}
 import org.apache.gluten.sql.shims.DeltaShims
 
-import org.apache.spark.sql.delta.DeltaParquetFileFormat
+import org.apache.spark.sql.delta.{DeltaParquetFileFormat, RowIndexFilterType}
 import org.apache.spark.sql.delta.actions.DeletionVectorDescriptor
 import org.apache.spark.sql.delta.util.JsonUtils
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.PartitionedFile
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.perf.DeltaOptimizedWriterTransformer
 
 import org.apache.hadoop.fs.Path
@@ -65,12 +66,7 @@ class Delta32Shims extends DeltaShims {
         }
         val decodedPath = decoded.absolutePath(filePath)
         val newDeletionVectorDescriptor = decoded.copy(
-          decoded.storageType,
-          decodedPath.toUri.toASCIIString,
-          decoded.offset,
-          decoded.sizeInBytes,
-          decoded.cardinality,
-          decoded.maxRowIndex
+          pathOrInlineDv = decodedPath.toUri.toASCIIString
         )
         newOtherConstantMetadataColumnValues.put(k, JsonUtils.toJson(newDeletionVectorDescriptor))
       } else {
@@ -78,5 +74,34 @@ class Delta32Shims extends DeltaShims {
       }
     }
     newOtherConstantMetadataColumnValues
+  }
+
+  override def generateMergeTreePartRange(
+      addMergeTreeParts: AddMergeTreeParts,
+      start: Long,
+      marks: Long,
+      size: Long): MergeTreePartRange = {
+    val (rowIndexFilterIdEncoded, rowIndexFilterType) =
+      if (addMergeTreeParts.deletionVector != null) {
+        val tableLocation = new Path(addMergeTreeParts.dirName)
+        val decodedPath = addMergeTreeParts.deletionVector.absolutePath(tableLocation)
+        val newDeletionVectorDescriptor = addMergeTreeParts.deletionVector.copy(
+          pathOrInlineDv = decodedPath.toUri.toASCIIString
+        )
+        (JsonUtils.toJson(newDeletionVectorDescriptor), RowIndexFilterType.IF_CONTAINED.name())
+      } else {
+        ("", "")
+      }
+    MergeTreePartRange(
+      addMergeTreeParts.name,
+      addMergeTreeParts.dirName,
+      addMergeTreeParts.targetNode,
+      addMergeTreeParts.bucketNum,
+      start,
+      marks,
+      size,
+      rowIndexFilterType,
+      rowIndexFilterIdEncoded
+    )
   }
 }
