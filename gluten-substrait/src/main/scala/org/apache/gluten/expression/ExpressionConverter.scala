@@ -763,6 +763,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
           j)
+      case u: UnBase64 if SparkShimLoader.getSparkShims.unBase64FunctionFailsOnError(u) =>
+        throw new GlutenNotSupportException("UnBase64 with failOnError is not supported in gluten.")
+      case b: Base64
+          if !SQLConf.get.getConfString("spark.sql.chunkBase64String.enabled", "true").toBoolean =>
+        throw new GlutenNotSupportException(
+          "Base64 with chunkBase64String disabled is not supported in gluten.")
       case ce if BackendsApiManager.getSparkPlanExecApiInstance.expressionFlattenSupported(ce) =>
         replaceFlattenedExpressionWithExpressionTransformer(
           substraitExprName,
