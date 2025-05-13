@@ -17,29 +17,29 @@
 
  package org.apache.gluten.connectors.kafka;
 
- import java.util.Properties;
- 
- import org.apache.flink.api.common.typeinfo.TypeInformation;
- import org.apache.flink.api.connector.source.Boundedness;
- import org.apache.flink.api.connector.source.Source;
- import org.apache.flink.api.connector.source.SourceReader;
- import org.apache.flink.api.connector.source.SourceReaderContext;
- import org.apache.flink.api.connector.source.SplitEnumerator;
- import org.apache.flink.api.connector.source.SplitEnumeratorContext;
- import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
- import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumState;
- import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumStateSerializer;
- import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator;
- import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
- import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
- import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
- import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
- import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
- import org.apache.flink.core.io.SimpleVersionedSerializer;
- import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
- import org.apache.flink.table.types.DataType;
- import org.slf4j.Logger;
- import org.slf4j.LoggerFactory;
+import java.util.Properties;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumState;
+import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumStateSerializer;
+import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.table.types.DataType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
  
  public class GlutenKafkaSource<OUT>
     implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState>, ResultTypeQueryable<OUT> {
