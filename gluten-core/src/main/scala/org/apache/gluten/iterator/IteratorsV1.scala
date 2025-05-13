@@ -26,7 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 object IteratorsV1 {
   private class PayloadCloser[A](in: Iterator[A])(closeCallback: A => Unit) extends Iterator[A] {
-    private var prev: A = null.asInstanceOf[A]
+    private val _none = new Object
+    private var _prev: Any = _none
 
     TaskResources.addRecycler("Iterators#PayloadCloser", 100) {
       tryClose()
@@ -40,15 +41,15 @@ object IteratorsV1 {
     override def next(): A = {
       val a: A = in.next()
       this.synchronized {
-        prev = a
+        _prev = a
       }
       a
     }
 
     private def tryClose(): Unit = {
       this.synchronized {
-        if (prev != null) closeCallback.apply(prev)
-        prev = null.asInstanceOf[A] // make sure the payload is closed once
+        if (_prev != _none) closeCallback.apply(_prev.asInstanceOf[A])
+        _prev = _none // make sure the payload is closed once
       }
     }
   }
