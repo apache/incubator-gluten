@@ -17,20 +17,16 @@
 
 #pragma once
 
-#include <arrow/array/array_decimal.h>
-#include <arrow/buffer.h>
-#include <arrow/buffer_builder.h>
-#include <arrow/stl_allocator.h>
-#include <arrow/type.h>
-#include <arrow/type_traits.h>
-#include <arrow/visit_type_inline.h>
-
 #include "shuffle/Dictionary.h"
-#include "utils/Exception.h"
+
+#include <arrow/buffer.h>
+#include <arrow/type.h>
+
+#include <set>
 
 namespace gluten {
 
-class ArrowShuffleDictionaryWriter : public ShuffleDictionaryWriter {
+class ArrowShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
  public:
   ArrowShuffleDictionaryWriter(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {}
 
@@ -41,17 +37,21 @@ class ArrowShuffleDictionaryWriter : public ShuffleDictionaryWriter {
 
   arrow::Status serialize(arrow::io::OutputStream* out) override;
 
+  bool hasDictionaries() override;
+
  private:
   enum class FieldType { kNull, kFixedWidth, kBinary, kComplex, kSupportsDictionary };
 
   arrow::Status initSchema(const std::shared_ptr<arrow::Schema>& schema);
+
+  arrow::Status blackList(int32_t fieldId);
 
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
 
   std::shared_ptr<arrow::Schema> schema_;
   std::vector<FieldType> fieldTypes_;
-  std::vector<int32_t> dictionaryFields_;
+  std::set<int32_t> dictionaryFields_;
   bool hasComplexType_{false};
   std::unordered_map<int32_t, std::shared_ptr<ShuffleDictionaryStorage>> dictionaries_;
 

@@ -314,7 +314,7 @@ class LocalPartitionWriter::PayloadCache {
         "Invalid status: partitionInUse_ is set: " + std::to_string(partitionInUse_.value()));
 
     if (hasCachedPayloads(partitionId)) {
-      ARROW_ASSIGN_OR_RAISE(bool hasDictionary, tryFlushDictionary(partitionId, os));
+      ARROW_ASSIGN_OR_RAISE(bool hasDictionaries, writeDictionaries(partitionId, os));
 
       auto& payloads = partitionCachedPayload_[partitionId];
       while (!payloads.empty()) {
@@ -323,7 +323,7 @@ class LocalPartitionWriter::PayloadCache {
 
         // Write the cached payload to disk.
         uint8_t blockType =
-            static_cast<uint8_t>(hasDictionary ? BlockType::kDictionaryPayload : BlockType::kPlainPayload);
+            static_cast<uint8_t>(hasDictionaries ? BlockType::kDictionaryPayload : BlockType::kPlainPayload);
         RETURN_NOT_OK(os->Write(&blockType, sizeof(blockType)));
         RETURN_NOT_OK(payload->serialize(os));
 
@@ -362,7 +362,7 @@ class LocalPartitionWriter::PayloadCache {
       }
 
       if (hasCachedPayloads(pid)) {
-        ARROW_ASSIGN_OR_RAISE(bool hasDictionary, tryFlushDictionary(pid, os));
+        ARROW_ASSIGN_OR_RAISE(bool hasDictionaries, writeDictionaries(pid, os));
 
         auto& payloads = partitionCachedPayload_[pid];
         while (!payloads.empty()) {
@@ -372,7 +372,7 @@ class LocalPartitionWriter::PayloadCache {
 
           // Spill the cached payload to disk.
           uint8_t blockType =
-              static_cast<uint8_t>(hasDictionary ? BlockType::kDictionaryPayload : BlockType::kPlainPayload);
+              static_cast<uint8_t>(hasDictionaries ? BlockType::kDictionaryPayload : BlockType::kPlainPayload);
           RETURN_NOT_OK(os->Write(&blockType, sizeof(blockType)));
           RETURN_NOT_OK(payload->serialize(os));
 
@@ -415,15 +415,23 @@ class LocalPartitionWriter::PayloadCache {
         !partitionCachedPayload_[partitionId].empty();
   }
 
-  arrow::Result<bool> tryFlushDictionary(uint32_t partitionId, arrow::io::OutputStream* os) {
-    if (enableDictionary_ && partitionDictionaries_.find(partitionId) != partitionDictionaries_.end()) {
-      static constexpr uint8_t kDictionaryBlock = static_cast<uint8_t>(BlockType::kDictionary);
-      RETURN_NOT_OK(os->Write(&kDictionaryBlock, sizeof(kDictionaryBlock)));
-      RETURN_NOT_OK(partitionDictionaries_[partitionId]->serialize(os));
-      partitionDictionaries_.erase(partitionId);
-      return true;
+  arrow::Result<bool> writeDictionaries(uint32_t partitionId, arrow::io::OutputStream* os) {
+    if (!enableDictionary_) {
+      return false;
     }
-    return false;
+
+    const auto& dict = partitionDictionaries_.find(partitionId);
+    if (dict == partitionDictionaries_.end() || !dict->second->hasDictionaries()) {
+      return false;
+    }
+
+    static constexpr uint8_t kDictionaryBlock = static_cast<uint8_t>(BlockType::kDictionary);
+    RETURN_NOT_OK(os->Write(&kDictionaryBlock, sizeof(kDictionaryBlock)));
+    RETURN_NOT_OK(partitionDictionaries_[partitionId]->serialize(os));
+
+    partitionDictionaries_.erase(partitionId);
+
+    return true;
   }
 
   uint32_t numPartitions_;

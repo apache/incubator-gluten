@@ -41,6 +41,8 @@ class ShuffleDictionaryWriter {
       int32_t numRows,
       const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) = 0;
 
+  virtual bool hasDictionaries() = 0;
+
   virtual arrow::Status serialize(arrow::io::OutputStream* out) = 0;
 };
 

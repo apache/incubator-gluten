@@ -38,7 +38,7 @@
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkExprToSubfieldFilterParser.h"
-#include "shuffle/VeloxShuffleDictionaryWriter.h"
+#include "shuffle/ArrowShuffleDictionaryWriter.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -215,9 +215,7 @@ void VeloxBackend::init(
   initCache();
 
   registerShuffleDictionaryWriterFactory([](MemoryManager* memoryManager, arrow::util::Codec* codec) {
-    auto vmm = dynamic_cast<VeloxMemoryManager*>(memoryManager);
-    return std::make_unique<VeloxShuffleDictionaryWriter>(
-        vmm->getLeafMemoryPool().get(), memoryManager->getArrowMemoryPool(), codec);
+    return std::make_unique<ArrowShuffleDictionaryWriter>(memoryManager->getArrowMemoryPool(), codec);
   });
 }
 

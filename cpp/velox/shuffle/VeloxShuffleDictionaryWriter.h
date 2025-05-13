@@ -26,7 +26,7 @@ namespace gluten {
 
 class DictionaryUpdater;
 
-class VeloxShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
+class VeloxShuffleDictionaryWriter : public ShuffleDictionaryWriter {
  public:
   VeloxShuffleDictionaryWriter(
       facebook::velox::memory::MemoryPool* veloxPool,
