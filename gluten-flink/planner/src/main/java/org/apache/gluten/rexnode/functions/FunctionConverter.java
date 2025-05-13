@@ -14,28 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.vectorized;
+package org.apache.gluten.rexnode.functions;
 
-import java.io.Serializable;
+import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
+import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.Type;
 
-public class ColumnarBatchSerializeResult implements Serializable {
-  public static final ColumnarBatchSerializeResult EMPTY =
-      new ColumnarBatchSerializeResult(0, new byte[0][0]);
+import java.util.List;
 
-  private long numRows;
+/** Interface for converter to velox function. */
+public interface FunctionConverter {
 
-  private byte[][] serialized;
-
-  public ColumnarBatchSerializeResult(long numRows, byte[][] serialized) {
-    this.numRows = numRows;
-    this.serialized = serialized;
-  }
-
-  public long getNumRows() {
-    return numRows;
-  }
-
-  public byte[][] getSerialized() {
-    return serialized;
-  }
+    CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params);
 }

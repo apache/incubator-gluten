@@ -16,9 +16,9 @@
  */
 
 
-package org.apache.flink.table.runtime.stream.custom;
+package org.apache.gluten.table.runtime.stream.custom;
 
-import org.apache.flink.table.runtime.stream.common.GlutenStreamingTestBase;
+import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;

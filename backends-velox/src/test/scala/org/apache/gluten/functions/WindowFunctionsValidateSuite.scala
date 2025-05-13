@@ -14,28 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.vectorized;
+package org.apache.gluten.functions
 
-import java.io.Serializable;
+import org.apache.gluten.execution.WindowExecTransformer
 
-public class ColumnarBatchSerializeResult implements Serializable {
-  public static final ColumnarBatchSerializeResult EMPTY =
-      new ColumnarBatchSerializeResult(0, new byte[0][0]);
+class WindowFunctionsValidateSuite extends FunctionsValidateSuite {
 
-  private long numRows;
+  test("lag/lead window function with negative input offset") {
+    runQueryAndCompare(
+      "select lag(l_orderkey, -2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
 
-  private byte[][] serialized;
-
-  public ColumnarBatchSerializeResult(long numRows, byte[][] serialized) {
-    this.numRows = numRows;
-    this.serialized = serialized;
+    runQueryAndCompare(
+      "select lead(l_orderkey, -2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
   }
 
-  public long getNumRows() {
-    return numRows;
-  }
-
-  public byte[][] getSerialized() {
-    return serialized;
-  }
 }

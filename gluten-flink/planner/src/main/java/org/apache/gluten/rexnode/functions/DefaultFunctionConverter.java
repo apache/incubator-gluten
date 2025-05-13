@@ -14,26 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.runtime.stream.common;
+package org.apache.gluten.rexnode.functions;
 
-import io.github.zhztheplayer.velox4j.Velox4j;
+import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
+import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.type.Type;
 
-public class Velox4jEnvironment {
-    private static class Holder {
-        private static final Velox4jEnvironment INSTANCE = new Velox4jEnvironment();
+import java.util.List;
+
+/** Default convertor for velox function. */
+public class DefaultFunctionConverter implements FunctionConverter {
+    private final String function;
+
+    public DefaultFunctionConverter(String function) {
+        this.function = function;
     }
 
-    private Velox4jEnvironment() {
-        Velox4j.initialize();
-    }
-
-    public static Velox4jEnvironment getInstance() {
-        return Holder.INSTANCE;
-    }
-
-    public static boolean initializeOnce() {
-        Velox4jEnvironment instance = Holder.INSTANCE;
-        return instance != null;
+    @Override
+    public CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params) {
+        return new CallTypedExpr(nodeType, params, function);
     }
 }
-
