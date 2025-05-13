@@ -196,12 +196,11 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
                         "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
         throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
       }
-    }
+  }
   else if (gsAuthServiceAccountJsonKeyfile.hasValue()){
        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
                        "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
        throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
-  }
   }
 #endif
 
