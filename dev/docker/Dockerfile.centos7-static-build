@@ -28,7 +28,7 @@ RUN sed -i \
 
 RUN yum install -y git patch wget sudo java-1.8.0-openjdk-devel ccache
 
-RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
+RUN git clone --depth=1 -b branch-1.4 https://github.com/apache/incubator-gluten /opt/gluten
 
 RUN echo "check_certificate = off" >> ~/.wgetrc
 
