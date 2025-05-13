@@ -163,11 +163,11 @@ abstract class Suite(
     testMetricMapper
   }
 
-  protected def historyWritePath(): String
-
-  protected[integration] def typeModifiers(): List[TypeModifier] = {
+  private[integration] def typeModifiers(): List[TypeModifier] = {
     if (decimalAsDouble) List(TYPE_MODIFIER_DECIMAL_AS_DOUBLE) else List()
   }
+
+  protected def historyWritePath(): String
 
   private[integration] def dataWritePath(scale: Double, genPartitionedData: Boolean): String
 

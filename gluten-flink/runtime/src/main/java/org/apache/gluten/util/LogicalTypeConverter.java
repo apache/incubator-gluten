@@ -20,6 +20,7 @@ import io.github.zhztheplayer.velox4j.type.IntegerType;
 import io.github.zhztheplayer.velox4j.type.Type;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -58,6 +59,9 @@ public class LogicalTypeConverter {
             return new io.github.zhztheplayer.velox4j.type.DecimalType(
                     decimalType.getPrecision(),
                     decimalType.getScale());
+        } else if (logicalType instanceof DayTimeIntervalType) {
+            // TODO: it seems interval now can be used as bigint for nexmark.
+            return new io.github.zhztheplayer.velox4j.type.BigIntType();
         } else {
             throw new RuntimeException("Unsupported logical type: " + logicalType);
         }
