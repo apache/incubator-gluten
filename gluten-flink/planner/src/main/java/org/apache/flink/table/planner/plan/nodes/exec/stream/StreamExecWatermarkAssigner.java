@@ -16,12 +16,9 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.gluten.rexnode.RexNodeConverter;
-import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
-import org.apache.gluten.util.LogicalTypeConverter;
-import org.apache.gluten.util.PlanNodeIdGenerator;
-
+import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -37,25 +34,27 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexNode;
-import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.github.zhztheplayer.velox4j.connector.NexmarkTableHandle;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.ProjectNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.plan.WatermarkAssignerNode;
+import org.apache.calcite.rex.RexNode;
+import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.Utils;
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.util.LogicalTypeConverter;
+import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 /** Stream {@link ExecNode} which generates watermark based on the input elements. */
 @ExecNodeMetadata(

@@ -16,9 +16,11 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
-import org.apache.gluten.util.PlanNodeIdGenerator;
-
+import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -29,7 +31,6 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
-
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -73,14 +74,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
-
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.TemporaryClassLoaderContext;
-import org.apache.flink.api.common.io.OutputFormat;
-import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -88,8 +88,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Base {@link ExecNode} to write data to an external sink defined by a {@link DynamicTableSink}.

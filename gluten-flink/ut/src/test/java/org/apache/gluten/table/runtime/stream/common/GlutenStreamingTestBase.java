@@ -20,12 +20,12 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
-
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.util.CollectionUtil;
 
 import java.util.List;
 import java.util.stream.Collectors;

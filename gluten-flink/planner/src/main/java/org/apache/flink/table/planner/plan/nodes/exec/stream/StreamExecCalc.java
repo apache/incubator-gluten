@@ -16,12 +16,9 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.gluten.rexnode.RexNodeConverter;
-import org.apache.gluten.rexnode.Utils;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
-import org.apache.gluten.util.LogicalTypeConverter;
-import org.apache.gluten.util.PlanNodeIdGenerator;
-
+import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -37,22 +34,24 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import javax.annotation.Nullable;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.apache.calcite.rex.RexNode;
-import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ReadableConfig;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.plan.FilterNode;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.ProjectNode;
+import org.apache.calcite.rex.RexNode;
+import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.Utils;
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.util.LogicalTypeConverter;
+import org.apache.gluten.util.PlanNodeIdGenerator;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 /** Gluten Stream {@link ExecNode} for Calc to use {@link GlutenSingleInputOperator}. */
 @ExecNodeMetadata(

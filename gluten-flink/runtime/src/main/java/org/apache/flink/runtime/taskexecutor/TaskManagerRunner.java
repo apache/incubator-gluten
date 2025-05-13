@@ -16,23 +16,6 @@
  */
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.AutoCloseableAsync;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Reference;
-import org.apache.flink.util.ShutdownHookUtil;
-import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.TaskManagerExceptionUtils;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
-import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.function.FunctionUtils;
-
-import javax.annotation.concurrent.GuardedBy;
-
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -86,7 +69,24 @@ import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Reference;
+import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TaskManagerExceptionUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.FunctionUtils;
+
 import io.github.zhztheplayer.velox4j.Velox4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
