@@ -272,7 +272,7 @@ target_link_libraries(velox PUBLIC external::stemmer)
 
 find_library(GEOS_LIB NAMES libgeos.a)
 if(GEOS_LIB)
-  message(STATUS "Found stemmer: ${GEOS_LIB}")
+  message(STATUS "Found geos: ${GEOS_LIB}")
   add_library(external::geos STATIC IMPORTED)
   set_target_properties(external::geos PROPERTIES IMPORTED_LOCATION ${GEOS_LIB})
 else()
