@@ -22,6 +22,8 @@
 
 namespace gluten {
 
+static constexpr double kDictionaryFactor = 0.5;
+
 using ArrowDictionaryIndexType = int32_t;
 
 template <typename T>
@@ -288,7 +290,7 @@ class ValueUpdater {
     results.push_back(nulls);
 
     // Discard dictionary.
-    if (!dictionaryExists && dictionary->size() > numRows * 0.5) {
+    if (!dictionaryExists && dictionary->size() > numRows * kDictionaryFactor) {
       dictionaryCreated = false;
       results.push_back(values);
       if (binaryValues != nullptr) {
