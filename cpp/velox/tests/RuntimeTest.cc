@@ -25,7 +25,7 @@ namespace gluten {
 
 class DummyMemoryManager final : public MemoryManager {
  public:
-  DummyMemoryManager(const std::string& kind) : MemoryManager(kind) {};
+  DummyMemoryManager(const std::string& kind) : MemoryManager(kind){};
 
   arrow::MemoryPool* getArrowMemoryPool() override {
     throw GlutenException("Not yet implemented");

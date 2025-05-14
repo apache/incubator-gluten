@@ -335,8 +335,6 @@ bool VeloxMemoryManager::tryDestructSafe() {
     if (veloxMemoryManager_->numPools() > 3) {
       VLOG(2) << "Attempt to destruct VeloxMemoryManager failed because there are " << veloxMemoryManager_->numPools()
               << " outstanding memory pools.";
-
-      VLOG(2) << "Alive pool on destruction " << veloxMemoryManager_->toString(true);
       return false;
     }
     if (veloxMemoryManager_->numPools() == 3) {
