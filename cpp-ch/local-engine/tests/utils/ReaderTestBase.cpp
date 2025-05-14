@@ -50,7 +50,7 @@ namespace local_engine::test
 
 bool BaseReaders::pull(DB::Chunk & chunk)
 {
-    assert(readers.size() > 0);
+    assert(!readers.empty());
 
     while (index < readers.size())
     {

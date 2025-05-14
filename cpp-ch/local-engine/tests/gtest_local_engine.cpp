@@ -36,6 +36,10 @@
 #include <config.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
+#include <Common/QueryContext.h>
+#include "Databases/registerDatabases.h"
+#include "Disks/registerDisks.h"
+#include "Storages/registerStorages.h"
 
 using namespace local_engine;
 using namespace DB;
@@ -107,6 +111,14 @@ int main(int argc, char ** argv)
 
     DB::registerInterpreters();
     DB::registerTableFunctions();
+    DB::registerDatabases();
+    DB::registerStorages();
+    // DB::registerDisks(/* global_skip_access_check= */ true);
+
+    // auto x = local_engine::QueryContext::globalMutableContext();
+    // auto y = DB::Context::getGlobalContextInstance();
+    // assert(x);
+    // assert(y);
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
