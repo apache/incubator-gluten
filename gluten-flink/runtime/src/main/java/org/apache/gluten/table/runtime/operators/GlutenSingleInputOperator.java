@@ -125,6 +125,8 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
                 }
             }
         } finally {
+            /// The RowVector should be closed in `finally`, to avoid it may not be closed when exceptions rasied,
+            /// that lead to memory leak.
             if (outRv != null) {
                 outRv.close();
             }

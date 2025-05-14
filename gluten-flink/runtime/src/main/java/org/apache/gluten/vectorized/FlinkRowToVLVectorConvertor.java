@@ -160,6 +160,8 @@ public class FlinkRowToVLVectorConvertor {
             }
             return rowDatas;
         } finally {
+            /// The FieldVector/BaseVector should be closed in `finally`, to avoid it may not be closed when exceptions rasied,
+            /// that lead to memory leak.
             if (fieldVector != null) {
                 fieldVector.close();
             }
