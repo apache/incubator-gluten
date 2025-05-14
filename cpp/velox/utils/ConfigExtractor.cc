@@ -188,19 +188,18 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
   auto gsAuthServiceAccountJsonKeyfile = conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
   if (gsAuthType.hasValue() && gsAuthType.value() == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
-        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
-            gsAuthServiceAccountJsonKeyfile.value();
-      } else {
-        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
-                        "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
-        throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
-      }
-  }
-  else if (gsAuthServiceAccountJsonKeyfile.hasValue()){
-       LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
-                       "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
-       throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
+    if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
+      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGcsCredentialsPath] =
+          gsAuthServiceAccountJsonKeyfile.value();
+    } else {
+      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                      "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+      throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
+    }
+  } else if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
+    LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is set, "
+                    "but conf spark.hadoop.fs.gs.auth.type is not SERVICE_ACCOUNT_JSON_KEYFILE";
+    throw GlutenException("Conf spark.hadoop.fs.gs.auth.type is missing or incorrect");
   }
 #endif
 
