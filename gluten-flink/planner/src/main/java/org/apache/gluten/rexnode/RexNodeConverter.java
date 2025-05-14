@@ -58,10 +58,8 @@ public class RexNodeConverter {
             RexCall rexCall = (RexCall) rexNode;
             List<TypedExpr> params = toTypedExpr(rexCall.getOperands(), inNames);
             Type nodeType = toType(rexCall.getType());
-            return new CallTypedExpr(
-                    nodeType,
-                    params,
-                    FunctionMappings.toVeloxFunction(rexCall.getOperator().getName()));
+            return FunctionMappings.getFunctionConverter(rexCall.getOperator().getName())
+                    .toVeloxFunction(nodeType, params);
         } else if (rexNode instanceof RexInputRef) {
             RexInputRef inputRef = (RexInputRef) rexNode;
             return FieldAccessTypedExpr.create(
@@ -109,6 +107,8 @@ public class RexNodeConverter {
             case BINARY:
                 return new VarBinaryValue(literal.getValue().toString());
             case DECIMAL:
+            case INTERVAL_SECOND:
+                // interval is used as decimal.
                 // TODO: fix precision check
                 BigDecimal bigDecimal = literal.getValueAs(BigDecimal.class);
                 if (bigDecimal.precision() <= 18) {
@@ -121,5 +121,4 @@ public class RexNodeConverter {
                         "Unsupported rex node type: " + literal.getType().getSqlTypeName());
         }
     }
-
 }

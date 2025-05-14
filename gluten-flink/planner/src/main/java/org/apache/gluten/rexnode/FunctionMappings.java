@@ -16,25 +16,32 @@
  */
 package org.apache.gluten.rexnode;
 
+import org.apache.gluten.rexnode.functions.DefaultFunctionConverter;
+import org.apache.gluten.rexnode.functions.FunctionConverter;
+import org.apache.gluten.rexnode.functions.SubtractFunctionConverter;
+
 import java.util.HashMap;
 import java.util.Map;
 
 /** Mapping of flink function and velox function. */
 public class FunctionMappings {
     // A map stores the relationship between flink function name and velox function.
-    private static Map<String, String> functionMappings = new HashMap() {
+    private static Map<String, FunctionConverter> functionMappings = new HashMap() {
         {
             // TODO: support more functions.
-            put(">", "greaterthan");
-            put("<", "lessthan");
-            put("=", "equalto");
-            put("CAST", "cast");
-            put("CASE", "if");
-            put("*", "multiply");
+            put(">", new DefaultFunctionConverter("greaterthan"));
+            put("<", new DefaultFunctionConverter("lessthan"));
+            put("=", new DefaultFunctionConverter("equalto"));
+            put("CAST", new DefaultFunctionConverter("cast"));
+            put("CASE", new DefaultFunctionConverter("if"));
+            put("*", new DefaultFunctionConverter("multiply"));
+            put("-", new SubtractFunctionConverter("subtract"));
+            put("MOD", new DefaultFunctionConverter("remainder"));
+            put("AND", new DefaultFunctionConverter("and"));
         }
     };
 
-    public static String toVeloxFunction(String funcName) {
+    public static FunctionConverter getFunctionConverter(String funcName) {
         if (functionMappings.containsKey(funcName)) {
             return functionMappings.get(funcName);
         } else {
