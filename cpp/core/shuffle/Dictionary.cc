@@ -29,7 +29,9 @@ void registerShuffleDictionaryWriterFactory(ShuffleDictionaryWriterFactory facto
   dictionaryWriterFactory = std::move(factory);
 }
 
-std::unique_ptr<ShuffleDictionaryWriter> createDictionaryWriter(MemoryManager* memoryManager, arrow::util::Codec* codec) {
+std::unique_ptr<ShuffleDictionaryWriter> createDictionaryWriter(
+    MemoryManager* memoryManager,
+    arrow::util::Codec* codec) {
   if (!dictionaryWriterFactory) {
     throw GlutenException("DictionaryWriter factory not registered.");
   }

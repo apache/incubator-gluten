@@ -264,9 +264,9 @@ RowVectorPtr deserialize(
       } break;
       default: {
         VectorPtr dictionary{nullptr};
-        if (!dictionaryFields.empty() && dictionaryFields[dictionaryIdx] == i) {
-          dictionary = dictionaries[dictionaryIdx];
-          ++dictionaryIdx;
+        if (!dictionaryFields.empty() && dictionaryIdx < dictionaryFields.size() &&
+            dictionaryFields[dictionaryIdx] == i) {
+          dictionary = dictionaries[dictionaryIdx++];
         }
         auto res = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
             readFlatVector, kind, buffers, bufferIdx, numRows, types[i], dictionary, pool);

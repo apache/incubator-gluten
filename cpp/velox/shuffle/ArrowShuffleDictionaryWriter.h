@@ -19,6 +19,8 @@
 
 #include "shuffle/Dictionary.h"
 
+#include "velox/type/Type.h"
+
 #include <arrow/buffer.h>
 #include <arrow/type.h>
 
@@ -49,7 +51,8 @@ class ArrowShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
 
-  std::shared_ptr<arrow::Schema> schema_;
+  std::shared_ptr<arrow::Schema> schema_{nullptr};
+  facebook::velox::TypePtr rowType_{nullptr};
   std::vector<FieldType> fieldTypes_;
   std::set<int32_t> dictionaryFields_;
   bool hasComplexType_{false};

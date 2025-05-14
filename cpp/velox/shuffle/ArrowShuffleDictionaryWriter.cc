@@ -17,6 +17,7 @@
 
 #include "shuffle/ArrowShuffleDictionaryWriter.h"
 #include "shuffle/Utils.h"
+#include "utils/VeloxArrowUtils.h"
 
 #include <arrow/array/builder_dict.h>
 
@@ -91,7 +92,8 @@ class DictionaryStorageImpl : public ShuffleDictionaryStorage {
     std::shared_ptr<arrow::ArrayData> data;
     ARROW_RETURN_NOT_OK(table_->GetArrayData(0, &data));
 
-    std::cout << "ShuffleDictionaryStorage::serialize num elements: " << data->length << std::endl;
+    DLOG(INFO) << "ShuffleDictionaryStorage::serialize num elements: " << data->length;
+
     ARROW_RETURN_IF(
         data->buffers.size() != 2, arrow::Status::Invalid("Invalid dictionary for type: ", data->type->ToString()));
 
@@ -132,7 +134,8 @@ class BinaryShuffleDictionaryStorage : public ShuffleDictionaryStorage {
 
     ARROW_RETURN_IF(data->buffers.size() != 3, arrow::Status::Invalid("Invalid dictionary for binary type"));
 
-    std::cout << "BinaryShuffleDictionaryStorage::serialize num elements: " << table_->size() << std::endl;
+    DLOG(INFO) << "BinaryShuffleDictionaryStorage::serialize num elements: " << table_->size();
+
     ARROW_ASSIGN_OR_RAISE(auto lengths, offsetToLength(data->length, data->buffers[1]));
     ARROW_RETURN_NOT_OK(writeDictionaryBuffer(lengths->data(), lengths->size(), pool_, codec_, out));
 
@@ -309,6 +312,11 @@ class ValueUpdater {
     return arrow::Status::OK();
   }
 
+  arrow::Status Visit(const arrow::Decimal128Type& type) {
+    // Only support short decimal.
+    return Visit(arrow::Int64Type());
+  }
+
   arrow::Status Visit(const arrow::DataType& type) {
     return arrow::Status::TypeError("Not implemented for type: ", type.ToString());
   }
@@ -410,28 +418,29 @@ bool ArrowShuffleDictionaryWriter::hasDictionaries() {
 }
 
 arrow::Status ArrowShuffleDictionaryWriter::initSchema(const std::shared_ptr<arrow::Schema>& schema) {
-  if (!schema_) {
+  if (schema_ == nullptr) {
     schema_ = schema;
-    fieldTypes_.resize(schema_->num_fields());
 
-    for (auto i = 0; i < schema_->num_fields(); ++i) {
-      switch (schema_->field(i)->type()->id()) {
-        case arrow::BinaryType::type_id:
-        case arrow::StringType::type_id:
-        case arrow::DoubleType::type_id:
-        case arrow::Int64Type::type_id:
-        case arrow::UInt64Type::type_id:
-          fieldTypes_[i] = FieldType::kSupportsDictionary;
-          dictionaryFields_.emplace(i);
-          break;
-        case arrow::NullType::type_id:
+    rowType_ = fromArrowSchema(schema);
+    fieldTypes_.resize(rowType_->size());
+
+    for (auto i = 0; i < rowType_->size(); ++i) {
+      switch (rowType_->childAt(i)->kind()) {
+        case facebook::velox::TypeKind::UNKNOWN:
           fieldTypes_[i] = FieldType::kNull;
           break;
-        case arrow::ListType::type_id:
-        case arrow::MapType::type_id:
-        case arrow::StructType::type_id:
+        case facebook::velox::TypeKind::ARRAY:
+        case facebook::velox::TypeKind::MAP:
+        case facebook::velox::TypeKind::ROW:
           fieldTypes_[i] = FieldType::kComplex;
           hasComplexType_ = true;
+          break;
+        case facebook::velox::TypeKind::VARBINARY:
+        case facebook::velox::TypeKind::VARCHAR:
+        case facebook::velox::TypeKind::DOUBLE:
+        case facebook::velox::TypeKind::BIGINT:
+          fieldTypes_[i] = FieldType::kSupportsDictionary;
+          dictionaryFields_.emplace(i);
           break;
         default:
           fieldTypes_[i] = FieldType::kFixedWidth;
