@@ -29,8 +29,8 @@ import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSeria
 
 import org.apache.spark.{ShuffleDependency, SparkEnv, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
-import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleReaderParameters, GenShuffleWriterParameters, GlutenShuffleReaderWrapper, GlutenShuffleWriterWrapper}
