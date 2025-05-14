@@ -188,20 +188,23 @@ import java.util.UUID;
     return new GlutenSourceFunction(getTableScanNode(), 
       (io.github.zhztheplayer.velox4j.type.RowType)veloxOutputType, planNodeId, getConnectionSplit());
    }
- 
-   /**
-    * Pull the kafka record from the queue, and emit it to the next operator. 
-    */
+
    @Override
    public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
-     if (running && task != null && task.advance() == UpIterator.State.AVAILABLE) {
-       RowVector rowVector = task.get();
-       List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(rowVector, allocator, 
-         (io.github.zhztheplayer.velox4j.type.RowType) veloxOutputType);
-       for (RowData row : rows) {
-         output.collect((T) row);
-       }
-       rowVector.close();
+     RowVector rowVector = null;
+     try {
+      if (running && task != null && task.advance() == UpIterator.State.AVAILABLE) {
+        rowVector = task.get();
+        List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(rowVector, allocator,
+          (io.github.zhztheplayer.velox4j.type.RowType) veloxOutputType);
+        for (RowData row : rows) {
+          output.collect((T) row);
+        }
+      }
+     } finally {
+      if (rowVector != null) {
+        rowVector.close();
+      }
      }
      return running ? InputStatus.MORE_AVAILABLE : InputStatus.NOTHING_AVAILABLE;
    }
