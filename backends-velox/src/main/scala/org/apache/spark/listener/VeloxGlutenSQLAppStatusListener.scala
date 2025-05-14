@@ -64,6 +64,11 @@ class VeloxGlutenSQLAppStatusListener(val driverEndpointRef: RpcEndpointRef)
    *   execution end event
    */
   private def onExecutionEnd(event: SparkListenerSQLExecutionEnd): Unit = {
+    // val stackTraceElements = Thread.currentThread().getStackTrace()
+
+    // for (element <- stackTraceElements) {
+    //   logWarning(element.toString);
+    // }
     val executionId = event.executionId.toString
     driverEndpointRef.send(GlutenOnExecutionEnd(executionId))
     logTrace(s"Execution $executionId end.")
