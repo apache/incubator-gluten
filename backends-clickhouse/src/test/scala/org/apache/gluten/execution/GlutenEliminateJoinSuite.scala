@@ -79,6 +79,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
       Array(
         StructField("k1", IntegerType, nullable = true),
         StructField("k2", IntegerType, nullable = true),
+        StructField("k3", StringType, nullable = true),
         StructField("v1", IntegerType, nullable = true),
         StructField("v2", IntegerType, nullable = true),
         StructField("v3", IntegerType, nullable = true)
@@ -86,18 +87,18 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
     )
 
     val data1 = Seq(
-      Row(1, 1, 1, 1, 1),
-      Row(1, 1, null, 2, 1),
-      Row(1, 2, 1, 1, null),
-      Row(2, 1, 1, null, 1),
-      Row(2, 2, 1, 1, 1),
-      Row(2, 2, 1, null, 1),
-      Row(2, 2, 2, null, 3),
-      Row(2, 3, 0, null, 1),
-      Row(2, 4, 1, 2, 3),
-      Row(3, 1, 4, 5, 6),
-      Row(4, 2, 7, 8, 9),
-      Row(5, 3, 10, 11, 12)
+      Row(1, 1, "1", 1, 1, 1),
+      Row(1, 1, "1", null, 2, 1),
+      Row(1, 2, "2", 1, 1, null),
+      Row(2, 1, "1", 1, null, 1),
+      Row(2, 2, "1", 1, 1, 1),
+      Row(2, 2, "2", 1, null, 1),
+      Row(2, 2, "2", 2, null, 3),
+      Row(2, 3, "3", 0, null, 1),
+      Row(2, 4, "4", 1, 2, 3),
+      Row(3, 1, "1", 4, 5, 6),
+      Row(4, 2, "2", 7, 8, 9),
+      Row(5, 3, "3", 10, 11, 12)
     )
     createTable("t1", data1, schema1)
     createTable("t2", data1, schema1)
@@ -127,6 +128,32 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
           }
           assert(joins.isEmpty)
       })
+  }
+
+  test("Eliminate two aggregate joins with attribute reordered") {
+    val sql = """
+        select t1.k1, t1.k3, t2.k1, t2.k3, s1, s2 from (
+          select k1, k3, sum(v1) s1 from (
+            select * from t1 where k1 != 1
+          )group by k1, k3
+        ) t1 left join (
+          select k1, k3, count(v1) s2 from (
+            select * from t2 where k1 != 3
+          )group by k3, k1
+        ) t2 on t1.k1 = t2.k1 and t1.k3 = t2.k3
+        order by t1.k1, t1.k3, s1, s2
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.isEmpty)
+      })
+
   }
 
   test("Elimiate three aggreages join") {
