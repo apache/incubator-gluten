@@ -50,8 +50,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /** Calculate operator in gluten, which will call Velox to run. */
 public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
@@ -106,25 +104,34 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
 
     @Override
     public void processElement(StreamRecord<RowData> element) {
-        final RowVector inRv = FlinkRowToVLVectorConvertor.fromRowData(
-            element.getValue(),
-            allocator,
-            session,
-            inputType);
-        inputQueue.put(inRv);
-        UpIterator.State state = task.advance();
-        if (state == UpIterator.State.AVAILABLE) {
-            RowVector outRv = task.get();
-            List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
-                    outRv,
-                    allocator,
-                    outputType);
-            for (RowData row : rows) {
-                output.collect(outElement.replace(row));
+        RowVector inRv = null;
+        RowVector outRv = null;
+        try {
+            inRv = FlinkRowToVLVectorConvertor.fromRowData(
+                element.getValue(),
+                allocator,
+                session,
+                inputType);
+            inputQueue.put(inRv);
+            UpIterator.State state = task.advance();
+            if (state == UpIterator.State.AVAILABLE) {
+                outRv = task.get();
+                List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
+                        outRv,
+                        allocator,
+                        outputType);
+                for (RowData row : rows) {
+                    output.collect(outElement.replace(row));
+                }
             }
-            outRv.close();
+        } finally {
+            if (outRv != null) {
+                outRv.close();
+            }
+            if (inRv != null) {
+                inRv.close();
+            }
         }
-        inRv.close();
     }
 
     @Override
