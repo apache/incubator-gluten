@@ -310,6 +310,7 @@
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveOutputWriter</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.catalyst.plans.QueryPlan</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.catalyst.plans.QueryPlan*</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.SQLExecution*</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStats</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStats$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteTaskStatsTracker</ignoreClass>
