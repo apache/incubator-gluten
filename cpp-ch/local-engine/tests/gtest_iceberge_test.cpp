@@ -20,6 +20,7 @@
 #include <Core/Block.h>
 #include <Core/Settings.h>
 #include <Formats/FormatFactory.h>
+#include "Databases/DatabaseOnDisk.h"
 
 #include <Interpreters/executeQuery.h>
 #include <Storages/Output/NormalFileWriter.h>
@@ -35,6 +36,7 @@
 #include <tests/utils/TempFilePath.h>
 #include <tests/utils/gluten_test_util.h>
 #include <Common/DebugUtils.h>
+#include <Common/QueryContext.h>
 
 namespace local_engine
 {
@@ -175,7 +177,7 @@ protected:
             std::vector<int64_t> allDeleteValues;
 
             int64_t numRowsInPreviousBaseFiles = 0;
-            for (auto baseFileSize : baseFileSizes)
+            for (const auto& baseFileSize : baseFileSizes)
             {
                 auto deletePositions =
                     flattenedDeletePosVectorsForAllBaseFiles[baseFileSize.first];
@@ -970,6 +972,57 @@ TEST_F(IcebergTest, positionalDeletesMultipleSplits)
 
 TEST_F(IcebergTest, basic_utils_test)
 {
+    std::string query = R"(ATTACH TABLE _ UUID '9a9c6e03-bc9e-44b2-9df7-d04ca9836980'
+(
+    `l_orderkey` Int64,
+    `l_partkey` Int64,
+    `l_suppkey` Int64,
+    `l_linenumber` Int64,
+    `l_quantity` Float64,
+    `l_extendedprice` Float64,
+    `l_discount` Float64,
+    `l_tax` Float64,
+    `l_returnflag` String,
+    `l_linestatus` String,
+    `l_shipdate` Date,
+    `l_commitdate` Date,
+    `l_receiptdate` Date,
+    `l_shipinstruct` String,
+    `l_shipmode` String,
+    `l_comment` String
+)
+ENGINE = MergeTree
+ORDER BY l_shipdate
+SETTINGS index_granularity = 8192)";
+    auto ast = DB::DatabaseOnDisk::parseQueryFromMetadata(
+        test_logger,
+        local_engine::QueryContext::globalContext(),
+        "xxxxyy",
+        query);
+    assert(ast != nullptr);
+
+    std::string current_database_name = "IcebergTest";
+    auto * create_query = ast->as<DB::ASTCreateQuery>();
+    create_query->attach = true;
+    create_query->setDatabase(current_database_name);
+    create_query->uuid = DB::UUIDHelpers::Nil;
+
+    if (!create_query->storage)
+    {
+        LOG_INFO(test_logger, "Skipping table {} with no storage.", create_query->getTable());
+        assert(false);
+    }
+
+    if (!create_query->storage->engine->name.ends_with("MergeTree"))
+    {
+        LOG_INFO(test_logger, "Skipping table {} with engine {}. Only MergeTree engine is supported.",
+            create_query->getTable(), create_query->storage->engine->name);
+        assert(false);
+    }
+
+    DB::QualifiedTableName qualified_name{current_database_name, create_query->getTable()};
+
+    DB::Block block = runClickhouseSQL("select count(*) from tpch100.lineitem limit 1;");
 
     {
         context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", true);
