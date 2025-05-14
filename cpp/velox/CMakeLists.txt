@@ -276,7 +276,7 @@ if(GEOS_LIB)
   add_library(external::geos STATIC IMPORTED)
   set_target_properties(external::geos PROPERTIES IMPORTED_LOCATION ${GEOS_LIB})
 else()
-  import_library( external::geos ${VELOX_BUILD_PATH}/lib/libgeos.a)
+  import_library(external::geos ${VELOX_BUILD_PATH}/lib/libgeos.a)
 endif()
 target_link_libraries(velox PUBLIC external::geos)
 
