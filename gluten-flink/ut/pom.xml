@@ -1,4 +1,3 @@
-
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +53,7 @@
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-planner-loader</artifactId>
-            <version>1.19.2</version>
+	    <version>${flink.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -67,7 +66,8 @@
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-planner_${scala.binary.version}</artifactId>
             <version>${flink.version}</version>
-            <classifier>tests</classifier>
+	    <classifier>tests</classifier>
+	    <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -132,6 +132,12 @@
             <artifactId>logback-classic</artifactId>
             <version>1.4.7</version> 
         </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+            <version>${flink.version}</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
@@ -143,7 +149,10 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M5</version>
                 <configuration>
-                    <skipTests>false</skipTests>
+			<skipTests>false</skipTests>
+			<classpathDependencyExcludes>
+                        <classpathDependencyExclude>org.apache.flink:flink-table-planner-loader</classpathDependencyExclude>
+                    </classpathDependencyExcludes>
                 </configuration>
             </plugin>
             <plugin>

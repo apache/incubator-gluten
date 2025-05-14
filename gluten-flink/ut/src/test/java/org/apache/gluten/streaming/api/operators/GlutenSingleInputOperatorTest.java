@@ -1,0 +1,220 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.gluten.streaming.api.operators;
+
+// Flink
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.VarCharType;
+
+// Calcite
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkRexBuilder;
+
+// Velox4j
+import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+import io.github.zhztheplayer.velox4j.plan.FilterNode;
+import io.github.zhztheplayer.velox4j.plan.ProjectNode;
+
+// Gluten
+import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.table.runtime.stream.common.Velox4jEnvironment;
+import org.apache.gluten.rexnode.Utils;
+import org.apache.gluten.util.PlanNodeIdGenerator;
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+
+// JUnit 5
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Queue;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class GlutenSingleInputOperatorTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(GlutenSingleInputOperatorTest.class);
+    private static FlinkTypeFactory typeFactory;
+    private static RexBuilder rexBuilder;
+
+    @BeforeAll
+    public static void setupAll() {
+        LOG.info("GlutenStreamingTestBase setup");
+        Velox4jEnvironment.initializeOnce();
+        typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
+        rexBuilder = new FlinkRexBuilder(typeFactory);
+    }
+
+    @Test
+    public void testFilterAndProjectFlow() throws Exception {
+        RowType flinkInputRowType = RowType.of(
+                new LogicalType[]{new IntType(), new VarCharType(VarCharType.MAX_LENGTH), new IntType()},
+                new String[]{"id", "name", "age"}
+        );
+        RowType flinkOutputRowType = RowType.of(
+                new LogicalType[]{new VarCharType(VarCharType.MAX_LENGTH), new IntType()},
+                new String[]{"projected_name", "age_multiplied"}
+        );
+
+        List<String> inNames = Utils.getNamesFromRowType(flinkInputRowType);
+
+        RexNode ageFieldRef = rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.INTEGER),2);
+        RexNode literal18 = rexBuilder.makeLiteral(new BigDecimal(18), typeFactory.createSqlType(SqlTypeName.INTEGER), false);
+        RexNode filterConditionFlink = rexBuilder.makeCall(
+                SqlStdOperatorTable.GREATER_THAN,
+                ageFieldRef,
+                literal18
+        );
+
+        RexNode nameFieldRef = rexBuilder.makeInputRef(typeFactory.createSqlType(SqlTypeName.INTEGER), 1);
+        RexNode literal1 = rexBuilder.makeLiteral(new BigDecimal(2), typeFactory.createSqlType(SqlTypeName.INTEGER), false);
+        RexNode agePlusOneExpr = rexBuilder.makeCall(
+                SqlStdOperatorTable.MULTIPLY,
+                ageFieldRef,
+                literal1
+        );
+        List<RexNode> projectionsFlink = Arrays.asList(nameFieldRef, agePlusOneExpr);
+        List<String> projectedFieldNames = Arrays.asList("projected_name", "age_multiplied");
+
+        TypedExpr veloxFilterCondition = RexNodeConverter.toTypedExpr(filterConditionFlink, inNames);
+        List<TypedExpr> veloxProjections = RexNodeConverter.toTypedExpr(projectionsFlink, inNames);
+
+        io.github.zhztheplayer.velox4j.type.RowType veloxInputType =
+                (io.github.zhztheplayer.velox4j.type.RowType)
+                        org.apache.gluten.util.LogicalTypeConverter.toVLType(flinkInputRowType);
+
+        io.github.zhztheplayer.velox4j.type.RowType veloxOutputType =
+                (io.github.zhztheplayer.velox4j.type.RowType)
+                        org.apache.gluten.util.LogicalTypeConverter.toVLType(flinkOutputRowType);
+
+        PlanNode veloxPlan = createVeloxPlanForTest(
+                veloxFilterCondition,
+                veloxProjections,
+                projectedFieldNames
+        );
+
+        TypeInformation<RowData> inputTypeInfo = InternalTypeInfo.of(flinkInputRowType);
+        TypeInformation<RowData> outputTypeInfo = InternalTypeInfo.of(flinkOutputRowType);
+
+        GlutenSingleInputOperator operator =
+                new GlutenSingleInputOperator(
+                        veloxPlan,
+                        PlanNodeIdGenerator.newId(),
+                        veloxInputType,
+                        veloxOutputType
+                );
+
+        TypeSerializer<RowData> inputSerializer = inputTypeInfo.createSerializer(new SerializerConfigImpl());
+        OneInputStreamOperatorTestHarness<RowData, RowData> harness =
+                new OneInputStreamOperatorTestHarness<>(operator, inputSerializer);
+
+        harness.setup(outputTypeInfo.createSerializer(new SerializerConfigImpl()));
+        harness.open();
+
+        List<RowData> inputData = Arrays.asList(
+                GenericRowData.of(1, StringData.fromString("Alice"), 20),
+                GenericRowData.of(2, StringData.fromString("Bob"), 17),
+                GenericRowData.of(3, StringData.fromString("Charlie"), 25),
+                GenericRowData.of(4, StringData.fromString("David"), 15)
+        );
+
+        long timestamp = 0L;
+        for (RowData row : inputData) {
+            harness.processElement(new StreamRecord<>(row, timestamp++));
+        }
+
+        Queue<Object> outputQueue = harness.getOutput();
+        List<RowData> actualOutput = new ArrayList<>();
+        while (!outputQueue.isEmpty()) {
+            Object record = outputQueue.poll();
+            if (record instanceof StreamRecord) {
+                actualOutput.add(((StreamRecord<RowData>) record).getValue());
+            }
+        }
+
+        List<RowData> expectedOutput = Arrays.asList(
+                GenericRowData.of(StringData.fromString("Alice"), 40),
+                GenericRowData.of(StringData.fromString("Charlie"), 50)
+        );
+
+        assertThat(actualOutput).hasSize(expectedOutput.size());
+        for (int i = 0; i < expectedOutput.size(); i++) {
+            RowData expectedRow = expectedOutput.get(i);
+            RowData actualRow = actualOutput.get(i);
+            assertThat(actualRow.getString(0).toString()).isEqualTo(expectedRow.getString(0).toString());
+            assertThat(actualRow.getInt(1)).isEqualTo(expectedRow.getInt(1));
+        }
+
+        harness.close();
+    }
+
+    private PlanNode createVeloxPlanForTest(
+            TypedExpr filterCondition,
+            List<TypedExpr> projections,
+            List<String> projectedFieldNames) {
+
+        PlanNode currentVeloxPlan = null;
+
+        if (filterCondition != null) {
+            currentVeloxPlan = new FilterNode(
+                    PlanNodeIdGenerator.newId(),
+                    List.of(),
+                    filterCondition
+            );
+        }
+
+        if (projections != null && !projections.isEmpty()) {
+            if (projectedFieldNames == null || projectedFieldNames.size() != projections.size()) {
+                throw new IllegalArgumentException("Projected field names must match the number of projection expressions.");
+            }
+            currentVeloxPlan = new ProjectNode(
+                    PlanNodeIdGenerator.newId(),
+                    currentVeloxPlan == null? List.of():List.of(currentVeloxPlan),
+                    projectedFieldNames,
+                    projections
+            );
+        }
+
+        if (currentVeloxPlan == null) {
+            throw new IllegalStateException("Velox plan was not constructed. Check conditions for Filter/Project.");
+        }
+        return currentVeloxPlan;
+    }
+}
