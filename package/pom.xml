@@ -253,6 +253,7 @@
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveFileFormat</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveFileFormat$$$$anon$1</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.hive.execution.HiveOutputWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.SQLExecution*</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$CovarianceCounter</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataSingleWriter</ignoreClass>

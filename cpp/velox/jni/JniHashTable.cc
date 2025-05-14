@@ -101,18 +101,19 @@ std::shared_ptr<facebook::velox::exec::HashTableBuilder> nativeHashTableBuild(
   std::vector<std::string> joinKeyNames;
   folly::split(',', joinKeys, joinKeyNames);
 
-  std::vector<std::shared_ptr<const facebook::velox::core::FieldAccessTypedExpr>> joinKeys;
-  joinKeys.reserve(joinKeyNames.size());
+  std::vector<std::shared_ptr<const facebook::velox::core::FieldAccessTypedExpr>> joinKeyTypes;
+  joinKeyTypes.reserve(joinKeyNames.size());
   for (const auto& name : joinKeyNames) {
-    joinKeys.emplace_back(
+    joinKeyTypes.emplace_back(
         std::make_shared<facebook::velox::core::FieldAccessTypedExpr>(rowType->findChild(name), name));
   }
 
   auto hashTableBuilder = std::make_shared<facebook::velox::exec::HashTableBuilder>(
-      vJoin, isNullAwareAntiJoin, hasMixedJoinCondition, joinKeys, rowType, memoryPool.get());
+      vJoin, isNullAwareAntiJoin, hasMixedJoinCondition, joinKeyTypes, rowType, memoryPool.get());
 
   for (auto i = 0; i < batches.size(); i++) {
     auto rowVector = VeloxColumnarBatch::from(memoryPool.get(), batches[i])->getRowVector();
+    // std::cout << "the hash table rowVector is " << rowVector->toString(0, rowVector->size()) << "\n";
     hashTableBuilder->addInput(rowVector);
   }
   return hashTableBuilder;
