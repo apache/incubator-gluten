@@ -870,8 +870,10 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
       isNullAwareAntiJoin,
       cb,
       defaultLeafVeloxMemoryPool());
-
-  return gluten::hashTableObjStore->save(hashTableHandler);
+  auto id = gluten::hashTableObjStore->save(hashTableHandler);
+  std::cout << "store the hashTableBuilder is " << hashTableHandler.get() << " and the store id is " << (jlong)id << "\n";
+  std::cout.setf(std::ios::unitbuf);
+  return id;
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -891,6 +893,9 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_clearHa
     jlong tableHandler) {
   JNI_METHOD_START
   auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(tableHandler);
+  std::cout << "releasing the hashTableBuilder is " << hashTableHandler.get() << " and the store id is " << tableHandler
+            << "\n";
+  std::cout.setf(std::ios::unitbuf);
   hashTableHandler->clear();
   ObjectStore::release(tableHandler);
   JNI_METHOD_END()
