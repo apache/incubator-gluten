@@ -14,11 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
-import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -26,24 +23,25 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
 /** One input operator factory for gluten. */
 public class GlutenOneInputOperatorFactory<IN, OUT> extends AbstractStreamOperatorFactory<OUT>
-        implements OneInputStreamOperatorFactory<IN, OUT>  {
-    private final GlutenOperator operator;
+    implements OneInputStreamOperatorFactory<IN, OUT> {
+  private final GlutenOperator operator;
 
-    public GlutenOneInputOperatorFactory(GlutenOperator operator) {
-        this.operator = operator;
-    }
+  public GlutenOneInputOperatorFactory(GlutenOperator operator) {
+    this.operator = operator;
+  }
 
-    public GlutenOperator getOperator() {
-        return operator;
-    }
+  public GlutenOperator getOperator() {
+    return operator;
+  }
 
-    @Override
-    public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> streamOperatorParameters) {
-        throw new RuntimeException("Not Implemented");
-    }
+  @Override
+  public <T extends StreamOperator<OUT>> T createStreamOperator(
+      StreamOperatorParameters<OUT> streamOperatorParameters) {
+    throw new RuntimeException("Not Implemented");
+  }
 
-    @Override
-    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-        throw new RuntimeException("Not Implemented");
-    }
+  @Override
+  public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+    throw new RuntimeException("Not Implemented");
+  }
 }

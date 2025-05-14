@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.annotation.Internal;
@@ -53,81 +52,83 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class LegacySourceTransformationTranslator<OUT>
-        extends SimpleTransformationTranslator<OUT, LegacySourceTransformation<OUT>> {
+    extends SimpleTransformationTranslator<OUT, LegacySourceTransformation<OUT>> {
 
-    @Override
-    protected Collection<Integer> translateForBatchInternal(
-            final LegacySourceTransformation<OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
+  @Override
+  protected Collection<Integer> translateForBatchInternal(
+      final LegacySourceTransformation<OUT> transformation, final Context context) {
+    return translateInternal(transformation, context);
+  }
+
+  @Override
+  protected Collection<Integer> translateForStreamingInternal(
+      final LegacySourceTransformation<OUT> transformation, final Context context) {
+    return translateInternal(transformation, context);
+  }
+
+  private Collection<Integer> translateInternal(
+      final LegacySourceTransformation<OUT> transformation, final Context context) {
+    checkNotNull(transformation);
+    checkNotNull(context);
+
+    final StreamGraph streamGraph = context.getStreamGraph();
+    final String slotSharingGroup = context.getSlotSharingGroup();
+    final int transformationId = transformation.getId();
+    final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
+
+    Function userFunction = transformation.getOperator().getUserFunction();
+    StreamOperatorFactory<OUT> operatorFactory;
+    String namePrefix = "";
+    // --- Begin Gluten-specific code changes ---
+    if (userFunction instanceof DataGeneratorSource) {
+      RowType outputType =
+          (RowType)
+              LogicalTypeConverter.toVLType(
+                  ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
+      String id = PlanNodeIdGenerator.newId();
+      operatorFactory =
+          SimpleOperatorFactory.of(
+              new GlutenStreamSource(
+                  new GlutenSourceFunction(
+                      new TableScanNode(
+                          id,
+                          outputType,
+                          new FuzzerTableHandle("connector-fuzzer", 12367),
+                          List.of()),
+                      outputType,
+                      id,
+                      new FuzzerConnectorSplit("connector-fuzzer", 1000))));
+      namePrefix = "Gluten ";
+    } else {
+      operatorFactory = transformation.getOperatorFactory();
+    }
+    // --- End Gluten-specific code changes ---
+    streamGraph.addLegacySource(
+        transformationId,
+        slotSharingGroup,
+        transformation.getCoLocationGroupKey(),
+        operatorFactory,
+        null,
+        transformation.getOutputType(),
+        namePrefix + "Source: " + transformation.getName());
+
+    if (transformation.getOperatorFactory() instanceof InputFormatOperatorFactory) {
+      streamGraph.setInputFormat(
+          transformationId,
+          ((InputFormatOperatorFactory<OUT>) transformation.getOperatorFactory()).getInputFormat());
     }
 
-    @Override
-    protected Collection<Integer> translateForStreamingInternal(
-            final LegacySourceTransformation<OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
-    }
+    final int parallelism =
+        transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
+            ? transformation.getParallelism()
+            : executionConfig.getParallelism();
+    streamGraph.setParallelism(
+        transformationId, parallelism, transformation.isParallelismConfigured());
+    streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
 
-    private Collection<Integer> translateInternal(
-            final LegacySourceTransformation<OUT> transformation, final Context context) {
-        checkNotNull(transformation);
-        checkNotNull(context);
+    streamGraph.setSupportsConcurrentExecutionAttempts(
+        transformationId, transformation.isSupportsConcurrentExecutionAttempts());
 
-        final StreamGraph streamGraph = context.getStreamGraph();
-        final String slotSharingGroup = context.getSlotSharingGroup();
-        final int transformationId = transformation.getId();
-        final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
-
-        Function userFunction = transformation.getOperator().getUserFunction();
-        StreamOperatorFactory<OUT> operatorFactory;
-        String namePrefix = "";
-        // --- Begin Gluten-specific code changes ---
-        if (userFunction instanceof DataGeneratorSource) {
-            RowType outputType = (RowType) LogicalTypeConverter.toVLType(
-                    ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
-            String id = PlanNodeIdGenerator.newId();
-            operatorFactory = SimpleOperatorFactory.of(
-                    new GlutenStreamSource(
-                            new GlutenSourceFunction(
-                                    new TableScanNode(
-                                            id,
-                                            outputType,
-                                            new FuzzerTableHandle("connector-fuzzer", 12367),
-                                            List.of()),
-                                    outputType,
-                                    id,
-                                    new FuzzerConnectorSplit("connector-fuzzer", 1000))));
-            namePrefix = "Gluten ";
-        } else {
-            operatorFactory = transformation.getOperatorFactory();
-        }
-        // --- End Gluten-specific code changes ---
-        streamGraph.addLegacySource(
-                transformationId,
-                slotSharingGroup,
-                transformation.getCoLocationGroupKey(),
-                operatorFactory,
-                null,
-                transformation.getOutputType(),
-                namePrefix + "Source: " + transformation.getName());
-
-        if (transformation.getOperatorFactory() instanceof InputFormatOperatorFactory) {
-            streamGraph.setInputFormat(
-                    transformationId,
-                    ((InputFormatOperatorFactory<OUT>) transformation.getOperatorFactory())
-                            .getInputFormat());
-        }
-
-        final int parallelism =
-                transformation.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT
-                        ? transformation.getParallelism()
-                        : executionConfig.getParallelism();
-        streamGraph.setParallelism(
-                transformationId, parallelism, transformation.isParallelismConfigured());
-        streamGraph.setMaxParallelism(transformationId, transformation.getMaxParallelism());
-
-        streamGraph.setSupportsConcurrentExecutionAttempts(
-                transformationId, transformation.isSupportsConcurrentExecutionAttempts());
-
-        return Collections.singleton(transformationId);
-    }
+    return Collections.singleton(transformationId);
+  }
 }

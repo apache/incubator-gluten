@@ -16,41 +16,36 @@
  */
 package org.apache.gluten.rexnode.functions;
 
+import org.apache.flink.util.Preconditions;
+
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
-import org.apache.flink.util.Preconditions;
 import java.util.List;
 
 /** Subtract function converter. */
 public class SubtractFunctionConverter implements FunctionConverter {
-    private final String function;
+  private final String function;
 
-    public SubtractFunctionConverter(String function) {
-        this.function = function;
+  public SubtractFunctionConverter(String function) {
+    this.function = function;
+  }
+
+  @Override
+  public CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params) {
+    Preconditions.checkNotNull(params.size() == 2, "Subtract must contain exactly two parameters");
+
+    // TODO: need refine for more type cast
+    if (params.get(0).getReturnType().getClass() == TimestampType.class
+        && params.get(1).getReturnType().getClass() == BigIntType.class) {
+      // hardcode here for next mark watermark whose param1 is Timestamp and 2 is BigInt.
+      Type newType = new BigIntType();
+      TypedExpr param0 = new CallTypedExpr(newType, List.of(params.get(0)), "cast");
+      return new CallTypedExpr(newType, List.of(param0, params.get(1)), function);
     }
-
-    @Override
-    public CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params) {
-        Preconditions.checkNotNull(params.size() == 2, "Subtract must contain exactly two parameters");
-
-        // TODO: need refine for more type cast
-        if (params.get(0).getReturnType().getClass() == TimestampType.class &&
-                params.get(1).getReturnType().getClass() == BigIntType.class) {
-            // hardcode here for next mark watermark whose param1 is Timestamp and 2 is BigInt.
-            Type newType = new BigIntType();
-            TypedExpr param0 = new CallTypedExpr(
-                    newType,
-                    List.of(params.get(0)),
-                    "cast");
-            return new CallTypedExpr(
-                    newType,
-                    List.of(param0, params.get(1)),
-                    function);
-        }
-        return new CallTypedExpr(nodeType, params, function);
-    }
+    return new CallTypedExpr(nodeType, params, function);
+  }
 }
