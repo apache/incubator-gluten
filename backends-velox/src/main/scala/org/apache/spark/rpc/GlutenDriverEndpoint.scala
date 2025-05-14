@@ -49,6 +49,8 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
       }
 
     case GlutenOnExecutionEnd(executionId) =>
+      logWarning(s"Execution Id is $executionId end.")
+
       GlutenDriverEndpoint.executionResourceRelation.invalidate(executionId)
 
     case GlutenExecutorRemoved(executorId) =>
