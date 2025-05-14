@@ -108,8 +108,8 @@ do
 done
 
 # build libch.so
-bash "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/build_clickhouse.sh
-cp "$GLUTEN_SOURCE"/cpp-ch/build/utils/extern-local-engine/libch.so "${PACKAGE_DIR_PATH}"/libs/libch.so
+# bash "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/build_clickhouse.sh
+# cp "$GLUTEN_SOURCE"/cpp-ch/build/utils/extern-local-engine/libch.so "${PACKAGE_DIR_PATH}"/libs/libch.so
 
 # copy bin and conf
 cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/bin/* "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/bin
