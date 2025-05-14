@@ -18,6 +18,7 @@
 #include "MergeTreeRelParser.h"
 
 #include <Core/Settings.h>
+#include <DataTypes/DataTypesDecimal.h>
 #include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/SubstraitParserUtils.h>
@@ -32,6 +33,7 @@
 #include <Common/BlockTypeUtils.h>
 #include <Common/GlutenSettings.h>
 #include <Common/PlanUtil.h>
+#include <Operator/FillingDeltaInternalRowDeletedStep.h>
 
 namespace DB
 {
@@ -81,6 +83,41 @@ void replaceFileNameNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInsta
     const auto & part_name = actions_dag.findInOutputs(MergeTreeRelParser::VIRTUAL_COLUMN_PART);
     const auto & alias = actions_dag.addAlias(part_name, FileMetaColumns::FILE_NAME);
     actions_dag.addOrReplaceInOutputs(alias);
+}
+
+void replaceFileSizeNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context)
+{
+    const auto int64_type = std::make_shared<DB::DataTypeInt64>();
+    actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(
+        DB::ColumnWithTypeAndName(int64_type->createColumnConst(1, -1), int64_type, FileMetaColumns::FILE_SIZE)));
+}
+
+void replaceFileModificationTimeNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context)
+{
+    const auto decimal64_type = std::make_shared<DB::DataTypeDateTime64>(6);
+    actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(
+        DB::ColumnWithTypeAndName(decimal64_type->createColumnConst(1, DecimalField<DateTime64>(0, 6)), decimal64_type, FileMetaColumns::FILE_MODIFICATION_TIME)));
+}
+
+void replaceDeltaInternalRowDeletedNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance & merge_tree_table, DB::ContextPtr context)
+{
+    const auto data_type = std::make_shared<DB::DataTypeNullable>(std::make_shared<DB::DataTypeInt8>());
+    actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(
+        DB::ColumnWithTypeAndName(data_type->createColumn(), data_type, DeltaVirtualMeta::DELTA_INTERNAL_IS_ROW_DELETED)));
+}
+
+void replaceFileBlockStartNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance &, DB::ContextPtr)
+{
+    const auto int64_type = std::make_shared<DB::DataTypeInt64>();
+    actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(
+        DB::ColumnWithTypeAndName(int64_type->createColumnConst(1, -1), int64_type, FileMetaColumns::FILE_BLOCK_START)));
+}
+
+void replaceFileBlockLengthNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance &, DB::ContextPtr)
+{
+    const auto int64_type = std::make_shared<DB::DataTypeInt64>();
+    actions_dag.addOrReplaceInOutputs(actions_dag.addColumn(
+        DB::ColumnWithTypeAndName(int64_type->createColumnConst(1, -1), int64_type, FileMetaColumns::FILE_BLOCK_LENGTH)));
 }
 
 void replaceInputFileBlockStartNode(DB::ActionsDAG & actions_dag, const MergeTreeTableInstance &, DB::ContextPtr)
@@ -135,16 +172,24 @@ DB::Block MergeTreeRelParser::parseMergeTreeOutput(const substrait::ReadRel & re
 DB::Block MergeTreeRelParser::replaceDeltaNameIfNeeded(const DB::Block & output)
 {
     DB::ColumnsWithTypeAndName read_block;
+    NameSet names;
     for (const auto & column : output)
     {
         if (DELTA_META_COLUMN_MAP.contains(column.name))
         {
             if (auto tuple = DELTA_META_COLUMN_MAP.at(column.name); std::get<0>(tuple).has_value())
-                read_block.emplace_back(ColumnWithTypeAndName(std::get<1>(tuple), std::get<0>(tuple).value()));
+            {
+                if (!names.contains(std::get<0>(tuple).value()))
+                {
+                    read_block.emplace_back(ColumnWithTypeAndName(std::get<1>(tuple), std::get<0>(tuple).value()));
+                    names.insert(std::get<0>(tuple).value());
+                }
+            }
         }
         else
         {
             read_block.emplace_back(column);
+            names.insert(column.name);
         }
     }
     return DB::Block(std::move(read_block));
@@ -249,9 +294,9 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     auto storage = merge_tree_table.restoreStorage(QueryContext::globalMutableContext());
 
     const DB::Block output = parseMergeTreeOutput(rel, storage);
+    const bool has_delta_internal_is_row_deleted = DeltaVirtualMeta::hasMetaColumns(output);
     DB::Block read_block = replaceDeltaNameIfNeeded(output);
     replaceNodeWithCaseSensitive(read_block, storage);
-
 
     std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
         storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
@@ -306,6 +351,14 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
 
     recoverNodeWithCaseSensitive(*query_plan, output);
     recoverDeltaNameIfNeeded(*query_plan, output, merge_tree_table);
+
+    // set '_delta_internal_is_row_deleted' values
+    if (has_delta_internal_is_row_deleted)
+    {
+        auto filling_row_deleted_step = std::make_unique<FillingDeltaInternalRowDeletedStep>(query_plan->getCurrentHeader(), merge_tree_table, context);
+        filling_row_deleted_step->setStepDescription("FillingDeltaInternalRowDeleted");
+        query_plan->addStep(std::move(filling_row_deleted_step));
+    }
 
     return query_plan;
 }

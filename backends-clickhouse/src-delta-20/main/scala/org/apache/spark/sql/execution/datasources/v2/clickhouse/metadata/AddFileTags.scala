@@ -87,6 +87,7 @@ class AddMergeTreeParts(
     val rowsWhereTtlInfoMax: Long = -1L,
     override val tags: Map[String, String] = null)
   extends AddFile(name, partitionValues, size, modificationTime, dataChange, stats, tags) {
+
   def fullPartPath(): String = {
     dirName + "/" + name
   }
