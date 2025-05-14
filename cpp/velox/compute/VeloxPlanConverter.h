@@ -36,6 +36,12 @@ class VeloxPlanConverter {
       const std::optional<std::string> writeFilesTempPath = std::nullopt,
       bool validationMode = false);
 
+      VeloxPlanConverter(
+        facebook::velox::memory::MemoryPool* veloxPool,
+        const std::unordered_map<std::string, std::string>& confMap,
+        const std::optional<std::string> writeFilesTempPath = std::nullopt,
+        bool validationMode = false);
+
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(
       const ::substrait::Plan& substraitPlan,
       std::vector<::substrait::ReadRel_LocalFiles> localFiles);

@@ -228,7 +228,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
+      enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
     assert(
       inputPartition.isInstanceOf[GlutenPartition],
       "Velox backend only accept GlutenPartition.")
@@ -253,7 +254,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         splitInfoByteArray,
         columnarNativeIterators,
         partitionIndex,
-        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
+        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath),
+        enableCudf
       )
     val itrMetrics = IteratorMetricsJniWrapper.create()
 
@@ -283,7 +285,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      materializeInput: Boolean): Iterator[ColumnarBatch] = {
+      materializeInput: Boolean,
+      enableCudf: Boolean = false): Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
@@ -304,7 +307,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         new Array[Array[Byte]](0),
         columnarNativeIterator,
         partitionIndex,
-        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath)
+        BackendsApiManager.getSparkPlanExecApiInstance.rewriteSpillPath(spillDirPath),
+        enableCudf
       )
     val itrMetrics = IteratorMetricsJniWrapper.create()
 

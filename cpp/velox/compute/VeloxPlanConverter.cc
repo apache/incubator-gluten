@@ -39,6 +39,14 @@ VeloxPlanConverter::VeloxPlanConverter(
   substraitVeloxPlanConverter_.setInputIters(std::move(inputIters));
 }
 
+VeloxPlanConverter::VeloxPlanConverter(
+    velox::memory::MemoryPool* veloxPool,
+    const std::unordered_map<std::string, std::string>& confMap,
+    const std::optional<std::string> writeFilesTempPath,
+    bool validationMode)
+    : validationMode_(validationMode),
+      substraitVeloxPlanConverter_(veloxPool, confMap, writeFilesTempPath, validationMode) {}
+
 namespace {
 std::shared_ptr<SplitInfo> parseScanSplitInfo(
     const google::protobuf::RepeatedPtrField<substrait::ReadRel_LocalFiles_FileOrFiles>& fileList) {

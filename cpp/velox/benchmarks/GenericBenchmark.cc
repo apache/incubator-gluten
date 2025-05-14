@@ -444,7 +444,7 @@ auto BM_Generic = [](::benchmark::State& state,
         runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), i);
       }
 
-      auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters), runtime->getConfMap());
+      auto resultIter = runtime->createResultIterator(veloxSpillDir, std::move(inputIters), runtime->getConfMap(), false);
       listenerPtr->setIterator(resultIter.get());
 
       if (FLAGS_with_shuffle) {
