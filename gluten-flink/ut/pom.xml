@@ -138,7 +138,13 @@
             <version>${flink.version}</version>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-api-java</artifactId>
+            <version>${flink.version}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 
@@ -149,10 +155,11 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M5</version>
                 <configuration>
-			<skipTests>false</skipTests>
-			<classpathDependencyExcludes>
+                    <skipTests>false</skipTests>
+                    <classpathDependencyExcludes>
                         <classpathDependencyExclude>org.apache.flink:flink-table-planner-loader</classpathDependencyExclude>
                     </classpathDependencyExcludes>
+                    <excludedGroups>flink-skip-tests</excludedGroups>
                 </configuration>
             </plugin>
             <plugin>
