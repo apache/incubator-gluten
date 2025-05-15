@@ -14,26 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.test;
+package org.apache.spark.rpc
 
-import org.apache.gluten.backendsapi.ListenerApi;
-import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
+object GlutenRpcConstants {
 
-import org.apache.spark.sql.test.TestSparkSession;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+  val GLUTEN_DRIVER_ENDPOINT_NAME = "GlutenDriverEndpoint"
 
-public abstract class VeloxBackendTestBase {
-  private static final ListenerApi API = new VeloxListenerApi();
-
-  @BeforeClass
-  public static void setup() {
-    new TestSparkSession(MockVeloxBackend.mockPluginContext().conf());
-    API.onExecutorStart(MockVeloxBackend.mockPluginContext());
-  }
-
-  @AfterClass
-  public static void tearDown() {
-    API.onExecutorShutdown();
-  }
+  val GLUTEN_EXECUTOR_ENDPOINT_NAME = "GlutenExecutorEndpoint"
 }
