@@ -34,7 +34,7 @@ Arrow libs are pre-installed in docker, assuming they are not actively changed, 
 The dependency libraries are pre installed in to /root/.m2 by `mvn dependency:go-offline` Spark is set to 3.5 by default.
 
 ## Ccache
-Since the docker image is rebuilt weekly, the ccache mostsly are outdated. So the cache is removed from the image.
+Since the docker image is rebuilt weekly, the ccache mostly are outdated. So the cache is removed from the image.
 
 ## Updating Docker Image
 Two GitHub secrets `DOCKERHUB_USER` & `DOCKERHUB_TOKEN` can be used to push docker image to docker hub: https://hub.docker.com/r/apache/gluten/tags.
