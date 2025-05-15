@@ -972,7 +972,7 @@ TEST_F(IcebergTest, positionalDeletesMultipleSplits)
 
 TEST_F(IcebergTest, basic_utils_test)
 {
-    std::string sql = R"(INSERT INTO function null('l_quantity double, l_extendedprice double, l_discount double, l_returnflag String, l_linestatus String') select l_quantity,l_extendedprice,l_discount,l_returnflag,l_linestatus from tpch100.lineitem)";
+    std::string sql = R"(INSERT INTO function null('l_quantity double, l_extendedprice double, l_discount double, l_returnflag String, l_linestatus String') select l_quantity,l_extendedprice,l_discount,l_returnflag,l_linestatus from tpch100.lineitem Settings max_threads=1,local_filesystem_read_method='read')";
     DB::Block block = runClickhouseSQL(sql);
     headBlock(block);
 
