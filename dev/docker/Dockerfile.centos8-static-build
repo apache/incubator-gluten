@@ -51,6 +51,3 @@ RUN set -ex; \
     mvn dependency:go-offline -Pbackends-velox -Piceberg -Pdelta -Pspark-3.5 -DskipTests; \
     rm -rf /opt/gluten; \
     rm -rf /root/.cache/ccache;
-
-CMD source /opt/rh/gcc-toolset-11/enable
-

@@ -57,5 +57,3 @@ RUN set -ex; \
     dnf clean all; \
     rm -rf /opt/gluten; \
     rm -rf /root/.cache/ccache;
-
-CMD source /opt/rh/devtoolset-11/enable
