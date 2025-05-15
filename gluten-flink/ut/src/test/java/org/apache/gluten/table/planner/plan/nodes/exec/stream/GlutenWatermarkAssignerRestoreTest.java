@@ -19,11 +19,11 @@ package org.apache.gluten.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WatermarkAssignerRestoreTest;
 import org.apache.flink.table.test.program.TableTestProgram;
-import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Disabled;
 
 import java.util.List;
 
-@Tag("flink-skip-tests")
+@Disabled
 public class GlutenWatermarkAssignerRestoreTest extends WatermarkAssignerRestoreTest {
 
     public GlutenWatermarkAssignerRestoreTest() {
@@ -32,7 +32,6 @@ public class GlutenWatermarkAssignerRestoreTest extends WatermarkAssignerRestore
 
     @Override
     public List<TableTestProgram> programs() {
-        System.out.println("GlutenWatermarkAssignerRestoreTest: Running all original Flink WatermarkAssignerRestoreTestPrograms via super.programs().");
         return super.programs();
     }
 }

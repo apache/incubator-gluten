@@ -19,11 +19,11 @@ package org.apache.gluten.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.CalcRestoreTest;
 import org.apache.flink.table.test.program.TableTestProgram;
-import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Disabled;
 
 import java.util.List;
 
-@Tag("flink-skip-tests")
+@Disabled
 public class GlutenCalcRestoreTest extends CalcRestoreTest {
 
     public GlutenCalcRestoreTest() {
@@ -32,8 +32,6 @@ public class GlutenCalcRestoreTest extends CalcRestoreTest {
 
     @Override
     public List<TableTestProgram> programs() {
-        System.out.println("GlutenCalcRestoreTest: Running all original Flink CalcTestPrograms via super.programs().");
         return super.programs();
     }
 }
-

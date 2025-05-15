@@ -17,7 +17,6 @@
 
 package org.apache.gluten.streaming.api.operators;
 
-// Flink
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -33,7 +32,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-// Calcite
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -41,20 +39,17 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkRexBuilder;
 
-// Velox4j
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.FilterNode;
 import io.github.zhztheplayer.velox4j.plan.ProjectNode;
 
-// Gluten
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.table.runtime.stream.common.Velox4jEnvironment;
 import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.util.PlanNodeIdGenerator;
 import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 
-// JUnit 5
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;

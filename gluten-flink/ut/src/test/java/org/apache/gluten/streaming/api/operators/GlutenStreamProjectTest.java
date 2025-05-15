@@ -18,14 +18,14 @@
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.StreamProjectTest;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 public class GlutenStreamProjectTest extends StreamProjectTest {
 
     @Override
     @Test
-    @Ignore("Skip test")
+    @Disabled
     public void testProject() throws Exception {
     }
 }

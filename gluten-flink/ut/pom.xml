@@ -159,7 +159,6 @@
                     <classpathDependencyExcludes>
                         <classpathDependencyExclude>org.apache.flink:flink-table-planner-loader</classpathDependencyExclude>
                     </classpathDependencyExcludes>
-                    <excludedGroups>flink-skip-tests</excludedGroups>
                 </configuration>
             </plugin>
             <plugin>
