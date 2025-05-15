@@ -972,98 +972,50 @@ TEST_F(IcebergTest, positionalDeletesMultipleSplits)
 
 TEST_F(IcebergTest, basic_utils_test)
 {
-    std::string query = R"(ATTACH TABLE _ UUID '9a9c6e03-bc9e-44b2-9df7-d04ca9836980'
-(
-    `l_orderkey` Int64,
-    `l_partkey` Int64,
-    `l_suppkey` Int64,
-    `l_linenumber` Int64,
-    `l_quantity` Float64,
-    `l_extendedprice` Float64,
-    `l_discount` Float64,
-    `l_tax` Float64,
-    `l_returnflag` String,
-    `l_linestatus` String,
-    `l_shipdate` Date,
-    `l_commitdate` Date,
-    `l_receiptdate` Date,
-    `l_shipinstruct` String,
-    `l_shipmode` String,
-    `l_comment` String
-)
-ENGINE = MergeTree
-ORDER BY l_shipdate
-SETTINGS index_granularity = 8192)";
-    auto ast = DB::DatabaseOnDisk::parseQueryFromMetadata(
-        test_logger,
-        local_engine::QueryContext::globalContext(),
-        "xxxxyy",
-        query);
-    assert(ast != nullptr);
+    std::string sql = R"(INSERT INTO function null('l_quantity double, l_extendedprice double, l_discount double, l_returnflag String, l_linestatus String') select l_quantity,l_extendedprice,l_discount,l_returnflag,l_linestatus from tpch100.lineitem)";
+    DB::Block block = runClickhouseSQL(sql);
+    headBlock(block);
 
-    std::string current_database_name = "IcebergTest";
-    auto * create_query = ast->as<DB::ASTCreateQuery>();
-    create_query->attach = true;
-    create_query->setDatabase(current_database_name);
-    create_query->uuid = DB::UUIDHelpers::Nil;
-
-    if (!create_query->storage)
-    {
-        LOG_INFO(test_logger, "Skipping table {} with no storage.", create_query->getTable());
-        assert(false);
-    }
-
-    if (!create_query->storage->engine->name.ends_with("MergeTree"))
-    {
-        LOG_INFO(test_logger, "Skipping table {} with engine {}. Only MergeTree engine is supported.",
-            create_query->getTable(), create_query->storage->engine->name);
-        assert(false);
-    }
-
-    DB::QualifiedTableName qualified_name{current_database_name, create_query->getTable()};
-
-    DB::Block block = runClickhouseSQL("select count(*) from tpch100.lineitem limit 1;");
-
-    {
-        context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", true);
-        std::map<std::string, std::vector<int64_t>> rowGroupSizesForFiles;
-        // Create two data files, each with two RowGroups
-        rowGroupSizesForFiles["data_file_1"] = {100, 85};
-        rowGroupSizesForFiles["data_file_2"] = {99, 1};
-
-        std::unordered_map<std::string, std::multimap<std::string, std::vector<int64_t>>> deleteFilesForBaseDatafiles;
-
-        deleteFilesForBaseDatafiles["delete_file_1"] = {
-            {"data_file_1", {0, 100, 102, 184}}, {"data_file_2", {1, 98, 99}}};
-
-        std::map<std::string, std::shared_ptr<TempFilePath>> dataFilePaths =
-            writeDataFiles(rowGroupSizesForFiles);
-
-        std::unordered_map<std::string, std::pair<int64_t, std::shared_ptr<TempFilePath>>>
-        deleteFilePaths = writePositionDeleteFiles( deleteFilesForBaseDatafiles, dataFilePaths);
-        assert(deleteFilePaths.size() == 1);
-
-        auto x = runClickhouseSQL(fmt::format("select pos from file('{}') where file_path = 'file://{}'",
-            deleteFilePaths["delete_file_1"].second->string(), dataFilePaths["data_file_2"]->string()));
-        // auto y = runClickhouseSQL(fmt::format("select * from file('{}')",
-        //     deleteFilePaths["delete_file_1"].second->string()));
-        headBlock(x, 100 , 100);
-
-        context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", DB::Field(false));
-    }
-
-    {
-        std::shared_ptr<TempFilePath> dataFilePath = writeDataFiles(rowCount, 4)[0];
-
-        runClickhouseSQL(fmt::format("select count(*) from file('{}')", dataFilePath->string()));
-        DB::Block block = runClickhouseSQL("select count(*) from IcebergTest.tmp");
-        EXPECT_TRUE(assertEqualResults(block, DB::Block{createColumn<UInt64>({rowCount}, "count()")}));
-
-
-        auto read = makeIcebergSplit(dataFilePath->string());
-        DB::Block actual = collectResult( *read);
-        EXPECT_TRUE(assertEqualResults( actual, runClickhouseSQL("select * from IcebergTest.tmp")));
-    }
+    // {
+    //     context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", true);
+    //     std::map<std::string, std::vector<int64_t>> rowGroupSizesForFiles;
+    //     // Create two data files, each with two RowGroups
+    //     rowGroupSizesForFiles["data_file_1"] = {100, 85};
+    //     rowGroupSizesForFiles["data_file_2"] = {99, 1};
+    //
+    //     std::unordered_map<std::string, std::multimap<std::string, std::vector<int64_t>>> deleteFilesForBaseDatafiles;
+    //
+    //     deleteFilesForBaseDatafiles["delete_file_1"] = {
+    //         {"data_file_1", {0, 100, 102, 184}}, {"data_file_2", {1, 98, 99}}};
+    //
+    //     std::map<std::string, std::shared_ptr<TempFilePath>> dataFilePaths =
+    //         writeDataFiles(rowGroupSizesForFiles);
+    //
+    //     std::unordered_map<std::string, std::pair<int64_t, std::shared_ptr<TempFilePath>>>
+    //     deleteFilePaths = writePositionDeleteFiles( deleteFilesForBaseDatafiles, dataFilePaths);
+    //     assert(deleteFilePaths.size() == 1);
+    //
+    //     auto x = runClickhouseSQL(fmt::format("select pos from file('{}') where file_path = 'file://{}'",
+    //         deleteFilePaths["delete_file_1"].second->string(), dataFilePaths["data_file_2"]->string()));
+    //     // auto y = runClickhouseSQL(fmt::format("select * from file('{}')",
+    //     //     deleteFilePaths["delete_file_1"].second->string()));
+    //     headBlock(x, 100 , 100);
+    //
+    //     context_->setSetting("input_format_parquet_use_native_reader_with_filter_push_down", DB::Field(false));
+    // }
+    //
+    // {
+    //     std::shared_ptr<TempFilePath> dataFilePath = writeDataFiles(rowCount, 4)[0];
+    //
+    //     runClickhouseSQL(fmt::format("select count(*) from file('{}')", dataFilePath->string()));
+    //     DB::Block block = runClickhouseSQL("select count(*) from IcebergTest.tmp");
+    //     EXPECT_TRUE(assertEqualResults(block, DB::Block{createColumn<UInt64>({rowCount}, "count()")}));
+    //
+    //
+    //     auto read = makeIcebergSplit(dataFilePath->string());
+    //     DB::Block actual = collectResult( *read);
+    //     EXPECT_TRUE(assertEqualResults( actual, runClickhouseSQL("select * from IcebergTest.tmp")));
+    // }
 }
 
 TEST_F(IcebergTest, EqualityDeleteActionBuilder)

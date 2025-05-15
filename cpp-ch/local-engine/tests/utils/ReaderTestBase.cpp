@@ -17,9 +17,11 @@
 
 #include "ReaderTestBase.h"
 
+#include <Core/Settings.h>
 #include <Databases/DatabaseMemory.h>
 #include <Interpreters/Squashing.h>
 #include <Interpreters/executeQuery.h>
+#include <Processors/Executors/CompletedPipelineExecutor.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <QueryPipeline/BlockIO.h>
 #include <Storages/ConstraintsDescription.h>
@@ -34,7 +36,6 @@
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
-#include <Core/Settings.h>
 
 namespace DB
 {
@@ -66,22 +67,16 @@ void ReaderTestBase::writeToFile(const std::string & filePath, const DB::Block &
     writeToFile(filePath, DB::Blocks{block});
 }
 
-void ReaderTestBase::writeToFile(
-    const std::string & filePath,
-    const std::vector<DB::Block> & blocks,
-    bool rowGroupPerBlock) const
+void ReaderTestBase::writeToFile(const std::string & filePath, const std::vector<DB::Block> & blocks, bool rowGroupPerBlock) const
 {
-
     const auto & settings = context_->getSettingsRef();
     auto row_group_rows = settings[Setting::output_format_parquet_row_group_size];
 
     if (rowGroupPerBlock)
     {
         /// we can't set FormatSettings per block, set it minimum value of all blocks
-        const auto min_block_it = std::ranges::min_element(blocks,
-            [](const DB::Block& a, const DB::Block& b) {
-                return a.rows() < b.rows();
-        });
+        const auto min_block_it
+            = std::ranges::min_element(blocks, [](const DB::Block & a, const DB::Block & b) { return a.rows() < b.rows(); });
 
         context_->setSetting("output_format_parquet_row_group_size", Field(min_block_it->rows()));
     }
@@ -185,7 +180,14 @@ Block ReaderTestBase::runClickhouseSQL(const std::string & query) const
         return collectResult(*executor);
     }
 
-    if (io.pipeline.pushing() || io.pipeline.completed())
+    if (io.pipeline.completed())
+    {
+        CompletedPipelineExecutor executor(io.pipeline);
+        executor.execute();
+        return Block{};
+    }
+
+    if (io.pipeline.pushing())
     {
         EXPECT_TRUE(false) << " Not Implemented";
         return {};
