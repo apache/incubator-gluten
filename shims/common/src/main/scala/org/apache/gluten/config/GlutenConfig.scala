@@ -783,21 +783,18 @@ object GlutenConfig {
 
   val COLUMNAR_BATCHSCAN_ENABLED =
     buildConf("spark.gluten.sql.columnar.batchscan")
-      .internal()
       .doc("Enable or disable columnar batchscan.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_FILESCAN_ENABLED =
     buildConf("spark.gluten.sql.columnar.filescan")
-      .internal()
       .doc("Enable or disable columnar filescan.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_HIVETABLESCAN_ENABLED =
     buildConf("spark.gluten.sql.columnar.hivetablescan")
-      .internal()
       .doc("Enable or disable columnar hivetablescan.")
       .booleanConf
       .createWithDefault(true)
@@ -818,7 +815,6 @@ object GlutenConfig {
 
   val COLUMNAR_HASHAGG_ENABLED =
     buildConf("spark.gluten.sql.columnar.hashagg")
-      .internal()
       .doc("Enable or disable columnar hashagg.")
       .booleanConf
       .createWithDefault(true)
@@ -839,35 +835,30 @@ object GlutenConfig {
 
   val COLUMNAR_PROJECT_ENABLED =
     buildConf("spark.gluten.sql.columnar.project")
-      .internal()
       .doc("Enable or disable columnar project.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_FILTER_ENABLED =
     buildConf("spark.gluten.sql.columnar.filter")
-      .internal()
       .doc("Enable or disable columnar filter.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_SORT_ENABLED =
     buildConf("spark.gluten.sql.columnar.sort")
-      .internal()
       .doc("Enable or disable columnar sort.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_WINDOW_ENABLED =
     buildConf("spark.gluten.sql.columnar.window")
-      .internal()
       .doc("Enable or disable columnar window.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_WINDOW_GROUP_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.window.group.limit")
-      .internal()
       .doc("Enable or disable columnar window group limit.")
       .booleanConf
       .createWithDefault(true)
@@ -891,7 +882,6 @@ object GlutenConfig {
 
   val COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.shuffledHashJoin")
-      .internal()
       .doc("Enable or disable columnar shuffledHashJoin.")
       .booleanConf
       .createWithDefault(true)
@@ -905,15 +895,14 @@ object GlutenConfig {
 
   val COLUMNAR_SORTMERGEJOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.sortMergeJoin")
-      .internal()
-      .doc("Enable or disable columnar sortMergeJoin. " +
-        "This should be set with preferSortMergeJoin=false.")
+      .doc(
+        "Enable or disable columnar sortMergeJoin. " +
+          "This should be set with preferSortMergeJoin=false.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_UNION_ENABLED =
     buildConf("spark.gluten.sql.columnar.union")
-      .internal()
       .doc("Enable or disable columnar union.")
       .booleanConf
       .createWithDefault(true)
@@ -927,21 +916,18 @@ object GlutenConfig {
 
   val COLUMNAR_EXPAND_ENABLED =
     buildConf("spark.gluten.sql.columnar.expand")
-      .internal()
       .doc("Enable or disable columnar expand.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_BROADCAST_EXCHANGE_ENABLED =
     buildConf("spark.gluten.sql.columnar.broadcastExchange")
-      .internal()
       .doc("Enable or disable columnar broadcastExchange.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_BROADCAST_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.broadcastJoin")
-      .internal()
       .doc("Enable or disable columnar broadcastJoin.")
       .booleanConf
       .createWithDefault(true)
@@ -955,14 +941,12 @@ object GlutenConfig {
 
   val COLUMNAR_COALESCE_ENABLED =
     buildConf("spark.gluten.sql.columnar.coalesce")
-      .internal()
       .doc("Enable or disable columnar coalesce.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_SHUFFLE_ENABLED =
     buildConf("spark.gluten.sql.columnar.shuffle")
-      .internal()
       .doc("Enable or disable columnar shuffle.")
       .booleanConf
       .createWithDefault(true)
@@ -1106,21 +1090,15 @@ object GlutenConfig {
       .createOptional
 
   val COLUMNAR_LIMIT_ENABLED =
-    buildConf("spark.gluten.sql.columnar.limit")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.columnar.limit").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_GENERATE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.generate")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.columnar.generate").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_TAKE_ORDERED_AND_PROJECT_ENABLED =
-    buildConf("spark.gluten.sql.columnar.takeOrderedAndProject")
-      .internal()
-      .booleanConf
+    buildConf("spark.gluten.sql.columnar.takeOrderedAndProject").booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_NATIVE_BLOOMFILTER_ENABLED =
@@ -1590,21 +1568,18 @@ object GlutenConfig {
 
   val CARTESIAN_PRODUCT_TRANSFORMER_ENABLED =
     buildConf("spark.gluten.sql.cartesianProductTransformerEnabled")
-      .internal()
       .doc("Config to enable CartesianProductExecTransformer.")
       .booleanConf
       .createWithDefault(true)
 
   val BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED =
     buildConf("spark.gluten.sql.broadcastNestedLoopJoinTransformerEnabled")
-      .internal()
       .doc("Config to enable BroadcastNestedLoopJoinExecTransformer.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_SAMPLE_ENABLED =
     buildConf("spark.gluten.sql.columnarSampleEnabled")
-      .internal()
       .doc("Disable or enable columnar sample.")
       .booleanConf
       .createWithDefault(false)
@@ -1742,14 +1717,12 @@ object GlutenConfig {
 
   val COLUMNAR_RANGE_ENABLED =
     buildConf("spark.gluten.sql.columnar.range")
-      .internal()
       .doc("Enable or disable columnar range.")
       .booleanConf
       .createWithDefault(true)
 
   val COLUMNAR_COLLECT_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.collectLimit")
-      .internal()
       .doc("Enable or disable columnar collectLimit.")
       .booleanConf
       .createWithDefault(true)

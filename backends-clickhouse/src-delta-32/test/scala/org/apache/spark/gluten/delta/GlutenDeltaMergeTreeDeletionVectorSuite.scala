@@ -33,7 +33,6 @@ class GlutenDeltaMergeTreeDeletionVectorSuite extends CreateMergeTreeSuite {
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
   }
@@ -43,7 +42,7 @@ class GlutenDeltaMergeTreeDeletionVectorSuite extends CreateMergeTreeSuite {
     withTable(tableName) {
       withTempDir {
         dirName =>
-          val s = createTableBuilder(tableName, "delta", s"$dirName/$tableName")
+          val s = createTableBuilder(tableName, "clickhouse", s"$dirName/$tableName")
             .withProps(Map("delta.enableDeletionVectors" -> "'true'"))
             .withTableKey("lineitem")
             .build()
@@ -62,6 +61,87 @@ class GlutenDeltaMergeTreeDeletionVectorSuite extends CreateMergeTreeSuite {
           checkFallbackOperators(df, 0)
       }
     }
+  }
+
+  test("Gluten-9606: Support CH MergeTree + Delta DeletionVector reading") {
+    val tableName = "mergetree_delta_dv"
+    withTable(tableName) {
+      withTempDir {
+        dirName =>
+          val s = createTableBuilder(tableName, "clickhouse", s"$dirName/$tableName")
+            .withProps(Map("delta.enableDeletionVectors" -> "'true'"))
+            .withTableKey("lineitem")
+            .build()
+          spark.sql(s)
+
+          spark.sql(s"""
+                       |insert into table $tableName
+                       |select /*+ REPARTITION(6) */ * from lineitem
+                       |""".stripMargin)
+
+          spark.sql(s"""
+                       | delete from $tableName
+                       | where l_orderkey = 3
+                       |""".stripMargin)
+
+          val df = spark.sql(s"""
+                                | select sum(l_linenumber) from $tableName
+                                |""".stripMargin)
+          val result = df.collect()
+          assert(
+            result.apply(0).get(0) === 1802425
+          )
+          checkFallbackOperators(df, 0)
+
+          spark.sql(s"""
+                       | delete from $tableName
+                       | where mod(l_orderkey, 3) = 2
+                       |""".stripMargin)
+
+          val df1 = spark.sql(s"""
+                                 | select sum(l_linenumber) from $tableName
+                                 |""".stripMargin)
+          assert(
+            df1.collect().apply(0).get(0) === 1200650
+          )
+          checkFallbackOperators(df1, 0)
+      }
+    }
+  }
+
+  // TODO: CH MergeTree + Delta DV + partition native delete support
+  ignore("Gluten-9606: Support CH MergeTree + Delta DeletionVector reading -- partition") {
+    val tableName = "mergetree_delta_dv_partition"
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS $tableName;
+                 |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS $tableName
+                 |(${table2columns.get("lineitem").get(true)})
+                 |USING clickhouse
+                 |PARTITIONED BY (l_returnflag)
+                 |TBLPROPERTIES (delta.enableDeletionVectors='true')
+                 |LOCATION '$dataHome/$tableName'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table $tableName
+                 | select /*+ REPARTITION(6) */ * from lineitem
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | delete from $tableName
+                 | where mod(l_orderkey, 3) = 1
+                 |""".stripMargin)
+
+    val df = spark.sql(s"""
+                          | select sum(l_linenumber) from $tableName
+                          |""".stripMargin)
+    val result = df.collect()
+    assert(
+      result.apply(0).get(0) === 1201486
+    )
+    checkFallbackOperators(df, 0)
   }
 }
 // scalastyle:off line.size.limit

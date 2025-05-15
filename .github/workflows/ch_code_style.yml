@@ -16,7 +16,9 @@
 name: CH Backend Code style checks
 
 on:
-  pull_request
+  pull_request:
+    paths:
+      - 'cpp-ch/**'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}

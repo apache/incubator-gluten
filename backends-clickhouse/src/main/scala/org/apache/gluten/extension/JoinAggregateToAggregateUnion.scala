@@ -138,7 +138,11 @@ private object RuleExpressionHelper {
           ) {
             return None
           }
-          Some(JoinKeys(leftKeys.toSeq, rightKeys.toSeq))
+          // ensure all join keys are in the same order
+          val sortedKeys = leftKeys.zip(rightKeys).sortBy { case (leftKey, _) => leftKey.name }
+          val leftSortedKeys = sortedKeys.map(_._1)
+          val rightSortedKeys = sortedKeys.map(_._2)
+          Some(JoinKeys(leftSortedKeys.toSeq, rightSortedKeys.toSeq))
         } catch {
           case e: GlutenException =>
             return None
@@ -339,6 +343,13 @@ case class JoinedAggregateAnalyzer(join: Join, subquery: LogicalPlan) extends Lo
           s" outputGroupingKeys: $outputGroupingKeys")
       return false
     }
+
+    // Ensure the grouping keys are in the same order as the join keys
+    val keysIndex = outputGroupingKeys.map {
+      case key => joinKeys.indexWhere(_.semanticEquals(key))
+    }
+    outputGroupingKeys = outputGroupingKeys.zip(keysIndex).sortBy(_._2).map(_._1)
+    groupingExpressions = groupingExpressions.zip(keysIndex).sortBy(_._2).map(_._1)
 
     aggregateExpressions =
       aggregate.aggregateExpressions.filter(_.find(_.isInstanceOf[AggregateExpression]).isDefined)
