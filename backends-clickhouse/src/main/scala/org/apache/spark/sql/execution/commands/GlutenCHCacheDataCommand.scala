@@ -182,7 +182,7 @@ case class GlutenCHCacheDataCommand(
             snapshot.metadata.configuration.getOrElse("bloomfilterIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("setIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("primaryKey", ""),
-            PartSerializer.fromPartNames(parts.map(_.name).toSeq),
+            PartSerializer.fromPartNames(parts.map(p => new Path(new URI(p.name)).toString).toSeq),
             snapshot.metadata.schema,
             snapshot.metadata.configuration.asJava,
             new JList[String]()
