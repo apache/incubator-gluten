@@ -13,8 +13,8 @@ We have a weekly job defined in `docker_image.yml` to build docker images for CI
 
 file | images | comments
 -- | -- | --
-dev/docker/Dockerfile.centos7-static-build | apache/gluten:vcpkg-centos-8 | centos 7, static link, jdk8
-dev/docker/Dockerfile.centos8-static-build | apache/gluten:vcpkg-centos-7 | centos 8, static link, jdk8
+dev/docker/Dockerfile.centos7-static-build | apache/gluten:vcpkg-centos-7 | centos 7, static link, jdk8
+dev/docker/Dockerfile.centos8-static-build | apache/gluten:vcpkg-centos-8 | centos 8, static link, jdk8
 dev/docker/Dockerfile.centos8-dynamic-build | apache/gluten:centos-8-jdk8 | centos 8, dynamic link, jdk8
 dev/docker/Dockerfile.centos8-dynamic-build | apache/gluten:centos-8-jdk11 | centos 8, dynamic link, jdk11
 dev/docker/Dockerfile.centos8-dynamic-build | apache/gluten:centos-8-jdk17 | centos 8, dynamic link, jdk17
