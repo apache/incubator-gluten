@@ -82,7 +82,6 @@ public class GlutenStreamingTestBase extends StreamingTestBase {
                 CollectionUtil.iteratorToList(tEnv().executeSql(query).collect()).stream()
                         .map(Object::toString)
                         .collect(Collectors.toList());
-        actual.sort(String::compareTo);
         assertThat(actual).isEqualTo(expected);
     }
 }
