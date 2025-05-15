@@ -1700,4 +1700,27 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
+  test("GLUTEN-9647: Fix SimplifySumRule on different types") {
+    val sql =
+      s"""
+         | select sum(int_field * 2L),
+         |        min(float_field / 2),
+         |        max(double_field * 0.03),
+         |        sum(short_field * 2),
+         |        sum(decimal_field * 3L)
+         | from $json_table_name
+         | where day = '2023-06-06'
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      df => {
+        val jsonFileScan = collect(df.queryExecution.executedPlan) {
+          case l: HiveTableScanExecTransformer => l
+        }
+        assert(jsonFileScan.size == 1)
+      }
+    )
+  }
+
 }
