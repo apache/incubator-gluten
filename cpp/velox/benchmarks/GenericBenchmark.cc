@@ -626,7 +626,7 @@ int main(int argc, char** argv) {
   setQueryTraceConfig(backendConf);
 
   initVeloxBackend(backendConf);
-  memory::MemoryManager::testingSetInstance({});
+  memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
 
   // Parse substrait plan, split file and data files.
   std::string substraitJsonFile = FLAGS_plan;

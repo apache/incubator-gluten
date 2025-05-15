@@ -25,7 +25,7 @@ namespace gluten {
 class VeloxColumnarBatchTest : public ::testing::Test, public test::VectorTestBase {
  protected:
   static void SetUpTestCase() {
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 };
 
