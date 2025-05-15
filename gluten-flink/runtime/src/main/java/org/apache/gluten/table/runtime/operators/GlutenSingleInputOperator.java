@@ -110,7 +110,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
                 element.getValue(),
                 allocator,
                 session,
-                inputType);
+                inputType.get());
             inputQueue.put(inRv);
             UpIterator.State state = task.advance();
             if (state == UpIterator.State.AVAILABLE) {
@@ -118,7 +118,7 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
                 List<RowData> rows = FlinkRowToVLVectorConvertor.toRowData(
                         outRv,
                         allocator,
-                        outputType);
+                        outputType.get());
                 for (RowData row : rows) {
                     output.collect(outElement.replace(row));
                 }
