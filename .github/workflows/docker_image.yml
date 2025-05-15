@@ -25,8 +25,6 @@ on:
       - 'dev/docker/Dockerfile.centos7-static-build'
       - 'dev/docker/Dockerfile.centos8-static-build'
       - 'dev/docker/Dockerfile.centos8-dynamic-build'
-      - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk11'
-      - 'dev/docker/Dockerfile.centos8-dynamic-build-jdk17'
       - 'dev/docker/cudf/Dockerfile'
   schedule:
     - cron: '0 20 * * 0'
@@ -173,6 +171,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: "JAVA_VERSION=1.8.0"
           file: dev/docker/Dockerfile.centos8-dynamic-build
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.DOCKERHUB_REPO }}",push-by-digest=true,push=true
@@ -223,6 +222,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: "JAVA_VERSION=11"
           file: dev/docker/Dockerfile.centos8-dynamic-build-jdk11
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.DOCKERHUB_REPO }}",push-by-digest=true,push=true
@@ -273,6 +273,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: "JAVA_VERSION=17"
           file: dev/docker/Dockerfile.centos8-dynamic-build-jdk17
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.DOCKERHUB_REPO }}",push-by-digest=true,push=true
