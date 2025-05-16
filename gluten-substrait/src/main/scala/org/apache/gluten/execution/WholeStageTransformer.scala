@@ -152,7 +152,7 @@ trait TransformSupport extends ValidatablePlan {
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
-  //Use super.nodeName will cause scala 213 Super calls can only target methods. for FileSourceScan
+  // Use super.nodeName will cause scala 213 Super calls can only target methods. for FileSourceScan
   override def nodeName: String =
     if (isCudf) "Cudf" + getClass.getSimpleName.replaceAll("Exec$", "") else getClass.getSimpleName
 
