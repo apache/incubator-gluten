@@ -58,8 +58,10 @@ jobs:
       - name: Check CMake format
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
-          cd $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE/
+          echo "run the python "
           python3 dev/check.py format main --fix
+          echo "success run the python "
           if ! git diff --quiet; then
             diff=`git --no-pager diff`
             echo "${{ matrix.command.message }} in the following files:"
