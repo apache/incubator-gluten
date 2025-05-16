@@ -56,6 +56,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check CMake format
         run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
           python3 dev/check.py format main --fix
           if ! git diff --quiet; then
             diff=`git --no-pager diff`
