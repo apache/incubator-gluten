@@ -52,6 +52,7 @@ jobs:
           apt update -y
           apt install git python3-pip -y
           pip3 install --user cmake-format
+          pip3 install regex
       - uses: actions/checkout@v4
       - name: Check CMake format
         run: |
