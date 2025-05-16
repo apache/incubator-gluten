@@ -51,7 +51,8 @@ add_velox_test(
 add_velox_test(
   velox_plan_conversion_test
   SOURCES
-  Substrait2VeloxPlanConversionTest.cc Substrait2VeloxPlanValidatorTest.cc
+  Substrait2VeloxPlanConversionTest.cc
+  Substrait2VeloxPlanValidatorTest.cc
   Substrait2VeloxValuesNodeConversionTest.cc
   SubstraitExtensionCollectorTest.cc
   VeloxSubstraitRoundTripTest.cc

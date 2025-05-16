@@ -278,7 +278,7 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
  private:
   class ColumnarBatchIteratorDumper final : public ColumnarBatchIterator {
    public:
-    ColumnarBatchIteratorDumper(JniColumnarBatchIterator* self) : self_(self){};
+    ColumnarBatchIteratorDumper(JniColumnarBatchIterator* self) : self_(self) {};
 
     std::shared_ptr<ColumnarBatch> next() override {
       return self_->nextInternal();
