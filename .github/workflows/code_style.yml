@@ -24,25 +24,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  CPP-format-check:
-    name: CPP Format Check
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        path:
-          - check: 'cpp'
-            exclude: ''
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run clang-format style check for C/C++
-        uses: jidicula/clang-format-action@v4.11.0
-        with:
-          clang-format-version: '15'
-          check-path: ${{ matrix.path['check'] }}
-          fallback-style: 'Google' # optional
 
-  CMake-format-check:
-    name: CMake Format Check
+  Code-format-check:
+    name: Code Format Check(cpp)
     runs-on: ubuntu-latest
     container: ubuntu:22.04
     steps:
