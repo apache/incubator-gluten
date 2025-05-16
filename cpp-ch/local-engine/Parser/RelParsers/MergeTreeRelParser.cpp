@@ -200,7 +200,9 @@ void MergeTreeRelParser::recoverDeltaNameIfNeeded(
 {
     const auto & header = plan.getCurrentHeader();
     DB::ActionsDAG actions_dag(header.getNamesAndTypesList());
-    NameSet names;
+    // Use 'Names' to make sure the orders of the output
+    Names names;
+    names.reserve(output.getColumns().size());
     bool need_recover = false;
     for (const auto & column : output)
     {
@@ -212,7 +214,7 @@ void MergeTreeRelParser::recoverDeltaNameIfNeeded(
             func(actions_dag, merge_tree_table, context);
         }
 
-        names.insert(column.name);
+        names.push_back(column.name);
     }
 
     if (!need_recover)
