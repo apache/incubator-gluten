@@ -665,4 +665,10 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
       s"select l_orderkey, right(l_comment, $NULL_STR_COL) " +
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
+
+  test("luhn_check") {
+    runQueryAndCompare(
+      s"select l_orderkey, luhn_check(l_comment) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
 }
