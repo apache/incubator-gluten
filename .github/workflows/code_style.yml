@@ -19,7 +19,6 @@ on:
     paths:
       - '.github/workflows/code_style.yml'
       - 'cpp/**'
-      - 'cpp-ch/**'
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
@@ -55,7 +54,9 @@ jobs:
           pip3 install regex
           pip3 install black
       - uses: actions/checkout@v4
-      - name: Check CMake format
+        with:
+            fetch-depth: 0
+      - name: Check CPP format
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
           cd $GITHUB_WORKSPACE/

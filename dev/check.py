@@ -217,6 +217,7 @@ def get_files(commit, path):
         for file in filelist
         if "_build" not in file
         and "cmake-build-debug" not in file
+        and "cpp-ch" not in file
     ]
 
 
