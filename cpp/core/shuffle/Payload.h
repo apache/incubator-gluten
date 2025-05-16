@@ -21,6 +21,7 @@
 #include <arrow/io/interfaces.h>
 #include <arrow/memory_pool.h>
 
+#include "shuffle/Dictionary.h"
 #include "shuffle/Options.h"
 #include "shuffle/Utils.h"
 
@@ -52,10 +53,6 @@ class Payload {
 
   uint32_t numRows() const {
     return numRows_;
-  }
-
-  uint32_t numBuffers() {
-    return isValidityBuffer_ ? isValidityBuffer_->size() : 1;
   }
 
   const std::vector<bool>* isValidityBuffer() const {
@@ -103,20 +100,23 @@ class BlockPayload final : public Payload {
 
   int64_t rawSize() override;
 
- protected:
+ private:
   BlockPayload(
       Type type,
       uint32_t numRows,
+      uint32_t numBuffers,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
-      arrow::MemoryPool* pool,
       arrow::util::Codec* codec)
-      : Payload(type, numRows, isValidityBuffer), buffers_(std::move(buffers)), pool_(pool), codec_(codec) {}
+      : Payload(type, numRows, isValidityBuffer),
+        numBuffers_(numBuffers),
+        buffers_(std::move(buffers)),
+        codec_(codec) {}
 
   void setCompressionTime(int64_t compressionTime);
 
+  uint32_t numBuffers_;
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
-  arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
 };
 
@@ -125,9 +125,11 @@ class InMemoryPayload final : public Payload {
   InMemoryPayload(
       uint32_t numRows,
       const std::vector<bool>* isValidityBuffer,
+      const std::shared_ptr<arrow::Schema>& schema,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       bool hasComplexType = false)
       : Payload(Type::kUncompressed, numRows, isValidityBuffer),
+        schema_(schema),
         buffers_(std::move(buffers)),
         hasComplexType_(hasComplexType) {}
 
@@ -148,9 +150,18 @@ class InMemoryPayload final : public Payload {
 
   int64_t rawSize() override;
 
+  uint32_t numBuffers() const;
+
+  int64_t rawCapacity() const;
+
   bool mergeable() const;
 
+  std::shared_ptr<arrow::Schema> schema() const;
+
+  arrow::Status createDictionaries(const std::shared_ptr<ShuffleDictionaryWriter>& dictionary);
+
  private:
+  std::shared_ptr<arrow::Schema> schema_;
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
   bool hasComplexType_;
 };
@@ -175,7 +186,6 @@ class UncompressedDiskBlockPayload final : public Payload {
   int64_t rawSize_;
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
-  uint32_t readPos_{0};
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readUncompressedBuffer();
 };
