@@ -156,6 +156,30 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
     return min_position;
 }
 
+const std::unordered_map<String, std::tuple<std::optional<String>, DB::DataTypePtr, ReplaceDeltaNodeFunc>> & getDeltaMetaColumnMap()
+{
+    static const std::unordered_map<String, std::tuple<std::optional<String>, DB::DataTypePtr, ReplaceDeltaNodeFunc>> DELTA_META_COLUMN_MAP
+    = {{FileMetaColumns::INPUT_FILE_NAME, std::tuple("_part", std::make_shared<DB::DataTypeString>(), replaceInputFileNameNode)},
+       {FileMetaColumns::INPUT_FILE_BLOCK_START,
+        std::tuple(std::nullopt, std::make_shared<DB::DataTypeInt64>(), replaceInputFileBlockStartNode)},
+       {FileMetaColumns::INPUT_FILE_BLOCK_LENGTH,
+        std::tuple(std::nullopt, std::make_shared<DB::DataTypeInt64>(), replaceInputFileBlockLengthNode)},
+       {ParquetVirtualMeta::TMP_ROWINDEX,
+        std::tuple(DB::BlockOffsetColumn::name, std::make_shared<DB::DataTypeUInt64>(), replaceTmpRowIndexNode)},
+       {FileMetaColumns::FILE_PATH, std::tuple("_part", std::make_shared<DB::DataTypeString>(), replaceFilePathNode)},
+       {FileMetaColumns::FILE_NAME, std::tuple("_part", std::make_shared<DB::DataTypeString>(), replaceFileNameNode)},
+       {FileMetaColumns::FILE_BLOCK_START,
+        std::tuple(std::nullopt, std::make_shared<DB::DataTypeInt64>(), replaceFileBlockStartNode)},
+       {FileMetaColumns::FILE_BLOCK_LENGTH,
+        std::tuple(std::nullopt, std::make_shared<DB::DataTypeInt64>(), replaceFileBlockLengthNode)},
+       {FileMetaColumns::FILE_SIZE, std::tuple(std::nullopt, std::make_shared<DB::DataTypeInt64>(), replaceFileSizeNode)},
+       {FileMetaColumns::FILE_MODIFICATION_TIME, std::tuple(std::nullopt, std::make_shared<DB::DataTypeDateTime64>(6), replaceFileModificationTimeNode)},
+       {DeltaVirtualMeta::DELTA_INTERNAL_IS_ROW_DELETED,
+           std::tuple("_part", std::make_shared<DB::DataTypeNullable>(std::make_shared<DB::DataTypeInt8>()), replaceDeltaInternalRowDeletedNode)} // make sure there is a '_part' column
+    };
+    return DELTA_META_COLUMN_MAP;
+}
+
 
 DB::Block MergeTreeRelParser::parseMergeTreeOutput(const substrait::ReadRel & rel, SparkStorageMergeTreePtr storage)
 {
@@ -175,9 +199,9 @@ DB::Block MergeTreeRelParser::replaceDeltaNameIfNeeded(const DB::Block & output)
     NameSet names;
     for (const auto & column : output)
     {
-        if (DELTA_META_COLUMN_MAP.contains(column.name))
+        if (getDeltaMetaColumnMap().contains(column.name))
         {
-            if (auto tuple = DELTA_META_COLUMN_MAP.at(column.name); std::get<0>(tuple).has_value())
+            if (auto tuple = getDeltaMetaColumnMap().at(column.name); std::get<0>(tuple).has_value())
             {
                 if (!names.contains(std::get<0>(tuple).value()))
                 {
@@ -206,10 +230,10 @@ void MergeTreeRelParser::recoverDeltaNameIfNeeded(
     bool need_recover = false;
     for (const auto & column : output)
     {
-        if (DELTA_META_COLUMN_MAP.contains(column.name))
+        if (getDeltaMetaColumnMap().contains(column.name))
         {
             need_recover = true;
-            auto tuple = DELTA_META_COLUMN_MAP.at(column.name);
+            auto tuple = getDeltaMetaColumnMap().at(column.name);
             ReplaceDeltaNodeFunc func = std::get<2>(tuple);
             func(actions_dag, merge_tree_table, context);
         }
