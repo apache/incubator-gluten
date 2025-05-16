@@ -202,6 +202,7 @@ void MergeTreeRelParser::recoverDeltaNameIfNeeded(
     DB::ActionsDAG actions_dag(header.getNamesAndTypesList());
     // Use 'Names' to make sure the orders of the output
     Names names;
+    names.reserve(output.getColumns().size());
     bool need_recover = false;
     for (const auto & column : output)
     {
