@@ -86,7 +86,6 @@ public class GlutenSingleInputOperator extends TableStreamOperator<RowData>
         outElement = new StreamRecord(null);
         memoryManager = MemoryManager.create(AllocationListener.NOOP);
         session = Velox4j.newSession(memoryManager);
-
         inputQueue = session.externalStreamOps().newBlockingQueue();
         // add a mock input as velox not allow the source is empty.
         PlanNode mockInput = new TableScanNode(

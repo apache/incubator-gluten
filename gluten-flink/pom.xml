@@ -32,6 +32,7 @@
     <module>planner</module>
     <module>loader</module>
     <module>runtime</module>
+    <module>connectors</module>
     <module>ut</module>
   </modules>
 
