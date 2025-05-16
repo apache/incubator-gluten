@@ -50,9 +50,8 @@ jobs:
         run: |
           apt update -y
           apt install git python3-pip -y
-          pip3 install --user cmake-format
-          pip3 install regex
-          pip3 install black
+          apt install --no-install-recommends -y clang-format-15
+          pip3 install --break-system-packages cmake_format black pyyaml regex
       - uses: actions/checkout@v4
         with:
             fetch-depth: 0
@@ -60,9 +59,7 @@ jobs:
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
           cd $GITHUB_WORKSPACE/
-          echo "run the python "
           python3 dev/check.py format main --fix
-          echo "success run the python "
           if ! git diff --quiet; then
             diff=`git --no-pager diff`
             echo "${{ matrix.command.message }} in the following files:"

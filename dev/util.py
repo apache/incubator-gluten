@@ -41,7 +41,6 @@ def run(command, compressed=False, **kwargs):
             input = "\n".join(input) + "\n"
 
         kwargs["input"] = input.encode("utf-8")
-    print("run the command : " + command, file=sys.stderr)
     reply = subprocess.run(
         command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs
     )
