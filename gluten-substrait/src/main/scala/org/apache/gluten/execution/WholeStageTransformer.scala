@@ -152,7 +152,7 @@ trait TransformSupport extends ValidatablePlan {
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
-  override def nodeName: String = if (isCudf) "Cudf" + super.nodeName else super.nodeName
+  override val nodeName: String = if (isCudf) "Cudf" + super.nodeName else super.nodeName
 
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
