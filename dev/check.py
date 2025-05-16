@@ -215,13 +215,8 @@ def get_files(commit, path):
     return [
         file
         for file in filelist
-        if "/data/" not in file
-        and "velox/external/" not in file
-        and "build/fbcode_builder" not in file
-        and "build/deps" not in file
+        if "_build" not in file
         and "cmake-build-debug" not in file
-        and "NOTICE.txt" != file
-        and "velox/docs/affiliations_map.txt" != file
     ]
 
 
