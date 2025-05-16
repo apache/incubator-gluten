@@ -51,7 +51,7 @@ jobs:
           apt update -y
           apt install git python3-pip -y
           apt install --no-install-recommends -y clang-format-15
-          pip3 install --break-system-packages cmake_format black pyyaml regex
+          pip3 install cmake_format black pyyaml regex
       - uses: actions/checkout@v4
         with:
             fetch-depth: 0
