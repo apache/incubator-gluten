@@ -131,33 +131,44 @@ public class FlinkRowToVLVectorConvertor {
             BufferAllocator allocator,
             RowType rowType) {
         // TODO: support more types
-        final BaseVector loadedVector = rowVector.loadedVector();
-        final FieldVector fieldVector = Arrow.toArrowVector(
-                allocator,
-                loadedVector);
-        List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
-        for (int j = 0; j < rowVector.getSize(); j++) {
-            List<Object> fieldValues = new ArrayList<>(rowType.size());
-            for (int i = 0; i < rowType.size(); i++) {
-                Type fieldType = rowType.getChildren().get(i);
-                if (fieldType instanceof IntegerType) {
-                    fieldValues.add(i, ((IntVector) fieldVector.getChildrenFromFields().get(i)).get(j));
-                } else if (fieldType instanceof BigIntType) {
-                    fieldValues.add(i, ((BigIntVector) fieldVector.getChildrenFromFields().get(i)).get(j));
-                } else if (fieldType instanceof VarCharType) {
-                    fieldValues.add(
-                            i,
-                            BinaryStringData.fromBytes(
-                                    ((VarCharVector) fieldVector.getChildrenFromFields().get(i)).get(j)));
-                } else {
-                    throw new RuntimeException("Unsupported field type: " + fieldType);
+        BaseVector loadedVector = null;
+        FieldVector fieldVector = null;
+        try {
+            loadedVector = rowVector.loadedVector();
+            fieldVector = Arrow.toArrowVector(
+                    allocator,
+                    loadedVector);
+            List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
+            for (int j = 0; j < rowVector.getSize(); j++) {
+                List<Object> fieldValues = new ArrayList<>(rowType.size());
+                for (int i = 0; i < rowType.size(); i++) {
+                    Type fieldType = rowType.getChildren().get(i);
+                    if (fieldType instanceof IntegerType) {
+                        fieldValues.add(i, ((IntVector) fieldVector.getChildrenFromFields().get(i)).get(j));
+                    } else if (fieldType instanceof BigIntType) {
+                        fieldValues.add(i, ((BigIntVector) fieldVector.getChildrenFromFields().get(i)).get(j));
+                    } else if (fieldType instanceof VarCharType) {
+                        fieldValues.add(
+                                i,
+                                BinaryStringData.fromBytes(
+                                        ((VarCharVector) fieldVector.getChildrenFromFields().get(i)).get(j)));
+                    } else {
+                        throw new RuntimeException("Unsupported field type: " + fieldType);
+                    }
                 }
+                rowDatas.add(GenericRowData.of(fieldValues.toArray()));
             }
-            rowDatas.add(GenericRowData.of(fieldValues.toArray()));
+            return rowDatas;
+        } finally {
+            /// The FieldVector/BaseVector should be closed in `finally`, to avoid it may not be closed when exceptions rasied,
+            /// that lead to memory leak.
+            if (fieldVector != null) {
+                fieldVector.close();
+            }
+            if (loadedVector != null) {
+                loadedVector.close();
+            }
         }
-        fieldVector.close();
-        loadedVector.close();
-        return rowDatas;
     }
 
 }
