@@ -31,16 +31,19 @@ import org.apache.spark.sql.execution.datasources.{ExecutedWriteSummary, WriteJo
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
+import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import scala.collection.mutable.ArrayBuffer
 
-case class DeltaFileCommitInfo(committer: FileDelayedCommitProtocol)
+case class DeltaFileCommitInfo(
+    committer: FileDelayedCommitProtocol,
+    taskAttemptContext: TaskAttemptContext)
   extends (NativeFileWriteResult => Unit) {
   val addedFiles: ArrayBuffer[(Map[String, String], String)] =
     new ArrayBuffer[(Map[String, String], String)]
   override def apply(stat: NativeFileWriteResult): Unit = {
     if (CHColumnarWrite.validatedPartitionID(stat.partition_id)) {
-      val partitionValues = committer.parsePartitions(stat.partition_id)
+      val partitionValues = committer.parsePartitions(stat.partition_id, taskAttemptContext)
       addedFiles.append((partitionValues, new Path(stat.relativePath).toUri.toString))
     } else {
       addedFiles.append((Map.empty[String, String], stat.filename))
@@ -149,7 +152,7 @@ case class FileDeltaColumnarWrite(
     } else {
       // stats.map(row => x.apply(row).getString(0)).foreach(println)
       // process stats
-      val commitInfo = DeltaFileCommitInfo(committer)
+      val commitInfo = DeltaFileCommitInfo(committer, taskAttemptContext)
       val basicNativeStat =
         NativeBasicWriteTaskStatsTracker(description.path, basicWriteJobStatsTracker)
       val basicNativeStats = Seq(commitInfo, basicNativeStat)
