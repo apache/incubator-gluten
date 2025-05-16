@@ -137,7 +137,8 @@ class ValueStreamNode final : public facebook::velox::core::PlanNode {
   }
 
  private:
-  void addDetails(std::stringstream& stream) const override{};
+  void addDetails(std::stringstream& stream) 
+  const override{};
 
   const facebook::velox::RowTypePtr outputType_;
   std::shared_ptr<ResultIterator> iterator_;

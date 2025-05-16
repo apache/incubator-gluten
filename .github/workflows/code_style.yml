@@ -53,6 +53,7 @@ jobs:
           apt install git python3-pip -y
           pip3 install --user cmake-format
           pip3 install regex
+          pip3 install black
       - uses: actions/checkout@v4
       - name: Check CMake format
         run: |

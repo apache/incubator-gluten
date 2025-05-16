@@ -96,6 +96,7 @@ format_file_types = OrderedDict(
         "CMakeLists.txt": attrdict({"formatter": CMakeFormatter}),
         "*.cmake": attrdict({"formatter": CMakeFormatter}),
         "*.cpp": attrdict({"formatter": CppFormatter}),
+        "*.cc": attrdict({"formatter": CppFormatter}),
         "*.h": attrdict({"formatter": CppFormatter}),
         "*.inc": attrdict({"formatter": CppFormatter}),
         "*.prolog": attrdict({"formatter": CppFormatter}),
