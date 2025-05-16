@@ -29,8 +29,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
  * notice that some case can not be applied to this rule:
  *   - get_json_object(get_json_object({"a":"{\\\"x\\\":5}"}', '$.a'), '$.x'), the json string has
  *     backslashes to escape quotes ;
- *   - get_json_object(get_json_object('{"a.b": 0}', '$.a), '$.b'), the json key contains dot
- *     character(.) and it's same as the collapsed json path;
  */
 case class CollapseGetJsonObjectExpressionRule(spark: SparkSession) extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = {
