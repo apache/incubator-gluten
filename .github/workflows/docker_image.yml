@@ -223,7 +223,7 @@ jobs:
         with:
           context: .
           build-args: JAVA_VERSION=11
-          file: dev/docker/Dockerfile.centos8-dynamic-build-jdk11
+          file: dev/docker/Dockerfile.centos8-dynamic-build
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.DOCKERHUB_REPO }}",push-by-digest=true,push=true
 
@@ -274,7 +274,7 @@ jobs:
         with:
           context: .
           build-args: JAVA_VERSION=17
-          file: dev/docker/Dockerfile.centos8-dynamic-build-jdk17
+          file: dev/docker/Dockerfile.centos8-dynamic-build
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.DOCKERHUB_REPO }}",push-by-digest=true,push=true
 
