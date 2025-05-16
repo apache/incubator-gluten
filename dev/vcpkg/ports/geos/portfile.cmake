@@ -12,7 +12,6 @@ vcpkg_extract_source_archive_ex(
     PATCHES
         disable-warning-4996.patch
         fix-exported-config.patch
-        install-hpp-files.patch
         # The two patches below come from Velox.
         geos-build.patch
         geos-cmakelists.patch
