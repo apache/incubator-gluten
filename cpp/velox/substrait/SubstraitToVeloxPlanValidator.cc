@@ -310,6 +310,9 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
     if (fromType->isVarchar()) {
       return true;
     }
+    if (fromType->isBoolean()) {
+      return true;
+    }
     if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
         fromType->isDouble() || fromType->isReal()) {
       return true;
