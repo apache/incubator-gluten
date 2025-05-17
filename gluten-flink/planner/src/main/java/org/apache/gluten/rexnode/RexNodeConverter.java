@@ -41,6 +41,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.gluten.util.LogicalTypeConverter;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -105,7 +106,7 @@ public class RexNodeConverter {
             case VARCHAR:
                 return new VarCharValue(literal.getValue().toString());
             case BINARY:
-                return new VarBinaryValue(literal.getValue().toString());
+                return VarBinaryValue.create(literal.getValue().toString().getBytes(StandardCharsets.UTF_8));
             case DECIMAL:
             case INTERVAL_SECOND:
                 // interval is used as decimal.
