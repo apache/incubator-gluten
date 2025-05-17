@@ -56,7 +56,8 @@ class GlutenWholeStageColumnarRDD(
     var rdds: ColumnarInputRDDsWrapper,
     pipelineTime: SQLMetric,
     updateInputMetrics: InputMetricsWrapper => Unit,
-    updateNativeMetrics: IMetrics => Unit)
+    updateNativeMetrics: IMetrics => Unit,
+    enableCudf: Boolean = false)
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
   private val numaBindingInfo = GlutenConfig.get.numaBindingInfo
 
@@ -73,7 +74,8 @@ class GlutenWholeStageColumnarRDD(
           updateInputMetrics,
           updateNativeMetrics,
           split.index,
-          inputIterators
+          inputIterators,
+          enableCudf
         )
     }
   }

@@ -94,7 +94,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
-  // Just for benchmark
   ::substrait::Plan& getPlan() {
     return substraitPlan_;
   }
@@ -102,7 +101,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   virtual std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
-      const std::unordered_map<std::string, std::string>& sessionConf) {
+      const std::unordered_map<std::string, std::string>& sessionConf,
+      bool enableCudf) {
     throw GlutenException("Not implemented");
   }
 
