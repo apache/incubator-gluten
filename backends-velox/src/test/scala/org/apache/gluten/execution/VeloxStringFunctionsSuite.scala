@@ -666,7 +666,7 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
-  test("luhn_check") {
+  testWithMinSparkVersion("luhn_check", "3.5") {
     runQueryAndCompare(
       s"select l_orderkey, luhn_check(l_comment) " +
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
