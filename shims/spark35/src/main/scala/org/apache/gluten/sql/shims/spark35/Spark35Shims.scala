@@ -115,7 +115,8 @@ class Spark35Shims extends SparkShims {
       Sig[EqualNull](ExpressionNames.EQUAL_NULL),
       Sig[ILike](ExpressionNames.ILIKE),
       Sig[MapContainsKey](ExpressionNames.MAP_CONTAINS_KEY),
-      Sig[Get](ExpressionNames.GET)
+      Sig[Get](ExpressionNames.GET),
+      Sig[Luhncheck](ExpressionNames.LUHN_CHECK)
     )
   }
 
