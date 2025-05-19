@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.debug.DebugExec
+import org.apache.spark.util.SparkVersionUtil
 
 package object transition {
   type TransitionGraph = FloydWarshallGraph[TransitionGraph.Vertex, Transition]
@@ -33,7 +34,11 @@ package object transition {
   // Extend this list in shim layer once Spark has more.
   def canPropagateConvention(plan: SparkPlan): Boolean = plan match {
     case p: DebugExec => true
-    case p: UnionExec => true
+    case p: UnionExec
+        if SparkVersionUtil.compareMajorMinorVersion(
+          SparkVersionUtil.majorMinorVersion(),
+          (3, 3)) >= 0 =>
+      true
     case p: AQEShuffleReadExec => true
     case p: InputAdapter => true
     case p: WholeStageCodegenExec => true
