@@ -23,7 +23,7 @@ public class DeltaWriterJNIWrapper {
   }
 
   public static native long createDeletionVectorWriter(
-      String tablePath, int prefix_length, long packingTargetSize);
+      String tablePath, int prefix_length, long packingTargetSize, String dvFileNamePrefix);
 
   public static native void deletionVectorWrite(long writer_address, long block_address);
 

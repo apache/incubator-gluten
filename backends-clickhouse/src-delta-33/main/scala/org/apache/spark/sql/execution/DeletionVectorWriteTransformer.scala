@@ -32,6 +32,7 @@ import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.storage.dv.DeletionVectorStore
 import org.apache.spark.sql.delta.util.{Utils => DeltaUtils}
 import org.apache.spark.sql.execution.datasources.CallTransformer
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
@@ -62,6 +63,7 @@ case class DeletionVectorWriteTransformer(
     val tablePathString = DeletionVectorStore.pathToEscapedString(table)
     val packingTargetSize =
       session.conf.get(DeltaSQLConf.DELETION_VECTOR_PACKING_TARGET_SIZE)
+    val dvPrefix = SQLConf.get.getConf(DeltaSQLConf.TEST_DV_NAME_PREFIX)
 
     child.executeColumnar().mapPartitions {
       blockIterator =>
@@ -73,7 +75,7 @@ case class DeletionVectorWriteTransformer(
 
           override def next(): ColumnarBatch = {
             writer = DeltaWriterJNIWrapper
-              .createDeletionVectorWriter(tablePathString, prefixLen, packingTargetSize)
+              .createDeletionVectorWriter(tablePathString, prefixLen, packingTargetSize, dvPrefix)
             while (blockIterator.hasNext) {
               val n = blockIterator.next()
               val block_address =
