@@ -14,24 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.backendsapi.velox.VeloxBatch
-import org.apache.gluten.columnarbatch.ArrowBatches.ArrowNativeBatch
-import org.apache.gluten.columnarbatch.VeloxColumnarBatches
+import org.apache.gluten.columnarbatch.ArrowBatches
+import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, RowToVeloxColumnarExec, VeloxColumnarToCarrierRowExec, VeloxColumnarToRowExec}
+import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-case class ArrowColumnarToVeloxColumnarExec(override val child: SparkPlan)
-  extends ColumnarToColumnarExec(ArrowNativeBatch, VeloxBatch) {
-  override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    in.map {
-      b =>
-        val out = VeloxColumnarBatches.toVeloxBatch(b)
-        out
-    }
+object VeloxBatch extends Convention.BatchType {
+  override protected def registerTransitions(): Unit = {
+    fromRow(Convention.RowType.VanillaRow, RowToVeloxColumnarExec.apply)
+    toRow(Convention.RowType.VanillaRow, VeloxColumnarToRowExec.apply)
+    fromBatch(ArrowBatches.ArrowNativeBatch, ArrowColumnarToVeloxColumnarExec.apply)
+    toBatch(ArrowBatches.ArrowNativeBatch, Transition.empty)
+    toRow(VeloxCarrierRow, VeloxColumnarToCarrierRowExec.apply)
   }
-  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-    ArrowColumnarToVeloxColumnarExec(child = newChild)
 }

@@ -18,15 +18,10 @@ package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.component.WithDummyBackend
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.execution.{ColumnarToColumnarExec, GlutenPlan}
 
 import org.apache.spark.SparkConf
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class TransitionSuite extends SharedSparkSession with WithDummyBackend {
   import TransitionSuite._
@@ -160,55 +155,5 @@ object TransitionSuite extends TransitionSuiteBase {
       fromBatch(BatchTypeA, BatchToRow(BatchTypeA, this, _))
       toBatch(BatchTypeB, RowToBatch(this, BatchTypeB, _))
     }
-  }
-
-  case class RowToBatch(
-      fromRowType: Convention.RowType,
-      toBatchType: Convention.BatchType,
-      override val child: SparkPlan)
-    extends RowToColumnarTransition
-    with GlutenPlan {
-    override def batchType(): Convention.BatchType = toBatchType
-    override def rowType0(): Convention.RowType = Convention.RowType.None
-    override def requiredChildConvention(): Seq[ConventionReq] = {
-      List(ConventionReq.ofRow(ConventionReq.RowType.Is(fromRowType)))
-    }
-
-    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-      copy(child = newChild)
-    override protected def doExecute(): RDD[InternalRow] =
-      throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = child.output
-  }
-
-  case class BatchToRow(
-      fromBatchType: Convention.BatchType,
-      toRowType: Convention.RowType,
-      override val child: SparkPlan)
-    extends ColumnarToRowTransition
-    with GlutenPlan {
-    override def batchType(): Convention.BatchType = Convention.BatchType.None
-    override def rowType0(): Convention.RowType = toRowType
-    override def requiredChildConvention(): Seq[ConventionReq] = {
-      List(ConventionReq.ofBatch(ConventionReq.BatchType.Is(fromBatchType)))
-    }
-
-    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-      copy(child = newChild)
-    override protected def doExecute(): RDD[InternalRow] =
-      throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = child.output
-  }
-
-  case class BatchToBatch(
-      from: Convention.BatchType,
-      to: Convention.BatchType,
-      override val child: SparkPlan)
-    extends ColumnarToColumnarExec(from, to) {
-    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-      copy(child = newChild)
-    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] =
-      throw new UnsupportedOperationException()
   }
 }

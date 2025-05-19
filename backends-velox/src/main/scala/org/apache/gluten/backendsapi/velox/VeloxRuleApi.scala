@@ -17,7 +17,6 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.RuleApi
-import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._

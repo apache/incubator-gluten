@@ -16,10 +16,9 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backendsapi.velox.VeloxListenerApi
+import org.apache.gluten.backendsapi.velox.{VeloxBatch, VeloxCarrierRow, VeloxListenerApi}
 import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
-import org.apache.gluten.columnarbatch.VeloxBatch
-import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, LoadArrowDataExec, OffloadArrowDataExec, RowToVeloxColumnarExec, VeloxColumnarToRowExec}
+import org.apache.gluten.execution._
 import org.apache.gluten.extension.columnar.transition.Convention.BatchType.VanillaBatch
 import org.apache.gluten.test.MockVeloxBackend
 
@@ -211,6 +210,16 @@ class VeloxTransitionSuite extends SharedSparkSession {
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == ColumnarToRowExec(BatchUnary(VanillaBatch, LoadArrowDataExec(BatchLeaf(VeloxBatch)))))
+  }
+
+  test("Velox-to-CarrierRow C2R") {
+    val in = RowToRow(VeloxCarrierRow, Convention.RowType.VanillaRow, BatchLeaf(VeloxBatch))
+    val out = BackendTransitions.insert(in, outputsColumnar = false)
+    assert(
+      out == RowToRow(
+        VeloxCarrierRow,
+        Convention.RowType.VanillaRow,
+        VeloxColumnarToCarrierRowExec(BatchLeaf(VeloxBatch))))
   }
 
   override protected def beforeAll(): Unit = {
