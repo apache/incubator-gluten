@@ -167,6 +167,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           "url_" + i.functionName,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i)
+      case i @ StaticInvoke(_, _, "isLuhnNumber", _, _, _, _, _) =>
+        return GenericExpressionTransformer(
+          ExpressionNames.LUHN_CHECK,
+          replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
+          i)
       case StaticInvoke(clz, _, functionName, _, _, _, _, _) =>
         throw new GlutenNotSupportException(
           s"Not supported to transform StaticInvoke with object: ${clz.getName}, " +

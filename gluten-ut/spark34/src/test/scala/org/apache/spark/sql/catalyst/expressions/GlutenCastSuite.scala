@@ -268,23 +268,14 @@ class GlutenCastSuite extends CastWithAnsiOffSuite with GlutenTestsTrait {
   }
 
   test("cast from boolean to timestamp") {
-    val originalDefaultTz = TimeZone.getDefault
-    try {
-      withSQLConf(
-        SQLConf.SESSION_LOCAL_TIMEZONE.key -> UTC_OPT.get
-      ) {
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-        checkEvaluation(
-          cast(true, TimestampType, UTC_OPT),
-          Timestamp.valueOf("1970-01-01 00:00:00.000001"))
+    val tsTrue = new Timestamp(0)
+    tsTrue.setNanos(1000)
 
-        checkEvaluation(
-          cast(false, TimestampType, UTC_OPT),
-          Timestamp.valueOf("1970-01-01 00:00:00"))
-      }
-    } finally {
-      TimeZone.setDefault(originalDefaultTz)
-    }
+    val tsFalse = new Timestamp(0)
+
+    checkEvaluation(cast(true, TimestampType), tsTrue)
+
+    checkEvaluation(cast(false, TimestampType), tsFalse)
   }
 
   testGluten("cast string to timestamp") {
