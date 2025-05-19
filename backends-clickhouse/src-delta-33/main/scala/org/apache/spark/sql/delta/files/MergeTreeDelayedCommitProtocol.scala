@@ -38,6 +38,8 @@ class FileDelayedCommitProtocol(
     subdir: Option[String])
   extends DelayedCommitProtocol(jobId, outputPath, randomPrefixLength, subdir) {
 
+  override val FILE_NAME_PREFIX: String = ""
+
   override def getFileName(
       taskContext: TaskAttemptContext,
       ext: String,
