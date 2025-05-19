@@ -116,7 +116,7 @@ arrow::Status RssPartitionWriter::doEvict(uint32_t partitionId, std::unique_ptr<
   auto payloadType = codec_ ? Payload::Type::kCompressed : Payload::Type::kUncompressed;
   ARROW_ASSIGN_OR_RAISE(
       auto payload,
-      inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr, nullptr));
+      inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr));
   // Copy payload to arrow buffered os.
   ARROW_ASSIGN_OR_RAISE(auto rssBufferOs, arrow::io::BufferOutputStream::Create(options_.pushBufferMaxSize));
   RETURN_NOT_OK(payload->serialize(rssBufferOs.get()));
