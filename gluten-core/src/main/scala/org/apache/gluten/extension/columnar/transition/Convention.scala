@@ -180,6 +180,7 @@ object Convention {
         if (supportsColumnar) {
           Convention.RowType.None
         } else {
+          assert(rowType0() != Convention.RowType.None)
           rowType0()
         }
       } else {

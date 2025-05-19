@@ -66,7 +66,7 @@ object GlutenPlanModel {
 
     override val batchType: Convention.BatchType = {
       val out = req.req.requiredBatchType match {
-        case ConventionReq.BatchType.Any => Convention.BatchType.None
+        case ConventionReq.BatchType.Any => Convention.BatchType.VanillaBatch
         case ConventionReq.BatchType.Is(b) => b
       }
       out
@@ -78,7 +78,7 @@ object GlutenPlanModel {
 
     override val rowType0: Convention.RowType = {
       val out = req.req.requiredRowType match {
-        case ConventionReq.RowType.Any => Convention.RowType.None
+        case ConventionReq.RowType.Any => Convention.RowType.VanillaRow
         case ConventionReq.RowType.Is(r) => r
       }
       out
