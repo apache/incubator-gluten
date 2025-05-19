@@ -132,6 +132,10 @@
           <scope>provided</scope>
           <exclusions>
             <exclusion>
+              <groupId>com.google.code.gson</groupId>
+              <artifactId>gson</artifactId>
+            </exclusion>
+            <exclusion>
               <groupId>org.apache.logging.log4j</groupId>
               <artifactId>log4j-slf4j-impl</artifactId>
             </exclusion>
@@ -552,6 +556,10 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
+          <groupId>com.google.code.gson</groupId>
+          <artifactId>gson</artifactId>
+        </exclusion>
+        <exclusion>
           <groupId>org.pentaho</groupId>
           <artifactId>pentaho-aggdesigner-algorithm</artifactId>
         </exclusion>
@@ -808,6 +816,7 @@
               <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/DeltaLog.scala</exclude>
               <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/Snapshot.scala</exclude>
               <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/ClickhouseOptimisticTransaction.scala</exclude>
+              <exclude>src-delta-${delta.binary.version}/main/scala/org/apache/spark/sql/delta/PreprocessTableWithDVs.scala</exclude>
             </excludes>
           </scala>
         </configuration>

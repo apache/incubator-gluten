@@ -54,7 +54,7 @@ class ClickHouseIcebergMOREqualityDeletionSuite extends GlutenClickHouseWholeSta
     }
     FileUtils.forceMkdir(icebergPathDir)
     val equalityDeletedData =
-      new File(s"$rootPath$equalityDeletedDataPath/$ICEBERG_GENERATED_PATH")
+      new File(s"$resPath$equalityDeletedDataPath/$ICEBERG_GENERATED_PATH")
     FileUtils.copyDirectory(equalityDeletedData, icebergPathDir)
   }
 

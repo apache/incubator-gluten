@@ -16,29 +16,15 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.{DeltaFilterExecTransformer, DeltaProjectExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.delta.metric.IncrementMetric
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.metric.SQLMetrics.createMetric
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
-class GlutenDeltaExpressionSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  // import org.apache.gluten.backendsapi.clickhouse.CHConfig._
+class GlutenDeltaExpressionSuite extends ParquetSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -51,22 +37,18 @@ class GlutenDeltaExpressionSuite
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
+      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+      .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
   }
 
   test("test project IncrementMetric not fallback") {
     val table_name = "project_increment_metric"
     withTable(table_name) {
-      spark.sql(s"""
-                   |CREATE TABLE IF NOT EXISTS $table_name
-                   |($lineitemNullableSchema)
-                   |USING delta
-                   |TBLPROPERTIES (delta.enableDeletionVectors='true')
-                   |LOCATION '$basePath/$table_name'
-                   |""".stripMargin)
+      val s = createTableBuilder(table_name, "delta", s"$dataHome/$table_name")
+        .withProps(Map("delta.enableDeletionVectors" -> "'true'"))
+        .withTableKey("lineitem")
+        .build()
+      spark.sql(s)
 
       spark.sql(s"""insert into table $table_name select * from lineitem""".stripMargin)
       val metric = createMetric(sparkContext, "number of source rows")
@@ -89,4 +71,3 @@ class GlutenDeltaExpressionSuite
     }
   }
 }
-// scalastyle:off line.size.limit

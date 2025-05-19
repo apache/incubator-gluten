@@ -18,11 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 
-class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstractSuite {
-
-  override protected val tablesPath: String = basePath + "/tpch-data-ch"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
+class GlutenClickHouseDSV2ColumnarShuffleSuite extends MergeTreeSuite {
 
   /** Run Gluten + ClickHouse Backend with ColumnarShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -33,16 +29,13 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 
-  test("TPCH Q1") {
-    runTPCHQuery(1) { df => }
-  }
-
-  test("TPCH Q2") {
-    runTPCHQuery(2) { df => }
-  }
+  final override val testCases: Seq[Int] = Seq(
+    1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 16, 21, 22
+  )
+  setupTestCase()
 
   test("TPCH Q3") {
-    runTPCHQuery(3) {
+    customCheck(3) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
@@ -51,36 +44,8 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
-  test("TPCH Q4") {
-    runTPCHQuery(4) { df => }
-  }
-
-  test("TPCH Q5") {
-    runTPCHQuery(5) { df => }
-  }
-
-  test("TPCH Q6") {
-    runTPCHQuery(6) { df => }
-  }
-
-  test("TPCH Q7") {
-    runTPCHQuery(7) { df => }
-  }
-
-  test("TPCH Q8") {
-    runTPCHQuery(8) { df => }
-  }
-
-  test("TPCH Q9") {
-    runTPCHQuery(9) { df => }
-  }
-
-  test("TPCH Q10") {
-    runTPCHQuery(10) { df => }
-  }
-
   test("TPCH Q11") {
-    runTPCHQuery(11) {
+    customCheck(11) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
@@ -89,12 +54,8 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
-  test("TPCH Q12") {
-    runTPCHQuery(12) { df => }
-  }
-
   test("TPCH Q13") {
-    runTPCHQuery(13) {
+    customCheck(13) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
@@ -104,7 +65,7 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("TPCH Q14") {
-    runTPCHQuery(14) {
+    customCheck(14) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
@@ -114,7 +75,7 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("TPCH Q15") {
-    runTPCHQuery(15) {
+    customCheck(15) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
@@ -123,12 +84,8 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
-  test("TPCH Q16") {
-    runTPCHQuery(16) { df => }
-  }
-
   test("TPCH Q17") {
-    runTPCHQuery(17) {
+    customCheck(17) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
@@ -138,7 +95,7 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("TPCH Q18") {
-    runTPCHQuery(18) {
+    customCheck(18) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
@@ -148,7 +105,7 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("TPCH Q19") {
-    runTPCHQuery(19) {
+    customCheck(19) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
@@ -158,20 +115,12 @@ class GlutenClickHouseDSV2ColumnarShuffleSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("TPCH Q20") {
-    runTPCHQuery(20) {
+    customCheck(20) {
       df =>
         val aggs = df.queryExecution.executedPlan.collectWithSubqueries {
           case agg: HashAggregateExecBaseTransformer => agg
         }
         assert(aggs.size == 1)
     }
-  }
-
-  test("TPCH Q21") {
-    runTPCHQuery(21) { df => }
-  }
-
-  test("TPCH Q22") {
-    runTPCHQuery(22) { df => }
   }
 }

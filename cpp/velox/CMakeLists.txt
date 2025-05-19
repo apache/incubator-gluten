@@ -146,7 +146,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
-    operators/writer/VeloxArrowWriter.cc
+    operators/writer/VeloxColumnarBatchWriter.cc
     operators/writer/VeloxParquetDataSource.cc
     shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxRssSortShuffleWriter.cc
@@ -169,7 +169,8 @@ set(VELOX_SRCS
     utils/LocalRssClient.cc
     utils/TestAllocationListener.cc
     utils/VeloxArrowUtils.cc
-    utils/VeloxBatchResizer.cc)
+    utils/VeloxBatchResizer.cc
+    utils/VeloxWholeStageDumper.cc)
 
 if(ENABLE_S3)
   find_package(ZLIB)
@@ -268,6 +269,15 @@ else()
     ${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a)
 endif()
 target_link_libraries(velox PUBLIC external::stemmer)
+
+find_package(geos)
+if(geos_FOUND AND TARGET GEOS::geos)
+  add_library(external::geos ALIAS GEOS::geos)
+else()
+  message(STATUS "import Velox bundled geos")
+  import_library(external::geos ${VELOX_BUILD_PATH}/lib/libgeos.a)
+endif()
+target_link_libraries(velox PUBLIC external::geos)
 
 find_package(simdjson CONFIG)
 if(simdjson_FOUND AND TARGET simdjson::simdjson)

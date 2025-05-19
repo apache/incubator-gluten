@@ -42,6 +42,7 @@ class TpchSuite(
                  val disableWscg: Boolean,
                  val shufflePartitions: Int,
                  val scanPartitions: Int,
+                 val decimalAsDouble: Boolean,
                  val baselineMetricMapper: MetricMapper,
                  val testMetricMapper: MetricMapper)
     extends Suite(
@@ -60,6 +61,7 @@ class TpchSuite(
       disableWscg,
       shufflePartitions,
       scanPartitions,
+      decimalAsDouble,
       baselineMetricMapper,
       testMetricMapper) {
 
@@ -82,10 +84,6 @@ class TpchSuite(
 
   override private[integration] def queryResource(): String = {
     "/tpch-queries"
-  }
-
-  private def typeModifiers(): List[TypeModifier] = {
-    List()
   }
 
   override private[integration] def allQueryIds(): Array[String] = TpchSuite.ALL_QUERY_IDS

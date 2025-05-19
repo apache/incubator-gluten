@@ -16,16 +16,15 @@
  */
 package org.apache.gluten.execution.hive
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig, RuntimeSettings}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
+import org.apache.gluten.execution.CreateMergeTreeSuite
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SparkSession.{getActiveSession, getDefaultSession}
 import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import org.apache.commons.io.FileUtils
 
@@ -35,16 +34,7 @@ import java.io.File
 // scalastyle:off line.size.limit
 
 // This suite is to make sure clickhouse commands works well even after spark restart
-class GlutenClickHouseTableAfterRestart
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper
-  with ReCreateHiveSession {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
+class GlutenClickHouseTableAfterRestart extends CreateMergeTreeSuite with ReCreateHiveSession {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -56,20 +46,15 @@ class GlutenClickHouseTableAfterRestart
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.ui.enabled", "true")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
       .set(RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key, "100000")
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
       .setCHSettings("input_format_parquet_max_block_size", 8192)
       .setMaster("local[2]")
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   var current_db_num: Int = 0
@@ -103,7 +88,7 @@ class GlutenClickHouseTableAfterRestart
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$basePath/lineitem_mergetree'
+                 |LOCATION '$dataHome/lineitem_mergetree'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -113,12 +98,12 @@ class GlutenClickHouseTableAfterRestart
 
     // before restart, check if cache works
     {
-      runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
+      checkQuery(q1("lineitem_mergetree"))
       val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()
       val oldMissingCount2 = ClickhouseSnapshot.addFileToAddMTPCache.stats().missCount()
 
       // for this run, missing count should not increase
-      runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
+      checkQuery(q1("lineitem_mergetree"))
       val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
       assertResult(oldMissingCount1)(stats1.missCount())
       val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
@@ -130,7 +115,7 @@ class GlutenClickHouseTableAfterRestart
 
     restartSpark()
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree"))(_ => {})
+    checkQuery(q1("lineitem_mergetree"))
 
     // after restart, additionally check stats of delta scan cache
     val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
@@ -147,7 +132,7 @@ class GlutenClickHouseTableAfterRestart
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS table_restart_optimize (id bigint,  name string)
                  |USING clickhouse
-                 |LOCATION '$basePath/table_restart_optimize'
+                 |LOCATION '$dataHome/table_restart_optimize'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -173,7 +158,7 @@ class GlutenClickHouseTableAfterRestart
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS table_restart_vacuum (id bigint,  name string)
                  |USING clickhouse
-                 |LOCATION '$basePath/table_restart_vacuum'
+                 |LOCATION '$dataHome/table_restart_vacuum'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -202,7 +187,7 @@ class GlutenClickHouseTableAfterRestart
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS table_restart_update (id bigint,  name string)
                  |USING clickhouse
-                 |LOCATION '$basePath/table_restart_update'
+                 |LOCATION '$dataHome/table_restart_update'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -229,7 +214,7 @@ class GlutenClickHouseTableAfterRestart
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS table_restart_delete (id bigint,  name string)
                  |USING clickhouse
-                 |LOCATION '$basePath/table_restart_delete'
+                 |LOCATION '$dataHome/table_restart_delete'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -256,7 +241,7 @@ class GlutenClickHouseTableAfterRestart
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS table_restart_drop (id bigint,  name string)
                  |USING clickhouse
-                 |LOCATION '$basePath/table_restart_drop'
+                 |LOCATION '$dataHome/table_restart_drop'
                  |""".stripMargin)
 
     spark.sql(s"""

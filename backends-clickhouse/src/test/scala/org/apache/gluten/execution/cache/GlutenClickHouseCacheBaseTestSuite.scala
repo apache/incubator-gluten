@@ -17,11 +17,10 @@
 package org.apache.gluten.execution.cache
 
 import org.apache.gluten.backendsapi.clickhouse.CHConfig._
-import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution._
 import org.apache.gluten.utils.CacheTestHelper
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.fs.Path
@@ -29,16 +28,15 @@ import org.apache.hadoop.fs.Path
 import java.nio.charset.Charset
 
 abstract class GlutenClickHouseCacheBaseTestSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-  // Common paths
-  override protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with TPCHDatabase
+  with TPCHParquetResult {
+
+  protected val remotePath: String
 
   // Abstract methods to be implemented by subclasses
   protected def cleanupCache(): Unit =
-    cacheHelper.deleteCache(spark, s"$tablesPath/lineitem", s"$tablesPath/$SPARK_DIR_NAME")
+    cacheHelper.deleteCache(spark, s"$remotePath/lineitem", s"$remotePath/$SPARK_DIR_NAME")
 
   protected def copyDataIfNeeded(): Unit
 
@@ -61,8 +59,8 @@ abstract class GlutenClickHouseCacheBaseTestSuite
     cacheHelper.setCacheConfig(conf)
   }
 
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
+  override protected def createTestTables(): Unit = {
+    createTPCHTables(remotePath)
   }
 
   override def beforeAll(): Unit = {
@@ -81,7 +79,7 @@ abstract class GlutenClickHouseCacheBaseTestSuite
   }
 
   def runWithoutCache(): Unit = {
-    runTPCHQuery(6) {
+    customCheck(6) {
       df =>
         val plans = df.queryExecution.executedPlan.collect {
           case scanExec: FileSourceScanExecTransformer => scanExec
@@ -92,7 +90,7 @@ abstract class GlutenClickHouseCacheBaseTestSuite
   }
 
   def runWithCache(): Unit = {
-    runTPCHQuery(6) {
+    customCheck(6) {
       df =>
         val plans = df.queryExecution.executedPlan.collect {
           case scanExec: FileSourceScanExecTransformer => scanExec
@@ -109,7 +107,7 @@ abstract class GlutenClickHouseCacheBaseTestSuite
   }
 
   test("test cache file command") {
-    runSql(s"CACHE FILES select * from '$tablesPath/lineitem'", noFallBack = false) { _ => }
+    runSql(s"CACHE FILES select * from '$remotePath/lineitem'", noFallBack = false) { _ => }
     runWithCache()
   }
 
@@ -125,7 +123,7 @@ abstract class GlutenClickHouseCacheBaseTestSuite
 
   test("GLUTEN-7542: Fix cache refresh") {
     withSQLConf("spark.sql.hive.manageFilesourcePartitions" -> "false") {
-      val filePath = s"$tablesPath/$SPARK_DIR_NAME/issue_7542/"
+      val filePath = s"$remotePath/$SPARK_DIR_NAME/issue_7542/"
       val targetDirs = new Path(filePath)
       val fs = targetDirs.getFileSystem(spark.sessionState.newHadoopConf())
       fs.mkdirs(targetDirs)
@@ -160,8 +158,8 @@ abstract class GlutenClickHouseCacheBaseTestSuite
 
   test("test set_read_util_position") {
     val tableName = "read_until_test"
-    val tablePath = s"$tablesPath/$SPARK_DIR_NAME/$tableName/"
-    val targetFile = new Path(tablesPath)
+    val tablePath = s"$remotePath/$SPARK_DIR_NAME/$tableName/"
+    val targetFile = new Path(remotePath)
     val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
     fs.delete(new Path(tablePath), true)
     sql(s"""

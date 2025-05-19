@@ -166,6 +166,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_ELIMINATE_DEDUPLICATE_AGGREGATE_WITH_ANY_JOIN: String =
     CHConfig.prefixOf("eliminate_deduplicate_aggregate_with_any_join")
 
+  // If the partition keys are high cardinality, the aggregation method is slower.
+  val GLUTEN_ENABLE_WINDOW_GROUP_LIMIT_TO_AGGREGATE: String =
+    CHConfig.prefixOf("runtime_settings.enable_window_group_limit_to_aggregate")
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -393,14 +397,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def enablePreProjectionForJoinConditions(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConfig.runtimeConfig("enable_pre_projection_for_join_conditions"),
-      defaultValue = true
-    )
-  }
-
-  // If the partition keys are high cardinality, the aggregation method is slower.
-  def enableConvertWindowGroupLimitToAggregate(): Boolean = {
-    SparkEnv.get.conf.getBoolean(
-      CHConfig.runtimeConfig("enable_window_group_limit_to_aggregate"),
       defaultValue = true
     )
   }

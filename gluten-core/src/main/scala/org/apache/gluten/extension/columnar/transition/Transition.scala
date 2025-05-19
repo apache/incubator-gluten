@@ -127,8 +127,8 @@ object Transition {
                 // We have only one single built-in row type.
                 Transition.empty
               case _ =>
-                throw new UnsupportedOperationException(
-                  "Row-to-row transition is not yet supported")
+                // Find row-to-row transition.
+                graph().transitionOfOption(from.rowType, toRowType).getOrElse(orElse)
             }
           case (ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)) =>
             from.batchType match {

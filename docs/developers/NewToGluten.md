@@ -4,11 +4,11 @@ title: New To Gluten
 nav_order: 2
 parent: Developer Overview
 ---
-Help users to debug and test with gluten.
+Help users to debug and test with Gluten.
 
 # Environment
 
-Now gluten supports Ubuntu20.04, Ubuntu22.04, centos8, centos7 and macOS.
+Gluten supports Ubuntu20.04, Ubuntu22.04, CentOS8, CentOS7 and MacOS.
 
 ## JDK
 
@@ -68,7 +68,7 @@ And then set the environment setting.
 
 ## GCC 11 or above
 
-# Compile gluten using debug mode
+# Compile Gluten using debug mode
 
 If you want to just debug java/scala code, there is no need to compile cpp code with debug mode.
 You can just refer to [build-gluten-with-velox-backend](../get-started/Velox.md#build-gluten-with-velox-backend).
@@ -76,7 +76,7 @@ You can just refer to [build-gluten-with-velox-backend](../get-started/Velox.md#
 If you need to debug cpp code, please compile the backend code and gluten cpp code with debug mode.
 
 ```bash
-## compile velox backend with benchmark and tests to debug
+## compile Velox backend with benchmark and tests to debug
 gluten_home/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_type=Debug
 ```
 
@@ -95,10 +95,10 @@ Install the Linux IntelliJ version, and debug code locally.
 - Download [IntelliJ Linux community version](https://www.jetbrains.com/idea/download/?fromIDE=#section=linux) to Linux server
 - Start Idea, `bash <idea_dir>/idea.sh`
 
-## Set up gluten project
+## Set up Gluten project
 
-- Make sure you have compiled gluten.
-- Load the gluten by File->Open, select <gluten_home/pom.xml>.
+- Make sure you have compiled Gluten.
+- Load the Gluten by File->Open, select <gluten_home/pom.xml>.
 - Activate your profiles such as <backends-velox>, and Reload Maven Project, you will find all your need modules have been activated.
 - Create breakpoint and debug as you wish, maybe you can try `CTRL+N` to find `TestOperator` to start your test.
 
@@ -123,12 +123,13 @@ mvn spotless:apply -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut -DskipTests
 # CPP code development with Visual Studio Code
 
 This guide is for remote debug. We will connect the remote linux server by `SSH`.
-Download the [windows vscode software](https://code.visualstudio.com/Download)
-The important leftside bar is:
+Download and install [Visual Studio Code](https://code.visualstudio.com/Download).
+
+Key components found on the left side bar are:
 - Explorer (Project structure)
 - Search
 - Run and Debug
-- Extensions (Install C/C++ Extension Pack, Remote Development, GitLens at least, C++ Test Mate is also suggested)
+- Extensions (Install the C/C++ Extension Pack, Remote Development, and GitLens. C++ Test Mate is also suggested.)
 - Remote Explorer (Connect linux server by ssh command, click `+`, then input `ssh user@10.1.7.003`)
 - Manage (Settings)
 
@@ -139,34 +140,38 @@ If download failed, delete this folder and try again.
 
 ### Set up project
 
-File->Open Folder   // select gluten folder
-Select cpp/CmakeList.txt as command prompt
-Select gcc version as command prompt
+- File->Open Folder   // select the Gluten folder
+- After the project loads, you will be prompted to "Select CMakeLists.txt". Select the
+  `${workspaceFolder}/cpp/CMakeLists.txt` file.
+- Next, you will be prompted to "Select a Kit" for the Gluten project. Select GCC 11 or above.
 
 ### Settings
 
-VSCode support 2 ways to set user setting.
+VSCode supports 2 ways to set user setting.
 
-- Manage->Command Palette(Open `settings.json`, search by `Preferences: Open Settings (JSON)`)
+- Manage->Command Palette (Open `settings.json`, search by `Preferences: Open Settings (JSON)`)
 - Manage->Settings (Common setting)
 
-### Build by vscode
+### Build using VSCode
 
-VSCode will try to compile using debug mode in <gluten_home>/build.
-And we need to compile velox debug mode before, if you have compiled velox release mode, you just need to do.
+VSCode will try to compile using debug mode in <gluten_home>/build. We need to compile Velox debug mode before
+compiling Gluten. If you have previously compiled Velox in release mode, use the command below to compile in debug mode.
 
 ```bash
-# Build the velox debug version in <velox_home>/_build/debug
+cd incubator-gluten/ep/build-velox/build/velox_ep
+
+# Build the Velox debug version in <velox_home>/_build/debug
 make debug EXTRA_CMAKE_FLAGS="-DVELOX_ENABLE_PARQUET=ON -DENABLE_HDFS=ON -DVELOX_BUILD_TESTING=OFF  -DVELOX_ENABLE_DUCKDB=ON -DVELOX_BUILD_TEST_UTILS=ON"
 ```
 
-Then gluten will link velox debug library.
+Then Gluten will link the Velox debug library.
 Just click `build` in bottom bar, you will get intellisense search and link.
 
 ### Debug
 
-The default compile command does not enable test and benchmark, so we cannot get any executable file
-Open the file in `<gluten_home>/.vscode/settings.json` (create if not exists)
+The default compile command does not enable test and benchmark, so we don't get any executable files.
+To enable the test and benchmark args, create or edit the `<gluten_home>/.vscode/settings.json` to add the
+configurations below:
 
 ```json
 {
@@ -178,11 +183,16 @@ Open the file in `<gluten_home>/.vscode/settings.json` (create if not exists)
 }
 ```
 
-Then we can get some executables, take `velox_shuffle_writer_test` as example
+After compiling with these updated configs, you should have executable files (such as 
+`<gluten_home>/cpp/build/velox/tests/velox_shuffle_writer_test`).
 
-Click `Run and Debug` to create launch.json in `<gluten_home>/.vscode/launch.json`
-Click `Add Configuration` in the top of launch.json, select gdb launch or attach to exists program
-launch.json example
+Open the `Run and Debug` panel (Ctrl-Shift-D) and then click the link to create a launch.json file. If prompted,
+select a debugger like  "C++ (GDB/LLDB)". The launch.json will be created at: `<gluten_home>/.vscode/launch.json`.
+
+Click the `Add Configuration` button in launch.json, and select gdb "launch" (to start and debug a program) or
+"attach" (to attach and debug a running program).
+
+#### launch.json example
 
 ```json
 {
@@ -195,8 +205,8 @@ launch.json example
       "name": "velox shuffle writer test",
       "type": "cppdbg",
       "request": "launch",
-      "program": "/mnt/DP_disk1/code/gluten/cpp/build/velox/tests/velox_shuffle_writer_test",
-      "args": ["--gtest_filter=*TestSinglePartPartitioner*"],
+      "program": "${workspaceFolder}/cpp/build/velox/tests/velox_shuffle_writer_test",
+      "args": ["--gtest_filter='*SinglePartitioningShuffleWriter*'"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],
@@ -219,8 +229,16 @@ launch.json example
       "name": "benchmark test",
       "type": "cppdbg",
       "request": "launch",
-      "program": "/mnt/DP_disk1/code/gluten/cpp/velox/benchmarks/./generic_benchmark",
-      "args": ["/mnt/DP_disk1/code/gluten/cpp/velox/benchmarks/query.json", "--threads=1"],
+      "program": "${workspaceFolder}/cpp/build/velox/benchmarks/./generic_benchmark",
+      "args": [
+          "--threads=1",
+          "--with-shuffle",
+          "--partitioning=hash",
+          "--iterations=1",
+          "--conf=${workspaceFolder}/backends-velox/generated-native-benchmark/conf_12_0_2.ini",
+          "--plan=${workspaceFolder}/backends-velox/generated-native-benchmark/plan_12_0_2.json",
+          "--data=${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_2_0.parquet,${workspaceFolder}/backends-velox/generated-native-benchmark/data_12_0_2_1.parquet"
+      ],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],
@@ -244,13 +262,13 @@ launch.json example
 }
 ```
 
-> Change `name`, `program`, `args` to yours
+> Change `name`, `program`, `args` for your environment. For example, your generated benchmark example file names may vary.
 
 Then you can create breakpoint and debug in `Run and Debug` section.
 
 ### Velox debug
 
-For some velox tests such as `ParquetReaderTest`, tests need to read the parquet file in `<velox_home>/velox/dwio/parquet/tests/examples`, 
+For some Velox tests such as `ParquetReaderTest`, tests need to read the parquet file in `<velox_home>/velox/dwio/parquet/tests/examples`, 
 you should let the screen on `ParquetReaderTest.cpp`, then click `Start Debugging`, otherwise `No such file or directory` exception will be raised.
 
 ## Useful notes
@@ -275,7 +293,7 @@ Search `update` in Manage->Settings to turn off update mode.
 
 ### Clang format
 
-Now gluten uses clang-format 15 to format source files.
+Gluten uses clang-format 15 to format source files.
 
 ```bash
 apt-get install clang-format-15
@@ -327,14 +345,14 @@ After the above installation, you can optionally do some configuration in Visual
 4. Placement of Non-Native Code UTs: Ensure that unit tests for non-native code are placed within org.apache.gluten and org.apache.spark packages. 
    This is important because the CI system runs unit tests from these two paths in parallel. Placing tests in other paths might cause your tests to be ignored.
 
-### View surefire reports of velox ut in GHA  
+### View surefire reports of Velox ut in GHA  
 
 Surefire reports are invaluable tools in the ecosystem of Java-based applications that utilize the Maven build automation tool.  
 These reports are generated by the Maven Surefire Plugin during the testing phase of your build process.  
 They compile results from unit tests, providing detailed insights into which tests passed or failed, what errors were encountered, and other essential metrics.  
 
 Surefire reports play a crucial role in the development and maintenance of high-quality software.  
-We provide surefire reports of velox ut in GHA, and developers can leverage surefire reports with early bug detection and quality assurance.  
+We provide surefire reports of Velox ut in GHA, and developers can leverage surefire reports with early bug detection and quality assurance.  
 
 You can check surefire reports:
 
@@ -467,9 +485,9 @@ valgrind --leak-check=yes ./exec_backend_test
 We supply `<gluten_home>/tools/gluten-it` to execute these queries
 Refer to [velox_backend.yml](https://github.com/apache/incubator-gluten/blob/main/.github/workflows/velox_backend.yml)
 
-# Run gluten+velox on clean machine
+# Run Gluten+Velox on clean machine
 
-We can run gluten + velox on clean machine by one command (supported OS: Ubuntu20.04/22.04, Centos 7/8, etc.).
+We can run Gluten + Velox on clean machine by one command (supported OS: Ubuntu20.04/22.04, CentOS 7/8, etc.).
 ```
 spark-shell --name run_gluten \
  --master yarn --deploy-mode client \

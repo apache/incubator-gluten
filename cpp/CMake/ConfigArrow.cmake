@@ -18,7 +18,6 @@
 set(ARROW_STATIC_LIBRARY_SUFFIX ".a")
 
 set(ARROW_LIB_NAME "arrow")
-set(PARQUET_LIB_NAME "parquet")
 set(ARROW_BUNDLED_DEPS "arrow_bundled_dependencies")
 
 set(ARROW_INSTALL_DIR "${ARROW_HOME}/install")

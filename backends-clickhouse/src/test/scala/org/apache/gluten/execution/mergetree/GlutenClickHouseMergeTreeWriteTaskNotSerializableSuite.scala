@@ -18,20 +18,11 @@ package org.apache.gluten.execution.mergetree
 
 import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
+import org.apache.gluten.execution.CreateMergeTreeSuite
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
-class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
+class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite extends CreateMergeTreeSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -45,10 +36,6 @@ class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
       .set("spark.memory.offHeap.size", "4G")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
   }
 
   test("GLUTEN-6470: Fix Task not serializable error when inserting mergetree data") {
@@ -81,7 +68,7 @@ class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$basePath/lineitem_task_not_serializable'
+                 |LOCATION '$dataHome/lineitem_task_not_serializable'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -89,6 +76,6 @@ class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1("lineitem_task_not_serializable"))(_ => {})
+    checkQuery(q1("lineitem_task_not_serializable"))
   }
 }

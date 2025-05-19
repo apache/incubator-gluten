@@ -16,12 +16,6 @@
  */
 package org.apache.gluten.spark34.execution;
 
-import static org.apache.iceberg.PlanningMode.DISTRIBUTED;
-import static org.apache.iceberg.PlanningMode.LOCAL;
-
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.PlanningMode;
 import org.apache.iceberg.Schema;
@@ -49,6 +43,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.iceberg.PlanningMode.DISTRIBUTED;
+import static org.apache.iceberg.PlanningMode.LOCAL;
+
 @RunWith(Parameterized.class)
 public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
 
@@ -61,38 +62,38 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
 
   // open file cost and split size are set as 16 MB to produce a split per file
   private static final Map<String, String> TABLE_PROPERTIES =
-          ImmutableMap.of(
-                  TableProperties.SPLIT_SIZE, "16777216", TableProperties.SPLIT_OPEN_FILE_COST, "16777216");
+      ImmutableMap.of(
+          TableProperties.SPLIT_SIZE, "16777216", TableProperties.SPLIT_OPEN_FILE_COST, "16777216");
 
   // only v2 bucketing and preserve data grouping properties have to be enabled to trigger SPJ
   // other properties are only to simplify testing and validation
   private static final Map<String, String> ENABLED_SPJ_SQL_CONF =
-          ImmutableMap.of(
-                  SQLConf.V2_BUCKETING_ENABLED().key(),
-                  "true",
-                  SQLConf.V2_BUCKETING_PUSH_PART_VALUES_ENABLED().key(),
-                  "true",
-                  SQLConf.REQUIRE_ALL_CLUSTER_KEYS_FOR_CO_PARTITION().key(),
-                  "false",
-                  SQLConf.ADAPTIVE_EXECUTION_ENABLED().key(),
-                  "false",
-                  SQLConf.AUTO_BROADCASTJOIN_THRESHOLD().key(),
-                  "-1",
-                  SparkSQLProperties.PRESERVE_DATA_GROUPING,
-                  "true");
+      ImmutableMap.of(
+          SQLConf.V2_BUCKETING_ENABLED().key(),
+          "true",
+          SQLConf.V2_BUCKETING_PUSH_PART_VALUES_ENABLED().key(),
+          "true",
+          SQLConf.REQUIRE_ALL_CLUSTER_KEYS_FOR_CO_PARTITION().key(),
+          "false",
+          SQLConf.ADAPTIVE_EXECUTION_ENABLED().key(),
+          "false",
+          SQLConf.AUTO_BROADCASTJOIN_THRESHOLD().key(),
+          "-1",
+          SparkSQLProperties.PRESERVE_DATA_GROUPING,
+          "true");
 
   private static final Map<String, String> DISABLED_SPJ_SQL_CONF =
-          ImmutableMap.of(
-                  SQLConf.V2_BUCKETING_ENABLED().key(),
-                  "false",
-                  SQLConf.REQUIRE_ALL_CLUSTER_KEYS_FOR_CO_PARTITION().key(),
-                  "false",
-                  SQLConf.ADAPTIVE_EXECUTION_ENABLED().key(),
-                  "false",
-                  SQLConf.AUTO_BROADCASTJOIN_THRESHOLD().key(),
-                  "-1",
-                  SparkSQLProperties.PRESERVE_DATA_GROUPING,
-                  "true");
+      ImmutableMap.of(
+          SQLConf.V2_BUCKETING_ENABLED().key(),
+          "false",
+          SQLConf.REQUIRE_ALL_CLUSTER_KEYS_FOR_CO_PARTITION().key(),
+          "false",
+          SQLConf.ADAPTIVE_EXECUTION_ENABLED().key(),
+          "false",
+          SQLConf.AUTO_BROADCASTJOIN_THRESHOLD().key(),
+          "-1",
+          SparkSQLProperties.PRESERVE_DATA_GROUPING,
+          "true");
 
   private final PlanningMode planningMode;
 
@@ -216,14 +217,14 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
   @Test
   public void testJoinsWithMultipleTransformTypes() throws NoSuchTableException {
     String createTableStmt =
-            "CREATE TABLE %s ("
-                    + "  id BIGINT, int_col INT, date_col1 DATE, date_col2 DATE, date_col3 DATE,"
-                    + "  timestamp_col TIMESTAMP, string_col STRING, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY ("
-                    + "  years(date_col1), months(date_col2), days(date_col3), hours(timestamp_col), "
-                    + "  bucket(8, int_col), dep)"
-                    + "TBLPROPERTIES (%s)";
+        "CREATE TABLE %s ("
+            + "  id BIGINT, int_col INT, date_col1 DATE, date_col2 DATE, date_col3 DATE,"
+            + "  timestamp_col TIMESTAMP, string_col STRING, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY ("
+            + "  years(date_col1), months(date_col2), days(date_col3), hours(timestamp_col), "
+            + "  bucket(8, int_col), dep)"
+            + "TBLPROPERTIES (%s)";
 
     sql(createTableStmt, tableName, tablePropsAsString(TABLE_PROPERTIES));
     sql(createTableStmt, tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
@@ -247,69 +248,69 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     // this is a temporary Spark limitation that will be removed in a future release
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT t1.id "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.dep = t2.dep "
-                    + "ORDER BY t1.id",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT t1.id "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.dep = t2.dep "
+            + "ORDER BY t1.id",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT t1.id, t1.int_col, t1.date_col1 "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.date_col1 = t2.date_col1 "
-                    + "ORDER BY t1.id, t1.int_col, t1.date_col1",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT t1.id, t1.int_col, t1.date_col1 "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.date_col1 = t2.date_col1 "
+            + "ORDER BY t1.id, t1.int_col, t1.date_col1",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT t1.id, t1.timestamp_col, t1.string_col "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.timestamp_col = t2.timestamp_col AND t1.string_col = t2.string_col "
-                    + "ORDER BY t1.id, t1.timestamp_col, t1.string_col",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT t1.id, t1.timestamp_col, t1.string_col "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.timestamp_col = t2.timestamp_col AND t1.string_col = t2.string_col "
+            + "ORDER BY t1.id, t1.timestamp_col, t1.string_col",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT t1.id, t1.date_col1, t1.date_col2, t1.date_col3 "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.date_col1 = t2.date_col1 AND t1.date_col2 = t2.date_col2 AND t1.date_col3 = t2.date_col3 "
-                    + "ORDER BY t1.id, t1.date_col1, t1.date_col2, t1.date_col3",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT t1.id, t1.date_col1, t1.date_col2, t1.date_col3 "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.date_col1 = t2.date_col1 AND t1.date_col2 = t2.date_col2 AND t1.date_col3 = t2.date_col3 "
+            + "ORDER BY t1.id, t1.date_col1, t1.date_col2, t1.date_col3",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT t1.id, t1.int_col, t1.timestamp_col, t1.dep "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.timestamp_col = t2.timestamp_col AND t1.dep = t2.dep "
-                    + "ORDER BY t1.id, t1.int_col, t1.timestamp_col, t1.dep",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT t1.id, t1.int_col, t1.timestamp_col, t1.dep "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.timestamp_col = t2.timestamp_col AND t1.dep = t2.dep "
+            + "ORDER BY t1.id, t1.int_col, t1.timestamp_col, t1.dep",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
   }
 
   @Test
   public void testJoinsWithCompatibleSpecEvolution() {
     // create a table with an empty spec
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "TBLPROPERTIES (%s)",
-            tableName, tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "TBLPROPERTIES (%s)",
+        tableName, tablePropsAsString(TABLE_PROPERTIES));
 
     Table table = validationCatalog.loadTable(tableIdent);
 
@@ -329,11 +330,11 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
 
     // create another table partitioned by `other_dep`
     sql(
-            "CREATE TABLE %s (other_id BIGINT, other_int_col INT, other_dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (other_dep)"
-                    + "TBLPROPERTIES (%s)",
-            tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (other_id BIGINT, other_int_col INT, other_dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (other_dep)"
+            + "TBLPROPERTIES (%s)",
+        tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
 
     // insert data into the second table partitioned by 'other_dep'
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName(OTHER_TABLE_NAME));
@@ -344,36 +345,36 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     // the second table: `other_dep` (the only partition field).
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT * "
-                    + "FROM %s "
-                    + "INNER JOIN %s "
-                    + "ON id = other_id AND int_col = other_int_col AND dep = other_dep "
-                    + "ORDER BY id, int_col, dep",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT * "
+            + "FROM %s "
+            + "INNER JOIN %s "
+            + "ON id = other_id AND int_col = other_int_col AND dep = other_dep "
+            + "ORDER BY id, int_col, dep",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
   }
 
   @Test
   public void testJoinsWithIncompatibleSpecs() {
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (dep)"
-                    + "TBLPROPERTIES (%s)",
-            tableName, tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (dep)"
+            + "TBLPROPERTIES (%s)",
+        tableName, tablePropsAsString(TABLE_PROPERTIES));
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName);
     sql("INSERT INTO %s VALUES (2L, 200, 'software')", tableName);
     sql("INSERT INTO %s VALUES (3L, 300, 'software')", tableName);
 
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (bucket(8, int_col))"
-                    + "TBLPROPERTIES (%s)",
-            tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (bucket(8, int_col))"
+            + "TBLPROPERTIES (%s)",
+        tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName(OTHER_TABLE_NAME));
     sql("INSERT INTO %s VALUES (2L, 200, 'software')", tableName(OTHER_TABLE_NAME));
@@ -384,38 +385,38 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     // the second table: `bucket(8, int_col)`
 
     assertPartitioningAwarePlan(
-            3, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles with SPJ */
-            "SELECT * "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.dep = t2.dep "
-                    + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        3, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles with SPJ */
+        "SELECT * "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.dep = t2.dep "
+            + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
   }
 
   @Test
   public void testJoinsWithUnpartitionedTables() {
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "TBLPROPERTIES ("
-                    + "  'read.split.target-size' = 16777216,"
-                    + "  'read.split.open-file-cost' = 16777216)",
-            tableName);
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "TBLPROPERTIES ("
+            + "  'read.split.target-size' = 16777216,"
+            + "  'read.split.open-file-cost' = 16777216)",
+        tableName);
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName);
     sql("INSERT INTO %s VALUES (2L, 200, 'software')", tableName);
     sql("INSERT INTO %s VALUES (3L, 300, 'software')", tableName);
 
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "TBLPROPERTIES ("
-                    + "  'read.split.target-size' = 16777216,"
-                    + "  'read.split.open-file-cost' = 16777216)",
-            tableName(OTHER_TABLE_NAME));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "TBLPROPERTIES ("
+            + "  'read.split.target-size' = 16777216,"
+            + "  'read.split.open-file-cost' = 16777216)",
+        tableName(OTHER_TABLE_NAME));
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName(OTHER_TABLE_NAME));
     sql("INSERT INTO %s VALUES (2L, 200, 'software')", tableName(OTHER_TABLE_NAME));
@@ -424,125 +425,125 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     // queries covering unpartitioned tables can't benefit from SPJ but shouldn't fail
 
     assertPartitioningAwarePlan(
-            3, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT * "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.dep = t2.dep "
-                    + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        3, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT * "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.dep = t2.dep "
+            + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
   }
 
   @Test
   public void testJoinsWithEmptyTable() {
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (dep)"
-                    + "TBLPROPERTIES (%s)",
-            tableName, tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (dep)"
+            + "TBLPROPERTIES (%s)",
+        tableName, tablePropsAsString(TABLE_PROPERTIES));
 
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (dep)"
-                    + "TBLPROPERTIES (%s)",
-            tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (dep)"
+            + "TBLPROPERTIES (%s)",
+        tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName(OTHER_TABLE_NAME));
     sql("INSERT INTO %s VALUES (2L, 200, 'software')", tableName(OTHER_TABLE_NAME));
     sql("INSERT INTO %s VALUES (3L, 300, 'software')", tableName(OTHER_TABLE_NAME));
 
     assertPartitioningAwarePlan(
-            3, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT * "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.dep = t2.dep "
-                    + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        3, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT * "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.dep = t2.dep "
+            + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
   }
 
   @Test
   public void testJoinsWithOneSplitTables() {
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (dep)"
-                    + "TBLPROPERTIES (%s)",
-            tableName, tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (dep)"
+            + "TBLPROPERTIES (%s)",
+        tableName, tablePropsAsString(TABLE_PROPERTIES));
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName);
 
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (dep)"
-                    + "TBLPROPERTIES (%s)",
-            tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (dep)"
+            + "TBLPROPERTIES (%s)",
+        tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName(OTHER_TABLE_NAME));
 
     // Spark should be able to avoid shuffles even without SPJ if each side has only one split
 
     assertPartitioningAwarePlan(
-            0, /* expected num of shuffles with SPJ */
-            0, /* expected num of shuffles without SPJ */
-            "SELECT * "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.dep = t2.dep "
-                    + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        0, /* expected num of shuffles with SPJ */
+        0, /* expected num of shuffles without SPJ */
+        "SELECT * "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.int_col = t2.int_col AND t1.dep = t2.dep "
+            + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
   }
 
   @Test
   public void testJoinsWithMismatchingPartitionKeys() {
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (dep)"
-                    + "TBLPROPERTIES (%s)",
-            tableName, tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (dep)"
+            + "TBLPROPERTIES (%s)",
+        tableName, tablePropsAsString(TABLE_PROPERTIES));
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName);
     sql("INSERT INTO %s VALUES (2L, 100, 'hr')", tableName);
 
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (dep)"
-                    + "TBLPROPERTIES (%s)",
-            tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (dep)"
+            + "TBLPROPERTIES (%s)",
+        tableName(OTHER_TABLE_NAME), tablePropsAsString(TABLE_PROPERTIES));
 
     sql("INSERT INTO %s VALUES (1L, 100, 'software')", tableName(OTHER_TABLE_NAME));
     sql("INSERT INTO %s VALUES (3L, 300, 'hardware')", tableName(OTHER_TABLE_NAME));
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT * "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.dep = t2.dep "
-                    + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT * "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.dep = t2.dep "
+            + "ORDER BY t1.id, t1.int_col, t1.dep, t2.id, t2.int_col, t2.dep",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
   }
 
   @Test
   public void testAggregates() throws NoSuchTableException {
     sql(
-            "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (dep, bucket(8, int_col))"
-                    + "TBLPROPERTIES (%s)",
-            tableName, tablePropsAsString(TABLE_PROPERTIES));
+        "CREATE TABLE %s (id BIGINT, int_col INT, dep STRING)"
+            + "USING iceberg "
+            + "PARTITIONED BY (dep, bucket(8, int_col))"
+            + "TBLPROPERTIES (%s)",
+        tableName, tablePropsAsString(TABLE_PROPERTIES));
 
     // write to the table 3 times to generate 3 files per partition
     Table table = validationCatalog.loadTable(tableIdent);
@@ -550,45 +551,45 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     append(tableName, dataDF);
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT COUNT (DISTINCT id) AS count FROM %s GROUP BY dep, int_col ORDER BY count",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT COUNT (DISTINCT id) AS count FROM %s GROUP BY dep, int_col ORDER BY count",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT COUNT (DISTINCT id) AS count FROM %s GROUP BY dep ORDER BY count",
-            tableName,
-            tableName(OTHER_TABLE_NAME));
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT COUNT (DISTINCT id) AS count FROM %s GROUP BY dep ORDER BY count",
+        tableName,
+        tableName(OTHER_TABLE_NAME));
   }
 
   private void checkJoin(String sourceColumnName, String sourceColumnType, String transform)
-          throws NoSuchTableException {
+      throws NoSuchTableException {
 
     String createTableStmt =
-            "CREATE TABLE %s (id BIGINT, salary INT, %s %s)"
-                    + "USING iceberg "
-                    + "PARTITIONED BY (%s)"
-                    + "TBLPROPERTIES (%s)";
+        "CREATE TABLE %s (id BIGINT, salary INT, %s %s)"
+            + "USING iceberg "
+            + "PARTITIONED BY (%s)"
+            + "TBLPROPERTIES (%s)";
 
     sql(
-            createTableStmt,
-            tableName,
-            sourceColumnName,
-            sourceColumnType,
-            transform,
-            tablePropsAsString(TABLE_PROPERTIES));
+        createTableStmt,
+        tableName,
+        sourceColumnName,
+        sourceColumnType,
+        transform,
+        tablePropsAsString(TABLE_PROPERTIES));
     configurePlanningMode(tableName, planningMode);
 
     sql(
-            createTableStmt,
-            tableName(OTHER_TABLE_NAME),
-            sourceColumnName,
-            sourceColumnType,
-            transform,
-            tablePropsAsString(TABLE_PROPERTIES));
+        createTableStmt,
+        tableName(OTHER_TABLE_NAME),
+        sourceColumnName,
+        sourceColumnType,
+        transform,
+        tablePropsAsString(TABLE_PROPERTIES));
     configurePlanningMode(tableName(OTHER_TABLE_NAME), planningMode);
 
     Table table = validationCatalog.loadTable(tableIdent);
@@ -597,55 +598,55 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     append(tableName(OTHER_TABLE_NAME), dataDF);
 
     assertPartitioningAwarePlan(
-            1, /* expected num of shuffles with SPJ */
-            3, /* expected num of shuffles without SPJ */
-            "SELECT t1.id, t1.salary, t1.%s "
-                    + "FROM %s t1 "
-                    + "INNER JOIN %s t2 "
-                    + "ON t1.id = t2.id AND t1.%s = t2.%s "
-                    + "ORDER BY t1.id, t1.%s, t1.salary", // add order by salary to make test stable
-            sourceColumnName,
-            tableName,
-            tableName(OTHER_TABLE_NAME),
-            sourceColumnName,
-            sourceColumnName,
-            sourceColumnName);
+        1, /* expected num of shuffles with SPJ */
+        3, /* expected num of shuffles without SPJ */
+        "SELECT t1.id, t1.salary, t1.%s "
+            + "FROM %s t1 "
+            + "INNER JOIN %s t2 "
+            + "ON t1.id = t2.id AND t1.%s = t2.%s "
+            + "ORDER BY t1.id, t1.%s, t1.salary", // add order by salary to make test stable
+        sourceColumnName,
+        tableName,
+        tableName(OTHER_TABLE_NAME),
+        sourceColumnName,
+        sourceColumnName,
+        sourceColumnName);
   }
 
   private void assertPartitioningAwarePlan(
-          int expectedNumShufflesWithSPJ,
-          int expectedNumShufflesWithoutSPJ,
-          String query,
-          Object... args) {
+      int expectedNumShufflesWithSPJ,
+      int expectedNumShufflesWithoutSPJ,
+      String query,
+      Object... args) {
 
     AtomicReference<List<Object[]>> rowsWithSPJ = new AtomicReference<>();
     AtomicReference<List<Object[]>> rowsWithoutSPJ = new AtomicReference<>();
 
     withSQLConf(
-            ENABLED_SPJ_SQL_CONF,
-            () -> {
-              String plan = executeAndKeepPlan(query, args).toString();
-              int actualNumShuffles = StringUtils.countMatches(plan, "Exchange");
-              Assert.assertEquals(
-                      "Number of shuffles with enabled SPJ must match",
-                      expectedNumShufflesWithSPJ,
-                      actualNumShuffles);
+        ENABLED_SPJ_SQL_CONF,
+        () -> {
+          String plan = executeAndKeepPlan(query, args).toString();
+          int actualNumShuffles = StringUtils.countMatches(plan, "Exchange");
+          Assert.assertEquals(
+              "Number of shuffles with enabled SPJ must match",
+              expectedNumShufflesWithSPJ,
+              actualNumShuffles);
 
-              rowsWithSPJ.set(sql(query, args));
-            });
+          rowsWithSPJ.set(sql(query, args));
+        });
 
     withSQLConf(
-            DISABLED_SPJ_SQL_CONF,
-            () -> {
-              String plan = executeAndKeepPlan(query, args).toString();
-              int actualNumShuffles = StringUtils.countMatches(plan, "Exchange");
-              Assert.assertEquals(
-                      "Number of shuffles with disabled SPJ must match",
-                      expectedNumShufflesWithoutSPJ,
-                      actualNumShuffles);
+        DISABLED_SPJ_SQL_CONF,
+        () -> {
+          String plan = executeAndKeepPlan(query, args).toString();
+          int actualNumShuffles = StringUtils.countMatches(plan, "Exchange");
+          Assert.assertEquals(
+              "Number of shuffles with disabled SPJ must match",
+              expectedNumShufflesWithoutSPJ,
+              actualNumShuffles);
 
-              rowsWithoutSPJ.set(sql(query, args));
-            });
+          rowsWithoutSPJ.set(sql(query, args));
+        });
 
     assertEquals("SPJ should not change query output", rowsWithoutSPJ.get(), rowsWithSPJ.get());
   }
@@ -662,4 +663,3 @@ public class TestStoragePartitionedJoins extends SparkTestBaseWithCatalog {
     df.coalesce(1).writeTo(table).option(SparkWriteOptions.FANOUT_ENABLED, "true").append();
   }
 }
-

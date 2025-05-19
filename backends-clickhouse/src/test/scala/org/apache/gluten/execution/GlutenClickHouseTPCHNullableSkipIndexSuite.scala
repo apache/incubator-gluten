@@ -20,13 +20,8 @@ import org.apache.spark.SparkConf
 
 import java.io.File
 
-class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbstractSuite {
+class GlutenClickHouseTPCHNullableSkipIndexSuite extends NullableMergeTreeSuite {
 
-  override protected val createNullableTables = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data-ch"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "sort")
@@ -61,7 +56,7 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$basePath/lineitem_mergetree_minmax'
+                 |LOCATION '$dataHome/lineitem_mergetree_minmax'
                  |TBLPROPERTIES('minmaxIndexKey'='l_receiptdate')
                  |""".stripMargin)
 
@@ -85,7 +80,7 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
     val marks = mergetreeScan.metrics("selectedMarks").value
     assert(marks == 1)
 
-    val directory = new File(s"$basePath/lineitem_mergetree_minmax")
+    val directory = new File(s"$dataHome/lineitem_mergetree_minmax")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
     assert(
@@ -119,7 +114,7 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$basePath/lineitem_mergetree_bf'
+                 |LOCATION '$dataHome/lineitem_mergetree_bf'
                  |TBLPROPERTIES('bloomfilterIndexKey'='l_orderkey')
                  |""".stripMargin)
 
@@ -143,7 +138,7 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
     val marks = mergetreeScan.metrics("selectedMarks").value
     assert(marks == 1)
 
-    val directory = new File(s"$basePath/lineitem_mergetree_bf")
+    val directory = new File(s"$dataHome/lineitem_mergetree_bf")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
     assert(
@@ -177,7 +172,7 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
                  | l_comment       string
                  |)
                  |USING clickhouse
-                 |LOCATION '$basePath/lineitem_mergetree_set'
+                 |LOCATION '$dataHome/lineitem_mergetree_set'
                  |TBLPROPERTIES('setIndexKey'='l_orderkey')
                  |""".stripMargin)
 
@@ -201,7 +196,7 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
     val marks = mergetreeScan.metrics("selectedMarks").value
     assert(marks == 1)
 
-    val directory = new File(s"$basePath/lineitem_mergetree_set")
+    val directory = new File(s"$dataHome/lineitem_mergetree_set")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
     assert(partDir.listFiles().exists(p => p.getName.contains("skp_idx__set_l_orderkey.idx")))
@@ -234,7 +229,7 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
                  | l_comment       string not null
                  |)
                  |USING clickhouse
-                 |LOCATION '$basePath/lineitem_mergetree_minmax2'
+                 |LOCATION '$dataHome/lineitem_mergetree_minmax2'
                  |TBLPROPERTIES('minmaxIndexKey'='l_receiptdate')
                  |""".stripMargin)
 
@@ -258,7 +253,7 @@ class GlutenClickHouseTPCHNullableSkipIndexSuite extends GlutenClickHouseTPCHAbs
     val marks = mergetreeScan.metrics("selectedMarks").value
     assert(marks == 1)
 
-    val directory = new File(s"$basePath/lineitem_mergetree_minmax2")
+    val directory = new File(s"$dataHome/lineitem_mergetree_minmax2")
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
     assert(!partDir.listFiles().exists(p => p.getName.contains("null")))

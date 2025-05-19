@@ -17,7 +17,7 @@
 package org.apache.gluten.execution.compatibility
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{GlutenClickHouseTPCHAbstractSuite, ProjectExecTransformer}
+import org.apache.gluten.execution.{ParquetSuite, ProjectExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
@@ -27,17 +27,7 @@ import org.apache.spark.sql.internal.SQLConf
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
-class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
+class GlutenClickhouseFunctionSuite extends ParquetSuite {
 
   override protected def sparkConf: SparkConf = {
     new SparkConf()
@@ -277,12 +267,8 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         "spark.sql.optimizer.excludedRules",
         "org.apache.spark.sql.catalyst.optimizer.ConstantFolding," +
           "org.apache.spark.sql.catalyst.optimizer.NullPropagation")) {
-      runQueryAndCompare(
-        """
-          |select cast(map(1,'2') as string)
-          |""".stripMargin,
-        true
-      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+      runQueryAndCompare("select cast(map(1,'2') as string)")(
+        checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 

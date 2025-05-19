@@ -21,29 +21,20 @@ import org.apache.gluten.execution._
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.InputIteratorTransformer
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition}
 
-import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
 
-import java.io.File
-
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
+import java.nio.file.{Files, Paths}
 
 class GlutenClickHouseTPCHParquetBucketSuite
   extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+  with withTPCHQuery
+  with TPCHBucketTableSource {
 
-  override protected val tablesPath: String = basePath + "/tpch-data-ch"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
-  override protected val queriesResults: String = rootPath + "queries-output"
-
-  protected val bucketTableResourcePath: String = rootPath + "tpch-data-bucket/parquet_bucket"
-  protected val bucketTableDataPath: String = basePath + "/tpch-parquet-bucket"
+  protected val bucketTableResourcePath: String = resPath + "tpch-data-bucket/parquet_bucket"
+  protected val bucketTableDataPath: String = dataHome + "/tpch-parquet-bucket"
 
   override protected def sparkConf: SparkConf = {
     import org.apache.gluten.backendsapi.clickhouse.CHConfig._
@@ -58,209 +49,43 @@ class GlutenClickHouseTPCHParquetBucketSuite
       .setCHConfig("enable_grace_aggregate_spill_test", "true")
   }
 
-  override protected val createNullableTables = true
+  lazy val hasSortByCol: Boolean = true
+  lazy val tableFormat: String = "parquet"
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    FileUtils.copyDirectory(new File(bucketTableResourcePath), new File(bucketTableDataPath))
-    createTPCHParquetBucketTables()
-  }
-
-  protected def createTPCHParquetBucketTables(): Unit = {
-
-    spark.sql(s"""
-                 |CREATE DATABASE IF NOT EXISTS tpch_parquet_bucket
-                 |""".stripMargin)
-    spark.sql("use tpch_parquet_bucket")
-    val customerData = bucketTableDataPath + "/customer"
-    spark.sql(s"DROP TABLE IF EXISTS customer")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS customer (
-                 | c_custkey    bigint,
-                 | c_name       string,
-                 | c_address    string,
-                 | c_nationkey  bigint,
-                 | c_phone      string,
-                 | c_acctbal    double,
-                 | c_mktsegment string,
-                 | c_comment    string)
-                 | USING PARQUET
-                 | LOCATION '$customerData'
-                 | CLUSTERED BY (c_custkey) SORTED BY (c_custkey) INTO 2 BUCKETS;
-                 |""".stripMargin)
-
-    val customerData1 = bucketTableDataPath + "/customer_6_buckets"
+  override protected def createTestTables(): Unit = {
+    createTPCHDefaultBucketTables(bucketTableResourcePath)
+    Seq("customer_6_buckets", "orders_6_buckets").foreach {
+      dir =>
+        val path = Paths.get(s"$bucketTableDataPath/$dir")
+        if (!Files.exists(path)) {
+          Files.createDirectories(path)
+        }
+    }
     spark.sql(s"DROP TABLE IF EXISTS customer_6_buckets")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS customer_6_buckets (
-                 | c_custkey    bigint,
-                 | c_name       string,
-                 | c_address    string,
-                 | c_nationkey  bigint,
-                 | c_phone      string,
-                 | c_acctbal    double,
-                 | c_mktsegment string,
-                 | c_comment    string)
-                 | USING PARQUET
-                 | LOCATION '$customerData1'
-                 | CLUSTERED BY (c_custkey) SORTED BY (c_custkey) INTO 6 BUCKETS;
-                 |""".stripMargin)
+    val customerData1 = bucketTableDataPath + "/customer_6_buckets"
+    val c_6 = createTableBuilder("customer_6_buckets", tableFormat, customerData1)
+      .withClusterKey(("c_custkey", 6))
+      .withSortByOfBuckets(Seq("c_custkey"))
+      .withTableKey("customer")
+      .build()
+    spark.sql(c_6)
+    spark.sql(s"INSERT INTO customer_6_buckets SELECT * FROM customer")
 
-    spark.sql(s"""
-                 |INSERT INTO customer_6_buckets SELECT * FROM customer;
-                 |""".stripMargin)
-
-    val lineitemData = bucketTableDataPath + "/lineitem"
-    spark.sql(s"DROP TABLE IF EXISTS lineitem")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS lineitem (
-                 | l_orderkey      bigint,
-                 | l_partkey       bigint,
-                 | l_suppkey       bigint,
-                 | l_linenumber    bigint,
-                 | l_quantity      double,
-                 | l_extendedprice double,
-                 | l_discount      double,
-                 | l_tax           double,
-                 | l_returnflag    string,
-                 | l_linestatus    string,
-                 | l_shipdate      date,
-                 | l_commitdate    date,
-                 | l_receiptdate   date,
-                 | l_shipinstruct  string,
-                 | l_shipmode      string,
-                 | l_comment       string)
-                 | USING PARQUET
-                 | LOCATION '$lineitemData'
-                 | CLUSTERED BY (l_orderkey) SORTED BY (l_shipdate, l_orderkey) INTO 2 BUCKETS;
-                 |""".stripMargin)
-
-    val nationData = bucketTableDataPath + "/nation"
-    spark.sql(s"DROP TABLE IF EXISTS nation")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS nation (
-                 | n_nationkey bigint,
-                 | n_name      string,
-                 | n_regionkey bigint,
-                 | n_comment   string)
-                 | USING PARQUET
-                 | LOCATION '$nationData'
-                 | CLUSTERED BY (n_nationkey) SORTED BY (n_nationkey) INTO 1 BUCKETS;
-                 |""".stripMargin)
-
-    val regionData = bucketTableDataPath + "/region"
-    spark.sql(s"DROP TABLE IF EXISTS region")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS region (
-                 | r_regionkey bigint,
-                 | r_name      string,
-                 | r_comment   string)
-                 | USING PARQUET
-                 | LOCATION '$regionData'
-                 | CLUSTERED BY (r_regionkey) SORTED BY (r_regionkey) INTO 1 BUCKETS;
-                 |""".stripMargin)
-
-    val ordersData = bucketTableDataPath + "/orders"
-    spark.sql(s"DROP TABLE IF EXISTS orders")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS orders (
-                 | o_orderkey      bigint,
-                 | o_custkey       bigint,
-                 | o_orderstatus   string,
-                 | o_totalprice    double,
-                 | o_orderdate     date,
-                 | o_orderpriority string,
-                 | o_clerk         string,
-                 | o_shippriority  bigint,
-                 | o_comment       string)
-                 | USING PARQUET
-                 | LOCATION '$ordersData'
-                 | CLUSTERED BY (o_orderkey) SORTED BY (o_orderkey, o_orderdate) INTO 2 BUCKETS;
-                 |""".stripMargin)
-
-    val ordersData1 = bucketTableDataPath + "/orders_6_buckets"
     spark.sql(s"DROP TABLE IF EXISTS orders_6_buckets")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS orders_6_buckets (
-                 | o_orderkey      bigint,
-                 | o_custkey       bigint,
-                 | o_orderstatus   string,
-                 | o_totalprice    double,
-                 | o_orderdate     date,
-                 | o_orderpriority string,
-                 | o_clerk         string,
-                 | o_shippriority  bigint,
-                 | o_comment       string)
-                 | USING PARQUET
-                 | LOCATION '$ordersData1'
-                 | CLUSTERED BY (o_orderkey) SORTED BY (o_orderkey, o_orderdate) INTO 6 BUCKETS;
-                 |""".stripMargin)
-
-    spark.sql(s"""
-                 |INSERT INTO orders_6_buckets SELECT * FROM orders;
-                 |""".stripMargin)
-
-    val partData = bucketTableDataPath + "/part"
-    spark.sql(s"DROP TABLE IF EXISTS part")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS part (
-                 | p_partkey     bigint,
-                 | p_name        string,
-                 | p_mfgr        string,
-                 | p_brand       string,
-                 | p_type        string,
-                 | p_size        bigint,
-                 | p_container   string,
-                 | p_retailprice double,
-                 | p_comment     string)
-                 | USING PARQUET
-                 | LOCATION '$partData'
-                 | CLUSTERED BY (p_partkey) SORTED BY (p_partkey) INTO 2 BUCKETS;
-                 |""".stripMargin)
-
-    val partsuppData = bucketTableDataPath + "/partsupp"
-    spark.sql(s"DROP TABLE IF EXISTS partsupp")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS partsupp (
-                 | ps_partkey    bigint,
-                 | ps_suppkey    bigint,
-                 | ps_availqty   bigint,
-                 | ps_supplycost double,
-                 | ps_comment    string)
-                 | USING PARQUET
-                 | LOCATION '$partsuppData'
-                 | CLUSTERED BY (ps_partkey) SORTED BY (ps_partkey) INTO 2 BUCKETS;
-                 |""".stripMargin)
-
-    val supplierData = bucketTableDataPath + "/supplier"
-    spark.sql(s"DROP TABLE IF EXISTS supplier")
-    spark.sql(s"""
-                 | CREATE EXTERNAL TABLE IF NOT EXISTS supplier (
-                 | s_suppkey   bigint,
-                 | s_name      string,
-                 | s_address   string,
-                 | s_nationkey bigint,
-                 | s_phone     string,
-                 | s_acctbal   double,
-                 | s_comment   string)
-                 | USING PARQUET
-                 | LOCATION '$supplierData'
-                 | CLUSTERED BY (s_suppkey) SORTED BY (s_suppkey) INTO 1 BUCKETS;
-                 |""".stripMargin)
-
-    val result = spark
-      .sql(s"""
-              | show tables;
-              |""".stripMargin)
-      .collect()
-    assert(result.length == 10)
+    val ordersData1 = bucketTableDataPath + "/orders_6_buckets"
+    val o_6 = createTableBuilder("orders_6_buckets", tableFormat, ordersData1)
+      .withClusterKey(("o_orderkey", 6))
+      .withSortByOfBuckets(Seq("o_orderkey", "o_orderdate"))
+      .withTableKey("orders")
+      .build()
+    spark.sql(o_6)
+    spark.sql(s"INSERT INTO orders_6_buckets SELECT * FROM orders")
+    assert(spark.sql("show tables").collect().length === 10)
   }
 
   test("TPCH Q1") {
-    compareTPCHQueryAgainstVanillaSpark(
-      1,
-      tpchQueries,
-      df => {
+    customCheck(1) {
+      df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
@@ -268,15 +93,12 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(plans.head.metrics("numFiles").value === 4)
         assert(plans.head.metrics("pruningTime").value === pruningTimeValueSpark)
         assert(plans.head.metrics("numOutputRows").value === 600572)
-      }
-    )
+    }
   }
 
   test("TPCH Q2") {
-    compareTPCHQueryAgainstVanillaSpark(
-      2,
-      tpchQueries,
-      df => {
+    customCheck(2) {
+      df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
           case joinExec: HashJoinLikeExecTransformer => joinExec
@@ -330,15 +152,12 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
         assert(plans(11).metrics("numFiles").value === 1)
         assert(plans(11).metrics("numOutputRows").value === 1000)
-      }
-    )
+    }
   }
 
   test("TPCH Q3") {
-    compareTPCHQueryAgainstVanillaSpark(
-      3,
-      tpchQueries,
-      df => {
+    customCheck(3) {
+      df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
           case joinExec: HashJoinLikeExecTransformer => joinExec
@@ -374,16 +193,13 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(!plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(3).metrics("numFiles").value === 4)
         assert(plans(3).metrics("numOutputRows").value === 150000)
-      }
-    )
+    }
 
     withSQLConf(
       ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
       ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
-      compareTPCHQueryAgainstVanillaSpark(
-        3,
-        tpchQueries,
-        df => {
+      customCheck(3) {
+        df =>
           if (spark33) {
             val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
               case aggExec: HashAggregateExecBaseTransformer
@@ -393,16 +209,13 @@ class GlutenClickHouseTPCHParquetBucketSuite
             }
             assert(plans.size == 4)
           }
-        }
-      )
+      }
     }
   }
 
   test("TPCH Q4") {
-    compareTPCHQueryAgainstVanillaSpark(
-      4,
-      tpchQueries,
-      df => {
+    customCheck(4) {
+      df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
           case joinExec: HashJoinLikeExecTransformer => joinExec
@@ -426,16 +239,13 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(2).metrics("numFiles").value === 4)
         assert(plans(2).metrics("numOutputRows").value === 600572)
-      }
-    )
+    }
 
     withSQLConf(
       ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
       ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
-      compareTPCHQueryAgainstVanillaSpark(
-        4,
-        tpchQueries,
-        df => {
+      customCheck(4) {
+        df =>
           if (spark33) {
             val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
               case aggExec: HashAggregateExecBaseTransformer
@@ -445,16 +255,13 @@ class GlutenClickHouseTPCHParquetBucketSuite
             }
             assert(plans.size == 2)
           }
-        }
-      )
+      }
     }
   }
 
   test("TPCH Q6") {
-    compareTPCHQueryAgainstVanillaSpark(
-      6,
-      tpchQueries,
-      df => {
+    customCheck(6) {
+      df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
@@ -462,15 +269,12 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(plans.head.metrics("numFiles").value === 4)
         assert(plans.head.metrics("pruningTime").value === pruningTimeValueSpark)
         assert(plans.head.metrics("numOutputRows").value === 600572)
-      }
-    )
+    }
   }
 
   test("TPCH Q12") {
-    compareTPCHQueryAgainstVanillaSpark(
-      12,
-      tpchQueries,
-      df => {
+    customCheck(12) {
+      df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
           case joinExec: HashJoinLikeExecTransformer => joinExec
@@ -494,16 +298,13 @@ class GlutenClickHouseTPCHParquetBucketSuite
         assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(2).metrics("numFiles").value === 4)
         assert(plans(2).metrics("numOutputRows").value === 600572)
-      }
-    )
+    }
 
     withSQLConf(
       ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
       ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
-      compareTPCHQueryAgainstVanillaSpark(
-        12,
-        tpchQueries,
-        df => {
+      customCheck(12) {
+        df =>
           if (spark33) {
             val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
               case aggExec: HashAggregateExecBaseTransformer
@@ -513,16 +314,13 @@ class GlutenClickHouseTPCHParquetBucketSuite
             }
             assert(plans.size == 2)
           }
-        }
-      )
+      }
     }
   }
 
   test("TPCH Q18") {
-    compareTPCHQueryAgainstVanillaSpark(
-      18,
-      tpchQueries,
-      df => {
+    customCheck(18) {
+      df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case joinExec: HashJoinLikeExecTransformer => joinExec
         }
@@ -548,15 +346,12 @@ class GlutenClickHouseTPCHParquetBucketSuite
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
             .isInstanceOf[ProjectExecTransformer])
-      }
-    )
+    }
   }
 
   test("TPCH Q20") {
-    compareTPCHQueryAgainstVanillaSpark(
-      20,
-      tpchQueries,
-      df => {
+    customCheck(20) {
+      df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case joinExec: HashJoinLikeExecTransformer => joinExec
         }
@@ -600,16 +395,13 @@ class GlutenClickHouseTPCHParquetBucketSuite
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
             .isInstanceOf[ProjectExecTransformer])
-      }
-    )
+    }
 
     withSQLConf(
       ("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB"),
       ("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")) {
-      compareTPCHQueryAgainstVanillaSpark(
-        20,
-        tpchQueries,
-        df => {
+      customCheck(20) {
+        df =>
           if (spark33) {
             val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
               case aggExec: HashAggregateExecBaseTransformer
@@ -619,8 +411,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
             }
             assert(plans.size == 3)
           }
-        }
-      )
+      }
     }
   }
 
@@ -806,4 +597,3 @@ class GlutenClickHouseTPCHParquetBucketSuite
     }
   }
 }
-// scalastyle:on line.size.limit

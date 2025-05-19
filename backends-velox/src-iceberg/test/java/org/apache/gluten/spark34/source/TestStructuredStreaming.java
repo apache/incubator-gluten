@@ -17,6 +17,7 @@
 package org.apache.gluten.spark34.source;
 
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -33,11 +34,12 @@ import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
-import scala.Option;
-import scala.collection.JavaConverters;
 
 import java.io.File;
 import java.util.List;
+
+import scala.Option;
+import scala.collection.JavaConverters;
 
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -58,7 +60,7 @@ public class TestStructuredStreaming {
         SparkSession.builder()
             .master("local[2]")
             .config("spark.sql.shuffle.partitions", 4)
-                .config(TestConfUtil.GLUTEN_CONF)
+            .config(TestConfUtil.GLUTEN_CONF)
             .getOrCreate();
   }
 

@@ -28,8 +28,8 @@ import scala.collection.JavaConverters._
 
 class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
-  protected val substraitPlansDatPath: String = rootPath + "substrait-plans"
-  protected val metricsJsonFilePath: String = rootPath + "metrics-json"
+  protected val substraitPlansDatPath: String = resPath + "substrait-plans"
+  protected val metricsJsonFilePath: String = resPath + "metrics-json"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -51,7 +51,7 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
       val nativeMetricsList = GlutenClickHouseMetricsUTUtils
         .executeSubstraitPlan(
           substraitPlansDatPath + "/tpcds-q47-wholestage-9.json",
-          basePath,
+          dataHome,
           inBatchIters,
           outputAttributes
         )

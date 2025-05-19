@@ -110,7 +110,7 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildSchema(const parquet::FileMetaData
         std::shared_ptr<arrow::Schema> schema;
         THROW_ARROW_NOT_OK(parquet::arrow::FromParquetSchema(file_meta.schema(), &schema));
 
-        fileHeader = ArrowColumnToCHColumn::arrowSchemaToCHHeader(*schema, "Parquet", false, true);
+        fileHeader = ArrowColumnToCHColumn::arrowSchemaToCHHeader(*schema, file_meta.key_value_metadata(), "Parquet", false, true);
     }
     return *this;
 }

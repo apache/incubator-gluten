@@ -21,17 +21,16 @@
 
 #include "compute/ProtobufUtils.h"
 #include "compute/ResultIterator.h"
-#include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/MemoryManager.h"
 #include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
-#include "operators/writer/ArrowWriter.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
 #include "utils/ObjectStore.h"
+#include "utils/WholeStageDumper.h"
 
 namespace gluten {
 
@@ -83,11 +82,11 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return kind_;
   }
 
-  virtual void parsePlan(const uint8_t* data, int32_t size, bool dumpPlan) {
+  virtual void parsePlan(const uint8_t* data, int32_t size) {
     throw GlutenException("Not implemented");
   }
 
-  virtual void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx, bool dumpSplit) {
+  virtual void parseSplitInfo(const uint8_t* data, int32_t size, int32_t idx) {
     throw GlutenException("Not implemented");
   }
 
@@ -150,20 +149,24 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     throw GlutenException("Not implemented");
   }
 
-  virtual void dumpConf(bool dump) {
-    throw GlutenException("Not implemented");
-  }
-
-  virtual std::shared_ptr<ArrowWriter> createArrowWriter(bool dumpData, int32_t idx) {
-    throw GlutenException("Not implemented");
-  };
-
   const std::unordered_map<std::string, std::string>& getConfMap() {
     return confMap_;
   }
 
   virtual void setSparkTaskInfo(SparkTaskInfo taskInfo) {
     taskInfo_ = taskInfo;
+  }
+
+  std::optional<SparkTaskInfo> getSparkTaskInfo() const {
+    return taskInfo_;
+  }
+
+  virtual void enableDumping() {
+    throw GlutenException("Not implemented");
+  }
+
+  virtual WholeStageDumper* getDumper() {
+    return dumper_.get();
   }
 
   ObjectHandle saveObject(std::shared_ptr<void> obj) {
@@ -178,6 +181,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   ::substrait::Plan substraitPlan_;
   std::vector<::substrait::ReadRel_LocalFiles> localFiles_;
-  SparkTaskInfo taskInfo_;
+
+  std::optional<SparkTaskInfo> taskInfo_{std::nullopt};
+  std::shared_ptr<WholeStageDumper> dumper_{nullptr};
 };
 } // namespace gluten

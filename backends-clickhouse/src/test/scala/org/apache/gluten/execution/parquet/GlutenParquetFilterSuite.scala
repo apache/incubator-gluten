@@ -34,7 +34,7 @@ class GlutenParquetFilterSuite
   with GlutenTPCHBase
   with Logging {
 
-  private val tpchQueriesResourceFolder: String = rootPath + "queries/tpch-queries-ch"
+  private val tpchQueriesResourceFolder: String = resPath + "queries/tpch-queries-ch"
 
   override protected def sparkConf: SparkConf =
     super.sparkConf

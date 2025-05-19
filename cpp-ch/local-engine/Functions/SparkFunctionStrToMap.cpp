@@ -55,7 +55,7 @@ class TrivialCharSplitter
 {
 public:
     using Pos = const char *;
-    TrivialCharSplitter(String & delimiter_) : delimiter(delimiter_) { }
+    TrivialCharSplitter(const String & delimiter_) : delimiter(delimiter_) { }
 
     void reset(Pos str_begin_, Pos str_end_)
     {
@@ -76,15 +76,12 @@ public:
         token_begin = str_cursor;
         auto next_token_pos = static_cast<Pos>(memmem(str_cursor, str_end - str_cursor, delimiter.c_str(), delimiter.size()));
         // If delimiter is not found, return the remaining string.
-        LOG_ERROR(getLogger("TrivialCharSplitter"), "xxx next_token_pos: {}", fmt::ptr(next_token_pos));
         if (!next_token_pos)
         {
             token_end = str_end;
             str_cursor = str_end;
             delimiter_begin = nullptr;
             delimiter_end = nullptr;
-            LOG_ERROR(
-                getLogger("TrivialCharSplitter"), "xxx delimiter_begin: {} {}", delimiter_begin == nullptr, fmt::ptr(delimiter_begin));
         }
         else
         {
@@ -97,7 +94,7 @@ public:
     }
 
 private:
-    const String & delimiter;
+    String delimiter;
     Pos str_begin;
     Pos str_end;
     Pos str_cursor;
@@ -161,7 +158,7 @@ public:
     }
 
 private:
-    const String & delimiter;
+    String delimiter;
     DB::Regexps::RegexpPtr re;
     OptimizedRegularExpression::MatchVec matches;
     Pos str_begin;

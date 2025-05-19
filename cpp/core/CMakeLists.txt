@@ -128,7 +128,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     memory/MemoryManager.cc
     memory/ArrowMemoryPool.cc
     memory/ColumnarBatch.cc
-    operators/writer/ArrowWriter.cc
     shuffle/FallbackRangePartitioner.cc
     shuffle/HashPartitioner.cc
     shuffle/LocalPartitionWriter.cc
@@ -177,7 +176,6 @@ if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
 endif()
 
 find_arrow_lib(${ARROW_LIB_NAME})
-find_arrow_lib(${PARQUET_LIB_NAME})
 find_arrow_lib(${ARROW_BUNDLED_DEPS})
 
 if(ENABLE_HBM)
@@ -244,7 +242,7 @@ else()
   set(LIBHDFS3_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-target_link_libraries(gluten PUBLIC Arrow::parquet Arrow::arrow
+target_link_libraries(gluten PUBLIC Arrow::arrow
                                     Arrow::arrow_bundled_dependencies)
 target_link_libraries(gluten PRIVATE google::glog)
 

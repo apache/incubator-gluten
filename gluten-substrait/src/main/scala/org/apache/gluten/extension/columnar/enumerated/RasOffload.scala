@@ -113,6 +113,7 @@ object RasOffload {
           }
 
         // 3. Walk the rewritten tree.
+        var offloadSucceeded: Boolean = false
         val offloaded = rewritten.transformUp {
           case from if typeIdentifier.isInstance(from) =>
             // 4. Validate current node. If passed, offload it.
@@ -132,6 +133,7 @@ object RasOffload {
                   //  to original plan.
                   from
                 } else {
+                  offloadSucceeded = true
                   offloadedPlan
                 }
               case Validator.Failed(reason) =>
@@ -143,7 +145,7 @@ object RasOffload {
         }
 
         // 6. If rewritten plan is not offload-able, discard it.
-        if (offloaded.fastEquals(rewritten)) {
+        if (!offloadSucceeded) {
           return List.empty
         }
 

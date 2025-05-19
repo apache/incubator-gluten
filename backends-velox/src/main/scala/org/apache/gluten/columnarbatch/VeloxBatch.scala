@@ -21,8 +21,8 @@ import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
 object VeloxBatch extends Convention.BatchType {
   override protected def registerTransitions(): Unit = {
-    fromRow(RowToVeloxColumnarExec.apply)
-    toRow(VeloxColumnarToRowExec.apply)
+    fromRow(Convention.RowType.VanillaRow, RowToVeloxColumnarExec.apply)
+    toRow(Convention.RowType.VanillaRow, VeloxColumnarToRowExec.apply)
     fromBatch(ArrowBatches.ArrowNativeBatch, ArrowColumnarToVeloxColumnarExec.apply)
     toBatch(ArrowBatches.ArrowNativeBatch, Transition.empty)
   }

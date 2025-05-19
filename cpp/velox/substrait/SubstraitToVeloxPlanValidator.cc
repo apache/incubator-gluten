@@ -59,7 +59,7 @@ const std::unordered_set<std::string> kRegexFunctions = {
     "rlike"};
 
 const std::unordered_set<std::string> kBlackList =
-    {"split_part", "factorial", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
+    {"split_part", "trunc", "sequence", "approx_percentile", "get_array_struct_fields", "map_from_arrays"};
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::parseVeloxType(
@@ -133,10 +133,22 @@ bool SubstraitToVeloxPlanValidator::validateRound(
   // Velox has different result with Spark on negative scale.
   auto typeCase = arguments[1].value().literal().literal_type_case();
   switch (typeCase) {
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI32:
-      return (arguments[1].value().literal().i32() >= 0);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
-      return (arguments[1].value().literal().i64() >= 0);
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI32: {
+      int32_t scale = arguments[1].value().literal().i32();
+      if (scale < 0) {
+        LOG_VALIDATION_MSG("Round scale validation failed: scale " + std::to_string(scale) + " is negative.");
+        return false;
+      }
+      return true;
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI64: {
+      int64_t scale = arguments[1].value().literal().i64();
+      if (scale < 0) {
+        LOG_VALIDATION_MSG("Round scale validation failed: scale " + std::to_string(scale) + " is negative.");
+        return false;
+      }
+      return true;
+    }
     default:
       LOG_VALIDATION_MSG("Round scale validation is not supported for type case " + std::to_string(typeCase));
       return false;
@@ -209,15 +221,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   if (name == "extract") {
     return validateExtractExpr(params);
   }
-  if (name == "concat") {
-    for (const auto& type : types) {
-      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
-          type.find("list") != std::string::npos) {
-        LOG_VALIDATION_MSG(type + " is not supported in concat.");
-        return false;
-      }
-    }
-  }
 
   // Validate regex functions.
   if (kRegexFunctions.find(name) != kRegexFunctions.end()) {
@@ -233,16 +236,27 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
 }
 
 bool isSupportedArrayCast(const TypePtr& fromType, const TypePtr& toType) {
-  static const std::unordered_set<TypeKind> kAllowedArrayElementKinds = {
-      TypeKind::DOUBLE,
-      TypeKind::BOOLEAN,
-      TypeKind::TIMESTAMP,
-  };
-
   // https://github.com/apache/incubator-gluten/issues/9392
   // is currently WIP to add support for other types.
   if (toType->isVarchar()) {
-    return kAllowedArrayElementKinds.count(fromType->kind()) > 0;
+    return fromType->isDouble() || fromType->isBoolean() || fromType->isTimestamp();
+  }
+
+  if (toType->isDouble()) {
+    if (fromType->isInteger() || fromType->isBigint() || fromType->isSmallint() || fromType->isTinyint()) {
+      return true;
+    }
+  }
+
+  if (toType->isBoolean()) {
+    if (fromType->isDate() || fromType->isShortDecimal()) {
+      return false;
+    }
+
+    if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
+        fromType->isReal() || fromType->isDouble()) {
+      return true;
+    }
   }
 
   return false;
@@ -294,6 +308,9 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
       return true;
     }
     if (fromType->isVarchar()) {
+      return true;
+    }
+    if (fromType->isBoolean()) {
       return true;
     }
     if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
@@ -1086,6 +1103,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
   switch (crossRel.type()) {
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT_SEMI:
       break;
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
       if (crossRel.has_expression()) {

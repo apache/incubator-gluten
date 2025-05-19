@@ -24,22 +24,40 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class GlutenTestMergeOnReadDelete extends TestMergeOnReadDelete {
-    public GlutenTestMergeOnReadDelete(String catalogName, String implementation, Map<String, String> config, String fileFormat, Boolean vectorized, String distributionMode, boolean fanoutEnabled, String branch, PlanningMode planningMode) {
-        super(catalogName, implementation, config, fileFormat, vectorized, distributionMode, fanoutEnabled, branch, planningMode);
-    }
+  public GlutenTestMergeOnReadDelete(
+      String catalogName,
+      String implementation,
+      Map<String, String> config,
+      String fileFormat,
+      Boolean vectorized,
+      String distributionMode,
+      boolean fanoutEnabled,
+      String branch,
+      PlanningMode planningMode) {
+    super(
+        catalogName,
+        implementation,
+        config,
+        fileFormat,
+        vectorized,
+        distributionMode,
+        fanoutEnabled,
+        branch,
+        planningMode);
+  }
 
-    @Test
-    public synchronized void testDeleteWithConcurrentTableRefresh() {
-        System.out.println("Run timeout");
-    }
+  @Test
+  public synchronized void testDeleteWithConcurrentTableRefresh() {
+    System.out.println("Run timeout");
+  }
 
-    @Test
-    public synchronized void testDeleteWithSerializableIsolation() {
-        System.out.println("Run timeout");
-    }
+  @Test
+  public synchronized void testDeleteWithSerializableIsolation() {
+    System.out.println("Run timeout");
+  }
 
-    @Test
-    public synchronized void testDeleteWithSnapshotIsolation() throws ExecutionException {
-        System.out.println("Run timeout");
-    }
+  @Test
+  public synchronized void testDeleteWithSnapshotIsolation() throws ExecutionException {
+    System.out.println("Run timeout");
+  }
 }

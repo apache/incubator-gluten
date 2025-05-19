@@ -17,6 +17,7 @@
 package org.apache.gluten.spark34.sql;
 
 import org.apache.gluten.spark34.TestConfUtil;
+
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
@@ -31,33 +32,34 @@ import org.junit.BeforeClass;
 import java.util.Map;
 
 public class GlutenTestAggregatePushDown extends TestAggregatePushDown {
-    public GlutenTestAggregatePushDown(String catalogName, String implementation, Map<String, String> config) {
-        super(catalogName, implementation, config);
+  public GlutenTestAggregatePushDown(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
+
+  @BeforeClass
+  public static void startMetastoreAndSpark() {
+    SparkTestBase.metastore = new TestHiveMetastore();
+    metastore.start();
+    SparkTestBase.hiveConf = metastore.hiveConf();
+
+    SparkTestBase.spark =
+        SparkSession.builder()
+            .master("local[2]")
+            .config("spark.sql.iceberg.aggregate_pushdown", "true")
+            .config(TestConfUtil.GLUTEN_CONF)
+            .enableHiveSupport()
+            .getOrCreate();
+
+    SparkTestBase.catalog =
+        (HiveCatalog)
+            CatalogUtil.loadCatalog(
+                HiveCatalog.class.getName(), "hive", ImmutableMap.of(), hiveConf);
+
+    try {
+      catalog.createNamespace(Namespace.of("default"));
+    } catch (AlreadyExistsException ignored) {
+      // the default namespace already exists. ignore the create error
     }
-
-    @BeforeClass
-    public static void startMetastoreAndSpark() {
-        SparkTestBase.metastore = new TestHiveMetastore();
-        metastore.start();
-        SparkTestBase.hiveConf = metastore.hiveConf();
-
-        SparkTestBase.spark =
-                SparkSession.builder()
-                        .master("local[2]")
-                        .config("spark.sql.iceberg.aggregate_pushdown", "true")
-                        .config(TestConfUtil.GLUTEN_CONF)
-                        .enableHiveSupport()
-                        .getOrCreate();
-
-        SparkTestBase.catalog =
-                (HiveCatalog)
-                        CatalogUtil.loadCatalog(
-                                HiveCatalog.class.getName(), "hive", ImmutableMap.of(), hiveConf);
-
-        try {
-            catalog.createNamespace(Namespace.of("default"));
-        } catch (AlreadyExistsException ignored) {
-            // the default namespace already exists. ignore the create error
-        }
-    }
+  }
 }

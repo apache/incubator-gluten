@@ -64,13 +64,21 @@ trait TransitionSuiteBase {
     override def output: Seq[Attribute] = left.output ++ right.output
   }
 
-  case class RowLeaf() extends LeafExecNode {
+  case class RowLeaf(override val rowType0: Convention.RowType)
+    extends LeafExecNode
+    with GlutenPlan {
+    override def batchType(): Convention.BatchType = Convention.BatchType.None
+
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
 
     override def output: Seq[Attribute] = List.empty
   }
 
-  case class RowUnary(override val child: SparkPlan) extends UnaryExecNode {
+  case class RowUnary(override val rowType0: Convention.RowType, override val child: SparkPlan)
+    extends UnaryExecNode
+    with GlutenPlan {
+    override def batchType(): Convention.BatchType = Convention.BatchType.None
+
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
 
@@ -79,8 +87,14 @@ trait TransitionSuiteBase {
     override def output: Seq[Attribute] = child.output
   }
 
-  case class RowBinary(override val left: SparkPlan, override val right: SparkPlan)
-    extends BinaryExecNode {
+  case class RowBinary(
+      override val rowType0: Convention.RowType,
+      override val left: SparkPlan,
+      override val right: SparkPlan)
+    extends BinaryExecNode
+    with GlutenPlan {
+    override def batchType(): Convention.BatchType = Convention.BatchType.None
+
     override protected def withNewChildrenInternal(
         newLeft: SparkPlan,
         newRight: SparkPlan): SparkPlan = copy(left = newLeft, right = newRight)

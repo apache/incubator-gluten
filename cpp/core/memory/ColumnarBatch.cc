@@ -20,12 +20,10 @@
 #include "arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
-#include "memory/MemoryManager.h"
-#include "operators/writer/ArrowWriter.h"
-#include "utils/ArrowStatus.h"
+#include "memory/ColumnarBatch.h"
 #include "utils/Exception.h"
 
-#include "ColumnarBatch.h"
+#include <arrow/type.h>
 
 namespace gluten {
 ColumnarBatch::ColumnarBatch(int32_t numColumns, int32_t numRows)

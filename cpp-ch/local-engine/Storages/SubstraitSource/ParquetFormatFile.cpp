@@ -28,7 +28,7 @@
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
 #include <Storages/Parquet/VirtualColumnRowIndexReader.h>
-#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
+#include <Storages/SubstraitSource/Delta/DeltaMeta.h>
 
 namespace DB
 {
@@ -151,7 +151,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const Block & he
 
     auto format_settings = getFormatSettings(context);
     Block output_header = header;
-    Block read_header = DeltaParquetVirtualMeta::removeMetaColumns(removeMetaColumns(header));
+    Block read_header = DeltaVirtualMeta::removeMetaColumns(removeMetaColumns(header));
 
     ParquetMetaBuilder metaBuilder{
         .collectPageIndex = usePageIndexReader || readRowIndex,

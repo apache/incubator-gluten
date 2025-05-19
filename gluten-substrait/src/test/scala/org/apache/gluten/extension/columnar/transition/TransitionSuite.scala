@@ -38,89 +38,142 @@ class TransitionSuite extends SharedSparkSession with WithDummyBackend {
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     Convention.ensureSparkRowAndBatchTypesRegistered()
-    TypeA.ensureRegistered()
-    TypeB.ensureRegistered()
-    TypeC.ensureRegistered()
-    TypeD.ensureRegistered()
+    RowTypeA.ensureRegistered()
+    BatchTypeA.ensureRegistered()
+    BatchTypeB.ensureRegistered()
+    BatchTypeC.ensureRegistered()
+    BatchTypeD.ensureRegistered()
+    RowTypeB.ensureRegistered()
   }
 
   test("Trivial C2R") {
-    val in = BatchLeaf(TypeA)
-    val out = Transitions.insert(in, outputsColumnar = false)
-    assert(out == BatchToRow(TypeA, BatchLeaf(TypeA)))
+    val in = BatchLeaf(BatchTypeA)
+    val out = insertTransitions(in, ConventionReq.ofRow(ConventionReq.RowType.Is(RowTypeA)))
+    assert(out == BatchToRow(BatchTypeA, RowTypeA, BatchLeaf(BatchTypeA)))
   }
 
   test("Insert C2R") {
-    val in = RowUnary(BatchLeaf(TypeA))
-    val out = Transitions.insert(in, outputsColumnar = false)
-    assert(out == RowUnary(BatchToRow(TypeA, BatchLeaf(TypeA))))
+    val in = RowUnary(RowTypeA, BatchLeaf(BatchTypeA))
+    val out = insertTransitions(in, ConventionReq.ofRow(ConventionReq.RowType.Is(RowTypeA)))
+    assert(out == RowUnary(RowTypeA, BatchToRow(BatchTypeA, RowTypeA, BatchLeaf(BatchTypeA))))
   }
 
   test("Insert R2C") {
-    val in = BatchUnary(TypeA, RowLeaf())
-    val out = Transitions.insert(in, outputsColumnar = false)
-    assert(out == BatchToRow(TypeA, BatchUnary(TypeA, RowToBatch(TypeA, RowLeaf()))))
+    val in = BatchUnary(BatchTypeA, RowLeaf(RowTypeA))
+    val out = insertTransitions(in, ConventionReq.ofRow(ConventionReq.RowType.Is(RowTypeA)))
+    assert(
+      out == BatchToRow(
+        BatchTypeA,
+        RowTypeA,
+        BatchUnary(BatchTypeA, RowToBatch(RowTypeA, BatchTypeA, RowLeaf(RowTypeA)))))
   }
 
   test("Insert C2R2C") {
-    val in = BatchUnary(TypeA, BatchLeaf(TypeB))
-    val out = Transitions.insert(in, outputsColumnar = false)
+    val in = BatchUnary(BatchTypeA, BatchLeaf(BatchTypeB))
+    val out = insertTransitions(in, ConventionReq.ofRow(ConventionReq.RowType.Is(RowTypeA)))
     assert(
       out == BatchToRow(
-        TypeA,
-        BatchUnary(TypeA, RowToBatch(TypeA, BatchToRow(TypeB, BatchLeaf(TypeB))))))
+        BatchTypeA,
+        RowTypeA,
+        BatchUnary(
+          BatchTypeA,
+          RowToBatch(
+            RowTypeA,
+            BatchTypeA,
+            BatchToRow(BatchTypeB, RowTypeA, BatchLeaf(BatchTypeB))))))
   }
 
   test("Insert C2C") {
-    val in = BatchUnary(TypeA, BatchLeaf(TypeC))
-    val out = Transitions.insert(in, outputsColumnar = false)
+    val in = BatchUnary(BatchTypeA, BatchLeaf(BatchTypeC))
+    val out = insertTransitions(in, ConventionReq.ofRow(ConventionReq.RowType.Is(RowTypeA)))
     assert(
       out == BatchToRow(
-        TypeA,
-        BatchUnary(TypeA, BatchToBatch(from = TypeC, to = TypeA, BatchLeaf(TypeC)))))
+        BatchTypeA,
+        RowTypeA,
+        BatchUnary(
+          BatchTypeA,
+          BatchToBatch(from = BatchTypeC, to = BatchTypeA, BatchLeaf(BatchTypeC)))))
+  }
+
+  test("Insert R2C2R") {
+    val in = RowUnary(RowTypeB, RowLeaf(RowTypeA))
+    val out = insertTransitions(in, ConventionReq.ofRow(ConventionReq.RowType.Is(RowTypeA)))
+    assert(
+      out == BatchToRow(
+        BatchTypeB,
+        RowTypeA,
+        RowToBatch(
+          RowTypeB,
+          BatchTypeB,
+          RowUnary(
+            RowTypeB,
+            BatchToRow(BatchTypeA, RowTypeB, RowToBatch(RowTypeA, BatchTypeA, RowLeaf(RowTypeA)))))
+      ))
   }
 
   test("No transitions found") {
-    val in = BatchUnary(TypeA, BatchLeaf(TypeD))
+    val in = BatchUnary(BatchTypeA, BatchLeaf(BatchTypeD))
     assertThrows[GlutenException] {
-      Transitions.insert(in, outputsColumnar = false)
+      insertTransitions(in, ConventionReq.ofRow(ConventionReq.RowType.Is(RowTypeA)))
     }
   }
 }
 
 object TransitionSuite extends TransitionSuiteBase {
-  object TypeA extends Convention.BatchType {
-    override protected[this] def registerTransitions(): Unit = {
-      fromRow(RowToBatch(this, _))
-      toRow(BatchToRow(this, _))
-    }
+  private def insertTransitions(plan: SparkPlan, req: ConventionReq): SparkPlan = {
+    InsertTransitions(req).apply(plan)
   }
 
-  object TypeB extends Convention.BatchType {
-    override protected[this] def registerTransitions(): Unit = {
-      fromRow(RowToBatch(this, _))
-      toRow(BatchToRow(this, _))
-    }
-  }
-
-  object TypeC extends Convention.BatchType {
-    override protected[this] def registerTransitions(): Unit = {
-      fromRow(RowToBatch(this, _))
-      toRow(BatchToRow(this, _))
-      fromBatch(TypeA, BatchToBatch(TypeA, this, _))
-      toBatch(TypeA, BatchToBatch(this, TypeA, _))
-    }
-  }
-
-  object TypeD extends Convention.BatchType {
+  object RowTypeA extends Convention.RowType {
     override protected[this] def registerTransitions(): Unit = {}
   }
 
-  case class RowToBatch(toBatchType: Convention.BatchType, override val child: SparkPlan)
+  object BatchTypeA extends Convention.BatchType {
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowTypeA, RowToBatch(RowTypeA, this, _))
+      toRow(RowTypeA, BatchToRow(this, RowTypeA, _))
+    }
+  }
+
+  object BatchTypeB extends Convention.BatchType {
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowTypeA, RowToBatch(RowTypeA, this, _))
+      toRow(RowTypeA, BatchToRow(this, RowTypeA, _))
+    }
+  }
+
+  object BatchTypeC extends Convention.BatchType {
+    override protected[this] def registerTransitions(): Unit = {
+      fromRow(RowTypeA, RowToBatch(RowTypeA, this, _))
+      toRow(RowTypeA, BatchToRow(this, RowTypeA, _))
+      fromBatch(BatchTypeA, BatchToBatch(BatchTypeA, this, _))
+      toBatch(BatchTypeA, BatchToBatch(this, BatchTypeA, _))
+    }
+  }
+
+  object BatchTypeD extends Convention.BatchType {
+    override protected[this] def registerTransitions(): Unit = {}
+  }
+
+  object RowTypeB extends Convention.RowType {
+    override protected[this] def registerTransitions(): Unit = {
+      fromBatch(BatchTypeA, BatchToRow(BatchTypeA, this, _))
+      toBatch(BatchTypeB, RowToBatch(this, BatchTypeB, _))
+    }
+  }
+
+  case class RowToBatch(
+      fromRowType: Convention.RowType,
+      toBatchType: Convention.BatchType,
+      override val child: SparkPlan)
     extends RowToColumnarTransition
     with GlutenPlan {
     override def batchType(): Convention.BatchType = toBatchType
     override def rowType0(): Convention.RowType = Convention.RowType.None
+    override def requiredChildConvention(): Seq[ConventionReq] = {
+      List(ConventionReq.ofRow(ConventionReq.RowType.Is(fromRowType)))
+    }
+
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
     override protected def doExecute(): RDD[InternalRow] =
@@ -128,8 +181,18 @@ object TransitionSuite extends TransitionSuiteBase {
     override def output: Seq[Attribute] = child.output
   }
 
-  case class BatchToRow(fromBatchType: Convention.BatchType, override val child: SparkPlan)
-    extends ColumnarToRowTransition {
+  case class BatchToRow(
+      fromBatchType: Convention.BatchType,
+      toRowType: Convention.RowType,
+      override val child: SparkPlan)
+    extends ColumnarToRowTransition
+    with GlutenPlan {
+    override def batchType(): Convention.BatchType = Convention.BatchType.None
+    override def rowType0(): Convention.RowType = toRowType
+    override def requiredChildConvention(): Seq[ConventionReq] = {
+      List(ConventionReq.ofBatch(ConventionReq.BatchType.Is(fromBatchType)))
+    }
+
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
     override protected def doExecute(): RDD[InternalRow] =

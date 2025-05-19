@@ -16,29 +16,39 @@
  */
 package org.apache.gluten.vectorized;
 
+import io.github.zhztheplayer.velox4j.arrow.Arrow;
+import io.github.zhztheplayer.velox4j.data.BaseVector;
 import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
+import io.github.zhztheplayer.velox4j.type.BooleanType;
 import io.github.zhztheplayer.velox4j.type.IntegerType;
 import io.github.zhztheplayer.velox4j.type.RowType;
+import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 import io.github.zhztheplayer.velox4j.type.VarCharType;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.table.Table;
+import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 
+
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
 /** Converter between velox RowVector and Flink RowData. */
 public class FlinkRowToVLVectorConvertor {
-
     public static RowVector fromRowData(
             RowData row,
             BufferAllocator allocator,
@@ -63,6 +73,55 @@ public class FlinkRowToVLVectorConvertor {
                 stringVector.setSafe(0, row.getString(i).toBytes());
                 stringVector.setValueCount(1);
                 arrowVectors.add(i, stringVector);
+            } else if (fieldType instanceof RowType) {
+                // TODO: refine this
+                StructVector structVector =
+                        StructVector.empty(
+                                rowType.getNames().get(i),
+                                allocator);
+                RowType subRowType = (RowType) fieldType;
+                RowData subRow = row.getRow(i, subRowType.size());
+                if (subRow != null) {
+                    for (int j = 0; j < subRowType.size(); j++) {
+                        Type subFieldType = subRowType.getChildren().get(j);
+                        if (subFieldType instanceof IntegerType) {
+                            IntVector intVector = structVector.addOrGet(
+                                    subRowType.getNames().get(j),
+                                    FieldType.nullable(MinorType.INT.getType()),
+                                    IntVector.class);
+                            intVector.setSafe(0, subRow.getInt(j));
+                            intVector.setValueCount(1);
+                        } else if (subFieldType instanceof BigIntType) {
+                            BigIntVector bigIntVector = structVector.addOrGet(
+                                    subRowType.getNames().get(j),
+                                    FieldType.nullable(MinorType.BIGINT.getType()),
+                                    BigIntVector.class);
+                            bigIntVector.setSafe(0, subRow.getLong(j));
+                            bigIntVector.setValueCount(1);
+                        } else if (subFieldType instanceof VarCharType) {
+                            VarCharVector stringVector = structVector.addOrGet(
+                                    subRowType.getNames().get(j),
+                                    FieldType.nullable(MinorType.VARCHAR.getType()),
+                                    VarCharVector.class);
+                            stringVector.setSafe(0, subRow.getString(j).toBytes());
+                            stringVector.setValueCount(1);
+                        } else if (subFieldType instanceof TimestampType) {
+                            // TODO: support precision
+                            TimeStampMilliVector timestampVector = structVector.addOrGet(
+                                    subRowType.getNames().get(j),
+                                    FieldType.nullable(MinorType.TIMESTAMPMILLI.getType()),
+                                    TimeStampMilliVector.class);
+                            timestampVector.setSafe(
+                                    0,
+                                    subRow.getTimestamp(j, 3).getMillisecond());
+                            timestampVector.setValueCount(1);
+                        } else {
+                            throw new RuntimeException("Unsupported field type: " + subFieldType);
+                        }
+                    }
+                    structVector.setValueCount(1);
+                }
+                arrowVectors.add(i, structVector);
             } else {
                 throw new RuntimeException("Unsupported field type: " + fieldType);
             }
@@ -73,33 +132,51 @@ public class FlinkRowToVLVectorConvertor {
     public static List<RowData> toRowData(
             RowVector rowVector,
             BufferAllocator allocator,
-            Session session,
             RowType rowType) {
         // TODO: support more types
-        FieldVector fieldVector = session.arrowOps().toArrowVector(
+        BaseVector loadedVector = null;
+        FieldVector structVector = null;
+        try{
+            loadedVector = rowVector.loadedVector();
+            // The result is StructVector
+            structVector = Arrow.toArrowVector(
                 allocator,
-                rowVector.loadedVector());
-        List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
-        for (int j = 0; j < rowVector.getSize(); j++) {
-            List<Object> fieldValues = new ArrayList<>(rowType.size());
-            for (int i = 0; i < rowType.size(); i++) {
-                Type fieldType = rowType.getChildren().get(i);
-                if (fieldType instanceof IntegerType) {
-                    fieldValues.add(i, ((IntVector) fieldVector.getChildrenFromFields().get(i)).get(j));
-                } else if (fieldType instanceof BigIntType) {
-                    fieldValues.add(i, ((BigIntVector) fieldVector.getChildrenFromFields().get(i)).get(j));
-                } else if (fieldType instanceof VarCharType) {
-                    fieldValues.add(
+                loadedVector);
+            final List<FieldVector> fieldVectors = structVector.getChildrenFromFields();
+            List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
+            for (int j = 0; j < rowVector.getSize(); j++) {
+                List<Object> fieldValues = new ArrayList<>(rowType.size());
+                for (int i = 0; i < rowType.size(); i++) {
+                    Type fieldType = rowType.getChildren().get(i);
+                    if (fieldType instanceof BooleanType) {
+                        // BitVector returns are integer, need to convert to boolean
+                        fieldValues.add(i, ((BitVector) fieldVectors.get(i)).get(j) != 0);
+                    } else if (fieldType instanceof IntegerType) {
+                        fieldValues.add(i, ((IntVector) fieldVectors.get(i)).get(j));
+                    } else if (fieldType instanceof BigIntType) {
+                        fieldValues.add(i, ((BigIntVector) fieldVectors.get(i)).get(j));
+                    } else if (fieldType instanceof VarCharType) {
+                        fieldValues.add(
                             i,
                             BinaryStringData.fromBytes(
-                                    ((VarCharVector) fieldVector.getChildrenFromFields().get(i)).get(j)));
-                } else {
-                    throw new RuntimeException("Unsupported field type: " + fieldType);
+                                    ((VarCharVector) fieldVectors.get(i)).get(j)));
+                    } else {
+                        throw new RuntimeException("Unsupported field type: " + fieldType);
+                    }
                 }
+                rowDatas.add(GenericRowData.of(fieldValues.toArray()));
             }
-            rowDatas.add(GenericRowData.of(fieldValues.toArray()));
+            return rowDatas;
+        } finally {
+            /// The FieldVector/BaseVector should be closed in `finally`, to avoid it may not be closed when exceptions rasied,
+            /// that lead to memory leak.
+            if (structVector != null) {
+                structVector.close();
+            }
+            if (loadedVector != null) {
+                loadedVector.close();
+            }
         }
-        return rowDatas;
     }
 
 }

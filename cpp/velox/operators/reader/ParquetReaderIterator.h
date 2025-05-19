@@ -17,33 +17,45 @@
 
 #pragma once
 
+#include "memory/VeloxColumnarBatch.h"
 #include "operators/reader/FileReaderIterator.h"
 
-#include <parquet/arrow/reader.h>
+#include "velox/dwio/parquet/reader/ParquetReader.h"
+
 #include <memory>
 
 namespace gluten {
 
 class ParquetReaderIterator : public FileReaderIterator {
  public:
-  explicit ParquetReaderIterator(const std::string& path, int64_t batchSize, facebook::velox::memory::MemoryPool* pool);
+  explicit ParquetReaderIterator(
+      const std::string& path,
+      int64_t batchSize,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
-  void createReader();
-
-  std::shared_ptr<arrow::Schema> getSchema() override;
+  facebook::velox::RowTypePtr getRowType() const {
+    return rowType_;
+  }
 
  protected:
-  std::unique_ptr<::parquet::arrow::FileReader> fileReader_;
-  std::shared_ptr<arrow::RecordBatchReader> recordBatchReader_;
+  void createRowReader();
+
+  std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
+
+  facebook::velox::RowTypePtr rowType_;
+  std::unique_ptr<facebook::velox::dwio::common::RowReader> rowReader_;
+
   int64_t batchSize_;
-  facebook::velox::memory::MemoryPool* pool_;
 };
 
 class ParquetStreamReaderIterator final : public ParquetReaderIterator {
  public:
-  ParquetStreamReaderIterator(const std::string& path, int64_t batchSize, facebook::velox::memory::MemoryPool* pool);
+  ParquetStreamReaderIterator(
+      const std::string& path,
+      int64_t batchSize,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
-  std::shared_ptr<gluten::ColumnarBatch> next() override;
+  std::shared_ptr<ColumnarBatch> next() override;
 };
 
 class ParquetBufferedReaderIterator final : public ParquetReaderIterator {
@@ -51,15 +63,15 @@ class ParquetBufferedReaderIterator final : public ParquetReaderIterator {
   explicit ParquetBufferedReaderIterator(
       const std::string& path,
       int64_t batchSize,
-      facebook::velox::memory::MemoryPool* pool);
+      std::shared_ptr<facebook::velox::memory::MemoryPool> pool);
 
-  std::shared_ptr<gluten::ColumnarBatch> next() override;
+  std::shared_ptr<ColumnarBatch> next() override;
 
  private:
   void collectBatches();
 
-  arrow::RecordBatchVector batches_;
-  std::vector<std::shared_ptr<arrow::RecordBatch>>::const_iterator iter_;
+  std::vector<std::shared_ptr<VeloxColumnarBatch>> batches_;
+  std::vector<std::shared_ptr<VeloxColumnarBatch>>::const_iterator iter_;
 };
 
 } // namespace gluten

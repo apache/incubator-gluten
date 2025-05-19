@@ -102,4 +102,20 @@ object RuntimeSettings {
       .doc("Enable memory spill scheduler")
       .booleanConf
       .createWithDefault(true)
+
+  val MERGE_AFTER_INSERT =
+    buildConf(runtimeSettings("mergetree.merge_after_insert"))
+      .doc(s"""Merge after insert in each task.
+              |Set to false If DeltaOptimizedWriterTransformer is used
+              |""".stripMargin)
+      .booleanConf
+      .createWithDefault(true)
+
+  val INSERT_WITHOUT_LOCAL_STORAGE =
+    buildConf(runtimeSettings("mergetree.insert_without_local_storage"))
+      .doc(s"""When insert into remote storage, don't write to local temporary storage first.
+              |Set to true If DeltaOptimizedWriterTransformer is used
+              |""".stripMargin)
+      .booleanConf
+      .createWithDefault(false)
 }

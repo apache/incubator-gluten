@@ -21,7 +21,8 @@ import org.apache.iceberg.spark.sql.TestTimestampWithoutZone;
 import java.util.Map;
 
 public class GlutenTestTimestampWithoutZone extends TestTimestampWithoutZone {
-    public GlutenTestTimestampWithoutZone(String catalogName, String implementation, Map<String, String> config) {
-        super(catalogName, implementation, config);
-    }
+  public GlutenTestTimestampWithoutZone(
+      String catalogName, String implementation, Map<String, String> config) {
+    super(catalogName, implementation, config);
+  }
 }

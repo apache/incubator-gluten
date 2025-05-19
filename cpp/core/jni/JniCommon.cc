@@ -66,20 +66,17 @@ gluten::Runtime* gluten::getRuntime(JNIEnv* env, jobject runtimeAware) {
   return ctx;
 }
 
-std::unique_ptr<gluten::JniColumnarBatchIterator> gluten::makeJniColumnarBatchIterator(
-    JNIEnv* env,
-    jobject jColumnarBatchItr,
-    gluten::Runtime* runtime,
-    std::shared_ptr<ArrowWriter> writer) {
-  return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, runtime, writer);
+std::unique_ptr<gluten::JniColumnarBatchIterator>
+gluten::makeJniColumnarBatchIterator(JNIEnv* env, jobject jColumnarBatchItr, gluten::Runtime* runtime) {
+  return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, runtime);
 }
 
 gluten::JniColumnarBatchIterator::JniColumnarBatchIterator(
     JNIEnv* env,
     jobject jColumnarBatchItr,
-    gluten::Runtime* runtime,
-    std::shared_ptr<ArrowWriter> writer)
-    : runtime_(runtime), writer_(writer) {
+    Runtime* runtime,
+    std::optional<int32_t> iteratorIndex)
+    : runtime_(runtime), iteratorIndex_(iteratorIndex), shouldDump_(runtime_->getDumper() != nullptr) {
   // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
   if (env->GetJavaVM(&vm_) != JNI_OK) {
     std::string errorMessage = "Unable to get JavaVM instance";
@@ -102,36 +99,30 @@ gluten::JniColumnarBatchIterator::~JniColumnarBatchIterator() {
 }
 
 std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() {
+  if (shouldDump_ && dumpedIteratorReader_ == nullptr) {
+    GLUTEN_CHECK(iteratorIndex_.has_value(), "iteratorIndex_ should not be null");
+
+    const auto iter = std::make_shared<ColumnarBatchIteratorDumper>(this);
+    dumpedIteratorReader_ = runtime_->getDumper()->dumpInputIterator(iteratorIndex_.value(), iter);
+  }
+
+  if (dumpedIteratorReader_ != nullptr) {
+    return dumpedIteratorReader_->next();
+  }
+
+  return nextInternal();
+}
+
+std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::nextInternal() const {
   JNIEnv* env = nullptr;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-  if (writer_ != nullptr) {
-    if (!writer_->closed()) {
-      // Dump all inputs.
-      while (env->CallBooleanMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorHasNext_)) {
-        checkException(env);
-        jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext_);
-        checkException(env);
-        auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
 
-        // Save the snapshot of the batch to file.
-        std::shared_ptr<ArrowSchema> schema = batch->exportArrowSchema();
-        std::shared_ptr<ArrowArray> array = batch->exportArrowArray();
-        auto rb = gluten::arrowGetOrThrow(arrow::ImportRecordBatch(array.get(), schema.get()));
-        GLUTEN_THROW_NOT_OK(writer_->initWriter(*(rb->schema().get())));
-        GLUTEN_THROW_NOT_OK(writer_->writeInBatches(rb));
-      }
-      checkException(env);
-      GLUTEN_THROW_NOT_OK(writer_->closeWriter());
-    }
-    return writer_->retrieveColumnarBatch();
-  } else {
-    if (!env->CallBooleanMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorHasNext_)) {
-      checkException(env);
-      return nullptr; // stream ended
-    }
+  if (!env->CallBooleanMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorHasNext_)) {
     checkException(env);
-    jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext_);
-    checkException(env);
-    return ObjectStore::retrieve<ColumnarBatch>(handle);
+    return nullptr; // stream ended
   }
+  checkException(env);
+  jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext_);
+  checkException(env);
+  return ObjectStore::retrieve<ColumnarBatch>(handle);
 }

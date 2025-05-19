@@ -37,7 +37,7 @@ trait NativeWriteChecker
 
   // test non-ascii path, by the way
   // scalastyle:off nonascii
-  protected def getWarehouseDir: String = basePath + "/中文/spark-warehouse"
+  protected def getWarehouseDir: String = dataHome + "/中文/spark-warehouse"
   // scalastyle:on nonascii
 
   def withNativeWriteCheck(checkNative: Boolean)(block: => Unit): Unit = {

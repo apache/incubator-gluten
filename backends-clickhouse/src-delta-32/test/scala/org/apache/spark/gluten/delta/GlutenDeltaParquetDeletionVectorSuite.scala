@@ -16,7 +16,7 @@
  */
 package org.apache.spark.gluten.delta
 
-import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Column
@@ -27,26 +27,12 @@ import org.apache.spark.sql.delta.deletionvectors.RoaringBitmapArrayFormat
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.DeletionVectorWriteTransformer
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
 import org.apache.spark.sql.functions.col
 
 import org.apache.hadoop.fs.Path
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
-class GlutenDeltaParquetDeletionVectorSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  // import org.apache.gluten.backendsapi.clickhouse.CHConfig._
+class GlutenDeltaParquetDeletionVectorSuite extends ParquetSuite {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -59,10 +45,8 @@ class GlutenDeltaParquetDeletionVectorSuite
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
-  }
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
+      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+      .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
   }
 
   private val q1SchemaString: String =
@@ -85,9 +69,6 @@ class GlutenDeltaParquetDeletionVectorSuite
 
   test("test parquet table delete with the delta DV") {
     spark.sql(s"""
-                 |set spark.gluten.enabled=false;
-                 |""".stripMargin)
-    spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_delta_parquet_delete_dv;
                  |""".stripMargin)
 
@@ -96,7 +77,7 @@ class GlutenDeltaParquetDeletionVectorSuite
                  |($q1SchemaString)
                  |USING delta
                  |TBLPROPERTIES (delta.enableDeletionVectors='true')
-                 |LOCATION '$basePath/lineitem_delta_parquet_delete_dv'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_delete_dv'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -109,9 +90,6 @@ class GlutenDeltaParquetDeletionVectorSuite
                  | where l_orderkey = 3
                  |""".stripMargin)
 
-    spark.sql(s"""
-                 |set spark.gluten.enabled=true;
-                 |""".stripMargin)
     val df = spark.sql(s"""
                           | select sum(l_linenumber) from lineitem_delta_parquet_delete_dv
                           |""".stripMargin)
@@ -128,15 +106,9 @@ class GlutenDeltaParquetDeletionVectorSuite
     assert(addFiles.size === 6)
 
     spark.sql(s"""
-                 |set spark.gluten.enabled=false;
-                 |""".stripMargin)
-    spark.sql(s"""
                  | delete from lineitem_delta_parquet_delete_dv where mod(l_orderkey, 3) = 2
                  |""".stripMargin)
 
-    spark.sql(s"""
-                 |set spark.gluten.enabled=true;
-                 |""".stripMargin)
     val df3 = spark.sql(s"""
                            | select sum(l_linenumber) from lineitem_delta_parquet_delete_dv
                            |""".stripMargin)
@@ -147,9 +119,6 @@ class GlutenDeltaParquetDeletionVectorSuite
 
   test("test parquet table delete + update with the delta DV") {
     spark.sql(s"""
-                 |set spark.gluten.enabled=false;
-                 |""".stripMargin)
-    spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_delta_parquet_update_dv;
                  |""".stripMargin)
 
@@ -158,7 +127,7 @@ class GlutenDeltaParquetDeletionVectorSuite
                  |($q1SchemaString)
                  |USING delta
                  |TBLPROPERTIES (delta.enableDeletionVectors='true')
-                 |LOCATION '$basePath/lineitem_delta_parquet_update_dv'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_update_dv'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -171,9 +140,6 @@ class GlutenDeltaParquetDeletionVectorSuite
          | update lineitem_delta_parquet_update_dv set l_returnflag = 'AAA' where l_orderkey < 200
          |""".stripMargin)
 
-    spark.sql(s"""
-                 |set spark.gluten.enabled=true;
-                 |""".stripMargin)
     val df =
       spark.sql(s"""
                    | select sum(l_linenumber)
@@ -199,7 +165,7 @@ class GlutenDeltaParquetDeletionVectorSuite
                      |($q1SchemaString)
                      |USING delta
                      |TBLPROPERTIES (delta.enableDeletionVectors='true')
-                     |LOCATION '$basePath/$table_name'
+                     |LOCATION '$dataHome/$table_name'
                      |""".stripMargin)
 
         spark.sql(s"""
@@ -235,7 +201,7 @@ class GlutenDeltaParquetDeletionVectorSuite
                    |($q1SchemaString)
                    |USING delta
                    |TBLPROPERTIES (delta.enableDeletionVectors='true')
-                   |LOCATION '$basePath/$table_name'
+                   |LOCATION '$dataHome/$table_name'
                    |""".stripMargin)
 
       spark.sql(s"""
@@ -382,9 +348,6 @@ class GlutenDeltaParquetDeletionVectorSuite
   test("test parquet partition table delete with the delta DV") {
     withSQLConf(("spark.sql.sources.partitionOverwriteMode", "dynamic")) {
       spark.sql(s"""
-                   |set spark.gluten.enabled=false;
-                   |""".stripMargin)
-      spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_delta_partition_parquet_delete_dv;
                    |""".stripMargin)
 
@@ -394,7 +357,7 @@ class GlutenDeltaParquetDeletionVectorSuite
                    |USING delta
                    |PARTITIONED BY (l_returnflag)
                    |TBLPROPERTIES (delta.enableDeletionVectors='true')
-                   |LOCATION '$basePath/lineitem_delta_partition_parquet_delete_dv'
+                   |LOCATION '$dataHome/lineitem_delta_partition_parquet_delete_dv'
                    |""".stripMargin)
 
       spark.sql(s"""
@@ -407,9 +370,6 @@ class GlutenDeltaParquetDeletionVectorSuite
                    | where mod(l_orderkey, 3) = 1
                    |""".stripMargin)
 
-      spark.sql(s"""
-                   |set spark.gluten.enabled=true;
-                   |""".stripMargin)
       val df =
         spark.sql(s"""
                      | select sum(l_linenumber) from lineitem_delta_partition_parquet_delete_dv
@@ -427,9 +387,6 @@ class GlutenDeltaParquetDeletionVectorSuite
 
   test("test parquet table upsert with the delta DV") {
     spark.sql(s"""
-                 |set spark.gluten.enabled=false;
-                 |""".stripMargin)
-    spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_delta_parquet_upsert_dv;
                  |""".stripMargin)
 
@@ -438,7 +395,7 @@ class GlutenDeltaParquetDeletionVectorSuite
                  |($q1SchemaString)
                  |USING delta
                  |TBLPROPERTIES (delta.enableDeletionVectors='true')
-                 |LOCATION '$basePath/lineitem_delta_parquet_upsert_dv'
+                 |LOCATION '$dataHome/lineitem_delta_parquet_upsert_dv'
                  |""".stripMargin)
 
     spark.sql(s"""
@@ -446,9 +403,6 @@ class GlutenDeltaParquetDeletionVectorSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    spark.sql(s"""
-                 |set spark.gluten.enabled=true;
-                 |""".stripMargin)
     val df0 = spark.sql(s"""
                            | select sum(l_linenumber) from lineitem_delta_parquet_upsert_dv
                            |""".stripMargin)
@@ -459,9 +413,6 @@ class GlutenDeltaParquetDeletionVectorSuite
   }
 
   private def upsertSourceTableAndCheck(tableName: String) = {
-    spark.sql(s"""
-                 |set spark.gluten.enabled=false;
-                 |""".stripMargin)
     // Why selecting l_orderkey having count(*) =1 ?
     // Answer: to avoid "org.apache.spark.sql.delta.DeltaUnsupportedOperationException:
     // Cannot perform Merge as multiple source rows matched and attempted to modify the same
@@ -469,28 +420,29 @@ class GlutenDeltaParquetDeletionVectorSuite
     spark.sql(s"""
           merge into $tableName
           using (
-
-            select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax,
-           'Z' as `l_returnflag`,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
-
+            select
+              l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice,
+              l_discount, l_tax, 'Z' as `l_returnflag`, l_linestatus, l_shipdate, l_commitdate,
+              l_receiptdate, l_shipinstruct, l_shipmode, l_comment
+            from lineitem
+            where
+              l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1)
+              and l_orderkey < 100000
             union
-
-            select l_orderkey + 10000000,
-            l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
-
+            select
+              l_orderkey + 10000000, l_partkey, l_suppkey, l_linenumber, l_quantity,
+              l_extendedprice, l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate,
+              l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
+            from lineitem
+            where
+              l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1)
+              and l_orderkey < 100000
           ) as updates
           on updates.l_orderkey = $tableName.l_orderkey
           when matched then update set *
           when not matched then insert *
           """.stripMargin)
 
-    spark.sql(s"""
-                 |set spark.gluten.enabled=true;
-                 |""".stripMargin)
     val df1 = spark.sql(s"""
                            | select sum(l_linenumber) from $tableName
                            |""".stripMargin)
@@ -515,4 +467,3 @@ class GlutenDeltaParquetDeletionVectorSuite
     )
   }
 }
-// scalastyle:off line.size.limit

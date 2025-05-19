@@ -20,8 +20,20 @@ import org.apache.spark.sql.delta.{DeltaParquetFileFormat, MergeTreeFileFormat}
 import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
-class DeltaMergeTreeFileFormat(protocol: Protocol, metadata: Metadata)
-  extends DeltaParquetFileFormat(protocol, metadata)
+class DeltaMergeTreeFileFormat(
+    protocol: Protocol,
+    metadata: Metadata,
+    nullableRowTrackingFields: Boolean = false,
+    optimizationsEnabled: Boolean = true,
+    tablePath: Option[String] = None,
+    isCDCRead: Boolean = false)
+  extends DeltaParquetFileFormat(
+    protocol,
+    metadata,
+    nullableRowTrackingFields,
+    optimizationsEnabled,
+    tablePath,
+    isCDCRead)
   with MergeTreeFileFormat {
 
   override def equals(other: Any): Boolean = {
@@ -33,6 +45,30 @@ class DeltaMergeTreeFileFormat(protocol: Protocol, metadata: Metadata)
       case _ => false
     }
   }
+
+  def copyWithDVInfoForMergeTree(
+      tablePath: String,
+      optimizationsEnabled: Boolean): DeltaMergeTreeFileFormat = {
+    // When predicate pushdown is enabled we allow both splits and predicate pushdown.
+    this.copyDeltaMergeTreeFileFormat(
+      _optimizationsEnabled = optimizationsEnabled,
+      _tablePath = Some(tablePath))
+  }
+
+  def copyDeltaMergeTreeFileFormat(
+      _protocol: Protocol = protocol,
+      _metadata: Metadata = metadata,
+      _nullableRowTrackingFields: Boolean = nullableRowTrackingFields,
+      _optimizationsEnabled: Boolean = optimizationsEnabled,
+      _tablePath: Option[String] = tablePath,
+      _isCDCRead: Boolean = isCDCRead): DeltaMergeTreeFileFormat =
+    new DeltaMergeTreeFileFormat(
+      _protocol,
+      _metadata,
+      _nullableRowTrackingFields,
+      _optimizationsEnabled,
+      _tablePath,
+      _isCDCRead)
 
   override def hashCode(): Int = getClass.getCanonicalName.hashCode()
 }

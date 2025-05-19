@@ -16,15 +16,14 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{BasicScanExecTransformer, FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution.{BasicScanExecTransformer, CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
@@ -32,19 +31,7 @@ import java.io.File
 
 import scala.concurrent.duration.DurationInt
 
-class GlutenClickHouseMergeTreeWriteOnS3Suite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
-
-  override protected val needCopyParquetToTablePath = true
-
-  override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
-
-  override protected def createTPCHNotNullTables(): Unit = {
-    createNotNullTPCHTablesInParquet(tablesPath)
-  }
+class GlutenClickHouseMergeTreeWriteOnS3Suite extends CreateMergeTreeSuite {
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -53,7 +40,6 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
   }
@@ -108,7 +94,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |""".stripMargin)
     minioHelper.resetMeta()
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree_s3")) {
+    customCheckQuery(q1("lineitem_mergetree_s3")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -201,7 +187,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree_orderbykey_s3")) {
+    customCheckQuery(q1("lineitem_mergetree_orderbykey_s3")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -334,7 +320,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |  where l_returnflag = 'A'
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree_partition_s3"), compareResult = false) {
+    customCheckQuery(q1("lineitem_mergetree_partition_s3"), compare = false) {
       df =>
         val result = df.collect()
         assertResult(4)(result.length)
@@ -419,7 +405,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  | select * from lineitem
                  |""".stripMargin)
 
-    runTPCHQueryBySQL(1, q1("lineitem_mergetree_bucket_s3")) {
+    customCheckQuery(q1("lineitem_mergetree_bucket_s3")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -476,7 +462,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       .option("clickhouse.storage_policy", "__s3_main")
       .save(dataPath)
 
-    runTPCHQueryBySQL(1, q1(s"clickhouse.`$dataPath`")) {
+    customCheckQuery(q1(s"clickhouse.`$dataPath`")) {
       df =>
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -519,8 +505,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      CHConfig.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
-      CHConfig.runtimeSettings("mergetree.merge_after_insert") -> "true"
+      RuntimeSettings.INSERT_WITHOUT_LOCAL_STORAGE.key -> "true",
+      RuntimeSettings.MERGE_AFTER_INSERT.key -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;
@@ -580,7 +566,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     minioHelper.resetMeta()
 
     withSQLConf(CHConfig.runtimeSettings("enabled_driver_filter_mergetree_index") -> "true") {
-      runTPCHQueryBySQL(6, q6(tableName)) {
+      customCheckQuery(q6(tableName)) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {
             case f: FileSourceScanExecTransformer => f

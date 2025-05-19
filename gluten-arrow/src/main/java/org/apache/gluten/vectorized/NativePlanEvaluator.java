@@ -72,7 +72,7 @@ public class NativePlanEvaluator {
             TaskContext.get().stageId(),
             partitionIndex, // TaskContext.getPartitionId(),
             TaskContext.get().taskAttemptId(),
-            DebugUtil.saveInputToFile(),
+            DebugUtil.isDumpingEnabledForTask(),
             spillDirPath);
     final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
     runtime

@@ -22,7 +22,8 @@ import org.apache.iceberg.spark.source.TestPositionDeletesTable;
 import java.util.Map;
 
 public class GlutenTestPositionDeletesTable extends TestPositionDeletesTable {
-    public GlutenTestPositionDeletesTable(String catalogName, String implementation, Map<String, String> config, FileFormat format) {
-        super(catalogName, implementation, config, format);
-    }
+  public GlutenTestPositionDeletesTable(
+      String catalogName, String implementation, Map<String, String> config, FileFormat format) {
+    super(catalogName, implementation, config, format);
+  }
 }

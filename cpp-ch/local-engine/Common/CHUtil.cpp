@@ -35,8 +35,8 @@
 #include <Core/ServerSettings.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
@@ -468,7 +468,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     };
 
     Poco::Util::AbstractConfiguration::Keys disks;
-    std::unordered_set<String> disk_types = {"s3_gluten", "hdfs_gluten", "cache"};
+    std::unordered_set<String> disk_types = {GlutenObjectStorageConfig::S3_DISK_TYPE, GlutenObjectStorageConfig::HDFS_DISK_TYPE, "cache"};
     config.keys("storage_configuration.disks", disks);
 
     std::ranges::for_each(
@@ -481,7 +481,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
                 return;
             if (disk_type == "cache")
                 change_func(disk_prefix + ".path");
-            else if (disk_type == "s3_gluten" || disk_type == "hdfs_gluten")
+            else if (disk_type == GlutenObjectStorageConfig::S3_DISK_TYPE || disk_type == GlutenObjectStorageConfig::HDFS_DISK_TYPE)
                 change_func(disk_prefix + ".metadata_path");
         });
 
@@ -545,7 +545,8 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const SparkConf
     // FIXMEX: workaround for https://github.com/ClickHouse/ClickHouse/pull/75452#pullrequestreview-2625467710
     // entry in DiskSelector::initialize
     // Bug in FileCacheSettings::loadFromConfig
-    auto updateCacheDiskType = [](Poco::Util::AbstractConfiguration & config) {
+    auto updateCacheDiskType = [](Poco::Util::AbstractConfiguration & config)
+    {
         const std::string config_prefix = "storage_configuration.disks";
         Poco::Util::AbstractConfiguration::Keys keys;
         config.keys(config_prefix, keys);
@@ -671,7 +672,7 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
     /// We currently do not support lazy materialization.
     /// "test 'order by' two keys" will failed if we enable it.
     settings[Setting::query_plan_optimize_lazy_materialization] = false;
-    
+
     for (const auto & [key, value] : spark_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
@@ -762,7 +763,8 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
         {
             auto mem_gb = task_memory / static_cast<double>(1_GiB);
             // 2.8x+5, Heuristics calculate the block size of external sort, [8,16]
-            settings[Setting::prefer_external_sort_block_bytes] = std::max(std::min(static_cast<size_t>(2.8 * mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
+            settings[Setting::prefer_external_sort_block_bytes]
+                = std::max(std::min(static_cast<size_t>(2.8 * mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
         }
     }
 }

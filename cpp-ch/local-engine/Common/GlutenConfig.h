@@ -31,7 +31,6 @@ struct ReadSettings;
 }
 namespace local_engine
 {
-
 struct SparkConfigs
 {
     using ConfigMap = google::protobuf::Map<std::string, std::string>;
@@ -194,6 +193,12 @@ struct GlutenCacheConfig
 
     /// We can't use gluten_cache.local.enabled because FileCacheSettings doesn't contain this field.
     inline static const String ENABLED = "enable.gluten_cache.local";
+};
+
+struct GlutenObjectStorageConfig
+{
+    inline static const String S3_DISK_TYPE = "s3_gluten";
+    inline static const String HDFS_DISK_TYPE = "hdfs_gluten";
 };
 
 }

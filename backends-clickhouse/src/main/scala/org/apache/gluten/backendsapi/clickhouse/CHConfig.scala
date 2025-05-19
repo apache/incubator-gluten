@@ -131,3 +131,8 @@ class CHConfig(conf: SQLConf) extends GlutenConfig(conf) {
 
   def enableGlutenLocalFileCache: Boolean = getConf(ENABLE_GLUTEN_LOCAL_FILE_CACHE)
 }
+
+object GlutenObjectStorageConfig {
+  val S3_DISK_TYPE: String = "s3_gluten"
+  val HDFS_DISK_TYPE: String = "hdfs_gluten"
+}

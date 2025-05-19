@@ -17,7 +17,7 @@
 package org.apache.gluten.spark34.source;
 
 import org.apache.gluten.spark34.TestConfUtil;
-import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.*;
 import org.apache.iceberg.hadoop.HadoopTables;
@@ -25,6 +25,7 @@ import org.apache.iceberg.io.FileAppender;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
+import org.apache.iceberg.shaded.org.apache.avro.generic.GenericData;
 import org.apache.iceberg.spark.data.RandomData;
 import org.apache.iceberg.spark.data.TestHelpers;
 import org.apache.iceberg.spark.source.SimpleRecord;
@@ -35,14 +36,15 @@ import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.junit.*;
 import org.junit.rules.TemporaryFolder;
-import scala.Option;
-import scala.collection.JavaConverters;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+
+import scala.Option;
+import scala.collection.JavaConverters;
 
 import static org.apache.iceberg.Files.localInput;
 import static org.apache.iceberg.Files.localOutput;
@@ -78,8 +80,8 @@ public class TestForwardCompatibility {
 
   @BeforeClass
   public static void startSpark() {
-    TestForwardCompatibility.spark = SparkSession.builder().master("local[2]")
-            .config(TestConfUtil.GLUTEN_CONF).getOrCreate();
+    TestForwardCompatibility.spark =
+        SparkSession.builder().master("local[2]").config(TestConfUtil.GLUTEN_CONF).getOrCreate();
   }
 
   @AfterClass

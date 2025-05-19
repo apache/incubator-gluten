@@ -53,9 +53,6 @@ jmethodID jniByteInputStreamClose;
 jclass splitResultClass;
 jmethodID splitResultConstructor;
 
-jclass columnarBatchSerializeResultClass;
-jmethodID columnarBatchSerializeResultConstructor;
-
 jclass metricsBuilderClass;
 jmethodID metricsBuilderConstructor;
 jclass nativeColumnarToRowInfoClass;
@@ -217,11 +214,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/GlutenSplitResult;");
   splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJJ[J[J)V");
 
-  columnarBatchSerializeResultClass =
-      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchSerializeResult;");
-  columnarBatchSerializeResultConstructor =
-      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", "(J[B)V");
-
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
   metricsBuilderConstructor = getMethodIdOrError(
@@ -249,7 +241,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
-  env->DeleteGlobalRef(columnarBatchSerializeResultClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
@@ -375,7 +366,7 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrap
   auto planData = safeArray.elems();
   auto planSize = env->GetArrayLength(planArray);
   auto ctx = getRuntime(env, wrapper);
-  ctx->parsePlan(planData, planSize, false);
+  ctx->parsePlan(planData, planSize);
   auto& conf = ctx->getConfMap();
   auto planString = ctx->planString(details, conf);
   return env->NewStringUTF(planString.c_str());
@@ -405,7 +396,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     jint stageId,
     jint partitionId,
     jlong taskId,
-    jboolean saveInput,
+    jboolean enableDumping,
     jstring spillDir) {
   JNI_METHOD_START
 
@@ -414,29 +405,32 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
-  ctx->dumpConf(saveInput);
+  if (enableDumping) {
+    ctx->enableDumping();
+  }
 
   auto spillDirStr = jStringToCString(env, spillDir);
 
   auto safePlanArray = getByteArrayElementsSafe(env, planArr);
   auto planSize = env->GetArrayLength(planArr);
-  ctx->parsePlan(safePlanArray.elems(), planSize, saveInput);
+
+  ctx->parsePlan(safePlanArray.elems(), planSize);
 
   for (jsize i = 0, splitInfoArraySize = env->GetArrayLength(splitInfosArr); i < splitInfoArraySize; i++) {
     jbyteArray splitInfoArray = static_cast<jbyteArray>(env->GetObjectArrayElement(splitInfosArr, i));
     jsize splitInfoSize = env->GetArrayLength(splitInfoArray);
     auto safeSplitArray = getByteArrayElementsSafe(env, splitInfoArray);
     auto splitInfoData = safeSplitArray.elems();
-    ctx->parseSplitInfo(splitInfoData, splitInfoSize, i, saveInput);
+
+    ctx->parseSplitInfo(splitInfoData, splitInfoSize, i);
   }
 
   // Handle the Java iters
   jsize itersLen = env->GetArrayLength(iterArr);
   std::vector<std::shared_ptr<ResultIterator>> inputIters;
   for (int idx = 0; idx < itersLen; idx++) {
-    auto writer = ctx->createArrowWriter(saveInput, idx);
     jobject iter = env->GetObjectArrayElement(iterArr, idx);
-    auto arrayIter = makeJniColumnarBatchIterator(env, iter, ctx, writer);
+    auto arrayIter = std::make_unique<JniColumnarBatchIterator>(env, iter, ctx, idx);
     auto resultIter = std::make_shared<ResultIterator>(std::move(arrayIter));
     inputIters.push_back(std::move(resultIter));
   }
@@ -1094,25 +1088,17 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
   JNI_METHOD_END()
 }
 
-JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
+JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlongArray handles) {
+    jlong handle) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
 
-  int32_t numBatches = env->GetArrayLength(handles);
-  auto safeArray = getLongArrayElementsSafe(env, handles);
-
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
-  int64_t numRows = 0L;
-  for (int32_t i = 0; i < numBatches; i++) {
-    auto batch = ObjectStore::retrieve<ColumnarBatch>(safeArray.elems()[i]);
-    GLUTEN_DCHECK(
-        batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(safeArray.elems()[i]));
-    numRows += batch->numRows();
-    batches.emplace_back(batch);
-  }
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
+  GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
+  batches.emplace_back(batch);
 
   auto serializer = ctx->createColumnarBatchSerializer(nullptr);
   auto buffer = serializer->serializeColumnarBatches(batches);
@@ -1123,10 +1109,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSeriali
           " byte(s) to serialize columnar batches");
   env->SetByteArrayRegion(bufferArr, 0, buffer->size(), reinterpret_cast<const jbyte*>(buffer->data()));
 
-  jobject columnarBatchSerializeResult =
-      env->NewObject(columnarBatchSerializeResultClass, columnarBatchSerializeResultConstructor, numRows, bufferArr);
-
-  return columnarBatchSerializeResult;
+  return bufferArr;
   JNI_METHOD_END(nullptr)
 }
 

@@ -30,12 +30,14 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
+import io.github.zhztheplayer.velox4j.connector.FuzzerConnectorSplit;
 import io.github.zhztheplayer.velox4j.connector.FuzzerTableHandle;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
 import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 import org.apache.gluten.util.LogicalTypeConverter;
+import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -78,23 +80,27 @@ public class LegacySourceTransformationTranslator<OUT>
         Function userFunction = transformation.getOperator().getUserFunction();
         StreamOperatorFactory<OUT> operatorFactory;
         String namePrefix = "";
+        // --- Begin Gluten-specific code changes ---
         if (userFunction instanceof DataGeneratorSource) {
             RowType outputType = (RowType) LogicalTypeConverter.toVLType(
                     ((InternalTypeInfo) transformation.getOutputType()).toLogicalType());
+            String id = PlanNodeIdGenerator.newId();
             operatorFactory = SimpleOperatorFactory.of(
                     new GlutenStreamSource(
                             new GlutenSourceFunction(
                                     new TableScanNode(
-                                            String.valueOf(transformationId),
+                                            id,
                                             outputType,
                                             new FuzzerTableHandle("connector-fuzzer", 12367),
                                             List.of()),
                                     outputType,
-                                    String.valueOf(transformationId))));
+                                    id,
+                                    new FuzzerConnectorSplit("connector-fuzzer", 1000))));
             namePrefix = "Gluten ";
         } else {
             operatorFactory = transformation.getOperatorFactory();
         }
+        // --- End Gluten-specific code changes ---
         streamGraph.addLegacySource(
                 transformationId,
                 slotSharingGroup,
