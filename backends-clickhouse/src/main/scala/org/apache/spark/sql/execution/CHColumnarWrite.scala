@@ -25,6 +25,7 @@ import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMap
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, GenericInternalRow}
+import org.apache.spark.sql.delta.files.DeltaFileFormatWriter.PartitionedTaskAttemptContextImpl
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, BasicWriteTaskStats, ExecutedWriteSummary, PartitioningUtils, WriteJobDescription, WriteTaskResult, WriteTaskStatsTracker}
 import org.apache.spark.sql.types.{LongType, StringType}
 import org.apache.spark.util.Utils
@@ -76,6 +77,9 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     val jobID = createJobID(jobTrackerID, sparkStageId)
     val taskId = new TaskID(jobID, TaskType.MAP, sparkPartitionId)
     val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
+    val partitionColumnToDataType = description.partitionColumns
+      .map(attr => (attr.name, attr.dataType))
+      .toMap
 
     // Set up the configuration object
     val hadoopConf = description.serializableHadoopConf.value
@@ -85,7 +89,14 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     hadoopConf.setBoolean("mapreduce.task.ismap", true)
     hadoopConf.setInt("mapreduce.task.partition", 0)
 
-    (new TaskAttemptContextImpl(hadoopConf, taskAttemptId), jobID.toString)
+    if (partitionColumnToDataType.isEmpty) {
+      (new TaskAttemptContextImpl(hadoopConf, taskAttemptId), jobID.toString)
+    } else {
+      (
+        new PartitionedTaskAttemptContextImpl(hadoopConf, taskAttemptId, partitionColumnToDataType),
+        jobID.toString)
+    }
+
   }
 }
 
