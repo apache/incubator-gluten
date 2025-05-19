@@ -22,6 +22,7 @@ import io.github.zhztheplayer.velox4j.type.*;
 import org.apache.arrow.flatbuf.Int;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.*;
 import org.apache.arrow.vector.*;
@@ -49,6 +50,8 @@ public abstract class ArrowVectorWriter {
             return new BooleanVectorWriter(fieldType, allocator, vector);
         } else if (fieldType instanceof BigIntType) {
             return new BigIntVectorWriter(fieldType, allocator, vector);
+        } else if (fieldType instanceof DoubleType) {
+            return new Float8VectorWriter(fieldType, allocator, vector);
         } else if (fieldType instanceof VarCharType) {
             return new VarCharVectorWriter(fieldType, allocator, vector);
         } else if (fieldType instanceof TimestampType) {
@@ -56,7 +59,7 @@ public abstract class ArrowVectorWriter {
         } else if (fieldType instanceof RowType) {
             return new StructVectorWriter(fieldType, allocator, vector);
         } else {
-            throw new UnsupportedOperationException("Unsupported type: " + fieldType);
+            throw new UnsupportedOperationException("ArrowVectorWriter. Unsupported type: " + fieldType);
         }
     }
     public void write(int fieldIndex, RowData rowData) {
@@ -98,6 +101,8 @@ class FieldVectorCreator {
             return new ArrowType.Int(8 * 4, true);
         } else if (dataType instanceof BigIntType) {
             return new ArrowType.Int(8 * 8, true);
+        } else if (dataType instanceof DoubleType) {
+            return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
         } else if (dataType instanceof VarCharType) {
             return ArrowType.Utf8.INSTANCE;
         } else if (dataType instanceof TimestampType) {
@@ -181,6 +186,21 @@ class BigIntVectorWriter extends ArrowVectorWriter {
     @Override
     public void write(int fieldIndex, RowData rowData) {
         bigIntvector.setSafe(valueCount, rowData.getLong(fieldIndex));
+        valueCount++;
+    }
+}
+
+class Float8VectorWriter extends ArrowVectorWriter {
+    private final Float8Vector float8Vector;
+
+    public Float8VectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
+        super(vector);
+        this.float8Vector = (Float8Vector) vector;
+    }
+
+    @Override
+    public void write(int fieldIndex, RowData rowData) {
+        float8Vector.setSafe(valueCount, rowData.getDouble(fieldIndex));
         valueCount++;
     }
 }
