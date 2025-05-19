@@ -78,7 +78,7 @@ object GlutenPlanModel {
 
     override val rowType0: Convention.RowType = {
       val out = req.req.requiredRowType match {
-        case ConventionReq.RowType.Any => Convention.RowType.None
+        case ConventionReq.RowType.Any => Convention.RowType.VanillaRow
         case ConventionReq.RowType.Is(r) => r
       }
       out
