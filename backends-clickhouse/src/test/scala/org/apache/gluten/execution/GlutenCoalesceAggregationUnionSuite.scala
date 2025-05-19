@@ -515,4 +515,59 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkHasUnion, true)
   }
+
+  test("GLUTEN-9646: fix coalesce project union when has subquery") {
+    val schema_fact = StructType(
+      Array(
+        StructField("a", IntegerType, nullable = true),
+        StructField("b", IntegerType, nullable = true)
+      ))
+
+    val schema_order = StructType(
+      Array(
+        StructField("c", IntegerType, nullable = true),
+        StructField("b", IntegerType, nullable = true)
+      ))
+
+    val data_fact = sparkContext.parallelize(
+      Seq(
+        Row(2, 1),
+        Row(3, 2),
+        Row(4, 3),
+        Row(5, 4)
+      ))
+
+    val data_order = sparkContext.parallelize(
+      Seq(
+        Row(1, 1),
+        Row(2, 2),
+        Row(3, 3),
+        Row(4, 4)
+      ))
+
+    val dataFrame1 = spark.createDataFrame(data_fact, schema_fact)
+    val dataFrame2 = spark.createDataFrame(data_order, schema_order)
+    createTestTable("fact", dataFrame1)
+    createTestTable("order", dataFrame2)
+
+    val sql =
+      """
+        |SELECT a
+        |FROM fact
+        |WHERE a =
+        |    (SELECT sum(c) + 2
+        |     FROM order
+        |     WHERE order.b = fact.b
+        |     GROUP BY order.b)
+        |UNION ALL
+        |SELECT a
+        |FROM fact
+        |WHERE a =
+        |    (SELECT sum(c) + 1
+        |     FROM order
+        |     WHERE order.b = fact.b
+        |     GROUP BY order.b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, checkNoUnion)
+  }
 }

@@ -21,6 +21,9 @@ import org.apache.gluten.iterator.Iterators.V1
 
 import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
 import org.apache.spark.task.TaskResources
+import org.apache.spark.util.ThreadUtils
+
+import java.util.concurrent.TimeUnit
 
 object IteratorBenchmark extends BenchmarkBase {
 
@@ -123,6 +126,60 @@ object IteratorBenchmark extends BenchmarkBase {
               .recycleIterator {}
               .create()
         }
+      }
+    }
+
+    runBenchmark("Iterator Multi Threads") {
+      val nPayloads: Int = 50000000 // 50 millions
+
+      def makeScalaIterator: Iterator[Any] = {
+        (0 until nPayloads).view.map { _: Int => new Object }.iterator
+      }
+
+      def compareMultiThreadsIterator(name: String, threads: Int = 3)(
+          makeGlutenIterator: Iterators.Version => Iterator[Any]): Unit = {
+        val benchmark = new Benchmark(name, nPayloads, output = output)
+        benchmark.addCase("Scala Iterator") {
+          _ =>
+            val pool = ThreadUtils.newDaemonFixedThreadPool(threads, "ScalaIterator")
+            for (_ <- 0 until threads) {
+              pool.execute(
+                () => {
+                  TaskResources.runUnsafe {
+                    val count = makeScalaIterator.count(_ => true)
+                    assert(count == nPayloads)
+                  }
+                })
+            }
+            pool.shutdown()
+            pool.awaitTermination(10, TimeUnit.SECONDS)
+        }
+        benchmark.addCase("Gluten Iterator V1") {
+          _ =>
+            val pool = ThreadUtils.newDaemonFixedThreadPool(threads, "GlutenIteratorV1")
+            for (_ <- 0 until threads) {
+              pool.execute(
+                () => {
+                  TaskResources.runUnsafe {
+                    val count = makeGlutenIterator(V1).count(_ => true)
+                    assert(count == nPayloads)
+                  }
+                })
+            }
+            pool.shutdown()
+            pool.awaitTermination(10, TimeUnit.SECONDS)
+        }
+        benchmark.run()
+      }
+
+      compareMultiThreadsIterator("Multi Threads - recycle") {
+        version =>
+          var count = 0
+          Iterators
+            .wrap(version, makeScalaIterator)
+            .recyclePayload(_ => count += 1)
+            .recycleIterator(assert(count == nPayloads))
+            .create()
       }
     }
   }

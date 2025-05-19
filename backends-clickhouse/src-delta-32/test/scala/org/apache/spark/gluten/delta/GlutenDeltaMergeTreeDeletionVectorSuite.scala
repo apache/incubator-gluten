@@ -109,8 +109,7 @@ class GlutenDeltaMergeTreeDeletionVectorSuite extends CreateMergeTreeSuite {
     }
   }
 
-  // TODO: CH MergeTree + Delta DV + partition native delete support
-  ignore("Gluten-9606: Support CH MergeTree + Delta DeletionVector reading -- partition") {
+  test("Gluten-9606: Support CH MergeTree + Delta DeletionVector reading -- partition") {
     val tableName = "mergetree_delta_dv_partition"
     spark.sql(s"""
                  |DROP TABLE IF EXISTS $tableName;
@@ -134,10 +133,28 @@ class GlutenDeltaMergeTreeDeletionVectorSuite extends CreateMergeTreeSuite {
                  | where mod(l_orderkey, 3) = 1
                  |""".stripMargin)
 
-    val df = spark.sql(s"""
+    var df = spark.sql(s"""
                           | select sum(l_linenumber) from $tableName
+                          | where mod(l_orderkey, 3) = 1
                           |""".stripMargin)
-    val result = df.collect()
+    var result = df.collect()
+    assert(
+      result.apply(0).isNullAt(0)
+    )
+    checkFallbackOperators(df, 0)
+    df = spark.sql(s"""
+                      | select sum(l_linenumber) from $tableName
+                      | where mod(l_orderkey, 3) = 2
+                      |""".stripMargin)
+    result = df.collect()
+    assert(
+      result.apply(0).get(0) === 601775
+    )
+    checkFallbackOperators(df, 0)
+    df = spark.sql(s"""
+                      | select sum(l_linenumber) from $tableName
+                      |""".stripMargin)
+    result = df.collect()
     assert(
       result.apply(0).get(0) === 1201486
     )

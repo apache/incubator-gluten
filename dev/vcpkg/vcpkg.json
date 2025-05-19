@@ -51,7 +51,8 @@
         "benchmark",
         "icu",
         "thrift",
-        "libstemmer"
+        "libstemmer",
+        "geos"
       ]
     },
     "velox-s3": {

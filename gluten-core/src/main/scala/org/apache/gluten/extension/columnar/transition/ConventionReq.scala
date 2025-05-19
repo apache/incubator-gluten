@@ -52,7 +52,7 @@ object ConventionReq {
   ) extends ConventionReq
 
   val any: ConventionReq = of(RowType.Any, BatchType.Any)
-  val row: ConventionReq = ofRow(RowType.Is(Convention.RowType.VanillaRow))
+  val vanillaRow: ConventionReq = ofRow(RowType.Is(Convention.RowType.VanillaRow))
   val vanillaBatch: ConventionReq = ofBatch(BatchType.Is(Convention.BatchType.VanillaBatch))
 
   def get(plan: SparkPlan): Seq[ConventionReq] = ConventionFunc.create().conventionReqOf(plan)
