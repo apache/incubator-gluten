@@ -71,7 +71,7 @@ class VeloxRasSuite extends SharedSparkSession {
         RowUnary(
           RowUnary(ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowLeaf(TRIVIAL_SCHEMA))))))))
     val planner =
-      newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.row))))
+      newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.vanillaRow))))
     val out = planner.plan()
     assert(
       out == ColumnarToRowExec(
@@ -99,7 +99,7 @@ class VeloxRasSuite extends SharedSparkSession {
           RowUnary(ColumnarUnary(RowUnary(RowUnary(ColumnarUnary(RowLeaf(TRIVIAL_SCHEMA))))))))
     val planner =
       newRas(List(ConvertRowUnaryToColumnar))
-        .newPlanner(in, PropertySet(List(Conv.req(ConventionReq.row))))
+        .newPlanner(in, PropertySet(List(Conv.req(ConventionReq.vanillaRow))))
     val out = planner.plan()
     assert(out == ColumnarToRowExec(ColumnarUnary(ColumnarUnary(ColumnarUnary(ColumnarUnary(
       ColumnarUnary(ColumnarUnary(ColumnarUnary(RowToColumnarExec(RowLeaf(TRIVIAL_SCHEMA)))))))))))
