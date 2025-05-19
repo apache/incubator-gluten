@@ -45,6 +45,7 @@ static const String DECODE_MAP = generateDecodeMap();
 class Base85Codec
 {
 public:
+    static constexpr size_t ENCODED_UUID_LENGTH = 20;
     static String encodeUUID(const DB::UUID & uuid);
     static DB::UUID decodeUUID(const String & encoded);
 
