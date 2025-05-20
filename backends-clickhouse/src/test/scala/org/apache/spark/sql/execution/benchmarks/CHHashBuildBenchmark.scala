@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import org.apache.gluten.execution.BroadCastHashJoinContext
+import org.apache.gluten.execution.BroadcastJoinContext
 import org.apache.gluten.vectorized.StorageJoinBuilder
 
 import org.apache.spark.benchmark.Benchmark
@@ -87,7 +87,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
                   new util.ArrayList[Expression](),
                   new util.ArrayList[Attribute](),
                   false)
-                StorageJoinBuilder.nativeCleanBuildHashTable("", table)
+                StorageJoinBuilder.nativeCleanBuildHashTable(0, table)
               }
           }
       }
@@ -95,7 +95,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
   }
 
   private def createBroadcastRelation(
-      child: SparkPlan): (Array[Byte], Long, BroadCastHashJoinContext) = {
+      child: SparkPlan): (Array[Byte], Long, BroadcastJoinContext) = {
     val dataSize = SQLMetrics.createSizeMetric(spark.sparkContext, "size of files read")
 
     val countsAndBytes = child
@@ -105,7 +105,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
     (
       countsAndBytes.flatMap(_._2),
       countsAndBytes.map(_._1).sum,
-      BroadCastHashJoinContext(Seq(child.output.head), Inner, true, false, false, child.output, "")
+      BroadcastJoinContext(Seq(child.output.head), Inner, true, false, false, child.output, 0, true)
     )
   }
 }
