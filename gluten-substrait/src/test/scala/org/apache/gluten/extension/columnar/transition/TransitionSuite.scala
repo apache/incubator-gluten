@@ -23,7 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.test.SharedSparkSession
 
-class TransitionSuite extends SharedSparkSession with WithDummyBackend {
+class TransitionSuite extends TransitionSuiteBase with SharedSparkSession with WithDummyBackend {
   import TransitionSuite._
   import TransitionSuiteBase._
 
