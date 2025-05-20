@@ -168,7 +168,7 @@ object BroadcastUtils {
           ColumnarBatches.retain(b)
           b
         })
-    var rowNums = 0
+    var rowNums: Long = 0
     val values = filtered
       .map(
         b => {
