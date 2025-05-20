@@ -86,8 +86,6 @@ case class FakeRowAdaptor(child: SparkPlan)
     copy(child = newChild)
 }
 
-case class MATERIALIZE_TAG()
-
 object GlutenWriterColumnarRules {
   // TODO: support ctas in Spark3.4, see https://github.com/apache/spark/pull/39220
   // TODO: support dynamic partition and bucket write
