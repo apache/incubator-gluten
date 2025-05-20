@@ -13,7 +13,7 @@
     "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.type": "cache",
     "spark.hadoop.fs.s3a.use.instance.credentials": "false",
     "spark.gluten.memory.offHeap.size.in.bytes": "10737418240",
-    "spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level": "error",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level": "test",
     "spark.gluten.sql.columnar.shuffle.codec": "",
     "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.type": "hdfs_gluten",
     "spark.hadoop.fs.s3a.path.style.access": "true",

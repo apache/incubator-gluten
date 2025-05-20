@@ -414,6 +414,8 @@ void headColumn(const DB::ColumnPtr & column, size_t count)
 
 std::string showString(const DB::Block & block, size_t numRows, size_t truncate, bool vertical)
 {
+    if (block.rows() == 0)
+        return "(0 rows)";
     std::vector<DB::ColumnWithTypeAndName> columns = block.getColumnsWithTypeAndName();
     Utils::NameAndColumns name_and_columns;
     name_and_columns.reserve(columns.size());
