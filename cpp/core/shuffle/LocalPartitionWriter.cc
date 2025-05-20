@@ -31,6 +31,22 @@
 #include <thread>
 
 namespace gluten {
+
+namespace {
+arrow::Result<std::shared_ptr<arrow::io::OutputStream>> openFile(const std::string& file, int64_t bufferSize) {
+  std::shared_ptr<arrow::io::FileOutputStream> out;
+  const auto fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0000);
+  // Set the shuffle file permissions to 0644 to keep it consistent with the permissions of
+  // the built-in shuffler manager in Spark.
+  fchmod(fd, 0644);
+  ARROW_ASSIGN_OR_RAISE(out, arrow::io::FileOutputStream::Open(fd));
+
+  // The `shuffleFileBufferSize` bytes is a temporary allocation and will be freed with file close.
+  // Use default memory pool and count treat the memory as executor memory overhead to avoid unnecessary spill.
+  return arrow::io::BufferedOutputStream::Create(bufferSize, arrow::default_memory_pool(), out);
+}
+} // namespace
+
 class LocalPartitionWriter::LocalSpiller {
  public:
   LocalSpiller(
@@ -318,15 +334,16 @@ class LocalPartitionWriter::PayloadCache {
     return false;
   }
 
-  arrow::Result<std::shared_ptr<Spill>> spillAndClose(
-      arrow::io::OutputStream* os,
+  arrow::Result<std::shared_ptr<Spill>> spill(
       const std::string& spillFile,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec,
+      const int64_t bufferSize,
       int64_t& totalBytesToEvict) {
-    auto diskSpill = std::make_shared<Spill>();
+    ARROW_ASSIGN_OR_RAISE(auto os, openFile(spillFile, bufferSize));
 
-    ARROW_ASSIGN_OR_RAISE(auto start, os->Tell());
+    int64_t start = 0;
+    auto diskSpill = std::make_shared<Spill>();
 
     for (uint32_t pid = 0; pid < numPartitions_; ++pid) {
       if (partitionInUse_.has_value() && partitionInUse_.value() == pid) {
@@ -341,7 +358,7 @@ class LocalPartitionWriter::PayloadCache {
           totalBytesToEvict += payload->rawSize();
 
           // Spill the cached payload to disk.
-          RETURN_NOT_OK(payload->serialize(os));
+          RETURN_NOT_OK(payload->serialize(os.get()));
           compressTime_ += payload->getCompressTime();
           spillTime_ += payload->getWriteTime();
         }
@@ -411,21 +428,6 @@ std::string LocalPartitionWriter::nextSpilledFileDir() {
   return spilledFileDir;
 }
 
-arrow::Result<std::shared_ptr<arrow::io::OutputStream>> LocalPartitionWriter::openFile(const std::string& file) {
-  std::shared_ptr<arrow::io::FileOutputStream> fout;
-  auto fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0000);
-  // Set the shuffle file permissions to 0644 to keep it consistent with the permissions of
-  // the built-in shuffler manager in Spark.
-  fchmod(fd, 0644);
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(fd));
-  if (options_.bufferedWrite) {
-    // The `shuffleFileBufferSize` bytes is a temporary allocation and will be freed with file close.
-    // Use default memory pool and count treat the memory as executor memory overhead to avoid unnecessary spill.
-    return arrow::io::BufferedOutputStream::Create(options_.shuffleFileBufferSize, arrow::default_memory_pool(), fout);
-  }
-  return fout;
-}
-
 arrow::Status LocalPartitionWriter::clearResource() {
   RETURN_NOT_OK(dataFileOs_->Close());
   // When bufferedWrite = true, dataFileOs_->Close doesn't release underlying buffer.
@@ -456,7 +458,6 @@ arrow::Result<int64_t> LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
 
     // Read if partition exists in the spilled file. Then write to the final data file.
     while (auto payload = spill->nextPayload(partitionId)) {
-      // May trigger spill during compression.
       RETURN_NOT_OK(payload->serialize(dataFileOs_.get()));
       compressTime_ += payload->getCompressTime();
       writeTime_ += payload->getWriteTime();
@@ -514,9 +515,11 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
           RETURN_NOT_OK(payloadCache_->cache(pid, std::move(maybeMerged.value())));
         }
       }
+
+      merger_.reset();
     }
 
-    ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_));
+    ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_.shuffleFileBufferSize));
 
     int64_t endInFinalFile = 0;
     DLOG(INFO) << "LocalPartitionWriter stopped. Total spills: " << spills_.size();
@@ -525,10 +528,13 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       // Record start offset.
       auto startInFinalFile = endInFinalFile;
       // Iterator over all spilled files.
+      // May trigger spill during compression.
       RETURN_NOT_OK(mergeSpills(pid));
+
       if (payloadCache_) {
         RETURN_NOT_OK(payloadCache_->write(pid, dataFileOs_.get()));
       }
+
       ARROW_ASSIGN_OR_RAISE(endInFinalFile, dataFileOs_->Tell());
       partitionLengths_[pid] = endInFinalFile - startInFinalFile;
     }
@@ -564,13 +570,13 @@ arrow::Status LocalPartitionWriter::requestSpill(bool isFinal) {
     std::shared_ptr<arrow::io::OutputStream> os;
     if (isFinal) {
       // If `spill()` is requested after `stop()`, open the final data file for writing.
-      ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_));
+      ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_, options_.shuffleFileBufferSize));
       spillFile = dataFile_;
       os = dataFileOs_;
       useSpillFileAsDataFile_ = true;
     } else {
       ARROW_ASSIGN_OR_RAISE(spillFile, createTempShuffleFile(nextSpilledFileDir()));
-      ARROW_ASSIGN_OR_RAISE(os, openFile(spillFile));
+      ARROW_ASSIGN_OR_RAISE(os, openFile(spillFile, options_.shuffleFileBufferSize));
     }
     spiller_ = std::make_unique<LocalSpiller>(
         isFinal, os, std::move(spillFile), options_.compressionBufferSize, payloadPool_.get(), codec_.get());
@@ -661,13 +667,17 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
   // Reclaim memory from payloadCache.
   if (payloadCache_ && payloadCache_->canSpill()) {
     auto beforeSpill = payloadPool_->bytes_allocated();
+
     ARROW_ASSIGN_OR_RAISE(auto spillFile, createTempShuffleFile(nextSpilledFileDir()));
-    ARROW_ASSIGN_OR_RAISE(auto os, openFile(spillFile));
+
     spills_.emplace_back();
     ARROW_ASSIGN_OR_RAISE(
         spills_.back(),
-        payloadCache_->spillAndClose(os.get(), spillFile, payloadPool_.get(), codec_.get(), totalBytesToEvict_));
+        payloadCache_->spill(
+            spillFile, payloadPool_.get(), codec_.get(), options_.shuffleFileBufferSize, totalBytesToEvict_));
+
     reclaimed += beforeSpill - payloadPool_->bytes_allocated();
+
     if (reclaimed >= size) {
       *actual = reclaimed;
       return arrow::Status::OK();

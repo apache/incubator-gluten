@@ -832,7 +832,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .compressionThreshold = compressionThreshold,
       .compressionType = getCompressionType(env, codecJstr),
       .compressionLevel = compressionLevel,
-      .bufferedWrite = true,
       .numSubDirs = numSubDirs,
       .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
       .sortBufferMaxSize = sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold};

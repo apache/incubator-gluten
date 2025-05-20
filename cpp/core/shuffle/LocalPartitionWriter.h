@@ -90,8 +90,6 @@ class LocalPartitionWriter : public PartitionWriter {
 
   std::string nextSpilledFileDir();
 
-  arrow::Result<std::shared_ptr<arrow::io::OutputStream>> openFile(const std::string& file);
-
   arrow::Result<int64_t> mergeSpills(uint32_t partitionId);
 
   arrow::Status clearResource();
