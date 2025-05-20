@@ -168,12 +168,12 @@ object BroadcastUtils {
           ColumnarBatches.retain(b)
           b
         })
-    var rowNums: Long = 0
+    var numRows: Long = 0
     val values = filtered
       .map(
         b => {
           val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
-          rowNums += b.numRows()
+          numRows += b.numRows()
           try {
             ColumnarBatchSerializerJniWrapper
               .create(
@@ -188,7 +188,7 @@ object BroadcastUtils {
         })
       .toArray
     if (values.nonEmpty) {
-      new ColumnarBatchSerializeResult(rowNums, values)
+      new ColumnarBatchSerializeResult(numRows, values)
     } else {
       ColumnarBatchSerializeResult.EMPTY
     }
