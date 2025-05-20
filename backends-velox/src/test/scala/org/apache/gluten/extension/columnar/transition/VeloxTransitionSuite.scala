@@ -25,7 +25,7 @@ import org.apache.gluten.test.MockVeloxBackend
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec}
 import org.apache.spark.sql.test.SharedSparkSession
 
-class VeloxTransitionSuite extends TransitionSuiteBase with SharedSparkSession {
+class VeloxTransitionSuite extends SharedSparkSession with TransitionSuiteBase {
   import TransitionSuiteBase._
 
   private val api = new VeloxListenerApi()
