@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Projection, UnsafeProjection}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, DeclarativeAggregate}
 import org.apache.spark.sql.delta.files.{FileDelayedCommitProtocol, MergeTreeDelayedCommitProtocol2}
+import org.apache.spark.sql.delta.files.DeltaFileFormatWriter.PartitionedTaskAttemptContextImpl
 import org.apache.spark.sql.delta.stats.{DeltaFileStatistics, DeltaJobStatisticsTracker}
 import org.apache.spark.sql.execution.datasources.{ExecutedWriteSummary, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.util.Utils
@@ -99,6 +100,21 @@ trait SupportNativeDeltaStats[T <: FileCommitProtocol] extends CHColumnarWrite[T
         })
   }
 
+  override def getTaskAttemptContext: TaskAttemptContext = {
+    val tac: TaskAttemptContext = super.getTaskAttemptContext
+    val partitionColumnToDataType = description.partitionColumns
+      .map(attr => (attr.name, attr.dataType))
+      .toMap
+    if (partitionColumnToDataType.nonEmpty) {
+      new PartitionedTaskAttemptContextImpl(
+        tac.getConfiguration,
+        tac.getTaskAttemptID,
+        partitionColumnToDataType)
+    } else {
+      tac
+    }
+  }
+
   def nativeStatsSchema(vanilla: Seq[AttributeReference]): Seq[AttributeReference]
 }
 
@@ -114,9 +130,9 @@ case class FileDeltaColumnarWrite(
 
   override def doSetupNativeTask(): Unit = {
     assert(description.path == committer.outputPath)
-    val nameSpec = CreateFileNameSpec(taskAttemptContext, description)
+    val nameSpec = CreateFileNameSpec(getTaskAttemptContext, description)
     val writePath = description.path
-    val writeFileName = committer.getFileName(taskAttemptContext, nameSpec.suffix, Map.empty)
+    val writeFileName = committer.getFileName(getTaskAttemptContext, nameSpec.suffix, Map.empty)
 
     /**
      * CDC files (CDC_PARTITION_COL = true) are named with "cdc-..." instead of "part-...".So, using
@@ -152,7 +168,7 @@ case class FileDeltaColumnarWrite(
     } else {
       // stats.map(row => x.apply(row).getString(0)).foreach(println)
       // process stats
-      val commitInfo = DeltaFileCommitInfo(committer, taskAttemptContext)
+      val commitInfo = DeltaFileCommitInfo(committer, getTaskAttemptContext)
       val basicNativeStat =
         NativeBasicWriteTaskStatsTracker(description.path, basicWriteJobStatsTracker)
       val basicNativeStats = Seq(commitInfo, basicNativeStat)
@@ -175,7 +191,7 @@ case class FileDeltaColumnarWrite(
         committer.updateAddedFiles(addedFiles)
 
         val (taskCommitMessage, taskCommitTime) = Utils.timeTakenMs {
-          committer.commitTask(taskAttemptContext)
+          committer.commitTask(getTaskAttemptContext)
         }
 
         // Just for update task commit time

@@ -25,8 +25,7 @@ import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMap
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, GenericInternalRow}
-import org.apache.spark.sql.delta.files.DeltaFileFormatWriter.PartitionedTaskAttemptContextImpl
-import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, BasicWriteTaskStats, ExecutedWriteSummary, PartitioningUtils, WriteJobDescription, WriteTaskResult, WriteTaskStatsTracker}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.types.{LongType, StringType}
 import org.apache.spark.util.Utils
 
@@ -48,12 +47,12 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
   def doSetupNativeTask(): Unit
 
   def setupTask(): Unit = {
-    committer.setupTask(taskAttemptContext)
+    committer.setupTask(getTaskAttemptContext)
     doSetupNativeTask()
   }
 
   def abortTask(): Unit = {
-    committer.abortTask(taskAttemptContext)
+    committer.abortTask(getTaskAttemptContext)
   }
   def commitTask(writeResults: Seq[InternalRow]): Option[WriteTaskResult]
 
@@ -62,7 +61,7 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     .map(_.newTaskInstance())
     .get
 
-  lazy val (taskAttemptContext: TaskAttemptContext, jobId: String) = {
+  private lazy val (taskAttemptContext: TaskAttemptContext, jobId: String) = {
     // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
     def createJobID(jobTrackerID: String, id: Int): JobID = {
       if (id < 0) {
@@ -77,9 +76,6 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     val jobID = createJobID(jobTrackerID, sparkStageId)
     val taskId = new TaskID(jobID, TaskType.MAP, sparkPartitionId)
     val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
-    val partitionColumnToDataType = description.partitionColumns
-      .map(attr => (attr.name, attr.dataType))
-      .toMap
 
     // Set up the configuration object
     val hadoopConf = description.serializableHadoopConf.value
@@ -89,15 +85,12 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     hadoopConf.setBoolean("mapreduce.task.ismap", true)
     hadoopConf.setInt("mapreduce.task.partition", 0)
 
-    if (partitionColumnToDataType.isEmpty) {
-      (new TaskAttemptContextImpl(hadoopConf, taskAttemptId), jobID.toString)
-    } else {
-      (
-        new PartitionedTaskAttemptContextImpl(hadoopConf, taskAttemptId, partitionColumnToDataType),
-        jobID.toString)
-    }
-
+    (new TaskAttemptContextImpl(hadoopConf, taskAttemptId), jobID.toString)
   }
+
+  def getTaskAttemptContext: TaskAttemptContext = this.taskAttemptContext
+
+  def getJobId: String = this.jobId
 }
 
 object CreateFileNameSpec {
@@ -277,7 +270,7 @@ case class HadoopMapReduceCommitProtocolWrite(
    */
   override def doSetupNativeTask(): Unit = {
     val (writePath, writeFilePattern) =
-      adapter.getTaskAttemptTempPathAndFilePattern(taskAttemptContext, description)
+      adapter.getTaskAttemptTempPathAndFilePattern(getTaskAttemptContext, description)
     stageDir = writePath
     logDebug(s"Native staging write path: $stageDir and file pattern: $writeFilePattern")
 
@@ -313,7 +306,7 @@ case class HadoopMapReduceCommitProtocolWrite(
     doCollectNativeResult(writeResults).map(
       nativeWriteTaskResult => {
         val (_, taskCommitTime) = Utils.timeTakenMs {
-          committer.commitTask(taskAttemptContext)
+          committer.commitTask(getTaskAttemptContext)
         }
 
         // Just for update task commit time

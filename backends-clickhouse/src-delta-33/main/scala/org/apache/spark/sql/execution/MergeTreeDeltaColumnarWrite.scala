@@ -178,7 +178,7 @@ case class MergeTreeDeltaColumnarWrite(
   override def doSetupNativeTask(): Unit = {
     assert(description.path == committer.outputPath)
     val writePath = StorageMeta.normalizeRelativePath(committer.outputPath)
-    val split = taskAttemptContext.getTaskAttemptID.getTaskID.getId
+    val split = getTaskAttemptContext.getTaskAttemptID.getTaskID.getId
     val partPrefixWithoutPartitionAndBucket =
       if (description.partitionColumns.isEmpty) s"${UUID.randomUUID.toString}_$split"
       else s"_$split"
