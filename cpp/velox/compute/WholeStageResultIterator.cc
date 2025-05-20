@@ -526,7 +526,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSpillReadBufferSize] =
         std::to_string(veloxCfg_->get<int32_t>(kSpillReadBufferSize, 1L * 1024 * 1024));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
-        std::to_string(veloxCfg_->get<uint8_t>(kSpillStartPartitionBit, 29));
+        std::to_string(veloxCfg_->get<uint8_t>(kSpillStartPartitionBit, 48));
     configs[velox::core::QueryConfig::kSpillNumPartitionBits] =
         std::to_string(veloxCfg_->get<uint8_t>(kSpillPartitionBits, 3));
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
