@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumna
  * [[org.apache.gluten.extension.columnar.transition.TransitionDef]] instance. The scala allows an
  * compact way to implement trait using a lambda function.
  *
- * Here the detail definition is given in [[CHBatch.fromRow]].
+ * Here the detail definition is given in [[CHBatchType.fromRow]].
  * {{{
  *       fromRow(new TransitionDef {
  *       override def create(): Transition = new Transition {
@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumna
  *     })
  * }}}
  */
-object CHBatch extends Convention.BatchType {
+object CHBatchType extends Convention.BatchType {
   override protected def registerTransitions(): Unit = {
     fromRow(Convention.RowType.VanillaRow, RowToCHNativeColumnarExec.apply)
     toRow(Convention.RowType.VanillaRow, CHColumnarToRowExec.apply)
