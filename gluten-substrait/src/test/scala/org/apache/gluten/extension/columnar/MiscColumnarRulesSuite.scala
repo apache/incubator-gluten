@@ -28,8 +28,8 @@ class MiscColumnarRulesSuite extends SharedSparkSession with WithDummyBackend {
   test("Fix ColumnarToRowRemovalGuard not able to be copied") {
     val dummyPlan =
       BatchToRow(
-        Convention.BatchType.VanillaBatch,
-        Convention.RowType.VanillaRow,
+        Convention.BatchType.VanillaBatchType,
+        Convention.RowType.VanillaRowType,
         spark.range(1).queryExecution.sparkPlan)
     val cloned =
       PreventBatchTypeMismatchInTableCache(isCalledByTableCachePlaning = true, Set.empty)

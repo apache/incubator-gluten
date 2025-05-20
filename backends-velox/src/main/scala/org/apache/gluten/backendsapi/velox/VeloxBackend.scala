@@ -78,11 +78,11 @@ object VeloxBackend {
   private class ConvFunc() extends ConventionFunc.Override {
     override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
       case a: AdaptiveSparkPlanExec if a.supportsColumnar =>
-        VeloxBatch
+        VeloxBatchType
       case i: InMemoryTableScanExec
           if i.supportsColumnar && i.relation.cacheBuilder.serializer
             .isInstanceOf[ColumnarCachedBatchSerializer] =>
-        VeloxBatch
+        VeloxBatchType
     }
   }
 }
@@ -95,7 +95,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = VeloxBackend.CONF_PREFIX + ".udfAllowTypeConversion"
 
   /** The columnar-batch type this backend is by default using. */
-  override def primaryBatchType: Convention.BatchType = VeloxBatch
+  override def primaryBatchType: Convention.BatchType = VeloxBatchType
 
   override def validateScanExec(
       format: ReadFileFormat,

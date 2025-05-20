@@ -61,7 +61,7 @@ case class FakeRowAdaptor(child: SparkPlan)
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
-  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRow
+  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRowType
 
   override protected def doExecute(): RDD[InternalRow] = {
     doExecuteColumnar().map(cb => new FakeRowEnhancement(cb))

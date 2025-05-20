@@ -18,6 +18,6 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.extension.columnar.transition.Convention
 
-object VeloxCarrierRow extends Convention.RowType {
+object VeloxCarrierRowType extends Convention.RowType {
   override protected[this] def registerTransitions(): Unit = {}
 }

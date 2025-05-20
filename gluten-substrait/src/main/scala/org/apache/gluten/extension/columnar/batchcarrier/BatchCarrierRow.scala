@@ -88,7 +88,7 @@ sealed abstract class BatchCarrierRow extends InternalRow {
 class TerminalRow(val batch: ColumnarBatch) extends BatchCarrierRow
 
 /**
- * A [[BatchCarrierRow]] implementation with no data. The only function of this row implementation is to
- * provide row metadata to the receiver and to support correct row-counting.
+ * A [[BatchCarrierRow]] implementation with no data. The only function of this row implementation
+ * is to provide row metadata to the receiver and to support correct row-counting.
  */
 class PlaceholderRow extends BatchCarrierRow

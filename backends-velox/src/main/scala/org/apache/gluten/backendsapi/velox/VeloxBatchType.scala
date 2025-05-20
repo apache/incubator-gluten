@@ -16,16 +16,16 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.columnarbatch.ArrowBatches
+import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes
 import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, RowToVeloxColumnarExec, VeloxColumnarToCarrierRowExec, VeloxColumnarToRowExec}
 import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
-object VeloxBatch extends Convention.BatchType {
+object VeloxBatchType extends Convention.BatchType {
   override protected def registerTransitions(): Unit = {
-    fromRow(Convention.RowType.VanillaRow, RowToVeloxColumnarExec.apply)
-    toRow(Convention.RowType.VanillaRow, VeloxColumnarToRowExec.apply)
-    fromBatch(ArrowBatches.ArrowNativeBatch, ArrowColumnarToVeloxColumnarExec.apply)
-    toBatch(ArrowBatches.ArrowNativeBatch, Transition.empty)
-    toRow(VeloxCarrierRow, VeloxColumnarToCarrierRowExec.apply)
+    fromRow(Convention.RowType.VanillaRowType, RowToVeloxColumnarExec.apply)
+    toRow(Convention.RowType.VanillaRowType, VeloxColumnarToRowExec.apply)
+    fromBatch(ArrowBatchTypes.ArrowNativeBatchType, ArrowColumnarToVeloxColumnarExec.apply)
+    toBatch(ArrowBatchTypes.ArrowNativeBatchType, Transition.empty)
+    toRow(VeloxCarrierRowType, VeloxColumnarToCarrierRowExec.apply)
   }
 }

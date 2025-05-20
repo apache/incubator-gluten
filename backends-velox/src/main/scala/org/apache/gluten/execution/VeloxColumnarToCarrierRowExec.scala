@@ -16,15 +16,15 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.velox.{VeloxBatch, VeloxCarrierRow}
+import org.apache.gluten.backendsapi.velox.{VeloxBatchType, VeloxCarrierRowType}
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.sql.execution.SparkPlan
 
 case class VeloxColumnarToCarrierRowExec(override val child: SparkPlan)
   extends ColumnarToCarrierRowExecBase {
-  override protected def fromBatchType(): Convention.BatchType = VeloxBatch
-  override def rowType0(): Convention.RowType = VeloxCarrierRow
+  override protected def fromBatchType(): Convention.BatchType = VeloxBatchType
+  override def rowType0(): Convention.RowType = VeloxCarrierRowType
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
 }

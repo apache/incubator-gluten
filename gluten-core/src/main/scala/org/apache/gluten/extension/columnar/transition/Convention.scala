@@ -33,9 +33,9 @@ sealed trait Convention {
 object Convention {
   def ensureSparkRowAndBatchTypesRegistered(): Unit = {
     RowType.None.ensureRegistered()
-    RowType.VanillaRow.ensureRegistered()
+    RowType.VanillaRowType.ensureRegistered()
     BatchType.None.ensureRegistered()
-    BatchType.VanillaBatch.ensureRegistered()
+    BatchType.VanillaBatchType.ensureRegistered()
   }
 
   implicit class ConventionOps(val conv: Convention) extends AnyVal {
@@ -130,7 +130,7 @@ object Convention {
     final case object None extends RowType {
       override protected[this] def registerTransitions(): Unit = {}
     }
-    final case object VanillaRow extends RowType {
+    final case object VanillaRowType extends RowType {
       override protected[this] def registerTransitions(): Unit = {}
     }
   }
@@ -151,10 +151,10 @@ object Convention {
     final case object None extends BatchType {
       override protected[this] def registerTransitions(): Unit = {}
     }
-    final case object VanillaBatch extends BatchType {
+    final case object VanillaBatchType extends BatchType {
       override protected[this] def registerTransitions(): Unit = {
-        fromRow(RowType.VanillaRow, RowToColumnarExec.apply)
-        toRow(RowType.VanillaRow, ColumnarToRowExec.apply)
+        fromRow(RowType.VanillaRowType, RowToColumnarExec.apply)
+        toRow(RowType.VanillaRowType, ColumnarToRowExec.apply)
       }
     }
   }

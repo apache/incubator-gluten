@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.ListenerApi
-import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
+import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.{ArrowJavaBatchType, ArrowNativeBatchType}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.config.VeloxConfig._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
@@ -168,10 +168,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
-    VeloxCarrierRow.ensureRegistered()
-    ArrowJavaBatch.ensureRegistered()
-    ArrowNativeBatch.ensureRegistered()
-    VeloxBatch.ensureRegistered()
+    VeloxCarrierRowType.ensureRegistered()
+    ArrowJavaBatchType.ensureRegistered()
+    ArrowNativeBatchType.ensureRegistered()
+    VeloxBatchType.ensureRegistered()
 
     // Register columnar shuffle so can be considered when
     // `org.apache.spark.shuffle.GlutenShuffleManager` is set as Spark shuffle manager.

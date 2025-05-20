@@ -86,7 +86,7 @@ object RemoveTransitions extends Rule[SparkPlan] {
 
 object Transitions {
   def insert(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    InsertTransitions.create(outputsColumnar, BatchType.VanillaBatch).apply(plan)
+    InsertTransitions.create(outputsColumnar, BatchType.VanillaBatchType).apply(plan)
   }
 
   def toRowPlan(plan: SparkPlan): SparkPlan = {

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.api.python
 
-import org.apache.gluten.columnarbatch.ArrowBatches.ArrowJavaBatch
+import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.ArrowJavaBatchType
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.execution.ValidatablePlan
 import org.apache.gluten.extension.ValidationResult
@@ -213,7 +213,7 @@ case class ColumnarArrowEvalPythonExec(
   extends EvalPythonExec
   with ValidatablePlan {
 
-  override def batchType(): Convention.BatchType = ArrowJavaBatch
+  override def batchType(): Convention.BatchType = ArrowJavaBatchType
 
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
@@ -234,7 +234,7 @@ case class ColumnarArrowEvalPythonExec(
   }
 
   override def requiredChildConvention(): Seq[ConventionReq] = List(
-    ConventionReq.ofBatch(ConventionReq.BatchType.Is(ArrowJavaBatch)))
+    ConventionReq.ofBatch(ConventionReq.BatchType.Is(ArrowJavaBatchType)))
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
