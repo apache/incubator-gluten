@@ -794,7 +794,8 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
     jint numSubDirs,
     jint shuffleFileBufferSize,
     jstring dataFileJstr,
-    jstring localDirsJstr) {
+    jstring localDirsJstr,
+    jboolean enableDictionary) {
   JNI_METHOD_START
 
   const auto ctx = getRuntime(env, wrapper);
@@ -803,7 +804,13 @@ Java_org_apache_gluten_vectorized_LocalPartitionWriterJniWrapper_createPartition
   auto localDirs = splitPaths(jStringToCString(env, localDirsJstr));
 
   auto partitionWriterOptions = std::make_shared<LocalPartitionWriterOptions>(
-      shuffleFileBufferSize, compressionBufferSize, compressionThreshold, mergeBufferSize, mergeThreshold, numSubDirs);
+      shuffleFileBufferSize,
+      compressionBufferSize,
+      compressionThreshold,
+      mergeBufferSize,
+      mergeThreshold,
+      numSubDirs,
+      enableDictionary);
 
   auto partitionWriter = std::make_shared<LocalPartitionWriter>(
       numPartitions,
