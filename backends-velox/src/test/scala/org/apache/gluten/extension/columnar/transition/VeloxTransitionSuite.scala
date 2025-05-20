@@ -26,7 +26,7 @@ import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec}
 import org.apache.spark.sql.test.SharedSparkSession
 
 class VeloxTransitionSuite extends SharedSparkSession {
-  import VeloxTransitionSuite._
+  import TransitionSuiteBase._
 
   private val api = new VeloxListenerApi()
 

@@ -24,7 +24,9 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{BinaryExecNode, ColumnarToRowTransition, LeafExecNode, RowToColumnarTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait TransitionSuiteBase {
+trait TransitionSuiteBase {}
+
+object TransitionSuiteBase {
   case class BatchLeaf(override val batchType: Convention.BatchType)
     extends LeafExecNode
     with GlutenPlan {

@@ -25,6 +25,7 @@ import org.apache.spark.sql.test.SharedSparkSession
 
 class TransitionSuite extends SharedSparkSession with WithDummyBackend {
   import TransitionSuite._
+  import TransitionSuiteBase._
 
   override protected def sparkConf: SparkConf =
     super.sparkConf
@@ -115,6 +116,8 @@ class TransitionSuite extends SharedSparkSession with WithDummyBackend {
 }
 
 object TransitionSuite extends TransitionSuiteBase {
+  import TransitionSuiteBase._
+
   private def insertTransitions(plan: SparkPlan, req: ConventionReq): SparkPlan = {
     InsertTransitions(req).apply(plan)
   }
