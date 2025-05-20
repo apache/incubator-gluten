@@ -24,6 +24,10 @@ file(
   "${SOURCE_PATH}/config.sub"
   STATUS status_sub)
 
+# Ensure config.guess and config.sub files are executable
+file(CHMOD "${SOURCE_PATH}/config.guess" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+file(CHMOD "${SOURCE_PATH}/config.sub" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
 vcpkg_configure_make(SOURCE_PATH ${SOURCE_PATH} AUTOCONFIG)
 vcpkg_install_make()
 vcpkg_fixup_pkgconfig()
