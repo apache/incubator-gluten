@@ -41,7 +41,6 @@ static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
 static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
-static constexpr bool kDefaultEnableDictionary = false;
 
 enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
 
