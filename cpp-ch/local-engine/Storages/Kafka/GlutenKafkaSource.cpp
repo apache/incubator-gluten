@@ -211,7 +211,7 @@ Chunk GlutenKafkaSource::generateImpl()
     if (!consumer)
         initConsumer();
 
-    size_t total_rows = 0;
+    size_t batch_rows = 0;
     MutableColumns virtual_columns = virtual_header.cloneEmptyColumns();
     MutableColumns no_virtual_columns = non_virtual_header.cloneEmptyColumns();
 
@@ -258,7 +258,7 @@ Chunk GlutenKafkaSource::generateImpl()
 
             virtual_columns[5]->insertDefault();
 
-            total_rows = total_rows + 1;
+            batch_rows = batch_rows + 1;
         }
         else if (consumer->polledDataUnusable())
         {
@@ -278,21 +278,24 @@ Chunk GlutenKafkaSource::generateImpl()
                 consumer->currentOffset());
         }
 
-        if (!consumer->hasMorePolledMessages() || total_rows >= max_block_size)
+        if (!consumer->hasMorePolledMessages() || total_rows + batch_rows >= max_block_size)
             break;
     }
 
-    LOG_DEBUG(log, "Read {} rows from Kafka topic: {}, partition: {}", total_rows, topics[0], partition);
+    LOG_DEBUG(log, "Read {} rows from Kafka topic: {}, partition: {}", batch_rows, topics[0], partition);
 
-    if (total_rows == 0)
+    if (batch_rows == 0)
+    {
+        finished = true;
         return {};
+    }
 
     if (consumer->polledDataUnusable())
     {
         // the rows were counted already before by KafkaRowsRead,
         // so let's count the rows we ignore separately
         // (they will be retried after the rebalance)
-        ProfileEvents::increment(ProfileEvents::KafkaRowsRejected, total_rows);
+        ProfileEvents::increment(ProfileEvents::KafkaRowsRejected, batch_rows);
         return {};
     }
 
@@ -302,7 +305,7 @@ Chunk GlutenKafkaSource::generateImpl()
     for (const auto & column : virtual_block.getColumnsWithTypeAndName())
         result_block.insert(column);
 
-    progress(total_rows, result_block.bytes());
+    progress(batch_rows, result_block.bytes());
 
     auto converting_dag = ActionsDAG::makeConvertingActions(
         result_block.cloneEmpty().getColumnsWithTypeAndName(),
@@ -312,6 +315,7 @@ Chunk GlutenKafkaSource::generateImpl()
     auto converting_actions = std::make_shared<ExpressionActions>(std::move(converting_dag));
     converting_actions->execute(result_block);
 
+    total_rows += batch_rows;
     return Chunk(result_block.getColumns(), result_block.rows());
 }
 
@@ -321,7 +325,8 @@ Chunk GlutenKafkaSource::generate()
         return {};
 
     auto chunk = generateImpl();
-    finished = true;
+    if (total_rows >= max_block_size)
+        finished = true;
 
     return chunk;
 }

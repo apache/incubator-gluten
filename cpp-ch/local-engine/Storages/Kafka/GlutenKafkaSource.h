@@ -84,6 +84,7 @@ private:
     const size_t end_offset;
     String client_id;
     bool finished = false;
+    size_t total_rows = 0;
 };
 
 }
