@@ -54,6 +54,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
         "false"
       ) // otherwise, RETAIN 0 HOURS will fail
       .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
+      .set(MergeTreeConf.WRITE_MARKS_FOR_SUBSTREAMS_IN_COMPACT_PARTS.key, "true")
       .setCHSettings("input_format_parquet_max_block_size", 8192)
   }
 

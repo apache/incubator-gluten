@@ -539,6 +539,9 @@ SparkWriteStorageMergeTree::buildMergeTreeSettings(const ContextMutablePtr & con
     if (String min_rows_for_wide_part; tryGetString(context->getSettingsRef(), "merge_tree.min_rows_for_wide_part", min_rows_for_wide_part))
         settings->set("min_rows_for_wide_part", Field(std::strtoll(min_rows_for_wide_part.c_str(), nullptr, 10)));
 
+    if (settingsEqual(context->getSettingsRef(), "merge_tree.write_marks_for_substreams_in_compact_parts", "true"))
+        settings->set("write_marks_for_substreams_in_compact_parts", Field(true));
+
     return settings;
 }
 
