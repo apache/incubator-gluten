@@ -63,6 +63,7 @@ DEFINE_string(
     "lz4",
     "Specify the compression codec. Valid options are none, lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
+DEFINE_bool(shuffle_dictionary, false, "Whether to enable dictionary encoding for shuffle write.");
 
 DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
 DEFINE_string(
@@ -183,6 +184,11 @@ PartitionWriterOptions createPartitionWriterOptions() {
     partitionWriterOptions.codecBackend = CodecBackend::IAA;
     partitionWriterOptions.compressionType = arrow::Compression::GZIP;
   }
+
+  if (FLAGS_shuffle_dictionary) {
+    partitionWriterOptions.enableDictionary = true;
+  }
+
   return partitionWriterOptions;
 }
 
