@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_05_19
+VELOX_REPO=https://github.com/JkSelf/velox.git
+VELOX_BRANCH=bucket-non-partition
 VELOX_HOME=""
 
 OS=`uname -s`
