@@ -170,7 +170,6 @@ object CHExpressionUtil {
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
     MAX_BY -> DefaultValidator(),
     MIN_BY -> DefaultValidator()
-    MODE -> DefaultValidator()
   )
 
   final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, FunctionValidator] = Map(
