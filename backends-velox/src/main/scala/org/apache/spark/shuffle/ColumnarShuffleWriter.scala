@@ -160,6 +160,7 @@ class ColumnarShuffleWriter[K, V](
             GlutenConfig.get.columnarShuffleCompressionMode,
             conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
             conf.get(SHUFFLE_SORT_USE_RADIXSORT),
+            GlutenConfig.get.columnarShuffleEnableDictionary,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
