@@ -16,10 +16,10 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.gluten.execution.{ProjectExecTransformer, SortExecTransformer, TransformSupport, WholeStageTransformer}
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.{ColumnarToCarrierRowExecBase, ProjectExecTransformer, SortExecTransformer, TransformSupport, WholeStageTransformer}
 import org.apache.gluten.execution.datasource.GlutenFormatWriterInjects
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPlan}
@@ -36,7 +36,7 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
    * @return
    */
   override def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow] = {
-    if (plan.isInstanceOf[FakeRowAdaptor]) {
+    if (plan.isInstanceOf[ColumnarToCarrierRowExecBase]) {
       // here, the FakeRowAdaptor is simply a R2C converter
       return plan.execute()
     }
@@ -66,6 +66,6 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     val transformedWithAdapter = injectAdapter(transformed)
     val wst = WholeStageTransformer(transformedWithAdapter, materializeInput = true)(
       transformStageCounter.incrementAndGet())
-    FakeRowAdaptor(wst).execute()
+    BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(wst).execute()
   }
 }

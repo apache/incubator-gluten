@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.batchcarrier
+package org.apache.gluten.execution
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
@@ -82,11 +82,26 @@ sealed abstract class BatchCarrierRow extends InternalRow {
   }
 }
 
+object BatchCarrierRow {
+  def unwrap(row: InternalRow): Option[ColumnarBatch] = row match {
+    case _: PlaceholderRow => None
+    case t: TerminalRow => Some(t.batch())
+    case _ =>
+      throw new UnsupportedOperationException(
+        s"Row $row is not a ${classOf[BatchCarrierRow].getSimpleName}")
+  }
+}
+
 /**
  * A [[BatchCarrierRow]] implementation that is backed by a
  * [[org.apache.spark.sql.vectorized.ColumnarBatch]].
+ *
+ * Serialization code originated since https://github.com/apache/incubator-gluten/issues/9270.
  */
-class TerminalRow(val batch: ColumnarBatch) extends BatchCarrierRow
+abstract class TerminalRow extends BatchCarrierRow {
+  def batch(): ColumnarBatch
+  def withNewBatch(batch: ColumnarBatch): TerminalRow
+}
 
 /**
  * A [[BatchCarrierRow]] implementation with no data. The only function of this row implementation

@@ -16,10 +16,10 @@
  */
 package org.apache.spark.sql.datasources
 
+import org.apache.gluten.execution.ColumnarToCarrierRowExecBase
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, SaveMode}
 import org.apache.spark.sql.execution.QueryExecution
-import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.util.QueryExecutionListener
 
@@ -36,10 +36,10 @@ class GlutenNoopWriterRuleSuite extends GlutenQueryTest with SharedSparkSession 
   }
 
   class WriterColumnarListener extends QueryExecutionListener {
-    var fakeRowAdaptor: Option[FakeRowAdaptor] = None
+    var c2CarrierRow: Option[ColumnarToCarrierRowExecBase] = None
 
     override def onSuccess(funcName: String, qe: QueryExecution, durationNs: Long): Unit = {
-      fakeRowAdaptor = qe.executedPlan.collectFirst { case f: FakeRowAdaptor => f }
+      c2CarrierRow = qe.executedPlan.collectFirst { case f: ColumnarToCarrierRowExecBase => f }
     }
 
     override def onFailure(funcName: String, qe: QueryExecution, exception: Exception): Unit = {}
@@ -54,7 +54,7 @@ class GlutenNoopWriterRuleSuite extends GlutenQueryTest with SharedSparkSession 
         try {
           spark.read.parquet(dir.getPath).write.format("noop").mode(SaveMode.Overwrite).save()
           spark.sparkContext.listenerBus.waitUntilEmpty()
-          assert(listener.fakeRowAdaptor.isDefined, "FakeRowAdaptor is not found.")
+          assert(listener.c2CarrierRow.isDefined, "FakeRowAdaptor is not found.")
         } finally {
           spark.listenerManager.unregister(listener)
         }

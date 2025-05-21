@@ -17,8 +17,7 @@
 package org.apache.spark.sql.execution.adaptive.velox
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
-
+import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, ColumnarToCarrierRowExecBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsTrait, Row}
@@ -27,7 +26,6 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
-import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 import org.apache.spark.sql.execution.datasources.noop.NoopDataSource
 import org.apache.spark.sql.execution.datasources.v2.V2TableWriteExec
 import org.apache.spark.sql.execution.exchange._
@@ -40,7 +38,6 @@ import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
 import org.apache.spark.sql.test.SQLTestData.TestData
 import org.apache.spark.sql.types.{IntegerType, StructType}
 import org.apache.spark.sql.util.QueryExecutionListener
-
 import org.apache.log4j.Level
 
 class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
@@ -1254,8 +1251,8 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
         sparkContext.listenerBus.waitUntilEmpty()
         assert(plan.isInstanceOf[V2TableWriteExec])
         val childPlan = plan.asInstanceOf[V2TableWriteExec].child
-        assert(childPlan.isInstanceOf[FakeRowAdaptor])
-        assert(childPlan.asInstanceOf[FakeRowAdaptor].child.isInstanceOf[AdaptiveSparkPlanExec])
+        assert(childPlan.isInstanceOf[ColumnarToCarrierRowExecBase])
+        assert(childPlan.asInstanceOf[ColumnarToCarrierRowExecBase].child.isInstanceOf[AdaptiveSparkPlanExec])
 
         spark.listenerManager.unregister(listener)
       }
