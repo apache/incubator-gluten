@@ -52,7 +52,8 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
       0,
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
-  const auto& operators = task->getDriver(0)->operators();
+  std::vector<velox::exec::Operator*> operators;
+  task->testingVisitDrivers([&](velox::exec::Driver* driver) { operators = driver->operators(); });
   for (const auto* op : operators) {
     if (dynamic_cast<const exec::TableScan*>(op) != nullptr) {
       continue;
