@@ -39,6 +39,7 @@ public class GlutenCollectResultBufferTest extends CollectResultBufferTest {
     @Test
     @Disabled
     public void testUncheckpointedNotFaultTolerance() throws Exception {
+        throw new RuntimeException();
     }
 
     @Override

@@ -20,9 +20,4 @@ package org.apache.gluten.streaming.api.operators;
 import org.junit.jupiter.api.Test;
 
 public class GlutenSourceOperatorSplitWatermarkAlignmentTest{
-
-    @Test
-    public void simpleTest() {
-
-    }
 }

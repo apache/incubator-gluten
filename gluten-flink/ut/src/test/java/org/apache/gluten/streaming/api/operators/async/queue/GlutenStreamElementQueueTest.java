@@ -21,33 +21,45 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueTest;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 public class GlutenStreamElementQueueTest extends StreamElementQueueTest {
 
-    public GlutenStreamElementQueueTest(AsyncDataStream.OutputMode outputMode) {
+    private final AsyncDataStream.OutputMode outputMode;
+    public  GlutenStreamElementQueueTest(AsyncDataStream.OutputMode outputMode) {
         super(outputMode);
+        this.outputMode = outputMode;
     }
 
-    @Override
-    @Test
+    static Stream<Object> parameters() {
+        return Stream.of(
+                new Object[] {AsyncDataStream.OutputMode.ORDERED}
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testPut() {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testPop() {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testPutOnFull() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testWatermarkOnly() {
     }

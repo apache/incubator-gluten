@@ -18,107 +18,122 @@
 package org.apache.gluten.streaming.api.operators.co;
 
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperatorTest;
+import org.apache.flink.util.FlinkException;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 public class GlutenIntervalJoinOperatorTest extends IntervalJoinOperatorTest {
 
-    public GlutenIntervalJoinOperatorTest(boolean lhsFasterThanRhs) {
+    private final boolean lhsFasterThanRhs;
+	public GlutenIntervalJoinOperatorTest(boolean lhsFasterThanRhs) {
         super(lhsFasterThanRhs);
+        this.lhsFasterThanRhs = lhsFasterThanRhs;
     }
 
-    @Override
-    @Test
+    static Stream<Object> parameters() {
+        return Stream.of(
+                new Object[] {true}
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testImplementationMirrorsCorrectly() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testNegativeExclusiveAndNegativeExlusive() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testNegativeExclusiveAndPositiveExlusive() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testPositiveExclusiveAndPositiveExlusive() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testStateCleanupNegativeInclusiveNegativeInclusive() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testStateCleanupNegativePositiveNegativeExlusive() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testStateCleanupPositiveInclusivePositiveInclusive() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testStateCleanupPositiveExlusivePositiveExclusive() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testRestoreFromSnapshot() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testContextCorrectLeftTimestamp() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testReturnsCorrectTimestamp() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testContextCorrectRightTimestamp() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testFailsWithNoTimestampsLeft() throws Exception {
+        throw new FlinkException("");
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testFailsWithNoTimestampsRight() throws Exception {
+        throw new FlinkException("");
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testDiscardsLateData() throws Exception {
     }
 
-    @Override
-    @Test
+    @ParameterizedTest
+    @MethodSource("parameters")
     @Disabled
     public void testLateData() throws Exception {
     }

@@ -39,6 +39,7 @@ public class GlutenInputSelectionTest extends InputSelectionTest {
     @Test
     @Disabled
     public void testInputSelectionNormalizationOverflow() {
+        throw new IllegalArgumentException();
     }
 
     @Override
@@ -63,6 +64,7 @@ public class GlutenInputSelectionTest extends InputSelectionTest {
     @Test
     @Disabled
     public void testUnsupportedFairSelectNextIndexOutOf2() {
+        throw new UnsupportedOperationException();
     }
 
 }

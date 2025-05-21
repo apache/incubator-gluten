@@ -20,9 +20,4 @@ package org.apache.gluten.streaming.api.operators;
 import org.junit.jupiter.api.Test;
 
 public class GlutenTimerSerializerUpgradeTest{
-
-    @Test
-    public void simpleTest() {
-
-    }
 }
