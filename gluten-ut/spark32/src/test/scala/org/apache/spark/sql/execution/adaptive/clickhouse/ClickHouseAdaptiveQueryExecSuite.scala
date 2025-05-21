@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.adaptive.clickhouse
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, ColumnarToCarrierRowExecBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{Dataset, GlutenSQLTestsTrait, Row}
@@ -38,6 +39,7 @@ import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
 import org.apache.spark.sql.test.SQLTestData.TestData
 import org.apache.spark.sql.types.{IntegerType, StructType}
 import org.apache.spark.sql.util.QueryExecutionListener
+
 import org.apache.log4j.Level
 
 class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLTestsTrait {
@@ -1273,7 +1275,11 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
         assert(plan.isInstanceOf[V2TableWriteExec])
         val childPlan = plan.asInstanceOf[V2TableWriteExec].child
         assert(childPlan.isInstanceOf[ColumnarToCarrierRowExecBase])
-        assert(childPlan.asInstanceOf[ColumnarToCarrierRowExecBase].child.isInstanceOf[AdaptiveSparkPlanExec])
+        assert(
+          childPlan
+            .asInstanceOf[ColumnarToCarrierRowExecBase]
+            .child
+            .isInstanceOf[AdaptiveSparkPlanExec])
 
         spark.listenerManager.unregister(listener)
       }

@@ -20,6 +20,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.{ColumnarToCarrierRowExecBase, ProjectExecTransformer, SortExecTransformer, TransformSupport, WholeStageTransformer}
 import org.apache.gluten.execution.datasource.GlutenFormatWriterInjects
 import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPlan}

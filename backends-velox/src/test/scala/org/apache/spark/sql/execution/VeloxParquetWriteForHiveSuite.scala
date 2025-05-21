@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.UI.UI_ENABLED
@@ -29,6 +30,7 @@ import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.sql.util.QueryExecutionListener
 import org.apache.spark.util.Utils
+
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
