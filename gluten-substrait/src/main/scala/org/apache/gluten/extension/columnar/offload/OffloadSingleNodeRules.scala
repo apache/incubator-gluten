@@ -221,7 +221,7 @@ object OffloadOthers {
           HashAggregateExecBaseTransformer.from(plan)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)
+          HashAggregateExecBaseTransformer.from(plan, true)
         case plan: ObjectHashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)
