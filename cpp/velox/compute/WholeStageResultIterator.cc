@@ -21,6 +21,9 @@
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
+#ifdef GLUTEN_ENABLE_GPU
+#include "velox/experimental/cudf/exec/ToCudf.h"
+#endif
 
 using namespace facebook;
 
@@ -61,8 +64,10 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
-    const SparkTaskInfo& taskInfo)
-    : memoryManager_(memoryManager),
+    const SparkTaskInfo& taskInfo,
+    bool enableCudf)
+    : enableCudf_(enableCudf),
+      memoryManager_(memoryManager),
       veloxCfg_(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
@@ -75,7 +80,6 @@ WholeStageResultIterator::WholeStageResultIterator(
   if (spillThreadNum > 0) {
     spillExecutor_ = std::make_shared<folly::CPUThreadPoolExecutor>(spillThreadNum);
   }
-
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 
   // Create task instance.
@@ -571,6 +575,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
     configs[velox::core::QueryConfig::kSparkLegacyStatisticalAggregate] =
         std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
+
+#ifdef GLUTEN_ENABLE_GPU
+    if (!enableCudf_) {
+      configs[cudf_velox::kCudfEnabled] = "false";
+    }
+#endif
 
     const auto setIfExists = [&](const std::string& glutenKey, const std::string& veloxKey) {
       const auto valueOptional = veloxCfg_->get<std::string>(glutenKey);
