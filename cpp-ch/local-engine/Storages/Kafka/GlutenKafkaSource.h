@@ -18,6 +18,7 @@
 #pragma once
 
 
+#include <Interpreters/Context_fwd.h>
 #include <Processors/ISource.h>
 #include <Storages/Kafka/KafkaConsumer.h>
 #include <Storages/Kafka/KafkaSettings.h>
