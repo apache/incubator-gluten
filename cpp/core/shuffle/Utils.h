@@ -32,12 +32,27 @@
 
 namespace gluten {
 
-using BinaryArrayLengthBufferType = uint32_t;
+using StringLengthType = uint32_t;
 using IpcOffsetBufferType = arrow::LargeStringType::offset_type;
 
-static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBufferType);
+static const size_t kSizeOfStringLength = sizeof(StringLengthType);
 static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
 static const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
+
+class PartitionScopeGuard {
+ public:
+  PartitionScopeGuard(std::optional<uint32_t>& partitionInUse, uint32_t partitionId) : partitionInUse_(partitionInUse) {
+    GLUTEN_DCHECK(!partitionInUse_.has_value(), "Partition id is already set.");
+    partitionInUse_ = partitionId;
+  }
+
+  ~PartitionScopeGuard() {
+    partitionInUse_ = std::nullopt;
+  }
+
+ private:
+  std::optional<uint32_t>& partitionInUse_;
+};
 
 std::string getShuffleSpillDir(const std::string& configuredDir, int32_t subDirId);
 
@@ -49,6 +64,8 @@ arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleTypeId(
 int64_t getBufferSize(const std::shared_ptr<arrow::Array>& array);
 
 int64_t getBufferSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
+
+int64_t getBufferCapacity(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
 int64_t getMaxCompressedBufferSize(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,

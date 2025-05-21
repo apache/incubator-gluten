@@ -30,7 +30,7 @@ class LocalPartitionWriter : public PartitionWriter {
   explicit LocalPartitionWriter(
       uint32_t numPartitions,
       PartitionWriterOptions options,
-      arrow::MemoryPool* pool,
+      MemoryManager* memoryManager,
       const std::string& dataFile,
       const std::vector<std::string>& localDirs);
 
@@ -89,8 +89,6 @@ class LocalPartitionWriter : public PartitionWriter {
   arrow::Status finishSpill();
 
   std::string nextSpilledFileDir();
-
-  arrow::Result<std::shared_ptr<arrow::io::OutputStream>> openFile(const std::string& file);
 
   arrow::Result<int64_t> mergeSpills(uint32_t partitionId);
 
