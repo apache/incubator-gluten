@@ -37,6 +37,9 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext
  * Dynamic partition writer with single writer, meaning only one writer is opened at any time for
  * writing. The records to be written are required to be sorted on partition and/or bucket column(s)
  * before writing.
+ *
+ * The class overwrites Spark's class with the same names.
+ * Since: https://github.com/apache/incubator-gluten/issues/2205.
  */
 class DynamicPartitionDataSingleWriter(
     description: WriteJobDescription,
