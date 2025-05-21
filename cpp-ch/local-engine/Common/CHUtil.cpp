@@ -645,7 +645,7 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
 
     //1.
     // TODO: we need set Setting::max_threads to 1 by default, but now we can't get correct metrics for the some query if we set it to 1.
-    // settings[Setting::max_threads] = 1;
+    settings[Setting::max_threads] = 1;
 
     /// 2. After https://github.com/ClickHouse/ClickHouse/pull/71539
     /// Set false to query_plan_merge_filters.
