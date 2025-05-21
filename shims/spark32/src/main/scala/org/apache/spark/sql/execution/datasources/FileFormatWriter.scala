@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
@@ -32,11 +33,12 @@ import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCo
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.{ColumnarToRowTransition, ProjectExec, SQLExecution, SortExec, SparkPlan, UnsafeExternalRowSorter}
+import org.apache.spark.sql.execution.{ColumnarToRowTransition, ProjectExec, SortExec, SparkPlan, SQLExecution, UnsafeExternalRowSorter}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.{SerializableConfiguration, Utils}
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileAlreadyExistsException, Path}
 import org.apache.hadoop.mapreduce._
@@ -150,7 +152,8 @@ object FileFormatWriter extends Logging {
       "true" == sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly")
 
     if (nativeEnabled) {
-      logInfo(s"Writing data with Gluten's native writer. The topmost node of the query plan to write is: ${plan.nodeName}")
+      logInfo(
+        s"Writing data with Gluten's native writer. The topmost node of the query plan to write is: ${plan.nodeName}")
       assert(plan.isInstanceOf[ColumnarToRowTransition])
     }
 

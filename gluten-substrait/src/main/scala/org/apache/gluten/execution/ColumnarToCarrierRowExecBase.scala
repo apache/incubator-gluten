@@ -81,7 +81,8 @@ object ColumnarToCarrierRowExecBase {
 
     override def batch(): ColumnarBatch = _batch
 
-    override def withNewBatch(batch: ColumnarBatch): TerminalRow = new SerializableTerminalRow(batch)
+    override def withNewBatch(batch: ColumnarBatch): TerminalRow = new SerializableTerminalRow(
+      batch)
 
     override def copy(): InternalRow = {
       val copied = BackendsApiManager.getSparkPlanExecApiInstance.copyColumnarBatch(_batch)
