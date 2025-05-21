@@ -24,6 +24,8 @@ import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
 trait IFakeRowAdaptor
 
+/** Deprecated: Moving to new API `BatchCarrierRow` in `gluten-substrait`. */
+@deprecated
 class FakeRow(@transient var batch: ColumnarBatch) extends InternalRow {
   override def numFields: Int = throw new UnsupportedOperationException()
 

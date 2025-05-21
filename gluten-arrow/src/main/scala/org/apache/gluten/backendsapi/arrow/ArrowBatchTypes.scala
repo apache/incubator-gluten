@@ -14,27 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.columnarbatch
+package org.apache.gluten.backendsapi.arrow
 
 import org.apache.gluten.execution.{LoadArrowDataExec, OffloadArrowDataExec}
 import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
-import org.apache.gluten.extension.columnar.transition.Convention.BatchType.VanillaBatch
+import org.apache.gluten.extension.columnar.transition.Convention.BatchType.VanillaBatchType
 
-object ArrowBatches {
+object ArrowBatchTypes {
 
   /**
    * ArrowJavaBatch stands for Gluten's Java Arrow-based columnar batch implementation.
    *
    * ArrowJavaBatch should have [[org.apache.gluten.vectorized.ArrowWritableColumnVector]]s
    * populated in it. ArrowJavaBatch can be offloaded to ArrowNativeBatch through API in
-   * [[ColumnarBatches]].
+   * [[org.apache.gluten.columnarbatch.ColumnarBatches]].
    *
    * ArrowJavaBatch is compatible with vanilla batch since it provides valid #get<type>(...)
    * implementations.
    */
-  object ArrowJavaBatch extends Convention.BatchType {
+  object ArrowJavaBatchType extends Convention.BatchType {
     override protected def registerTransitions(): Unit = {
-      toBatch(VanillaBatch, Transition.empty)
+      toBatch(VanillaBatchType, Transition.empty)
     }
   }
 
@@ -43,12 +43,12 @@ object ArrowBatches {
    *
    * ArrowNativeBatch should have [[org.apache.gluten.columnarbatch.IndicatorVector]] set as the
    * first vector. ArrowNativeBatch can be loaded to ArrowJavaBatch through API in
-   * [[ColumnarBatches]].
+   * [[org.apache.gluten.columnarbatch.ColumnarBatches]].
    */
-  object ArrowNativeBatch extends Convention.BatchType {
+  object ArrowNativeBatchType extends Convention.BatchType {
     override protected def registerTransitions(): Unit = {
-      fromBatch(ArrowJavaBatch, OffloadArrowDataExec.apply)
-      toBatch(ArrowJavaBatch, LoadArrowDataExec.apply)
+      fromBatch(ArrowJavaBatchType, OffloadArrowDataExec.apply)
+      toBatch(ArrowJavaBatchType, LoadArrowDataExec.apply)
     }
   }
 }

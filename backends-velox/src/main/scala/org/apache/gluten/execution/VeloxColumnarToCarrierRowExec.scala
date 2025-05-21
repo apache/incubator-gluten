@@ -16,20 +16,15 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.{ArrowJavaBatchType, ArrowNativeBatchType}
-import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.backendsapi.velox.{VeloxBatchType, VeloxCarrierRowType}
+import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
-/** Converts input data with batch type [[ArrowNativeBatchType]] to type [[ArrowJavaBatchType]]. */
-case class LoadArrowDataExec(override val child: SparkPlan)
-  extends ColumnarToColumnarExec(ArrowNativeBatchType, ArrowJavaBatchType) {
-  override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    in.map(b => ColumnarBatches.load(ArrowBufferAllocators.contextInstance, b))
-  }
-
+case class VeloxColumnarToCarrierRowExec(override val child: SparkPlan)
+  extends ColumnarToCarrierRowExecBase {
+  override protected def fromBatchType(): Convention.BatchType = VeloxBatchType
+  override def rowType0(): Convention.RowType = VeloxCarrierRowType
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
 }

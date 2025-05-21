@@ -14,16 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
+package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes
-import org.apache.gluten.execution.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, RowToVeloxColumnarExec, VeloxColumnarToCarrierRowExec, VeloxColumnarToRowExec}
+import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
-trait BaseArrowScanExec extends GlutenPlan {
-  final override def batchType(): Convention.BatchType = {
-    ArrowBatchTypes.ArrowJavaBatchType
+object VeloxBatchType extends Convention.BatchType {
+  override protected def registerTransitions(): Unit = {
+    fromRow(Convention.RowType.VanillaRowType, RowToVeloxColumnarExec.apply)
+    toRow(Convention.RowType.VanillaRowType, VeloxColumnarToRowExec.apply)
+    fromBatch(ArrowBatchTypes.ArrowNativeBatchType, ArrowColumnarToVeloxColumnarExec.apply)
+    toBatch(ArrowBatchTypes.ArrowNativeBatchType, Transition.empty)
+    toRow(VeloxCarrierRowType, VeloxColumnarToCarrierRowExec.apply)
   }
-
-  final override def rowType0(): Convention.RowType = Convention.RowType.None
 }
