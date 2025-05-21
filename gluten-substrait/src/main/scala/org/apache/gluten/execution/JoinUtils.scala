@@ -153,7 +153,7 @@ object JoinUtils {
     }
   }
 
-  private def getDirectJoinOutputSeq(
+  def getDirectJoinOutputSeq(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
       rightOutput: Seq[Attribute]): Seq[Attribute] = {
