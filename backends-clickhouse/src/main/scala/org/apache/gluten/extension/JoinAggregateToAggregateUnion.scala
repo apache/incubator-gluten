@@ -638,9 +638,10 @@ case class JoinAggregateToAggregateUnion(spark: SparkSession)
   }
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
+    // This is experimental, disable it by default
     if (
       spark.conf
-        .get(CHBackendSettings.GLUTEN_JOIN_AGGREGATE_TO_AGGREGATE_UNION, "true")
+        .get(CHBackendSettings.GLUTEN_JOIN_AGGREGATE_TO_AGGREGATE_UNION, "false")
         .toBoolean && isResolvedPlan(plan)
     ) {
       val reorderedPlan = ReorderJoinSubqueries().apply(plan)

@@ -58,6 +58,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
       .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
       .set(CHConfig.runtimeSettings("max_memory_usage_ratio_for_streaming_aggregating"), "0.01")
       .set(CHConfig.runtimeSettings("high_cardinality_threshold_for_streaming_aggregating"), "0.2")
+      .set("spark.gluten.sql.columnar.backend.ch.join.aggregate.to.aggregate.union", "true")
       .set(
         SQLConf.OPTIMIZER_EXCLUDED_RULES.key,
         ConstantFolding.ruleName + "," + NullPropagation.ruleName)
