@@ -14,24 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.rexnode.functions;
+
+package org.apache.gluten.rexnode;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.Type;
 
+import org.apache.calcite.rex.RexCall;
+import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.RexNodeConverter;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
-/** Default convertor for velox function. */
-public class DefaultFunctionConverter implements FunctionConverter {
-    private final String function;
-
-    public DefaultFunctionConverter(String function) {
-        this.function = function;
-    }
-
-    @Override
-    public CallTypedExpr toVeloxFunction(Type nodeType, List<TypedExpr> params) {
-        return new CallTypedExpr(nodeType, params, function);
-    }
+public interface RexCallConverter {
+   // Let the Converter to decide how to build the arguments.
+   TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
 }
