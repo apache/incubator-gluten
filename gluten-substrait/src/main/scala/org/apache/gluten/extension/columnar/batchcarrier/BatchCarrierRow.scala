@@ -77,7 +77,8 @@ sealed abstract class BatchCarrierRow extends InternalRow {
   override def get(ordinal: Int, dataType: DataType): AnyRef = throw unsupported()
 
   private def unsupported() = {
-    new UnsupportedOperationException("Underlying columnar data is inaccessible from BatchCarrierRow")
+    new UnsupportedOperationException(
+      "Underlying columnar data is inaccessible from BatchCarrierRow")
   }
 }
 
