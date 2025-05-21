@@ -38,6 +38,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.util.LogicalTypeConverter;
 
 import java.math.BigDecimal;
@@ -47,7 +48,7 @@ import java.util.stream.Collectors;
 /** Convertor to convert RexNode to velox TypedExpr */
 public class RexNodeConverter {
 
-    public static TypedExpr toTypedExpr(RexNode rexNode, List<String> inNames) {
+    public static TypedExpr toTypedExpr(RexNode rexNode, RexConversionContext context) {
         if (rexNode instanceof RexLiteral) {
             RexLiteral literal = (RexLiteral) rexNode;
             return new ConstantTypedExpr(
@@ -56,28 +57,28 @@ public class RexNodeConverter {
                     null);
         } else if (rexNode instanceof RexCall) {
             RexCall rexCall = (RexCall) rexNode;
-            List<TypedExpr> params = toTypedExpr(rexCall.getOperands(), inNames);
-            Type nodeType = toType(rexCall.getType());
-            return FunctionMappings.getFunctionConverter(rexCall.getOperator().getName())
-                    .toVeloxFunction(nodeType, params);
+            String operatorName = rexCall.getOperator().getName();
+            RexCallConverter converter = RexCallConverterFactory.getConverter(operatorName);
+            return converter.toTypedExpr(rexCall, context);
         } else if (rexNode instanceof RexInputRef) {
             RexInputRef inputRef = (RexInputRef) rexNode;
+            List<String> inputAttributes = context.getInputAttributeNames();
             return FieldAccessTypedExpr.create(
                     toType(inputRef.getType()),
-                    inNames.get(inputRef.getIndex()));
+                    inputAttributes.get(inputRef.getIndex()));
         } else if (rexNode instanceof RexFieldAccess) {
             RexFieldAccess fieldAccess = (RexFieldAccess) rexNode;
             return FieldAccessTypedExpr.create(
-                    toTypedExpr(fieldAccess.getReferenceExpr(), inNames),
+                    toTypedExpr(fieldAccess.getReferenceExpr(), context),
                     fieldAccess.getField().getName());
         } else {
             throw new RuntimeException("Unrecognized RexNode: " + rexNode.getClass().getName());
         }
     }
 
-    public static List<TypedExpr> toTypedExpr(List<RexNode> rexNodes, List<String> inNames) {
+    public static List<TypedExpr> toTypedExpr(List<RexNode> rexNodes, RexConversionContext context) {
         return rexNodes.stream()
-                .map(rexNode -> toTypedExpr(rexNode, inNames))
+                .map(rexNode -> toTypedExpr(rexNode, context))
                 .collect(Collectors.toList());
     }
 

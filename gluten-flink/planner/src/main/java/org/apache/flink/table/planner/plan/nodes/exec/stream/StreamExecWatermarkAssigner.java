@@ -45,6 +45,7 @@ import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.plan.TableScanNode;
 import io.github.zhztheplayer.velox4j.plan.WatermarkAssignerNode;
 import org.apache.calcite.rex.RexNode;
+import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
@@ -128,8 +129,8 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(inputEdge.getOutputType());
         List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
-
-        TypedExpr watermarkExprs = RexNodeConverter.toTypedExpr(watermarkExpr, inNames);
+        RexConversionContext conversionContext = new RexConversionContext(inNames);
+        TypedExpr watermarkExprs = RexNodeConverter.toTypedExpr(watermarkExpr, conversionContext);
         io.github.zhztheplayer.velox4j.type.RowType outputType =
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(getOutputType());

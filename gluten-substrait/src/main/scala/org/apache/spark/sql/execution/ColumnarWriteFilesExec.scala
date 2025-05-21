@@ -71,7 +71,7 @@ abstract class ColumnarWriteFilesExec protected (
    */
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
   override def rowType0(): RowType = {
-    RowType.VanillaRow
+    RowType.VanillaRowType
   }
 
   override def output: Seq[Attribute] = Seq.empty

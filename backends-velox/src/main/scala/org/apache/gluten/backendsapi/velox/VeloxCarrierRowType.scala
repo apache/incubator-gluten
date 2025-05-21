@@ -14,16 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.columnarbatch
+package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, RowToVeloxColumnarExec, VeloxColumnarToRowExec}
-import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
+import org.apache.gluten.extension.columnar.transition.Convention
 
-object VeloxBatch extends Convention.BatchType {
-  override protected def registerTransitions(): Unit = {
-    fromRow(Convention.RowType.VanillaRow, RowToVeloxColumnarExec.apply)
-    toRow(Convention.RowType.VanillaRow, VeloxColumnarToRowExec.apply)
-    fromBatch(ArrowBatches.ArrowNativeBatch, ArrowColumnarToVeloxColumnarExec.apply)
-    toBatch(ArrowBatches.ArrowNativeBatch, Transition.empty)
-  }
+object VeloxCarrierRowType extends Convention.RowType {
+  override protected[this] def registerTransitions(): Unit = {}
 }

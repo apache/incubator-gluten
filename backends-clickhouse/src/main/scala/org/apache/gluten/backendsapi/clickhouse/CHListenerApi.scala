@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.ListenerApi
-import org.apache.gluten.columnarbatch.CHBatch
+import org.apache.gluten.columnarbatch.CHBatchType
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
@@ -73,7 +73,7 @@ class CHListenerApi extends ListenerApi with Logging {
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
-    CHBatch.ensureRegistered()
+    CHBatchType.ensureRegistered()
     SparkDirectoryUtil.init(conf)
     val libPath =
       conf.get(GlutenConfig.GLUTEN_LIB_PATH.key, GlutenConfig.GLUTEN_LIB_PATH.defaultValueString)

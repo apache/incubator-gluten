@@ -61,7 +61,7 @@ case class FakeRowAdaptor(child: SparkPlan)
 
   override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
 
-  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRow
+  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRowType
 
   override protected def doExecute(): RDD[InternalRow] = {
     doExecuteColumnar().map(cb => new FakeRowEnhancement(cb))
@@ -85,8 +85,6 @@ case class FakeRowAdaptor(child: SparkPlan)
   protected def withNewChildInternal(newChild: SparkPlan): FakeRowAdaptor =
     copy(child = newChild)
 }
-
-case class MATERIALIZE_TAG()
 
 object GlutenWriterColumnarRules {
   // TODO: support ctas in Spark3.4, see https://github.com/apache/spark/pull/39220

@@ -18,6 +18,7 @@
 #include "GlutenDiskHDFS.h"
 #include <ranges>
 #include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
+#include <Interpreters/Context.h>
 #include <Common/QueryContext.h>
 #include <Common/Throttler.h>
 

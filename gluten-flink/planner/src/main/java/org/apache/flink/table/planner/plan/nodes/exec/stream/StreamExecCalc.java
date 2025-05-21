@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.gluten.rexnode.Utils;
 import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
 import org.apache.gluten.util.LogicalTypeConverter;
+import org.apache.gluten.rexnode.RexConversionContext;
 import org.apache.gluten.rexnode.RexNodeConverter;
 
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
@@ -116,14 +117,15 @@ public class StreamExecCalc extends CommonExecCalc implements StreamExecNode<Row
                 (io.github.zhztheplayer.velox4j.type.RowType)
                         LogicalTypeConverter.toVLType(inputEdge.getOutputType());
         List<String> inNames = Utils.getNamesFromRowType(inputEdge.getOutputType());
+        RexConversionContext conversionContext = new RexConversionContext(inNames);
         PlanNode filter = null;
         if (condition != null) {
             filter = new FilterNode(
                     PlanNodeIdGenerator.newId(),
                     List.of(),
-                    RexNodeConverter.toTypedExpr(condition, inNames));
+                    RexNodeConverter.toTypedExpr(condition, conversionContext));
         }
-        List<TypedExpr> projectExprs = RexNodeConverter.toTypedExpr(projection, inNames);
+        List<TypedExpr> projectExprs = RexNodeConverter.toTypedExpr(projection, conversionContext);
         PlanNode project = new ProjectNode(
                 PlanNodeIdGenerator.newId(),
                 filter == null ? List.of() : List.of(filter),
