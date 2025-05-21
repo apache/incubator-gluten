@@ -22,6 +22,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <Formats/FormatFactory.h>
 #include <IO/ReadHelpers.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Processors/Executors/StreamingFormatExecutor.h>
 #include <Storages/Kafka/GlutenKafkaUtils.h>
@@ -30,7 +31,6 @@
 #include <Storages/Kafka/parseSyslogLevel.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <Common/NamedCollections/NamedCollectionsFactory.h>
-
 
 namespace ProfileEvents
 {
