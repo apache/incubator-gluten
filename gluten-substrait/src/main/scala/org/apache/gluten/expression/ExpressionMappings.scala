@@ -311,7 +311,6 @@ object ExpressionMappings {
     Sig[Max](MAX),
     Sig[MaxBy](MAX_BY),
     Sig[MinBy](MIN_BY),
-    Sig[Mode](MODE),
     Sig[StddevSamp](STDDEV_SAMP),
     Sig[StddevPop](STDDEV_POP),
     Sig[VarianceSamp](VAR_SAMP),
