@@ -159,13 +159,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       inputStreamedOutput,
       inputBuildOutput
     )
-
-    JoinUtils.createTransformContext(
-      needSwitchChildren,
-      output,
-      projectRelPostJoinRel,
-      inputStreamedOutput,
-      inputBuildOutput)
+    TransformContext(output, projectRelPostJoinRel)
   }
 
   def validateJoinTypeAndBuildSide(): ValidationResult = {

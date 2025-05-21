@@ -302,20 +302,6 @@ object JoinUtils {
     )
   }
 
-  def createTransformContext(
-      exchangeTable: Boolean,
-      output: Seq[Attribute],
-      rel: RelNode,
-      inputStreamedOutput: Seq[Attribute],
-      inputBuildOutput: Seq[Attribute]): TransformContext = {
-    val inputAttributes = if (exchangeTable) {
-      inputBuildOutput ++ inputStreamedOutput
-    } else {
-      inputStreamedOutput ++ inputBuildOutput
-    }
-    TransformContext(output, rel)
-  }
-
   def createCrossRel(
       substraitJoinType: CrossRel.JoinType,
       condition: Option[Expression],

@@ -274,13 +274,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     )
 
     context.registerJoinParam(operatorId, joinParams)
-
-    JoinUtils.createTransformContext(
-      needSwitchChildren,
-      output,
-      joinRel,
-      inputStreamedOutput,
-      inputBuildOutput)
+    TransformContext(output, joinRel)
   }
 
   def genJoinParameters(): Any = {
