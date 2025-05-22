@@ -104,12 +104,14 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
       new NotFileFilter(new NameFileFilter("_commits")))
 
     val CRC_FILES = new SuffixFileFilter(".crc")
+    val VACUUM_INFO = new SuffixFileFilter("vacuum_info")
     // https://github.com/ClickHouse/ClickHouse/pull/77940 introduce "columns_substreams.txt"
     val COLUMNS_SUBSTREAMS = new NameFileFilter("columns_substreams.txt")
 
     val EXClUDE_FILES = new NotFileFilter(
       new OrFileFilter(
         CRC_FILES,
+        VACUUM_INFO,
         COLUMNS_SUBSTREAMS
       )
     )
@@ -135,11 +137,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
     spark.sparkContext.setJobGroup("test", "test")
     with_ut_conf(spark.sql("optimize lineitem_mergetree_optimize_p"))
     val job_ids = spark.sparkContext.statusTracker.getJobIdsForGroup("test")
-    if (spark35) {
-      assertResult(4)(job_ids.length)
-    } else {
-      assertResult(1)(job_ids.length) // will not trigger actual merge job
-    }
+    assertResult(1)(job_ids.length)
     spark.sparkContext.clearJobGroup()
 
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p").collect()

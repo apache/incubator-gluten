@@ -139,15 +139,22 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite extends CreateMergeTreeSuite {
     }
 
     if (isSparkVersionGE("3.5")) {
-      assertResult(6)(objectNames.size)
+      assertResult(6)(countObjects(objectNames.toSeq))
       assert(hasCommits)
     } else {
-      assertResult(5)(objectNames.size)
+      assertResult(5)(countObjects(objectNames.toSeq))
     }
 
     assert(metadataGlutenExist)
     assert(metadataBinExist)
     assert(dataBinExist)
+  }
+
+  def countObjects(objs: Seq[String]): Int = {
+    val count = objs
+      .filter(!_.endsWith(".crc"))
+      .filter(!_.endsWith("vacuum_info")).count(!_.endsWith("_SUCCESS"))
+    count
   }
 
   test("test mergetree write with orderby keys / primary keys") {
