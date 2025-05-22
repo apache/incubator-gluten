@@ -349,4 +349,11 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("Test sqrt function") {
+    val df = runQueryAndCompare("SELECT sqrt(l_orderkey) from lineitem limit 1") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    checkLengthAndPlan(df, 1)
+  }
 }
