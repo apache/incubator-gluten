@@ -17,9 +17,10 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.{CHBatchType, CHCarrierRowType}
-import org.apache.gluten.extension.columnar.transition.Convention
-
+import org.apache.gluten.extension.columnar.transition.{Convention, Transitions}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CHColumnarToCarrierRowExec(override val child: SparkPlan)
   extends ColumnarToCarrierRowExecBase {
@@ -27,4 +28,13 @@ case class CHColumnarToCarrierRowExec(override val child: SparkPlan)
   override def rowType0(): Convention.RowType = CHCarrierRowType
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
+  // Since https://github.com/apache/incubator-gluten/pull/1595.
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    if (child.supportsColumnar) {
+      child.executeColumnar()
+    } else {
+      val r2c = Transitions.toBatchPlan(child, CHBatchType)
+      r2c.executeColumnar()
+    }
+  }
 }
