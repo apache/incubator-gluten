@@ -144,8 +144,9 @@ object FileFormatWriter extends Logging {
       "true" == sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly")
 
     if (nativeEnabled) {
-      logInfo("Use Gluten partition write for hive")
-      assert(plan.isInstanceOf[IFakeRowAdaptor])
+      logInfo(
+        s"Writing data with Gluten's native writer. The topmost node of the query plan to write is: ${plan.nodeName}")
+      assert(plan.isInstanceOf[ColumnarToRowTransition])
     }
 
     val job = Job.getInstance(hadoopConf)
