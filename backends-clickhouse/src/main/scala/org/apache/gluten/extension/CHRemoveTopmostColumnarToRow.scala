@@ -54,7 +54,7 @@ case class CHRemoveTopmostColumnarToRow(session: SparkSession, isAdaptiveContext
   }
 
   private def wrapperColumnarRowAdaptor(plan: SparkPlan): SparkPlan = {
-    CHColumnarToCarrierRowExec(plan)
+    CHColumnarToCarrierRowExec.enforce(plan)
   }
 }
 

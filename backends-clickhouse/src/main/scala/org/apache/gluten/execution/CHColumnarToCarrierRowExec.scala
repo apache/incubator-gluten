@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.{CHBatchType, CHCarrierRowType}
-import org.apache.gluten.extension.columnar.transition.{Convention, Transitions}
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq, Transitions}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
@@ -34,8 +34,16 @@ case class CHColumnarToCarrierRowExec(override val child: SparkPlan)
     if (child.supportsColumnar) {
       child.executeColumnar()
     } else {
-      val r2c = Transitions.toBatchPlan(child, CHBatchType)
+      val r2c = Transitions.enforceReq(
+        child,
+        ConventionReq.ofBatch(ConventionReq.BatchType.Is(CHBatchType)))
       r2c.executeColumnar()
     }
+  }
+}
+
+object CHColumnarToCarrierRowExec {
+  def enforce(child: SparkPlan): SparkPlan = {
+    Transitions.enforceReq(child, ConventionReq.ofRow(ConventionReq.RowType.Is(CHCarrierRowType)))
   }
 }

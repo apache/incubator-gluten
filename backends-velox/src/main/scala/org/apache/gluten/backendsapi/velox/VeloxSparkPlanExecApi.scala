@@ -926,6 +926,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     ColumnarCollectTailExec(limit, child)
 
   override def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan = {
-    Transitions.enforceReq(plan, ConventionReq.ofRow(ConventionReq.RowType.Is(VeloxCarrierRowType)))
+    VeloxColumnarToCarrierRowExec.enforce(plan)
   }
 }

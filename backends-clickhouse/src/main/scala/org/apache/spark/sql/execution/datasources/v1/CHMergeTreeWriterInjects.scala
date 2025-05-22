@@ -115,16 +115,16 @@ object MergeTreeWriterInjects {
   def insertFakeRowAdaptor(
       queryPlan: SparkPlan,
       output: Seq[Attribute]): (SparkPlan, Seq[Attribute]) = {
-    var result = queryPlan match {
+    val result = queryPlan match {
       // if the child is columnar, we can just wrap&transfer the columnar data
       case c2r: ColumnarToRowExecBase =>
-        CHColumnarToCarrierRowExec(c2r.child)
+        CHColumnarToCarrierRowExec.enforce(c2r.child)
       // If the child is aqe, we make aqe "support columnar",
       // then aqe itself will guarantee to generate columnar outputs.
       // So FakeRowAdaptor will always consumes columnar data,
       // thus avoiding the case of c2r->aqe->r2c->writer
       case aqe: AdaptiveSparkPlanExec =>
-        CHColumnarToCarrierRowExec(
+        CHColumnarToCarrierRowExec.enforce(
           AdaptiveSparkPlanExec(
             aqe.inputPlan,
             aqe.context,
@@ -132,7 +132,7 @@ object MergeTreeWriterInjects {
             aqe.isSubquery,
             supportsColumnar = true
           ))
-      case other => CHColumnarToCarrierRowExec(other)
+      case other => CHColumnarToCarrierRowExec.enforce(other)
     }
     assert(output.size == result.output.size)
     val newOutput = result.output.zip(output).map {
