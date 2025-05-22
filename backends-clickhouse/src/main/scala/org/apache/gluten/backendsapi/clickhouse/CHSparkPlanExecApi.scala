@@ -1001,5 +1001,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     new CHNativeBlock(address).toColumnarBatch
   }
 
-  override def genColumnarToCarrierRow(plan: SparkPlan): ColumnarToCarrierRowExecBase = CHColumnarToCarrierRowExec(plan)
+  override def genColumnarToCarrierRow(plan: SparkPlan): ColumnarToCarrierRowExecBase =
+    CHColumnarToCarrierRowExec(plan)
 }

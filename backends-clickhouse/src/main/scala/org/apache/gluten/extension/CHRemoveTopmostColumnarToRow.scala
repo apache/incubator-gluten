@@ -18,6 +18,7 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.execution.CHColumnarToCarrierRowExec
 import org.apache.gluten.extension.columnar.transition.ColumnarToRowLike
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
