@@ -1002,5 +1002,5 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   }
 
   override def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan =
-    CHColumnarToCarrierRowExec(plan)
+    CHColumnarToCarrierRowExec.enforce(plan)
 }

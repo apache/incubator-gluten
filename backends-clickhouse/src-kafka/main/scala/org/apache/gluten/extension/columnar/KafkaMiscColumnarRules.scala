@@ -41,7 +41,7 @@ object KafkaMiscColumnarRules {
     }
 
     private def wrapperFakeRowAdaptor(plan: SparkPlan): SparkPlan = {
-      CHColumnarToCarrierRowExec(plan)
+      CHColumnarToCarrierRowExec.enforce(plan)
     }
   }
 }
