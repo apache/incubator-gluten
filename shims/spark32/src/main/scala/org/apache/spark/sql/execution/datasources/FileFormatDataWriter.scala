@@ -94,7 +94,8 @@ class DynamicPartitionDataSingleWriter(
           case placeholderRow: PlaceholderRow =>
           // Do nothing.
           case terminalRow: TerminalRow =>
-            if (terminalRow.batch().numRows() > 0) {
+            val numRows = terminalRow.batch().numRows()
+            if (numRows > 0) {
               val blockStripes = GlutenFormatFactory.rowSplitter
                 .splitBlockByPartitionAndBucket(terminalRow.batch(), partitionColIndice, isBucketed)
               val iter = blockStripes.iterator()
@@ -107,11 +108,12 @@ class DynamicPartitionDataSingleWriter(
                 columnBatch.close()
               }
               blockStripes.release()
+              for (_ <- 0 until numRows) {
+                statsTrackers.foreach(_.newRow(currentWriter.path, record))
+              }
+              recordsInFile += numRows
             }
         }
-        // We uniformly accumulate the row counters by 1 for a carrierRow.
-        statsTrackers.foreach(_.newRow(currentWriter.path, record))
-        recordsInFile += 1
       case _ =>
         beforeWrite(record)
         writeRecord(record)
