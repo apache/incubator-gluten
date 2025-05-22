@@ -107,4 +107,6 @@ abstract class TerminalRow extends BatchCarrierRow {
  * A [[BatchCarrierRow]] implementation with no data. The only function of this row implementation
  * is to provide row metadata to the receiver and to support correct row-counting.
  */
-class PlaceholderRow extends BatchCarrierRow
+class PlaceholderRow extends BatchCarrierRow {
+  override def copy(): InternalRow = new PlaceholderRow()
+}
