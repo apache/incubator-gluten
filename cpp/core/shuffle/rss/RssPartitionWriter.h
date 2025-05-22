@@ -33,9 +33,9 @@ class RssPartitionWriter final : public PartitionWriter {
   RssPartitionWriter(
       uint32_t numPartitions,
       PartitionWriterOptions options,
-      arrow::MemoryPool* pool,
+      MemoryManager* memoryManager,
       std::shared_ptr<RssClient> rssClient)
-      : PartitionWriter(numPartitions, std::move(options), pool), rssClient_(rssClient) {
+      : PartitionWriter(numPartitions, std::move(options), memoryManager), rssClient_(rssClient) {
     init();
   }
 
