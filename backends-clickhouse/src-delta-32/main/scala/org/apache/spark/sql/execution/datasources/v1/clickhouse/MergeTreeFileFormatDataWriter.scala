@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v1.clickhouse
 
+import org.apache.gluten.execution.{BatchCarrierRow, PlaceholderRow, TerminalRow}
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 
 import org.apache.spark.internal.Logging
@@ -62,12 +63,6 @@ class SingleDirectoryDataWriter(
     statsTrackers.foreach(_.newFile(currentPath))
   }
 
-  private def updateRecordsInFile(record: InternalRow): Unit = record match {
-    case fake: FakeRow =>
-      recordsInFile += fake.batch.numRows()
-    case _ => recordsInFile += 1
-  }
-
   override def write(record: InternalRow): Unit = {
     if (description.maxRecordsPerFile > 0 && recordsInFile >= description.maxRecordsPerFile) {
       fileCounter += 1
@@ -80,7 +75,7 @@ class SingleDirectoryDataWriter(
 
     currentWriter.write(record)
     statsTrackers.foreach(_.newRow(currentWriter.path, record))
-    updateRecordsInFile(record)
+    recordsInFile += 1
   }
 }
 
@@ -232,12 +227,6 @@ abstract class BaseDynamicPartitionDataWriter(
     renewCurrentWriter(partitionValues, bucketId, closeCurrentWriter = true)
   }
 
-  protected def updateRecordsInFile(record: InternalRow): Unit = record match {
-    case fake: FakeRow =>
-      recordsInFile += fake.batch.numRows()
-    case _ => recordsInFile += 1
-  }
-
   /**
    * Writes the given record with current writer.
    *
@@ -305,32 +294,34 @@ class DynamicPartitionDataSingleWriter(
 
   override def write(record: InternalRow): Unit = {
     record match {
-      case fakeRow: FakeRow =>
-        if (fakeRow.batch.numRows() > 0) {
-          val blockStripes = GlutenFormatFactory.rowSplitter
-            .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
+      case carrierRow: BatchCarrierRow =>
+        carrierRow match {
+          case placeholderRow: PlaceholderRow =>
+          // Do nothing.
+          case terminalRow: TerminalRow =>
+            if (terminalRow.batch.numRows() > 0) {
+              val blockStripes = GlutenFormatFactory.rowSplitter
+                .splitBlockByPartitionAndBucket(terminalRow.batch(), partitionColIndice, isBucketed)
 
-          val iter = blockStripes.iterator()
-          while (iter.hasNext) {
-            val blockStripe = iter.next()
-            val headingRow = blockStripe.getHeadingRow
-            beforeWrite(headingRow)
-            val columnBatch = blockStripe.getColumnarBatch
-            writeStripe(new FakeRow(columnBatch))
-            columnBatch.close()
-          }
-          blockStripes.release()
+              val iter = blockStripes.iterator()
+              while (iter.hasNext) {
+                val blockStripe = iter.next()
+                val headingRow = blockStripe.getHeadingRow
+                beforeWrite(headingRow)
+                val columnBatch = blockStripe.getColumnarBatch
+                currentWriter.write(terminalRow.withNewBatch(columnBatch))
+                columnBatch.close()
+              }
+              blockStripes.release()
+            }
         }
+        // We uniformly accumulate the row counters by 1 for a carrierRow.
+        statsTrackers.foreach(_.newRow(currentWriter.path, record))
+        recordsInFile += 1
       case _ =>
         beforeWrite(record)
         writeRecord(record)
     }
-  }
-
-  protected def writeStripe(record: InternalRow): Unit = {
-    currentWriter.write(record)
-    statsTrackers.foreach(_.newRow(currentWriter.path, record))
-    updateRecordsInFile(record)
   }
 }
 
