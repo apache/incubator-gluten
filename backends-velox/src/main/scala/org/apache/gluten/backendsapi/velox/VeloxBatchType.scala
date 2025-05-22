@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes
-import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, RowToVeloxColumnarExec, VeloxColumnarToCarrierRowExec, VeloxColumnarToRowExec}
+import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
 object VeloxBatchType extends Convention.BatchType {
@@ -26,6 +26,5 @@ object VeloxBatchType extends Convention.BatchType {
     toRow(Convention.RowType.VanillaRowType, VeloxColumnarToRowExec.apply)
     fromBatch(ArrowBatchTypes.ArrowNativeBatchType, ArrowColumnarToVeloxColumnarExec.apply)
     toBatch(ArrowBatchTypes.ArrowNativeBatchType, Transition.empty)
-    toRow(VeloxCarrierRowType, VeloxColumnarToCarrierRowExec.apply)
   }
 }
