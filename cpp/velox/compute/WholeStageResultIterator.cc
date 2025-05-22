@@ -156,6 +156,7 @@ WholeStageResultIterator::WholeStageResultIterator(
             nullptr,
             std::unordered_map<std::string, std::string>(),
             std::unordered_map<std::string, std::string>(),
+            0,
             true,
             metadataColumn,
             properties[idx]);
