@@ -106,8 +106,8 @@ VectorPtr createFlatVector<TypeKind::HUGEINT>(
       int64_t offsetAndSize = *reinterpret_cast<int64_t*>(memoryAddress + offsets[pos] + fieldOffset);
       int32_t length = static_cast<int32_t>(offsetAndSize);
       int32_t wordoffset = static_cast<int32_t>(offsetAndSize >> 32);
-      uint8_t bytesValue[length];
-      memcpy(bytesValue, memoryAddress + offsets[pos] + wordoffset, length);
+      std::vector<uint8_t> bytesValue(length);
+      memcpy(bytesValue.data(), memoryAddress + offsets[pos] + wordoffset, length);
       uint8_t bytesValue2[16]{};
       GLUTEN_CHECK(length <= 16, "array out of bounds exception");
       for (int k = length - 1; k >= 0; k--) {
