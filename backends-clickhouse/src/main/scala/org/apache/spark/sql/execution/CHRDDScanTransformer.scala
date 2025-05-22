@@ -21,6 +21,7 @@ import org.apache.gluten.execution.{BatchCarrierRow, PlaceholderRow, SparkRowIte
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}

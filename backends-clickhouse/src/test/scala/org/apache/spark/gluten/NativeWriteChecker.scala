@@ -18,12 +18,14 @@ package org.apache.spark.gluten
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CHColumnarToCarrierRowExec, GlutenClickHouseWholeStageTransformerSuite}
+
 import org.apache.spark.sql.{Dataset, Row}
 import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, QueryExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.util.QueryExecutionListener
 
 import java.io.File
+
 import scala.reflect.runtime.universe.TypeTag
 
 trait NativeWriteChecker

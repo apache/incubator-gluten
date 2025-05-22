@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.extension.columnar.transition.Convention
+
 import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumnarExec}
 
 /**
