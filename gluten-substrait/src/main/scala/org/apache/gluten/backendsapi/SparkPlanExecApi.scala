@@ -726,7 +726,7 @@ trait SparkPlanExecApi {
 
   def genColumnarTailExec(limit: Int, plan: SparkPlan): ColumnarCollectTailBaseExec
 
-  def genColumnarToCarrierRow(plan: SparkPlan): ColumnarToCarrierRowExecBase
+  def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan
 
   def expressionFlattenSupported(expr: Expression): Boolean = false
 
