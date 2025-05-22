@@ -153,7 +153,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite extends CreateMergeTreeSuite {
   def countObjects(objs: Seq[String]): Int = {
     val count = objs
       .filter(!_.endsWith(".crc"))
-      .filter(!_.endsWith("vacuum_info")).count(!_.endsWith("_SUCCESS"))
+      .filter(!_.endsWith("vacuum_info"))
+      .count(!_.endsWith("_SUCCESS"))
     count
   }
 
