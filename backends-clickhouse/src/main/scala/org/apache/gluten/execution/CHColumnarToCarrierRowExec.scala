@@ -18,6 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.{CHBatchType, CHCarrierRowType}
 import org.apache.gluten.extension.columnar.transition.{Convention, Transitions}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.vectorized.ColumnarBatch
