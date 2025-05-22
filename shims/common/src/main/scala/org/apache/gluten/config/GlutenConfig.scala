@@ -1283,7 +1283,7 @@ object GlutenConfig {
           "performance profits by default. Try exploring option `spark.gluten.ras.costModel` " +
           "for advanced usage.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   // FIXME: This option is no longer only used by RAS. Should change key to
   //  `spark.gluten.costModel` or something similar.
