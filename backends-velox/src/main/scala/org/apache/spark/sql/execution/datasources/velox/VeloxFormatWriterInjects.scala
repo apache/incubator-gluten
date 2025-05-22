@@ -112,7 +112,7 @@ class VeloxRowSplitter extends GlutenRowSplitter {
       batch: ColumnarBatch,
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
-      reserve_partition_columns: Boolean = false): BlockStripes = {
+      reservePartitionColumns: Boolean = false): BlockStripes = {
     val handler = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, batch)
     val runtime =
       Runtimes.contextInstance(BackendsApiManager.getBackendName, "VeloxPartitionWriter")

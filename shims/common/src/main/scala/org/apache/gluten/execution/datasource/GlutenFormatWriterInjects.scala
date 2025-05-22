@@ -54,7 +54,7 @@ trait GlutenRowSplitter {
       batch: ColumnarBatch,
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
-      reserve_partition_columns: Boolean = false): BlockStripes
+      reservePartitionColumns: Boolean = false): BlockStripes
 }
 
 object GlutenFormatFactory {
