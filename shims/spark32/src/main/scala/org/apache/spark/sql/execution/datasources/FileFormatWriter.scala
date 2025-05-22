@@ -153,7 +153,8 @@ object FileFormatWriter extends Logging {
 
     if (nativeEnabled) {
       logInfo(
-        s"Writing data with Gluten's native writer. The topmost node of the query plan to write is: ${plan.nodeName}")
+        s"Writing data with Gluten's native writer. The topmost node of the query plan to " +
+          s"write is: ${plan.nodeName}")
       assert(plan.isInstanceOf[ColumnarToRowTransition])
     }
 
