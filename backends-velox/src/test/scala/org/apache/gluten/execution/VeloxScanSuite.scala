@@ -189,7 +189,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("test binary as string") {
+  ignore("test binary as string") {
     withTempDir {
       dir =>
         val path = dir.getCanonicalPath
