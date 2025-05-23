@@ -169,10 +169,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
-    VeloxCarrierRowType.ensureRegistered()
     ArrowJavaBatchType.ensureRegistered()
     ArrowNativeBatchType.ensureRegistered()
     VeloxBatchType.ensureRegistered()
+    VeloxCarrierRowType.ensureRegistered()
 
     // Register columnar shuffle so can be considered when
     // `org.apache.spark.shuffle.GlutenShuffleManager` is set as Spark shuffle manager.

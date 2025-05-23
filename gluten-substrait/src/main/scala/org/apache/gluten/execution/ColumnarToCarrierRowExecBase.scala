@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.extension.columnar.batchcarrier.{BatchCarrierRow, PlaceholderRow, TerminalRow}
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
 
 import org.apache.spark.rdd.RDD
@@ -26,8 +26,11 @@ import org.apache.spark.sql.execution.ColumnarToRowTransition
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
+
 /** The operator that converts columnar batches to [[BatchCarrierRow]]s. */
 abstract class ColumnarToCarrierRowExecBase extends ColumnarToRowTransition with GlutenPlan {
+  import ColumnarToCarrierRowExecBase._
 
   override def batchType(): Convention.BatchType = Convention.BatchType.None
 
@@ -60,7 +63,7 @@ abstract class ColumnarToCarrierRowExecBase extends ColumnarToRowTransition with
               for (i <- 0 until numRows - 1) {
                 carrierRows(i) = new PlaceholderRow()
               }
-              carrierRows(numRows - 1) = new TerminalRow(b)
+              carrierRows(numRows - 1) = new SerializableTerminalRow(b)
               numOutputRows += carrierRows.length
               carrierRows
             }
@@ -69,4 +72,31 @@ abstract class ColumnarToCarrierRowExecBase extends ColumnarToRowTransition with
   }
 
   override def output: Seq[Attribute] = child.output
+}
+
+object ColumnarToCarrierRowExecBase {
+  private class SerializableTerminalRow(batch: ColumnarBatch) extends TerminalRow {
+    @transient
+    private var _batch = batch
+
+    override def batch(): ColumnarBatch = _batch
+
+    override def withNewBatch(batch: ColumnarBatch): TerminalRow = new SerializableTerminalRow(
+      batch)
+
+    override def copy(): InternalRow = {
+      val copied = BackendsApiManager.getSparkPlanExecApiInstance.copyColumnarBatch(_batch)
+      new SerializableTerminalRow(copied)
+    }
+
+    @throws(classOf[IOException])
+    private def writeObject(output: ObjectOutputStream): Unit = {
+      BackendsApiManager.getSparkPlanExecApiInstance.serializeColumnarBatch(output, _batch)
+    }
+
+    @throws(classOf[IOException])
+    private def readObject(input: ObjectInputStream): Unit = {
+      _batch = BackendsApiManager.getSparkPlanExecApiInstance.deserializeColumnarBatch(input)
+    }
+  }
 }

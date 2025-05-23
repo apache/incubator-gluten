@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.execution.MicroBatchScanExecTransformer
+import org.apache.gluten.execution.{CHColumnarToCarrierRowExec, MicroBatchScanExecTransformer}
 import org.apache.gluten.extension.columnar.transition.ColumnarToRowLike
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 
 object KafkaMiscColumnarRules {
   // Remove topmost columnar-to-row.
@@ -41,7 +41,7 @@ object KafkaMiscColumnarRules {
     }
 
     private def wrapperFakeRowAdaptor(plan: SparkPlan): SparkPlan = {
-      FakeRowAdaptor(plan)
+      CHColumnarToCarrierRowExec.enforce(plan)
     }
   }
 }

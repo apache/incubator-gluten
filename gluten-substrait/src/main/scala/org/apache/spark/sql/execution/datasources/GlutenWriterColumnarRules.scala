@@ -17,74 +17,16 @@
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.{ColumnarToRowExecBase, GlutenPlan}
+import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
-import org.apache.gluten.extension.columnar.transition.{Convention, Transitions}
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.{CreateDataSourceTableAsSelectCommand, DataWritingCommand, DataWritingCommandExec}
 import org.apache.spark.sql.hive.execution.{CreateHiveTableAsSelectCommand, InsertIntoHiveDirCommand, InsertIntoHiveTable}
 import org.apache.spark.sql.sources.DataSourceRegister
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-private case class FakeRowLogicAdaptor(child: LogicalPlan) extends OrderPreservingUnaryNode {
-  override def output: Seq[Attribute] = child.output
-
-  // For spark 3.2.
-  protected def withNewChildInternal(newChild: LogicalPlan): FakeRowLogicAdaptor =
-    copy(child = newChild)
-}
-
-/**
- * Whether the child is columnar or not, this operator will convert the columnar output to FakeRow,
- * which is consumable by native parquet/orc writer
- *
- * This is usually used in data writing since Spark doesn't expose APIs to write columnar data as of
- * now.
- */
-case class FakeRowAdaptor(child: SparkPlan)
-  extends UnaryExecNode
-  with IFakeRowAdaptor
-  with GlutenPlan {
-  if (child.logicalLink.isDefined) {
-    setLogicalLink(FakeRowLogicAdaptor(child.logicalLink.get))
-  }
-
-  override def output: Seq[Attribute] = child.output
-
-  override def batchType(): Convention.BatchType = BackendsApiManager.getSettings.primaryBatchType
-
-  override def rowType0(): Convention.RowType = Convention.RowType.VanillaRowType
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    doExecuteColumnar().map(cb => new FakeRowEnhancement(cb))
-  }
-
-  override def outputOrdering: Seq[SortOrder] = child match {
-    case aqe: AdaptiveSparkPlanExec => aqe.executedPlan.outputOrdering
-    case _ => child.outputOrdering
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    if (child.supportsColumnar) {
-      child.executeColumnar()
-    } else {
-      val r2c = Transitions.toBatchPlan(child, BackendsApiManager.getSettings.primaryBatchType)
-      r2c.executeColumnar()
-    }
-  }
-
-  // For spark 3.2.
-  protected def withNewChildInternal(newChild: SparkPlan): FakeRowAdaptor =
-    copy(child = newChild)
-}
 
 object GlutenWriterColumnarRules {
   // TODO: support ctas in Spark3.4, see https://github.com/apache/spark/pull/39220
@@ -134,7 +76,8 @@ object GlutenWriterColumnarRules {
     child match {
       // if the child is columnar, we can just wrap & transfer the columnar data
       case c2r: ColumnarToRowExecBase =>
-        command.withNewChildren(Array(FakeRowAdaptor(c2r.child)))
+        command.withNewChildren(
+          Array(BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(c2r.child)))
       // If the child is aqe, we make aqe "support columnar",
       // then aqe itself will guarantee to generate columnar outputs.
       // So FakeRowAdaptor will always consumes columnar data,
@@ -142,7 +85,7 @@ object GlutenWriterColumnarRules {
       case aqe: AdaptiveSparkPlanExec =>
         command.withNewChildren(
           Array(
-            FakeRowAdaptor(
+            BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(
               AdaptiveSparkPlanExec(
                 aqe.inputPlan,
                 aqe.context,
@@ -150,7 +93,9 @@ object GlutenWriterColumnarRules {
                 aqe.isSubquery,
                 supportsColumnar = true
               ))))
-      case other => command.withNewChildren(Array(FakeRowAdaptor(other)))
+      case other =>
+        command.withNewChildren(
+          Array(BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToCarrierRow(other)))
     }
   }
 

@@ -18,7 +18,6 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.backendsapi._
-import org.apache.gluten.columnarbatch.CHBatchType
 import org.apache.gluten.component.Component.BuildInfo
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.WriteFilesExecTransformer

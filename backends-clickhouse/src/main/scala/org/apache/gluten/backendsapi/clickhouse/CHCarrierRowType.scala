@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.velox
+package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
+import org.apache.gluten.execution.CHColumnarToCarrierRowExec
 import org.apache.gluten.extension.columnar.transition.Convention
 
-object VeloxCarrierRowType extends Convention.RowType {
+object CHCarrierRowType extends Convention.RowType {
   override protected[this] def registerTransitions(): Unit = {
-    fromBatch(VeloxBatchType, VeloxColumnarToCarrierRowExec.apply)
+    fromBatch(CHBatchType, CHColumnarToCarrierRowExec.apply)
   }
 }
