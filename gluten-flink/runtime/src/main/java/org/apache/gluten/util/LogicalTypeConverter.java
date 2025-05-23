@@ -22,6 +22,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -49,7 +50,10 @@ public class LogicalTypeConverter {
             return new IntegerType();
         } else if (logicalType instanceof BigIntType) {
             return new io.github.zhztheplayer.velox4j.type.BigIntType();
-        } else if (logicalType instanceof VarCharType) {
+        } else if (logicalType instanceof DoubleType) {
+            return new io.github.zhztheplayer.velox4j.type.DoubleType();
+        } 
+        else if (logicalType instanceof VarCharType) {
             return new io.github.zhztheplayer.velox4j.type.VarCharType();
         } else if (logicalType instanceof TimestampType) {
             // TODO: may need precision

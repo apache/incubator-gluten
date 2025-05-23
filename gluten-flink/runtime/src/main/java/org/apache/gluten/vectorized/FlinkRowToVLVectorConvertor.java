@@ -22,6 +22,7 @@ import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.session.Session;
 import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.BooleanType;
+import io.github.zhztheplayer.velox4j.type.DoubleType;
 import io.github.zhztheplayer.velox4j.type.IntegerType;
 import io.github.zhztheplayer.velox4j.type.RowType;
 import io.github.zhztheplayer.velox4j.type.TimestampType;
@@ -32,12 +33,14 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.table.Table;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.gluten.vectorized.ArrowVectorAccessor;
 import org.apache.gluten.vectorized.ArrowVectorWriter;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -81,35 +84,20 @@ public class FlinkRowToVLVectorConvertor {
         // TODO: support more types
         BaseVector loadedVector = null;
         FieldVector structVector = null;
+
         try{
             loadedVector = rowVector.loadedVector();
             // The result is StructVector
-            structVector = Arrow.toArrowVector(
-                allocator,
-                loadedVector);
+            structVector = Arrow.toArrowVector(allocator,loadedVector);
             final List<FieldVector> fieldVectors = structVector.getChildrenFromFields();
+            List<ArrowVectorAccessor> accessors = buildArrowVectorAccessors(fieldVectors);
             List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
             for (int j = 0; j < rowVector.getSize(); j++) {
-                List<Object> fieldValues = new ArrayList<>(rowType.size());
+                Object[] fieldValues = new Object[rowType.size()];
                 for (int i = 0; i < rowType.size(); i++) {
-                    Type fieldType = rowType.getChildren().get(i);
-                    if (fieldType instanceof BooleanType) {
-                        // BitVector returns are integer, need to convert to boolean
-                        fieldValues.add(i, ((BitVector) fieldVectors.get(i)).get(j) != 0);
-                    } else if (fieldType instanceof IntegerType) {
-                        fieldValues.add(i, ((IntVector) fieldVectors.get(i)).get(j));
-                    } else if (fieldType instanceof BigIntType) {
-                        fieldValues.add(i, ((BigIntVector) fieldVectors.get(i)).get(j));
-                    } else if (fieldType instanceof VarCharType) {
-                        fieldValues.add(
-                            i,
-                            BinaryStringData.fromBytes(
-                                    ((VarCharVector) fieldVectors.get(i)).get(j)));
-                    } else {
-                        throw new RuntimeException("Unsupported field type: " + fieldType);
-                    }
+                    fieldValues[i] = accessors.get(i).get(j);
                 }
-                rowDatas.add(GenericRowData.of(fieldValues.toArray()));
+                rowDatas.add(GenericRowData.of(fieldValues));
             }
             return rowDatas;
         } finally {
@@ -124,4 +112,11 @@ public class FlinkRowToVLVectorConvertor {
         }
     }
 
+    private static List<ArrowVectorAccessor> buildArrowVectorAccessors(List<FieldVector> vectors) {
+        List<ArrowVectorAccessor> accessors = new ArrayList<>(vectors.size());
+        for (int i = 0; i < vectors.size(); ++i) {
+            accessors.add(i, ArrowVectorAccessor.create(vectors.get(i)));
+        }
+        return accessors;
+    }
 }
