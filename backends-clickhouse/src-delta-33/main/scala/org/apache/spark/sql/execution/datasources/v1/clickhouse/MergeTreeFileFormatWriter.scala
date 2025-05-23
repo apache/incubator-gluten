@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.delta.constraints.Constraint
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, DataSourceUtils, EmptyDirectoryDataWriter, FileFormat, WriteJobDescription, WriteJobStatsTracker, WriterBucketSpec, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.{processStats, ConcurrentOutputWriterSpec, OutputSpec}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
