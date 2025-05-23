@@ -583,17 +583,19 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
     }
     if (std::find(partitionedBy.cbegin(), partitionedBy.cend(), tableColumnNames.at(i)) != partitionedBy.cend()) {
       ++numPartitionColumns;
-      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
-          tableColumnNames.at(i),
-          connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
-          tableColumnTypes.at(i),
-          tableColumnTypes.at(i)));
+      columnHandles.emplace_back(
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              tableColumnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
+              tableColumnTypes.at(i),
+              tableColumnTypes.at(i)));
     } else {
-      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
-          tableColumnNames.at(i),
-          connector::hive::HiveColumnHandle::ColumnType::kRegular,
-          tableColumnTypes.at(i),
-          tableColumnTypes.at(i)));
+      columnHandles.emplace_back(
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              tableColumnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kRegular,
+              tableColumnTypes.at(i),
+              tableColumnTypes.at(i)));
     }
   }
   VELOX_CHECK_EQ(numPartitionColumns, partitionedBy.size());
@@ -1300,24 +1302,20 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Velox requires Filter Pushdown must being enabled.
   bool filterPushdownEnabled = true;
-  auto names = colNameList;
-  auto types = veloxTypeList;
-  auto dataColumns = ROW(std::move(names), std::move(types));
   std::shared_ptr<connector::hive::HiveTableHandle> tableHandle;
   if (!readRel.has_filter()) {
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr, dataColumns);
+        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr);
   } else {
+    auto names = colNameList;
+    auto types = veloxTypeList;
+    auto dataColumns = ROW(std::move(names), std::move(types));
+
     common::SubfieldFilters subfieldFilters;
     auto remainingFilter = exprConverter_->toVeloxExpr(readRel.filter(), dataColumns);
 
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId,
-        "hive_table",
-        filterPushdownEnabled,
-        std::move(subfieldFilters),
-        remainingFilter,
-        dataColumns);
+        kHiveConnectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter);
   }
 
   // Get assignments and out names.
