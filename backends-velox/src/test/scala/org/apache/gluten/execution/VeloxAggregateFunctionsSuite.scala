@@ -122,7 +122,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     }
   }
 
-  test("mode") {
+  testWithMinSparkVersion("mode", "3.4") {
     val df = runQueryAndCompare("select mode(l_partkey) from lineitem where l_partkey < 1000") {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
     }
