@@ -794,6 +794,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     jstring compressionModeJstr,
     jint initialSortBufferSize,
     jboolean useRadixSort,
+    jboolean enableDictionary,
     jstring dataFileJstr,
     jint numSubDirs,
     jstring localDirsJstr,
@@ -834,7 +835,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .compressionLevel = compressionLevel,
       .numSubDirs = numSubDirs,
       .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
-      .sortBufferMaxSize = sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold};
+      .sortBufferMaxSize = sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold,
+      .enableDictionary = static_cast<bool>(enableDictionary)};
   if (codecJstr != NULL) {
     partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
     partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);

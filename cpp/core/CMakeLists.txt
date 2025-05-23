@@ -128,6 +128,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     memory/MemoryManager.cc
     memory/ArrowMemoryPool.cc
     memory/ColumnarBatch.cc
+    shuffle/Dictionary.cc
     shuffle/FallbackRangePartitioner.cc
     shuffle/HashPartitioner.cc
     shuffle/LocalPartitionWriter.cc
