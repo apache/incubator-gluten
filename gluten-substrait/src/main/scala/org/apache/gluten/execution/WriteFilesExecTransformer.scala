@@ -23,7 +23,8 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.extensions.ExtensionBuilder
+import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.gluten.utils.SubstraitUtil
 
@@ -44,6 +45,7 @@ import org.apache.parquet.hadoop.ParquetOutputFormat
 
 import java.util.Locale
 
+import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
@@ -69,6 +71,68 @@ case class WriteFilesExecTransformer(
 
   val caseInsensitiveOptions: CaseInsensitiveMap[String] = CaseInsensitiveMap(options)
 
+  private def preProjectionNeeded(): Boolean = {
+    if (partitionColumns == null || partitionColumns.isEmpty) {
+      false
+    } else {
+      true
+    }
+  }
+
+  private def createExtensionNode(
+      originalInputAttributes: Seq[Attribute],
+      validation: Boolean): AdvancedExtensionNode = {
+    if (!validation) {
+      ExtensionBuilder.makeAdvancedExtension(
+        BackendsApiManager.getTransformerApiInstance.genWriteParameters(this),
+        SubstraitUtil.createEnhancement(originalInputAttributes)
+      )
+    } else {
+      ExtensionBuilder.makeAdvancedExtension(
+        SubstraitUtil.createEnhancement(originalInputAttributes)
+      )
+    }
+  }
+
+  private def createPreProjectionIfNeeded(
+      context: SubstraitContext,
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean
+  ): (RelNode) = {
+    // For partitioned writes, create a preproject node to order columns
+    if (preProjectionNeeded()) {
+      // Get the indices of partitioned columns in partition order, followed by unpartitioned
+      val inputIndices = originalInputAttributes.zipWithIndex
+      val partitionExprIds = partitionColumns.map(_.exprId).toSet
+      val (partitioned, unpartitioned) = inputIndices.partition {
+        case (col, _) => partitionExprIds.contains(col.exprId)
+      }
+      val orderedIndices = partitionColumns.flatMap {
+        partCol =>
+          partitioned.collect {
+            case (origCol, index) if origCol.exprId == partCol.exprId => index
+          }
+      } ++ unpartitioned.map(_._2)
+
+      // Select cols based on the ordered indices
+      val selectCols = orderedIndices.map(ExpressionBuilder.makeSelection(_))
+
+      RelBuilder.makeProjectRel(
+        input,
+        new java.util.ArrayList[ExpressionNode]((selectCols).asJava),
+        createExtensionNode(originalInputAttributes, validation),
+        context,
+        operatorId,
+        originalInputAttributes.size
+      )
+    } else {
+      // If a preproject is not needed, return the original input
+      input
+    }
+  }
+
   def getRelNode(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
@@ -81,6 +145,15 @@ case class WriteFilesExecTransformer(
     val inputAttributes = new java.util.ArrayList[Attribute]()
     val childSize = this.child.output.size
     val childOutput = this.child.output
+
+    val inputRelNode = createPreProjectionIfNeeded(
+      context,
+      originalInputAttributes,
+      operatorId,
+      input,
+      validation
+    )
+
     for (i <- 0 until childSize) {
       val partitionCol = partitionColumns.find(_.exprId == childOutput(i).exprId)
       if (partitionCol.nonEmpty) {
@@ -97,6 +170,8 @@ case class WriteFilesExecTransformer(
 
     val nameList =
       ConverterUtils.collectAttributeNames(inputAttributes.toSeq)
+
+    // TODO: Switch this to use createExtensionNode (after verifying that everything else works)
     val extensionNode = if (!validation) {
       ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.genWriteParameters(this),
@@ -118,7 +193,7 @@ case class WriteFilesExecTransformer(
     }
 
     RelBuilder.makeWriteRel(
-      input,
+      inputRelNode,
       typeNodes,
       nameList,
       columnTypeNodes,
