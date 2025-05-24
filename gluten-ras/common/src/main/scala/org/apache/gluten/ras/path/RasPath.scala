@@ -172,6 +172,8 @@ object RasPath {
     }
 
     override def plan(): T = built
+
+    override def toString = s"RasPathImpl(${ras.explain.describeNode(built)})"
   }
 }
 

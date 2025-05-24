@@ -60,11 +60,11 @@ object RasCluster {
         mutable.ListBuffer()
 
       override def contains(t: CanonicalNode[T]): Boolean = {
-        deDup.contains(t.toHashKey())
+        deDup.contains(t.toHashKey)
       }
 
       override def add(t: CanonicalNode[T]): Unit = {
-        val key = t.toHashKey()
+        val key = t.toHashKey
         assert(!deDup.contains(key))
         ras.metadataModel.verify(metadata, ras.metadataModel.metadataOf(t.self()))
         deDup += key

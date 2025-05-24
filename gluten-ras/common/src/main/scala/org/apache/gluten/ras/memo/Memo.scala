@@ -21,6 +21,7 @@ import org.apache.gluten.ras.Ras.UnsafeHashKey
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.vis.GraphvizVisualizer
 
+import scala.annotation.unused
 import scala.collection.mutable
 
 trait MemoLike[T <: AnyRef] {
@@ -73,8 +74,8 @@ object Memo {
       }
     }
 
-    private def dummyGroupOf(clusterKey: RasClusterKey): RasGroup[T] = {
-      memoTable.getDummyGroup(clusterKey)
+    private def hubGroupOf(clusterKey: RasClusterKey): RasGroup[T] = {
+      memoTable.getHubGroup(clusterKey)
     }
 
     private def toCacheKey(n: T): MemoCacheKey[T] = {
@@ -91,7 +92,7 @@ object Memo {
 
       val keyUnsafe = ras.withNewChildren(
         n,
-        childrenPrepares.map(childPrepare => dummyGroupOf(childPrepare.clusterKey()).self()))
+        childrenPrepares.map(childPrepare => hubGroupOf(childPrepare.clusterKey()).self()))
 
       val cacheKey = toCacheKey(keyUnsafe)
 
@@ -128,6 +129,7 @@ object Memo {
       // TODO: Traverse up the tree to do more merges.
       private def prepareInsert(node: T): Prepare[T] = {
         if (ras.isGroupLeaf(node)) {
+          // This mainly serves the group reduction case.
           val group = parent.memoTable.getGroup(ras.planModel.getGroupId(node))
           val residentCluster = group.clusterKey()
 
@@ -146,7 +148,7 @@ object Memo {
         val keyUnsafe = ras.withNewChildren(
           node,
           childrenPrepares.map {
-            childPrepare => parent.dummyGroupOf(childPrepare.clusterKey()).self()
+            childPrepare => parent.hubGroupOf(childPrepare.clusterKey()).self()
           })
 
         val cacheKey = parent.toCacheKey(keyUnsafe)
@@ -203,7 +205,7 @@ object Memo {
           assert(!ras.isGroupLeaf(node))
           val childrenGroups = children
             .zip(ras.planModel.childrenOf(node))
-            .zip(ras.propertySetFactory().childrenConstraintSets(constraintSet, node))
+            .zip(ras.propertySetFactory().childrenConstraintSets(node, constraintSet))
             .map {
               case ((childPrepare, child), childConstraintSet) =>
                 childPrepare.doInsert(child, childConstraintSet)
@@ -233,9 +235,13 @@ object Memo {
   }
 
   private object MemoCacheKey {
+    private def apply[T <: AnyRef](@unused delegate: UnsafeHashKey[T]): MemoCacheKey[T] = {
+      throw new UnsupportedOperationException()
+    }
+
     def apply[T <: AnyRef](ras: Ras[T], self: T): MemoCacheKey[T] = {
       assert(ras.isCanonical(self))
-      MemoCacheKey[T](ras.toHashKey(self))
+      new MemoCacheKey[T](ras.toHashKey(self))
     }
   }
 
@@ -244,7 +250,8 @@ object Memo {
 
 trait MemoStore[T <: AnyRef] {
   def getCluster(key: RasClusterKey): RasCluster[T]
-  def getDummyGroup(key: RasClusterKey): RasGroup[T]
+  def getHubGroup(key: RasClusterKey): RasGroup[T]
+  def getUserGroup(key: RasClusterKey): RasGroup[T]
   def getGroup(id: Int): RasGroup[T]
 }
 
@@ -259,7 +266,8 @@ object MemoStore {
 trait MemoState[T <: AnyRef] extends MemoStore[T] {
   def ras(): Ras[T]
   def clusterLookup(): Map[RasClusterKey, RasCluster[T]]
-  def clusterDummyGroupLookup(): Map[RasClusterKey, RasGroup[T]]
+  def clusterHubGroupLookup(): Map[RasClusterKey, RasGroup[T]]
+  def clusterUserGroupLookup(): Map[RasClusterKey, RasGroup[T]]
   def allClusters(): Iterable[RasCluster[T]]
   def allGroups(): Seq[RasGroup[T]]
 }

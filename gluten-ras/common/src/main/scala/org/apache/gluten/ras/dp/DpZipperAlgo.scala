@@ -213,7 +213,7 @@ object DpZipperAlgo {
           }
           adjustment.exploreParentY(adjustmentPanel, thisY)
           // If an adjustment (this adjustment or children's) just invalidated one or more
-          // children of this element's solutions, the children's keys would be removed from
+          // children of this element's solutions, the children's keys would be removed from the
           // back-dependency list. We do a test here to trigger re-computation if some children
           // do get invalidated.
           xSolutions.keySet.foreach {
@@ -288,7 +288,7 @@ object DpZipperAlgo {
           }
           adjustment.exploreParentX(adjustmentPanel, thisX)
           // If an adjustment (this adjustment or children's) just invalidated one or more
-          // children of this element's solutions, the children's keys would be removed from
+          // children of this element's solutions, the children's keys would be removed from the
           // back-dependency list. We do a test here to trigger re-computation if some children
           // do get invalidated.
           ySolutions.keySet.foreach {
