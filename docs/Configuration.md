@@ -111,6 +111,8 @@ The following configurations are related to Velox settings.
 | spark.gluten.auto.adjustStageResource.enabled                        | Experimental: If enabled, gluten will try to set the stage resource according to stage execution plan. NOTE: Only workes when aqe is enabled at the same time. | false             |
 | spark.gluten.auto.adjustStageResources.heap.ratio                    | Experimental: Increase executor heap memory when match adjust stage resource rule.                                                                             | 2.0d              |
 | spark.gluten.auto.adjustStageResources.fallenNode.ratio.threshold    | Experimental: Increase executor heap memory when stage contains fallen node count exceeds the total node count ratio.                                          | 0.5d              |
+| spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished  | Print Velox task metrics after the task finishes.                                                                                                              | false             |
+
 
 Additionally, you can control the configurations of gluten at thread level by local property.
 
