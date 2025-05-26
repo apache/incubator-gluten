@@ -109,9 +109,11 @@ class Ras[T <: AnyRef] private (
       ruleFactory)
   }
 
-  private[ras] def userConstraintSet(): PropertySet[T] = userPropertySetFactory.any() +: memoRoleDef.reqUser
+  private[ras] def userConstraintSet(): PropertySet[T] =
+    userPropertySetFactory.any() +: memoRoleDef.reqUser
 
-  private[ras] def hubConstraintSet(): PropertySet[T] = userPropertySetFactory.any() +: memoRoleDef.reqHub
+  private[ras] def hubConstraintSet(): PropertySet[T] =
+    userPropertySetFactory.any() +: memoRoleDef.reqHub
 
   private[ras] def propSetOf(plan: T): PropertySet[T] = {
     val out = propertySetFactory().get(plan)

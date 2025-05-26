@@ -23,6 +23,7 @@ import org.apache.gluten.ras.path.InClusterPath
 import org.apache.gluten.ras.property.PropertySet
 
 import java.util
+
 import scala.collection.mutable
 
 trait RuleApplier[T <: AnyRef] {

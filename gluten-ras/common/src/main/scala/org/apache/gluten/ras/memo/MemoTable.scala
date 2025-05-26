@@ -115,7 +115,13 @@ object MemoTable {
 
       val allGroups = (0 to maxGroupId).map(table.getGroup).toVector
 
-      MemoStateImpl(table.ras, immutableClusters, immutableHubGroups, immutableUserGroups, allGroups, groupMap)
+      MemoStateImpl(
+        table.ras,
+        immutableClusters,
+        immutableHubGroups,
+        immutableUserGroups,
+        allGroups,
+        groupMap)
     }
 
     def doExhaustively(func: => Unit): Unit = {

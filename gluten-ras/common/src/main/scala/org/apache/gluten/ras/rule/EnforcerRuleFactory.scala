@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.ras.rule
 
 import org.apache.gluten.ras.{Property, PropertyDef}
@@ -46,15 +45,18 @@ object EnforcerRuleFactory {
         subRuleFactory =>
           new RasRule[T] {
             override def shift(node: T): Iterable[T] = {
-              val out = constraintSet.asMap.scanLeft(Seq(node)) {
-                case (nodes, (constraintDef, constraint)) =>
-                  val subRule = subRuleFactory.newSubRule(constraintDef)
-                  val intermediate = nodes.flatMap(n => {
-                    val after = subRule.enforce(n, constraint)
-                    after
-                  })
-                  intermediate
-              }.flatten
+              val out = constraintSet.asMap
+                .scanLeft(Seq(node)) {
+                  case (nodes, (constraintDef, constraint)) =>
+                    val subRule = subRuleFactory.newSubRule(constraintDef)
+                    val intermediate = nodes.flatMap(
+                      n => {
+                        val after = subRule.enforce(n, constraint)
+                        after
+                      })
+                    intermediate
+                }
+                .flatten
               out
             }
 

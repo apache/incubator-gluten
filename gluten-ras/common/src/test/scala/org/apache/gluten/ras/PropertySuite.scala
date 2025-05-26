@@ -772,7 +772,7 @@ object PropertySuite {
       override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] = {
         EnforcerRuleFactory.fromSubRules(Seq(new EnforcerRuleFactory.SubRuleFactory[TestNode] {
           override def newSubRule(constraintDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-          : EnforcerRuleFactory.SubRule[TestNode] = {
+              : EnforcerRuleFactory.SubRule[TestNode] = {
             constraintDef match {
               case NodeTypeDef =>
                 ZeroDepthNodeTypeEnforcerRule()
@@ -788,8 +788,8 @@ object PropertySuite {
       override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq(
         NodeTypeDef)
 
-      override def newEnforcerRuleFactory()
-          : EnforcerRuleFactory[TestNode] = (_: PropertySet[TestNode]) => Seq.empty
+      override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] =
+        (_: PropertySet[TestNode]) => Seq.empty
     }
   }
 }

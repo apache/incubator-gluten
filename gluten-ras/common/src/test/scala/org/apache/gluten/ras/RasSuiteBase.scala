@@ -179,8 +179,8 @@ object RasSuiteBase {
 
   object PropertyModelImpl extends PropertyModel[TestNode] {
     override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] = Seq.empty
-    override def newEnforcerRuleFactory()
-        : EnforcerRuleFactory[TestNode] = (_: PropertySet[TestNode]) => Seq.empty
+    override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] =
+      (_: PropertySet[TestNode]) => Seq.empty
   }
 
   implicit class GraphvizPrinter[T <: AnyRef](val planner: RasPlanner[T]) {
