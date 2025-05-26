@@ -14,15 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.backendsapi;
 
-package org.apache.gluten.rexnode.functions;
+import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
 
-import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+import org.apache.spark.SparkConf;
+import org.junit.Test;
 
-import org.apache.calcite.rex.RexCall;
-import org.apache.gluten.rexnode.RexConversionContext;
+import scala.collection.immutable.Map;
 
-public interface RexCallConverter {
-   // Let the Converter decide how to build the arguments.
-   TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
+import static org.junit.Assert.assertEquals;
+
+public class VeloxListenerApiTest {
+
+  @Test
+  public void testParseByteConfig() {
+    SparkConf conf = new SparkConf();
+    // Use conf string to prevent VeloxConfig object initialization.
+    conf.set("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold", "50MB");
+
+    Map<String, String> parsed = VeloxListenerApi.parseConf(conf, false);
+    assertEquals(
+        "52428800",
+        parsed.get("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold").get());
+  }
 }

@@ -531,8 +531,10 @@ Native Plan:
 
 ## Native Plan with Stats
 
-Gluten supports print native plan with stats to executor system output stream by setting `--conf spark.gluten.sql.debug=true`.
-Note that, the plan string with stats is task level which may cause executor log size big. Here is an example, how Gluten show the native plan string with stats.
+Gluten supports print native plan with statistics to executor system output stream by setting 
+`--conf spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished=true` or `--conf spark.gluten.sql.debug=true`.
+Note that the plan string with statistics is task level, which may increase the size of the executor logs.
+Below is an example of how Gluten displays the native plan string with statistics.
 
 ```
 I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan with stats for: [Stage: 1 TID: 16]

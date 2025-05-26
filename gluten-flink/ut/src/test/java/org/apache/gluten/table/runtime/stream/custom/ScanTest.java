@@ -39,8 +39,16 @@ class ScanTest extends GlutenStreamingTestBase {
     public void before() throws Exception {
         super.before();
         List<Row> rows =
-                Arrays.asList(Row.of(1, 1L, "1"), Row.of(2, 2L, "2"), Row.of(3, 3L, "3"));
+                Arrays.asList(Row.of(1, 1L, "1"),
+                    Row.of(2, 2L, "2"),
+                    Row.of(3, 3L, "3"));
         createSimpleBoundedValuesTable("MyTable", "a int, b bigint, c string", rows);
+
+        List<Row> structRows =
+                Arrays.asList(Row.of(1, Row.of(2L, "abc")),
+                    Row.of(2,  Row.of(6L, "def")),
+                    Row.of(3,  Row.of(8L, "ghi")));
+        createSimpleBoundedValuesTable("MyTable2", "a int, b ROW<d bigint, e string>", structRows);
     }
 
     @Test
@@ -48,6 +56,12 @@ class ScanTest extends GlutenStreamingTestBase {
         String query = "select a, b as b,c, a > 2 from MyTable where a > 0";
         LOG.info("execution plan: {}", explainExecutionPlan(query));
         runAndCheck(query, Arrays.asList("+I[1, 1, 1, false]", "+I[2, 2, 2, false]", "+I[3, 3, 3, true]"));
+    }
+
+    @Test
+    void testFilterWithStruct() {
+        String query = "select a, b.d, b.e from MyTable2 where a > 0";
+        runAndCheck(query, Arrays.asList("+I[1, 2, abc]", "+I[2, 6, def]", "+I[3, 8, ghi]"));
     }
 }
 

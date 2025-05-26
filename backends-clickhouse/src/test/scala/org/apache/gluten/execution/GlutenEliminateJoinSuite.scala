@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse._
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -58,6 +59,7 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
       .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
       .set(CHConfig.runtimeSettings("max_memory_usage_ratio_for_streaming_aggregating"), "0.01")
       .set(CHConfig.runtimeSettings("high_cardinality_threshold_for_streaming_aggregating"), "0.2")
+      .set(CHBackendSettings.GLUTEN_JOIN_AGGREGATE_TO_AGGREGATE_UNION, "true")
       .set(
         SQLConf.OPTIMIZER_EXCLUDED_RULES.key,
         ConstantFolding.ruleName + "," + NullPropagation.ruleName)
@@ -562,5 +564,45 @@ class GlutenEliminateJoinSuite extends GlutenClickHouseWholeStageTransformerSuit
 
     spark.sql("drop table t_9267_1")
     spark.sql("drop table t_9267_2")
+  }
+
+  test("right keys are in used") {
+    spark.sql("drop table if exists t_join_1")
+    spark.sql("drop table if exists t_join_2")
+    spark.sql("drop table if exists t_join_3")
+
+    spark.sql("create table t_join_1 (a bigint, b bigint) using parquet")
+    spark.sql("create table t_join_2 (a bigint, b bigint) using parquet")
+    spark.sql("create table t_join_3 (a bigint, b bigint) using parquet")
+
+    spark.sql("insert into t_join_1 select id % 10 as a, id as b from range(10)")
+    spark.sql("insert into t_join_2 select id % 7 as a, id as b from range(20)")
+    spark.sql("insert into t_join_3 select id % 10 as a, id as b from range(20)")
+
+    val sql =
+      """
+        |select a1, b, a2, a3, s2, s3 from (
+        |  select a as a1, b from t_join_1
+        |) t1 left join (
+        |  select a as a2, sum(b) as s2 from t_join_2 group by a
+        |) t2 on a1 = a2 left join (
+        |  select a as a3, sum(b) as s3 from t_join_3 group by a
+        |) t3 on a1 = a3
+        |order by a1, b, a2, a3, s2, s3
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      {
+        df =>
+          val joins = df.queryExecution.executedPlan.collect {
+            case join: ShuffledHashJoinExecTransformerBase => join
+          }
+          assert(joins.length == 1)
+      })
+
+    spark.sql("drop table t_join_1")
+    spark.sql("drop table t_join_2")
+    spark.sql("drop table t_join_3")
   }
 }
