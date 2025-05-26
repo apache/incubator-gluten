@@ -49,15 +49,7 @@ struct SafeSizeOf<void> {
 // a shared-ptr's lifecycle to a Java-side object or some kind of resource manager.
 class ObjectStore {
  public:
-  static std::unique_ptr<ObjectStore> create() {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lock(mtx);
-    StoreHandle nextId = stores().nextId();
-    auto store = std::unique_ptr<ObjectStore>(new ObjectStore(nextId));
-    StoreHandle storeId = safeCast<StoreHandle>(stores().insert(store.get()));
-    GLUTEN_CHECK(storeId == nextId, "Store ID mismatched, this should not happen");
-    return store;
-  }
+  static std::unique_ptr<ObjectStore> create();
 
   static void release(ObjectHandle handle) {
     ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(ResourceHandle) * 8));
