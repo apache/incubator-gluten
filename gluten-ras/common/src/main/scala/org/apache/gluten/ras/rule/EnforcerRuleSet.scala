@@ -87,9 +87,9 @@ object EnforcerRuleSet {
     private object Derive {
       // A built-in enforcer rule set that does constraint propagation. The rule directly outputs
       // whatever passed in, and memo will copy the output node in with the desired constraint.
-      // During witch children constraints will be derived through PropertyDef#getChildrenConstraints.
-      // When the children constraints do changed, the new node with changed children constraints will
-      // be persisted into memo.
+      // During witch children constraints will be derived through
+      // PropertyDef#getChildrenConstraints. When the children constraints are changed, the
+      // new node with changed children constraints will be persisted into the memo.
       private class DeriveEnforcerRule[T <: AnyRef]() extends RasRule[T] {
         override def shift(node: T): Iterable[T] = Seq(node)
         override def shape(): Shape[T] = Shapes.fixedHeight(1)
