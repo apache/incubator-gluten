@@ -55,7 +55,7 @@ class GlutenNoopWriterRuleSuite extends GlutenQueryTest with SharedSparkSession 
         try {
           spark.read.parquet(dir.getPath).write.format("noop").mode(SaveMode.Overwrite).save()
           spark.sparkContext.listenerBus.waitUntilEmpty()
-          assert(listener.c2CarrierRow.isDefined, "FakeRowAdaptor is not found.")
+          assert(listener.c2CarrierRow.isDefined, "ColumnarToCarrierRow is not found.")
         } finally {
           spark.listenerManager.unregister(listener)
         }
