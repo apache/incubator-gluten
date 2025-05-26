@@ -28,6 +28,7 @@ import java.lang.reflect.Method
 object PartitionedFileUtilShim {
 
   private val clz: Class[_] = PartitionedFileUtil.getClass
+  private val module = clz.getField("MODULE$").get(null)
 
   private lazy val getPartitionedFileMethod: Method = {
     try {
@@ -61,11 +62,11 @@ object PartitionedFileUtilShim {
       partitionValues: InternalRow): PartitionedFile = {
     if (getPartitionedFileMethod != null) {
       getPartitionedFileMethod
-        .invoke(null, file, partitionValues)
+        .invoke(module, file, partitionValues)
         .asInstanceOf[PartitionedFile]
     } else if (getPartitionedFileByPathMethod != null) {
       getPartitionedFileByPathMethod
-        .invoke(null, file, file.getPath, partitionValues)
+        .invoke(module, file, file.getPath, partitionValues)
         .asInstanceOf[PartitionedFile]
     } else {
       val params = clz.getDeclaredMethods
@@ -118,7 +119,7 @@ object PartitionedFileUtilShim {
     if (splitFilesMethod != null) {
       splitFilesMethod
         .invoke(
-          null,
+          module,
           sparkSession,
           file,
           java.lang.Boolean.valueOf(isSplitable),
@@ -128,7 +129,7 @@ object PartitionedFileUtilShim {
     } else if (splitFilesByPathMethod != null) {
       splitFilesByPathMethod
         .invoke(
-          null,
+          module,
           file,
           file.getPath,
           java.lang.Boolean.valueOf(isSplitable),
