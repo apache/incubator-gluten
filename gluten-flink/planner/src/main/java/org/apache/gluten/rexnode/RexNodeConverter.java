@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.rexnode;
 
-import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.ConstantTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.FieldAccessTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
@@ -38,7 +37,8 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.functions.RexCallConverter;
+import org.apache.gluten.rexnode.functions.RexCallConverterFactory;
 import org.apache.gluten.util.LogicalTypeConverter;
 
 import java.math.BigDecimal;
