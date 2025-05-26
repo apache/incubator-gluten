@@ -19,7 +19,6 @@ package org.apache.gluten.memory.memtarget;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.proto.MemoryUsageStats;
 
-import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.apache.spark.util.SparkThreadPoolUtil;
 import org.slf4j.Logger;
@@ -109,10 +108,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
       LOG.error("Dynamic off-heap sizing is not supported before JDK 9.");
     }
 
-    TOTAL_MEMORY_SHARED =
-        SparkEnv.get()
-            .conf()
-            .getSizeAsBytes("spark.executor.memory", Runtime.getRuntime().maxMemory());
+    TOTAL_MEMORY_SHARED = Runtime.getRuntime().maxMemory();
 
     LOG.info(
         "Initialized DynamicOffHeapSizingMemoryTarget with MAX_MEMORY_IN_BYTES = {}, "
