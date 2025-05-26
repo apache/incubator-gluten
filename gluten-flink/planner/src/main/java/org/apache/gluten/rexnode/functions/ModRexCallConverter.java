@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gluten.rexnode;
+package org.apache.gluten.rexnode.functions;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
@@ -23,11 +23,11 @@ import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.gluten.rexnode.RexConversionContext;
-import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.Utils;
 
 import java.util.List;
 
- public class ModRexCallConverter extends BaseRexCallConverter {
+public class ModRexCallConverter extends BaseRexCallConverter {
     private static final String FUNCTION_NAME = "remainder";
     public ModRexCallConverter() {
         super(FUNCTION_NAME);
