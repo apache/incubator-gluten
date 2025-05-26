@@ -48,7 +48,7 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
           | where c_custkey = o_custkey and o_orderkey = l_orderkey and l_partkey = p_partkey
           | and l_suppkey = s_suppkey and s_nationkey = n_nationkey
           | order by c_acctbal desc, o_orderdate, s_suppkey, n_name, p_type, l_quantity
-          | limit 1000
+          | limit 1
       """.stripMargin
       var totalMemory = Runtime.getRuntime().totalMemory()
       var freeMemory = Runtime.getRuntime().freeMemory()
@@ -67,9 +67,7 @@ class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
       // Verify that the total memory is reduced after shrink.
       assert(newTotalMemory < totalMemory)
       // Verify that the query can run with dynamic off-heap sizing enabled.
-      withSQLConf(("spark.gluten.enabled", "true")) {
-        spark.sql(query).collect()
-      }
+      runAndCompare(query)
     }
   }
 }
