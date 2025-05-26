@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.batchcarrier
+package org.apache.gluten.execution
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
@@ -32,8 +32,8 @@ import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
  *   - PlaceholderRow
  *
  * To bypass Spark's row APIs, one single columnar batch will be converted to a series of
- * PassiveRows, followed by one SentinelRow that actually wraps that columnar batch. The total
- * number of PlaceholderRows + the TerminalRow equates to size of the original columnar batch.
+ * PlaceholderRows, followed by one TerminalRow that actually wraps that columnar batch. The total
+ * number of PlaceholderRows + the TerminalRow equates to the size of the original columnar batch.
  */
 sealed abstract class BatchCarrierRow extends InternalRow {
   override def numFields: Int = throw unsupported()
@@ -82,14 +82,31 @@ sealed abstract class BatchCarrierRow extends InternalRow {
   }
 }
 
+object BatchCarrierRow {
+  def unwrap(row: InternalRow): Option[ColumnarBatch] = row match {
+    case _: PlaceholderRow => None
+    case t: TerminalRow => Some(t.batch())
+    case _ =>
+      throw new UnsupportedOperationException(
+        s"Row $row is not a ${classOf[BatchCarrierRow].getSimpleName}")
+  }
+}
+
 /**
  * A [[BatchCarrierRow]] implementation that is backed by a
  * [[org.apache.spark.sql.vectorized.ColumnarBatch]].
+ *
+ * Serialization code originated since https://github.com/apache/incubator-gluten/issues/9270.
  */
-class TerminalRow(val batch: ColumnarBatch) extends BatchCarrierRow
+abstract class TerminalRow extends BatchCarrierRow {
+  def batch(): ColumnarBatch
+  def withNewBatch(batch: ColumnarBatch): TerminalRow
+}
 
 /**
  * A [[BatchCarrierRow]] implementation with no data. The only function of this row implementation
  * is to provide row metadata to the receiver and to support correct row-counting.
  */
-class PlaceholderRow extends BatchCarrierRow
+class PlaceholderRow extends BatchCarrierRow {
+  override def copy(): InternalRow = new PlaceholderRow()
+}

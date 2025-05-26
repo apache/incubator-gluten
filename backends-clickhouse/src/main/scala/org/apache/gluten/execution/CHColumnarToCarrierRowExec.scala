@@ -16,23 +16,34 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.velox.{VeloxBatchType, VeloxCarrierRowType}
+import org.apache.gluten.backendsapi.clickhouse.{CHBatchType, CHCarrierRowType}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq, Transitions}
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class VeloxColumnarToCarrierRowExec(override val child: SparkPlan)
+case class CHColumnarToCarrierRowExec(override val child: SparkPlan)
   extends ColumnarToCarrierRowExecBase {
-  override protected def fromBatchType(): Convention.BatchType = VeloxBatchType
-  override def rowType0(): Convention.RowType = VeloxCarrierRowType
+  override protected def fromBatchType(): Convention.BatchType = CHBatchType
+  override def rowType0(): Convention.RowType = CHCarrierRowType
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
+  // Since https://github.com/apache/incubator-gluten/pull/1595.
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    if (child.supportsColumnar) {
+      child.executeColumnar()
+    } else {
+      val r2c = Transitions.enforceReq(
+        child,
+        ConventionReq.ofBatch(ConventionReq.BatchType.Is(CHBatchType)))
+      r2c.executeColumnar()
+    }
+  }
 }
 
-object VeloxColumnarToCarrierRowExec {
+object CHColumnarToCarrierRowExec {
   def enforce(child: SparkPlan): SparkPlan = {
-    Transitions.enforceReq(
-      child,
-      ConventionReq.ofRow(ConventionReq.RowType.Is(VeloxCarrierRowType)))
+    Transitions.enforceReq(child, ConventionReq.ofRow(ConventionReq.RowType.Is(CHCarrierRowType)))
   }
 }
