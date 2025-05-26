@@ -21,7 +21,6 @@ import org.apache.gluten.ras.Ras.UnsafeHashKey
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.vis.GraphvizVisualizer
 
-import scala.annotation.unused
 import scala.collection.mutable
 
 trait MemoLike[T <: AnyRef] {
@@ -235,7 +234,7 @@ object Memo {
   }
 
   private object MemoCacheKey {
-    private def apply[T <: AnyRef](@unused delegate: UnsafeHashKey[T]): MemoCacheKey[T] = {
+    private def apply[T <: AnyRef](delegate: UnsafeHashKey[T]): MemoCacheKey[T] = {
       throw new UnsupportedOperationException()
     }
 

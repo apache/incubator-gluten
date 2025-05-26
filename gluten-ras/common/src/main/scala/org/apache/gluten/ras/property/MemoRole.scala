@@ -169,7 +169,7 @@ object MemoRole {
       val numChildren = roleDef.planModel.childrenOf(node).size
 
       def delegateChildrenConstraintSets(): Seq[PropertySet[T]] = {
-        val roleRemoved = PropertySet(constraintSet.asMap.removed(roleDef))
+        val roleRemoved = PropertySet(constraintSet.asMap - roleDef)
         val out = delegate.childrenConstraintSets(node, roleRemoved)
         out
       }
