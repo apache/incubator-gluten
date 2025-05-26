@@ -32,8 +32,8 @@ import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
  *   - PlaceholderRow
  *
  * To bypass Spark's row APIs, one single columnar batch will be converted to a series of
- * PassiveRows, followed by one SentinelRow that actually wraps that columnar batch. The total
- * number of PlaceholderRows + the TerminalRow equates to size of the original columnar batch.
+ * PlaceholderRows, followed by one TerminalRow that actually wraps that columnar batch. The total
+ * number of PlaceholderRows + the TerminalRow equates to the size of the original columnar batch.
  */
 sealed abstract class BatchCarrierRow extends InternalRow {
   override def numFields: Int = throw unsupported()
