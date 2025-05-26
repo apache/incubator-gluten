@@ -100,6 +100,7 @@ object DpPlanner {
     override def exploreChildX(
         panel: Panel[InClusterNode[T], RasClusterKey],
         x: InClusterNode[T]): Unit = {
+      applyHubRulesOnNode(panel, x.clusterKey, x.can)
       applyRulesOnNode(panel, x.clusterKey, x.can)
     }
 
@@ -115,7 +116,6 @@ object DpPlanner {
         panel: Panel[InClusterNode[T], RasClusterKey],
         cKey: RasClusterKey): Unit = {
       memoTable.doExhaustively {
-        applyHubRules(panel, cKey)
         applyEnforcerRules(panel, cKey)
       }
     }
@@ -138,16 +138,20 @@ object DpPlanner {
       }
     }
 
-    private def applyHubRules(
+    private def applyHubRulesOnNode(
         panel: Panel[InClusterNode[T], RasClusterKey],
-        cKey: RasClusterKey): Unit = {
+        cKey: RasClusterKey,
+        can: CanonicalNode[T]): Unit = {
       val hubConstraint = ras.hubConstraintSet()
       val hubDeriverRuleSet = deriverRuleSetFactory.ruleSetOf(hubConstraint)
       val hubDeriverRules = hubDeriverRuleSet.rules()
       if (hubDeriverRules.nonEmpty) {
         val hubDeriverRuleShapes = hubDeriverRuleSet.shapes()
         val userGroup = memoTable.getUserGroup(cKey)
-        findPaths(GroupNode(ras, userGroup), hubDeriverRuleShapes, List.empty) {
+        findPaths(
+          GroupNode(ras, userGroup),
+          hubDeriverRuleShapes,
+          List(new FromSingleNode[T](can))) {
           path => hubDeriverRules.foreach(rule => applyRule(panel, cKey, rule, path))
         }
       }

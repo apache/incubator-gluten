@@ -129,6 +129,24 @@ object ExhaustivePlanner {
         }
     }
 
+    private def applyHubRules(): Unit = {
+      val hubConstraint = ras.hubConstraintSet()
+      val hubDeriverRuleSet = deriverRuleSetFactory.ruleSetOf(hubConstraint)
+      val hubDeriverRules = hubDeriverRuleSet.rules()
+      if (hubDeriverRules.nonEmpty) {
+        memoState
+          .clusterLookup()
+          .foreach {
+            case (cKey, cluster) =>
+              val hubDeriverRuleShapes = hubDeriverRuleSet.shapes()
+              val userGroup = memoState.getUserGroup(cKey)
+              findPaths(GroupNode(ras, userGroup), hubDeriverRuleShapes) {
+                path => hubDeriverRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
+              }
+          }
+      }
+    }
+
     private def applyEnforcerRules(): Unit = {
       allGroups.foreach {
         group =>
@@ -142,23 +160,6 @@ object ExhaustivePlanner {
             val hubGroup = memoState.getHubGroup(cKey)
             findPaths(GroupNode(ras, hubGroup), enforcerRuleShapes) {
               path => enforcerRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
-            }
-          }
-      }
-    }
-
-    private def applyHubRules(): Unit = {
-      allGroups.foreach {
-        group =>
-          val hubConstraint = ras.hubConstraintSet()
-          val hubDeriverRuleSet = deriverRuleSetFactory.ruleSetOf(hubConstraint)
-          val hubDeriverRules = hubDeriverRuleSet.rules()
-          if (hubDeriverRules.nonEmpty) {
-            val hubDeriverRuleShapes = hubDeriverRuleSet.shapes()
-            val cKey = group.clusterKey()
-            val userGroup = memoState.getUserGroup(cKey)
-            findPaths(GroupNode(ras, userGroup), hubDeriverRuleShapes) {
-              path => hubDeriverRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
             }
           }
       }
