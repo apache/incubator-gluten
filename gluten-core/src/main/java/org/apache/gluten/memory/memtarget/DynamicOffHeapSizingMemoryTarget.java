@@ -109,7 +109,10 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
       LOG.error("Dynamic off-heap sizing is not supported before JDK 9.");
     }
 
-    TOTAL_MEMORY_SHARED = SparkEnv.get().conf().getSizeAsBytes("spark.executor.memory", "1g");
+    TOTAL_MEMORY_SHARED =
+        SparkEnv.get()
+            .conf()
+            .getSizeAsBytes("spark.executor.memory", Runtime.getRuntime().maxMemory());
 
     LOG.info(
         "Initialized DynamicOffHeapSizingMemoryTarget with MAX_MEMORY_IN_BYTES = {}, "
@@ -240,6 +243,11 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
     }
   }
 
+  public static boolean canShrinkJVMMemory(long totalMemory, long freeMemory) {
+    // Check if the JVM memory can be shrunk by a full GC.
+    return freeMemory > totalMemory * GC_MAX_HEAP_FREE_RATIO;
+  }
+
   public static long getTotalExplicitGCCount() {
     return TOTAL_EXPLICIT_GC_COUNT.get();
   }
@@ -247,11 +255,6 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
   private static boolean exceedsMaxMemoryUsage(
       long totalOnHeapMemory, long totalOffHeapMemory, long requestedSize, double ratio) {
     return requestedSize + totalOffHeapMemory + totalOnHeapMemory >= TOTAL_MEMORY_SHARED * ratio;
-  }
-
-  private static boolean canShrinkJVMMemory(long totalMemory, long freeMemory) {
-    // Check if the JVM memory can be shrunk by a full GC.
-    return freeMemory > totalMemory * GC_MAX_HEAP_FREE_RATIO;
   }
 
   private static boolean shouldTriggerAsyncOnHeapMemoryShrink(
@@ -334,7 +337,7 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
     return newTotalMemory;
   }
 
-  private static long shrinkOnHeapMemory(long totalMemory, long freeMemory, boolean isAsyncGc) {
+  public static long shrinkOnHeapMemory(long totalMemory, long freeMemory, boolean isAsyncGc) {
     boolean updateMaxHeapFreeRatio = false;
     Object hotSpotBean = null;
     String maxHeapFreeRatioName = "MaxHeapFreeRatio";
