@@ -21,6 +21,7 @@ import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
 import org.apache.commons.collections.map.ReferenceMap;
+import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.Utils;
 
@@ -45,7 +46,11 @@ public final class TreeMemoryConsumers {
     private final Map<Long, TreeMemoryTarget> roots = new ConcurrentHashMap<>();
 
     private Factory(TaskMemoryManager tmm) {
-      this.sparkConsumer = new TreeMemoryConsumer(tmm);
+      MemoryMode mode =
+          GlutenConfig.get().dynamicOffHeapSizingEnabled()
+              ? MemoryMode.ON_HEAP
+              : MemoryMode.OFF_HEAP;
+      this.sparkConsumer = new TreeMemoryConsumer(tmm, mode);
     }
 
     private TreeMemoryTarget ofCapacity(long capacity) {
