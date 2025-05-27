@@ -299,7 +299,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("Test trunc function") {
-    runQueryAndCompare("select trunc(l_shipdate) from lineitem limit 1") {
+    runQueryAndCompare("select trunc(l_shipdate, 'week') from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
