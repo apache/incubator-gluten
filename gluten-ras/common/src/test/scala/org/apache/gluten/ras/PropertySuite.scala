@@ -489,6 +489,41 @@ abstract class PropertySuite extends AnyFunSuite {
         TypeEnforcer(TypeB, 1, TypedUnary(TypeA, 10, TypeEnforcer(TypeA, 1, TypedLeaf(TypeB, 0)))),
         TypedLeaf(TypeB, 0)))
   }
+
+  test(s"Converting to hub nodes triggers cluster merge") {
+    object ConvertLeafTypeAToTypeB extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = node match {
+        case TypedLeaf(TypeA, cost) => List(TypedLeaf(TypeB, cost - 1))
+        case other => List.empty
+      }
+      override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
+    }
+
+    object ConvertUnaryTypeAToTypeB extends RasRule[TestNode] {
+      override def shift(node: TestNode): Iterable[TestNode] = node match {
+        case TypedUnary(TypeA, cost, child) => List(TypedUnary(TypeB, cost - 1, child))
+        case other => List.empty
+      }
+      override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
+    }
+
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        propertyModelWithoutEnforcerRules(),
+        ExplainImpl,
+        RasRule.Factory.reuse(List(ConvertLeafTypeAToTypeB, ConvertUnaryTypeAToTypeB))
+      ).withNewConfig(_ => conf)
+
+    val plan =
+      TypedUnary(TypeA, 10, TypedLeaf(TypeA, 20))
+    val planner = ras.newPlanner(plan)
+    val out = planner.plan()
+    assert(out == TypedUnary(TypeB, 9, TypedLeaf(TypeB, 19)))
+    assert(planner.newState().memoState().allClusters().size == 2)
+  }
 }
 
 object PropertySuite {
