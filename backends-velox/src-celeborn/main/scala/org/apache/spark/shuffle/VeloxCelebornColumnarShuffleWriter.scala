@@ -51,8 +51,6 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     celebornConf,
     client,
     writeMetrics) {
-  private val isSort = !ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER.equals(shuffleWriterType)
-
   private val runtime =
     Runtimes.contextInstance(BackendsApiManager.getBackendName, "CelebornShuffleWriter")
 
@@ -65,6 +63,8 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
     perTask
   }
+
+  private val nativeMetrics = dep.metrics.getOrElse("sortTime", dep.metrics("splitTime"))
 
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
@@ -98,12 +98,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     val startTime = System.nanoTime()
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
-    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
-    val nativeMetrics = if (isSort) {
-      dep.metrics("sortTime")
-    } else {
-      dep.metrics("splitTime")
-    }
+    dep.remot("shuffleWallTime").add(System.nanoTime() - startTime)
     nativeMetrics
       .add(
         dep.metrics("shuffleWallTime").value - splitResult.getTotalPushTime -
