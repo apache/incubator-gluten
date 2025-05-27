@@ -115,12 +115,6 @@ class GlutenDeltaMergeTreeDeletionVectorSuite extends CreateMergeTreeSuite {
 
           spark.sql(s"optimize $tableName")
 
-//          withSQLConf(
-//            (CHConfig.prefixOf("mergetree.write.pipeline"), "true"),
-//            ("spark.gluten.sql.native.writer.enabled", "true")) {
-//
-//          }
-
           val df2 = spark.sql(s"""
                                  | select sum(l_linenumber) from $tableName
                                  |""".stripMargin)
