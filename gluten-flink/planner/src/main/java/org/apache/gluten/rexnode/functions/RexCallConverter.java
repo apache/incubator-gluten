@@ -15,22 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.gluten.rexnode;
+package org.apache.gluten.rexnode.functions;
 
-import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
-import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.gluten.rexnode.RexConversionContext;
-import org.apache.gluten.rexnode.RexNodeConverter;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
 
 public interface RexCallConverter {
-   // Let the Converter to decide how to build the arguments.
+   // Let the Converter decide how to build the arguments.
    TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
 }

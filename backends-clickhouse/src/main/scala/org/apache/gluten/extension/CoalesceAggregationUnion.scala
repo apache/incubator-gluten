@@ -533,7 +533,7 @@ case class CoalesceAggregationUnion(spark: SparkSession) extends Rule[LogicalPla
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       spark.conf
-        .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_AGGREGATION_UNION, "true")
+        .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_AGGREGATION_UNION, "false")
         .toBoolean && CoalesceUnionUtil.isResolvedPlan(plan)
     ) {
       Try {
@@ -953,7 +953,7 @@ case class CoalesceProjectionUnion(spark: SparkSession) extends Rule[LogicalPlan
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (
       spark.conf
-        .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "true")
+        .get(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "false")
         .toBoolean && CoalesceUnionUtil.isResolvedPlan(plan)
     ) {
       Try {

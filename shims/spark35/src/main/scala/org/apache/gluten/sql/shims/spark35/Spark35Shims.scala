@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.sql.shims.spark35
 
+import org.apache.gluten.execution.PartitionedFileUtilShim
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.SparkShims
 import org.apache.gluten.utils.ExceptionUtils
@@ -164,7 +165,7 @@ class Spark35Shims extends SparkShims {
   override def filesGroupedToBuckets(
       selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
     selectedPartitions
-      .flatMap(p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, p.values)))
+      .flatMap(p => p.files.map(f => PartitionedFileUtilShim.getPartitionedFile(f, p.values)))
       .groupBy {
         f =>
           BucketingUtils
@@ -430,7 +431,7 @@ class Spark35Shims extends SparkShims {
       maxSplitBytes: Long,
       partitionValues: InternalRow,
       metadata: Map[String, Any] = Map.empty): Seq[PartitionedFile] = {
-    PartitionedFileUtil.splitFiles(
+    PartitionedFileUtilShim.splitFiles(
       sparkSession,
       FileStatusWithMetadata(file, metadata),
       isSplitable,
