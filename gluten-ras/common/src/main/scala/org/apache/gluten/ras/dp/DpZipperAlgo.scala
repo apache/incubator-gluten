@@ -192,14 +192,12 @@ object DpZipperAlgo {
           algoDef.browseY(thisY).map(algoDef.keyOfX(_)).toSet
         }
 
-        while (true) {
-          val unsolvedKeys = browseXKeys().filterNot(xKey => xSolutions.contains(xKey))
+        var allXKeys = browseXKeys()
+        do {
+          val unsolvedKeys = allXKeys.filterNot(xKey => xSolutions.contains(xKey))
           onUnsolvedKeys(unsolvedKeys)
-          if (xSolutions.size == browseXKeys().size) {
-            // We got enough child solutions.
-            return
-          }
-        }
+          allXKeys = browseXKeys()
+        } while (xSolutions.size < allXKeys.size)
       }
 
       doExhaustively {
@@ -273,14 +271,12 @@ object DpZipperAlgo {
           algoDef.browseX(thisX).map(algoDef.keyOfY(_)).toSet
         }
 
-        while (true) {
-          val unsolvedKeys = browseYKeys().filterNot(yKey => ySolutions.contains(yKey))
+        var allYKeys = browseYKeys()
+        do {
+          val unsolvedKeys = allYKeys.filterNot(yKey => ySolutions.contains(yKey))
           onUnsolvedKeys(unsolvedKeys)
-          if (ySolutions.size == browseYKeys().size) {
-            // We got enough child solutions.
-            return
-          }
-        }
+          allYKeys = browseYKeys()
+        } while (ySolutions.size < allYKeys.size)
       }
 
       doExhaustively {
