@@ -187,6 +187,8 @@ object DpZipperAlgo {
 
       val xSolutions: mutable.Map[XKey[X, Y, XOutput, YOutput], XOutput] = mutable.Map()
 
+      // Continuously tries to solve the unsolved children keys until all keys are filled with
+      // solutions.
       def doExhaustively(onUnsolvedKeys: Set[XKey[X, Y, XOutput, YOutput]] => Unit): Unit = {
         def browseXKeys(): Set[XKey[X, Y, XOutput, YOutput]] = {
           algoDef.browseY(thisY).map(algoDef.keyOfX(_)).toSet
@@ -266,6 +268,8 @@ object DpZipperAlgo {
 
       val ySolutions: mutable.Map[YKey[X, Y, XOutput, YOutput], YOutput] = mutable.Map()
 
+      // Continuously tries to solve the unsolved children keys until all keys are filled with
+      // solutions.
       def doExhaustively(onUnsolvedKeys: Set[YKey[X, Y, XOutput, YOutput]] => Unit): Unit = {
         def browseYKeys(): Set[YKey[X, Y, XOutput, YOutput]] = {
           algoDef.browseX(thisX).map(algoDef.keyOfY(_)).toSet
