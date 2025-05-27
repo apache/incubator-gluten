@@ -22,7 +22,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
@@ -79,11 +79,9 @@ abstract class FileSourceScanExecShim(
   private def isDynamicPruningFilter(e: Expression): Boolean =
     e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
 
-  protected def setFilesNumAndSizeMetric(
-      partitions: Seq[PartitionDirectory],
-      static: Boolean): Unit = {
-    val filesNum = partitions.map(_.files.size.toLong).sum
-    val filesSize = partitions.map(_.files.map(_.getLen).sum).sum
+  protected def setFilesNumAndSizeMetric(partitions: ScanFileListing, static: Boolean): Unit = {
+    val filesNum = partitions.totalNumberOfFiles
+    val filesSize = partitions.totalFileSize
     if (!static || !partitionFilters.exists(isDynamicPruningFilter)) {
       driverMetrics("numFiles").set(filesNum)
       driverMetrics("filesSize").set(filesSize)
@@ -92,14 +90,15 @@ abstract class FileSourceScanExecShim(
       driverMetrics("staticFilesSize").set(filesSize)
     }
     if (relation.partitionSchema.nonEmpty) {
-      driverMetrics("numPartitions").set(partitions.length)
+      driverMetrics("numPartitions").set(partitions.partitionCount)
     }
   }
 
-  @transient override lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
+  @transient override lazy val dynamicallySelectedPartitions: ScanFileListing = {
+    val dynamicDataFilters = dataFilters.filter(isDynamicPruningFilter)
     val dynamicPartitionFilters =
       partitionFilters.filter(isDynamicPruningFilter)
-    val selected = if (dynamicPartitionFilters.nonEmpty) {
+    if (dynamicPartitionFilters.nonEmpty) {
       GlutenTimeMetric.withMillisTime {
         // call the file index for the files matching all filters except dynamic partition filters
         val predicate = dynamicPartitionFilters.reduce(And)
@@ -112,15 +111,14 @@ abstract class FileSourceScanExecShim(
           },
           Nil
         )
-        val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
-        setFilesNumAndSizeMetric(ret, static = false)
-        ret
+        val returnedFiles =
+          selectedPartitions.filterAndPruneFiles(boundPredicate, dynamicDataFilters)
+        setFilesNumAndSizeMetric(returnedFiles, false)
+        returnedFiles
       }(t => driverMetrics("pruningTime").set(t))
     } else {
       selectedPartitions
     }
-    sendDriverMetrics()
-    selected
   }
 }
 

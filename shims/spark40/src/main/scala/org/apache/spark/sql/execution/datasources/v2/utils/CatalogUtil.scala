@@ -16,13 +16,14 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.utils
 
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec, ClusterBySpec}
 import org.apache.spark.sql.connector.expressions.Transform
 
 object CatalogUtil {
 
-  def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
+  def convertPartitionTransforms(
+      partitions: Seq[Transform]): (Seq[String], Option[BucketSpec], Option[ClusterBySpec]) = {
     import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
-    partitions.toSeq.convertTransforms
+    partitions.convertTransforms
   }
 }

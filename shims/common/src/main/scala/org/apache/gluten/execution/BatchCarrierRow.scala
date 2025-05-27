@@ -21,6 +21,7 @@ import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
+import org.apache.spark.unsafe.types.VariantVal;
 
 /**
  * An internal-row abstraction that is designed for columnar-based computations to bypass Spark's
@@ -75,6 +76,8 @@ sealed abstract class BatchCarrierRow extends InternalRow {
   override def getMap(ordinal: Int): MapData = throw unsupported()
 
   override def get(ordinal: Int, dataType: DataType): AnyRef = throw unsupported()
+
+  override def getVariant(ordinal: Int): VariantVal = throw unsupported()
 
   private def unsupported() = {
     new UnsupportedOperationException(

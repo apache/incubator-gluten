@@ -179,17 +179,15 @@ abstract class AbstractFileSourceScanExec(
   private def createBucketedReadRDD(
       bucketSpec: BucketSpec,
       readFile: (PartitionedFile) => Iterator[InternalRow],
-      selectedPartitions: Array[PartitionDirectory]): RDD[InternalRow] = {
+      selectedPartitions: ScanFileListing): RDD[InternalRow] = {
     logInfo(s"Planning with ${bucketSpec.numBuckets} buckets")
-    val filesGroupedToBuckets =
-      selectedPartitions
-        .flatMap(p => p.files.map(f => PartitionedFileUtilShim.getPartitionedFile(f, p.values)))
-        .groupBy {
-          f =>
-            BucketingUtils
-              .getBucketId(f.toPath.getName)
-              .getOrElse(throw QueryExecutionErrors.invalidBucketFile(f.urlEncodedPath))
-        }
+    val partitionArray = selectedPartitions.toPartitionArray
+    val filesGroupedToBuckets = partitionArray.groupBy {
+      f =>
+        BucketingUtils
+          .getBucketId(f.toPath.getName)
+          .getOrElse(throw QueryExecutionErrors.invalidBucketFile(f.urlEncodedPath))
+    }
 
     val prunedFilesGroupedToBuckets = if (optionalBucketSet.isDefined) {
       val bucketSet = optionalBucketSet.get
@@ -243,7 +241,7 @@ abstract class AbstractFileSourceScanExec(
    */
   private def createReadRDD(
       readFile: (PartitionedFile) => Iterator[InternalRow],
-      selectedPartitions: Array[PartitionDirectory]): RDD[InternalRow] = {
+      selectedPartitions: ScanFileListing): RDD[InternalRow] = {
     val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
     val maxSplitBytes =
       FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
@@ -261,7 +259,7 @@ abstract class AbstractFileSourceScanExec(
         _ => true
     }
 
-    val splitFiles = selectedPartitions
+    val splitFiles = selectedPartitions.filePartitionIterator
       .flatMap {
         partition =>
           partition.files.flatMap {
@@ -283,6 +281,7 @@ abstract class AbstractFileSourceScanExec(
               }
           }
       }
+      .toArray
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 
     val partitions =
