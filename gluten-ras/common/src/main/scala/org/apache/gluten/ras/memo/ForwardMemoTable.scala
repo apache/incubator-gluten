@@ -29,8 +29,6 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   import ForwardMemoTable._
 
   private val groupBuffer: mutable.ArrayBuffer[RasGroup[T]] = mutable.ArrayBuffer()
-  private val dummyGroupBuffer: mutable.ArrayBuffer[RasGroup[T]] =
-    mutable.ArrayBuffer[RasGroup[T]]()
 
   private val clusterKeyBuffer: mutable.ArrayBuffer[IntClusterKey] = mutable.ArrayBuffer()
   private val clusterBuffer: mutable.ArrayBuffer[MutableRasCluster[T]] = mutable.ArrayBuffer()
@@ -55,29 +53,22 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     clusterBuffer += MutableRasCluster(ras, metadata)
     clusterDisjointSet.grow()
     groupLookup += mutable.Map()
-    // Normal groups start with ID 0, so it's safe to use negative IDs for dummy groups.
-    // Dummy group ID starts from -1.
-    dummyGroupBuffer += RasGroup(ras, key, -(clusterId + 1), ras.propertySetFactory().any())
+    groupOf(key, ras.hubConstraintSet())
+    groupOf(key, ras.userConstraintSet())
+    memoWriteCount += 1
     key
   }
 
-  override def getDummyGroup(key: RasClusterKey): RasGroup[T] = {
-    val ancestor = ancestorClusterIdOf(key)
-    val out = dummyGroupBuffer(ancestor)
-    assert(out.id() == -(ancestor + 1))
-    out
-  }
-
-  override def groupOf(key: RasClusterKey, propSet: PropertySet[T]): RasGroup[T] = {
+  override def groupOf(key: RasClusterKey, constraintSet: PropertySet[T]): RasGroup[T] = {
     val ancestor = ancestorClusterIdOf(key)
     val lookup = groupLookup(ancestor)
-    if (lookup.contains(propSet)) {
-      return lookup(propSet)
+    if (lookup.contains(constraintSet)) {
+      return lookup(constraintSet)
     }
     val gid = groupBuffer.size
     val newGroup =
-      RasGroup(ras, IntClusterKey(ancestor, key.metadata), gid, propSet)
-    lookup += propSet -> newGroup
+      RasGroup(ras, IntClusterKey(ancestor, key.metadata), gid, constraintSet)
+    lookup += constraintSet -> newGroup
     groupBuffer += newGroup
     memoWriteCount += 1
     newGroup
@@ -134,9 +125,9 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     val fromGroups = groupLookup(fromKey.id())
     val toGroups = groupLookup(toKey.id())
     fromGroups.foreach {
-      case (fromPropSet, _) =>
-        if (!toGroups.contains(fromPropSet)) {
-          groupOf(toKey, fromPropSet)
+      case (fromConstraintSet, _) =>
+        if (!toGroups.contains(fromConstraintSet)) {
+          groupOf(toKey, fromConstraintSet)
         }
     }
 
@@ -147,18 +138,14 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   }
 
   override def getGroup(id: Int): RasGroup[T] = {
-    if (id < 0) {
-      val out = dummyGroupBuffer(-id - 1)
-      assert(out.id() == id)
-      return out
-    }
+    assert(id >= 0)
     groupBuffer(id)
   }
 
   override def allClusterKeys(): Seq[RasClusterKey] = clusterKeyBuffer.toSeq
 
   override def allGroupIds(): Seq[Int] = {
-    val from = -dummyGroupBuffer.size
+    val from = 0
     val to = groupBuffer.size
     (from until to).toVector
   }
@@ -171,12 +158,23 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     assert(clusterKeyBuffer.size == clusterBuffer.size)
     assert(clusterKeyBuffer.size == clusterDisjointSet.size)
     assert(clusterKeyBuffer.size == groupLookup.size)
-    assert(clusterKeyBuffer.size == dummyGroupBuffer.size)
   }
 
   override def probe(): MemoTable.Probe[T] = new ForwardMemoTable.Probe[T](this)
 
   override def writeCount(): Int = memoWriteCount
+
+  override def getHubGroup(key: RasClusterKey): RasGroup[T] = {
+    val ancestor = ancestorClusterIdOf(key)
+    val lookup = groupLookup(ancestor)
+    lookup(ras.hubConstraintSet())
+  }
+
+  override def getUserGroup(key: RasClusterKey): RasGroup[T] = {
+    val ancestor = ancestorClusterIdOf(key)
+    val lookup = groupLookup(ancestor)
+    lookup(ras.userConstraintSet())
+  }
 }
 
 object ForwardMemoTable {
@@ -216,7 +214,7 @@ object ForwardMemoTable {
 
       val changedClusters =
         (clustersOfNewGroups.toSet ++ affectedClustersDuringMerging) -- newClusters
-      // We consider a existing cluster with new groups changed.
+      // We consider an existing cluster with new groups changed.
       Probe.Diff(changedClusters)
     }
   }

@@ -31,11 +31,12 @@ private class DpPlanner[T <: AnyRef] private (ras: Ras[T], constraintSet: Proper
   import DpPlanner._
 
   private val memo = Memo.unsafe(ras)
-  private val rules = ras.ruleFactory.create().map(rule => RuleApplier(ras, memo, rule))
-  private val enforcerRuleSet = EnforcerRuleSet[T](ras, memo)
+  private val rules = ras.ruleFactory.create().map(rule => RuleApplier.regular(ras, memo, rule))
+  private val enforcerRuleSetFactory = EnforcerRuleSet.Factory.regular(ras, memo)
+  private val deriverRuleSetFactory = EnforcerRuleSet.Factory.derive(ras, memo)
 
   private lazy val rootGroupId: Int = {
-    memo.memorize(plan, constraintSet).id()
+    memo.memorize(plan, constraintSet +: ras.memoRoleDef.reqUser).id()
   }
 
   private lazy val best: (Best[T], KnownCostPath[T]) = {
@@ -57,7 +58,8 @@ private class DpPlanner[T <: AnyRef] private (ras: Ras[T], constraintSet: Proper
   private def findBest(memoTable: MemoTable[T], groupId: Int): Best[T] = {
     val cKey = memoTable.asGroupSupplier()(groupId).clusterKey()
     val algoDef = new DpExploreAlgoDef[T]
-    val adjustment = new ExploreAdjustment(ras, memoTable, rules, enforcerRuleSet)
+    val adjustment =
+      new ExploreAdjustment(ras, memoTable, rules, enforcerRuleSetFactory, deriverRuleSetFactory)
     DpClusterAlgo.resolve(memoTable, algoDef, adjustment, cKey)
     val finder = BestFinder(ras, memoTable.newState())
     finder.bestOf(groupId)
@@ -88,7 +90,8 @@ object DpPlanner {
       ras: Ras[T],
       memoTable: MemoTable[T],
       rules: Seq[RuleApplier[T]],
-      enforcerRuleSet: EnforcerRuleSet[T])
+      enforcerRuleSetFactory: EnforcerRuleSet.Factory[T],
+      deriverRuleSetFactory: EnforcerRuleSet.Factory[T])
     extends DpClusterAlgo.Adjustment[T] {
     import ExploreAdjustment._
 
@@ -97,12 +100,14 @@ object DpPlanner {
     override def exploreChildX(
         panel: Panel[InClusterNode[T], RasClusterKey],
         x: InClusterNode[T]): Unit = {
+      applyHubRulesOnNode(panel, x.clusterKey, x.can)
       applyRulesOnNode(panel, x.clusterKey, x.can)
     }
 
     override def exploreChildY(
         panel: Panel[InClusterNode[T], RasClusterKey],
         y: RasClusterKey): Unit = {}
+
     override def exploreParentX(
         panel: Panel[InClusterNode[T], RasClusterKey],
         x: InClusterNode[T]): Unit = {}
@@ -122,8 +127,8 @@ object DpPlanner {
       if (rules.isEmpty) {
         return
       }
-      val dummyGroup = memoTable.getDummyGroup(cKey)
-      findPaths(GroupNode(ras, dummyGroup), ruleShapes, List(new FromSingleNode[T](can))) {
+      val hubGroup = memoTable.getHubGroup(cKey)
+      findPaths(GroupNode(ras, hubGroup), ruleShapes, List(new FromSingleNode[T](can))) {
         path =>
           val rootNode = path.node().self()
           if (rootNode.isCanonical) {
@@ -133,16 +138,37 @@ object DpPlanner {
       }
     }
 
+    private def applyHubRulesOnNode(
+        panel: Panel[InClusterNode[T], RasClusterKey],
+        cKey: RasClusterKey,
+        can: CanonicalNode[T]): Unit = {
+      val hubConstraint = ras.hubConstraintSet()
+      val hubDeriverRuleSet = deriverRuleSetFactory.ruleSetOf(hubConstraint)
+      val hubDeriverRules = hubDeriverRuleSet.rules()
+      if (hubDeriverRules.nonEmpty) {
+        val hubDeriverRuleShapes = hubDeriverRuleSet.shapes()
+        val userGroup = memoTable.getUserGroup(cKey)
+        findPaths(
+          GroupNode(ras, userGroup),
+          hubDeriverRuleShapes,
+          List(new FromSingleNode[T](can))) {
+          path => hubDeriverRules.foreach(rule => applyRule(panel, cKey, rule, path))
+        }
+      }
+    }
+
     private def applyEnforcerRules(
         panel: Panel[InClusterNode[T], RasClusterKey],
         cKey: RasClusterKey): Unit = {
-      val dummyGroup = memoTable.getDummyGroup(cKey)
+      val hubGroup = memoTable.getHubGroup(cKey)
       cKey.propSets(memoTable).foreach {
         constraintSet: PropertySet[T] =>
-          val enforcerRules = enforcerRuleSet.rulesOf(constraintSet)
+          val enforcerRuleSet = deriverRuleSetFactory.ruleSetOf(
+            constraintSet) ++ enforcerRuleSetFactory.ruleSetOf(constraintSet)
+          val enforcerRules = enforcerRuleSet.rules()
           if (enforcerRules.nonEmpty) {
-            val shapes = enforcerRuleSet.ruleShapesOf(constraintSet)
-            findPaths(GroupNode(ras, dummyGroup), shapes, List.empty) {
+            val enforcerRuleShapes = enforcerRuleSet.shapes()
+            findPaths(GroupNode(ras, hubGroup), enforcerRuleShapes, List.empty) {
               path => enforcerRules.foreach(rule => applyRule(panel, cKey, rule, path))
             }
           }
