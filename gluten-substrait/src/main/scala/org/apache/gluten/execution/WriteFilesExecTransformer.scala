@@ -21,7 +21,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.`type`.ColumnTypeNode
+import org.apache.gluten.substrait.`type`.{ColumnTypeNode, TypeNode}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
@@ -99,8 +99,10 @@ case class WriteFilesExecTransformer(
       originalInputAttributes: Seq[Attribute],
       operatorId: Long,
       input: RelNode,
-      validation: Boolean
-  ): (RelNode) = {
+      validation: Boolean,
+      typeNodes: java.util.List[TypeNode],
+      childOutput: Seq[Attribute]
+  ): (RelNode, java.util.List[TypeNode], Seq[Attribute], Seq[Attribute]) = {
     // For partitioned writes, create a preproject node to order columns
     if (preProjectionNeeded()) {
       // Get the indices of partitioned columns in partition order, followed by unpartitioned
@@ -119,17 +121,29 @@ case class WriteFilesExecTransformer(
       // Select cols based on the ordered indices
       val selectCols = orderedIndices.map(ExpressionBuilder.makeSelection(_))
 
-      RelBuilder.makeProjectRel(
-        input,
-        new java.util.ArrayList[ExpressionNode]((selectCols).asJava),
-        createExtensionNode(originalInputAttributes, validation),
-        context,
-        operatorId,
-        originalInputAttributes.size
-      )
+      // Reorder attribute and type lists based on the ordered indices
+      val typeNodeSeq = typeNodes.asScala.toSeq
+      val orderedTypeNodes = orderedIndices.map(typeNodeSeq)
+      val orderedTypeNodesList: java.util.List[TypeNode] =
+        new java.util.ArrayList(orderedTypeNodes.asJava)
+      val orderedChildOutput = orderedIndices.map(childOutput)
+      val orderedOriginalAttributes = orderedIndices.map(originalInputAttributes)
+
+      (
+        RelBuilder.makeProjectRel(
+          input,
+          new java.util.ArrayList[ExpressionNode]((selectCols).asJava),
+          createExtensionNode(originalInputAttributes, validation),
+          context,
+          operatorId,
+          originalInputAttributes.size
+        ),
+        orderedTypeNodesList,
+        orderedChildOutput,
+        orderedOriginalAttributes)
     } else {
-      // If a preproject is not needed, return the original input
-      input
+      // If a preproject is not needed, return the original values
+      (input, typeNodes, childOutput, originalInputAttributes)
     }
   }
 
@@ -146,16 +160,19 @@ case class WriteFilesExecTransformer(
     val childSize = this.child.output.size
     val childOutput = this.child.output
 
-    val inputRelNode = createPreProjectionIfNeeded(
-      context,
-      originalInputAttributes,
-      operatorId,
-      input,
-      validation
-    )
+    val (inputRelNode, orderedTypeNodes, orderedChildOutput, orderedOriginalInputAttributes) =
+      createPreProjectionIfNeeded(
+        context,
+        originalInputAttributes,
+        operatorId,
+        input,
+        validation,
+        typeNodes,
+        childOutput
+      )
 
     for (i <- 0 until childSize) {
-      val partitionCol = partitionColumns.find(_.exprId == childOutput(i).exprId)
+      val partitionCol = partitionColumns.find(_.exprId == orderedChildOutput(i).exprId)
       if (partitionCol.nonEmpty) {
         columnTypeNodes.add(new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL))
         // "aggregate with partition group by can be pushed down"
@@ -164,7 +181,7 @@ case class WriteFilesExecTransformer(
         inputAttributes.add(partitionCol.get)
       } else {
         columnTypeNodes.add(new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL))
-        inputAttributes.add(originalInputAttributes(i))
+        inputAttributes.add(orderedOriginalInputAttributes(i))
       }
     }
 
@@ -175,12 +192,12 @@ case class WriteFilesExecTransformer(
     val extensionNode = if (!validation) {
       ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.genWriteParameters(this),
-        SubstraitUtil.createEnhancement(originalInputAttributes)
+        SubstraitUtil.createEnhancement(orderedOriginalInputAttributes)
       )
     } else {
       // Use an extension node to send the input types through Substrait plan for validation.
       ExtensionBuilder.makeAdvancedExtension(
-        SubstraitUtil.createEnhancement(originalInputAttributes))
+        SubstraitUtil.createEnhancement(orderedOriginalInputAttributes))
     }
 
     val bucketSpecOption = bucketSpec.map {
@@ -194,7 +211,7 @@ case class WriteFilesExecTransformer(
 
     RelBuilder.makeWriteRel(
       inputRelNode,
-      typeNodes,
+      orderedTypeNodes,
       nameList,
       columnTypeNodes,
       extensionNode,
