@@ -490,7 +490,7 @@ abstract class PropertySuite extends AnyFunSuite {
         TypedLeaf(TypeB, 0)))
   }
 
-  test(s"Converting to hub nodes triggers cluster merge") {
+  test(s"Converting to hub nodes prevents redundant cluster creations") {
     object ConvertLeafTypeAToTypeB extends RasRule[TestNode] {
       override def shift(node: TestNode): Iterable[TestNode] = node match {
         case TypedLeaf(TypeA, cost) => List(TypedLeaf(TypeB, cost - 1))
