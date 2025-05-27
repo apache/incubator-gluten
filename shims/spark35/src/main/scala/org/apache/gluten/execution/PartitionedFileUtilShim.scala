@@ -98,6 +98,7 @@ object PartitionedFileUtilShim {
     try {
       val m = clz.getDeclaredMethod(
         "splitFiles",
+        classOf[SparkSession],
         classOf[FileStatusWithMetadata],
         classOf[Path],
         classOf[Boolean],
@@ -130,6 +131,7 @@ object PartitionedFileUtilShim {
       splitFilesByPathMethod
         .invoke(
           module,
+          sparkSession,
           file,
           file.getPath,
           java.lang.Boolean.valueOf(isSplitable),
