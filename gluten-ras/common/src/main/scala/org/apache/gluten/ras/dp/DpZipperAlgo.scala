@@ -188,32 +188,48 @@ object DpZipperAlgo {
       val xSolutions: mutable.Map[XKey[X, Y, XOutput, YOutput], XOutput] = mutable.Map()
 
       def loop(): Unit = {
-        while (true) {
-          val xKeys: Set[XKey[X, Y, XOutput, YOutput]] =
-            algoDef.browseY(thisY).map(algoDef.keyOfX(_)).toSet
+        def browseXKeys(): Set[XKey[X, Y, XOutput, YOutput]] = {
+          algoDef.browseY(thisY).map(algoDef.keyOfX(_)).toSet
+        }
 
+        def innerLoop(): Unit = {
+          while (true) {
+            val xKeys = browseXKeys()
+            val xCount = xKeys.size
+            if (xCount == xSolutions.size) {
+              // We got enough children solutions.
+              return
+            }
+
+            xKeys.filterNot(xKey => xSolutions.contains(xKey)).foreach {
+              childXKey =>
+                val xOutputs = solveXRec(childXKey.x, xCycleDetector, newYCycleDetector)
+                val cm = xOutputs.cycleMemory()
+                cyclicXs ++= cm.cyclicXs
+                cyclicYs ++= cm.cyclicYs
+                sBuilder.addYAsBackDependencyOfX(thisY, childXKey.x)
+                xSolutions += childXKey -> xOutputs.output()
+                // Try applying adjustment
+                // to see if algo caller likes to add some Xs or to invalidate
+                // some of the registered solutions.
+                adjustment.exploreChildX(adjustmentPanel, childXKey.x)
+            }
+          }
+        }
+
+        while (true) {
+          val xKeys = browseXKeys()
           val xCount = xKeys.size
           if (xCount == xSolutions.size) {
             // We got enough children solutions.
             return
           }
 
-          xKeys.filterNot(xKey => xSolutions.contains(xKey)).foreach {
-            childXKey =>
-              val xOutputs = solveXRec(childXKey.x, xCycleDetector, newYCycleDetector)
-              val cm = xOutputs.cycleMemory()
-              cyclicXs ++= cm.cyclicXs
-              cyclicYs ++= cm.cyclicYs
-              sBuilder.addYAsBackDependencyOfX(thisY, childXKey.x)
-              xSolutions += childXKey -> xOutputs.output()
-              // Try applying adjustment
-              // to see if algo caller likes to add some Xs or to invalidate
-              // some of the registered solutions.
-              adjustment.exploreChildX(adjustmentPanel, childXKey.x)
-          }
+          innerLoop()
+
           adjustment.exploreParentY(adjustmentPanel, thisY)
           // If an adjustment (this adjustment or children's) just invalidated one or more
-          // children of this element's solutions, the children's keys would be removed from
+          // children of this element's solutions, the children's keys would be removed from the
           // back-dependency list. We do a test here to trigger re-computation if some children
           // do get invalidated.
           xSolutions.keySet.foreach {
@@ -263,32 +279,48 @@ object DpZipperAlgo {
       val ySolutions: mutable.Map[YKey[X, Y, XOutput, YOutput], YOutput] = mutable.Map()
 
       def loop(): Unit = {
-        while (true) {
-          val yKeys: Set[YKey[X, Y, XOutput, YOutput]] =
-            algoDef.browseX(thisX).map(algoDef.keyOfY(_)).toSet
+        def browseYKeys(): Set[YKey[X, Y, XOutput, YOutput]] = {
+          algoDef.browseX(thisX).map(algoDef.keyOfY(_)).toSet
+        }
 
+        def innerLoop(): Unit = {
+          while (true) {
+            val yKeys = browseYKeys()
+            val yCount = yKeys.size
+            if (yCount == ySolutions.size) {
+              // We got enough children solutions.
+              return
+            }
+
+            yKeys.filterNot(yKey => ySolutions.contains(yKey)).foreach {
+              childYKey =>
+                val yOutputs = solveYRec(childYKey.y, newXCycleDetector, yCycleDetector)
+                val cm = yOutputs.cycleMemory()
+                cyclicXs ++= cm.cyclicXs
+                cyclicYs ++= cm.cyclicYs
+                sBuilder.addXAsBackDependencyOfY(thisX, childYKey.y)
+                ySolutions += childYKey -> yOutputs.output()
+                // Try applying adjustment
+                // to see if algo caller likes to add some Ys or to invalidate
+                // some of the registered solutions.
+                adjustment.exploreChildY(adjustmentPanel, childYKey.y)
+            }
+          }
+        }
+
+        while (true) {
+          val yKeys = browseYKeys()
           val yCount = yKeys.size
           if (yCount == ySolutions.size) {
             // We got enough children solutions.
             return
           }
 
-          yKeys.filterNot(yKey => ySolutions.contains(yKey)).foreach {
-            childYKey =>
-              val yOutputs = solveYRec(childYKey.y, newXCycleDetector, yCycleDetector)
-              val cm = yOutputs.cycleMemory()
-              cyclicXs ++= cm.cyclicXs
-              cyclicYs ++= cm.cyclicYs
-              sBuilder.addXAsBackDependencyOfY(thisX, childYKey.y)
-              ySolutions += childYKey -> yOutputs.output()
-              // Try applying adjustment
-              // to see if algo caller likes to add some Ys or to invalidate
-              // some of the registered solutions.
-              adjustment.exploreChildY(adjustmentPanel, childYKey.y)
-          }
+          innerLoop()
+
           adjustment.exploreParentX(adjustmentPanel, thisX)
           // If an adjustment (this adjustment or children's) just invalidated one or more
-          // children of this element's solutions, the children's keys would be removed from
+          // children of this element's solutions, the children's keys would be removed from the
           // back-dependency list. We do a test here to trigger re-computation if some children
           // do get invalidated.
           ySolutions.keySet.foreach {
