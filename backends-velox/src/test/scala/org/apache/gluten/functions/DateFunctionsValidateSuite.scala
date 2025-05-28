@@ -277,6 +277,28 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("Test to_date function") {
+    val query =
+      """
+        |select to_date(a, 'yyyy-MM') from
+        | values (TIMESTAMP'2025-01-02 00:00:00') as tab(a)
+        |""".stripMargin
+    runQueryAndCompare(query) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test to_timestamp function") {
+    val query =
+      """
+        |select to_timestamp(a, 'yyyy-MM') from
+        | values (TIMESTAMP'2025-01-02 00:00:00') as tab(a)
+        |""".stripMargin
+    runQueryAndCompare(query) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test to_utc_timestamp function") {
     withTempPath {
       path =>
