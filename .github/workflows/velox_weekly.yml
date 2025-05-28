@@ -124,6 +124,7 @@ jobs:
           cd /opt &&
           wget -q https://archive.apache.org/dist/spark/spark-3.5.2/spark-3.5.2-bin-hadoop3.tgz &&
           tar xf spark-3.5.2-bin-hadoop3.tgz && rm spark-3.5.2-bin-hadoop3.tgz -f
+          mv /opt/shims/spark35/spark_home/sql/ /opt/spark-3.5.2-bin-hadoop3/
           pip3 install findspark tabulate
           export SPARK_SCALA_VERSION=2.12
           cd $GITHUB_WORKSPACE
