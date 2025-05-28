@@ -20,103 +20,77 @@ import io.github.zhztheplayer.velox4j.arrow.Arrow;
 import io.github.zhztheplayer.velox4j.data.BaseVector;
 import io.github.zhztheplayer.velox4j.data.RowVector;
 import io.github.zhztheplayer.velox4j.session.Session;
-import io.github.zhztheplayer.velox4j.type.BigIntType;
-import io.github.zhztheplayer.velox4j.type.BooleanType;
-import io.github.zhztheplayer.velox4j.type.DoubleType;
-import io.github.zhztheplayer.velox4j.type.IntegerType;
 import io.github.zhztheplayer.velox4j.type.RowType;
-import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
-import io.github.zhztheplayer.velox4j.type.VarCharType;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.TimeStampMilliVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.complex.StructVector;
-import org.apache.arrow.vector.table.Table;
-import org.apache.arrow.vector.types.Types.MinorType;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.gluten.vectorized.ArrowVectorAccessor;
-import org.apache.gluten.vectorized.ArrowVectorWriter;
+
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryStringData;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.table.Table;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.stream.Collectors;
 import java.util.List;
 
 /** Converter between velox RowVector and Flink RowData. */
 public class FlinkRowToVLVectorConvertor {
-    public static RowVector fromRowData(
-            RowData row,
-            BufferAllocator allocator,
-            Session session,
-            RowType rowType) {
-        List<FieldVector> arrowVectors = new ArrayList<>(rowType.size());
-        List<Type> fieldTypes = rowType.getChildren();
-        List<String> fieldNames = rowType.getNames();
+  public static RowVector fromRowData(
+      RowData row, BufferAllocator allocator, Session session, RowType rowType) {
+    List<FieldVector> arrowVectors = new ArrayList<>(rowType.size());
+    List<Type> fieldTypes = rowType.getChildren();
+    List<String> fieldNames = rowType.getNames();
+    for (int i = 0; i < rowType.size(); i++) {
+      Type fieldType = rowType.getChildren().get(i);
+      ArrowVectorWriter writer =
+          ArrowVectorWriter.create(fieldNames.get(i), fieldTypes.get(i), allocator);
+      writer.write(i, row);
+      writer.finish();
+      arrowVectors.add(i, writer.getVector());
+    }
+
+    return session.arrowOps().fromArrowTable(allocator, new Table(arrowVectors));
+  }
+
+  public static List<RowData> toRowData(
+      RowVector rowVector, BufferAllocator allocator, RowType rowType) {
+    // TODO: support more types
+    BaseVector loadedVector = null;
+    FieldVector structVector = null;
+
+    try {
+      loadedVector = rowVector.loadedVector();
+      // The result is StructVector
+      structVector = Arrow.toArrowVector(allocator, loadedVector);
+      final List<FieldVector> fieldVectors = structVector.getChildrenFromFields();
+      List<ArrowVectorAccessor> accessors = buildArrowVectorAccessors(fieldVectors);
+      List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
+      for (int j = 0; j < rowVector.getSize(); j++) {
+        Object[] fieldValues = new Object[rowType.size()];
         for (int i = 0; i < rowType.size(); i++) {
-            Type fieldType = rowType.getChildren().get(i);
-            ArrowVectorWriter writer =
-            ArrowVectorWriter.create(
-                            fieldNames.get(i),
-                            fieldTypes.get(i),
-                            allocator);
-            writer.write(i, row);
-            writer.finish();
-            arrowVectors.add(i, writer.getVector());
+          fieldValues[i] = accessors.get(i).get(j);
         }
-
-        return session.arrowOps().fromArrowTable(allocator, new Table(arrowVectors));
+        rowDatas.add(GenericRowData.of(fieldValues));
+      }
+      return rowDatas;
+    } finally {
+      /// The FieldVector/BaseVector should be closed in `finally`, to avoid it may not be closed
+      // when exceptions rasied,
+      /// that lead to memory leak.
+      if (structVector != null) {
+        structVector.close();
+      }
+      if (loadedVector != null) {
+        loadedVector.close();
+      }
     }
+  }
 
-    public static List<RowData> toRowData(
-            RowVector rowVector,
-            BufferAllocator allocator,
-            RowType rowType) {
-        // TODO: support more types
-        BaseVector loadedVector = null;
-        FieldVector structVector = null;
-
-        try{
-            loadedVector = rowVector.loadedVector();
-            // The result is StructVector
-            structVector = Arrow.toArrowVector(allocator,loadedVector);
-            final List<FieldVector> fieldVectors = structVector.getChildrenFromFields();
-            List<ArrowVectorAccessor> accessors = buildArrowVectorAccessors(fieldVectors);
-            List<RowData> rowDatas = new ArrayList<>(rowVector.getSize());
-            for (int j = 0; j < rowVector.getSize(); j++) {
-                Object[] fieldValues = new Object[rowType.size()];
-                for (int i = 0; i < rowType.size(); i++) {
-                    fieldValues[i] = accessors.get(i).get(j);
-                }
-                rowDatas.add(GenericRowData.of(fieldValues));
-            }
-            return rowDatas;
-        } finally {
-            /// The FieldVector/BaseVector should be closed in `finally`, to avoid it may not be closed when exceptions rasied,
-            /// that lead to memory leak.
-            if (structVector != null) {
-                structVector.close();
-            }
-            if (loadedVector != null) {
-                loadedVector.close();
-            }
-        }
+  private static List<ArrowVectorAccessor> buildArrowVectorAccessors(List<FieldVector> vectors) {
+    List<ArrowVectorAccessor> accessors = new ArrayList<>(vectors.size());
+    for (int i = 0; i < vectors.size(); ++i) {
+      accessors.add(i, ArrowVectorAccessor.create(vectors.get(i)));
     }
-
-    private static List<ArrowVectorAccessor> buildArrowVectorAccessors(List<FieldVector> vectors) {
-        List<ArrowVectorAccessor> accessors = new ArrayList<>(vectors.size());
-        for (int i = 0; i < vectors.size(); ++i) {
-            accessors.add(i, ArrowVectorAccessor.create(vectors.get(i)));
-        }
-        return accessors;
-    }
+    return accessors;
+  }
 }
