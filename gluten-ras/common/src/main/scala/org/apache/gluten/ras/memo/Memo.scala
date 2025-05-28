@@ -66,7 +66,7 @@ object Memo {
       if (cache.contains(cacheKey)) {
         cache(cacheKey)
       } else {
-        // Node not yet added to cluster.
+        // Node was not yet added to a cluster.
         val cluster = newCluster(metadata)
         cache += (cacheKey -> cluster)
         cluster
@@ -135,7 +135,7 @@ object Memo {
           if (residentCluster == targetCluster) {
             return Prepare.cluster(parent, targetCluster)
           }
-          // The resident cluster of group leaf is not the same with target cluster.
+          // The resident cluster of group leaf is different with target cluster.
           // Merge.
           parent.memoTable.mergeClusters(residentCluster, targetCluster)
           return Prepare.cluster(parent, targetCluster)
@@ -153,7 +153,7 @@ object Memo {
         val cacheKey = parent.toCacheKey(keyUnsafe)
 
         if (!parent.cache.contains(cacheKey)) {
-          // The new node was not added to memo yet. Add it to the target cluster.
+          // The new node was not added to the memo yet. Add it to the target cluster.
           parent.cache += (cacheKey -> targetCluster)
           return Prepare.tree(parent, targetCluster, childrenPrepares)
         }
@@ -164,7 +164,7 @@ object Memo {
           // The new node already memorized to memo and in the target cluster.
           return Prepare.tree(parent, targetCluster, childrenPrepares)
         }
-        // The new node already memorized to memo, but in the different cluster.
+        // The new node already memorized to memo, but in a different cluster.
         // Merge the two clusters.
         parent.memoTable.mergeClusters(cachedCluster, targetCluster)
         Prepare.tree(parent, targetCluster, childrenPrepares)
@@ -204,7 +204,7 @@ object Memo {
           assert(!ras.isGroupLeaf(node))
           val childrenGroups = children
             .zip(ras.planModel.childrenOf(node))
-            .zip(ras.propertySetFactory().childrenConstraintSets(node, constraintSet))
+            .zip(ras.childrenConstraintSets(node, constraintSet))
             .map {
               case ((childPrepare, child), childConstraintSet) =>
                 childPrepare.doInsert(child, childConstraintSet)
@@ -250,7 +250,6 @@ object Memo {
 trait MemoStore[T <: AnyRef] {
   def getCluster(key: RasClusterKey): RasCluster[T]
   def getHubGroup(key: RasClusterKey): RasGroup[T]
-  def getUserGroup(key: RasClusterKey): RasGroup[T]
   def getGroup(id: Int): RasGroup[T]
 }
 
@@ -266,7 +265,6 @@ trait MemoState[T <: AnyRef] extends MemoStore[T] {
   def ras(): Ras[T]
   def clusterLookup(): Map[RasClusterKey, RasCluster[T]]
   def clusterHubGroupLookup(): Map[RasClusterKey, RasGroup[T]]
-  def clusterUserGroupLookup(): Map[RasClusterKey, RasGroup[T]]
   def allClusters(): Iterable[RasCluster[T]]
   def allGroups(): Seq[RasGroup[T]]
 }

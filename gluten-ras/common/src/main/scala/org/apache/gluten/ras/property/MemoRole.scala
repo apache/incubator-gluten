@@ -27,8 +27,8 @@ sealed trait MemoRole[T <: AnyRef] extends Property[T] {
 
 object MemoRole {
   implicit class MemoRoleImplicits[T <: AnyRef](role: MemoRole[T]) {
-    def asReq(): Req[T] = role.asInstanceOf[Req[T]]
-    def asProp(): Prop[T] = role.asInstanceOf[Prop[T]]
+    private[MemoRole] def asReq(): Req[T] = role.asInstanceOf[Req[T]]
+    private[MemoRole] def asProp(): Prop[T] = role.asInstanceOf[Prop[T]]
 
     def +:(base: PropertySet[T]): PropertySet[T] = {
       require(!base.asMap.contains(role.definition()))
@@ -39,14 +39,14 @@ object MemoRole {
     }
   }
 
-  trait Req[T <: AnyRef] extends MemoRole[T]
-  trait Prop[T <: AnyRef] extends MemoRole[T]
+  private sealed trait Req[T <: AnyRef] extends MemoRole[T]
+  private sealed trait Prop[T <: AnyRef] extends MemoRole[T]
 
   // Constraints.
-  class ReqHub[T <: AnyRef] private[MemoRole] (
+  private class ReqHub[T <: AnyRef] private[MemoRole] (
       override val definition: PropertyDef[T, _ <: Property[T]])
     extends Req[T]
-  class ReqUser[T <: AnyRef] private[MemoRole] (
+  private class ReqUser[T <: AnyRef] private[MemoRole] (
       override val definition: PropertyDef[T, _ <: Property[T]])
     extends Req[T]
   private class ReqAny[T <: AnyRef] private[MemoRole] (
@@ -54,13 +54,13 @@ object MemoRole {
     extends Req[T]
 
   // Props.
-  class Leaf[T <: AnyRef] private[MemoRole] (
+  private class Leaf[T <: AnyRef] private[MemoRole] (
       override val definition: PropertyDef[T, _ <: Property[T]])
     extends Prop[T]
-  class Hub[T <: AnyRef] private[MemoRole] (
+  private class Hub[T <: AnyRef] private[MemoRole] (
       override val definition: PropertyDef[T, _ <: Property[T]])
     extends Prop[T]
-  class User[T <: AnyRef] private[MemoRole] (
+  private class User[T <: AnyRef] private[MemoRole] (
       override val definition: PropertyDef[T, _ <: Property[T]])
     extends Prop[T]
 
@@ -68,13 +68,13 @@ object MemoRole {
     extends PropertyDef[T, MemoRole[T]] {
     private val groupRoleLookup = mutable.Map[Int, Prop[T]]()
 
+    private[MemoRole] val reqHub = new ReqHub[T](this)
+    private[MemoRole] val reqUser = new ReqUser[T](this)
     private val reqAny = new ReqAny[T](this)
-    val reqHub = new ReqHub[T](this)
-    val reqUser = new ReqUser[T](this)
 
-    val leaf = new Leaf[T](this)
-    val hub = new Hub[T](this)
-    val user = new User[T](this)
+    private val leaf = new Leaf[T](this)
+    private val hub = new Hub[T](this)
+    private val user = new User[T](this)
 
     override def any(): MemoRole[T] = reqAny
 
@@ -127,7 +127,7 @@ object MemoRole {
     }
   }
 
-  implicit class DefImplicits[T <: AnyRef](roleDef: Def[T]) {
+  private implicit class DefImplicits[T <: AnyRef](roleDef: Def[T]) {
     def -:(base: PropertySet[T]): PropertySet[T] = {
       require(base.asMap.contains(roleDef))
       val map: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = {
@@ -137,82 +137,104 @@ object MemoRole {
     }
   }
 
-  def newDef[T <: AnyRef](planModel: PlanModel[T]): Def[T] = {
+  private[ras] def newDef[T <: AnyRef](planModel: PlanModel[T]): Def[T] = {
     new Def[T](planModel)
   }
 
-  def wrapPropertySetFactory[T <: AnyRef](
+  private[ras] def wrapPropertySetFactory[T <: AnyRef](
       factory: PropertySetFactory[T],
-      roleDef: Def[T]): PropertySetFactory[T] = {
-    new PropertySetFactoryWithMemoRole[T](factory, roleDef)
+      roleDef: Def[T]): PropertySetFactoryWithMemoRole[T] = {
+    PropertySetFactoryWithMemoRole(factory, roleDef)
   }
 
-  private class PropertySetFactoryWithMemoRole[T <: AnyRef](
-      delegate: PropertySetFactory[T],
-      roleDef: Def[T])
-    extends PropertySetFactory[T] {
+  trait PropertySetFactoryWithMemoRole[T <: AnyRef] extends PropertySetFactory[T] {
+    def userConstraint(): MemoRole[T]
+    def userConstraintSet(): PropertySet[T]
+    def hubConstraintSet(): PropertySet[T]
+  }
 
-    override val any: PropertySet[T] = compose(roleDef.any(), delegate.any())
-
-    override def get(node: T): PropertySet[T] =
-      compose(roleDef.getProperty(node), delegate.get(node))
-
-    override def childrenConstraintSets(
-        node: T,
-        constraintSet: PropertySet[T]): Seq[PropertySet[T]] = {
-      assert(!roleDef.planModel.isGroupLeaf(node))
-
-      if (roleDef.planModel.isLeaf(node)) {
-        return Nil
-      }
-
-      val numChildren = roleDef.planModel.childrenOf(node).size
-
-      def delegateChildrenConstraintSets(): Seq[PropertySet[T]] = {
-        val roleRemoved = PropertySet(constraintSet.asMap - roleDef)
-        val out = delegate.childrenConstraintSets(node, roleRemoved)
-        out
-      }
-
-      def delegateConstraintSetAny(): PropertySet[T] = {
-        val properties: Seq[Property[T]] = constraintSet.asMap.keys.flatMap {
-          case _: Def[T] => Nil
-          case other => Seq(other.any())
-        }.toSeq
-        PropertySet(properties)
-      }
-
-      val constraintSets = constraintSet.get(roleDef).asReq() match {
-        case _: ReqAny[T] =>
-          delegateChildrenConstraintSets().map(
-            delegateConstraint => compose(roleDef.any(), delegateConstraint))
-        case _: ReqHub[T] =>
-          Seq.tabulate(numChildren)(_ => compose(roleDef.reqHub, delegateConstraintSetAny()))
-        case _: ReqUser[T] =>
-          delegateChildrenConstraintSets().map(
-            delegateConstraint => compose(roleDef.reqUser, delegateConstraint))
-      }
-
-      constraintSets
+  private object PropertySetFactoryWithMemoRole {
+    def apply[T <: AnyRef](
+        factory: PropertySetFactory[T],
+        roleDef: Def[T]): PropertySetFactoryWithMemoRole[T] = {
+      new Impl(factory, roleDef)
     }
 
-    override def assignToGroup(group: GroupLeafBuilder[T], constraintSet: PropertySet[T]): Unit = {
-      roleDef.assignToGroup(group, constraintSet.asMap(roleDef))
-      delegate.assignToGroup(group, PropertySet(constraintSet.asMap - roleDef))
-    }
+    private class Impl[T <: AnyRef](delegate: PropertySetFactory[T], roleDef: Def[T])
+      extends PropertySetFactoryWithMemoRole[T] {
 
-    override def newEnforcerRuleFactory(): EnforcerRuleFactory[T] = {
-      new EnforcerRuleFactory[T] {
-        private val delegateFactory: EnforcerRuleFactory[T] = delegate.newEnforcerRuleFactory()
+      override val any: PropertySet[T] = compose(roleDef.any(), delegate.any())
 
-        override def newEnforcerRules(constraintSet: PropertySet[T]): Seq[RasRule[T]] = {
-          delegateFactory.newEnforcerRules(constraintSet -: roleDef)
+      override val userConstraint: MemoRole[T] = roleDef.reqUser
+
+      override val userConstraintSet: PropertySet[T] =
+        delegate.any() +: roleDef.reqUser
+
+      override val hubConstraintSet: PropertySet[T] =
+        delegate.any() +: roleDef.reqHub
+
+      override def get(node: T): PropertySet[T] =
+        compose(roleDef.getProperty(node), delegate.get(node))
+
+      override def childrenConstraintSets(
+          node: T,
+          constraintSet: PropertySet[T]): Seq[PropertySet[T]] = {
+        assert(!roleDef.planModel.isGroupLeaf(node))
+
+        if (roleDef.planModel.isLeaf(node)) {
+          return Nil
+        }
+
+        val numChildren = roleDef.planModel.childrenOf(node).size
+
+        def delegateChildrenConstraintSets(): Seq[PropertySet[T]] = {
+          val roleRemoved = PropertySet(constraintSet.asMap - roleDef)
+          val out = delegate.childrenConstraintSets(node, roleRemoved)
+          out
+        }
+
+        def delegateConstraintSetAny(): PropertySet[T] = {
+          val properties: Seq[Property[T]] = constraintSet.asMap.keys.flatMap {
+            case _: Def[T] => Nil
+            case other => Seq(other.any())
+          }.toSeq
+          PropertySet(properties)
+        }
+
+        val constraintSets = constraintSet.get(roleDef).asReq() match {
+          case _: ReqAny[T] =>
+            delegateChildrenConstraintSets().map(
+              delegateConstraint => compose(roleDef.any(), delegateConstraint))
+          case _: ReqHub[T] =>
+            Seq.tabulate(numChildren)(_ => compose(roleDef.reqHub, delegateConstraintSetAny()))
+          case _: ReqUser[T] =>
+            delegateChildrenConstraintSets().map(
+              delegateConstraint => compose(roleDef.reqUser, delegateConstraint))
+        }
+
+        constraintSets
+      }
+
+      override def assignToGroup(
+          group: GroupLeafBuilder[T],
+          constraintSet: PropertySet[T]): Unit = {
+        roleDef.assignToGroup(group, constraintSet.asMap(roleDef))
+        delegate.assignToGroup(group, PropertySet(constraintSet.asMap - roleDef))
+      }
+
+      override def newEnforcerRuleFactory(): EnforcerRuleFactory[T] = {
+        new EnforcerRuleFactory[T] {
+          private val delegateFactory: EnforcerRuleFactory[T] = delegate.newEnforcerRuleFactory()
+
+          override def newEnforcerRules(constraintSet: PropertySet[T]): Seq[RasRule[T]] = {
+            delegateFactory.newEnforcerRules(constraintSet -: roleDef)
+          }
         }
       }
-    }
 
-    private def compose(memoRole: MemoRole[T], base: PropertySet[T]): PropertySet[T] = {
-      base +: memoRole
+      private def compose(memoRole: MemoRole[T], base: PropertySet[T]): PropertySet[T] = {
+        base +: memoRole
+      }
     }
   }
 }
