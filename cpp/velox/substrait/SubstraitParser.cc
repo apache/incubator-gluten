@@ -261,8 +261,8 @@ std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunc
   static const std::unordered_map<std::string, std::string> kMapping = {
     {"mode", "mode"},
     {"mode_merge", "mode"},
-    {"mode_merge_extract", "mode"}
-  }
+    {"mode_merges_extract", "mode"}
+  };
 
   if (isDecimal) {
     if (substraitFunction == "lt" || substraitFunction == "lte" || substraitFunction == "gt" ||
