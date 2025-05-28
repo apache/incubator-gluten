@@ -16,14 +16,27 @@
  */
 package org.apache.gluten.monitor;
 
+/**
+ * VeloxMemoryProfiler is a JNI for controlling native memory profiler. Currently, it uses jemalloc
+ * for memory profiling, so if you want to enable it, need to build gluten with
+ * `--enable_jemalloc_stats=ON`.
+ *
+ * <p>Gluten does not include jemalloc, so we need to set the following configurations to load
+ * jemalloc and enable profiling:
+ *
+ * <ul>
+ *   <li>spark.executorEnv.LD_PRELOAD=/path/to/libjemalloc.so
+ *   <li>spark.executorEnv.MALLOC_CONF=prof:true,prof_prefix:/tmp/gluten_heap_perf
+ * </ul>
+ */
 public class VeloxMemoryProfiler {
 
-  /** Starts the Velox memory profiler. + jemalloc: prof.active=ture */
+  /** Starts the Velox memory profiler. (jemalloc: prof.active=ture) */
   public static native void start();
 
-  /** Dumps the current memory profile. + jemalloc: prof.dump */
+  /** Dumps the current memory profile. (jemalloc: prof.dump) */
   public static native void dump();
 
-  /** Stops the Velox memory profiler. + jemalloc: prof.active=false */
+  /** Stops the Velox memory profiler. (jemalloc: prof.active=false) */
   public static native void stop();
 }

@@ -627,4 +627,12 @@ object VeloxConfig {
       .doc("Enable check memory usage leak.")
       .booleanConf
       .createWithDefault(true)
+
+  val MEMORY_DUMP_ON_EXIT =
+    buildConf("spark.gluten.monitor.memoryDumpOnExit")
+      .doc(
+        "Whether to trigger native memory dump when executor exits. Currently it uses jemalloc for memory" +
+          " profiling, so if you want to enable it, also need to build gluten with `--enable_jemalloc_stats=ON`.")
+      .booleanConf
+      .createWithDefault(false)
 }

@@ -18,7 +18,7 @@ package org.apache.gluten.monitor
 
 import org.apache.gluten.backendsapi.velox.VeloxBackend
 import org.apache.gluten.component.Component
-import org.apache.gluten.config.GlutenConfig.MEMORY_DUMP_ON_EXIT
+import org.apache.gluten.config.VeloxConfig.MEMORY_DUMP_ON_EXIT
 import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.api.plugin.PluginContext

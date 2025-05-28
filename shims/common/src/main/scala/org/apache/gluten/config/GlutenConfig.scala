@@ -1738,11 +1738,4 @@ object GlutenConfig {
       .doc("Enable or disable columnar collectTail.")
       .booleanConf
       .createWithDefault(true)
-
-  val MEMORY_DUMP_ON_EXIT =
-    buildConf("spark.gluten.monitor.memoryDumpOnExit")
-      .doc("Whether to trigger native memory dump when executor exits.")
-      .booleanConf
-      .createWithDefault(false)
-
 }
