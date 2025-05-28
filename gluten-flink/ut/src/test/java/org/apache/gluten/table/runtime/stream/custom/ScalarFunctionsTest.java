@@ -23,6 +23,7 @@ import org.apache.flink.types.Row;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -122,5 +123,27 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
     String query4 = "select c = d as x from tblEqual where a > 0";
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
+  }
+
+  @Test
+  void testTimestamp() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, LocalDateTime.parse("2023-01-01T10:00:00")),
+            Row.of(2, LocalDateTime.parse("2023-01-02T11:00:00")));
+    createSimpleBoundedValuesTable(
+        "t3", "a int, b timestamp(3)", rows); // timestamp with 3 digits of precision
+    String query = "select a, b - interval '1' second as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2023-01-01T09:59:59.000Z]",
+            "+I[2, 2023-01-02T10:59:59.000Z]")); // Adjusted for the hour subtraction
+    query = "select a, b + interval '1' second as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2023-01-01T10:00:01.000Z]",
+            "+I[2, 2023-01-02T11:00:01.000Z]")); // Adjusted for the hour addition
   }
 }
