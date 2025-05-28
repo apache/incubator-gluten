@@ -189,7 +189,6 @@ case class WriteFilesExecTransformer(
     val nameList =
       ConverterUtils.collectAttributeNames(inputAttributes.toSeq)
 
-    // TODO: Switch this to use createExtensionNode (after verifying that everything else works)
     val extensionNode = createExtensionNode(orderedOriginalInputAttributes, validation)
 
     val bucketSpecOption = bucketSpec.map {
