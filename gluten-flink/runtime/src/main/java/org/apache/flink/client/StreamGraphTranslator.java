@@ -16,6 +16,14 @@
  */
 package org.apache.flink.client;
 
+import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
+import org.apache.gluten.streaming.api.operators.GlutenOperator;
+import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
+
+import io.github.zhztheplayer.velox4j.plan.PlanNode;
+
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -26,12 +34,6 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
-import org.apache.gluten.streaming.api.operators.GlutenOneInputOperatorFactory;
-import org.apache.gluten.streaming.api.operators.GlutenOperator;
-import org.apache.gluten.streaming.api.operators.GlutenStreamSource;
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
-import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

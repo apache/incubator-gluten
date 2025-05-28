@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.rexnode.functions;
+
+import org.apache.gluten.rexnode.RexConversionContext;
 
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 
 import org.apache.calcite.rex.RexCall;
-import org.apache.gluten.rexnode.RexConversionContext;
 
 public interface RexCallConverter {
-   // Let the Converter decide how to build the arguments.
-   TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
+  // Let the Converter decide how to build the arguments.
+  TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
 }

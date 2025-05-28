@@ -16,6 +16,9 @@
  */
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
+import org.apache.gluten.util.PlanNodeIdGenerator;
+
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
@@ -78,9 +81,6 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-
-import org.apache.gluten.table.runtime.operators.GlutenSingleInputOperator;
-import org.apache.gluten.util.PlanNodeIdGenerator;
 
 import java.util.ArrayList;
 import java.util.Arrays;

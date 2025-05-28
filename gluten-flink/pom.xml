@@ -55,7 +55,7 @@
 
             <!-- \# refers to the static imports -->
             <importOrder>
-              <order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\# </order>
+              <order>org.apache.gluten,io.github.zhztheplayer.velox4j,org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\# </order>
             </importOrder>
 
             <excludes>

@@ -16,6 +16,8 @@
  */
 package org.apache.flink.runtime.taskexecutor;
 
+import io.github.zhztheplayer.velox4j.Velox4j;
+
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -82,7 +84,6 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
-import io.github.zhztheplayer.velox4j.Velox4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

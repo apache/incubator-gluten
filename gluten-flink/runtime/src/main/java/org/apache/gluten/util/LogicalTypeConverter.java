@@ -16,6 +16,9 @@
  */
 package org.apache.gluten.util;
 
+import io.github.zhztheplayer.velox4j.type.IntegerType;
+import io.github.zhztheplayer.velox4j.type.Type;
+
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
@@ -27,48 +30,43 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import io.github.zhztheplayer.velox4j.type.IntegerType;
-import io.github.zhztheplayer.velox4j.type.Type;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
 /** Convertor to convert Flink LogicalType to velox data Type */
 public class LogicalTypeConverter {
 
-    public static Type toVLType(LogicalType logicalType) {
-        if (logicalType instanceof RowType) {
-            RowType flinkRowType = (RowType) logicalType;
-            List<Type> fieldTypes = flinkRowType.getChildren().stream().
-                    map(LogicalTypeConverter::toVLType).
-                    collect(Collectors.toList());
-            return new io.github.zhztheplayer.velox4j.type.RowType(
-                    flinkRowType.getFieldNames(),
-                    fieldTypes);
-        } else if (logicalType instanceof BooleanType) {
-            return new io.github.zhztheplayer.velox4j.type.BooleanType();
-        } else if (logicalType instanceof IntType) {
-            return new IntegerType();
-        } else if (logicalType instanceof BigIntType) {
-            return new io.github.zhztheplayer.velox4j.type.BigIntType();
-        } else if (logicalType instanceof DoubleType) {
-            return new io.github.zhztheplayer.velox4j.type.DoubleType();
-        } else if (logicalType instanceof VarCharType) {
-            return new io.github.zhztheplayer.velox4j.type.VarCharType();
-        } else if (logicalType instanceof TimestampType) {
-            // TODO: may need precision
-            return new io.github.zhztheplayer.velox4j.type.TimestampType();
-        } else if (logicalType instanceof DecimalType) {
-            DecimalType decimalType = (DecimalType) logicalType;
-            return new io.github.zhztheplayer.velox4j.type.DecimalType(
-                    decimalType.getPrecision(),
-                    decimalType.getScale());
-        } else if (logicalType instanceof DayTimeIntervalType) {
-            // TODO: it seems interval now can be used as bigint for nexmark.
-            return new io.github.zhztheplayer.velox4j.type.BigIntType();
-        } else {
-            throw new RuntimeException("Unsupported logical type: " + logicalType);
-        }
+  public static Type toVLType(LogicalType logicalType) {
+    if (logicalType instanceof RowType) {
+      RowType flinkRowType = (RowType) logicalType;
+      List<Type> fieldTypes =
+          flinkRowType.getChildren().stream()
+              .map(LogicalTypeConverter::toVLType)
+              .collect(Collectors.toList());
+      return new io.github.zhztheplayer.velox4j.type.RowType(
+          flinkRowType.getFieldNames(), fieldTypes);
+    } else if (logicalType instanceof BooleanType) {
+      return new io.github.zhztheplayer.velox4j.type.BooleanType();
+    } else if (logicalType instanceof IntType) {
+      return new IntegerType();
+    } else if (logicalType instanceof BigIntType) {
+      return new io.github.zhztheplayer.velox4j.type.BigIntType();
+    } else if (logicalType instanceof DoubleType) {
+      return new io.github.zhztheplayer.velox4j.type.DoubleType();
+    } else if (logicalType instanceof VarCharType) {
+      return new io.github.zhztheplayer.velox4j.type.VarCharType();
+    } else if (logicalType instanceof TimestampType) {
+      // TODO: may need precision
+      return new io.github.zhztheplayer.velox4j.type.TimestampType();
+    } else if (logicalType instanceof DecimalType) {
+      DecimalType decimalType = (DecimalType) logicalType;
+      return new io.github.zhztheplayer.velox4j.type.DecimalType(
+          decimalType.getPrecision(), decimalType.getScale());
+    } else if (logicalType instanceof DayTimeIntervalType) {
+      // TODO: it seems interval now can be used as bigint for nexmark.
+      return new io.github.zhztheplayer.velox4j.type.BigIntType();
+    } else {
+      throw new RuntimeException("Unsupported logical type: " + logicalType);
     }
+  }
 }
-
