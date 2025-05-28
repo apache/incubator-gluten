@@ -21,7 +21,9 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.delta.stats.PreparedDeltaFileIndex
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -110,6 +112,25 @@ class GlutenDeltaMergeTreeDeletionVectorSuite extends CreateMergeTreeSuite {
             df1.collect().apply(0).get(0) === 1200650
           )
           checkFallbackOperators(df1, 0)
+
+          spark.sql(s"optimize $tableName")
+
+          val df2 = spark.sql(s"""
+                                 | select sum(l_linenumber) from $tableName
+                                 |""".stripMargin)
+          val result2 = df2.collect()
+          assert(result2.apply(0).get(0) === 1200650)
+
+          val scanExec = collect(df2.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assertResult(1)(scanExec.size)
+          val mergetreeScan = scanExec.head
+          assert(mergetreeScan.nodeName.startsWith("ScanTransformer mergetree"))
+          val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+          val addFiles =
+            fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+          assertResult(1)(addFiles.size)
       }
     }
   }
