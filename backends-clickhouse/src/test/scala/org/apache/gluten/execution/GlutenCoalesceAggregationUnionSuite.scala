@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -47,8 +49,8 @@ class GlutenCoalesceAggregationUnionSuite extends GlutenClickHouseWholeStageTran
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.project.union", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.aggregation.union", "true")
+      .set(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "true")
+      .set(CHBackendSettings.GLUTEN_ENABLE_COALESCE_AGGREGATION_UNION, "true")
   }
 
   def createTestTable(tableName: String, data: DataFrame): Unit = {

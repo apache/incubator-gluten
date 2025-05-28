@@ -14,59 +14,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.rexnode.functions;
 
-package org.apache.gluten.rexnode;
+import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.Utils;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
-import org.apache.gluten.rexnode.RexConversionContext;
-import org.apache.gluten.rexnode.RexNodeConverter;
 
 import java.util.List;
 
 abstract class BaseRexCallConverter implements RexCallConverter {
-    protected final String functionName;
+  protected final String functionName;
 
-    public BaseRexCallConverter(String functionName) {
-        this.functionName = functionName;
-    }
+  public BaseRexCallConverter(String functionName) {
+    this.functionName = functionName;
+  }
 
-    protected List<TypedExpr> getParams(RexCall callNode, RexConversionContext context) {
-        return RexNodeConverter.toTypedExpr(callNode.getOperands(), context);
-    }
+  protected List<TypedExpr> getParams(RexCall callNode, RexConversionContext context) {
+    return RexNodeConverter.toTypedExpr(callNode.getOperands(), context);
+  }
 
-    protected Type getResultType(RexCall callNode) {
-        return RexNodeConverter.toType(callNode.getType());
-    }
+  protected Type getResultType(RexCall callNode) {
+    return RexNodeConverter.toType(callNode.getType());
+  }
 }
 
 class DefaultRexCallConverter extends BaseRexCallConverter {
-    public DefaultRexCallConverter(String functionName) {
-        super(functionName);
-    }
+  public DefaultRexCallConverter(String functionName) {
+    super(functionName);
+  }
 
-    @Override
-    public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
-        List<TypedExpr> params = getParams(callNode, context);
-        Type resultType = getResultType(callNode);
-        return new CallTypedExpr(resultType, params, functionName);
-    }
+  @Override
+  public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
+    List<TypedExpr> params = getParams(callNode, context);
+    Type resultType = getResultType(callNode);
+    return new CallTypedExpr(resultType, params, functionName);
+  }
 }
 
 class AlignInputsTypeRexCallConverter extends BaseRexCallConverter {
-    public AlignInputsTypeRexCallConverter(String functionName) {
-        super(functionName);
-    }
+  public AlignInputsTypeRexCallConverter(String functionName) {
+    super(functionName);
+  }
 
-    @Override
-    public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
-        List<TypedExpr> params = getParams(callNode, context);
-        List<TypedExpr> alignedParams = Utils.promoteTypeForArithmeticExpressions(params);
-        Type resultType = getResultType(callNode);
-        return new CallTypedExpr(resultType, alignedParams, functionName);
-    }
+  @Override
+  public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
+    List<TypedExpr> params = getParams(callNode, context);
+    List<TypedExpr> alignedParams = Utils.promoteTypeForArithmeticExpressions(params);
+    Type resultType = getResultType(callNode);
+    return new CallTypedExpr(resultType, alignedParams, functionName);
+  }
 }
-
