@@ -278,24 +278,32 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   test("Test to_date function") {
-    val query =
-      """
-        |select to_date(a, 'yyyy-MM') from
-        | values (TIMESTAMP'2025-01-02 00:00:00') as tab(a)
-        |""".stripMargin
-    runQueryAndCompare(query) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
+        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t3 = Timestamp.valueOf("2014-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select to_date(t, 'yyyy-MM') from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
   test("Test to_timestamp function") {
-    val query =
-      """
-        |select to_timestamp(a, 'yyyy-MM') from
-        | values (TIMESTAMP'2025-01-02 00:00:00') as tab(a)
-        |""".stripMargin
-    runQueryAndCompare(query) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
+        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t3 = Timestamp.valueOf("2014-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
+        runQueryAndCompare("select to_timestamp(t, 'yyyy-MM') from time") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
