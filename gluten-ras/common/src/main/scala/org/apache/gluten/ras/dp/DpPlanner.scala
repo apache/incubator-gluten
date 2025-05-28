@@ -100,8 +100,8 @@ object DpPlanner {
     override def exploreChildX(
         panel: Panel[InClusterNode[T], RasClusterKey],
         x: InClusterNode[T]): Unit = {
-      applyHubRulesOnNode(panel, x.clusterKey, x.can)
-      applyRulesOnNode(panel, x.clusterKey, x.can)
+      applyHubRulesOnUserNode(panel, x.clusterKey, x.can)
+      applyRulesOnHubNode(panel, x.clusterKey, x.can)
     }
 
     override def exploreChildY(
@@ -115,12 +115,10 @@ object DpPlanner {
     override def exploreParentY(
         panel: Panel[InClusterNode[T], RasClusterKey],
         cKey: RasClusterKey): Unit = {
-      memoTable.doExhaustively {
-        applyEnforcerRules(panel, cKey)
-      }
+      applyEnforcerRules(panel, cKey)
     }
 
-    private def applyRulesOnNode(
+    private def applyRulesOnHubNode(
         panel: Panel[InClusterNode[T], RasClusterKey],
         cKey: RasClusterKey,
         can: CanonicalNode[T]): Unit = {
@@ -138,7 +136,7 @@ object DpPlanner {
       }
     }
 
-    private def applyHubRulesOnNode(
+    private def applyHubRulesOnUserNode(
         panel: Panel[InClusterNode[T], RasClusterKey],
         cKey: RasClusterKey,
         can: CanonicalNode[T]): Unit = {

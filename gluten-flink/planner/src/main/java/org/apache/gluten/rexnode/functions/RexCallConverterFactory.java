@@ -20,30 +20,30 @@ import java.util.Map;
 
 public class RexCallConverterFactory {
 
-    // Better to new Converter for each call. Reusing an object can easily introduce potential
-    // issues.
-    private static Map<String, RexCallConverterBuilder> converters = Map.of(
-        ">", () -> new AlignInputsTypeRexCallConverter("greaterthan"),
-        "<", () -> new AlignInputsTypeRexCallConverter("lessthan"),
-        "=", () -> new AlignInputsTypeRexCallConverter("equalto"),
-        "*", () -> new AlignInputsTypeRexCallConverter("multiply"),
-        "-", () -> new AlignInputsTypeRexCallConverter("subtract"),
-        "+", () -> new AlignInputsTypeRexCallConverter("add"),
-        "MOD", () -> new ModRexCallConverter(),
-        "CAST", () -> new DefaultRexCallConverter("cast"),
-        "CASE", () -> new DefaultRexCallConverter("if"),
-        "AND", () -> new DefaultRexCallConverter("and")
-    );
+  // Better to new Converter for each call. Reusing an object can easily introduce potential
+  // issues.
+  private static Map<String, RexCallConverterBuilder> converters =
+      Map.of(
+          ">", () -> new AlignInputsTypeRexCallConverter("greaterthan"),
+          "<", () -> new AlignInputsTypeRexCallConverter("lessthan"),
+          "=", () -> new AlignInputsTypeRexCallConverter("equalto"),
+          "*", () -> new AlignInputsTypeRexCallConverter("multiply"),
+          "-", () -> new AlignInputsTypeRexCallConverter("subtract"),
+          "+", () -> new AlignInputsTypeRexCallConverter("add"),
+          "MOD", () -> new ModRexCallConverter(),
+          "CAST", () -> new DefaultRexCallConverter("cast"),
+          "CASE", () -> new DefaultRexCallConverter("if"),
+          "AND", () -> new DefaultRexCallConverter("and"));
 
-    public static RexCallConverter getConverter(String operatorName) {
-        RexCallConverterBuilder builder = converters.get(operatorName);
-        if (builder == null) {
-            throw new RuntimeException("Function not supported: " + operatorName);
-        }
-        return builder.build();
+  public static RexCallConverter getConverter(String operatorName) {
+    RexCallConverterBuilder builder = converters.get(operatorName);
+    if (builder == null) {
+      throw new RuntimeException("Function not supported: " + operatorName);
     }
+    return builder.build();
+  }
 
-    private interface RexCallConverterBuilder {
-        RexCallConverter build();
-    }
+  private interface RexCallConverterBuilder {
+    RexCallConverter build();
+  }
 }
