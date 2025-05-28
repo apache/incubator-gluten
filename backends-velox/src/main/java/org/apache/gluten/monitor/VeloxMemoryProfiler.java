@@ -21,8 +21,8 @@ package org.apache.gluten.monitor;
  * for memory profiling, so if you want to enable it, need to build gluten with
  * `--enable_jemalloc_stats=ON`.
  *
- * <p>Gluten does not include jemalloc, so we need to set the following configurations to load
- * jemalloc and enable profiling:
+ * <p>Please set the following configurations by using the same lib jemalloc linked to Gluten native
+ * lib.
  *
  * <ul>
  *   <li>spark.executorEnv.LD_PRELOAD=/path/to/libjemalloc.so
