@@ -28,6 +28,8 @@ object ExpressionNames {
   final val MAX_BY = "max_by"
   final val MIN_BY = "min_by"
   final val MODE = "mode"
+  final val MODE_MERGE = "mode_merge"
+  final val MODE_MERGE_EXTRACT = "mode_merge_extract"
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
