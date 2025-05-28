@@ -88,6 +88,7 @@ case class WriteFilesExecTransformer(
         SubstraitUtil.createEnhancement(originalInputAttributes)
       )
     } else {
+      // Use an extension node to send the input types through the Substrait plan for validation.
       ExtensionBuilder.makeAdvancedExtension(
         SubstraitUtil.createEnhancement(originalInputAttributes)
       )
@@ -189,16 +190,7 @@ case class WriteFilesExecTransformer(
       ConverterUtils.collectAttributeNames(inputAttributes.toSeq)
 
     // TODO: Switch this to use createExtensionNode (after verifying that everything else works)
-    val extensionNode = if (!validation) {
-      ExtensionBuilder.makeAdvancedExtension(
-        BackendsApiManager.getTransformerApiInstance.genWriteParameters(this),
-        SubstraitUtil.createEnhancement(orderedOriginalInputAttributes)
-      )
-    } else {
-      // Use an extension node to send the input types through Substrait plan for validation.
-      ExtensionBuilder.makeAdvancedExtension(
-        SubstraitUtil.createEnhancement(orderedOriginalInputAttributes))
-    }
+    val extensionNode = createExtensionNode(orderedOriginalInputAttributes, validation)
 
     val bucketSpecOption = bucketSpec.map {
       bucketSpec =>
