@@ -98,7 +98,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     val startTime = System.nanoTime()
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
-    dep.remot("shuffleWallTime").add(System.nanoTime() - startTime)
+    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
     nativeMetrics
       .add(
         dep.metrics("shuffleWallTime").value - splitResult.getTotalPushTime -
