@@ -16,7 +16,9 @@
 name: CH Backend Code style checks
 
 on:
-  pull_request
+  pull_request:
+    paths:
+      - 'cpp-ch/**'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -40,3 +42,29 @@ jobs:
           check-path: ${{ matrix.path['check'] }}
           fallback-style: 'Google' # optional
           include-regex: '.*\.\(c\|cpp\|h\)'
+
+  ch-CMake-format-check:
+    name: CH CMake Format Check
+    runs-on: ubuntu-latest
+    container: ubuntu:22.04
+    steps:
+      - name: Install tools
+        run: |
+          apt update -y
+          apt install git python3-pip -y
+          pip3 install --user cmake-format
+      - uses: actions/checkout@v4
+      - name: Check CMake format
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          cd $GITHUB_WORKSPACE/
+          fileList=$(find ./cpp ./cpp-ch -name CMakeLists.txt -o -name *.cmake)
+          for file in $fileList; do
+              /github/home/.local/bin/cmake-format --first-comment-is-literal True --in-place $file
+          done
+          if [ -n "$(git status --porcelain)" ]; then
+             echo "Please use cmake-format to format cmake files or apply the below patch."
+             git diff -- '*CMakeLists.txt' '*.cmake'
+             exit 1
+          fi
+          echo "No CMake format issue."

@@ -19,6 +19,17 @@
 #include <glog/logging.h>
 #include <iostream>
 
+//static
+std::unique_ptr<gluten::ObjectStore> gluten::ObjectStore::create() {
+  static std::mutex mtx;
+  std::lock_guard<std::mutex> lock(mtx);
+  StoreHandle nextId = stores().nextId();
+  auto store = std::unique_ptr<gluten::ObjectStore>(new gluten::ObjectStore(nextId));
+  StoreHandle storeId = safeCast<StoreHandle>(stores().insert(store.get()));
+  GLUTEN_CHECK(storeId == nextId, "Store ID mismatched, this should not happen");
+  return store;
+}
+
 // static
 gluten::ResourceMap<gluten::ObjectStore*>& gluten::ObjectStore::stores() {
   static gluten::ResourceMap<gluten::ObjectStore*> stores;

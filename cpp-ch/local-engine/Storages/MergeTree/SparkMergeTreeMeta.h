@@ -39,6 +39,8 @@ struct MergeTreePart
     std::string name;
     size_t begin;
     size_t end;
+    std::string row_index_filter_type;
+    std::string row_index_filter_id_encoded;
 };
 
 struct MergeTreeTableSettings

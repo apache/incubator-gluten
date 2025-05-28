@@ -114,6 +114,8 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
   override def validateJoinTypeAndBuildSide(): ValidationResult = {
     joinType match {
       case _: InnerLike =>
+      case ExistenceJoin(_) =>
+        return ValidationResult.failed("ExistenceJoin is not supported for CH backend.")
       case _ =>
         if (joinType == LeftSemi || condition.isDefined) {
           return ValidationResult.failed(

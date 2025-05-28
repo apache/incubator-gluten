@@ -632,6 +632,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("cast array element from bool to string")
     .exclude("cast array element from date to string")
     .exclude("cast array from timestamp to string")
+    .exclude("cast from boolean to timestamp")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")

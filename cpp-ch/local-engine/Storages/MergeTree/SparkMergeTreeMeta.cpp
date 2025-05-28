@@ -218,6 +218,10 @@ MergeTreeTableInstance::MergeTreeTableInstance(const std::string & info) : Merge
         assertChar('\n', in);
         readIntText(part.end, in);
         assertChar('\n', in);
+        readString(part.row_index_filter_type, in);
+        assertChar('\n', in);
+        readString(part.row_index_filter_id_encoded, in);
+        assertChar('\n', in);
         parts.emplace_back(part);
     }
 }

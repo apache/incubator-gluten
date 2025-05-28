@@ -17,9 +17,9 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.ListenerApi
-import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
-import org.apache.gluten.columnarbatch.VeloxBatch
+import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.{ArrowJavaBatchType, ArrowNativeBatchType}
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.config.VeloxConfig._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
@@ -169,9 +169,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
-    ArrowJavaBatch.ensureRegistered()
-    ArrowNativeBatch.ensureRegistered()
-    VeloxBatch.ensureRegistered()
+    ArrowJavaBatchType.ensureRegistered()
+    ArrowNativeBatchType.ensureRegistered()
+    VeloxBatchType.ensureRegistered()
+    VeloxCarrierRowType.ensureRegistered()
 
     // Register columnar shuffle so can be considered when
     // `org.apache.spark.shuffle.GlutenShuffleManager` is set as Spark shuffle manager.
@@ -210,15 +211,9 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     // Initial native backend with configurations.
-    var parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
-
-    // Workaround for https://github.com/apache/incubator-gluten/issues/7837
-    if (isDriver && !inLocalMode(conf)) {
-      parsed += (COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
-    }
     NativeBackendInitializer
       .forBackend(VeloxBackend.BACKEND_NAME)
-      .initialize(newGlobalOffHeapMemoryListener(), parsed)
+      .initialize(newGlobalOffHeapMemoryListener(), parseConf(conf, isDriver))
 
     // Inject backend-specific implementations to override spark classes.
     GlutenFormatFactory.register(new VeloxParquetWriterInjects)
@@ -273,5 +268,19 @@ object VeloxListenerApi {
         recorder.current()
       }
     }
+  }
+
+  def parseConf(conf: SparkConf, isDriver: Boolean): Map[String, String] = {
+    // Ensure velox conf registered.
+    VeloxConfig.get
+
+    var parsed: Map[String, String] = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+
+    // Workaround for https://github.com/apache/incubator-gluten/issues/7837
+    if (isDriver && !inLocalMode(conf)) {
+      parsed += (COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
+    }
+
+    parsed
   }
 }

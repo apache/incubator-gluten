@@ -161,7 +161,7 @@ vcpkg_from_github(
 
 # Download from source archive
 vcpkg_download_distfile(ARCHIVE
-    URLS "https://ftp.gnu.org/gnu/gsasl/gsasl-2.2.0.tar.gz"
+    URLS "https://ftp.gnu.org/gnu/gsasl/gsasl-2.2.0.tar.gz" "https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/gsasl/gsasl-2.2.0.tar.gz"
     FILENAME "gsasl-2.2.0.tar.gz"
     SHA512 0ae318a8616fe675e9718a3f04f33731034f9a7ba03d83ccb1a72954ded54ced35dc7c7e173fdcb6fa0f0813f8891c6cbcedf8bf70b37d00b8ec512eb9f07f5f
 )
