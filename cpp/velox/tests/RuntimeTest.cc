@@ -25,7 +25,7 @@ namespace gluten {
 
 class DummyMemoryManager final : public MemoryManager {
  public:
-  DummyMemoryManager(const std::string& kind) : MemoryManager(kind){};
+  DummyMemoryManager(const std::string& kind) : MemoryManager(kind) {};
 
   arrow::MemoryPool* getArrowMemoryPool() override {
     throw GlutenException("Not yet implemented");
@@ -58,8 +58,7 @@ class DummyRuntime final : public Runtime {
   std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
-      const std::unordered_map<std::string, std::string>& sessionConf,
-      bool enableCudf) override {
+      const std::unordered_map<std::string, std::string>& sessionConf) override {
     auto resIter = std::make_unique<DummyResultIterator>();
     auto iter = std::make_shared<ResultIterator>(std::move(resIter));
     return iter;
@@ -148,7 +147,7 @@ TEST(TestRuntime, CreateVeloxRuntime) {
 TEST(TestRuntime, GetResultIterator) {
   DummyMemoryManager mm(kDummyBackendKind);
   auto runtime = std::make_shared<DummyRuntime>(kDummyBackendKind, &mm, std::unordered_map<std::string, std::string>());
-  auto iter = runtime->createResultIterator("/tmp/test-spill", {}, {}, false);
+  auto iter = runtime->createResultIterator("/tmp/test-spill", {}, {});
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);

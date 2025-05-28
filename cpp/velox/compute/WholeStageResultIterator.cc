@@ -64,10 +64,8 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
-    const SparkTaskInfo& taskInfo,
-    bool enableCudf)
-    : enableCudf_(enableCudf),
-      memoryManager_(memoryManager),
+    const SparkTaskInfo& taskInfo)
+    : memoryManager_(memoryManager),
       veloxCfg_(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
@@ -577,7 +575,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<bool>(kSparkLegacyStatisticalAggregate, false));
 
 #ifdef GLUTEN_ENABLE_GPU
-    if (!enableCudf_) {
+    if (veloxCfg_->get<bool>(kCudfEnabled, false)) {
       configs[cudf_velox::kCudfEnabled] = "false";
     }
 #endif

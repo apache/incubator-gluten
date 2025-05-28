@@ -153,8 +153,7 @@ VeloxMemoryManager* VeloxRuntime::memoryManager() {
 std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
-    const std::unordered_map<std::string, std::string>& sessionConf,
-    bool enableCudf) {
+    const std::unordered_map<std::string, std::string>& sessionConf) {
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
   VeloxPlanConverter veloxPlanConverter(
@@ -180,8 +179,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
       streamIds,
       spillDir,
       sessionConf,
-      taskInfo_.has_value() ? taskInfo_.value() : SparkTaskInfo{},
-      enableCudf);
+      taskInfo_.has_value() ? taskInfo_.value() : SparkTaskInfo{});
   return std::make_shared<ResultIterator>(std::move(wholeStageIter), this);
 }
 

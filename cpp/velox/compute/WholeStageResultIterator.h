@@ -40,8 +40,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
       const std::string spillDir,
       const std::unordered_map<std::string, std::string>& confMap,
-      const SparkTaskInfo& taskInfo,
-      bool enableCudf);
+      const SparkTaskInfo& taskInfo);
 
   virtual ~WholeStageResultIterator() {
     if (task_ != nullptr && task_->isRunning()) {
@@ -101,8 +100,6 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       const std::string& type,
       const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats,
       const std::string& metricId);
-
-  const bool enableCudf_;
 
   /// Memory.
   VeloxMemoryManager* memoryManager_;

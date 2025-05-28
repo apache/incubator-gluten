@@ -17,6 +17,7 @@
  */
 
 #include "CudfPlanValidator.h"
+#include "compute/ResultIterator.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxPlanConverter.h"
 #include "operators/plannodes/RowVectorStream.h"
@@ -31,7 +32,8 @@ bool CudfPlanValidator::validate(const ::substrait::Plan& substraitPlan) {
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
   std::vector<::substrait::ReadRel_LocalFiles> localFiles;
   std::unordered_map<std::string, std::string> configValues;
-  VeloxPlanConverter veloxPlanConverter(veloxMemoryPool.get(), configValues, std::nullopt, true);
+  std::vector<std::shared_ptr<ResultIterator>> inputs;
+  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), configValues, std::nullopt, true);
   auto planNode = veloxPlanConverter.toVeloxPlan(substraitPlan, localFiles);
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};

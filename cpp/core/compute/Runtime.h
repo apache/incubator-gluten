@@ -101,8 +101,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   virtual std::shared_ptr<ResultIterator> createResultIterator(
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
-      const std::unordered_map<std::string, std::string>& sessionConf,
-      bool enableCudf) {
+      const std::unordered_map<std::string, std::string>& sessionConf) {
     throw GlutenException("Not implemented");
   }
 

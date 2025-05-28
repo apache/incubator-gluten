@@ -402,7 +402,10 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
   JNI_METHOD_START
 
   auto ctx = getRuntime(env, wrapper);
-  auto& conf = ctx->getConfMap();
+  auto conf = ctx->getConfMap();
+  if (enableCudf) {
+    conf[kCudfEnabled] = "true";
+  }
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
@@ -436,7 +439,7 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     inputIters.push_back(std::move(resultIter));
   }
 
-  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters, conf, enableCudf));
+  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters, conf));
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 

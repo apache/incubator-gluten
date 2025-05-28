@@ -16,14 +16,15 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.cudf.VeloxCudfPlanValidatorJniWrapper
-import org.apache.gluten.execution.{TransformSupport, WholeStageTransformer}
+import org.apache.gluten.execution.WholeStageTransformer
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
-// Add the node name prefix 'Cudf' when can offload to cudf
-case class CudfNodeValidationRule() extends Rule[SparkPlan] {
+// Add the node name prefix 'Cudf' to WholeStageTransformer when can offload to cudf
+case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     plan.transformUp {
       case transformer: WholeStageTransformer =>
@@ -31,12 +32,8 @@ case class CudfNodeValidationRule() extends Rule[SparkPlan] {
           VeloxCudfPlanValidatorJniWrapper.validate(
             transformer.substraitPlan.toProtobuf.toByteArray)
         ) {
-          transformer.foreach {
-            case t: TransformSupport => t.setIsCudf
-            case _ =>
-          }
+          transformer.copy(isCudf = transformer.isCudf)(transformer.transformStageId)
         }
-        print("cudf transformer plan " + transformer.toString())
         transformer
     }
   }
