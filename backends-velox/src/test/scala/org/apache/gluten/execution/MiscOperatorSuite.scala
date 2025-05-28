@@ -30,6 +30,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters
@@ -1427,36 +1428,32 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("partitioned write column order") {
-    // Temporary code for partition write
-    // TODO: Replace with test using the parquet test data
-    val data = Seq(
-      ("b1", 1, "a1"),
-      ("b2", 2, "a2"),
-      ("b1", 3, "a1"),
-      ("b2", 4, "a2")
-    )
-
-    val schema = StructType(
-      Seq(
-        StructField("b", StringType, nullable = false),
-        StructField("c", IntegerType, nullable = false),
-        StructField("a", StringType, nullable = false)
-      ))
-
-    val rdd = spark.sparkContext.parallelize(data).map { case (b, c, a) => Row(b, c, a) }
-
-    val my_df = spark.createDataFrame(rdd, schema)
+    val df = sql(
+      "SELECT c_name, c_nationkey, c_mktsegment FROM customer " +
+        "WHERE c_mktsegment IN ('HOUSEHOLD', 'AUTOMOBILE') " +
+        "AND c_nationkey < 5")
+    print(df.count())
 
     withTempDir {
       tempDir =>
         val tempDirPath = tempDir.getPath
-        my_df.write
+        df.write
           .format("parquet")
-          .partitionBy("a", "b")
+          .partitionBy("c_mktsegment", "c_nationkey")
           .mode("overwrite")
           .save(tempDirPath)
 
-        print(tempDir.getPath)
+        val expectedDirs = for {
+          dir <- Seq("c_mktsegment=HOUSEHOLD", "c_mktsegment=AUTOMOBILE")
+          subDir <- 0 to 4
+        } yield Paths.get(tempDirPath, dir, "c_nationkey=" + subDir.toString).toString
+
+        expectedDirs.foreach {
+          dir =>
+            val path = Paths.get(dir)
+            assert(Files.exists(path) && Files.isDirectory(path))
+        }
+
     }
   }
 
