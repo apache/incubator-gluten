@@ -28,7 +28,6 @@
 #include <arrow/c/bridge.h>
 #include <optional>
 #include <string>
-#include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
@@ -404,9 +403,11 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
 
   auto ctx = getRuntime(env, wrapper);
   auto conf = ctx->getConfMap();
+#ifdef GLUTEN_ENABLE_GPU
   if (enableCudf) {
     conf[kCudfEnabled] = "true";
   }
+#endif
 
   ctx->setSparkTaskInfo({stageId, partitionId, taskId});
 
