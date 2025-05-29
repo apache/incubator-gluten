@@ -61,6 +61,7 @@ function install_build_prerequisites {
   dnf update -y
   dnf_install ninja-build cmake ccache gcc g++ git wget which patch
   dnf_install autoconf automake python3-devel python3-pip libtool
+  dnf_install libxml2-devel libgsasl-devel libuuid-devel
 
   pip install cmake==3.28.3
 }
