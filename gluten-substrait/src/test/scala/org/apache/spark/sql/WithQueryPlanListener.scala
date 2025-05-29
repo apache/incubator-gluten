@@ -44,7 +44,7 @@ trait WithQueryPlanListener extends SharedSparkSession with AnyFunSuiteLike {
   assert(
     !this.isInstanceOf[SparkPlanTest],
     "WithQueryPlanListener should not be mixed in with SparkPlanTest as it doesn't intercept " +
-      "`checkAnswer` calls")
+      "the `SparkPlanTest.checkAnswer` calls")
 
   protected val planListeners: WithQueryPlanListener.QueryPlanListeners =
     new WithQueryPlanListener.QueryPlanListeners()
