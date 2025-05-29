@@ -25,4 +25,6 @@ import org.apache.calcite.rex.RexCall;
 public interface RexCallConverter {
   // Let the Converter decide how to build the arguments.
   TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
+
+  boolean isSupported(RexCall callNode, RexConversionContext context);
 }

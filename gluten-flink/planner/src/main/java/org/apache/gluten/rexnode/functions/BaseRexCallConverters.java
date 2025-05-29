@@ -42,6 +42,13 @@ abstract class BaseRexCallConverter implements RexCallConverter {
   protected Type getResultType(RexCall callNode) {
     return RexNodeConverter.toType(callNode.getType());
   }
+
+  @Override
+  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+    // Default implementation assumes all RexCall nodes are supported.
+    // Subclasses can override this method to provide specific support checks.
+    return true;
+  }
 }
 
 class DefaultRexCallConverter extends BaseRexCallConverter {
@@ -57,14 +64,27 @@ class DefaultRexCallConverter extends BaseRexCallConverter {
   }
 }
 
-class AlignInputsTypeRexCallConverter extends BaseRexCallConverter {
-  public AlignInputsTypeRexCallConverter(String functionName) {
+class BasicArithmeticOperatorRexCallConverter extends BaseRexCallConverter {
+  public BasicArithmeticOperatorRexCallConverter(String functionName) {
     super(functionName);
+  }
+
+  @Override
+  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+    return callNode.getOperands().stream()
+        .allMatch(param -> Utils.isNumericType(RexNodeConverter.toType(param.getType())));
   }
 
   @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
+    if (params.stream()
+        .allMatch(param -> param.getReturnType().equals(params.get(0).getReturnType()))) {
+      // If all parameters have the same type, no need to align types
+      return new CallTypedExpr(getResultType(callNode), params, functionName);
+    }
+
+    // If types are different, align them
     List<TypedExpr> alignedParams = Utils.promoteTypeForArithmeticExpressions(params);
     Type resultType = getResultType(callNode);
     return new CallTypedExpr(resultType, alignedParams, functionName);

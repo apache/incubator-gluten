@@ -75,6 +75,10 @@ public class Utils {
     return index;
   }
 
+  public static boolean isNumericType(Type type) {
+    return NUMERIC_TYPE_PRIORITY_LIST.contains(type.getClass());
+  }
+
   public static List<TypedExpr> promoteTypeForArithmeticExpressions(List<TypedExpr> expressions) {
     Type targetType =
         expressions.stream()

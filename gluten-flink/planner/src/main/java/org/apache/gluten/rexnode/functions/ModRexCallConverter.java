@@ -17,6 +17,7 @@
 package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.Utils;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
@@ -32,6 +33,13 @@ public class ModRexCallConverter extends BaseRexCallConverter {
 
   public ModRexCallConverter() {
     super(FUNCTION_NAME);
+  }
+
+  @Override
+  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+    // Modulus operation is supported for numeric types.
+    return callNode.getOperands().size() == 2
+        && Utils.isNumericType(RexNodeConverter.toType(callNode.getType()));
   }
 
   @Override
