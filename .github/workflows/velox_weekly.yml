@@ -28,6 +28,8 @@ env:
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
   TPCH_TEST: "env GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare 
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1"
+  INSTALL_PREFIX: /usr/local
+
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
