@@ -34,7 +34,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.task.TaskResources
 
-import scala.collection.mutable.ArrayBuffer;
+import scala.collection.mutable.ArrayBuffer
 
 // Utility methods to convert Vanilla broadcast relations from/to Velox broadcast relations.
 // FIXME: Truncate output with batch size.
@@ -105,7 +105,7 @@ object BroadcastUtils {
             case ColumnarBatchSerializeResult.EMPTY =>
               Array()
             case result: ColumnarBatchSerializeResult =>
-              Array(result.getSerialized)
+              result.getSerialized
           }
           if (useOffheapBuildRelation) {
             new UnsafeColumnarBuildSideRelation(
@@ -131,7 +131,7 @@ object BroadcastUtils {
             case ColumnarBatchSerializeResult.EMPTY =>
               Array()
             case result: ColumnarBatchSerializeResult =>
-              Array(result.getSerialized)
+              result.getSerialized
           }
           if (useOffheapBuildRelation) {
             new UnsafeColumnarBuildSideRelation(
@@ -168,23 +168,30 @@ object BroadcastUtils {
           ColumnarBatches.retain(b)
           b
         })
+    var numRows: Long = 0
+    val values = filtered
+      .map(
+        b => {
+          val handle = ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b)
+          numRows += b.numRows()
+          try {
+            ColumnarBatchSerializerJniWrapper
+              .create(
+                Runtimes
+                  .contextInstance(
+                    BackendsApiManager.getBackendName,
+                    "BroadcastUtils#serializeStream"))
+              .serialize(handle)
+          } finally {
+            ColumnarBatches.release(b)
+          }
+        })
       .toArray
-    if (filtered.isEmpty) {
-      return ColumnarBatchSerializeResult.EMPTY
+    if (values.nonEmpty) {
+      new ColumnarBatchSerializeResult(numRows, values)
+    } else {
+      ColumnarBatchSerializeResult.EMPTY
     }
-    val handleArray =
-      filtered.map(b => ColumnarBatches.getNativeHandle(BackendsApiManager.getBackendName, b))
-    val serializeResult =
-      try {
-        ColumnarBatchSerializerJniWrapper
-          .create(
-            Runtimes
-              .contextInstance(BackendsApiManager.getBackendName, "BroadcastUtils#serializeStream"))
-          .serialize(handleArray)
-      } finally {
-        filtered.foreach(ColumnarBatches.release)
-      }
-    serializeResult
   }
 
   private def reconstructRows(relation: HashedRelation): Iterator[InternalRow] = {

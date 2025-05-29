@@ -18,6 +18,7 @@
 #pragma once
 
 
+#include <Interpreters/Context_fwd.h>
 #include <Processors/ISource.h>
 #include <Storages/Kafka/KafkaConsumer.h>
 #include <Storages/Kafka/KafkaSettings.h>
@@ -84,6 +85,7 @@ private:
     const size_t end_offset;
     String client_id;
     bool finished = false;
+    size_t total_rows = 0;
 };
 
 }

@@ -1034,7 +1034,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
          | from $orcFileFormat.`$filePath`
          | where long_field > 30
          |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {}, noFallBack = true)
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {})
   }
 
   // TODO: Fix: if the field names has upper case form, it will return null value
@@ -1458,7 +1458,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
      * is destroyed, but before that, the file moved by spark committer.
      */
 
-    val tablePath = hdfsHelper.getHdfsUrl(s"$SPARK_DIR_NAME/write_into_hdfs/")
+    val tablePath = hdfsHelper.independentHdfsURL("write_into_hdfs")
     val format = "parquet"
     val sql =
       s"""
@@ -1474,7 +1474,7 @@ class GlutenClickHouseExcelFormatSuite extends GlutenClickHouseWholeStageTransfo
   // TODO: pass spark configuration to FileFormatWriter in Spark 3.3 and 3.2
   testWithMinSparkVersion("write succeed even if set wrong snappy compression codec level", "3.5") {
     // TODO: remove duplicated test codes
-    val tablePath = hdfsHelper.getHdfsUrl(s"$SPARK_DIR_NAME/failed_test/")
+    val tablePath = hdfsHelper.independentHdfsURL("failed_test")
     val format = "parquet"
     val sql =
       s"""

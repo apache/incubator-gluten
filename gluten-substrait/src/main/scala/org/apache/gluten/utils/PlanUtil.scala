@@ -42,7 +42,7 @@ object PlanUtil {
   }
 
   def isVanillaColumnarOp(plan: SparkPlan): Boolean = {
-    Convention.get(plan).batchType == Convention.BatchType.VanillaBatch
+    Convention.get(plan).batchType == Convention.BatchType.VanillaBatchType
   }
 
   def isGlutenColumnarOp(plan: SparkPlan): Boolean = {
@@ -50,6 +50,6 @@ object PlanUtil {
   }
 
   private def isGlutenBatchType(batchType: Convention.BatchType) = {
-    batchType != Convention.BatchType.None && batchType != Convention.BatchType.VanillaBatch
+    batchType != Convention.BatchType.None && batchType != Convention.BatchType.VanillaBatchType
   }
 }

@@ -17,7 +17,6 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.RuleApi
-import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
@@ -124,7 +123,8 @@ object CHRuleApi {
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
             c.session)))
     injector.injectPostTransform(_ => CollectLimitTransformerRule())
-    injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatch))
+    injector.injectPostTransform(_ => CollectTailTransformerRule())
+    injector.injectPostTransform(c => InsertTransitions.create(c.outputsColumnar, CHBatchType))
     injector.injectPostTransform(c => RemoveDuplicatedColumns(c.session))
     injector.injectPostTransform(c => AddPreProjectionForHashJoin(c.session))
     injector.injectPostTransform(c => ReplaceSubStringComparison(c.session))

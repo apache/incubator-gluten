@@ -331,7 +331,7 @@ DB::AggregateDescription AggregateGroupLimitRelParser::buildAggregateDescription
     DB::AggregateDescription agg_desc;
     agg_desc.column_name = aggregate_tuple_column_name;
     agg_desc.argument_names = {aggregate_tuple_column_name};
-    DB::Array parameters;
+    auto & parameters = agg_desc.parameters;
     parameters.push_back(static_cast<UInt32>(limit));
     auto sort_directions = buildSQLLikeSortDescription(input_header, win_rel_def->sorts());
     parameters.push_back(sort_directions);

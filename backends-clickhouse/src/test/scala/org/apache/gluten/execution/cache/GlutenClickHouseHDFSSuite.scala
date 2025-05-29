@@ -21,7 +21,7 @@ import org.apache.hadoop.fs.Path
 
 class GlutenClickHouseHDFSSuite extends GlutenClickHouseCacheBaseTestSuite {
 
-  override protected val remotePath: String = hdfsHelper.getHdfsUrl("tpch-data")
+  override protected val remotePath: String = hdfsHelper.hdfsURL("tpch-data")
 
   override protected def copyDataIfNeeded(): Unit = {
     val targetFile = new Path(s"$remotePath/lineitem")

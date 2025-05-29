@@ -99,7 +99,7 @@ object ConventionFunc {
         case k: Convention.KnownRowType =>
           k.rowType()
         case _ if SparkShimLoader.getSparkShims.supportsRowBased(plan) =>
-          Convention.RowType.VanillaRow
+          Convention.RowType.VanillaRowType
         case _ =>
           Convention.RowType.None
       }
@@ -131,7 +131,7 @@ object ConventionFunc {
         case k: Convention.KnownBatchType =>
           k.batchType()
         case _ if plan.supportsColumnar =>
-          Convention.BatchType.VanillaBatch
+          Convention.BatchType.VanillaBatchType
         case _ =>
           Convention.BatchType.None
       }
@@ -166,13 +166,13 @@ object ConventionFunc {
       case RowToColumnarLike(_) =>
         Seq(
           ConventionReq.of(
-            ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
+            ConventionReq.RowType.Is(Convention.RowType.VanillaRowType),
             ConventionReq.BatchType.Any))
       case ColumnarToRowExec(_) =>
         Seq(
           ConventionReq.of(
             ConventionReq.RowType.Any,
-            ConventionReq.BatchType.Is(Convention.BatchType.VanillaBatch)))
+            ConventionReq.BatchType.Is(Convention.BatchType.VanillaBatchType)))
       case write: DataWritingCommandExec if SparkShimLoader.getSparkShims.isPlannedV1Write(write) =>
         // To align with ApplyColumnarRulesAndInsertTransitions#insertTransitions
         Seq(ConventionReq.any)
@@ -183,7 +183,7 @@ object ConventionFunc {
         Seq.tabulate(u.children.size)(
           _ =>
             ConventionReq.of(
-              ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
+              ConventionReq.RowType.Is(Convention.RowType.VanillaRowType),
               ConventionReq.BatchType.Any))
       case other =>
         // In the normal case, children's convention should follow parent node's convention.

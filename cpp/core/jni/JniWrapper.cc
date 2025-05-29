@@ -53,9 +53,6 @@ jmethodID jniByteInputStreamClose;
 jclass splitResultClass;
 jmethodID splitResultConstructor;
 
-jclass columnarBatchSerializeResultClass;
-jmethodID columnarBatchSerializeResultConstructor;
-
 jclass metricsBuilderClass;
 jmethodID metricsBuilderConstructor;
 jclass nativeColumnarToRowInfoClass;
@@ -217,11 +214,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/GlutenSplitResult;");
   splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJJ[J[J)V");
 
-  columnarBatchSerializeResultClass =
-      createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchSerializeResult;");
-  columnarBatchSerializeResultConstructor =
-      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", "(J[B)V");
-
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
   metricsBuilderConstructor = getMethodIdOrError(
@@ -249,7 +241,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
-  env->DeleteGlobalRef(columnarBatchSerializeResultClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
@@ -841,7 +832,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .compressionThreshold = compressionThreshold,
       .compressionType = getCompressionType(env, codecJstr),
       .compressionLevel = compressionLevel,
-      .bufferedWrite = true,
       .numSubDirs = numSubDirs,
       .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultPushMemoryThreshold,
       .sortBufferMaxSize = sortBufferMaxSize > 0 ? sortBufferMaxSize : kDefaultSortBufferThreshold};
@@ -879,11 +869,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     env->ReleaseStringUTFChars(localDirsJstr, localDirsC);
 
     partitionWriter = std::make_unique<LocalPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        dataFile,
-        configuredDirs);
+        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), dataFile, configuredDirs);
   } else if (partitionWriterType == "celeborn") {
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
@@ -896,10 +882,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     std::shared_ptr<JavaRssClient> celebornClient =
         std::make_shared<JavaRssClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
     partitionWriter = std::make_unique<RssPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        std::move(celebornClient));
+        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), std::move(celebornClient));
   } else if (partitionWriterType == "uniffle") {
     jclass unifflePartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/writer/PartitionPusher;");
@@ -912,10 +895,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     std::shared_ptr<JavaRssClient> uniffleClient =
         std::make_shared<JavaRssClient>(vm, partitionPusher, unifflePushPartitionDataMethod);
     partitionWriter = std::make_unique<RssPartitionWriter>(
-        numPartitions,
-        std::move(partitionWriterOptions),
-        ctx->memoryManager()->getArrowMemoryPool(),
-        std::move(uniffleClient));
+        numPartitions, std::move(partitionWriterOptions), ctx->memoryManager(), std::move(uniffleClient));
   } else {
     throw GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
   }
@@ -1097,25 +1077,17 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
   JNI_METHOD_END()
 }
 
-JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
+JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlongArray handles) {
+    jlong handle) {
   JNI_METHOD_START
   auto ctx = getRuntime(env, wrapper);
 
-  int32_t numBatches = env->GetArrayLength(handles);
-  auto safeArray = getLongArrayElementsSafe(env, handles);
-
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
-  int64_t numRows = 0L;
-  for (int32_t i = 0; i < numBatches; i++) {
-    auto batch = ObjectStore::retrieve<ColumnarBatch>(safeArray.elems()[i]);
-    GLUTEN_DCHECK(
-        batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(safeArray.elems()[i]));
-    numRows += batch->numRows();
-    batches.emplace_back(batch);
-  }
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
+  GLUTEN_DCHECK(batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(handle));
+  batches.emplace_back(batch);
 
   auto serializer = ctx->createColumnarBatchSerializer(nullptr);
   auto buffer = serializer->serializeColumnarBatches(batches);
@@ -1126,10 +1098,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSeriali
           " byte(s) to serialize columnar batches");
   env->SetByteArrayRegion(bufferArr, 0, buffer->size(), reinterpret_cast<const jbyte*>(buffer->data()));
 
-  jobject columnarBatchSerializeResult =
-      env->NewObject(columnarBatchSerializeResultClass, columnarBatchSerializeResultConstructor, numRows, bufferArr);
-
-  return columnarBatchSerializeResult;
+  return bufferArr;
   JNI_METHOD_END(nullptr)
 }
 

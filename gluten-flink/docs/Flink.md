@@ -39,14 +39,17 @@ export PATH=$JAVA_HOME/bin:$PATH
 
 **Get Velox4j**
 
-Gluten for Flink depends on [Velox4j](https://github.com/velox4j/velox4j) commit:7aaa6465cb2c56c8898b737bcc770bae35a94ee4 to call velox. This is an experimental feature.
+Gluten for Flink depends on [Velox4j](https://github.com/velox4j/velox4j) to call velox. This is an experimental feature.
 You need to get the Velox4j code, and compile it first.
+
+As some features have not been committed to upstream, you have to use the following fork to run it first.
 
 ```bash
 ## fetch velox4j code
-git clone https://github.com/velox4j/velox4j.git
+git clone https://github.com/bigo-sg/velox4j.git
 cd velox4j
-git reset --hard 7aaa6465cb2c56c8898b737bcc770bae35a94ee4
+git checkout -b gluten origin/gluten
+git reset --hard c069ca63aa3a200b49199f7dfa285f011ce6fda5
 mvn clean install
 ```
 **Get gluten**
@@ -105,9 +108,35 @@ bin/sql-client.sh -f data-generator.sql
 TODO
 
 ## Performance
-Using the data-generator example, it shows that for native execution, it can generate 10,0000
-records in about 60ms, while Flink generator 10,000 records in about 600ms. It runs 10 times faster.
-More perf cases to be added.
+We are working on supporting the [Nexmark](https://github.com/nexmark/nexmark) benchmark for Flink.
+Now the q0 has been supported.
+
+Results show that running with gluten can be 2.x times faster than Flink.
+
+Result using gluten (will support TPS metric soon):
+```
+-------------------------------- Nexmark Results --------------------------------
+
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+| Query| Events Num      | Cores  | Time(s)  | Cores * Time(s) | Throughput   | Throughput/Cores|
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+|q0    |100,000,000      |NaN     |161.428   |NaN              |619.47 K/s    |0/s              |
+|Total |100,000,000      |NaN     |161.428   |NaN              |619.47 K/s    |0/s              |
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+```
+
+Result using Flink:
+```
+-------------------------------- Nexmark Results --------------------------------
+
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+| Query| Events Num      | Cores  | Time(s)  | Cores * Time(s) | Throughput   | Throughput/Cores|
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+|q0    |100,000,000      |1.21    |462.069   |558.210          |216.42 K/s    |179.14/s         |
+|Total |100,000,000      |1.208   |462.069   |558.210          |216.42 K/s    |179.14/s         |
++------+-----------------+--------+----------+-----------------+--------------+-----------------+
+```
+We are still optimizing it.
 
 ## Notes:
 Now both Gluten for Flink and Velox4j have not a bundled jar including all jars depends on.

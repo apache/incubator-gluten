@@ -31,7 +31,7 @@ class MyUdfTest : public FunctionBaseTest {
     auto udfLoader = gluten::UdfLoader::getInstance();
     udfLoader->loadUdfLibraries("../udf/examples/libmyudf.so");
     udfLoader->registerUdf();
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 };
 

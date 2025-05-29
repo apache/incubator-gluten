@@ -949,7 +949,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     CHColumnarCollectLimitExec(limit, offset, child)
 
   override def genColumnarTailExec(limit: Int, child: SparkPlan): ColumnarCollectTailBaseExec =
-    throw new GlutenNotSupportException("ColumnarTail is not supported in ch backend.")
+    CHColumnarCollectTailExec(limit, child)
 
   override def genColumnarRangeExec(
       start: Long,
@@ -1000,4 +1000,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     val address = CHStreamReader.directRead(input, readBuffer, bufferSize)
     new CHNativeBlock(address).toColumnarBatch
   }
+
+  override def genColumnarToCarrierRow(plan: SparkPlan): SparkPlan =
+    CHColumnarToCarrierRowExec.enforce(plan)
 }

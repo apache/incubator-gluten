@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeConfig, RuntimeSettings}
+import org.apache.gluten.backendsapi.clickhouse.{CHConfig, RuntimeSettings}
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CreateMergeTreeSuite, FileSourceScanExecTransformer}
 
@@ -46,7 +46,6 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set(CHConfig.ENABLE_ONEPIPELINE_MERGETREE_WRITE.key, spark35.toString)
       .set(RuntimeSettings.MIN_INSERT_BLOCK_SIZE_ROWS.key, "10000")
@@ -54,7 +53,8 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
         "spark.databricks.delta.retentionDurationCheck.enabled",
         "false"
       ) // otherwise, RETAIN 0 HOURS will fail
-      .setCHSettings("mergetree.merge_after_insert", false)
+      .set(RuntimeSettings.MERGE_AFTER_INSERT.key, "false")
+      .set(MergeTreeConf.WRITE_MARKS_FOR_SUBSTREAMS_IN_COMPACT_PARTS.key, "true")
       .setCHSettings("input_format_parquet_max_block_size", 8192)
   }
 
@@ -104,12 +104,14 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
       new NotFileFilter(new NameFileFilter("_commits")))
 
     val CRC_FILES = new SuffixFileFilter(".crc")
+    val VACUUM_INFO = new SuffixFileFilter("vacuum_info")
     // https://github.com/ClickHouse/ClickHouse/pull/77940 introduce "columns_substreams.txt"
     val COLUMNS_SUBSTREAMS = new NameFileFilter("columns_substreams.txt")
 
     val EXClUDE_FILES = new NotFileFilter(
       new OrFileFilter(
         CRC_FILES,
+        VACUUM_INFO,
         COLUMNS_SUBSTREAMS
       )
     )
@@ -135,11 +137,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
     spark.sparkContext.setJobGroup("test", "test")
     with_ut_conf(spark.sql("optimize lineitem_mergetree_optimize_p"))
     val job_ids = spark.sparkContext.statusTracker.getJobIdsForGroup("test")
-    if (spark35) {
-      assertResult(4)(job_ids.length)
-    } else {
-      assertResult(1)(job_ids.length) // will not trigger actual merge job
-    }
+    assertResult(1)(job_ids.length)
     spark.sparkContext.clearJobGroup()
 
     val ret = spark.sql("select count(*) from lineitem_mergetree_optimize_p").collect()
@@ -494,7 +492,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite extends CreateMergeTreeSuite {
   test("test mergetree insert with optimize basic") {
     withSQLConf(
       DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE.key -> "200000000",
-      CHConfig.runtimeSettings("mergetree.merge_after_insert") -> "true"
+      RuntimeSettings.MERGE_AFTER_INSERT.key -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_mergetree_insert_optimize_basic;

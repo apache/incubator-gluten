@@ -49,9 +49,14 @@ object FilterWizard {
 }
 
 object FilterWizards {
-  def omitCycles[T <: AnyRef](): FilterWizard[T] = {
+  def omitNodeCycles[T <: AnyRef](): FilterWizard[T] = {
     // Compares against group ID to identify cycles.
-    OmitCycles[T](CycleDetector[GroupNode[T]]((one, other) => one.groupId() == other.groupId()))
+    OmitCycles.onNodes(CycleDetector((one, other) => one.toHashKey == other.toHashKey))
+  }
+
+  def omitGroupCycles[T <: AnyRef](): FilterWizard[T] = {
+    // Compares against group ID to identify cycles.
+    OmitCycles.onGroups(CycleDetector((one, other) => one.groupId() == other.groupId()))
   }
 
   def none[T <: AnyRef](): FilterWizard[T] = {
@@ -70,17 +75,22 @@ object FilterWizards {
   }
 
   // Cycle detection starts from the first visited group in the input path.
-  private class OmitCycles[T <: AnyRef] private (detector: CycleDetector[GroupNode[T]])
+  private class OmitCycles[T <: AnyRef] private (
+      detectorOnNodes: CycleDetector[CanonicalNode[T]],
+      detectorOnGroups: CycleDetector[GroupNode[T]])
     extends FilterWizard[T] {
     override def omit(can: CanonicalNode[T]): FilterAction[T] = {
-      FilterAction.Continue(this)
+      if (detectorOnNodes.contains(can)) {
+        return FilterAction.omit
+      }
+      FilterAction.Continue(new OmitCycles(detectorOnNodes.append(can), detectorOnGroups))
     }
 
     override def omit(group: GroupNode[T]): FilterAction[T] = {
-      if (detector.contains(group)) {
+      if (detectorOnGroups.contains(group)) {
         return FilterAction.omit
       }
-      FilterAction.Continue(new OmitCycles(detector.append(group)))
+      FilterAction.Continue(new OmitCycles(detectorOnNodes, detectorOnGroups.append(group)))
     }
 
     override def advance(offset: Int, count: Int): FilterAdvanceAction[T] =
@@ -88,8 +98,12 @@ object FilterWizards {
   }
 
   private object OmitCycles {
-    def apply[T <: AnyRef](detector: CycleDetector[GroupNode[T]]): OmitCycles[T] = {
-      new OmitCycles(detector)
+    def onNodes[T <: AnyRef](detector: CycleDetector[CanonicalNode[T]]): OmitCycles[T] = {
+      new OmitCycles(detector, CycleDetector.noop())
+    }
+
+    def onGroups[T <: AnyRef](detector: CycleDetector[GroupNode[T]]): OmitCycles[T] = {
+      new OmitCycles(CycleDetector.noop(), detector)
     }
   }
 }

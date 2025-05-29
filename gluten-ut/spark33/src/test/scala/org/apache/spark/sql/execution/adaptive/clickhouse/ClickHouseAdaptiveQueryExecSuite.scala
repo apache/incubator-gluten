@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.adaptive.clickhouse
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformerBase}
+import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, ColumnarToCarrierRowExecBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformerBase}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
@@ -26,7 +26,6 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
-import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 import org.apache.spark.sql.execution.datasources.noop.NoopDataSource
 import org.apache.spark.sql.execution.datasources.v2.V2TableWriteExec
 import org.apache.spark.sql.execution.exchange._
@@ -1272,8 +1271,12 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
         sparkContext.listenerBus.waitUntilEmpty()
         assert(plan.isInstanceOf[V2TableWriteExec])
         val childPlan = plan.asInstanceOf[V2TableWriteExec].child
-        assert(childPlan.isInstanceOf[FakeRowAdaptor])
-        assert(childPlan.asInstanceOf[FakeRowAdaptor].child.isInstanceOf[AdaptiveSparkPlanExec])
+        assert(childPlan.isInstanceOf[ColumnarToCarrierRowExecBase])
+        assert(
+          childPlan
+            .asInstanceOf[ColumnarToCarrierRowExecBase]
+            .child
+            .isInstanceOf[AdaptiveSparkPlanExec])
 
         spark.listenerManager.unregister(listener)
       }

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
@@ -22,7 +21,11 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 
 /** Interface for all gluten operators. */
 public interface GlutenOperator {
-    public PlanNode getPlanNode();
-    public RowType getOutputType();
-    public String getId();
+  public PlanNode getPlanNode();
+
+  public RowType getInputType();
+
+  public RowType getOutputType();
+
+  public String getId();
 }

@@ -99,6 +99,7 @@ case class GlutenColumnarRule(
     }
     val vanillaPlan = Transitions.insert(originalPlan, outputsColumnar)
     val applier = applierBuilder.apply(session)
-    applier.apply(vanillaPlan, outputsColumnar)
+    val out = applier.apply(vanillaPlan, outputsColumnar)
+    out
   }
 }

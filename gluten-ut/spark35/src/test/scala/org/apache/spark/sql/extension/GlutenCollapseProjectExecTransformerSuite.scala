@@ -21,6 +21,7 @@ import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.execution.SparkPlan
 
 class GlutenCollapseProjectExecTransformerSuite extends GlutenSQLTestsTrait {
 
@@ -112,6 +113,12 @@ class GlutenCollapseProjectExecTransformerSuite extends GlutenSQLTestsTrait {
                 case _ => false
               } == !collapsed
             )
+            if (collapsed) {
+              val projectPlan = getExecutedPlan(df).collect {
+                case plan: ProjectExecTransformer => plan
+              }.head
+              assert(projectPlan.getTagValue(SparkPlan.LOGICAL_PLAN_TAG).isDefined)
+            }
           }
       }
     }

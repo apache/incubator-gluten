@@ -14,42 +14,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.gluten.table.runtime.operators.GlutenSourceFunction;
 
+import io.github.zhztheplayer.velox4j.connector.ConnectorSplit;
 import io.github.zhztheplayer.velox4j.plan.PlanNode;
 import io.github.zhztheplayer.velox4j.type.RowType;
+
 import org.apache.flink.streaming.api.operators.StreamSource;
 
 /** Legacy stream source operator in gluten, which will call Velox to run. */
-public class GlutenStreamSource extends StreamSource
-        implements GlutenOperator {
-    private final GlutenSourceFunction sourceFunction;
+public class GlutenStreamSource extends StreamSource implements GlutenOperator {
+  private final GlutenSourceFunction sourceFunction;
 
-    public GlutenStreamSource(GlutenSourceFunction function) {
-        super(function);
-        sourceFunction = function;
-    }
+  public GlutenStreamSource(GlutenSourceFunction function) {
+    super(function);
+    sourceFunction = function;
+  }
 
-    @Override
-    public void open() throws Exception {
-        super.open();
-    }
+  @Override
+  public void open() throws Exception {
+    super.open();
+  }
 
-    @Override
-    public PlanNode getPlanNode() {
-        return sourceFunction.getPlanNode();
-    }
+  @Override
+  public PlanNode getPlanNode() {
+    return sourceFunction.getPlanNode();
+  }
 
-    @Override
-    public RowType getOutputType() {
-        return sourceFunction.getOutputType();
-    }
+  @Override
+  public RowType getInputType() {
+    return null;
+  }
 
-    @Override
-    public String getId() {
-        return sourceFunction.getId();
-    }
+  @Override
+  public RowType getOutputType() {
+    return sourceFunction.getOutputType();
+  }
+
+  @Override
+  public String getId() {
+    return sourceFunction.getId();
+  }
+
+  public ConnectorSplit getConnectorSplit() {
+    return sourceFunction.getConnectorSplit();
+  }
 }

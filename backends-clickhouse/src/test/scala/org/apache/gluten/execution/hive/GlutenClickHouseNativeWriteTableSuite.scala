@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution.hive
 
-import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
 import org.apache.gluten.test.AllDataTypesWithComplexType.genTestData
@@ -65,7 +64,6 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
       .set("spark.sql.session.timeZone", sessionTimeZone)
-      .set(RuntimeConfig.LOGGER_LEVEL.key, "error")
       .setMaster("local[1]")
   }
 

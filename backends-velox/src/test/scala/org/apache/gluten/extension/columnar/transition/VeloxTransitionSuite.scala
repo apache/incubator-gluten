@@ -16,187 +16,222 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backendsapi.velox.VeloxListenerApi
-import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
-import org.apache.gluten.columnarbatch.VeloxBatch
-import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, LoadArrowDataExec, OffloadArrowDataExec, RowToVeloxColumnarExec, VeloxColumnarToRowExec}
-import org.apache.gluten.extension.columnar.transition.Convention.BatchType.VanillaBatch
+import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.{ArrowJavaBatchType, ArrowNativeBatchType}
+import org.apache.gluten.backendsapi.velox.{VeloxBatchType, VeloxCarrierRowType, VeloxListenerApi}
+import org.apache.gluten.execution._
+import org.apache.gluten.extension.columnar.transition.Convention.BatchType.VanillaBatchType
 import org.apache.gluten.test.MockVeloxBackend
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec}
 import org.apache.spark.sql.test.SharedSparkSession
 
-class VeloxTransitionSuite extends SharedSparkSession {
-  import VeloxTransitionSuite._
+class VeloxTransitionSuite extends SharedSparkSession with TransitionSuiteBase {
+  import TransitionSuiteBase._
 
   private val api = new VeloxListenerApi()
 
   test("Vanilla C2R - outputs row") {
-    val in = BatchLeaf(VanillaBatch)
+    val in = BatchLeaf(VanillaBatchType)
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == ColumnarToRowExec(BatchLeaf(VanillaBatch)))
+    assert(out == ColumnarToRowExec(BatchLeaf(VanillaBatchType)))
   }
 
   test("Vanilla C2R - requires row input") {
-    val in = RowUnary(BatchLeaf(VanillaBatch))
+    val in = RowUnary(Convention.RowType.VanillaRowType, BatchLeaf(VanillaBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == RowUnary(ColumnarToRowExec(BatchLeaf(VanillaBatch))))
+    assert(
+      out == RowUnary(
+        Convention.RowType.VanillaRowType,
+        ColumnarToRowExec(BatchLeaf(VanillaBatchType))))
   }
 
   test("Vanilla R2C - requires vanilla input") {
-    val in = BatchUnary(VanillaBatch, RowLeaf())
+    val in = BatchUnary(VanillaBatchType, RowLeaf(Convention.RowType.VanillaRowType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == ColumnarToRowExec(BatchUnary(VanillaBatch, RowToColumnarExec(RowLeaf()))))
+    assert(out == ColumnarToRowExec(
+      BatchUnary(VanillaBatchType, RowToColumnarExec(RowLeaf(Convention.RowType.VanillaRowType)))))
   }
 
   test("ArrowNative C2R - outputs row") {
-    val in = BatchLeaf(ArrowNativeBatch)
+    val in = BatchLeaf(ArrowNativeBatchType)
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == ColumnarToRowExec(LoadArrowDataExec(BatchLeaf(ArrowNativeBatch))))
+    assert(out == ColumnarToRowExec(LoadArrowDataExec(BatchLeaf(ArrowNativeBatchType))))
   }
 
   test("ArrowNative C2R - requires row input") {
-    val in = RowUnary(BatchLeaf(ArrowNativeBatch))
+    val in = RowUnary(Convention.RowType.VanillaRowType, BatchLeaf(ArrowNativeBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == RowUnary(ColumnarToRowExec(LoadArrowDataExec(BatchLeaf(ArrowNativeBatch)))))
+    assert(
+      out == RowUnary(
+        Convention.RowType.VanillaRowType,
+        ColumnarToRowExec(LoadArrowDataExec(BatchLeaf(ArrowNativeBatchType)))))
   }
 
   test("ArrowNative R2C - requires Arrow input") {
-    val in = BatchUnary(ArrowNativeBatch, RowLeaf())
+    val in = BatchUnary(ArrowNativeBatchType, RowLeaf(Convention.RowType.VanillaRowType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == ColumnarToRowExec(
-        LoadArrowDataExec(BatchUnary(ArrowNativeBatch, RowToVeloxColumnarExec(RowLeaf())))))
+        LoadArrowDataExec(BatchUnary(
+          ArrowNativeBatchType,
+          RowToVeloxColumnarExec(RowLeaf(Convention.RowType.VanillaRowType))))))
   }
 
   test("ArrowNative-to-Velox C2C") {
-    val in = BatchUnary(VeloxBatch, BatchLeaf(ArrowNativeBatch))
+    val in = BatchUnary(VeloxBatchType, BatchLeaf(ArrowNativeBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     // No explicit transition needed for ArrowNative-to-Velox.
     // FIXME: Add explicit transitions.
     //  See https://github.com/apache/incubator-gluten/issues/7313.
     assert(
       out == VeloxColumnarToRowExec(
-        BatchUnary(VeloxBatch, ArrowColumnarToVeloxColumnarExec(BatchLeaf(ArrowNativeBatch)))))
+        BatchUnary(
+          VeloxBatchType,
+          ArrowColumnarToVeloxColumnarExec(BatchLeaf(ArrowNativeBatchType)))))
   }
 
   test("Velox-to-ArrowNative C2C") {
-    val in = BatchUnary(ArrowNativeBatch, BatchLeaf(VeloxBatch))
+    val in = BatchUnary(ArrowNativeBatchType, BatchLeaf(VeloxBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == ColumnarToRowExec(
-        LoadArrowDataExec(BatchUnary(ArrowNativeBatch, BatchLeaf(VeloxBatch)))))
+        LoadArrowDataExec(BatchUnary(ArrowNativeBatchType, BatchLeaf(VeloxBatchType)))))
   }
 
   test("Vanilla-to-ArrowNative C2C") {
-    val in = BatchUnary(ArrowNativeBatch, BatchLeaf(VanillaBatch))
+    val in = BatchUnary(ArrowNativeBatchType, BatchLeaf(VanillaBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == ColumnarToRowExec(
         LoadArrowDataExec(BatchUnary(
-          ArrowNativeBatch,
-          RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatch)))))))
+          ArrowNativeBatchType,
+          RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatchType)))))))
   }
 
   test("ArrowNative-to-Vanilla C2C") {
-    val in = BatchUnary(VanillaBatch, BatchLeaf(ArrowNativeBatch))
+    val in = BatchUnary(VanillaBatchType, BatchLeaf(ArrowNativeBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == ColumnarToRowExec(
-        BatchUnary(VanillaBatch, LoadArrowDataExec(BatchLeaf(ArrowNativeBatch)))))
+        BatchUnary(VanillaBatchType, LoadArrowDataExec(BatchLeaf(ArrowNativeBatchType)))))
   }
 
   test("ArrowJava C2R - outputs row") {
-    val in = BatchLeaf(ArrowJavaBatch)
+    val in = BatchLeaf(ArrowJavaBatchType)
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == ColumnarToRowExec(BatchLeaf(ArrowJavaBatch)))
+    assert(out == ColumnarToRowExec(BatchLeaf(ArrowJavaBatchType)))
   }
 
   test("ArrowJava C2R - requires row input") {
-    val in = RowUnary(BatchLeaf(ArrowJavaBatch))
+    val in = RowUnary(Convention.RowType.VanillaRowType, BatchLeaf(ArrowJavaBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == RowUnary(ColumnarToRowExec(BatchLeaf(ArrowJavaBatch))))
+    assert(
+      out == RowUnary(
+        Convention.RowType.VanillaRowType,
+        ColumnarToRowExec(BatchLeaf(ArrowJavaBatchType))))
   }
 
   test("ArrowJava R2C - requires Arrow input") {
-    val in = BatchUnary(ArrowJavaBatch, RowLeaf())
+    val in = BatchUnary(ArrowJavaBatchType, RowLeaf(Convention.RowType.VanillaRowType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == ColumnarToRowExec(
-        BatchUnary(ArrowJavaBatch, LoadArrowDataExec(RowToVeloxColumnarExec(RowLeaf())))))
+        BatchUnary(
+          ArrowJavaBatchType,
+          LoadArrowDataExec(RowToVeloxColumnarExec(RowLeaf(Convention.RowType.VanillaRowType))))))
   }
 
   test("ArrowJava-to-Velox C2C") {
-    val in = BatchUnary(VeloxBatch, BatchLeaf(ArrowJavaBatch))
+    val in = BatchUnary(VeloxBatchType, BatchLeaf(ArrowJavaBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == VeloxColumnarToRowExec(
         BatchUnary(
-          VeloxBatch,
-          ArrowColumnarToVeloxColumnarExec(OffloadArrowDataExec(BatchLeaf(ArrowJavaBatch))))))
+          VeloxBatchType,
+          ArrowColumnarToVeloxColumnarExec(OffloadArrowDataExec(BatchLeaf(ArrowJavaBatchType))))))
   }
 
   test("Velox-to-ArrowJava C2C") {
-    val in = BatchUnary(ArrowJavaBatch, BatchLeaf(VeloxBatch))
+    val in = BatchUnary(ArrowJavaBatchType, BatchLeaf(VeloxBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == ColumnarToRowExec(
-        BatchUnary(ArrowJavaBatch, LoadArrowDataExec(BatchLeaf(VeloxBatch)))))
+        BatchUnary(ArrowJavaBatchType, LoadArrowDataExec(BatchLeaf(VeloxBatchType)))))
   }
 
   test("Vanilla-to-ArrowJava C2C") {
-    val in = BatchUnary(ArrowJavaBatch, BatchLeaf(VanillaBatch))
+    val in = BatchUnary(ArrowJavaBatchType, BatchLeaf(VanillaBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
-      out == ColumnarToRowExec(
-        BatchUnary(
-          ArrowJavaBatch,
-          LoadArrowDataExec(RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatch)))))))
+      out == ColumnarToRowExec(BatchUnary(
+        ArrowJavaBatchType,
+        LoadArrowDataExec(RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatchType)))))))
   }
 
   test("ArrowJava-to-Vanilla C2C") {
-    val in = BatchUnary(VanillaBatch, BatchLeaf(ArrowJavaBatch))
+    val in = BatchUnary(VanillaBatchType, BatchLeaf(ArrowJavaBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == ColumnarToRowExec(BatchUnary(VanillaBatch, BatchLeaf(ArrowJavaBatch))))
+    assert(out == ColumnarToRowExec(BatchUnary(VanillaBatchType, BatchLeaf(ArrowJavaBatchType))))
   }
 
   test("Velox C2R - outputs row") {
-    val in = BatchLeaf(VeloxBatch)
+    val in = BatchLeaf(VeloxBatchType)
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == VeloxColumnarToRowExec(BatchLeaf(VeloxBatch)))
+    assert(out == VeloxColumnarToRowExec(BatchLeaf(VeloxBatchType)))
   }
 
   test("Velox C2R - requires row input") {
-    val in = RowUnary(BatchLeaf(VeloxBatch))
+    val in = RowUnary(Convention.RowType.VanillaRowType, BatchLeaf(VeloxBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == RowUnary(VeloxColumnarToRowExec(BatchLeaf(VeloxBatch))))
+    assert(
+      out == RowUnary(
+        Convention.RowType.VanillaRowType,
+        VeloxColumnarToRowExec(BatchLeaf(VeloxBatchType))))
   }
 
   test("Velox R2C - outputs Velox") {
-    val in = RowLeaf()
+    val in = RowLeaf(Convention.RowType.VanillaRowType)
     val out = BackendTransitions.insert(in, outputsColumnar = true)
-    assert(out == RowToVeloxColumnarExec(RowLeaf()))
+    assert(out == RowToVeloxColumnarExec(RowLeaf(Convention.RowType.VanillaRowType)))
   }
 
   test("Velox R2C - requires Velox input") {
-    val in = BatchUnary(VeloxBatch, RowLeaf())
-    val out = BackendTransitions.insert(in, outputsColumnar = false)
-    assert(out == VeloxColumnarToRowExec(BatchUnary(VeloxBatch, RowToVeloxColumnarExec(RowLeaf()))))
-  }
-
-  test("Vanilla-to-Velox C2C") {
-    val in = BatchUnary(VeloxBatch, BatchLeaf(VanillaBatch))
+    val in = BatchUnary(VeloxBatchType, RowLeaf(Convention.RowType.VanillaRowType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
       out == VeloxColumnarToRowExec(
-        BatchUnary(VeloxBatch, RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatch))))))
+        BatchUnary(
+          VeloxBatchType,
+          RowToVeloxColumnarExec(RowLeaf(Convention.RowType.VanillaRowType)))))
+  }
+
+  test("Vanilla-to-Velox C2C") {
+    val in = BatchUnary(VeloxBatchType, BatchLeaf(VanillaBatchType))
+    val out = BackendTransitions.insert(in, outputsColumnar = false)
+    assert(
+      out == VeloxColumnarToRowExec(
+        BatchUnary(
+          VeloxBatchType,
+          RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatchType))))))
   }
 
   test("Velox-to-Vanilla C2C") {
-    val in = BatchUnary(VanillaBatch, BatchLeaf(VeloxBatch))
+    val in = BatchUnary(VanillaBatchType, BatchLeaf(VeloxBatchType))
     val out = BackendTransitions.insert(in, outputsColumnar = false)
     assert(
-      out == ColumnarToRowExec(BatchUnary(VanillaBatch, LoadArrowDataExec(BatchLeaf(VeloxBatch)))))
+      out == ColumnarToRowExec(
+        BatchUnary(VanillaBatchType, LoadArrowDataExec(BatchLeaf(VeloxBatchType)))))
+  }
+
+  test("Velox-to-CarrierRow C2R") {
+    val in =
+      RowToRow(VeloxCarrierRowType, Convention.RowType.VanillaRowType, BatchLeaf(VeloxBatchType))
+    val out = BackendTransitions.insert(in, outputsColumnar = false)
+    assert(
+      out == RowToRow(
+        VeloxCarrierRowType,
+        Convention.RowType.VanillaRowType,
+        VeloxColumnarToCarrierRowExec(BatchLeaf(VeloxBatchType))))
   }
 
   override protected def beforeAll(): Unit = {
