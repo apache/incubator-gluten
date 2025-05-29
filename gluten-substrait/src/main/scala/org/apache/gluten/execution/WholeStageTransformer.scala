@@ -37,6 +37,7 @@ import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -150,6 +151,15 @@ trait TransformSupport extends ValidatablePlan {
       s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 
+  private def isCudf: Boolean = getTagValue[Boolean](CudfTag.CudfTag).getOrElse(false)
+
+  // Use super.nodeName will cause exception scala 213 Super calls can only target methods
+  // for FileSourceScan.
+  override def nodeName: String =
+    if (isCudf) {
+      "Cudf" + getClass.getSimpleName.replaceAll("Exec$", "")
+    } else getClass.getSimpleName
+
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
    *
@@ -216,10 +226,7 @@ trait UnaryTransformSupport extends TransformSupport with UnaryExecNode {
   }
 }
 
-case class WholeStageTransformer(
-    child: SparkPlan,
-    materializeInput: Boolean = false,
-    isCudf: Boolean = false)(
+case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = false)(
     val transformStageId: Int
 ) extends WholeStageTransformerGenerateTreeStringShim
   with UnaryTransformSupport {
@@ -290,13 +297,7 @@ case class WholeStageTransformer(
   // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed to
   // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
   // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
-  override def nodeName: String = {
-    if (isCudf) {
-      s"CudfWholeStageCodegenTransformer ($transformStageId)"
-    } else {
-      s"WholeStageCodegenTransformer ($transformStageId)"
-    }
-  }
+  override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
   override def verboseStringWithOperatorId(): String = {
     val nativePlan = if (glutenConf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
@@ -575,7 +576,7 @@ case class WholeStageTransformer(
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
-    copy(child = newChild, materializeInput = materializeInput, isCudf = isCudf)(transformStageId)
+    copy(child = newChild, materializeInput = materializeInput)(transformStageId)
 }
 
 /**
@@ -627,4 +628,8 @@ class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) exten
         it :: Nil
     }
   }
+}
+
+object CudfTag {
+  val CudfTag = TreeNodeTag[Boolean]("org.apache.gluten.CudfTag")
 }
