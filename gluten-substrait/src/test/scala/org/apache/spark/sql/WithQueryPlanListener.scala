@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import org.apache.gluten.test.FallbackUtil.collectWithSubqueries
@@ -44,7 +43,8 @@ trait WithQueryPlanListener extends SharedSparkSession with AnyFunSuiteLike {
   assert(
     !this.isInstanceOf[SparkPlanTest],
     "WithQueryPlanListener should not be mixed in with SparkPlanTest as it doesn't intercept " +
-      "the `SparkPlanTest.checkAnswer` calls")
+      "the `SparkPlanTest.checkAnswer` calls"
+  )
 
   protected val planListeners: WithQueryPlanListener.QueryPlanListeners =
     new WithQueryPlanListener.QueryPlanListeners()
@@ -111,8 +111,7 @@ object WithQueryPlanListener {
       this
     }
 
-    def assertNoNodeExists(
-        prediction: SparkPlan => Boolean): QueryPlanListeners = {
+    def assertNoNodeExists(prediction: SparkPlan => Boolean): QueryPlanListeners = {
       builder += {
         planRoot =>
           val allNodes = collectWithSubqueries(planRoot)(p => p)
