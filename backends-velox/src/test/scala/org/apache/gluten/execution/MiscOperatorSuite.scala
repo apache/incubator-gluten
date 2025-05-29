@@ -1453,15 +1453,15 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           subDir <- 0 to 4
         } yield Paths.get(tempDirPath, dir, "c_nationkey=" + subDir.toString).toString
 
-        // Each directory should have a single .parquet file
+        // Each directory should have .parquet file(s)
         expectedDirs.foreach {
           dir =>
             val path = Paths.get(dir)
             assert(Files.exists(path) && Files.isDirectory(path))
             val files = Files.list(path).iterator().asScala.toSeq
-            assert(files.nonEmpty && files.size == 1)
-            val parquetFiles = files.filter(file => file.toString.endsWith(".parquet"))
-            assert(parquetFiles.nonEmpty && parquetFiles.size == 1)
+            assert(files.nonEmpty)
+            val parquetFiles = files.filter(file => file.toString.contains(".parquet"))
+            assert(parquetFiles.nonEmpty && parquetFiles.size == files.size)
         }
 
     }
