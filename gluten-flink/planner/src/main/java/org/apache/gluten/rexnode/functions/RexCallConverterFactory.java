@@ -57,8 +57,17 @@ public class RexCallConverterFactory {
           Map.entry(
               "*", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("multiply"))),
           Map.entry(
-              "-", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("subtract"))),
-          Map.entry("+", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("add"))),
+              "-",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("subtract"),
+                  // This relys on prestosql's minus
+                  () -> new TimeStampIntervalRexCallConverter("minus"))),
+          Map.entry(
+              "+",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("add"),
+                  // This relys on prestosql's plus
+                  () -> new TimeStampIntervalRexCallConverter("plus"))),
           Map.entry("MOD", Arrays.asList(() -> new ModRexCallConverter())),
           Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),

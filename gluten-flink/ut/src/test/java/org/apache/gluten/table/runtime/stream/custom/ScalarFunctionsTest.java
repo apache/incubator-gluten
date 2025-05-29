@@ -127,23 +127,95 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
   @Test
   void testTimestamp() {
+
     List<Row> rows =
         Arrays.asList(
-            Row.of(1, LocalDateTime.parse("2023-01-01T10:00:00")),
-            Row.of(2, LocalDateTime.parse("2023-01-02T11:00:00")));
+            Row.of(1, LocalDateTime.parse("2023-01-01T10:00:02.000")),
+            Row.of(2, LocalDateTime.parse("2023-01-02T11:00:00.001")));
     createSimpleBoundedValuesTable(
         "t3", "a int, b timestamp(3)", rows); // timestamp with 3 digits of precision
     String query = "select a, b - interval '1' second as x from t3 where a > 0";
     runAndCheck(
         query,
         Arrays.asList(
-            "+I[1, 2023-01-01T09:59:59.000Z]",
-            "+I[2, 2023-01-02T10:59:59.000Z]")); // Adjusted for the hour subtraction
+            "+I[1, 2023-01-01T10:00:01]",
+            "+I[2, 2023-01-02T10:59:59.001]")); // Adjusted for the hour subtraction
+
+    query = "select a, b - interval '1' minute as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2023-01-01T09:59:02]",
+            "+I[2, 2023-01-02T10:59:00.001]")); // Adjusted for the minute subtraction
+
+    query = "select a, b - interval '1' hour as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2023-01-01T09:00:02]",
+            "+I[2, 2023-01-02T10:00:00.001]")); // Adjusted for the hour subtraction
+
+    query = "select a, b - interval '1' day as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2022-12-31T10:00:02]",
+            "+I[2, 2023-01-01T11:00:00.001]")); // Adjusted for the day subtraction
+
+    query = "select a, b - interval '1' month as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2022-12-01T10:00:02]",
+            "+I[2, 2022-12-02T11:00:00.001]")); // Adjusted for the month subtraction
+
+    query = "select a, b - interval '1' year as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2022-01-01T10:00:02]",
+            "+I[2, 2022-01-02T11:00:00.001]")); // Adjusted for the year subtraction
+
     query = "select a, b + interval '1' second as x from t3 where a > 0";
     runAndCheck(
         query,
         Arrays.asList(
-            "+I[1, 2023-01-01T10:00:01.000Z]",
-            "+I[2, 2023-01-02T11:00:01.000Z]")); // Adjusted for the hour addition
+            "+I[1, 2023-01-01T10:00:03]",
+            "+I[2, 2023-01-02T11:00:01.001]")); // Adjusted for the hour addition
+
+    query = "select a, b + interval '1' minute as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2023-01-01T10:01:02]",
+            "+I[2, 2023-01-02T11:01:00.001]")); // Adjusted for the minute addition
+
+    query = "select a, b + interval '1' hour as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2023-01-01T11:00:02]",
+            "+I[2, 2023-01-02T12:00:00.001]")); // Adjusted for the hour addition
+
+    query = "select a, b + interval '1' day as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2023-01-02T10:00:02]",
+            "+I[2, 2023-01-03T11:00:00.001]")); // Adjusted for the day addition
+
+    query = "select a, b + interval '1' month as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2023-02-01T10:00:02]",
+            "+I[2, 2023-02-02T11:00:00.001]")); // Adjusted for the month addition
+
+    query = "select a, b + interval '1' year as x from t3 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList(
+            "+I[1, 2024-01-01T10:00:02]",
+            "+I[2, 2024-01-02T11:00:00.001]")); // Adjusted for the year addition
   }
 }

@@ -106,14 +106,22 @@ public class RexNodeConverter {
             literal.getValue().toString().getBytes(StandardCharsets.UTF_8));
       case DECIMAL:
       case INTERVAL_SECOND:
-        // interval is used as decimal.
-        // TODO: fix precision check
-        BigDecimal bigDecimal = literal.getValueAs(BigDecimal.class);
-        if (bigDecimal.precision() <= 18) {
-          return new BigIntValue(bigDecimal.unscaledValue().longValueExact());
-        } else {
-          return new HugeIntValue(bigDecimal.unscaledValue());
+      case INTERVAL_MINUTE:
+      case INTERVAL_HOUR:
+      case INTERVAL_DAY:
+        {
+          // interval is used as decimal.
+          // TODO: fix precision check
+          BigDecimal bigDecimal = literal.getValueAs(BigDecimal.class);
+          if (bigDecimal.precision() <= 18) {
+            return new BigIntValue(bigDecimal.unscaledValue().longValueExact());
+          } else {
+            return new HugeIntValue(bigDecimal.unscaledValue());
+          }
         }
+      case INTERVAL_MONTH:
+      case INTERVAL_YEAR:
+        return new IntegerValue(literal.getValueAs(Integer.class));
       default:
         throw new RuntimeException(
             "Unsupported rex node type: " + literal.getType().getSqlTypeName());

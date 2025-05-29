@@ -17,41 +17,42 @@
 package org.apache.gluten.rexnode.functions;
 
 import org.apache.gluten.rexnode.RexConversionContext;
-import org.apache.gluten.rexnode.Utils;
+import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.TypeUtils;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
-import io.github.zhztheplayer.velox4j.type.BigIntType;
 import io.github.zhztheplayer.velox4j.type.TimestampType;
 import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class AddOrMinusRexCallConverter extends BaseRexCallConverter {
-  public AddOrMinusRexCallConverter(String functionName) {
+class TimeStampIntervalRexCallConverter extends BaseRexCallConverter {
+
+  public TimeStampIntervalRexCallConverter(String functionName) {
     super(functionName);
+  }
+
+  @Override
+  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+    // This converter supports timestamp and interval day-time operations.
+    List<Type> operandTypes =
+        callNode.getOperands().stream()
+            .map(param -> RexNodeConverter.toType(param.getType()))
+            .collect(Collectors.toList());
+    return (operandTypes.get(0) instanceof TimestampType
+            && TypeUtils.isTimeInterval(operandTypes.get(1)))
+        || (TypeUtils.isTimeInterval(operandTypes.get(0))
+            && operandTypes.get(1) instanceof TimestampType);
   }
 
   @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
     Type resultType = getResultType(callNode);
-    if (params.stream()
-        .anyMatch(param -> !param.getReturnType().equals(params.get(0).getReturnType()))) {
-
-      // Timestamp +/- interval
-      if (params.get(0).getReturnType() instanceof TimestampType
-          && params.get(1).getReturnType() instanceof BigIntType) {
-        return new CallTypedExpr(resultType, params, functionName);
-      } else {
-        List<TypedExpr> alignedParams = Utils.promoteTypeForArithmeticExpressions(params);
-        return new CallTypedExpr(resultType, alignedParams, functionName);
-      }
-    } else {
-      // If all parameters have the same type, we can use them directly
-      return new CallTypedExpr(resultType, params, functionName);
-    }
+    return new CallTypedExpr(resultType, params, functionName);
   }
 }
