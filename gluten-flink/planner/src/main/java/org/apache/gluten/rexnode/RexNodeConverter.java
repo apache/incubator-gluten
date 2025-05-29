@@ -103,7 +103,8 @@ public class RexNodeConverter {
       case VARCHAR:
         return new VarCharValue(literal.getValue().toString());
       case BINARY:
-        return VarBinaryValue.create(literal.getValue().toString().getBytes(StandardCharsets.UTF_8));
+        return VarBinaryValue.create(
+            literal.getValue().toString().getBytes(StandardCharsets.UTF_8));
       case DECIMAL:
       case INTERVAL_SECOND:
         // interval is used as decimal.

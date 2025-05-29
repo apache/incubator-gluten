@@ -160,7 +160,7 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
   facebook::velox::row::CompactRow row(vector);
 
   if (fixedRowSize_.has_value()) {
-    rowSize_.resize(inputRows, fixedRowSize_.value() + sizeof(RowSizeType));
+    rowSize_.resize(inputRows, fixedRowSize_.value());
   } else {
     rowSize_.resize(inputRows);
     rowSizePrefixSum_.resize(inputRows + 1);
