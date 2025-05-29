@@ -21,7 +21,8 @@ on:
       - '.github/workflows/flink.yml'
       - 'gluten-flink/**'
 
-  test:
+jobs:
+  flink-test:
     runs-on: ubuntu-22.04
     container: apache/gluten:centos-8-jdk17
     steps:
