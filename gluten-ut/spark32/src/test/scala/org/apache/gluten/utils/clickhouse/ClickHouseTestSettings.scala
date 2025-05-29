@@ -35,6 +35,7 @@ import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, Glute
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
+import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQueryCHSuite
 import org.apache.spark.sql.sources._
@@ -1994,6 +1995,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenSparkSessionExtensionSuite]
   enableSuite[GlutenHiveSQLQueryCHSuite]
   enableSuite[GlutenPercentileSuite]
+  enableSuite[GlutenBatchEvalPythonExecSuite]
+    .excludeAllGlutenTests()
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }
