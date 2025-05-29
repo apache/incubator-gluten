@@ -28,21 +28,32 @@ import java.util.stream.Collectors;
 public class RexCallConverterFactory {
 
   /**
-   * Better to new Converter for each call. Reusing an object can easily introduce potential
-   * issues.
+   * Better to new Converter for each call. Reusing an object can easily introduce potential issues.
    *
-   * A single operator (e.g., '+') may map to multiple converters, such as arithmetic addition and
-   * timestamp interval addition, which require distinct implementations. We need to find the only
-   * suitable converter for the given RexCall node.
-   */ 
+   * <p>A single operator (e.g., '+') may map to multiple converters, such as arithmetic addition
+   * and timestamp interval addition, which require distinct implementations. We need to find the
+   * only suitable converter for the given RexCall node.
+   */
   private static Map<String, List<RexCallConverterBuilder>> converters =
       Map.ofEntries(
           Map.entry(
-              ">", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("greaterthan"))),
+              ">",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("greaterthan"),
+                  () -> new StringCompareRexCallConverter("greaterthan"),
+                  () -> new StringNumberCompareRexCallConverter("greaterthan"))),
           Map.entry(
-              "<", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("lessthan"))),
+              "<",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("lessthan"),
+                  () -> new StringCompareRexCallConverter("lessthan"),
+                  () -> new StringNumberCompareRexCallConverter("lessthan"))),
           Map.entry(
-              "=", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("equalto"))),
+              "=",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("equalto"),
+                  () -> new StringCompareRexCallConverter("equalto"),
+                  () -> new StringNumberCompareRexCallConverter("equalto"))),
           Map.entry(
               "*", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("multiply"))),
           Map.entry(
