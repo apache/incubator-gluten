@@ -103,6 +103,8 @@ class Spark35Shims extends SparkShims {
       Sig[RegrR2](ExpressionNames.REGR_R2),
       Sig[RegrSlope](ExpressionNames.REGR_SLOPE),
       Sig[Mode](ExpressionNames.MODE),
+      Sig[Mode](ExpressionNames.MODE_MERGE),
+      Sig[Mode](ExpressionNames.MODE_MERGE_EXTRACT),
       Sig[RegrIntercept](ExpressionNames.REGR_INTERCEPT),
       Sig[RegrSXY](ExpressionNames.REGR_SXY),
       Sig[RegrReplacement](ExpressionNames.REGR_REPLACEMENT)
