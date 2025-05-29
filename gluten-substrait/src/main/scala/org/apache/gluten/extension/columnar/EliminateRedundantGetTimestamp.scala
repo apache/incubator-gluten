@@ -19,20 +19,17 @@ package org.apache.gluten.extension.columnar
 import org.apache.spark.sql.catalyst.expressions.GetTimestamp
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.TimestampType
 
 /**
  * When there is a format parameter, to_date and to_timestamp will be replaced by GetTimestamp. If
- * the left of GetTimestamp is TimestampType, then GetTimestamp is redundant. Velox does not support
- * GetTimestamp(Timestamp, format). In this case, it needs to be removed.
+ * the date type of GetTimestamp is the same as its left, then GetTimestamp is redundant. Velox does
+ * not support GetTimestamp(Timestamp, format). In this case, it needs to be removed.
  */
 object EliminateRedundantGetTimestamp extends Rule[SparkPlan] {
 
   override def apply(plan: SparkPlan): SparkPlan = {
     plan.transformExpressions {
-      case getTimestamp: GetTimestamp
-          if getTimestamp.left.dataType == TimestampType &&
-            getTimestamp.dataType == TimestampType =>
+      case getTimestamp: GetTimestamp if getTimestamp.left.dataType == getTimestamp.dataType =>
         getTimestamp.left
     }
   }

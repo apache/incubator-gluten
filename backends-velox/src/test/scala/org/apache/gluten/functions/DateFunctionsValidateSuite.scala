@@ -277,7 +277,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test to_date function") {
+  test("to_date") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
@@ -292,7 +292,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test to_timestamp function") {
+  test("to_timestamp") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
