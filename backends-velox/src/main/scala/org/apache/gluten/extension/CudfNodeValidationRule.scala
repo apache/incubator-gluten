@@ -26,6 +26,9 @@ import org.apache.spark.sql.execution.SparkPlan
 // Add the node name prefix 'Cudf' to WholeStageTransformer when can offload to cudf
 case class CudfNodeValidationRule(glutenConf: GlutenConfig) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
+    if (!glutenConf.enableColumnarCudf) {
+      return plan
+    }
     plan.transformUp {
       case transformer: WholeStageTransformer =>
         if (
