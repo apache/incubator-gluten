@@ -28,8 +28,8 @@ class GlutenSQLQuerySuite
   import testImplicits._
 
   // Assert no fallbacks on the trivial supported operators.
-  // This is an experimental API, so we only check for sort
-  // fallback at the moment.
+  // We only check for sort fallback at the moment since there
+  // are fallbacks that exist for other operators.
   planListeners.assertNoInstanceOf[SortExec]
 
   testGluten("SPARK-28156: self-join should not miss cached view") {
