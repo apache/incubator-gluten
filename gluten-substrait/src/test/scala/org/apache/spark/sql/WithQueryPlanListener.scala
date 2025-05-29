@@ -114,7 +114,7 @@ object WithQueryPlanListener {
     def assertNoNodeExists(prediction: SparkPlan => Boolean): QueryPlanListeners = {
       builder += {
         planRoot =>
-          val allNodes = collectWithSubqueries(planRoot)(p => p)
+          val allNodes = collectWithSubqueries(planRoot) { case p => p }
           allNodes.foreach {
             node =>
               assert(
