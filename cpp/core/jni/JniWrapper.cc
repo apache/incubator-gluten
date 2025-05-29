@@ -28,6 +28,7 @@
 #include <arrow/c/bridge.h>
 #include <optional>
 #include <string>
+#include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"

@@ -290,9 +290,11 @@ case class WholeStageTransformer(
   // It's misleading with "Codegen" used. But we have to keep "WholeStageCodegen" prefixed to
   // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
   // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
-  override def nodeName: String = if (isCudf)
-    s"CudfWholeStageCodegenTransformer ($transformStageId)"
-  else s"WholeStageCodegenTransformer ($transformStageId)"
+  override def nodeName: String = {
+    if (isCudf)
+      s"CudfWholeStageCodegenTransformer ($transformStageId)"
+    else s"WholeStageCodegenTransformer ($transformStageId)"
+  }
 
   override def verboseStringWithOperatorId(): String = {
     val nativePlan = if (glutenConf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
