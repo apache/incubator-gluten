@@ -117,7 +117,7 @@ class GraphvizVisualizer[T <: AnyRef](ras: Ras[T], memoState: MemoState[T], best
               childGroup =>
                 val childGroupNodes = childGroup.nodes(memoState).toSeq
                 if (childGroupNodes.nonEmpty) {
-                  val randomChild = childGroupNodes(Random.between(0, childGroupNodes.size))
+                  val randomChild = childGroupNodes(Random.nextInt(childGroupNodes.size))
                   buf.append(
                     s"  ${'"'}${describeNode(costs, group, node)}${'"'} -> " +
                       s"${'"'}${describeNode(costs, childGroup, randomChild)}${'"'}  " +
