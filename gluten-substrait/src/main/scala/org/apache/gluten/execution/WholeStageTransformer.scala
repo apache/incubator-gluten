@@ -291,9 +291,11 @@ case class WholeStageTransformer(
   // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
   // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = {
-    if (isCudf)
+    if (isCudf) {
       s"CudfWholeStageCodegenTransformer ($transformStageId)"
-    else s"WholeStageCodegenTransformer ($transformStageId)"
+    } else {
+      s"WholeStageCodegenTransformer ($transformStageId)"
+    }
   }
 
   override def verboseStringWithOperatorId(): String = {
