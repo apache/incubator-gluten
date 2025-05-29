@@ -28,7 +28,7 @@ class GlutenSQLQuerySuite
   import testImplicits._
 
   // Assert no fallbacks on the trivial supported operators
-  // This is an experimental feature API, so we only check for sort
+  // This is an experimental API, so we only check for sort
   // fallback at the moment.
   planListeners.assertNoInstanceOf[SortExec]
 
