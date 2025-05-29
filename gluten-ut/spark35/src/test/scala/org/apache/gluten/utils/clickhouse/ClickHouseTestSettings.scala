@@ -17,6 +17,7 @@
 package org.apache.gluten.utils.clickhouse
 
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
+
 import org.apache.spark.GlutenSortShuffleSuite
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
