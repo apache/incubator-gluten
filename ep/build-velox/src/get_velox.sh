@@ -76,9 +76,11 @@ function ensure_pattern_matched {
 }
 
 function process_setup_ubuntu {
+  echo "Using setup script from Velox"
 }
 
 function process_setup_centos9 {
+  echo "Using setup script from Velox"
 }
 
 function process_setup_alinux3 {
