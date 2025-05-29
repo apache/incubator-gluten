@@ -201,6 +201,8 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             val metrics = write.get.metrics
             assert(metrics("physicalWrittenBytes").value > 0)
             assert(metrics("writeIONanos").value > 0)
+            assert(metrics("writeRecodeNanos").value > 0)
+            assert(metrics("writeCompressionNanos").value > 0)
             assert(metrics("numWrittenFiles").value == 1)
         }
       }
