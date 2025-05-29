@@ -38,8 +38,7 @@ class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     handle: BaseShuffleHandle[K, V, V],
     mapId: Long,
-    writeMetrics: ShuffleWriteMetricsReporter,
-    isSort: Boolean)
+    writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
   with Logging {
 

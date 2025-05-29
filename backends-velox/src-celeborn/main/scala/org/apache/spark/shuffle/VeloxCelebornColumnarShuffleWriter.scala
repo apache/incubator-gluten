@@ -28,6 +28,7 @@ import org.apache.spark.internal.config.{SHUFFLE_DISK_WRITE_BUFFER_SIZE, SHUFFLE
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
 
@@ -58,12 +59,16 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
   private var splitResult: GlutenSplitResult = _
 
   private def availableOffHeapPerTask(): Long = {
-    val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
-    perTask
+    SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
   }
 
-  private val nativeMetrics = dep.metrics.getOrElse("sortTime", dep.metrics("splitTime"))
+ private val nativeMetrics: SQLMetric = {
+   if (dep.isSort) {
+     dep.metrics("sortTime")
+   } else {
+     dep.metrics("splitTime")
+   }
+ }
 
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
@@ -105,7 +110,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
           splitResult.getTotalCompressTime)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
-    writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalPushTime)
+    writeMetrics.incWriteTime(splitResult.getTotalWriteTime splitResult.getTotalPushTime)
 
     partitionLengths = splitResult.getPartitionLengths
 
