@@ -39,8 +39,8 @@ object MemoRole {
     }
   }
 
-  private sealed trait Req[T <: AnyRef] extends MemoRole[T]
-  private sealed trait Prop[T <: AnyRef] extends MemoRole[T]
+  sealed private trait Req[T <: AnyRef] extends MemoRole[T]
+  sealed private trait Prop[T <: AnyRef] extends MemoRole[T]
 
   // Constraints.
   private class ReqHub[T <: AnyRef] private[MemoRole] (
@@ -127,7 +127,7 @@ object MemoRole {
     }
   }
 
-  private implicit class DefImplicits[T <: AnyRef](roleDef: Def[T]) {
+  implicit private class DefImplicits[T <: AnyRef](roleDef: Def[T]) {
     def -:(base: PropertySet[T]): PropertySet[T] = {
       require(base.asMap.contains(roleDef))
       val map: Map[PropertyDef[T, _ <: Property[T]], Property[T]] = {
