@@ -59,7 +59,7 @@ object EnforcerRuleSet {
     }
 
     private class Regular[T <: AnyRef](ras: Ras[T], closure: Closure[T]) extends Factory[T] {
-      private val factory = ras.propertySetFactory().newEnforcerRuleFactory()
+      private val factory = ras.newEnforcerRuleFactory()
       private val ruleSetBuffer = mutable.Map[PropertySet[T], EnforcerRuleSet[T]]()
 
       override def ruleSetOf(constraintSet: PropertySet[T]): EnforcerRuleSet[T] = {

@@ -36,7 +36,7 @@ private class DpPlanner[T <: AnyRef] private (ras: Ras[T], constraintSet: Proper
   private val deriverRuleSetFactory = EnforcerRuleSet.Factory.derive(ras, memo)
 
   private lazy val rootGroupId: Int = {
-    memo.memorize(plan, constraintSet +: ras.memoRoleDef.reqUser).id()
+    memo.memorize(plan, constraintSet).id()
   }
 
   private lazy val best: (Best[T], KnownCostPath[T]) = {
@@ -100,7 +100,6 @@ object DpPlanner {
     override def exploreChildX(
         panel: Panel[InClusterNode[T], RasClusterKey],
         x: InClusterNode[T]): Unit = {
-      applyHubRulesOnUserNode(panel, x.clusterKey, x.can)
       applyRulesOnHubNode(panel, x.clusterKey, x.can)
     }
 
@@ -133,25 +132,6 @@ object DpPlanner {
             assert(rootNode.asCanonical() eq can)
           }
           rules.foreach(rule => applyRule(panel, cKey, rule, path))
-      }
-    }
-
-    private def applyHubRulesOnUserNode(
-        panel: Panel[InClusterNode[T], RasClusterKey],
-        cKey: RasClusterKey,
-        can: CanonicalNode[T]): Unit = {
-      val hubConstraint = ras.hubConstraintSet()
-      val hubDeriverRuleSet = deriverRuleSetFactory.ruleSetOf(hubConstraint)
-      val hubDeriverRules = hubDeriverRuleSet.rules()
-      if (hubDeriverRules.nonEmpty) {
-        val hubDeriverRuleShapes = hubDeriverRuleSet.shapes()
-        val userGroup = memoTable.getUserGroup(cKey)
-        findPaths(
-          GroupNode(ras, userGroup),
-          hubDeriverRuleShapes,
-          List(new FromSingleNode[T](can))) {
-          path => hubDeriverRules.foreach(rule => applyRule(panel, cKey, rule, path))
-        }
       }
     }
 
