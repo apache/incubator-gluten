@@ -18,7 +18,7 @@ name: Velox backend Dependency Cache
 on:
   push:
     branches:
-      - 'velox-ci-arm'
+      - 'main'
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
