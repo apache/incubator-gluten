@@ -1364,4 +1364,9 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       compareResultsAgainstVanillaSpark(sql, compareResult = true, checkAggregateWithFilter)
     }
   }
+
+  test("Test map with nullable key") {
+    val sql = "select map(string_field, int_field) from json_test"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
