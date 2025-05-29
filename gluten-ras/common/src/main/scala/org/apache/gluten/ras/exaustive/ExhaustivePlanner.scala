@@ -36,7 +36,7 @@ private class ExhaustivePlanner[T <: AnyRef] private (
   private val deriverRuleSetFactory = EnforcerRuleSet.Factory.derive(ras, memo)
 
   private lazy val rootGroupId: Int = {
-    memo.memorize(plan, constraintSet +: ras.memoRoleDef.reqUser).id()
+    memo.memorize(plan, constraintSet).id()
   }
 
   private lazy val best: (Best[T], KnownCostPath[T]) = {
@@ -91,7 +91,6 @@ object ExhaustivePlanner {
 
     def explore(): Unit = {
       // TODO: ONLY APPLY RULES ON ALTERED GROUPS (and close parents)
-      applyHubRules()
       applyEnforcerRules()
       applyRules()
     }
@@ -127,24 +126,6 @@ object ExhaustivePlanner {
               path => rules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
             }
         }
-    }
-
-    private def applyHubRules(): Unit = {
-      val hubConstraint = ras.hubConstraintSet()
-      val hubDeriverRuleSet = deriverRuleSetFactory.ruleSetOf(hubConstraint)
-      val hubDeriverRules = hubDeriverRuleSet.rules()
-      if (hubDeriverRules.nonEmpty) {
-        memoState
-          .clusterLookup()
-          .foreach {
-            case (cKey, cluster) =>
-              val hubDeriverRuleShapes = hubDeriverRuleSet.shapes()
-              val userGroup = memoState.getUserGroup(cKey)
-              findPaths(GroupNode(ras, userGroup), hubDeriverRuleShapes) {
-                path => hubDeriverRules.foreach(rule => applyRule(rule, InClusterPath(cKey, path)))
-              }
-          }
-      }
     }
 
     private def applyEnforcerRules(): Unit = {

@@ -48,13 +48,12 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   override def newCluster(metadata: Metadata): RasClusterKey = {
     checkBufferSizes()
     val clusterId = clusterBuffer.size
-    val key = IntClusterKey(clusterId, metadata)
+    val key = IntClusterKey(clusterId)(metadata)
     clusterKeyBuffer += key
     clusterBuffer += MutableRasCluster(ras, metadata)
     clusterDisjointSet.grow()
     groupLookup += mutable.Map()
     groupOf(key, ras.hubConstraintSet())
-    groupOf(key, ras.userConstraintSet())
     memoWriteCount += 1
     key
   }
@@ -67,7 +66,7 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     }
     val gid = groupBuffer.size
     val newGroup =
-      RasGroup(ras, IntClusterKey(ancestor, key.metadata), gid, constraintSet)
+      RasGroup(ras, IntClusterKey(ancestor)(key.metadata), gid, constraintSet)
     lookup += constraintSet -> newGroup
     groupBuffer += newGroup
     memoWriteCount += 1
@@ -80,12 +79,24 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
   }
 
   override def addToCluster(key: RasClusterKey, node: CanonicalNode[T]): Unit = {
+    if (addToCluster0(key, node)) {
+      // Insert the corresponding hub node right away.
+      addToCluster0(key, node.toHubNode(this))
+      return
+    }
+    // Node was already inserted to the cluster.
+    // Do an assertion to ensure the corresponding hub node was inserted as well.
+    assert(!addToCluster0(key, node.toHubNode(this)))
+  }
+
+  private def addToCluster0(key: RasClusterKey, node: CanonicalNode[T]): Boolean = {
     val cluster = getCluster(key)
     if (cluster.contains(node)) {
-      return
+      return false
     }
     cluster.add(node)
     memoWriteCount += 1
+    true
   }
 
   override def mergeClusters(one: RasClusterKey, other: RasClusterKey): Unit = {
@@ -169,18 +180,12 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     val lookup = groupLookup(ancestor)
     lookup(ras.hubConstraintSet())
   }
-
-  override def getUserGroup(key: RasClusterKey): RasGroup[T] = {
-    val ancestor = ancestorClusterIdOf(key)
-    val lookup = groupLookup(ancestor)
-    lookup(ras.userConstraintSet())
-  }
 }
 
 object ForwardMemoTable {
   def apply[T <: AnyRef](ras: Ras[T]): MemoTable.Writable[T] = new ForwardMemoTable[T](ras)
 
-  private case class IntClusterKey(id: Int, metadata: Metadata) extends RasClusterKey
+  private case class IntClusterKey(id: Int)(override val metadata: Metadata) extends RasClusterKey
 
   private class Probe[T <: AnyRef](table: ForwardMemoTable[T]) extends MemoTable.Probe[T] {
     private val probedClusterCount: Int = table.clusterKeyBuffer.size
@@ -226,6 +231,19 @@ object ForwardMemoTable {
 
     private def asIntKey(): IntClusterKey = {
       key.asInstanceOf[IntClusterKey]
+    }
+  }
+
+  implicit class CanonicalNodeImplicits[T <: AnyRef](node: CanonicalNode[T]) {
+    def toHubNode(store: MemoStore[T]): CanonicalNode[T] = {
+      val ras = node.ras()
+      val canUnsafe = ras.withNewChildren(
+        node.self(),
+        ras
+          .getChildrenGroupIds(node.self())
+          .map(gid => store.asGroupSupplier()(gid).clusterKey())
+          .map(cKey => store.getHubGroup(cKey).self()))
+      CanonicalNode(ras, canUnsafe)
     }
   }
 }
