@@ -1,0 +1,41 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Gluten Flink Github Runner
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/flink.yml'
+      - 'gluten-flink/**'
+
+jobs:
+  flink-test:
+    runs-on: ubuntu-22.04
+    container: apache/gluten:centos-8-jdk17
+    steps:
+      - uses: actions/checkout@v2
+      - name: Prepare
+        run: |
+          source /opt/rh/gcc-toolset-11/enable
+          sudo dnf install -y patchelf
+          git clone -b gluten https://github.com/bigo-sg/velox4j.git
+          cd velox4j && git reset --hard c069ca63aa3a200b49199f7dfa285f011ce6fda5
+          git apply $GITHUB_WORKSPACE/gluten-flink/patches/fix-velox4j.patch
+          mvn clean install -DskipTests -Dspotless.skip=true
+      - name: Build Gluten Flink
+        run: |
+          cd $GITHUB_WORKSPACE/gluten-flink
+          mvn clean package -Dmaven.test.skip=true

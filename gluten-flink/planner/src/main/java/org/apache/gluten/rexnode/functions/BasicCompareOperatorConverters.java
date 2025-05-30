@@ -21,39 +21,27 @@ import org.apache.gluten.rexnode.RexNodeConverter;
 import org.apache.gluten.rexnode.TypeUtils;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
+import io.github.zhztheplayer.velox4j.expression.CastTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
-abstract class BaseRexCallConverter implements RexCallConverter {
-  protected final String functionName;
+class StringCompareRexCallConverter extends BaseRexCallConverter {
 
-  public BaseRexCallConverter(String functionName) {
-    this.functionName = functionName;
-  }
-
-  protected List<TypedExpr> getParams(RexCall callNode, RexConversionContext context) {
-    return RexNodeConverter.toTypedExpr(callNode.getOperands(), context);
-  }
-
-  protected Type getResultType(RexCall callNode) {
-    return RexNodeConverter.toType(callNode.getType());
+  public StringCompareRexCallConverter(String functionName) {
+    super(functionName);
   }
 
   @Override
   public boolean isSupported(RexCall callNode, RexConversionContext context) {
-    // Default implementation assumes all RexCall nodes are supported.
-    // Subclasses can override this method to provide specific support checks.
-    return true;
-  }
-}
-
-class DefaultRexCallConverter extends BaseRexCallConverter {
-  public DefaultRexCallConverter(String functionName) {
-    super(functionName);
+    // This converter supports string comparison functions.
+    return callNode.getOperands().stream()
+        .allMatch(param -> TypeUtils.isStringType(RexNodeConverter.toType(param.getType())));
   }
 
   @Override
@@ -64,23 +52,39 @@ class DefaultRexCallConverter extends BaseRexCallConverter {
   }
 }
 
-class BasicArithmeticOperatorRexCallConverter extends BaseRexCallConverter {
-  public BasicArithmeticOperatorRexCallConverter(String functionName) {
+class StringNumberCompareRexCallConverter extends BaseRexCallConverter {
+
+  public StringNumberCompareRexCallConverter(String functionName) {
     super(functionName);
   }
 
   @Override
   public boolean isSupported(RexCall callNode, RexConversionContext context) {
-    return callNode.getOperands().stream()
-        .allMatch(param -> TypeUtils.isNumericType(RexNodeConverter.toType(param.getType())));
+    // This converter supports string and numeric comparison functions.
+    List<Type> paramTypes =
+        callNode.getOperands().stream()
+            .map(param -> RexNodeConverter.toType(param.getType()))
+            .collect(Collectors.toList());
+    if ((TypeUtils.isNumericType(paramTypes.get(0)) && TypeUtils.isStringType(paramTypes.get(1)))
+        || (TypeUtils.isStringType(paramTypes.get(0))
+            && TypeUtils.isNumericType(paramTypes.get(1)))) {
+      return true;
+    }
+    return false;
   }
 
   @Override
   public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
     List<TypedExpr> params = getParams(callNode, context);
-    // If types are different, align them
-    List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
     Type resultType = getResultType(callNode);
-    return new CallTypedExpr(resultType, alignedParams, functionName);
+    TypedExpr leftExpr =
+        TypeUtils.isNumericType(params.get(0).getReturnType())
+            ? params.get(0)
+            : CastTypedExpr.create(params.get(1).getReturnType(), params.get(0), false);
+    TypedExpr rightExpr =
+        TypeUtils.isNumericType(params.get(1).getReturnType())
+            ? params.get(1)
+            : CastTypedExpr.create(params.get(0).getReturnType(), params.get(1), false);
+    return new CallTypedExpr(resultType, Arrays.asList(leftExpr, rightExpr), functionName);
   }
 }

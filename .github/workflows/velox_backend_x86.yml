@@ -119,7 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu:20.04", "ubuntu:22.04" ]
+        os: [ "ubuntu:22.04" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
         java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772

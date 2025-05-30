@@ -14,17 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.rexnode.functions;
+package org.apache.gluten.ras.property
 
-import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.ras.{Ras, RasConfig, RasSuite}
+import org.apache.gluten.ras.RasSuiteBase.{CostModelImpl, ExplainImpl, MetadataModelImpl, PlanModelImpl, PropertyModelImpl, TestNode}
+import org.apache.gluten.ras.rule.RasRule
 
-import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+class MemoRoleSuite extends RasSuite {
+  override protected def conf: RasConfig = RasConfig(plannerType = RasConfig.PlannerType.Dp)
 
-import org.apache.calcite.rex.RexCall;
-
-public interface RexCallConverter {
-  // Let the Converter decide how to build the arguments.
-  TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
-
-  boolean isSupported(RexCall callNode, RexConversionContext context);
+  test("equality") {
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.none())
+        .withNewConfig(_ => conf)
+    val one = ras.userConstraintSet()
+    val other = ras.withUserConstraint(PropertySet(Nil))
+    assert(one == other)
+  }
 }
