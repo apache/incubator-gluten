@@ -280,8 +280,8 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
   testWithMinSparkVersion("timestampdiff", "3.3") {
     withTempPath {
       path =>
-        val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
-        val t2 = Timestamp.valueOf("2014-12-31 23:59:59.012")
+        val t1 = Timestamp.valueOf("2020-03-01 00:00:00.500")
+        val t2 = Timestamp.valueOf("2020-02-29 00:00:00.500")
         Seq((t1, t2)).toDF("t1", "t2").write.parquet(path.getCanonicalPath)
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("time")
