@@ -29,14 +29,14 @@ class GlutenBatchEvalPythonExecSuite extends BatchEvalPythonExecSuite with Glute
   def collectQualifiedPlanNodes(df: DataFrame): Seq[SparkPlan] = {
     df.queryExecution.executedPlan.collect {
       case f @ FilterExecTransformer(
-      And(_: AttributeReference, _: AttributeReference),
-      InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
-        if r.child.isInstanceOf[BatchEvalPythonExec] =>
+            And(_: AttributeReference, _: AttributeReference),
+            InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
+          if r.child.isInstanceOf[BatchEvalPythonExec] =>
         f
       case f @ FilterExecTransformer(
-      And(_: AttributeReference, _: GreaterThan),
-      InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
-        if r.child.isInstanceOf[BatchEvalPythonExec] =>
+            And(_: AttributeReference, _: GreaterThan),
+            InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
+          if r.child.isInstanceOf[BatchEvalPythonExec] =>
         f
       case b @ BatchEvalPythonExec(_, _, c: ColumnarToRowExecBase) =>
         c.child match {
