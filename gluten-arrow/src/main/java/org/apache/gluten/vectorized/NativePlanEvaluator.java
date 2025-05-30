@@ -62,7 +62,8 @@ public class NativePlanEvaluator {
       byte[][] splitInfo,
       List<ColumnarBatchInIterator> iterList,
       int partitionIndex,
-      String spillDirPath)
+      String spillDirPath,
+      boolean enableCudf)
       throws RuntimeException {
     final long itrHandle =
         jniWrapper.nativeCreateKernelWithIterator(
@@ -73,7 +74,8 @@ public class NativePlanEvaluator {
             partitionIndex, // TaskContext.getPartitionId(),
             TaskContext.get().taskAttemptId(),
             DebugUtil.isDumpingEnabledForTask(),
-            spillDirPath);
+            spillDirPath,
+            enableCudf);
     final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
     runtime
         .memoryManager()
