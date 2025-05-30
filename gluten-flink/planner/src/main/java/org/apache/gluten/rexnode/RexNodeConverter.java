@@ -58,8 +58,7 @@ public class RexNodeConverter {
       return new ConstantTypedExpr(toType(literal.getType()), toVariant(literal), null);
     } else if (rexNode instanceof RexCall) {
       RexCall rexCall = (RexCall) rexNode;
-      String operatorName = rexCall.getOperator().getName();
-      RexCallConverter converter = RexCallConverterFactory.getConverter(operatorName);
+      RexCallConverter converter = RexCallConverterFactory.getConverter(rexCall, context);
       return converter.toTypedExpr(rexCall, context);
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef inputRef = (RexInputRef) rexNode;
