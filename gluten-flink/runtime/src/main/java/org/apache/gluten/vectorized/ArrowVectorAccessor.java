@@ -78,90 +78,101 @@ public abstract class ArrowVectorAccessor {
   }
 }
 
-class BooleanVectorAccessor extends ArrowVectorAccessor {
-  private final BitVector vector;
+class BaseArrowVectorAccessor<T extends FieldVector> extends ArrowVectorAccessor {
+  protected final T typedVector;
 
+  public BaseArrowVectorAccessor(FieldVector vector) {
+    this.typedVector = (T) vector;
+  }
+
+  @Override
+  public Object get(int rowIndex) {
+    if (typedVector.isNull(rowIndex)) {
+      return null; // Handle null values
+    }
+    return getImpl(rowIndex);
+  }
+
+  protected Object getImpl(int rowIndex) {
+    throw new UnsupportedOperationException(
+        "getImpl not implemented for " + typedVector.getClass().getName());
+  }
+}
+
+class BooleanVectorAccessor extends BaseArrowVectorAccessor<BitVector> {
   public BooleanVectorAccessor(FieldVector vector) {
-    this.vector = (BitVector) vector;
+    super(vector);
   }
 
   @Override
-  public Object get(int rowIndex) {
-    return vector.get(rowIndex) != 0;
+  protected Object getImpl(int rowIndex) {
+    return typedVector.get(rowIndex) != 0;
   }
 }
 
-class IntVectorAccessor extends ArrowVectorAccessor {
-  private final IntVector vector;
-
+class IntVectorAccessor extends BaseArrowVectorAccessor<IntVector> {
   public IntVectorAccessor(FieldVector vector) {
-    this.vector = (IntVector) vector;
+    super(vector);
   }
 
   @Override
-  public Object get(int rowIndex) {
-    return vector.get(rowIndex);
+  protected Object getImpl(int rowIndex) {
+    return typedVector.get(rowIndex);
   }
 }
 
-class BigIntVectorAccessor extends ArrowVectorAccessor {
-  private final BigIntVector vector;
+class BigIntVectorAccessor extends BaseArrowVectorAccessor<BigIntVector> {
 
   public BigIntVectorAccessor(FieldVector vector) {
-    this.vector = (BigIntVector) vector;
+    super(vector);
   }
 
   @Override
-  public Object get(int rowIndex) {
-    return vector.get(rowIndex);
+  protected Object getImpl(int rowIndex) {
+    return typedVector.get(rowIndex);
   }
 }
 
-class DoubleVectorAccessor extends ArrowVectorAccessor {
-  private final Float8Vector vector;
+class DoubleVectorAccessor extends BaseArrowVectorAccessor<Float8Vector> {
 
   public DoubleVectorAccessor(FieldVector vector) {
-    this.vector = (Float8Vector) vector;
+    super(vector);
   }
 
   @Override
-  public Object get(int rowIndex) {
-    return vector.get(rowIndex);
+  protected Object getImpl(int rowIndex) {
+    return typedVector.get(rowIndex);
   }
 }
 
-class VarCharVectorAccessor extends ArrowVectorAccessor {
-  private final VarCharVector vector;
+class VarCharVectorAccessor extends BaseArrowVectorAccessor<VarCharVector> {
 
   public VarCharVectorAccessor(FieldVector vector) {
-    this.vector = (VarCharVector) vector;
+    super(vector);
   }
 
   @Override
-  public Object get(int rowIndex) {
-    return BinaryStringData.fromBytes(vector.get(rowIndex));
+  protected Object getImpl(int rowIndex) {
+    return BinaryStringData.fromBytes(typedVector.get(rowIndex));
   }
 }
 
-class StructVectorAccessor extends ArrowVectorAccessor {
-  private final StructVector vector;
+class StructVectorAccessor extends BaseArrowVectorAccessor<StructVector> {
   private final List<ArrowVectorAccessor> fieldAccessors;
-  private int fieldCount = 0;
+  private final int fieldCount;
 
   public StructVectorAccessor(FieldVector vector) {
-    this.vector = (StructVector) vector;
-    // size() returns the number of child vectors
-    this.fieldCount = this.vector.size();
+    super(vector);
+    this.fieldCount = this.typedVector.size();
     this.fieldAccessors = new ArrayList<>(fieldCount);
     for (int i = 0; i < this.fieldCount; i++) {
-      FieldVector fieldVector = (FieldVector) this.vector.getChildByOrdinal(i);
+      FieldVector fieldVector = (FieldVector) this.typedVector.getChildByOrdinal(i);
       this.fieldAccessors.add(i, ArrowVectorAccessor.create(fieldVector));
     }
   }
 
   @Override
-  public Object get(int rowIndex) {
-    int fieldCount = vector.size();
+  protected Object getImpl(int rowIndex) {
     Object[] fieldValues = new Object[fieldCount];
     for (int i = 0; i < fieldCount; i++) {
       fieldValues[i] = fieldAccessors.get(i).get(rowIndex);
@@ -170,20 +181,20 @@ class StructVectorAccessor extends ArrowVectorAccessor {
   }
 }
 
-class ListVectorAccessor extends ArrowVectorAccessor {
-  private ListVector vector;
-  private ArrowVectorAccessor elementAccessor;
+class ListVectorAccessor extends BaseArrowVectorAccessor<ListVector> {
+
+  private final ArrowVectorAccessor elementAccessor;
 
   public ListVectorAccessor(FieldVector vector) {
-    this.vector = (ListVector) vector;
-    FieldVector elementVector = this.vector.getDataVector();
+    super(vector);
+    FieldVector elementVector = this.typedVector.getDataVector();
     this.elementAccessor = ArrowVectorAccessor.create(elementVector);
   }
 
   @Override
-  public Object get(int rowIndex) {
-    int startIndex = vector.getElementStartIndex(rowIndex);
-    int endIndex = vector.getElementEndIndex(rowIndex);
+  protected Object getImpl(int rowIndex) {
+    int startIndex = typedVector.getElementStartIndex(rowIndex);
+    int endIndex = typedVector.getElementEndIndex(rowIndex);
     Object[] elements = new Object[endIndex - startIndex];
     for (int i = startIndex; i < endIndex; i++) {
       elements[i - startIndex] = elementAccessor.get(i);
@@ -193,15 +204,14 @@ class ListVectorAccessor extends ArrowVectorAccessor {
 }
 
 // In Arrow, the internal implementation of a map vector is an array vector.
-class MapVectorAccessor extends ArrowVectorAccessor {
-  private final MapVector vector;
-  private StructVector entriesVector;
-  private ArrowVectorAccessor keyAccessor;
-  private ArrowVectorAccessor valueAccessor;
+class MapVectorAccessor extends BaseArrowVectorAccessor<MapVector> {
+  private final StructVector entriesVector;
+  private final ArrowVectorAccessor keyAccessor;
+  private final ArrowVectorAccessor valueAccessor;
 
   public MapVectorAccessor(FieldVector vector) {
-    this.vector = (MapVector) vector;
-    this.entriesVector = (StructVector) this.vector.getDataVector();
+    super(vector);
+    this.entriesVector = (StructVector) this.typedVector.getDataVector();
     FieldVector keyVector = this.entriesVector.getChild(MapVector.KEY_NAME);
     FieldVector valueVector = this.entriesVector.getChild(MapVector.VALUE_NAME);
     this.keyAccessor = ArrowVectorAccessor.create(keyVector);
@@ -209,9 +219,9 @@ class MapVectorAccessor extends ArrowVectorAccessor {
   }
 
   @Override
-  public Object get(int rowIndex) {
-    int startIndex = vector.getElementStartIndex(rowIndex);
-    int endIndex = vector.getElementEndIndex(rowIndex);
+  protected Object getImpl(int rowIndex) {
+    int startIndex = typedVector.getElementStartIndex(rowIndex);
+    int endIndex = typedVector.getElementEndIndex(rowIndex);
     Map<Object, Object> mapEntries = new LinkedHashMap<>();
     for (int i = startIndex; i < endIndex; i++) {
       Object key = keyAccessor.get(i);
