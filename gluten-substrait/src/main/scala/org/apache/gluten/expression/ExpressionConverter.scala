@@ -572,6 +572,21 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           extract.get.last,
           add
         )
+      case timestampDiff if timestampDiff.getClass.getSimpleName.equals("TimestampDiff") =>
+        // Since spark 3.3.0
+        val extract =
+          SparkShimLoader.getSparkShims.extractExpressionTimestampDiffUnit(timestampDiff)
+        if (extract.isEmpty) {
+          throw new UnsupportedOperationException(s"Not support expression TimestampDiff.")
+        }
+        val diff = timestampDiff.asInstanceOf[BinaryExpression]
+        TimestampDiffTransformer(
+          substraitExprName,
+          extract.get,
+          replaceWithExpressionTransformer0(diff.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(diff.right, attributeSeq, expressionsMap),
+          diff
+        )
       case e: Transformable =>
         val childrenTransformers =
           e.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap))
