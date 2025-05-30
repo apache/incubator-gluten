@@ -34,7 +34,7 @@ RUN set -ex; \
     wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz; \
     tar -xvf apache-maven-3.8.8-bin.tar.gz; \
     mv apache-maven-3.8.8 /usr/lib/maven; \
-    git clone --branch openeuler-docker --depth=1 https://github.com/kevinw66/incubator-gluten /opt/gluten; \
+    git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten; \
     cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh; \
     mkdir -p ${VCPKG_PATH}; \
     echo "Build arrow, then install the native libs to system paths and jar package to .m2/ directory."; \

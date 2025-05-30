@@ -18,7 +18,7 @@ name: Build and Push Docker Image (openEuler)
 on:
   push:
     branches:
-      - openeuler-docker
+      - main
     paths:
       - '.github/workflows/docker_image_openeuler.yml'
       - '.github/workflows/util/install_spark_resources.sh'
@@ -28,11 +28,11 @@ on:
     - cron: '0 20 * * 0'
 
 env:
-  DOCKERHUB_REPO: wzg547228197/gluten
+  DOCKERHUB_REPO: apache/gluten
 
 jobs:
   build-vcpkg-openeuler-24:
-#    if: ${{ startsWith(github.repository, 'apache/') }}
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -82,7 +82,7 @@ jobs:
           retention-days: 1
 
   build-openeuler-24-jdk17:
-#    if: ${{ startsWith(github.repository, 'apache/') }}
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -133,7 +133,7 @@ jobs:
           retention-days: 1
 
   merge:
-#    if: ${{ startsWith(github.repository, 'apache/') }}
+    if: ${{ startsWith(github.repository, 'apache/') }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
