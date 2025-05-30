@@ -21,6 +21,7 @@ import io.github.zhztheplayer.velox4j.type.*;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 
 import org.apache.arrow.vector.BigIntVector;
@@ -28,6 +29,7 @@ import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeStampMicroVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
@@ -54,6 +56,7 @@ public abstract class ArrowVectorAccessor {
           Map.entry(IntVector.class, vector -> new IntVectorAccessor(vector)),
           Map.entry(BigIntVector.class, vector -> new BigIntVectorAccessor(vector)),
           Map.entry(Float8Vector.class, vector -> new DoubleVectorAccessor(vector)),
+          Map.entry(TimeStampMicroVector.class, vector -> new TimeStampMicroVectorAccessor(vector)),
           Map.entry(VarCharVector.class, vector -> new VarCharVectorAccessor(vector)),
           Map.entry(StructVector.class, vector -> new StructVectorAccessor(vector)),
           Map.entry(ListVector.class, vector -> new ListVectorAccessor(vector)),
@@ -127,6 +130,22 @@ class DoubleVectorAccessor extends ArrowVectorAccessor {
   @Override
   public Object get(int rowIndex) {
     return vector.get(rowIndex);
+  }
+}
+
+class TimeStampMicroVectorAccessor extends ArrowVectorAccessor {
+  private final TimeStampMicroVector vector;
+
+  public TimeStampMicroVectorAccessor(FieldVector vector) {
+    this.vector = (TimeStampMicroVector) vector;
+  }
+
+  @Override
+  public Object get(int rowIndex) {
+    long microSeconds = vector.get(rowIndex);
+    long millis = microSeconds / 1000;
+    int nanosOfMillisecond = (int) (microSeconds % 1000) * 1000;
+    return TimestampData.fromEpochMillis(millis, nanosOfMillisecond);
   }
 }
 

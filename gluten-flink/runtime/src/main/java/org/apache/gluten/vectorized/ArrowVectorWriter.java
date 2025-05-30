@@ -65,8 +65,18 @@ public abstract class ArrowVectorWriter {
                   new VarCharVectorWriter(fieldType, allocator, vector)),
           Map.entry(
               TimestampType.class,
-              (fieldType, allocator, vector) ->
-                  new TimestampVectorWriter(fieldType, allocator, vector)),
+              (fieldType, allocator, vector) -> {
+                if (vector instanceof TimeStampMilliVector) {
+                  return new TimestampVectorWriter<TimeStampMilliVector>(
+                      fieldType, allocator, vector);
+                } else if (vector instanceof TimeStampMilliTZVector) {
+                  return new TimestampVectorWriter<TimeStampMilliTZVector>(
+                      fieldType, allocator, vector);
+                } else {
+                  throw new UnsupportedOperationException(
+                      "Unsupported timestamp vector type: " + vector.getClass().getName());
+                }
+              }),
           Map.entry(
               RowType.class,
               (fieldType, allocator, vector) ->
@@ -344,7 +354,7 @@ class VarCharVectorWriter extends BaseVectorWriter<VarCharVector, byte[]> {
   }
 }
 
-class TimestampVectorWriter extends BaseVectorWriter<TimeStampMilliVector, Long> {
+class TimestampVectorWriter<T extends TimeStampVector> extends BaseVectorWriter<T, Long> {
   private final int precision = 3; // Millisecond precision
 
   public TimestampVectorWriter(Type fieldType, BufferAllocator allocator, FieldVector vector) {
