@@ -28,6 +28,7 @@ import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
 import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
 import org.apache.gluten.memory.listener.ReservationListener
+import org.apache.gluten.monitor.VeloxMemoryProfiler
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
 
@@ -43,7 +44,7 @@ import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
-import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, SparkShutdownManagerUtil}
 
 import org.apache.commons.lang3.StringUtils
 
@@ -146,6 +147,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     SparkDirectoryUtil.init(conf)
     initialize(conf, isDriver = false)
+    addIfNeedMemoryDumpShutdownHook(conf)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
@@ -220,6 +222,19 @@ class VeloxListenerApi extends ListenerApi with Logging {
     GlutenFormatFactory.injectPostRuleFactory(
       session => GlutenWriterColumnarRules.NativeWritePostRule(session))
     GlutenFormatFactory.register(new VeloxRowSplitter())
+  }
+
+  private def addIfNeedMemoryDumpShutdownHook(conf: SparkConf): Unit = {
+    val memoryDumpOnExit =
+      conf.get(MEMORY_DUMP_ON_EXIT.key, MEMORY_DUMP_ON_EXIT.defaultValueString).toBoolean
+    if (memoryDumpOnExit) {
+      SparkShutdownManagerUtil.addHook(
+        () => {
+          logInfo("MemoryDumpOnExit triggered, dumping memory profile.")
+          VeloxMemoryProfiler.dump()
+          logInfo("MemoryDumpOnExit completed.")
+        })
+    }
   }
 
   private def shutdown(): Unit = {
