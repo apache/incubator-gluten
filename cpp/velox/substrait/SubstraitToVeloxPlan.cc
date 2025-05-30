@@ -583,17 +583,19 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
     }
     if (std::find(partitionedBy.cbegin(), partitionedBy.cend(), tableColumnNames.at(i)) != partitionedBy.cend()) {
       ++numPartitionColumns;
-      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
-          tableColumnNames.at(i),
-          connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
-          tableColumnTypes.at(i),
-          tableColumnTypes.at(i)));
+      columnHandles.emplace_back(
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              tableColumnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
+              tableColumnTypes.at(i),
+              tableColumnTypes.at(i)));
     } else {
-      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
-          tableColumnNames.at(i),
-          connector::hive::HiveColumnHandle::ColumnType::kRegular,
-          tableColumnTypes.at(i),
-          tableColumnTypes.at(i)));
+      columnHandles.emplace_back(
+          std::make_shared<connector::hive::HiveColumnHandle>(
+              tableColumnNames.at(i),
+              connector::hive::HiveColumnHandle::ColumnType::kRegular,
+              tableColumnTypes.at(i),
+              tableColumnTypes.at(i)));
     }
   }
   VELOX_CHECK_EQ(numPartitionColumns, partitionedBy.size());
@@ -1298,15 +1300,26 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     SubstraitParser::parseColumnTypes(baseSchema, columnTypes);
   }
 
-  // Velox requires Filter Pushdown must being enabled.
-  bool filterPushdownEnabled = true;
+  // Data columns are used as requested type in Velox. To support reading binary as string, requested type needs to be
+  // provided. To avoid the type check between element type and array type for unannotated array, we add this
+  // temporary workaround to only use requested type when the type includes VARCHAR.
   auto names = colNameList;
   auto types = veloxTypeList;
+  bool needsRequestedType = std::any_of(
+      veloxTypeList.begin(), veloxTypeList.end(), [](const auto& type) { return type->kind() == TypeKind::VARCHAR; });
   auto dataColumns = ROW(std::move(names), std::move(types));
+
+  // Velox requires Filter Pushdown must being enabled.
+  bool filterPushdownEnabled = true;
   std::shared_ptr<connector::hive::HiveTableHandle> tableHandle;
   if (!readRel.has_filter()) {
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
-        kHiveConnectorId, "hive_table", filterPushdownEnabled, common::SubfieldFilters{}, nullptr, dataColumns);
+        kHiveConnectorId,
+        "hive_table",
+        filterPushdownEnabled,
+        common::SubfieldFilters{},
+        nullptr,
+        needsRequestedType ? dataColumns : nullptr);
   } else {
     common::SubfieldFilters subfieldFilters;
     auto remainingFilter = exprConverter_->toVeloxExpr(readRel.filter(), dataColumns);
@@ -1317,7 +1330,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         filterPushdownEnabled,
         std::move(subfieldFilters),
         remainingFilter,
-        dataColumns);
+        needsRequestedType ? dataColumns : nullptr);
   }
 
   // Get assignments and out names.
