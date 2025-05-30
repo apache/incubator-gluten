@@ -56,11 +56,18 @@ DeltaDVRoaringBitmapArray::DeltaDVRoaringBitmapArray()
 
 void DeltaDVRoaringBitmapArray::rb_read(const String & file_path, Int32 offset, Int32 data_size, DB::ContextPtr context)
 {
+    // maybe encode in scala
+    std::string decoded;
+    Poco::URI::decode(file_path, decoded);
+    std::string encoded;
+    Poco::URI::encode(decoded, "", encoded);
+
     substrait::ReadRel::LocalFiles::FileOrFiles file_info;
-    file_info.set_uri_file(file_path);
+    file_info.set_uri_file(encoded);
     file_info.set_start(offset);
     file_info.set_length(data_size);
-    const Poco::URI file_uri(file_path);
+
+    const Poco::URI file_uri(encoded);
     ReadBufferBuilderPtr read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
     auto * in = dynamic_cast<DB::SeekableReadBuffer *>(read_buffer_builder->build(file_info).release());
     if (in == nullptr)

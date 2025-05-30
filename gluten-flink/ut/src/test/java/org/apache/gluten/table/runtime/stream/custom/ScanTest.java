@@ -14,40 +14,120 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.gluten.table.runtime.stream.custom;
 
 import org.apache.gluten.table.runtime.stream.common.GlutenStreamingTestBase;
+
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
-
+import java.util.Map;
 
 class ScanTest extends GlutenStreamingTestBase {
-    private static final Logger LOG = LoggerFactory.getLogger(ScanTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ScanTest.class);
 
-    @Override
-    @BeforeEach
-    public void before() throws Exception {
-        super.before();
-        List<Row> rows =
-                Arrays.asList(Row.of(1, 1L, "1"), Row.of(2, 2L, "2"), Row.of(3, 3L, "3"));
-        createSimpleBoundedValuesTable("MyTable", "a int, b bigint, c string", rows);
-    }
+  @Override
+  @BeforeEach
+  public void before() throws Exception {
+    super.before();
+  }
 
-    @Test
-    void testFilter() {
-        String query = "select a, b as b,c from MyTable where a > 0";
-        LOG.info("execution plan: {}", explainExecutionPlan(query));
-        runAndCheck(query, Arrays.asList("+I[1, 1, 1]", "+I[2, 2, 2]", "+I[3, 3, 3]"));
-    }
+  @Test
+  void testFilter() {
+    List<Row> rows = Arrays.asList(Row.of(1, 1L, "1"), Row.of(2, 2L, "2"), Row.of(3, 3L, "3"));
+    createSimpleBoundedValuesTable("MyTable", "a int, b bigint, c string", rows);
+    String query = "select a, b as b,c, a > 2 from MyTable where a > 0";
+    LOG.info("execution plan: {}", explainExecutionPlan(query));
+    runAndCheck(
+        query, Arrays.asList("+I[1, 1, 1, false]", "+I[2, 2, 2, false]", "+I[3, 3, 3, true]"));
+  }
+
+  @Test
+  void testStructScan() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, Row.of(2L, "abc")),
+            Row.of(2, Row.of(6L, "def")),
+            Row.of(3, Row.of(8L, "ghi")));
+    createSimpleBoundedValuesTable("strctTbl", "a int, b ROW<x bigint, y string>", rows);
+    String query1 = "select a, b.x, b.y from strctTbl where a > 0";
+    runAndCheck(query1, Arrays.asList("+I[1, 2, abc]", "+I[2, 6, def]", "+I[3, 8, ghi]"));
+
+    String query2 = "select a, b from strctTbl where a > 1";
+    runAndCheck(query2, Arrays.asList("+I[2, +I[6, def]]", "+I[3, +I[8, ghi]]"));
+  }
+
+  @Test
+  void testDoubleScan() {
+    List<Row> rows = Arrays.asList(Row.of(1, 1.0), Row.of(2, 2.0));
+    createSimpleBoundedValuesTable("floatTbl", "a int, b double", rows);
+    String query = "select a, b from floatTbl where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1, 1.0]", "+I[2, 2.0]"));
+  }
+
+  @Test
+  void testArrayScan() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, new Integer[] {1, 2, 3}),
+            Row.of(2, new Integer[] {4, 5, 6}),
+            Row.of(3, new Integer[] {7, 8, 9}));
+    createSimpleBoundedValuesTable("arrayTbl1", "a int, b array<int>", rows);
+    String query = "select a, b from arrayTbl1 where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1, [1, 2, 3]]", "+I[2, [4, 5, 6]]", "+I[3, [7, 8, 9]]"));
+
+    rows =
+        Arrays.asList(
+            Row.of(1, new String[] {"a", "b", "c"}),
+            Row.of(2, new String[] {"d", "e", "f"}),
+            Row.of(3, new String[] {"g", "h", "i"}));
+    createSimpleBoundedValuesTable("arrayTbl2", "a int, b array<string>", rows);
+    query = "select a, b from arrayTbl2 where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1, [a, b, c]]", "+I[2, [d, e, f]]", "+I[3, [g, h, i]]"));
+
+    rows =
+        Arrays.asList(
+            Row.of(1, new Row[] {Row.of(1, 2), Row.of(3, 4)}), Row.of(3, new Row[] {Row.of(5, 6)}));
+    createSimpleBoundedValuesTable("arrayTbl3", "a int, b array<ROW<x int, y int>>", rows);
+    query = "select a, b from arrayTbl3 where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1, [+I[1, 2], +I[3, 4]]]", "+I[3, [+I[5, 6]]]"));
+
+    rows =
+        Arrays.asList(
+            Row.of(1, new Integer[][] {new Integer[] {1, 3}}),
+            Row.of(3, new Integer[][] {new Integer[] {4, 5}}));
+    createSimpleBoundedValuesTable("arrayTbl4", "a int, b array<array<int>>", rows);
+    query = "select a, b from arrayTbl4 where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1, [[1, 3]]]", "+I[3, [[4, 5]]]"));
+  }
+
+  @Test
+  void testMapScan() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, Map.of(1, "a")),
+            Row.of(2, Map.of(2, "b", 3, "c")),
+            Row.of(3, Map.of(4, "d", 5, "e", 6, "f")));
+    createSimpleBoundedValuesTable("mapTbl1", "a int, b map<int, string>", rows);
+    String query = "select a, b from mapTbl1 where a > 0";
+    runAndCheck(
+        query, Arrays.asList("+I[1, {1=a}]", "+I[2, {2=b, 3=c}]", "+I[3, {4=d, 5=e, 6=f}]"));
+
+    rows =
+        Arrays.asList(
+            Row.of(1, new Map[] {Map.of("a", 1), Map.of("b", 2)}),
+            Row.of(2, new Map[] {Map.of("b", 2, "c", 3)}),
+            Row.of(3, new Map[] {Map.of("d", 4, "e", 5, "f", 6)}));
+    createSimpleBoundedValuesTable("mapTbl2", "a int, b array<map<string, int>>", rows);
+    query = "select a, b from mapTbl2 where a > 0";
+    runAndCheck(
+        query,
+        Arrays.asList("+I[1, [{a=1}, {b=2}]]", "+I[2, [{b=2, c=3}]]", "+I[3, [{d=4, e=5, f=6}]]"));
+  }
 }
-

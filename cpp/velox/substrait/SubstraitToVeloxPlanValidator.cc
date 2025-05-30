@@ -310,6 +310,9 @@ bool SubstraitToVeloxPlanValidator::isAllowedCast(const TypePtr& fromType, const
     if (fromType->isVarchar()) {
       return true;
     }
+    if (fromType->isBoolean()) {
+      return true;
+    }
     if (fromType->isTinyint() || fromType->isSmallint() || fromType->isInteger() || fromType->isBigint() ||
         fromType->isDouble() || fromType->isReal()) {
       return true;
@@ -1100,6 +1103,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
   switch (crossRel.type()) {
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+    case ::substrait::CrossRel_JoinType_JOIN_TYPE_LEFT_SEMI:
       break;
     case ::substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
       if (crossRel.has_expression()) {

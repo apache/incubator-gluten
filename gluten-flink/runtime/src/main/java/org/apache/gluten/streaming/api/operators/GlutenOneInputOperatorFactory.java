@@ -14,36 +14,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
-import io.github.zhztheplayer.velox4j.plan.PlanNode;
-import io.github.zhztheplayer.velox4j.type.RowType;
+import io.github.zhztheplayer.velox4j.serde.Serde;
+
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /** One input operator factory for gluten. */
 public class GlutenOneInputOperatorFactory<IN, OUT> extends AbstractStreamOperatorFactory<OUT>
-        implements OneInputStreamOperatorFactory<IN, OUT>  {
-    private final GlutenOperator operator;
+    implements OneInputStreamOperatorFactory<IN, OUT> {
 
-    public GlutenOneInputOperatorFactory(GlutenOperator operator) {
-        this.operator = operator;
-    }
+  private static final Logger LOG = LoggerFactory.getLogger(GlutenOneInputOperatorFactory.class);
 
-    public GlutenOperator getOperator() {
-        return operator;
-    }
+  private StreamOperator<OUT> operator;
 
-    @Override
-    public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> streamOperatorParameters) {
-        throw new RuntimeException("Not Implemented");
+  public GlutenOneInputOperatorFactory(StreamOperator<OUT> operator) {
+    this.operator = operator;
+    if (!(operator instanceof GlutenOperator)) {
+      throw new RuntimeException("Operator is not gluten operator");
     }
+  }
 
-    @Override
-    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-        throw new RuntimeException("Not Implemented");
+  public GlutenOperator getOperator() {
+    return (GlutenOperator) operator;
+  }
+
+  @Override
+  public <T extends StreamOperator<OUT>> T createStreamOperator(
+      StreamOperatorParameters<OUT> parameters) {
+    LOG.debug("Build gluten operator {}", Serde.toJson(getOperator().getPlanNode()));
+    if (operator instanceof AbstractStreamOperator) {
+      ((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
     }
+    if (operator instanceof SetupableStreamOperator) {
+      ((SetupableStreamOperator) operator)
+          .setup(
+              parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
+    }
+    return (T) operator;
+  }
+
+  @Override
+  public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+    return operator.getClass();
+  }
 }

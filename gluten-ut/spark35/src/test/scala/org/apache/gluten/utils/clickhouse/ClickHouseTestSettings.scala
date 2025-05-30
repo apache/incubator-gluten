@@ -387,6 +387,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("cast array element from bool to string")
     .exclude("cast array element from date to string")
     .exclude("cast array from timestamp to string")
+    .exclude("cast from boolean to timestamp")
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
     .excludeByPrefix("determining the number of reducers")
     .excludeCH("SPARK-46590 adaptive query execution works correctly with broadcast join and union")
