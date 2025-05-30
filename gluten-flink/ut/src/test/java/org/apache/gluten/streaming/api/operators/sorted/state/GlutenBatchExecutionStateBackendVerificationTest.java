@@ -14,19 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.sorted.state;
 
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackendVerificationTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-public class GlutenBatchExecutionStateBackendVerificationTest extends BatchExecutionStateBackendVerificationTest {
+public class GlutenBatchExecutionStateBackendVerificationTest
+    extends BatchExecutionStateBackendVerificationTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void verifySnapshotNotSupported() {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void verifySnapshotNotSupported() {}
 }

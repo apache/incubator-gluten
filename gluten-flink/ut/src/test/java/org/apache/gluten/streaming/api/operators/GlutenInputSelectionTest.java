@@ -14,57 +14,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.InputSelectionTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenInputSelectionTest extends InputSelectionTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testIsInputSelected() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testIsInputSelected() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInputSelectionNormalization() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInputSelectionNormalization() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInputSelectionNormalizationOverflow() {
-        throw new IllegalArgumentException();
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInputSelectionNormalizationOverflow() {
+    throw new IllegalArgumentException();
+  }
 
-    @Override
-    @Test
-    @Disabled
-    public void testFairSelectNextIndexOutOf2() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testFairSelectNextIndexOutOf2() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testFairSelectNextIndexWithAllInputsSelected() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testFairSelectNextIndexWithAllInputsSelected() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testFairSelectNextIndexWithSomeInputsSelected() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testFairSelectNextIndexWithSomeInputsSelected() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testUnsupportedFairSelectNextIndexOutOf2() {
-        throw new UnsupportedOperationException();
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testUnsupportedFairSelectNextIndexOutOf2() {
+    throw new UnsupportedOperationException();
+  }
 }

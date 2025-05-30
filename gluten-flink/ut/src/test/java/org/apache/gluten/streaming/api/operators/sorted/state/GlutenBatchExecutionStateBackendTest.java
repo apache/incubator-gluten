@@ -14,229 +14,198 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.sorted.state;
 
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackendTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenBatchExecutionStateBackendTest extends BatchExecutionStateBackendTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateAddNull() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateAddNull() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateAddAllNullEntries() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateAddAllNullEntries() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateAddAllNull() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateAddAllNull() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateUpdateNullEntries() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateUpdateNullEntries() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateUpdateNull() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateUpdateNull() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateAPIs() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateAPIs() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateMergingOverThreeNamespaces() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateMergingOverThreeNamespaces() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateMergingWithEmptyNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateMergingWithEmptyNamespace() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateMergingEmpty() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateMergingEmpty() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateMergingAllInTargetNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateMergingAllInTargetNamespace() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateMergingInASingleNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateMergingInASingleNamespace() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReducingStateAddAndGet() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReducingStateAddAndGet() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReducingStateMergingOverThreeNamespaces() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReducingStateMergingOverThreeNamespaces() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReducingStateMergingWithEmpty() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReducingStateMergingWithEmpty() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReducingStateMergingEmpty() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReducingStateMergingEmpty() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReducingStateMergingInTargetNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReducingStateMergingInTargetNamespace() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReducingStateMergingInASingleNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReducingStateMergingInASingleNamespace() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateAddAndGetWithMutableAccumulator() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateAddAndGetWithMutableAccumulator() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithMutableAccumulatorOverThreeNamespaces() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithMutableAccumulatorOverThreeNamespaces()
+      throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithMutableAccumulatorWithEmpty() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithMutableAccumulatorWithEmpty() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithMutableAccumulatorEmpty() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithMutableAccumulatorEmpty() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithMutableAccumulatorInTargetNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithMutableAccumulatorInTargetNamespace()
+      throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithMutableAccumulatorInASingleNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithMutableAccumulatorInASingleNamespace()
+      throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateAddAndGetWithImmutableAccumulator() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateAddAndGetWithImmutableAccumulator() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithImmutableAccumulatorOverThreeNamespaces() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithImmutableAccumulatorOverThreeNamespaces()
+      throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithImmutableAccumulatorWithEmpty() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithImmutableAccumulatorWithEmpty() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithImmutableAccumulatorEmpty() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithImmutableAccumulatorEmpty() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithImmutableAccumulatorInTargetNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithImmutableAccumulatorInTargetNamespace()
+      throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateMergingWithImmutableAccumulatorInASingleNamespace() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateMergingWithImmutableAccumulatorInASingleNamespace()
+      throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testMapStateIsEmpty() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testMapStateIsEmpty() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testMapStateIteratorArbitraryAccess() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testMapStateIteratorArbitraryAccess() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testValueStateNullAsDefaultValue() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testValueStateNullAsDefaultValue() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testValueStateDefaultValue() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testValueStateDefaultValue() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReducingStateDefaultValue() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReducingStateDefaultValue() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateDefaultValue() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateDefaultValue() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testMapStateDefaultValue() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testMapStateDefaultValue() throws Exception {}
 }

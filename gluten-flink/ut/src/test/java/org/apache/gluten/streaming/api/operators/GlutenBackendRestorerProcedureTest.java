@@ -14,31 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.BackendRestorerProcedureTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenBackendRestorerProcedureTest extends BackendRestorerProcedureTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testRestoreProcedureOrderAndFailure() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testRestoreProcedureOrderAndFailure() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testExceptionThrownIfAllRestoresFailed() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testExceptionThrownIfAllRestoresFailed() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testCanBeCanceledViaRegistry() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testCanBeCanceledViaRegistry() throws Exception {}
 }

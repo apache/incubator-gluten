@@ -14,31 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperatorLifecycleTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-public class GlutenAbstractUdfStreamOperatorLifecycleTest extends AbstractUdfStreamOperatorLifecycleTest {
+public class GlutenAbstractUdfStreamOperatorLifecycleTest
+    extends AbstractUdfStreamOperatorLifecycleTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testAllMethodsRegisteredInTest() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAllMethodsRegisteredInTest() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testLifeCycleFull() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testLifeCycleFull() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testLifeCycleCancel() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testLifeCycleCancel() throws Exception {}
 }

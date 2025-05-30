@@ -14,31 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2Test;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenAbstractStreamOperatorV2Test extends AbstractStreamOperatorV2Test {
 
-    @Override
-    @Test
-    @Disabled
-    public void testIdleWatermarkHandling() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testIdleWatermarkHandling() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testIdlenessForwarding() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testIdlenessForwarding() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testRecordAttributesForwarding() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testRecordAttributesForwarding() throws Exception {}
 }

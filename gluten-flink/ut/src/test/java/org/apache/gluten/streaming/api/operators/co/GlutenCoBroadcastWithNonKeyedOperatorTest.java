@@ -14,55 +14,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.co;
 
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperatorTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenCoBroadcastWithNonKeyedOperatorTest extends CoBroadcastWithNonKeyedOperatorTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testMultiStateSupport() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testMultiStateSupport() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testBroadcastState() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testBroadcastState() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testSideOutput() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testSideOutput() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testScaleUp() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testScaleUp() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testScaleDown() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testScaleDown() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testNoKeyedStateOnBroadcastSide() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testNoKeyedStateOnBroadcastSide() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testNoKeyedStateOnNonBroadcastSide() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testNoKeyedStateOnNonBroadcastSide() throws Exception {}
 }

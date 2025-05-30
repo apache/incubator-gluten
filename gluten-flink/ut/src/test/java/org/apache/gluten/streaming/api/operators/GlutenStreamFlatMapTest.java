@@ -14,25 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.StreamFlatMapTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenStreamFlatMapTest extends StreamFlatMapTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testFlatMap() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testFlatMap() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testOpenClose() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testOpenClose() throws Exception {}
 }

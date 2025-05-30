@@ -14,55 +14,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContextTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenStreamingRuntimeContextTest extends StreamingRuntimeContextTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testValueStateInstantiation() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testValueStateInstantiation() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReducingStateInstantiation() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReducingStateInstantiation() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAggregatingStateInstantiation() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAggregatingStateInstantiation() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateInstantiation() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateInstantiation() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testListStateReturnsEmptyListByDefault() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testListStateReturnsEmptyListByDefault() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testMapStateInstantiation() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testMapStateInstantiation() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testMapStateReturnsEmptyMapByDefault() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testMapStateReturnsEmptyMapByDefault() throws Exception {}
 }

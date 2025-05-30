@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.DeduplicationRestoreTest;
 import org.apache.flink.table.test.program.TableTestProgram;
+
 import org.junit.jupiter.api.Disabled;
 
 import java.util.List;
@@ -26,12 +26,12 @@ import java.util.List;
 @Disabled
 public class GlutenDeduplicationRestoreTest extends DeduplicationRestoreTest {
 
-    public GlutenDeduplicationRestoreTest() {
-        super();
-    }
+  public GlutenDeduplicationRestoreTest() {
+    super();
+  }
 
-    @Override
-    public List<TableTestProgram> programs() {
-        return super.programs();
-    }
+  @Override
+  public List<TableTestProgram> programs() {
+    return super.programs();
+  }
 }

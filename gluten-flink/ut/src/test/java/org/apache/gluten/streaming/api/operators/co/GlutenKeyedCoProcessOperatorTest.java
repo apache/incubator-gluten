@@ -14,61 +14,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.co;
 
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperatorTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenKeyedCoProcessOperatorTest extends KeyedCoProcessOperatorTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testTimestampAndWatermarkQuerying() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testTimestampAndWatermarkQuerying() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testTimestampAndProcessingTimeQuerying() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testTimestampAndProcessingTimeQuerying() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testEventTimeTimers() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testEventTimeTimers() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testProcessingTimeTimers() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testProcessingTimeTimers() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testEventTimeTimerWithState() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testEventTimeTimerWithState() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testProcessingTimeTimerWithState() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testProcessingTimeTimerWithState() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testSnapshotAndRestore() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testSnapshotAndRestore() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testGetCurrentKeyFromContext() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testGetCurrentKeyFromContext() throws Exception {}
 }

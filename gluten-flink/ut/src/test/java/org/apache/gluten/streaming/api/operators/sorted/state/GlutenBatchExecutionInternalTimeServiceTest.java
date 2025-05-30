@@ -14,67 +14,58 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.sorted.state;
 
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-public class GlutenBatchExecutionInternalTimeServiceTest extends BatchExecutionInternalTimeServiceTest {
+public class GlutenBatchExecutionInternalTimeServiceTest
+    extends BatchExecutionInternalTimeServiceTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testBatchExecutionManagerCanBeInstantiatedWithBatchStateBackend() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testBatchExecutionManagerCanBeInstantiatedWithBatchStateBackend() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testForEachEventTimeTimerUnsupported() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testForEachEventTimeTimerUnsupported() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testForEachProcessingTimeTimerUnsupported() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testForEachProcessingTimeTimerUnsupported() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testFiringEventTimeTimers() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testFiringEventTimeTimers() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testSettingSameKeyDoesNotFireTimers() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testSettingSameKeyDoesNotFireTimers() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testCurrentWatermark() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testCurrentWatermark() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testProcessingTimeTimers() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testProcessingTimeTimers() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testIgnoringEventTimeTimersFromWithinCallback() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testIgnoringEventTimeTimersFromWithinCallback() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testIgnoringProcessingTimeTimersFromWithinCallback() {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testIgnoringProcessingTimeTimersFromWithinCallback() {}
 }

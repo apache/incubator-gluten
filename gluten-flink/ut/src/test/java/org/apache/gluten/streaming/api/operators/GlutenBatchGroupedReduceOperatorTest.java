@@ -14,31 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.BatchGroupedReduceOperatorTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenBatchGroupedReduceOperatorTest extends BatchGroupedReduceOperatorTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void noIncrementalResults() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void noIncrementalResults() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void resultsOnMaxWatermark() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void resultsOnMaxWatermark() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void resultForSingleInput() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void resultForSingleInput() throws Exception {}
 }

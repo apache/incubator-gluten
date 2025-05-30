@@ -14,25 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.WrappingFunctionSnapshotRestoreTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenWrappingFunctionSnapshotRestoreTest extends WrappingFunctionSnapshotRestoreTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testSnapshotAndRestoreWrappedCheckpointedFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testSnapshotAndRestoreWrappedCheckpointedFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testSnapshotAndRestoreWrappedListCheckpointed() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testSnapshotAndRestoreWrappedListCheckpointed() throws Exception {}
 }

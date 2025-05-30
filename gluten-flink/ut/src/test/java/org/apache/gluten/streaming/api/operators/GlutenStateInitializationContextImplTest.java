@@ -14,37 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.StateInitializationContextImplTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenStateInitializationContextImplTest extends StateInitializationContextImplTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void getOperatorStateStreams() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void getOperatorStateStreams() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void getKeyedStateStreams() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void getKeyedStateStreams() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void getOperatorStateStore() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void getOperatorStateStore() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void close() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void close() throws Exception {}
 }

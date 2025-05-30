@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.async.queue;
 
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueTest;
+
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -28,40 +27,34 @@ import java.util.stream.Stream;
 
 public class GlutenStreamElementQueueTest extends StreamElementQueueTest {
 
-    private final AsyncDataStream.OutputMode outputMode;
-    public  GlutenStreamElementQueueTest(AsyncDataStream.OutputMode outputMode) {
-        super(outputMode);
-        this.outputMode = outputMode;
-    }
+  private final AsyncDataStream.OutputMode outputMode;
 
-    static Stream<Object> parameters() {
-        return Stream.of(
-                new Object[] {AsyncDataStream.OutputMode.ORDERED}
-        );
-    }
+  public GlutenStreamElementQueueTest(AsyncDataStream.OutputMode outputMode) {
+    super(outputMode);
+    this.outputMode = outputMode;
+  }
 
-    @ParameterizedTest
-    @MethodSource("parameters")
-    @Disabled
-    public void testPut() {
-    }
+  static Stream<Object> parameters() {
+    return Stream.of(new Object[] {AsyncDataStream.OutputMode.ORDERED});
+  }
 
-    @ParameterizedTest
-    @MethodSource("parameters")
-    @Disabled
-    public void testPop() {
-    }
+  @ParameterizedTest
+  @MethodSource("parameters")
+  @Disabled
+  public void testPut() {}
 
-    @ParameterizedTest
-    @MethodSource("parameters")
-    @Disabled
-    public void testPutOnFull() throws Exception {
-    }
+  @ParameterizedTest
+  @MethodSource("parameters")
+  @Disabled
+  public void testPop() {}
 
-    @ParameterizedTest
-    @MethodSource("parameters")
-    @Disabled
-    public void testWatermarkOnly() {
-    }
+  @ParameterizedTest
+  @MethodSource("parameters")
+  @Disabled
+  public void testPutOnFull() throws Exception {}
 
+  @ParameterizedTest
+  @MethodSource("parameters")
+  @Disabled
+  public void testWatermarkOnly() {}
 }

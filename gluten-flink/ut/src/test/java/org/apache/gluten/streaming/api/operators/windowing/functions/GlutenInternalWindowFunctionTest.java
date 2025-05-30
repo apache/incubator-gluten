@@ -14,73 +14,62 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.windowing.functions;
 
 import org.apache.flink.streaming.api.operators.windowing.functions.InternalWindowFunctionTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenInternalWindowFunctionTest extends InternalWindowFunctionTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalIterableAllWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalIterableAllWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalIterableProcessAllWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalIterableProcessAllWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalIterableWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalIterableWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalIterableProcessWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalIterableProcessWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalSingleValueWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalSingleValueWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalSingleValueAllWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalSingleValueAllWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalSingleValueProcessAllWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalSingleValueProcessAllWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalSingleValueProcessWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalSingleValueProcessWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalAggregateProcessWindowFunction() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInternalAggregateProcessWindowFunction() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testInternalAggregateProcessAllWindowFunction() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testInternalAggregateProcessAllWindowFunction() throws Exception {}
 }

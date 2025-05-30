@@ -14,61 +14,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.co;
 
 import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperatorTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenCoBroadcastWithKeyedOperatorTest extends CoBroadcastWithKeyedOperatorTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testKeyQuerying() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testKeyQuerying() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testAccessToKeyedStateIt() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testAccessToKeyedStateIt() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testFunctionWithTimer() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testFunctionWithTimer() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testSideOutput() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testSideOutput() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testFunctionWithBroadcastState() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testFunctionWithBroadcastState() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testScaleUp() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testScaleUp() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testScaleDown() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testScaleDown() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testNoKeyedStateOnBroadcastSide() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testNoKeyedStateOnBroadcastSide() throws Exception {}
 }

@@ -14,85 +14,72 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenAbstractStreamOperatorTest extends AbstractStreamOperatorTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testStateDoesNotInterfere() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testStateDoesNotInterfere() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testEventTimeTimersDontInterfere() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testEventTimeTimersDontInterfere() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testProcessingTimeTimersDontInterfere() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testProcessingTimeTimersDontInterfere() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testEnsureProcessingTimeTimerRegisteredOnRestore() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testEnsureProcessingTimeTimerRegisteredOnRestore() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testProcessingTimeAndEventTimeDontInterfere() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testProcessingTimeAndEventTimeDontInterfere() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testStateAndTimerStateShufflingScalingUp() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testStateAndTimerStateShufflingScalingUp() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testStateAndTimerStateShufflingScalingDown() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testStateAndTimerStateShufflingScalingDown() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testCustomRawKeyedStateSnapshotAndRestore() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testCustomRawKeyedStateSnapshotAndRestore() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testIdleWatermarkHandling() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testIdleWatermarkHandling() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testIdlenessForwarding() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testIdlenessForwarding() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testTwoInputsRecordAttributesForwarding() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testTwoInputsRecordAttributesForwarding() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testOneInputRecordAttributesForwarding() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testOneInputRecordAttributesForwarding() throws Exception {}
 }

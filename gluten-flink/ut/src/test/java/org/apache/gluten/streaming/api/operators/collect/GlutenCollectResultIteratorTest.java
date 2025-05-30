@@ -14,31 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.collect;
 
 import org.apache.flink.streaming.api.operators.collect.CollectResultIteratorTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenCollectResultIteratorTest extends CollectResultIteratorTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testUncheckpointedIterator() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testUncheckpointedIterator() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testCheckpointedIterator() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testCheckpointedIterator() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testEarlyClose() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testEarlyClose() throws Exception {}
 }

@@ -14,19 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.async.queue;
 
 import org.apache.flink.streaming.api.operators.async.queue.UnorderedStreamElementQueueTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenUnorderedStreamElementQueueTest extends UnorderedStreamElementQueueTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testCompletionOrder() {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testCompletionOrder() {}
 }

@@ -14,37 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.ProcessOperatorTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenProcessOperatorTest extends ProcessOperatorTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testTimestampAndWatermarkQuerying() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testTimestampAndWatermarkQuerying() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testTimestampAndProcessingTimeQuerying() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testTimestampAndProcessingTimeQuerying() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testNullOutputTagRefusal() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testNullOutputTagRefusal() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testSideOutput() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testSideOutput() throws Exception {}
 }

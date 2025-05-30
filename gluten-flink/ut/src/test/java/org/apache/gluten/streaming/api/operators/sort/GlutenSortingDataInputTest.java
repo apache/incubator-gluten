@@ -14,31 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.sort;
 
 import org.apache.flink.streaming.api.operators.sort.SortingDataInputTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenSortingDataInputTest extends SortingDataInputTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void simpleFixedLengthKeySorting() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void simpleFixedLengthKeySorting() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void watermarkPropagation() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void watermarkPropagation() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void simpleVariableLengthKeySorting() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void simpleVariableLengthKeySorting() throws Exception {}
 }

@@ -14,19 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManagerImplTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenInternalTimeServiceManagerImplTest extends InternalTimeServiceManagerImplTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void fixConstants() {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void fixConstants() {}
 }

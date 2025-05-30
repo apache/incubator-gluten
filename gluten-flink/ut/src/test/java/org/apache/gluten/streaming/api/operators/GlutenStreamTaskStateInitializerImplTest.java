@@ -14,25 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImplTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenStreamTaskStateInitializerImplTest extends StreamTaskStateInitializerImplTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testNoRestore() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testNoRestore() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testWithRestore() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testWithRestore() throws Exception {}
 }

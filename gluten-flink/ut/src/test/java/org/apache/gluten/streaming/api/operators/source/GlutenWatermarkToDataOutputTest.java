@@ -14,31 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.source;
 
 import org.apache.flink.streaming.api.operators.source.WatermarkToDataOutputTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenWatermarkToDataOutputTest extends WatermarkToDataOutputTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testInitialZeroWatermark() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInitialZeroWatermark() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testWatermarksDoNotRegress() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testWatermarksDoNotRegress() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void becomingActiveEmitsStatus() {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void becomingActiveEmitsStatus() {}
 }

@@ -14,67 +14,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.SourceOperatorTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenSourceOperatorTest extends SourceOperatorTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testInitializeState() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testInitializeState() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testOpen() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testOpen() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testStop() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testStop() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testHandleAddSplitsEvent() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testHandleAddSplitsEvent() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testHandleAddSourceEvent() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testHandleAddSourceEvent() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testSnapshotState() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testSnapshotState() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testNotifyCheckpointComplete() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testNotifyCheckpointComplete() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testNotifyCheckpointAborted() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testNotifyCheckpointAborted() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testHandleBacklogEvent() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testHandleBacklogEvent() throws Exception {}
 }

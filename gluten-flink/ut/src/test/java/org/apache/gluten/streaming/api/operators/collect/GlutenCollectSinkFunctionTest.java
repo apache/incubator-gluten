@@ -14,63 +14,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.collect;
 
 import org.apache.flink.streaming.api.operators.collect.CollectSinkFunctionTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenCollectSinkFunctionTest extends CollectSinkFunctionTest {
 
-    @Test
-    @Disabled
-    public void testIncreasingToken() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testIncreasingToken() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testDuplicatedToken() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testDuplicatedToken() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testInvalidToken() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testInvalidToken() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testInvalidVersion() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testInvalidVersion() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testConfiguredPortIsUsed() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testConfiguredPortIsUsed() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testCheckpoint() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testCheckpoint() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testRestart() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testRestart() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testAccumulatorResultWithoutCheckpoint() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testAccumulatorResultWithoutCheckpoint() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testEmptyAccumulatorResult() throws Exception {
-    }
+  @Test
+  @Disabled
+  public void testEmptyAccumulatorResult() throws Exception {}
 
-    @Test
-    @Disabled
-    public void testAccumulatorResultWithCheckpoint() throws Exception {
-    }
-
+  @Test
+  @Disabled
+  public void testAccumulatorResultWithCheckpoint() throws Exception {}
 }

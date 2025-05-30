@@ -14,50 +14,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.collect;
 
 import org.apache.flink.streaming.api.operators.collect.CollectResultBufferTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenCollectResultBufferTest extends CollectResultBufferTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testUncheckpointedValidResponse() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testUncheckpointedValidResponse() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testUncheckpointedFaultTolerance() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testUncheckpointedFaultTolerance() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testUncheckpointedNotFaultTolerance() throws Exception {
-        throw new RuntimeException();
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testUncheckpointedNotFaultTolerance() throws Exception {
+    throw new RuntimeException();
+  }
 
-    @Override
-    @Test
-    @Disabled
-    public void testCheckpointedValidResponse() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testCheckpointedValidResponse() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testCheckpointedRestart() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testCheckpointedRestart() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testImmediateAccumulatorResult() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testImmediateAccumulatorResult() throws Exception {}
 }

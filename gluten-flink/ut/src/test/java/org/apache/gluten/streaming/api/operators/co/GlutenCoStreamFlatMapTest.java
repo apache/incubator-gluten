@@ -14,25 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.co;
 
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMapTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenCoStreamFlatMapTest extends CoStreamFlatMapTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testCoFlatMap() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testCoFlatMap() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testOpenClose() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testOpenClose() throws Exception {}
 }

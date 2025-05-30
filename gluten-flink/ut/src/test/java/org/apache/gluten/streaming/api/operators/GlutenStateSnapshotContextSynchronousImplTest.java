@@ -14,43 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.StateSnapshotContextSynchronousImplTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-public class GlutenStateSnapshotContextSynchronousImplTest extends StateSnapshotContextSynchronousImplTest {
+public class GlutenStateSnapshotContextSynchronousImplTest
+    extends StateSnapshotContextSynchronousImplTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testMetaData() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testMetaData() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testCreateRawKeyedStateOutput() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testCreateRawKeyedStateOutput() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testCreateRawOperatorStateOutput() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testCreateRawOperatorStateOutput() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testStreamClosingWhenClosing() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testStreamClosingWhenClosing() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testStreamClosingExceptionally() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testStreamClosingExceptionally() throws Exception {}
 }

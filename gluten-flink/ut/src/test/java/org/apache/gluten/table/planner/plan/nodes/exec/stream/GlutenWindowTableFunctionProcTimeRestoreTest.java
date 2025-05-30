@@ -14,24 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.WindowTableFunctionProcTimeRestoreTest;
 import org.apache.flink.table.test.program.TableTestProgram;
+
 import org.junit.jupiter.api.Disabled;
 
 import java.util.List;
 
 @Disabled
-public class GlutenWindowTableFunctionProcTimeRestoreTest extends WindowTableFunctionProcTimeRestoreTest {
+public class GlutenWindowTableFunctionProcTimeRestoreTest
+    extends WindowTableFunctionProcTimeRestoreTest {
 
-    public GlutenWindowTableFunctionProcTimeRestoreTest() {
-        super();
-    }
+  public GlutenWindowTableFunctionProcTimeRestoreTest() {
+    super();
+  }
 
-    @Override
-    public List<TableTestProgram> programs() {
-        return super.programs();
-    }
+  @Override
+  public List<TableTestProgram> programs() {
+    return super.programs();
+  }
 }

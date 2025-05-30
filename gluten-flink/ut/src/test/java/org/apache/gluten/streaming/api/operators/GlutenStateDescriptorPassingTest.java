@@ -14,49 +14,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.StateDescriptorPassingTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenStateDescriptorPassingTest extends StateDescriptorPassingTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testReduceWindowState() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReduceWindowState() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testApplyWindowState() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testApplyWindowState() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testProcessWindowState() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testProcessWindowState() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testProcessAllWindowState() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testProcessAllWindowState() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testReduceWindowAllState() {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void testReduceWindowAllState() {}
 
-    @Override
-    @Test
-    @Disabled
-    public void testApplyWindowAllState() {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testApplyWindowAllState() {}
 }

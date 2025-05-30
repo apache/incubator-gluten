@@ -14,19 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizerTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenOperatorSnapshotFinalizerTest extends OperatorSnapshotFinalizerTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void testRunAndExtract() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void testRunAndExtract() throws Exception {}
 }

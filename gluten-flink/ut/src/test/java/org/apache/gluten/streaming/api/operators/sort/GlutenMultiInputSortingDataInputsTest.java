@@ -14,25 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.streaming.api.operators.sort;
 
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInputsTest;
+
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class GlutenMultiInputSortingDataInputsTest extends MultiInputSortingDataInputsTest {
 
-    @Override
-    @Test
-    @Disabled
-    public void passThroughThenSortedInput() throws Exception {
-    }
+  @Disabled
+  @Test
+  @Override
+  public void passThroughThenSortedInput() throws Exception {}
 
-    @Override
-    @Test
-    @Disabled
-    public void sortedThenPassThroughInput() throws Exception {
-    }
-
+  @Disabled
+  @Test
+  @Override
+  public void sortedThenPassThroughInput() throws Exception {}
 }
