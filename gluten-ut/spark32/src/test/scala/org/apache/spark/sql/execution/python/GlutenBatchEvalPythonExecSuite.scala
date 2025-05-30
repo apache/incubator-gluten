@@ -18,23 +18,21 @@ package org.apache.spark.sql.execution.python
 
 import org.apache.gluten.execution.{ColumnarToRowExecBase, FilterExecTransformer, RowToColumnarExecBase, WholeStageTransformer}
 
-import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, GreaterThan, In}
-import org.apache.spark.sql.execution.{ColumnarInputAdapter, InputIteratorTransformer, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarInputAdapter, InputIteratorTransformer}
 
 class GlutenBatchEvalPythonExecSuite extends BatchEvalPythonExecSuite with GlutenSQLTestsBaseTrait {
 
   import testImplicits._
 
-  def collectQualifiedPlanNodes(df: DataFrame): Seq[SparkPlan] = {
-    df.queryExecution.executedPlan.collect {
+  testGluten("Python UDF: push down deterministic FilterExecTransformer predicates") {
+    val df = Seq(("Hello", 4))
+      .toDF("a", "b")
+      .where("dummyPythonUDF(b) and dummyPythonUDF(a) and a in (3, 4)")
+    val qualifiedPlanNodes = df.queryExecution.executedPlan.collect {
       case f @ FilterExecTransformer(
             And(_: AttributeReference, _: AttributeReference),
-            InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
-          if r.child.isInstanceOf[BatchEvalPythonExec] =>
-        f
-      case f @ FilterExecTransformer(
-            And(_: AttributeReference, _: GreaterThan),
             InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
           if r.child.isInstanceOf[BatchEvalPythonExec] =>
         f
@@ -43,13 +41,6 @@ class GlutenBatchEvalPythonExecSuite extends BatchEvalPythonExecSuite with Glute
           case WholeStageTransformer(FilterExecTransformer(_: In, _), _) => b
         }
     }
-  }
-
-  testGluten("Python UDF: push down deterministic FilterExecTransformer predicates") {
-    val df = Seq(("Hello", 4))
-      .toDF("a", "b")
-      .where("dummyPythonUDF(b) and dummyPythonUDF(a) and a in (3, 4)")
-    val qualifiedPlanNodes = collectQualifiedPlanNodes(df)
     assert(qualifiedPlanNodes.size == 2)
   }
 
@@ -57,7 +48,17 @@ class GlutenBatchEvalPythonExecSuite extends BatchEvalPythonExecSuite with Glute
     val df = Seq(("Hello", 4))
       .toDF("a", "b")
       .where("dummyPythonUDF(a, dummyPythonUDF(a, b)) and a in (3, 4)")
-    val qualifiedPlanNodes = collectQualifiedPlanNodes(df)
+    val qualifiedPlanNodes = df.queryExecution.executedPlan.collect {
+      case f @ FilterExecTransformer(
+            _: AttributeReference,
+            InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
+          if r.child.isInstanceOf[BatchEvalPythonExec] =>
+        f
+      case b @ BatchEvalPythonExec(_, _, c: ColumnarToRowExecBase) =>
+        c.child match {
+          case WholeStageTransformer(FilterExecTransformer(_: In, _), _) => b
+        }
+    }
     assert(qualifiedPlanNodes.size == 2)
   }
 
@@ -65,7 +66,17 @@ class GlutenBatchEvalPythonExecSuite extends BatchEvalPythonExecSuite with Glute
     val df = Seq(("Hello", 4))
       .toDF("a", "b")
       .where("b > 4 and dummyPythonUDF(a) and rand() > 0.3")
-    val qualifiedPlanNodes = collectQualifiedPlanNodes(df)
+    val qualifiedPlanNodes = df.queryExecution.executedPlan.collect {
+      case f @ FilterExecTransformer(
+            And(_: AttributeReference, _: GreaterThan),
+            InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
+          if r.child.isInstanceOf[BatchEvalPythonExec] =>
+        f
+      case b @ BatchEvalPythonExec(_, _, c: ColumnarToRowExecBase) =>
+        c.child match {
+          case WholeStageTransformer(_: FilterExecTransformer, _) => b
+        }
+    }
     assert(qualifiedPlanNodes.size == 2)
   }
 
@@ -75,7 +86,17 @@ class GlutenBatchEvalPythonExecSuite extends BatchEvalPythonExecSuite with Glute
       .toDF("a", "b")
       .where("dummyPythonUDF(a) and rand() > 0.3 and b > 4")
 
-    val qualifiedPlanNodes = collectQualifiedPlanNodes(df)
+    val qualifiedPlanNodes = df.queryExecution.executedPlan.collect {
+      case f @ FilterExecTransformer(
+            And(_: AttributeReference, _: GreaterThan),
+            InputIteratorTransformer(ColumnarInputAdapter(r: RowToColumnarExecBase)))
+          if r.child.isInstanceOf[BatchEvalPythonExec] =>
+        f
+      case b @ BatchEvalPythonExec(_, _, c: ColumnarToRowExecBase) =>
+        c.child match {
+          case WholeStageTransformer(_: FilterExecTransformer, _) => b
+        }
+    }
     assert(qualifiedPlanNodes.size == 2)
   }
 }
