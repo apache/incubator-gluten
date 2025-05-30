@@ -43,6 +43,7 @@ class ColumnarShuffleWriter[K, V](
   with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
+  protected val isSort: Boolean = dep.isSort
 
   private val conf = SparkEnv.get.conf
 

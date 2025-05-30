@@ -62,13 +62,13 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
   }
 
- private val nativeMetrics: SQLMetric = {
-   if (dep.isSort) {
-     dep.metrics("sortTime")
-   } else {
-     dep.metrics("splitTime")
-   }
- }
+  private val nativeMetrics: SQLMetric = {
+    if (dep.isSort) {
+      dep.metrics("sortTime")
+    } else {
+      dep.metrics("splitTime")
+    }
+  }
 
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
