@@ -1231,6 +1231,10 @@ jobs:
     container: apache/gluten:centos-8-jdk8
     steps:
       - uses: actions/checkout@v4
+      - name: Install Github CLI for using apache/infrastructure-actions/stash
+        run: |
+          curl -L https://github.com/cli/cli/releases/download/v2.63.2/gh_2.63.2_linux_amd64.rpm > gh_2.63.2_linux_amd64.rpm
+          rpm -iv gh_2.63.2_linux_amd64.rpm
       - name: Get Ccache
         uses: apache/infrastructure-actions/stash/restore@3354c1565d4b0e335b78a76aedd82153a9e144d4
         with:

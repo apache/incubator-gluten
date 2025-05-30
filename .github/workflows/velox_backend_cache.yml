@@ -34,12 +34,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Get Ccache
-        uses: infrastructure-actions/stash/restore@v1
+        uses: apache/infrastructure-actions/stash/restore@3354c1565d4b0e335b78a76aedd82153a9e144d4
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos7-release-default-${{github.sha}}
-          restore-keys: |
-            ccache-centos7-release-default
+
       - name: Build Gluten native libraries
         run: |
           docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-7 bash -c "
@@ -48,7 +47,7 @@ jobs:
             bash dev/ci-velox-buildstatic-centos-7.sh
           "
       - name: Save Ccache
-        uses: infrastructure-actions/stash/save@v1
+        uses: apache/infrastructure-actions/stash/save@3354c1565d4b0e335b78a76aedd82153a9e144d4
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
@@ -86,21 +85,23 @@ jobs:
         os: [ ubuntu-22.04, ubuntu-24.04-arm ]
     container: apache/gluten:centos-8-jdk8
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - name: Install Github CLI for using apache/infrastructure-actions/stash
+        run: |
+          curl -L https://github.com/cli/cli/releases/download/v2.63.2/gh_2.63.2_linux_amd64.rpm > gh_2.63.2_linux_amd64.rpm
+          rpm -iv gh_2.63.2_linux_amd64.rpm
       - name: Get Ccache
-        uses: infrastructure-actions/stash/restore@v1
+        uses: apache/infrastructure-actions/stash/restore@3354c1565d4b0e335b78a76aedd82153a9e144d4
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
-          restore-keys: |
-            ccache-centos8-release-shared-${{runner.arch}}
       - name: Build Gluten shared libraries
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
       - name: Save Ccache
-        uses: infrastructure-actions/stash/save@v1
+        uses: apache/infrastructure-actions/stash/save@3354c1565d4b0e335b78a76aedd82153a9e144d4
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
@@ -115,12 +116,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
-        uses: actions/cache/restore@v3
+        uses: apache/infrastructure-actions/stash/restore@3354c1565d4b0e335b78a76aedd82153a9e144d4
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-enhanced-centos8-release-shared-${{runner.arch}}-${{github.sha}}
-          restore-keys: |
-            ccache-enhanced-centos8-release-shared-${{runner.arch}}
       - name: Build Gluten
         run: |
           df -a
@@ -128,7 +127,7 @@ jobs:
           bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_enhanced_features=ON
           ccache -s
       - name: Save Ccache
-        uses: actions/cache/save@v3
+        uses: apache/infrastructure-actions/stash/save@3354c1565d4b0e335b78a76aedd82153a9e144d4
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
@@ -143,19 +142,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Get Ccache
-        uses: actions/cache/restore@v3
+        uses: apache/infrastructure-actions/stash/restore@3354c1565d4b0e335b78a76aedd82153a9e144d4
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos9-release-shared-${{runner.arch}}-${{github.sha}}
-          restore-keys: |
-            ccache-centos9-release-shared-${{runner.arch}}
       - name: Build Gluten shared libraries
         run: |
           df -a
           bash dev/buildbundle-veloxbe.sh --run_setup_script=OFF --build_arrow=OFF --spark_version=3.4 --enable_gpu=ON
           ccache -s
       - name: Save Ccache
-        uses: actions/cache/save@v3
+        uses: apache/infrastructure-actions/stash/save@3354c1565d4b0e335b78a76aedd82153a9e144d4
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
