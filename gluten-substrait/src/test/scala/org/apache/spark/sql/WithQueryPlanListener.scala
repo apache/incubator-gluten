@@ -92,7 +92,7 @@ object WithQueryPlanListener {
 
     def invokeAll(): Unit = {
       while (plans.nonEmpty) {
-        val plansCopy = Seq[SparkPlan](plans: _*)
+        val plansCopy = Seq[SparkPlan](plans.toSeq: _*)
         plans.clear()
         plansCopy.foreach(plan => listeners.foreach(listener => listener.apply(plan)))
       }
