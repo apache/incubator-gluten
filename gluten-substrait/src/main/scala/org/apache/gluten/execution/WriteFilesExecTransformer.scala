@@ -72,7 +72,11 @@ case class WriteFilesExecTransformer(
   val caseInsensitiveOptions: CaseInsensitiveMap[String] = CaseInsensitiveMap(options)
 
   private def preProjectionNeeded(): Boolean = {
-    if (partitionColumns == null || partitionColumns.isEmpty) {
+    if (
+      partitionColumns == null || partitionColumns.isEmpty ||
+      partitionColumns.size == 1 || !BackendsApiManager.getSettings
+        .reorderColumnsForPartitionWrite()
+    ) {
       false
     } else {
       true
