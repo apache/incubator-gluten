@@ -88,6 +88,7 @@ class Spark35Shims extends SparkShims {
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
       Sig[Mask](ExpressionNames.MASK),
       Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
+      Sig[TimestampDiff](ExpressionNames.TIMESTAMP_DIFF),
       Sig[RoundFloor](ExpressionNames.FLOOR),
       Sig[RoundCeil](ExpressionNames.CEIL),
       Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT),
@@ -691,5 +692,13 @@ class Spark35Shims extends SparkShims {
 
   override def getCollectLimitOffset(plan: CollectLimitExec): Int = {
     plan.offset
+  }
+
+  override def extractExpressionTimestampDiffUnit(exp: Expression): Option[String] = {
+    exp match {
+      case timestampDiff: TimestampDiff =>
+        Some(timestampDiff.unit)
+      case _ => Option.empty
+    }
   }
 }

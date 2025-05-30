@@ -74,6 +74,18 @@ case class TimestampAddTransformer(
   }
 }
 
+case class TimestampDiffTransformer(
+    substraitExprName: String,
+    unit: String,
+    startTimestamp: ExpressionTransformer,
+    endTimestamp: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer {
+  override def children: Seq[ExpressionTransformer] = {
+    Seq(LiteralTransformer(unit), startTimestamp, endTimestamp)
+  }
+}
+
 object DateTimeExpressionsTransformer {
 
   val EXTRACT_DATE_FIELD_MAPPING: Map[Class[_], String] = Map(

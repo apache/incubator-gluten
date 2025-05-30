@@ -258,6 +258,9 @@ trait SparkShims {
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
     Option.empty
 
+  def extractExpressionTimestampDiffUnit(timestampDiff: Expression): Option[String] =
+    Option.empty
+
   def supportsRowBased(plan: SparkPlan): Boolean = !plan.supportsColumnar
 
   def withTryEvalMode(expr: Expression): Boolean = false
