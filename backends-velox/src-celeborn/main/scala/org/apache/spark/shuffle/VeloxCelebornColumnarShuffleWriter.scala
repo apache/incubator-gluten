@@ -27,6 +27,7 @@ import org.apache.spark.internal.config.{SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
 
@@ -51,8 +52,6 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     celebornConf,
     client,
     writeMetrics) {
-  private val isSort = !ReservedKeys.GLUTEN_HASH_SHUFFLE_WRITER.equals(shuffleWriterType)
-
   private val runtime =
     Runtimes.contextInstance(BackendsApiManager.getBackendName, "CelebornShuffleWriter")
 
@@ -61,9 +60,15 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
   private var splitResult: GlutenSplitResult = _
 
   private def availableOffHeapPerTask(): Long = {
-    val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
-    perTask
+    SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
+  }
+
+  private val nativeMetrics: SQLMetric = {
+    if (dep.isSort) {
+      dep.metrics("sortTime")
+    } else {
+      dep.metrics("splitTime")
+    }
   }
 
   @throws[IOException]
@@ -99,11 +104,6 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
     dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
-    val nativeMetrics = if (isSort) {
-      dep.metrics("sortTime")
-    } else {
-      dep.metrics("splitTime")
-    }
     nativeMetrics
       .add(
         dep.metrics("shuffleWallTime").value - splitResult.getTotalPushTime -
