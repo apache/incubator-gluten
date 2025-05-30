@@ -110,7 +110,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
           splitResult.getTotalCompressTime)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
-    writeMetrics.incWriteTime(splitResult.getTotalWriteTime splitResult.getTotalPushTime)
+    writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalPushTime)
 
     partitionLengths = splitResult.getPartitionLengths
 
