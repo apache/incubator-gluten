@@ -374,6 +374,36 @@
       </dependencies>
     </profile>
     <profile>
+      <id>spark-4.0</id>
+      <properties>
+        <sparkbundle.version>4.0</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark40</sparkshim.artifactId>
+        <spark.version>4.0.0</spark.version>
+        <iceberg.version>1.5.0</iceberg.version>
+        <delta.package.name>delta-spark</delta.package.name>
+        <delta.version>3.3.1</delta.version>
+        <delta.binary.version>33</delta.binary.version>
+        <hudi.version>0.15.0</hudi.version>
+        <fasterxml.version>2.15.1</fasterxml.version>
+        <hadoop.version>3.3.4</hadoop.version>
+        <antlr4.version>4.9.3</antlr4.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>${slf4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j2-impl</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
       <id>hadoop-2.7.4</id>
       <properties>
         <hadoop.version>2.7.4</hadoop.version>
