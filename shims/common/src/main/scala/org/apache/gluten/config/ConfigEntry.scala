@@ -18,7 +18,7 @@ package org.apache.gluten.config
 
 import org.apache.gluten.config.BackendType.BackendType
 
-import org.apache.spark.sql.internal.ConfigProvider
+import org.apache.spark.sql.internal.GlutenConfigProvider
 
 /**
  * An entry contains all meta information for a configuration.
@@ -61,8 +61,8 @@ trait ConfigEntry[T] {
   /** How to convert a value to a string that the user can use it as a valid string value. */
   def stringConverter: T => String
 
-  /** Read the configuration from the given ConfigProvider. */
-  def readFrom(conf: ConfigProvider): T
+  /** Read the configuration from the given GlutenConfigProvider. */
+  def readFrom(conf: GlutenConfigProvider): T
 
   /** The default value of the configuration. */
   def defaultValue: Option[T]
@@ -70,7 +70,7 @@ trait ConfigEntry[T] {
   /** The string representation of the default value. */
   def defaultValueString: String
 
-  final protected def readString(provider: ConfigProvider): Option[String] = {
+  final protected def readString(provider: GlutenConfigProvider): Option[String] = {
     alternatives.foldLeft(provider.get(key))((res, nextKey) => res.orElse(provider.get(nextKey)))
   }
 
@@ -108,7 +108,8 @@ private[gluten] class OptionalConfigEntry[T](
 
   override def stringConverter: Option[T] => String = v => v.map(_stringConverter).orNull
 
-  override def readFrom(conf: ConfigProvider): Option[T] = readString(conf).map(_valueConverter)
+  override def readFrom(conf: GlutenConfigProvider): Option[T] =
+    readString(conf).map(_valueConverter)
 
   override def defaultValue: Option[Option[T]] = None
 
@@ -142,7 +143,7 @@ private[gluten] class ConfigEntryWithDefault[T](
 
   override def stringConverter: T => String = _stringConverter
 
-  override def readFrom(conf: ConfigProvider): T = {
+  override def readFrom(conf: GlutenConfigProvider): T = {
     readString(conf).map(valueConverter).getOrElse(_defaultVal)
   }
 
@@ -178,7 +179,7 @@ private[gluten] class ConfigEntryWithDefaultString[T](
 
   override def stringConverter: T => String = _stringConverter
 
-  override def readFrom(conf: ConfigProvider): T = {
+  override def readFrom(conf: GlutenConfigProvider): T = {
     val value = readString(conf).getOrElse(_defaultVal)
     valueConverter(value)
   }
@@ -213,7 +214,7 @@ private[gluten] class ConfigEntryFallback[T](
 
   override def stringConverter: T => String = fallback.stringConverter
 
-  override def readFrom(conf: ConfigProvider): T = {
+  override def readFrom(conf: GlutenConfigProvider): T = {
     readString(conf).map(valueConverter).getOrElse(fallback.readFrom(conf))
   }
 
