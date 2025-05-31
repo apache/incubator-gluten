@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -129,5 +130,15 @@ class ScanTest extends GlutenStreamingTestBase {
     runAndCheck(
         query,
         Arrays.asList("+I[1, [{a=1}, {b=2}]]", "+I[2, [{b=2, c=3}]]", "+I[3, [{d=4, e=5, f=6}]]"));
+  }
+
+  @Test
+  void testDateScan() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, LocalDate.parse("2023-01-01")), Row.of(2, LocalDate.parse("2023-01-02")));
+    createSimpleBoundedValuesTable("dateTbl", "a int, b date", rows);
+    String query = "select a, b from dateTbl where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1, 2023-01-01]", "+I[2, 2023-01-02]"));
   }
 }
