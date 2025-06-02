@@ -17,11 +17,12 @@
 package org.apache.gluten.ras
 
 import org.apache.gluten.ras.property.{MemoRole, PropertySet, PropertySetFactory}
-import org.apache.gluten.ras.rule.RasRule
+import org.apache.gluten.ras.property.MemoRole.PropertySetFactoryWithMemoRole
+import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule}
 
 /**
- * Entrypoint of RAS (relational algebra selector)'s search engine. See basic introduction of RAS:
- * https://github.com/apache/incubator-gluten/issues/5057.
+ * Entrypoint of RAS (relational algebra selector) 's search engine. See the basic introduction of
+ * RAS: https://github.com/apache/incubator-gluten/issues/5057.
  */
 trait Optimization[T <: AnyRef] {
   def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T]
@@ -50,11 +51,11 @@ class Ras[T <: AnyRef] private (
   extends Optimization[T] {
   import Ras._
 
-  private[ras] val memoRoleDef: MemoRole.Def[T] = MemoRole.newDef(planModel)
-  private val userPropertySetFactory: PropertySetFactory[T] =
-    PropertySetFactory(propertyModel, planModel)
-  private val propSetFactory: PropertySetFactory[T] =
-    MemoRole.wrapPropertySetFactory(userPropertySetFactory, memoRoleDef)
+  private val propSetFactory: PropertySetFactoryWithMemoRole[T] = {
+    val memoRoleDef: MemoRole.Def[T] = MemoRole.newDef(planModel)
+    val baseFactory = PropertySetFactory(propertyModel, planModel)
+    MemoRole.wrapPropertySetFactory(baseFactory, memoRoleDef)
+  }
   // Normal groups start with ID 0, so it's safe to use Int.MinValue to do validation.
   private val dummyGroup: T =
     newGroupLeaf(Int.MinValue, metadataModel.dummy(), propSetFactory.any())
@@ -91,11 +92,11 @@ class Ras[T <: AnyRef] private (
   }
 
   override def newPlanner(plan: T, constraintSet: PropertySet[T]): RasPlanner[T] = {
-    RasPlanner(this, constraintSet, plan)
+    RasPlanner(this, withUserConstraint(constraintSet), plan)
   }
 
   def newPlanner(plan: T): RasPlanner[T] = {
-    RasPlanner(this, userPropertySetFactory.any(), plan)
+    RasPlanner(this, userConstraintSet(), plan)
   }
 
   def withNewConfig(confFunc: RasConfig => RasConfig): Ras[T] = {
@@ -109,15 +110,26 @@ class Ras[T <: AnyRef] private (
       ruleFactory)
   }
 
-  private[ras] def userConstraintSet(): PropertySet[T] =
-    userPropertySetFactory.any() +: memoRoleDef.reqUser
+  private[ras] def withUserConstraint(from: PropertySet[T]): PropertySet[T] = {
+    from +: propSetFactory.userConstraint()
+  }
 
-  private[ras] def hubConstraintSet(): PropertySet[T] =
-    userPropertySetFactory.any() +: memoRoleDef.reqHub
+  private[ras] def userConstraintSet(): PropertySet[T] = propSetFactory.userConstraintSet()
+
+  private[ras] def hubConstraintSet(): PropertySet[T] = propSetFactory.hubConstraintSet()
 
   private[ras] def propSetOf(plan: T): PropertySet[T] = {
-    val out = propertySetFactory().get(plan)
-    out
+    propSetFactory.get(plan)
+  }
+
+  private[ras] def childrenConstraintSets(
+      node: T,
+      constraintSet: PropertySet[T]): Seq[PropertySet[T]] = {
+    propSetFactory.childrenConstraintSets(node, constraintSet)
+  }
+
+  private[ras] def newEnforcerRuleFactory(): EnforcerRuleFactory[T] = {
+    propSetFactory.newEnforcerRuleFactory()
   }
 
   private[ras] def withNewChildren(node: T, newChildren: Seq[T]): T = {
@@ -147,8 +159,6 @@ class Ras[T <: AnyRef] private (
       .childrenOf(n)
       .map(child => planModel.getGroupId(child))
   }
-
-  private[ras] def propertySetFactory(): PropertySetFactory[T] = propSetFactory
 
   private[ras] def dummyGroupLeaf(): T = {
     dummyGroup

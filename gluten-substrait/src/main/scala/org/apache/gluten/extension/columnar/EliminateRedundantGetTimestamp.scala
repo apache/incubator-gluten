@@ -14,17 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.rexnode.functions;
+package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.spark.sql.catalyst.expressions.GetTimestamp
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
-import io.github.zhztheplayer.velox4j.expression.TypedExpr;
+/**
+ * When there is a format parameter, to_date and to_timestamp will be replaced by GetTimestamp. If
+ * the date type of GetTimestamp is the same as its left, then GetTimestamp is redundant. Velox does
+ * not support GetTimestamp(Timestamp, format). In this case, it needs to be removed.
+ */
+object EliminateRedundantGetTimestamp extends Rule[SparkPlan] {
 
-import org.apache.calcite.rex.RexCall;
-
-public interface RexCallConverter {
-  // Let the Converter decide how to build the arguments.
-  TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context);
-
-  boolean isSupported(RexCall callNode, RexConversionContext context);
+  override def apply(plan: SparkPlan): SparkPlan = {
+    plan.transformExpressions {
+      case getTimestamp: GetTimestamp if getTimestamp.left.dataType == getTimestamp.dataType =>
+        getTimestamp.left
+    }
+  }
 }
