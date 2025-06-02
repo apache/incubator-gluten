@@ -81,7 +81,7 @@ class VeloxRasSuite extends SharedSparkSession {
     val numGroups = memoState.allGroups().size
     val numNodes = memoState.allClusters().flatMap(_.nodes()).size
     assert(numClusters == 8)
-    assert(numGroups == 30)
+    assert(numGroups == 22)
     assert(numNodes == 39)
   }
 
@@ -110,7 +110,7 @@ class VeloxRasSuite extends SharedSparkSession {
     val numGroups = memoState.allGroups().size
     val numNodes = memoState.allClusters().flatMap(_.nodes()).size
     assert(numClusters == 8)
-    assert(numGroups == 32)
+    assert(numGroups == 28)
     assert(numNodes == 55)
   }
 

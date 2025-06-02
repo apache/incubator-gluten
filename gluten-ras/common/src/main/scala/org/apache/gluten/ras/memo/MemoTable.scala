@@ -66,9 +66,8 @@ object MemoTable {
 
   private case class MemoStateImpl[T <: AnyRef](
       override val ras: Ras[T],
-      override val clusterLookup: Map[RasClusterKey, ImmutableRasCluster[T]],
+      override val clusterLookup: Map[RasClusterKey, RasCluster[T]],
       override val clusterHubGroupLookup: Map[RasClusterKey, RasGroup[T]],
-      override val clusterUserGroupLookup: Map[RasClusterKey, RasGroup[T]],
       override val allGroups: Seq[RasGroup[T]],
       idToGroup: Map[Int, RasGroup[T]])
     extends MemoState[T] {
@@ -76,7 +75,6 @@ object MemoTable {
 
     override def getCluster(key: RasClusterKey): RasCluster[T] = clusterLookup(key)
     override def getHubGroup(key: RasClusterKey): RasGroup[T] = clusterHubGroupLookup(key)
-    override def getUserGroup(key: RasClusterKey): RasGroup[T] = clusterUserGroupLookup(key)
     override def getGroup(id: Int): RasGroup[T] = idToGroup(id)
     override def allClusters(): Iterable[RasCluster[T]] = allClustersCopy
   }
@@ -91,11 +89,6 @@ object MemoTable {
       val immutableHubGroups = table
         .allClusterKeys()
         .map(key => key -> table.getHubGroup(key))
-        .toMap
-
-      val immutableUserGroups = table
-        .allClusterKeys()
-        .map(key => key -> table.getUserGroup(key))
         .toMap
 
       var maxGroupId = Int.MinValue
@@ -115,13 +108,7 @@ object MemoTable {
 
       val allGroups = (0 to maxGroupId).map(table.getGroup).toVector
 
-      MemoStateImpl(
-        table.ras,
-        immutableClusters,
-        immutableHubGroups,
-        immutableUserGroups,
-        allGroups,
-        groupMap)
+      MemoStateImpl(table.ras, immutableClusters, immutableHubGroups, allGroups, groupMap)
     }
 
     def doExhaustively(func: => Unit): Unit = {

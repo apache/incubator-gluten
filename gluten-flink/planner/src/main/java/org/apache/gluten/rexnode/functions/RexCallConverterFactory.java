@@ -16,31 +16,74 @@
  */
 package org.apache.gluten.rexnode.functions;
 
+import org.apache.gluten.rexnode.RexConversionContext;
+
+import org.apache.calcite.rex.RexCall;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class RexCallConverterFactory {
 
-  // Better to new Converter for each call. Reusing an object can easily introduce potential
-  // issues.
-  private static Map<String, RexCallConverterBuilder> converters =
-      Map.of(
-          ">", () -> new AlignInputsTypeRexCallConverter("greaterthan"),
-          "<", () -> new AlignInputsTypeRexCallConverter("lessthan"),
-          "=", () -> new AlignInputsTypeRexCallConverter("equalto"),
-          "*", () -> new AlignInputsTypeRexCallConverter("multiply"),
-          "-", () -> new AlignInputsTypeRexCallConverter("subtract"),
-          "+", () -> new AlignInputsTypeRexCallConverter("add"),
-          "MOD", () -> new ModRexCallConverter(),
-          "CAST", () -> new DefaultRexCallConverter("cast"),
-          "CASE", () -> new DefaultRexCallConverter("if"),
-          "AND", () -> new DefaultRexCallConverter("and"));
+  /**
+   * Better to new Converter for each call. Reusing an object can easily introduce potential issues.
+   *
+   * <p>A single operator (e.g., '+') may map to multiple converters, such as arithmetic addition
+   * and timestamp interval addition, which require distinct implementations. We need to find the
+   * only suitable converter for the given RexCall node.
+   */
+  private static Map<String, List<RexCallConverterBuilder>> converters =
+      Map.ofEntries(
+          Map.entry(
+              ">",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("greaterthan"),
+                  () -> new StringCompareRexCallConverter("greaterthan"),
+                  () -> new StringNumberCompareRexCallConverter("greaterthan"))),
+          Map.entry(
+              "<",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("lessthan"),
+                  () -> new StringCompareRexCallConverter("lessthan"),
+                  () -> new StringNumberCompareRexCallConverter("lessthan"))),
+          Map.entry(
+              "=",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("equalto"),
+                  () -> new StringCompareRexCallConverter("equalto"),
+                  () -> new StringNumberCompareRexCallConverter("equalto"))),
+          Map.entry(
+              "*", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("multiply"))),
+          Map.entry(
+              "-", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("subtract"))),
+          Map.entry("+", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("add"))),
+          Map.entry("MOD", Arrays.asList(() -> new ModRexCallConverter())),
+          Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
+          Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
+          Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))));
 
-  public static RexCallConverter getConverter(String operatorName) {
-    RexCallConverterBuilder builder = converters.get(operatorName);
-    if (builder == null) {
+  public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
+    String operatorName = callNode.getOperator().getName();
+    List<RexCallConverterBuilder> builders = converters.get(operatorName);
+    if (builders == null) {
       throw new RuntimeException("Function not supported: " + operatorName);
     }
-    return builder.build();
+
+    List<RexCallConverter> converterList =
+        builders.stream()
+            .map(RexCallConverterBuilder::build)
+            .filter(c -> c.isSupported(callNode, context))
+            .collect(Collectors.toList());
+
+    if (converterList.size() > 1) {
+      throw new RuntimeException("Multiple converters found for: " + operatorName);
+    } else if (converterList.isEmpty()) {
+      throw new RuntimeException("No suitable converter found for: " + operatorName);
+    }
+
+    return converterList.get(0);
   }
 
   private interface RexCallConverterBuilder {

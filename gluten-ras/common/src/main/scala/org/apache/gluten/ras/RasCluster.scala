@@ -77,14 +77,12 @@ object RasCluster {
     }
   }
 
-  case class ImmutableRasCluster[T <: AnyRef] private (
-      ras: Ras[T],
-      override val nodes: Seq[CanonicalNode[T]])
-    extends RasCluster[T]
-
   object ImmutableRasCluster {
-    def apply[T <: AnyRef](ras: Ras[T], cluster: RasCluster[T]): ImmutableRasCluster[T] = {
-      ImmutableRasCluster(ras, cluster.nodes().toVector)
+    def apply[T <: AnyRef](ras: Ras[T], cluster: RasCluster[T]): RasCluster[T] = {
+      new Impl[T](ras, cluster.nodes().toSeq)
     }
+
+    private class Impl[T <: AnyRef](ras: Ras[T], override val nodes: Seq[CanonicalNode[T]])
+      extends RasCluster[T]
   }
 }
