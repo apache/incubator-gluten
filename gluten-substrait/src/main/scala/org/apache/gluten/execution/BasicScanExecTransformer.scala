@@ -40,6 +40,9 @@ import scala.collection.JavaConverters._
 trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource {
   import org.apache.spark.sql.catalyst.util._
 
+  /** Set the post scan filters. */
+  def withPostScanFilters(postScanFilters: Seq[Expression]): Unit
+
   /** Returns the filters that can be pushed down to native file scan */
   def filterExprs(): Seq[Expression]
 

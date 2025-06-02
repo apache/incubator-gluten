@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -97,17 +96,23 @@ abstract class FileSourceScanExecTransformerBase(
     disableBucketedScan)
   with DatasourceScanTransformer {
 
+  private var _postScanFilters: Seq[Expression] = Seq.empty
+
+  override def withPostScanFilters(postScanFilters: Seq[Expression]): Unit = {
+    _postScanFilters = postScanFilters
+  }
+
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance
       .genFileSourceScanTransformerMetrics(sparkContext)
       .filter(m => !driverMetricsAlias.contains(m._1)) ++ driverMetricsAlias
 
-  override def filterExprs(): Seq[Expression] = dataFiltersInScan.filter {
-    expr =>
-      ExpressionConverter.canReplaceWithExpressionTransformer(
-        ExpressionConverter.replaceAttributeReference(expr),
-        output)
+  override def filterExprs(): Seq[Expression] = {
+    BackendsApiManager.getSparkPlanExecApiInstance.mergePushDownFilters(
+      this,
+      dataFiltersInScan,
+      _postScanFilters)
   }
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns

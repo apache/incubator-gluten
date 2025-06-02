@@ -59,6 +59,10 @@ case class HiveTableScanExecTransformer(
     hiveQlTable.getOutputFormatClass,
     hiveQlTable.getMetadata)
 
+  override def withPostScanFilters(postScanFilters: Seq[Expression]): Unit = {
+    // do nothing
+  }
+
   override def filterExprs(): Seq[Expression] = Seq.empty
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty

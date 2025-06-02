@@ -16,8 +16,9 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.execution.{BatchScanExecTransformerBase, FileSourceScanExecTransformer, FilterExecTransformerBase}
+import org.apache.gluten.execution.BasicScanExecTransformer
+import org.apache.gluten.execution.FilterExecTransformerBase
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions.PredicateHelper
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -27,34 +28,23 @@ import org.apache.spark.sql.execution._
  * Vanilla spark just push down part of filter condition into scan, however gluten can push down all
  * filters.
  */
-object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
+object PushDownPostScanFiltersToScan extends Rule[SparkPlan] with PredicateHelper {
+
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case filter: FilterExecTransformerBase =>
       filter.child match {
-        case fileScan: FileSourceScanExecTransformer =>
-          val pushDownFilters =
-            BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-              splitConjunctivePredicates(filter.cond),
-              fileScan)
-          val newScan = fileScan.copy(dataFilters = pushDownFilters)
-          if (newScan.doValidate().ok()) {
-            filter.withNewChildren(Seq(newScan))
-          } else {
-            filter
-          }
-        case batchScan: BatchScanExecTransformerBase =>
-          val pushDownFilters =
-            BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-              splitConjunctivePredicates(filter.cond),
-              batchScan)
-          // If BatchScanExecTransformerBase's parent is filter, pushdownFilters can't be None.
-          batchScan.setPushDownFilters(Seq.empty)
-          val newScan = batchScan
-          if (pushDownFilters.nonEmpty) {
-            newScan.setPushDownFilters(pushDownFilters)
-            if (newScan.doValidate().ok()) {
-              filter.withNewChildren(Seq(newScan))
+        case scan: BasicScanExecTransformer =>
+          val postScanFilters =
+            splitConjunctivePredicates(filter.cond).filterNot(_.references.exists {
+              attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+            })
+          if (postScanFilters.nonEmpty) {
+            scan.withPostScanFilters(postScanFilters)
+            if (scan.doValidate().ok()) {
+              filter.withNewChildren(Seq(scan))
             } else {
+              // revert postScanFilters
+              scan.withPostScanFilters(Seq.empty)
               filter
             }
           } else {

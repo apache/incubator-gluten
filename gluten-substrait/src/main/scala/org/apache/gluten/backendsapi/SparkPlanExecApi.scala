@@ -18,6 +18,7 @@ package org.apache.gluten.backendsapi
 
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
+import org.apache.gluten.execution.FilterHandler.getRemainingFilters
 import org.apache.gluten.expression._
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.SubstraitContext
@@ -36,7 +37,6 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.datasources.v2.FileScan
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -614,41 +614,21 @@ trait SparkPlanExecApi {
 
   def rewriteSpillPath(path: String): String = path
 
-  /**
-   * Vanilla spark just push down part of filter condition into scan, however gluten can push down
-   * all filters. This function calculates the remaining conditions in FilterExec, add into the
-   * dataFilters of the leaf node.
-   * @param extraFilters:
-   *   Conjunctive Predicates, which are split from the upper FilterExec
-   * @param sparkExecNode:
-   *   The vanilla leaf node of the plan tree, which is FileSourceScanExec or BatchScanExec
-   * @return
-   *   return all push down filters
-   */
-  def postProcessPushDownFilter(
-      extraFilters: Seq[Expression],
-      sparkExecNode: LeafExecNode): Seq[Expression] = {
-    def getPushedFilter(dataFilters: Seq[Expression]): Seq[Expression] = {
-      val pushedFilters =
-        dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
-      pushedFilters.filterNot(_.references.exists {
+  def mergePushDownFilters(
+      scan: BasicScanExecTransformer,
+      baseFilters: Seq[Expression],
+      postScanFilters: Seq[Expression]): Seq[Expression] = {
+    val mergedFilters = baseFilters ++ getRemainingFilters(baseFilters, postScanFilters)
+    mergedFilters
+      .filterNot(_.references.exists {
         attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
       })
-    }
-    sparkExecNode match {
-      case fileSourceScan: FileSourceScanExecTransformerBase =>
-        getPushedFilter(fileSourceScan.dataFilters)
-      case batchScan: BatchScanExecTransformerBase =>
-        batchScan.scan match {
-          case fileScan: FileScan =>
-            getPushedFilter(fileScan.dataFilters)
-          case _ =>
-            // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
-            extraFilters
-        }
-      case _ =>
-        throw new GlutenNotSupportException(s"${sparkExecNode.getClass.toString} is not supported.")
-    }
+      .filter {
+        expr =>
+          ExpressionConverter.canReplaceWithExpressionTransformer(
+            ExpressionConverter.replaceAttributeReference(expr),
+            scan.output)
+      }
   }
 
   def genGenerateTransformer(

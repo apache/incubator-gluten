@@ -17,7 +17,6 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -102,29 +101,22 @@ abstract class BatchScanExecTransformerBase(
     postDriverMetrics()
   }
 
-  // Similar to the problem encountered in https://github.com/oap-project/gluten/pull/3184,
-  // we cannot add member variables to BatchScanExecTransformerBase, which inherits from case
-  // class. Otherwise, we will encounter an issue where makeCopy cannot find a constructor
-  // with the corresponding number of parameters.
-  // The workaround is to add a mutable list to pass in pushdownFilters.
-  protected var pushdownFilters: Seq[Expression] = scan match {
-    case fileScan: FileScan =>
-      fileScan.dataFilters.filter {
-        expr =>
-          ExpressionConverter.canReplaceWithExpressionTransformer(
-            ExpressionConverter.replaceAttributeReference(expr),
-            output)
-      }
-    case _ =>
-      logInfo(s"${scan.getClass.toString} does not support push down filters")
-      Seq.empty
+  private var _postScanFilters: Seq[Expression] = Seq.empty
+
+  override def withPostScanFilters(postScanFilters: Seq[Expression]): Unit = {
+    _postScanFilters = postScanFilters
   }
 
-  def setPushDownFilters(filters: Seq[Expression]): Unit = {
-    pushdownFilters = filters
+  override def filterExprs(): Seq[Expression] = {
+    val baseFilters: Seq[Expression] = scan match {
+      case fileScan: FileScan => fileScan.dataFilters
+      case _ => Seq.empty
+    }
+    BackendsApiManager.getSparkPlanExecApiInstance.mergePushDownFilters(
+      this,
+      baseFilters,
+      _postScanFilters)
   }
-
-  override def filterExprs(): Seq[Expression] = pushdownFilters
 
   override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
