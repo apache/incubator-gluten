@@ -146,4 +146,13 @@ abstract class ArrowBatchScanExecShim(original: BatchScanExec)
     original.runtimeFilters,
     original.keyGroupedPartitioning,
     table = null
-  )
+  ) {
+  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    val numOutputRows = longMetric("numOutputRows")
+    inputRDD.asInstanceOf[RDD[ColumnarBatch]].map {
+      b =>
+        numOutputRows += b.numRows()
+        b
+    }
+  }
+}
