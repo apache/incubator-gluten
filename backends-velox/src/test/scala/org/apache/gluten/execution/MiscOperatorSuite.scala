@@ -1935,11 +1935,12 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     val filters = plan.collect { case filter: FilterExecTransformer => filter }
     assert(scans.size == 1)
     assert(filters.size == 1)
-    assert(scans(0).dataFilters.size == 1)
+    val scanFilters = scans(0).filterExprs()
+    assert(scanFilters.size == 1)
     val remainingFilters = FilterHandler.getRemainingFilters(
-      scans(0).dataFilters,
+      scanFilters,
       splitConjunctivePredicates(filters(0).condition))
-    assert(remainingFilters.size == 0)
+    assert(remainingFilters.isEmpty)
 
     // result length check, table lineitem has 60,000 rows
     val resultLength = df.collect().length
