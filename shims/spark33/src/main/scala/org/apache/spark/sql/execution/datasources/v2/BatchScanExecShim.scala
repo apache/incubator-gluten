@@ -28,7 +28,7 @@ import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Sca
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.datasources.v2.orc.OrcScan
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 abstract class BatchScanExecShim(
@@ -147,6 +147,11 @@ abstract class ArrowBatchScanExecShim(original: BatchScanExec)
     original.keyGroupedPartitioning,
     table = null
   ) {
+  override lazy val metrics = {
+    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows")) ++
+      customMetrics
+  }
+
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")
     inputRDD.asInstanceOf[RDD[ColumnarBatch]].map {

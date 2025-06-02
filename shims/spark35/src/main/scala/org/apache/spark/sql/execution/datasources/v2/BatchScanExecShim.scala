@@ -27,7 +27,7 @@ import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan, SupportsRuntimeV2Filtering}
 import org.apache.spark.sql.execution.datasources.v2.orc.OrcScan
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 abstract class BatchScanExecShim(
@@ -163,6 +163,11 @@ abstract class ArrowBatchScanExecShim(original: BatchScanExec)
   override def ordering: Option[Seq[SortOrder]] = original.ordering
 
   override def output: Seq[Attribute] = original.output
+
+  override lazy val metrics = {
+    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows")) ++
+      customMetrics
+  }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")
