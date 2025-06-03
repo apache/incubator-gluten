@@ -30,6 +30,7 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 
 import java.util.List;
 import java.util.Map;
@@ -71,7 +72,10 @@ public class LogicalTypeConverter {
               }),
           Map.entry(
               DayTimeIntervalType.class,
-              logicalType -> new io.github.zhztheplayer.velox4j.type.BigIntType()),
+              logicalType -> new io.github.zhztheplayer.velox4j.type.IntervalDayTimeType()),
+          Map.entry(
+              YearMonthIntervalType.class,
+              logicalType -> new io.github.zhztheplayer.velox4j.type.IntervalYearMonthType()),
           Map.entry(
               RowType.class,
               logicalType -> {
@@ -102,7 +106,7 @@ public class LogicalTypeConverter {
   public static Type toVLType(LogicalType logicalType) {
     VLTypeConverter converter = converters.get(logicalType.getClass());
     if (converter == null) {
-      throw new RuntimeException("Unsupported logical type: " + logicalType);
+      throw new RuntimeException("Unsupported logical type: " + logicalType.getClass().getName());
     }
     return converter.build(logicalType);
   }
