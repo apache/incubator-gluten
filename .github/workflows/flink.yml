@@ -21,6 +21,17 @@ on:
       - '.github/workflows/flink.yml'
       - 'gluten-flink/**'
 
+env:
+  MAVEN_OPTS: >-
+    -Xmx2g
+    --add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
+    --add-opens=java.base/sun.nio.ch=org.apache.arrow.memory.core,ALL-UNNAMED
+    --add-opens=java.base/java.lang=ALL-UNNAMED
+  JAVA_TOOL_OPTIONS: >-
+    --add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
+    --add-opens=java.base/sun.nio.ch=org.apache.arrow.memory.core,ALL-UNNAMED
+    --add-opens=java.base/java.lang=ALL-UNNAMED
+
 jobs:
   flink-test:
     runs-on: ubuntu-22.04
@@ -39,3 +50,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/gluten-flink
           mvn clean package -Dmaven.test.skip=true
+      - name: Run Unit Tests
+        run: |
+          cd $GITHUB_WORKSPACE/gluten-flink
+          mvn test
