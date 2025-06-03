@@ -281,7 +281,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq(),
+      enableCudf: Boolean = false
   ): Iterator[ColumnarBatch] = {
 
     require(
@@ -321,7 +322,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
-      materializeInput: Boolean): Iterator[ColumnarBatch] = {
+      materializeInput: Boolean,
+      enableCudf: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
 
     // Final iterator does not contain scan split, so pass empty split info to native here.

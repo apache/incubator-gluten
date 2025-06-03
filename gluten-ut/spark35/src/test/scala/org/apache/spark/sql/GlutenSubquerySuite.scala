@@ -45,7 +45,7 @@ class GlutenSubquerySuite extends SubquerySuite with GlutenSQLTestsTrait {
       assert(stripAQEPlan(df.queryExecution.executedPlan).collectFirst {
         case t: WholeStageTransformer => t
       } match {
-        case Some(WholeStageTransformer(fs: FileSourceScanExecTransformer, _)) =>
+        case Some(WholeStageTransformer(fs: FileSourceScanExecTransformer, _, _)) =>
           fs.dynamicallySelectedPartitions
             .exists(_.files.exists(_.getPath.toString.contains("p=0")))
         case _ => false
