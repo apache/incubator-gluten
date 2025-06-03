@@ -218,10 +218,4 @@ object GlutenImplicits {
       totalFallbackNodeToReason.toSeq
     )
   }
-
-  implicit class DatasetTransformer[T](dateset: Dataset[T]) {
-    def fallbackSummary(): FallbackSummary = {
-      collectQueryExecutionFallbackSummary(dateset.sparkSession, dateset.queryExecution)
-    }
-  }
 }
