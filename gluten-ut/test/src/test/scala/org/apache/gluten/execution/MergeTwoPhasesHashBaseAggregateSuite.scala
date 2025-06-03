@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
@@ -52,10 +53,10 @@ abstract class BaseMergeTwoPhasesHashBaseAggregateSuite extends WholeStageTransf
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.memory.offHeap.size", "2g")
-      .set("spark.gluten.sql.mergeTwoPhasesAggregate.enabled", "true")
+      .set(GlutenConfig.MERGE_TWO_PHASES_ENABLED.key, "true")
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
-        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
     }
     conf
   }

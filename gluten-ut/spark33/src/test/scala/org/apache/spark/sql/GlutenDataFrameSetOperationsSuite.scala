@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+
 import org.apache.spark.SparkConf
 
 class GlutenDataFrameSetOperationsSuite
@@ -23,7 +25,7 @@ class GlutenDataFrameSetOperationsSuite
   with GlutenSQLTestsTrait {
   override def sparkConf: SparkConf =
     super.sparkConf
-      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.project.union", "false")
-      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.aggregation.union", "false")
+      .set(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "false")
+      .set(CHBackendSettings.GLUTEN_ENABLE_COALESCE_AGGREGATION_UNION, "false")
 
 }

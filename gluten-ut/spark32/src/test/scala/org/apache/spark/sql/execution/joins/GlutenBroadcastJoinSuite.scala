@@ -16,11 +16,13 @@
  */
 package org.apache.spark.sql.execution.joins
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, BroadcastNestedLoopJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
 import org.apache.spark.sql.catalyst.optimizer._
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.functions.broadcast
 import org.apache.spark.sql.internal.SQLConf
 
@@ -85,8 +87,8 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     spark = if (BackendTestUtils.isCHBackendLoaded()) {
       sparkBuilder
         .config("spark.io.compression.codec", "LZ4")
-        .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-        .config("spark.gluten.sql.enable.native.validation", "false")
+        .config(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
+        .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
         .config("spark.sql.files.openCostInBytes", "134217728")
         .config("spark.unsafe.exceptionOnMemoryLeak", "true")
         .getOrCreate()

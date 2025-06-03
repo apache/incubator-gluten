@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.hive.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.FileSourceScanExecTransformer
 
 import org.apache.spark.SparkConf
@@ -69,7 +70,7 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
 
       withSQLConf(
         "spark.sql.hive.convertMetastoreOrc" -> convertMetastoreOrc,
-        "spark.gluten.sql.orc.charType.scan.fallback.enabled" -> charTypeFallbackEnabled
+        GluteConfig.VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK.key -> charTypeFallbackEnabled
       ) {
         val queries = Seq("select id from test_orc", "select name, id from test_orc")
 
