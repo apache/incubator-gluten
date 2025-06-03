@@ -224,6 +224,8 @@ class ColumnarShuffleWriter[K, V](
           dep.metrics("shuffleWallTime").value - splitResult.getTotalSpillTime -
             splitResult.getTotalWriteTime -
             splitResult.getTotalCompressTime)
+      dep.metrics("avgDictionaryFields").set(splitResult.getAvgDictionaryFields)
+      dep.metrics("dictionarySize").add(splitResult.getDictionarySize)
     } else {
       dep.metrics("sortTime").add(splitResult.getSortTime)
       dep.metrics("c2rTime").add(splitResult.getC2RTime)
