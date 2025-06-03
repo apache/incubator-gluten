@@ -123,4 +123,37 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
     String query4 = "select c = d as x from tblEqual where a > 0";
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[true]", "+I[false]"));
   }
+
+  @Test
+  void testNotEqual() {
+    List<Row> rows =
+        Arrays.asList(Row.of(1, null, "2", "1"), Row.of(2, 2L, "2", "2"), Row.of(3, 3L, null, "1"));
+    createSimpleBoundedValuesTable("tblNotEqual", "a int, b bigint, c string, d string", rows);
+
+    String query1 = "select a <> 1 as x from tblNotEqual where a > 0";
+    runAndCheck(query1, Arrays.asList("+I[false]", "+I[true]", "+I[true]"));
+
+    String query2 = "select b <> 1 as x from tblNotEqual where a > 0";
+    runAndCheck(query2, Arrays.asList("+I[null]", "+I[true]", "+I[true]"));
+
+    String query3 = "select a, a <> c as x from tblNotEqual where a > 0";
+    runAndCheck(query3, Arrays.asList("+I[1, true]", "+I[2, false]", "+I[3, null]"));
+
+    String query4 = "select c <> d as x from tblNotEqual where a > 0";
+    runAndCheck(query4, Arrays.asList("+I[true]", "+I[false]", "+I[null]"));
+  }
+
+  @Test
+  void testIsNull() {
+    List<Row> rows =
+        Arrays.asList(
+            Row.of(1, 1L, null, "1"), Row.of(2, null, "2", "2"), Row.of(3, null, "2", null));
+    createSimpleBoundedValuesTable("tblIsNull", "a int, b bigint, c string, d string", rows);
+
+    String query1 = "select b is null as x from tblIsNull where a > 0";
+    runAndCheck(query1, Arrays.asList("+I[false]", "+I[true]", "+I[true]"));
+
+    String query2 = "select c is not null as x from tblIsNull where a > 0";
+    runAndCheck(query2, Arrays.asList("+I[false]", "+I[true]", "+I[true]"));
+  }
 }

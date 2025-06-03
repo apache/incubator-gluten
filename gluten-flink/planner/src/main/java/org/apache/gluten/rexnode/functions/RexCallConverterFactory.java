@@ -43,17 +43,35 @@ public class RexCallConverterFactory {
                   () -> new StringCompareRexCallConverter("greaterthan"),
                   () -> new StringNumberCompareRexCallConverter("greaterthan"))),
           Map.entry(
+              ">=",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("greaterthanorequalto"),
+                  () -> new StringCompareRexCallConverter("greaterthanorequalto"),
+                  () -> new StringNumberCompareRexCallConverter("greaterthanorequalto"))),
+          Map.entry(
               "<",
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("lessthan"),
                   () -> new StringCompareRexCallConverter("lessthan"),
                   () -> new StringNumberCompareRexCallConverter("lessthan"))),
           Map.entry(
+              "<=",
+              Arrays.asList(
+                  () -> new BasicArithmeticOperatorRexCallConverter("lessthanorequalto"),
+                  () -> new StringCompareRexCallConverter("lessthanorequalto"),
+                  () -> new StringNumberCompareRexCallConverter("lessthanorequalto"))),
+          Map.entry(
               "=",
               Arrays.asList(
                   () -> new BasicArithmeticOperatorRexCallConverter("equalto"),
                   () -> new StringCompareRexCallConverter("equalto"),
                   () -> new StringNumberCompareRexCallConverter("equalto"))),
+          Map.entry(
+              "<>",
+              Arrays.asList(
+                  () -> new NumericNotEqualCompareRexCallConverter(),
+                  () -> new StringNumberNotEqualCompareRexCallConverter(),
+                  () -> new StringsNotEqualCompareRexCallConverter())),
           Map.entry(
               "*", Arrays.asList(() -> new BasicArithmeticOperatorRexCallConverter("multiply"))),
           Map.entry(
@@ -62,7 +80,9 @@ public class RexCallConverterFactory {
           Map.entry("MOD", Arrays.asList(() -> new ModRexCallConverter())),
           Map.entry("CAST", Arrays.asList(() -> new DefaultRexCallConverter("cast"))),
           Map.entry("CASE", Arrays.asList(() -> new DefaultRexCallConverter("if"))),
-          Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))));
+          Map.entry("AND", Arrays.asList(() -> new DefaultRexCallConverter("and"))),
+          Map.entry("IS NULL", Arrays.asList(() -> new DefaultRexCallConverter("isnull"))),
+          Map.entry("IS NOT NULL", Arrays.asList(() -> new DefaultRexCallConverter("isnotnull"))));
 
   public static RexCallConverter getConverter(RexCall callNode, RexConversionContext context) {
     String operatorName = callNode.getOperator().getName();
