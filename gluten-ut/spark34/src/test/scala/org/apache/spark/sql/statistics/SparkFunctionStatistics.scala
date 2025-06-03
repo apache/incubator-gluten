@@ -22,8 +22,8 @@ import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.sql.{GlutenTestConstants, QueryTest, SparkSession}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
 
 import scala.util.control.Breaks.{break, breakable}

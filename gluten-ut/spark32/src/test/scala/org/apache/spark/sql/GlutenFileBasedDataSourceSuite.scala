@@ -17,6 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST

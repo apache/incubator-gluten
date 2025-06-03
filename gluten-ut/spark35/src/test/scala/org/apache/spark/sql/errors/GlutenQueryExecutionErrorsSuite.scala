@@ -17,6 +17,7 @@
 package org.apache.spark.sql.errors
 
 import org.apache.gluten.config.VeloxConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 

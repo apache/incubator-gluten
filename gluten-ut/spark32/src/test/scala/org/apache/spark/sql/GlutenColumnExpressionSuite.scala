@@ -17,6 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkException
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.{assert_true, expr, input_file_name, lit, raise_error}
