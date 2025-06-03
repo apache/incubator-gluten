@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.tpcds
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
@@ -245,7 +246,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
     Seq(("-1", 8), ("100", 8), ("2000", 1)).foreach(
       conf => {
         withSQLConf(
-          ("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold" -> conf._1)) {
+          (CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD -> conf._1)) {
           val sql =
             s"""
                |select count(1) from store_sales
@@ -268,7 +269,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
   test("GLUTEN-7971: Support using left side as the build table for the left anti/semi join") {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.convert.left.anti_semi.to.right", "true")) {
+      (CHBackendSettings.GLUTEN_CLICKHOUSE_CONVERT_LEFT_ANTI_SEMI_TO_RIGHT, "true")) {
       val sql1 =
         s"""
            |select

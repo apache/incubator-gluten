@@ -64,7 +64,7 @@ object VeloxRasBenchmark extends SqlBasedBenchmark {
       .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .config("spark.ui.enabled", "false")
-      .config("spark.gluten.ui.enabled", "false")
+      .config(GlutenConfig.GLUTEN_UI_ENABLED.key, "false")
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", "2g")
       .config("spark.sql.adaptive.enabled", "false")

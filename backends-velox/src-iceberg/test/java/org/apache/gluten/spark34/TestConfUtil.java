@@ -18,6 +18,8 @@ package org.apache.gluten.spark34;
 
 import com.google.common.collect.ImmutableMap;
 
+import org.apache.gluten.config.GlutenConfig;
+
 import java.util.Map;
 
 public class TestConfUtil {
@@ -27,5 +29,5 @@ public class TestConfUtil {
           "spark.memory.offHeap.enabled", "true",
           "spark.memory.offHeap.size", "1024MB",
           "spark.ui.enabled", "false",
-          "spark.gluten.ui.enabled", "false");
+          GlutenConfig.GLUTEN_UI_ENABLED.key, "false");
 }

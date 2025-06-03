@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.functions
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.SparkConf
@@ -27,14 +28,14 @@ import java.sql.Timestamp
 class DateFunctionsValidateSuiteRasOff extends DateFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "false")
+      .set(GlutenConfig.RAS_ENABLED.key, "false")
   }
 }
 
 class DateFunctionsValidateSuiteRasOn extends DateFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 

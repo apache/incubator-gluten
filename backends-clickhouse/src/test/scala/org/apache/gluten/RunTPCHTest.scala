@@ -97,7 +97,7 @@ object RunTPCHTest {
       .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
       .config("spark.gluten.sql.columnar.iterator", "true")
       .config("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .config("spark.gluten.sql.enable.native.validation", "false")
+      .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .config("spark.sql.columnVector.offheap.enabled", "true")
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", offHeapSize)

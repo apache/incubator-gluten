@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.tpcds
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CHShuffledHashJoinExecTransformer, CHSortMergeJoinExecTransformer, GlutenClickHouseTPCDSAbstractSuite}
 import org.apache.gluten.test.FallbackUtil
 
@@ -52,7 +53,7 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.memory.offHeap.size", "6g")
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "false")
+      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
       .setMaster("local[2]")
   }
 

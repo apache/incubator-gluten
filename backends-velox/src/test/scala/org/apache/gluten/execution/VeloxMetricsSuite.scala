@@ -169,7 +169,7 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("Metrics of noop filter's children") {
-    withSQLConf("spark.gluten.ras.enabled" -> "true") {
+    withSQLConf(GlutenConfig.RAS_ENABLED.key -> "true") {
       runQueryAndCompare("SELECT c1, c2 FROM metrics_t1 where c1 < 50") {
         df =>
           val scan = find(df.queryExecution.executedPlan) {
@@ -186,7 +186,7 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
   test("Write metrics") {
     if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
-      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
         runQueryAndCompare(
           "Insert into table metrics_t1 values(1 , 2)"
         ) {

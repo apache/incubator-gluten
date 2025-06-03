@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.tpcds
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
@@ -37,8 +38,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.memory.offHeap.size", "4g")
-      .set("spark.gluten.sql.validation.logLevel", "ERROR")
-      .set("spark.gluten.sql.validation.printStackOnFailure", "true")
+      .set(GlutenConfig.VALIDATION_LOG_LEVEL.key, "ERROR")
+      .set(GlutenConfig.VALIDATION_PRINT_FAILURE_STACK.key, "true")
       .setCHConfig("enable_grace_aggregate_spill_test", "true")
   }
 

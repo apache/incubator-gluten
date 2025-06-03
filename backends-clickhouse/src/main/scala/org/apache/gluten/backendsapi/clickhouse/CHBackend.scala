@@ -79,7 +79,7 @@ object CHBackend {
 object CHBackendSettings extends BackendSettingsApi with Logging {
   override def primaryBatchType: Convention.BatchType = CHBatchType
 
-  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
+  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
   private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
 
   // experimental: when the files count per partition exceeds this threshold,
@@ -112,7 +112,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   private val GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
 
   // The algorithm for hash partition of the shuffle
-  private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
+  val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
     CHConfig.prefixOf("shuffle.hash.algorithm")
   // valid values are: cityHash64 or sparkMurmurHash3_32
   private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT = "sparkMurmurHash3_32"

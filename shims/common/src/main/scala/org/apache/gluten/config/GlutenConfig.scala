@@ -306,7 +306,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   }
 
   def printStackOnValidationFailure: Boolean =
-    getConf(VALIDATION_PRINT_FAILURE_STACK_)
+    getConf(VALIDATION_PRINT_FAILURE_STACK)
 
   def validationFailFast: Boolean = getConf(VALIDATION_FAIL_FAST)
 
@@ -1327,7 +1327,7 @@ object GlutenConfig {
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
       .createWithDefault("WARN")
 
-  val VALIDATION_PRINT_FAILURE_STACK_ =
+  val VALIDATION_PRINT_FAILURE_STACK =
     buildConf("spark.gluten.sql.validation.printStackOnFailure")
       .internal()
       .booleanConf

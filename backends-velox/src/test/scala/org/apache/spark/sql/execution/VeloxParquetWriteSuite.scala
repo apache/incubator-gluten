@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.VeloxWholeStageTransformerSuite
 import org.apache.gluten.test.FallbackUtil
 
@@ -53,7 +54,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
   }
 
   override protected def sparkConf: SparkConf = {
-    super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "true")
+    super.sparkConf.set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
   }
 
   test("test Array(Struct) fallback") {

@@ -26,14 +26,14 @@ import org.apache.spark.sql.execution.ProjectExec
 class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "false")
+      .set(GlutenConfig.RAS_ENABLED.key, "false")
   }
 }
 
 class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 

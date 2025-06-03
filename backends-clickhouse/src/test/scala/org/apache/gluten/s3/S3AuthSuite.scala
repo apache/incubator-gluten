@@ -116,7 +116,7 @@ class S3AuthSuite extends AnyFunSuite {
         .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "1g")
-        .config("spark.gluten.sql.enable.native.validation", "false")
+        .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
         .config("spark.hadoop.fs.s3a.endpoint", trustedOwnedEndpoint)
         // The following two configs are provided to help hadoop-aws to pass.
         // They're not required by native code (they don't have prefix spark.hadoop so
@@ -147,7 +147,7 @@ class S3AuthSuite extends AnyFunSuite {
         .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "1g")
-        .config("spark.gluten.sql.enable.native.validation", "false")
+        .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
         .config("spark.hadoop.fs.s3a.endpoint", trustingEndpoint)
         .config(
           "spark.hadoop.fs.s3a.aws.credentials.provider",
@@ -185,7 +185,7 @@ class S3AuthSuite extends AnyFunSuite {
         .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
         .config("spark.memory.offHeap.enabled", "true")
         .config("spark.memory.offHeap.size", "1g")
-        .config("spark.gluten.sql.enable.native.validation", "false")
+        .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
         .config("spark.hadoop.fs.s3a.endpoint", trustingEndpoint2)
         .config(
           "spark.hadoop.fs.s3a.aws.credentials.provider",
@@ -234,7 +234,7 @@ class S3AuthSuite extends AnyFunSuite {
       .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", "1g")
-      .config("spark.gluten.sql.enable.native.validation", "false")
+      .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .config("spark.hadoop.fs.s3a.endpoint", trustingEndpoint2)
       .config(
         "spark.hadoop.fs.s3a.aws.credentials.provider",
@@ -304,7 +304,7 @@ class S3AuthSuite extends AnyFunSuite {
       .config(GlutenConfig.GLUTEN_LIB_PATH.key, libPath)
       .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", "1g")
-      .config("spark.gluten.sql.enable.native.validation", "false")
+      .config(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .config("spark.hadoop.fs.s3a.endpoint", cnEndpoint)
       .config("spark.hadoop.fs.s3a.access.key", cnAK)
       .config("spark.hadoop.fs.s3a.secret.key", cnSK)
