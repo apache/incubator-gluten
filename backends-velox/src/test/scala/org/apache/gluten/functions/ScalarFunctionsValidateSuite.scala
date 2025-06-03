@@ -544,7 +544,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("version function") {
+  test("version") {
     runQueryAndCompare("""SELECT version() from lineitem limit 10""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -554,7 +554,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("sum/count function") {
+  test("sum/count") {
     withTempPath {
       path =>
         Seq[(Integer, Integer)](
@@ -617,7 +617,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("uuid function") {
+  test("uuid") {
     runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -695,7 +695,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("filter function") {
+  test("filter") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -715,7 +715,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("concat function") {
+  test("concat") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -732,7 +732,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("transform function") {
+  test("transform") {
     withTable("t") {
       sql("create table t (arr ARRAY<INT>) using parquet")
       sql("insert into t values(array(1, 2, 3, null))")
@@ -742,7 +742,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("forall function") {
+  test("forall") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -762,7 +762,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("exists function") {
+  test("exists") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -951,7 +951,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("input_file_name function") {
+  test("input_file_name") {
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]

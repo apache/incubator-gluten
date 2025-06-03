@@ -190,7 +190,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test make_timestamp function") {
+  test("make_timestamp") {
     withTempPath {
       path =>
         // w/o timezone.
@@ -271,7 +271,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test timestamp_millis function") {
+  test("timestamp_millis") {
     runQueryAndCompare("select timestamp_millis(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
