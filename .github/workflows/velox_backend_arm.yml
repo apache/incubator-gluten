@@ -84,13 +84,12 @@ jobs:
           set -e
           yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           df -a
-          cd /work
-          export CCACHE_DIR=/work/.ccache
-          mkdir -p /work/.ccache
+          export CCACHE_DIR=.ccache
+          mkdir -p .ccache
           bash dev/ci-velox-buildstatic-centos-8.sh
           ccache -s
-          mkdir -p /work/.m2/repository/org/apache/arrow/
-          cp -r /root/.m2/repository/org/apache/arrow/* /work/.m2/repository/org/apache/arrow/
+          mkdir -p .m2/repository/org/apache/arrow/
+          cp -r /root/.m2/repository/org/apache/arrow/* .m2/repository/org/apache/arrow/
       - name: "Save ccache"
         uses: actions/cache/save@v4
         id: ccache
