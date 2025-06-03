@@ -161,13 +161,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         return BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(
           expr,
           attributeSeq)
-      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _)
+      case i @ StaticInvoke(_, _, "encode" | "decode", Seq(_, _), _, _, _, _, _)
           if i.objectName.endsWith("UrlCodec") =>
         return GenericExpressionTransformer(
           "url_" + i.functionName,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),
           i)
-      case i @ StaticInvoke(_, _, "isLuhnNumber", _, _, _, _, _) =>
+      case i @ StaticInvoke(_, _, "isLuhnNumber", _, _, _, _, _, _) =>
         return GenericExpressionTransformer(
           ExpressionNames.LUHN_CHECK,
           replaceWithExpressionTransformer0(i.arguments.head, attributeSeq, expressionsMap),

@@ -23,6 +23,7 @@ import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{CommandResult, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
+import org.apache.spark.sql.classic.ClassicConversions._
 import org.apache.spark.sql.execution.ColumnarWriteFilesExec.NoopLeaf
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
@@ -74,7 +75,8 @@ object GlutenImplicits {
     keys.zip(values).foreach {
       case (k, v) =>
         if (SQLConf.isStaticConfigKey(k)) {
-          throw new AnalysisException(s"Cannot modify the value of a static config: $k")
+          throw new AnalysisException(errorClass = "Cannot modify the value of a static config",
+          messageParameters = Map("k" -> k))
         }
         conf.setConfString(k, v)
     }

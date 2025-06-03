@@ -46,12 +46,7 @@ case class EvalPythonExecTransformer(
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
 
-  override protected def evaluate(
-      funcs: Seq[ChainedPythonFunctions],
-      argOffsets: Array[Array[Int]],
-      iter: Iterator[InternalRow],
-      schema: StructType,
-      context: TaskContext): Iterator[InternalRow] = {
+  override protected def evaluatorFactory: EvalPythonEvaluatorFactory = {
     throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
   }
 
