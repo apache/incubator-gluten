@@ -284,7 +284,7 @@ class ValueUpdater {
       dictionaryExists = true;
       dictionary = std::dynamic_pointer_cast<DictionaryStorageImpl<ArrowType>>(it->second);
     } else {
-      dictionary = std::make_shared<DictionaryStorageImpl<ArrowType>>(writer->pool_, writer->codec_);
+      dictionary = std::make_shared<DictionaryStorageImpl<ArrowType>>(writer->dictionaryPool_.get(), writer->codec_);
     }
 
     ARROW_ASSIGN_OR_RAISE(
@@ -408,13 +408,19 @@ arrow::Status ArrowShuffleDictionaryWriter::serialize(arrow::io::OutputStream* o
 
     const auto& dictionary = dictionaries_[fieldIdx];
     ARROW_RETURN_NOT_OK(dictionary->serialize(out));
+
+    dictionaries_.erase(fieldIdx);
   }
 
   return arrow::Status::OK();
 }
 
-bool ArrowShuffleDictionaryWriter::hasDictionaries() {
-  return !dictionaryFields_.empty();
+int64_t ArrowShuffleDictionaryWriter::numDictionaryFields() {
+  return dictionaryFields_.size();
+}
+
+int64_t ArrowShuffleDictionaryWriter::getDictionarySize() {
+  return dictionaryPool_->bytes_allocated();
 }
 
 arrow::Status ArrowShuffleDictionaryWriter::initSchema(const std::shared_ptr<arrow::Schema>& schema) {

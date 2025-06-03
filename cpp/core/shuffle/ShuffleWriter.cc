@@ -87,6 +87,14 @@ int64_t ShuffleWriter::totalC2RTime() const {
   return 0;
 }
 
+double ShuffleWriter::avgDictionaryFields() const {
+  return metrics_.avgDictionaryFields;
+}
+
+int64_t ShuffleWriter::dictionarySize() const {
+  return metrics_.dictionarySize;
+}
+
 const std::vector<int64_t>& ShuffleWriter::partitionLengths() const {
   return metrics_.partitionLengths;
 }
