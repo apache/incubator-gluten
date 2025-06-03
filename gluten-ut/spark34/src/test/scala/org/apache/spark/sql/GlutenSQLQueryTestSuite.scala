@@ -29,7 +29,6 @@ import org.apache.spark.sql.catalyst.rules.RuleExecutor
 import org.apache.spark.sql.catalyst.util.{fileToString, stringToFile}
 import org.apache.spark.sql.catalyst.util.DateTimeConstants.NANOS_PER_SECOND
 import org.apache.spark.sql.execution.WholeStageCodegenExec
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.TimestampTypes
 import org.apache.spark.sql.test.SharedSparkSession
@@ -198,7 +197,7 @@ class GlutenSQLQueryTestSuite
     if (isCHBackend) {
       conf
         .set("spark.io.compression.codec", "LZ4")
-        .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
+        .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
         .set("spark.sql.files.openCostInBytes", "134217728")
         .set("spark.unsafe.exceptionOnMemoryLeak", "true")

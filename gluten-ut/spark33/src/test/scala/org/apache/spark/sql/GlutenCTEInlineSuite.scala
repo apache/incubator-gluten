@@ -16,20 +16,18 @@
  */
 package org.apache.spark.sql
 
-import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
-
 import org.apache.spark.SparkConf
 
 class GlutenCTEInlineSuiteAEOff extends CTEInlineSuiteAEOff with GlutenSQLTestsTrait {
   override def sparkConf: SparkConf =
     super.sparkConf
-      .set(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "false")
+      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.project.union", "false")
 
 }
 
 class GlutenCTEInlineSuiteAEOn extends CTEInlineSuiteAEOn with GlutenSQLTestsTrait {
   override def sparkConf: SparkConf =
     super.sparkConf
-      .set(CHBackendSettings.GLUTEN_ENABLE_COALESCE_PROJECT_UNION, "false")
+      .set("spark.gluten.sql.columnar.backend.ch.enable.coalesce.project.union", "false")
 
 }

@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.benchmarks
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 import org.apache.gluten.extension.columnar.transition.Transitions
@@ -32,7 +31,6 @@ import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.JavaConverters._
@@ -82,8 +80,8 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
-        .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-        .set(CHBackendSettings.GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, "false")
+        .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+        .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")
         .set(
           "spark.sql.catalog.spark_catalog",
           "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")

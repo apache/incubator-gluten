@@ -27,7 +27,7 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
   override def sparkConf: SparkConf = {
     defaultSparkConf
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
-      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED, "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.default.parallelism", "1")
