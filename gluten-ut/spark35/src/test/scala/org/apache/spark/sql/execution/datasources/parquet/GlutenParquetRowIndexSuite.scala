@@ -35,6 +35,7 @@ import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE
 
 import java.io.File
+
 import scala.collection.JavaConverters._
 
 class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTestsBaseTrait {

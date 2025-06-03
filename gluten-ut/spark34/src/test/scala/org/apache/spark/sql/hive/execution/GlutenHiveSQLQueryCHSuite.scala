@@ -17,6 +17,7 @@
 package org.apache.spark.sql.hive.execution
 
 import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.{DebugFilesystem, SparkConf}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.TableIdentifier

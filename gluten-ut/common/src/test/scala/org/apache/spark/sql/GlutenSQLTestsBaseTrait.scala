@@ -18,6 +18,7 @@ package org.apache.spark.sql
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.utils.BackendTestUtils
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}

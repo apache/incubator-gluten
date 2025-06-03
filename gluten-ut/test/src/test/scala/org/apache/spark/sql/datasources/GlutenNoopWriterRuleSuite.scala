@@ -18,6 +18,7 @@ package org.apache.spark.sql.datasources
 
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarToCarrierRowExecBase
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, SaveMode}
 import org.apache.spark.sql.execution.QueryExecution
