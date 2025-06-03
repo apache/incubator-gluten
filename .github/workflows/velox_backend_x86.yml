@@ -35,9 +35,6 @@ on:
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
       - 'cpp/*'
-      - 'cpp/CMake/**'
-      - 'cpp/velox/**'
-      - 'cpp/core/**'
       - 'dev/**'
 
 env:
@@ -1249,12 +1246,6 @@ jobs:
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
-      # - name: "Save ccache"
-      #   uses: actions/cache/save@v4
-      #   id: ccache
-      #   with:
-      #     path: '${{ env.CCACHE_DIR }}'
-      #     key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V
