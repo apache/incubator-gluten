@@ -708,6 +708,19 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
+  override def genMapFromEntriesTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    if (
+      SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+        != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
+    ) {
+      throw new GlutenNotSupportException("Only EXCEPTION policy is supported!")
+    }
+    GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
   /** Generate an expression transformer to transform JsonToStructs to Substrait. */
   override def genFromJsonTransformer(
       substraitExprName: String,

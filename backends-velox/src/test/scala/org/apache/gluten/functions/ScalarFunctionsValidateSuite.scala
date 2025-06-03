@@ -281,6 +281,32 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
+  test("test map_from_entries function") {
+    spark.conf.set("spark.sql.mapKeyDedupPolicy", "EXCEPTION")
+    runQueryAndCompare("SELECT map_from_entries(array(struct(1, 'a'), struct(2, 'b')))") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath { path =>
+      Seq(
+        Array(
+          Struct(1, "a"),
+          Struct(2, "b")
+        ),
+        Array(
+          Struct(3, "c"),
+          Struct(4, "d")
+        ),
+      ).toDF("entries")
+        .write
+        .parquet(path.getCanonicalPath)
+      spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_from_entries_tbl")
+      runQueryAndCompare("SELECT map_from_entries(entries) FROM map_from_entries_tbl") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
   test("test map_keys function") {
     withTempPath {
       path =>

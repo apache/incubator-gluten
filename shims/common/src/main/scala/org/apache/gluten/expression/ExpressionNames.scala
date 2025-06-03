@@ -296,6 +296,7 @@ object ExpressionNames {
   final val MAP_KEYS = "map_keys"
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
+  final val MAP_FROM_ENTRIES = "map_from_entries"
   final val MAP_ENTRIES = "map_entries"
   final val MAP_ZIP_WITH = "map_zip_with"
   final val TRANSFORM_KEYS = "transform_keys"
