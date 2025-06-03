@@ -18,6 +18,7 @@
 #pragma once
 
 #include "shuffle/Dictionary.h"
+#include "shuffle/ShuffleMemoryPool.h"
 
 #include "velox/type/Type.h"
 
@@ -30,7 +31,9 @@ namespace gluten {
 
 class ArrowShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
  public:
-  ArrowShuffleDictionaryWriter(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {}
+  ArrowShuffleDictionaryWriter(arrow::MemoryPool* pool, arrow::util::Codec* codec) : pool_(pool), codec_(codec) {
+    dictionaryPool_ = std::make_unique<ShuffleMemoryPool>(pool);
+  }
 
   arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> updateAndGet(
       const std::shared_ptr<arrow::Schema>& schema,
@@ -39,7 +42,9 @@ class ArrowShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
 
   arrow::Status serialize(arrow::io::OutputStream* out) override;
 
-  bool hasDictionaries() override;
+  int64_t numDictionaryFields() override;
+
+  int64_t getDictionarySize() override;
 
  private:
   enum class FieldType { kNull, kFixedWidth, kBinary, kComplex, kSupportsDictionary };
@@ -50,6 +55,9 @@ class ArrowShuffleDictionaryWriter final : public ShuffleDictionaryWriter {
 
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
+
+  // Used to count the memory allocation for dictionary data.
+  std::unique_ptr<ShuffleMemoryPool> dictionaryPool_;
 
   std::shared_ptr<arrow::Schema> schema_{nullptr};
   facebook::velox::TypePtr rowType_{nullptr};
