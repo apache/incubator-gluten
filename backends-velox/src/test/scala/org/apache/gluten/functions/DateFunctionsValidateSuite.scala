@@ -44,7 +44,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
 
   import testImplicits._
 
-  test("Test date_add function") {
+  test("date_add") {
     withTempPath {
       path =>
         Seq(
@@ -67,7 +67,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test date_diff function") {
+  test("date_diff") {
     withTempPath {
       path =>
         Seq(
@@ -90,7 +90,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test date_format function") {
+  test("date_format") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")
@@ -105,7 +105,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test date_part & extract & weekofyear function") {
+  test("date_part, extract, weekofyear") {
     withTempPath {
       path =>
         Seq(
@@ -128,7 +128,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test date_trunc function") {
+  test("date_trunc") {
     withTempPath {
       path =>
         Seq(
@@ -163,7 +163,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test from_utc_timestamp function") {
+  test("from_utc_timestamp") {
     withTempPath {
       path =>
         Seq(
@@ -184,14 +184,14 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test make_date function") {
+  test("make_date") {
     runQueryAndCompare(
       "select make_date(2025, 2, 7), make_date(2024, 11, null), make_date(2024, 11, 50)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test make_timestamp function") {
+  test("make_timestamp") {
     withTempPath {
       path =>
         // w/o timezone.
@@ -234,7 +234,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test make_ym_interval function") {
+  test("make_ym_interval") {
     runQueryAndCompare("select make_ym_interval(1, 1)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -266,13 +266,13 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test timestamp_micros function") {
+  test("timestamp_micros") {
     runQueryAndCompare("select timestamp_micros(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test timestamp_millis function") {
+  test("timestamp_millis") {
     runQueryAndCompare("select timestamp_millis(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -308,7 +308,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test to_utc_timestamp function") {
+  test("to_utc_timestamp") {
     withTempPath {
       path =>
         Seq(
@@ -329,7 +329,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unix_date function") {
+  test("unix_date") {
     withTempPath {
       path =>
         Seq(
@@ -349,7 +349,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unix_micros function") {
+  test("unix_micros") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
@@ -364,7 +364,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unix_millis function") {
+  test("unix_millis") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2015-07-22 10:00:00.012")
@@ -379,7 +379,7 @@ abstract class DateFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unix_seconds function") {
+  test("unix_seconds") {
     withTempPath {
       path =>
         val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")
