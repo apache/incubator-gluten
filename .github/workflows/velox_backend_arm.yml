@@ -89,7 +89,7 @@ jobs:
           bash dev/ci-velox-buildstatic-centos-8.sh
           ccache -s
           mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
-          cp -r ~/.m2/repository/org/apache/arrow/* $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
+          cp -r /root/.m2/repository/org/apache/arrow/* $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/
       - name: "Save ccache"
         uses: actions/cache/save@v4
         id: ccache
