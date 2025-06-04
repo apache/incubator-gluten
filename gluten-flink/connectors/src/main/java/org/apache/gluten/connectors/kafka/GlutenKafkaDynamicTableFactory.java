@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gluten.connectors.kafka;
 
 import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource;
@@ -47,5 +46,4 @@ public class GlutenKafkaDynamicTableFactory extends KafkaDynamicTableFactory {
   public DynamicTableSink createDynamicTableSink(Context context) {
     throw new RuntimeException("Not implemented");
   }
-
 }

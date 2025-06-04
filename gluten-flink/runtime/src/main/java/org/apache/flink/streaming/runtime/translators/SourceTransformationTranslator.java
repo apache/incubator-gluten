@@ -110,7 +110,8 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
       SourceOperatorFactory<OUT> operatorFactory =
           new SourceOperatorFactory<>(
               transformation.getSource(),
-              /** transformation.getWatermarkStrategy(), */ WatermarkStrategy.noWatermarks(),
+              /** transformation.getWatermarkStrategy(), */
+              WatermarkStrategy.noWatermarks(),
               false);
 
       operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
