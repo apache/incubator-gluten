@@ -122,10 +122,11 @@ class VeloxColumnarWriteFilesRDD(
       val targetFileName = fileWriteInfo.targetFileName
       val outputPath = description.path
 
-      fileNames += targetFileName
-
       // part1=1/part2=1
       val partitionFragment = metrics.name
+
+      fileNames += partitionFragment + "/" + targetFileName
+
       // Write a partitioned table
       if (partitionFragment != "") {
         updatedPartitions += partitionFragment
