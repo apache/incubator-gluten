@@ -50,16 +50,13 @@ class VeloxHashShuffleWriterSpillTest : public VeloxShuffleWriterTestBase, publi
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) override {
-    auto* arrowPool = getDefaultMemoryManager()->defaultArrowMemoryPool();
-    auto veloxPool = getDefaultMemoryManager()->getLeafMemoryPool();
-
     auto partitionWriter = createPartitionWriter(
         PartitionWriterType::kLocal, numPartitions, dataFile_, localDirs_, partitionWriterOptions_);
 
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxHashShuffleWriter::create(
-            numPartitions, std::move(partitionWriter), shuffleWriterOptions_, veloxPool, arrowPool));
+            numPartitions, std::move(partitionWriter), shuffleWriterOptions_, getDefaultMemoryManager()));
 
     return shuffleWriter;
   }

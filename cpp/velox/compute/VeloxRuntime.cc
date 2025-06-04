@@ -217,8 +217,6 @@ std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     int numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options) {
-  auto veloxPool = memoryManager()->getLeafMemoryPool();
-  auto arrowPool = memoryManager()->defaultArrowMemoryPool();
   GLUTEN_ASSIGN_OR_THROW(
       std::shared_ptr<ShuffleWriter> shuffleWriter,
       VeloxShuffleWriter::create(
@@ -226,8 +224,7 @@ std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
           numPartitions,
           std::move(partitionWriter),
           std::move(options),
-          veloxPool,
-          arrowPool));
+          memoryManager()));
   return shuffleWriter;
 }
 
