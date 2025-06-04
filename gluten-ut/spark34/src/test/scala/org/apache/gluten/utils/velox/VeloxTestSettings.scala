@@ -37,6 +37,7 @@ import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, Glute
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
+import org.apache.spark.sql.execution.python._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.GlutenFallbackSuite
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
@@ -902,6 +903,12 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("row index generation")
     .excludeByPrefix("invalid row index column type")
   enableSuite[GlutenSQLCollectLimitExecSuite]
+  enableSuite[GlutenBatchEvalPythonExecSuite]
+    // Replaced with other tests that check for native operations
+    .exclude("Python UDF: push down deterministic FilterExec predicates")
+    .exclude("Nested Python UDF: push down deterministic FilterExec predicates")
+    .exclude("Python UDF: no push down on non-deterministic")
+    .exclude("Python UDF: push down on deterministic predicates after the first non-deterministic")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
