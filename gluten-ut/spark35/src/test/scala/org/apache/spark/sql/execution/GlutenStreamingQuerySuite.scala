@@ -28,7 +28,7 @@ import org.scalatest.BeforeAndAfter
 
 class GlutenStreamingQuerySuite
   extends StreamTest
-  with BeforeAndAfter 
+  with BeforeAndAfter
   with Logging
   with GlutenSQLTestsTrait {
 
