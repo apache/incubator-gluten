@@ -26,7 +26,10 @@ import org.apache.spark.sql.types.StructType
 import org.scalactic.TolerantNumerics
 import org.scalatest.BeforeAndAfter
 
-class GlutenStreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging with GlutenSQLTestsTrait {
+class GlutenStreamingQuerySuite
+  extends StreamTest
+  with BeforeAndAfter 
+  with Logging with GlutenSQLTestsTrait {
 
   // To make === between double tolerate inexact values
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.01)
