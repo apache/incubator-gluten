@@ -927,7 +927,7 @@ jobs:
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -983,7 +983,7 @@ jobs:
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
+      - name: Build and Run unit test for Spark 3.5 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
@@ -1026,7 +1026,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Build and Run unit test for Spark 3.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
@@ -1073,9 +1073,9 @@ jobs:
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
-          pip3 install pyspark==3.5.2 cython && \
+          pip3 install pyspark==3.5.5 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -1117,7 +1117,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Build and Run unit test for Spark 3.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
@@ -1165,7 +1165,7 @@ jobs:
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.2 (other tests)
+      - name: Build and Run unit test for Spark 3.5 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -1207,7 +1207,7 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
+      - name: Build and Run unit test for Spark 3.5 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           yum install -y java-17-openjdk-devel
