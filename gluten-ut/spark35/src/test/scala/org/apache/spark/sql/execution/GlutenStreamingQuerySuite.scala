@@ -29,7 +29,8 @@ import org.scalatest.BeforeAndAfter
 class GlutenStreamingQuerySuite
   extends StreamTest
   with BeforeAndAfter 
-  with Logging with GlutenSQLTestsTrait {
+  with Logging
+  with GlutenSQLTestsTrait {
 
   // To make === between double tolerate inexact values
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.01)
