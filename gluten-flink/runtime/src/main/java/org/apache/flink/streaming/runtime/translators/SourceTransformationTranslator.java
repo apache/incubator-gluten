@@ -28,6 +28,7 @@ import io.github.zhztheplayer.velox4j.type.RowType;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -109,8 +110,9 @@ public class SourceTransformationTranslator<OUT, SplitT extends SourceSplit, Enu
       SourceOperatorFactory<OUT> operatorFactory =
           new SourceOperatorFactory<>(
               transformation.getSource(),
-              transformation.getWatermarkStrategy(),
-              emitProgressiveWatermarks);
+              /** transformation.getWatermarkStrategy(), */
+              WatermarkStrategy.noWatermarks(),
+              false);
 
       operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
       operatorFactory.setCoordinatorListeningID(transformation.getCoordinatorListeningID());
