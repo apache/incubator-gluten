@@ -20,6 +20,7 @@ import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.proto.MemoryUsageStats;
 
+import org.apache.spark.SparkEnv;
 import org.apache.spark.annotation.Experimental;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,10 @@ public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget, KnownName
 
   static {
     final long maxOnHeapSize = Runtime.getRuntime().maxMemory();
-    final double fractionForSizing = GlutenConfig.get().dynamicOffHeapSizingMemoryFraction();
+    final double fractionForSizing =
+        SparkEnv.get()
+            .conf()
+            .getDouble(GlutenConfig.DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION().key(), 0.6);
     // Since when dynamic off-heap sizing is enabled, we commingle on-heap
     // and off-heap memory, we set the off-heap size to the usable on-heap size. We will
     // size it with a memory fraction, which can be aggressively set, but the default
