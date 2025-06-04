@@ -74,7 +74,7 @@ function install_build_prerequisites {
   dnf_install dnf-plugins-core
   dnf_install ninja-build cmake gcc-toolset-12 git wget which bzip2
   dnf_install autoconf automake python3-devel pip libtool 
-  dnf install libxml2-devel libgsasl-devel libuuid-devel yasm 
+  dnf install libxml2-devel
 
   pip install cmake==3.28.3
 
