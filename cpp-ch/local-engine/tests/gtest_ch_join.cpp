@@ -17,9 +17,9 @@
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
-#include <Join/StorageJoinFromReadBuffer.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>

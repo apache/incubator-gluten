@@ -160,7 +160,7 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
   facebook::velox::row::CompactRow row(vector);
 
   if (fixedRowSize_.has_value()) {
-    rowSize_.resize(inputRows, fixedRowSize_.value() + sizeof(RowSizeType));
+    rowSize_.resize(inputRows, fixedRowSize_.value());
   } else {
     rowSize_.resize(inputRows);
     rowSizePrefixSum_.resize(inputRows + 1);
@@ -325,7 +325,10 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
 arrow::Status VeloxSortShuffleWriter::evictPartitionInternal(uint32_t partitionId, uint8_t* buffer, int64_t rawLength) {
   VELOX_CHECK(rawLength > 0);
   auto payload = std::make_unique<InMemoryPayload>(
-      0, nullptr, std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(buffer, rawLength)});
+      0,
+      nullptr,
+      nullptr,
+      std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(buffer, rawLength)});
   updateSpillMetrics(payload);
   RETURN_NOT_OK(partitionWriter_->sortEvict(partitionId, std::move(payload), stopped_));
   return arrow::Status::OK();

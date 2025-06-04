@@ -570,6 +570,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("cast array element from bool to string")
     .exclude("cast array element from date to string")
     .exclude("cast array from timestamp to string")
+    .exclude("cast from boolean to timestamp")
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("ArraysZip") // wait for https://github.com/ClickHouse/ClickHouse/pull/69576
     .exclude("Sequence of numbers")

@@ -40,10 +40,6 @@ public:
 
     DB::DiskTransactionPtr createTransaction() override;
 
-    std::unique_ptr<DB::ReadBufferFromFileBase>
-    readFile(const String & path, const DB::ReadSettings & settings, std::optional<size_t> read_hint, std::optional<size_t> file_size)
-        const override;
-
     DB::DiskObjectStoragePtr createDiskObjectStorage() override;
 
 private:

@@ -16,6 +16,7 @@
  */
 #include "MergeSparkMergeTreeTask.h"
 
+#include <Interpreters/Context.h>
 #include <Interpreters/TransactionLog.h>
 #include <Storages/MergeTree/Compaction/CompactionStatistics.h>
 #include <Storages/MergeTree/MergeTreeData.h>
@@ -24,7 +25,6 @@
 #include <Common/ProfileEvents.h>
 #include <Common/ProfileEventsScope.h>
 #include <Common/ThreadFuzzer.h>
-using namespace DB;
 
 namespace DB
 {
@@ -34,6 +34,7 @@ extern const int LOGICAL_ERROR;
 }
 }
 
+using namespace DB;
 namespace local_engine
 {
 StorageID MergeSparkMergeTreeTask::getStorageID() const

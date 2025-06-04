@@ -38,12 +38,12 @@ class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     handle: BaseShuffleHandle[K, V, V],
     mapId: Long,
-    writeMetrics: ShuffleWriteMetricsReporter,
-    isSort: Boolean)
+    writeMetrics: ShuffleWriteMetricsReporter)
   extends ShuffleWriter[K, V]
   with Logging {
 
   private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
+  protected val isSort: Boolean = dep.isSort
 
   private val conf = SparkEnv.get.conf
 

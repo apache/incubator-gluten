@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <Core/Settings.h>
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
+#include <Interpreters/Context.h>
 #include <Storages/MergeTree/MergeSparkMergeTreeTask.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/QueryContext.h>
@@ -268,7 +269,7 @@ MergeTreeDataPartPtr mergeParts(
         future_part, DB::CurrentlyMergingPartsTaggerPtr{}, std::make_shared<DB::MutationCommands>());
 
     // Copying a vector of columns `deduplicate by columns.
-    DB::IExecutableTask::TaskResultCallback f = [](bool) {};
+    DB::IExecutableTask::TaskResultCallback f = [](bool) { };
     const auto task = std::make_shared<MergeSparkMergeTreeTask>(
         storage, storage.getInMemoryMetadataPtr(), false, std::vector<std::string>{}, false, entry, DB::TableLockHolder{}, f);
 

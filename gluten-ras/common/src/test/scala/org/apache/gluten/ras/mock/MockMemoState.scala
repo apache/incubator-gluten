@@ -49,9 +49,9 @@ case class MockMemoState[T <: AnyRef] private (
 
   override def getGroup(id: Int): RasGroup[T] = allGroups(id)
 
-  override def clusterDummyGroupLookup(): Map[RasClusterKey, RasGroup[T]] = Map.empty
+  override def clusterHubGroupLookup(): Map[RasClusterKey, RasGroup[T]] = Map.empty
 
-  override def getDummyGroup(key: RasClusterKey): RasGroup[T] =
+  override def getHubGroup(key: RasClusterKey): RasGroup[T] =
     throw new UnsupportedOperationException()
 }
 
@@ -148,7 +148,7 @@ object MockMemoState {
             id,
             clusterKey,
             propSet,
-            ras.planModel.newGroupLeaf(id, clusterKey.metadata, propSet))
+            ras.newGroupLeaf(id, clusterKey.metadata, ras.withUserConstraint(propSet)))
         groupBuffer += group
         group
       }

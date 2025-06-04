@@ -16,28 +16,33 @@
  */
 package org.apache.gluten.ras
 
-import org.apache.gluten.ras.rule.RasRule
+import org.apache.gluten.ras.rule.EnforcerRuleFactory
 
 // TODO Use class tags to restrict runtime user-defined class types.
 
 trait Property[T <: AnyRef] {
-  def satisfies(other: Property[T]): Boolean
   def definition(): PropertyDef[T, _ <: Property[T]]
+}
+
+object Property {
+  implicit class PropertyImplicits[T <: AnyRef](property: Property[T]) {
+    def satisfies(constraint: Property[T]): Boolean = {
+      property.definition().satisfies(property, constraint)
+    }
+  }
 }
 
 trait PropertyDef[T <: AnyRef, P <: Property[T]] {
   def any(): P
   def getProperty(plan: T): P
-  def getChildrenConstraints(constraint: Property[T], plan: T): Seq[P]
-}
-
-trait EnforcerRuleFactory[T <: AnyRef] {
-  def newEnforcerRules(constraint: Property[T]): Seq[RasRule[T]]
+  def getChildrenConstraints(plan: T, constraint: Property[T]): Seq[P]
+  def satisfies(property: Property[T], constraint: Property[T]): Boolean
+  def assignToGroup(group: GroupLeafBuilder[T], constraint: Property[T]): GroupLeafBuilder[T]
 }
 
 trait PropertyModel[T <: AnyRef] {
   def propertyDefs: Seq[PropertyDef[T, _ <: Property[T]]]
-  def newEnforcerRuleFactory(propertyDef: PropertyDef[T, _ <: Property[T]]): EnforcerRuleFactory[T]
+  def newEnforcerRuleFactory(): EnforcerRuleFactory[T]
 }
 
 object PropertyModel {}

@@ -69,7 +69,7 @@ abstract class RasSuite extends AnyFunSuite {
     val state = memo.newState()
     assert(group.nodes(state).size == 1)
     memo.openFor(group.clusterKey()).memorize(ras, Unary(30, Leaf(90)))
-    assert(memo.newState().allGroups().size == 4)
+    assert(memo.newState().allGroups().size == 8)
   }
 
   test("Group memo - define equivalence: binary with similar children, 1") {
@@ -89,7 +89,7 @@ abstract class RasSuite extends AnyFunSuite {
     val leaf40Group = memo.memorize(ras, Leaf(40))
     assert(leaf40Group.nodes(state).size == 1)
     memo.openFor(leaf40Group.clusterKey()).memorize(ras, Leaf(30))
-    assert(memo.newState().allGroups().size == 3)
+    assert(memo.newState().allGroups().size == 6)
   }
 
   test("Group memo - define equivalence: binary with similar children, 2") {
@@ -109,7 +109,7 @@ abstract class RasSuite extends AnyFunSuite {
     val leaf40Group = memo.memorize(ras, Leaf(40))
     assert(leaf40Group.nodes(state).size == 1)
     memo.openFor(leaf40Group.clusterKey()).memorize(ras, Leaf(30))
-    assert(memo.newState().allGroups().size == 5)
+    assert(memo.newState().allGroups().size == 10)
   }
 
   test("Group memo - partial canonical") {
@@ -124,8 +124,9 @@ abstract class RasSuite extends AnyFunSuite {
         .withNewConfig(_ => conf)
     val memo = Memo(ras)
     val group1 = memo.memorize(ras, Unary(50, Unary(50, Leaf(30))))
-    val group2 = memo.memorize(ras, Unary(50, Group(1)))
-    assert(group2 eq group1)
+    val group2 = memo.memorize(ras, Unary(50, Leaf(30)))
+    val group3 = memo.memorize(ras, Unary(50, Group(group2.id())))
+    assert(group3 eq group1)
   }
 
   test(s"Unary node") {
@@ -229,8 +230,8 @@ abstract class RasSuite extends AnyFunSuite {
     val allPaths = state.collectAllPaths(Int.MaxValue)
 
     assert(state.allClusters().size == 3)
-    assert(state.allGroups().size == 3)
-    assert(allPaths.size == 15)
+    assert(state.allGroups().size == 6)
+    assert(allPaths.size == 33)
   }
 
   test(s"Group expansion - pattern") {
@@ -262,8 +263,8 @@ abstract class RasSuite extends AnyFunSuite {
     val allPaths = state.collectAllPaths(Int.MaxValue)
 
     assert(state.allClusters().size == 3)
-    assert(state.allGroups().size == 3)
-    assert(allPaths.size == 15)
+    assert(state.allGroups().size == 6)
+    assert(allPaths.size == 33)
   }
 
   test(s"Rule dependency") {
@@ -405,9 +406,9 @@ abstract class RasSuite extends AnyFunSuite {
     val optimized = planner.plan()
     val state = planner.newState()
 
-    // The 2 plans have same cost
+    // The 2 plans have the same cost.
     assert(optimized == Unary(90, Leaf(70)) || optimized == Unary2(90, Leaf(70)))
-    assert(state.memoState().getGroupCount() == 2)
+    assert(state.memoState().getGroupCount() == 4)
   }
 
   test(s"Binary swap") {
@@ -492,7 +493,7 @@ abstract class RasSuite extends AnyFunSuite {
     val optimized = planner.plan()
     val state = planner.newState()
 
-    assert(state.memoState().getGroupCount() == 3)
+    assert(state.memoState().getGroupCount() == 6)
     assert(optimized == Unary(50, Unary3(49, Leaf(30))))
   }
 

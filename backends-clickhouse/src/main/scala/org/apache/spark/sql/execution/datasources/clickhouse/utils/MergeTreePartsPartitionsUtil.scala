@@ -20,6 +20,7 @@ import org.apache.gluten.backendsapi.clickhouse.{CHBackendSettings, CHConfig}
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.softaffinity.SoftAffinityManager
+import org.apache.gluten.sql.shims.DeltaShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
@@ -237,7 +238,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
               part.targetNode,
               part.start,
               part.marks,
-              part.size
+              part.size,
+              part.rowIndexFilterType,
+              part.rowIndexFilterIdEncoded
             )
         }
       genInputPartitionSeqByFileCnt(
@@ -276,7 +279,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
                   part.targetNode,
                   offset,
                   size,
-                  size * part.size / part.marks)
+                  size * part.size / part.marks,
+                  part.rowIndexFilterType,
+                  part.rowIndexFilterIdEncoded)
             }
         }
 
@@ -529,7 +534,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
                 part.targetNode,
                 part.start,
                 part.marks,
-                part.size)
+                part.size,
+                part.rowIndexFilterType,
+                part.rowIndexFilterIdEncoded)
           }
           val newPartition = GlutenMergeTreePartition(
             partitions.size,
@@ -655,28 +662,16 @@ object MergeTreePartsPartitionsUtil extends Logging {
           range => {
             val part = partMap.get(range.getPartName).orNull
             val marks = range.getEnd - range.getBegin
-            MergeTreePartRange(
-              part.name,
-              part.dirName,
-              part.targetNode,
-              part.bucketNum,
-              range.getBegin,
-              marks,
-              marks * size_per_mark)
+            DeltaShimLoader.getDeltaShims
+              .generateMergeTreePartRange(part, range.getBegin, marks, marks * size_per_mark)
           })
         .toSeq
     } else {
       selectPartsFiles
         .map(
           part =>
-            MergeTreePartRange(
-              part.name,
-              part.dirName,
-              part.targetNode,
-              part.bucketNum,
-              0,
-              part.marks,
-              part.size))
+            DeltaShimLoader.getDeltaShims
+              .generateMergeTreePartRange(part, 0, part.marks, part.size))
         .toSeq
     }
   }

@@ -43,17 +43,17 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   import testImplicits._
 
   // Test "SELECT ..." without a from clause.
-  test("isnull function") {
+  test("isnull") {
     runQueryAndCompare("SELECT isnull(1)")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
-  test("Test bit_count function") {
+  test("bit_count") {
     runQueryAndCompare("SELECT bit_count(l_partkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test bit_get and getbit function") {
+  test("bit_get and getbit") {
     runQueryAndCompare("SELECT bit_get(l_partkey, 0) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -62,7 +62,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test array_append function - INT", "3.4") {
+  testWithMinSparkVersion("array_append - INT", "3.4") {
     withTempPath {
       path =>
         Seq[(Array[Int], Int)](
@@ -87,7 +87,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test array_append function - STRING", "3.4") {
+  testWithMinSparkVersion("array_append - STRING", "3.4") {
     withTempPath {
       path =>
         Seq[(Array[String], String)](
@@ -111,7 +111,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test array_prepend function", "3.5") {
+  testWithMinSparkVersion("array_prepend", "3.5") {
     withTempPath {
       path =>
         Seq[(Array[String], String)](
@@ -135,7 +135,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test array_compact function", "3.4") {
+  testWithMinSparkVersion("array_compact", "3.4") {
     withTempPath {
       path =>
         Seq[Array[String]](
@@ -174,20 +174,20 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("chr function") {
+  test("chr") {
     val df = runQueryAndCompare("SELECT chr(l_orderkey + 64) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test hash function") {
+  test("hash") {
     runQueryAndCompare("SELECT hash(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test shiftright function") {
+  test("shiftright") {
     val df = runQueryAndCompare("SELECT shiftright(int_field1, 1) from datatab limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -232,7 +232,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Support HOUR function") {
+  test("HOUR") {
     withTable("t1") {
       sql("create table t1 (c1 int, c2 timestamp) USING PARQUET")
       sql("INSERT INTO t1 VALUES(1, NOW())")
@@ -261,7 +261,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test map_entries function") {
+  test("map_entries") {
     withTempPath {
       path =>
         Seq(
@@ -281,7 +281,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test map_keys function") {
+  test("map_keys") {
     withTempPath {
       path =>
         Seq(
@@ -301,7 +301,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("test map_contains_key function", "3.3") {
+  testWithMinSparkVersion("map_contains_key", "3.3") {
     withTempPath {
       path =>
         Seq(
@@ -321,7 +321,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test map_values function") {
+  test("map_values") {
     withTempPath {
       path =>
         Seq(
@@ -392,7 +392,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test transform_keys function") {
+  test("transform_keys") {
     withTempPath {
       path =>
         Seq(
@@ -412,7 +412,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test transform_values function") {
+  test("transform_values") {
     withTempPath {
       path =>
         Seq(
@@ -452,7 +452,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test isnan function") {
+  test("isnan") {
     runQueryAndCompare(
       "SELECT isnan(l_orderkey), isnan(cast('NaN' as double)), isnan(0.0F/0.0F)" +
         " from lineitem limit 1") {
@@ -460,7 +460,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test conditional function") {
+  test("conditional") {
     Seq("nanvl", "nullif", "nvl").foreach {
       func =>
         runQueryAndCompare(s"""
@@ -477,7 +477,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test nvl2 function") {
+  test("nvl2") {
     Seq("null", "l_orderkey").foreach {
       expr =>
         runQueryAndCompare(s"""
@@ -495,14 +495,14 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   }
 
   // FIXME: Ignored: https://github.com/apache/incubator-gluten/issues/7600.
-  ignore("Test monotonically_increasintestg_id function") {
+  ignore("monotonically_increasintestg_id") {
     runQueryAndCompare("""SELECT monotonically_increasing_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test sequence function optimized by Spark constant folding") {
+  test("sequence function optimized by Spark constant folding") {
     withSQLConf(("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)) {
       runQueryAndCompare("""SELECT sequence(1, 5), l_orderkey
                            | from lineitem limit 100""".stripMargin) {
@@ -511,7 +511,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test raise_error, assert_true function") {
+  test("raise_error, assert_true") {
     runQueryAndCompare("""SELECT assert_true(l_orderkey >= 1), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -524,37 +524,37 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     assert(e.getMessage.contains("l_orderkey"))
   }
 
-  test("Test E function") {
-    runQueryAndCompare("""SELECT E() from lineitem limit 100""".stripMargin) {
+  test("EulerNumber") {
+    runQueryAndCompare("""SELECT E() from lineitem limit 10""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare("""SELECT E(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
+                         | from lineitem limit 10""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test Pi function") {
-    runQueryAndCompare("""SELECT Pi() from lineitem limit 100""".stripMargin) {
+  test("Pi") {
+    runQueryAndCompare("""SELECT Pi() from lineitem limit 10""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare("""SELECT Pi(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
+                         | from lineitem limit 10""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test version function") {
-    runQueryAndCompare("""SELECT version() from lineitem limit 100""".stripMargin) {
+  test("version") {
+    runQueryAndCompare("""SELECT version() from lineitem limit 10""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare("""SELECT version(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
+                         | from lineitem limit 10""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test sum/count function") {
+  test("sum/count") {
     withTempPath {
       path =>
         Seq[(Integer, Integer)](
@@ -572,7 +572,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test spark_partition_id function") {
+  test("spark_partition_id") {
     runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -583,7 +583,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test url_decode function", "3.4") {
+  testWithMinSparkVersion("url_decode", "3.4") {
     withTempPath {
       path =>
         Seq("https%3A%2F%2Fspark.apache.org")
@@ -597,7 +597,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test url_encode function", "3.4") {
+  testWithMinSparkVersion("url_encode", "3.4") {
     withTempPath {
       path =>
         Seq("https://spark.apache.org")
@@ -617,7 +617,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test uuid function") {
+  test("uuid") {
     runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -695,7 +695,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test array filter") {
+  test("filter") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -715,7 +715,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test concat with array") {
+  test("concat") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -732,7 +732,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test array transform") {
+  test("transform") {
     withTable("t") {
       sql("create table t (arr ARRAY<INT>) using parquet")
       sql("insert into t values(array(1, 2, 3, null))")
@@ -742,7 +742,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test array forall") {
+  test("forall") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -762,7 +762,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test array exists") {
+  test("exists") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -800,7 +800,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test shuffle") {
+  test("shuffle") {
     withTempPath {
       path =>
         Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
@@ -816,7 +816,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test flatten nested array") {
+  test("flatten nested array") {
     withTempPath {
       path =>
         Seq[Seq[Seq[Integer]]](
@@ -890,7 +890,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test substring_index") {
+  test("substring_index") {
     withTempView("substring_index_table") {
       withTempPath {
         path =>
@@ -951,7 +951,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test input_file_name function") {
+  test("input_file_name") {
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
@@ -1024,7 +1024,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("test internal function: AtLeastNNonNulls") {
+  test("internal function: AtLeastNNonNulls") {
     // AtLeastNNonNulls is called by drop DataFrameNafunction
     withTempPath {
       path =>
@@ -1045,7 +1045,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test try_cast", "3.4") {
+  testWithMinSparkVersion("try_cast", "3.4") {
     withTempView("try_cast_table") {
       withTempPath {
         path =>
@@ -1064,7 +1064,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test cast") {
+  test("cast") {
     withTempView("cast_table") {
       withTempPath {
         path =>

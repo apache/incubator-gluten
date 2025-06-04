@@ -36,7 +36,11 @@ case class ConverRowNumbertWindowToAggregateRule(spark: SparkSession)
   with Logging {
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!CHBackendSettings.enableConvertWindowGroupLimitToAggregate) {
+    if (
+      !spark.conf
+        .get(CHBackendSettings.GLUTEN_ENABLE_WINDOW_GROUP_LIMIT_TO_AGGREGATE, "true")
+        .toBoolean
+    ) {
       return plan
     }
     plan.transformUp {

@@ -270,6 +270,17 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     checkEvaluation(cast(Literal.create(null, IntegerType), ShortType), null)
   }
 
+  test("cast from boolean to timestamp") {
+    val tsTrue = new Timestamp(0)
+    tsTrue.setNanos(1000)
+
+    val tsFalse = new Timestamp(0)
+
+    checkEvaluation(cast(true, TimestampType), tsTrue)
+
+    checkEvaluation(cast(false, TimestampType), tsFalse)
+  }
+
   testGluten("cast string to timestamp") {
     ThreadUtils.parmap(
       ALL_TIMEZONES

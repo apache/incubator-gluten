@@ -269,6 +269,17 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     checkEvaluation(cast(Literal.create(null, IntegerType), ShortType), null)
   }
 
+  test("cast from boolean to timestamp") {
+    val tsTrue = new Timestamp(0)
+    tsTrue.setNanos(1000)
+
+    val tsFalse = new Timestamp(0)
+
+    checkEvaluation(cast(true, TimestampType), tsTrue)
+
+    checkEvaluation(cast(false, TimestampType), tsFalse)
+  }
+
   test("cast timestamp to Int64 with floor division") {
     val originalDefaultTz = TimeZone.getDefault
     try {

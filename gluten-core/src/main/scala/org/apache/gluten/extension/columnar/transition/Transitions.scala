@@ -66,7 +66,7 @@ object InsertTransitions {
     val conventionReq = if (outputsColumnar) {
       ConventionReq.ofBatch(ConventionReq.BatchType.Is(batchType))
     } else {
-      ConventionReq.row
+      ConventionReq.vanillaRow
     }
     InsertTransitions(conventionReq)
   }
@@ -86,11 +86,11 @@ object RemoveTransitions extends Rule[SparkPlan] {
 
 object Transitions {
   def insert(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    InsertTransitions.create(outputsColumnar, BatchType.VanillaBatch).apply(plan)
+    InsertTransitions.create(outputsColumnar, BatchType.VanillaBatchType).apply(plan)
   }
 
   def toRowPlan(plan: SparkPlan): SparkPlan = {
-    enforceReq(plan, ConventionReq.row)
+    enforceReq(plan, ConventionReq.vanillaRow)
   }
 
   def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {

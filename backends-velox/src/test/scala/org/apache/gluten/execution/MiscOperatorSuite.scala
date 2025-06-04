@@ -30,9 +30,11 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters
+import scala.collection.JavaConverters._
 
 class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -1423,6 +1425,45 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     spark.read.format("parquet").load(path).createOrReplaceTempView("test")
     runQueryAndCompare("select * from test") {
       checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+  }
+
+  test("partitioned write column order") {
+    // Get a dataframe with a limited/known set of values for c_mktsegment and c_nationkey
+    // to test the directory structure created for partitioned writes
+    val df = sql(
+      "SELECT c_name, c_nationkey, c_mktsegment FROM customer " +
+        "WHERE c_mktsegment IN ('HOUSEHOLD', 'AUTOMOBILE') " +
+        "AND c_nationkey < 5")
+
+    withTempDir {
+      tempDir =>
+        val tempDirPath = tempDir.getPath
+        df.write
+          .format("parquet")
+          .partitionBy("c_mktsegment", "c_nationkey")
+          .mode("overwrite")
+          .save(tempDirPath)
+
+        // We expect the directory structure to look like:
+        // {tempDirPath}/c_mktsegment=AUTOMOBILE/c_nationkey=[0-4]/*.parquet
+        // {tempDirPath}/c_mktsegment=HOUSEHOLD/c_nationkey=[0-4]/*.parquet
+        val expectedDirs = for {
+          dir <- Seq("c_mktsegment=HOUSEHOLD", "c_mktsegment=AUTOMOBILE")
+          subDir <- 0 to 4
+        } yield Paths.get(tempDirPath, dir, "c_nationkey=" + subDir.toString).toString
+
+        // Each directory should have .parquet file(s)
+        expectedDirs.foreach {
+          dir =>
+            val path = Paths.get(dir)
+            assert(Files.exists(path) && Files.isDirectory(path))
+            val files = Files.list(path).iterator().asScala.toSeq
+            assert(files.nonEmpty)
+            val parquetFiles = files.filter(file => file.toString.contains(".parquet"))
+            assert(parquetFiles.nonEmpty && parquetFiles.size == files.size)
+        }
+
     }
   }
 

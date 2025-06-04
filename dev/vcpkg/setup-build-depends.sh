@@ -49,6 +49,9 @@ install_gcc11_from_source() {
             cd /tmp
             if [ ! -d $gcc_version ]; then
                 wget https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                if [ $? -ne 0 ]; then
+                    wget https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                fi
                 tar -xvf ${gcc_version}.tar.gz
             fi
             cd ${gcc_version}
@@ -116,7 +119,12 @@ install_centos_7() {
     installed_automake_version="$(aclocal --version | sed -En "1s/^.* ([1-9\.]*)$/\1/p")"
     if [ "$(semver "$installed_automake_version")" -lt "$(semver 1.14)" ]; then
         mkdir -p /tmp/automake
-        wget -O - http://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz | tar -x --xz -C /tmp/automake --strip-components=1
+        AUTOMAKE_URL1="https://ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
+        AUTOMAKE_URL2="https://www.mirrorservice.org/sites/ftp.gnu.org/gnu/automake/automake-1.16.5.tar.xz"
+        wget -O - "$AUTOMAKE_URL1" | tar -x --xz -C /tmp/automake --strip-components=1
+        if [ $? -ne 0 ]; then
+            wget -O - "$AUTOMAKE_URL2" | tar -x --xz -C /tmp/automake --strip-components=1
+        fi
         cd /tmp/automake
         ./configure
         make install -j

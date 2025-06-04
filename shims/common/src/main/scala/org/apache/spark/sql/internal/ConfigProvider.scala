@@ -17,14 +17,14 @@
 package org.apache.spark.sql.internal
 
 /** A source of configuration values. */
-trait ConfigProvider {
+trait GlutenConfigProvider {
   def get(key: String): Option[String]
 }
 
-class SQLConfProvider(conf: SQLConf) extends ConfigProvider {
+class SQLConfProvider(conf: SQLConf) extends GlutenConfigProvider {
   override def get(key: String): Option[String] = Option(conf.settings.get(key))
 }
 
-class MapProvider(conf: Map[String, String]) extends ConfigProvider {
+class MapProvider(conf: Map[String, String]) extends GlutenConfigProvider {
   override def get(key: String): Option[String] = conf.get(key)
 }

@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.enumerated.planner.metadata
 
-import org.apache.gluten.extension.columnar.enumerated.planner.plan.GlutenPlanModel.GroupLeafExec
-import org.apache.gluten.ras.{Metadata, MetadataModel}
+import org.apache.gluten.extension.columnar.enumerated.planner.plan.GroupLeafExec
+import org.apache.gluten.ras.{GroupLeafBuilder, Metadata, MetadataModel}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
@@ -43,6 +43,12 @@ object GlutenMetadataModel extends Logging {
         implicitly[Verifier[LogicalLink]].verify(left.logicalLink(), right.logicalLink())
       case _ => throw new IllegalStateException(s"Metadata mismatch: one: $one, other $other")
     }
+
+    override def assignToGroup(group: GroupLeafBuilder[SparkPlan], meta: Metadata): Unit =
+      (group, meta) match {
+        case (builder: GroupLeafExec.Builder, metadata: GlutenMetadata) =>
+          builder.withMetadata(metadata)
+      }
   }
 
   trait Verifier[T <: Any] {

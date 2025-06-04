@@ -33,7 +33,7 @@ namespace gluten {
 class VeloxColumnarBatchSerializerTest : public ::testing::Test, public test::VectorTestBase {
  protected:
   static void SetUpTestCase() {
-    memory::MemoryManager::testingSetInstance({});
+    memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
   std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();

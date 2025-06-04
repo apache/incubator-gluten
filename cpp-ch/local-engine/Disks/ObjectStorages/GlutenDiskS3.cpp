@@ -34,18 +34,6 @@ namespace local_engine
         return std::make_shared<CompactObjectStorageDiskTransaction>(*this, QueryContext::globalContext()->getSharedTempDataOnDisk());
     }
 
-    std::unique_ptr<DB::ReadBufferFromFileBase> GlutenDiskS3::readFile(
-        const String & path,
-        const ReadSettings & settings,
-        std::optional<size_t> read_hint,
-        std::optional<size_t> file_size) const
-    {
-        ReadSettings copy_settings = settings;
-        // Threadpool read is not supported for s3 compact version currently
-        copy_settings.remote_fs_method = RemoteFSReadMethod::read;
-        return DiskObjectStorage::readFile(path, copy_settings, read_hint, file_size);
-    }
-
     DiskObjectStoragePtr GlutenDiskS3::createDiskObjectStorage()
     {
         const auto config_prefix = "storage_configuration.disks." + name;

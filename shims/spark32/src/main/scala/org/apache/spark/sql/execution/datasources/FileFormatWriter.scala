@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCo
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, SQLExecution, UnsafeExternalRowSorter}
+import org.apache.spark.sql.execution.{ColumnarToRowTransition, ProjectExec, SortExec, SparkPlan, SQLExecution, UnsafeExternalRowSorter}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
@@ -152,8 +152,10 @@ object FileFormatWriter extends Logging {
       "true" == sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly")
 
     if (nativeEnabled) {
-      logInfo("Use Gluten partition write for hive")
-      assert(plan.isInstanceOf[IFakeRowAdaptor])
+      logInfo(
+        s"Writing data with Gluten's native writer. The topmost node of the query plan to " +
+          s"write is: ${plan.nodeName}")
+      assert(plan.isInstanceOf[ColumnarToRowTransition])
     }
 
     val job = Job.getInstance(hadoopConf)

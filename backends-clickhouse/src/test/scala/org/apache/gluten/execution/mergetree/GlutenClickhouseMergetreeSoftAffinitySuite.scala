@@ -66,7 +66,8 @@ class GlutenClickhouseMergetreeSoftAffinitySuite
     val relativeTablePath = "tmp/"
 
     for (i <- 1 to 10) {
-      splitFiles = splitFiles :+ MergeTreePartSplit(i.toString, i.toString, i.toString, i, 30L, 40L)
+      splitFiles =
+        splitFiles :+ MergeTreePartSplit(i.toString, i.toString, i.toString, i, 30L, 40L, "", "")
     }
 
     val (partNameWithLocation, locationDistinct) =

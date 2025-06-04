@@ -1390,13 +1390,14 @@ JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_removeFiles
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_DeltaWriterJNIWrapper_createDeletionVectorWriter(
-    JNIEnv * env, jclass, jstring table_path_, jint prefix_length_, jlong packingTargetSize_)
+    JNIEnv * env, jclass, jstring table_path_, jint prefix_length_, jlong packingTargetSize_, jstring dv_file_name_prefix_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto table_path = jstring2string(env, table_path_);
+    auto dv_file_name_prefix = jstring2string(env, dv_file_name_prefix_);
 
     const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
-    auto writer = new local_engine::delta::DeltaWriter(query_context, table_path, prefix_length_, packingTargetSize_);
+    auto writer = new local_engine::delta::DeltaWriter(query_context, table_path, prefix_length_, packingTargetSize_, dv_file_name_prefix);
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1);
 }

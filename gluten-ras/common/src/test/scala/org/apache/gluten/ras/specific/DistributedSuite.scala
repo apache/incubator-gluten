@@ -20,7 +20,7 @@ import org.apache.gluten.ras._
 import org.apache.gluten.ras.RasConfig.PlannerType
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.property.PropertySet
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
+import org.apache.gluten.ras.rule.{EnforcerRuleFactory, RasRule, Shape, Shapes}
 
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -69,7 +69,11 @@ abstract class DistributedSuite extends AnyFunSuite {
     val planner =
       ras.newPlanner(plan, PropertySet(List(HashDistribution(List("a", "b")), AnyOrdering)))
     val out = planner.plan()
-    assert(out == DProject(DExchange(List("a", "b"), DLeaf())))
+    val alternatives = Set[TestNode](
+      DProject(DExchange(List("a", "b"), DLeaf())),
+      DExchange(List("a", "b"), DProject(DLeaf()))
+    )
+    assert(alternatives.contains(out))
   }
 
   test("Aggregate - none-distribution constraint") {
@@ -108,7 +112,11 @@ abstract class DistributedSuite extends AnyFunSuite {
     val planner =
       ras.newPlanner(plan, PropertySet(List(AnyDistribution, SimpleOrdering(List("a", "b")))))
     val out = planner.plan()
-    assert(out == DProject(DSort(List("a", "b"), DLeaf())))
+    val alternatives = Set[TestNode](
+      DProject(DSort(List("a", "b"), DLeaf())),
+      DSort(List("a", "b"), DProject(DLeaf()))
+    )
+    assert(alternatives.contains(out))
   }
 
   test("Project - required distribution and ordering") {
@@ -128,7 +136,17 @@ abstract class DistributedSuite extends AnyFunSuite {
         plan,
         PropertySet(List(HashDistribution(List("a", "b")), SimpleOrdering(List("b", "c")))))
     val out = planner.plan()
-    assert(out == DProject(DSort(List("b", "c"), DExchange(List("a", "b"), DLeaf()))))
+
+    val alternatives = Set[TestNode](
+      DProject(DSort(List("b", "c"), DExchange(List("a", "b"), DLeaf()))),
+      DProject(DExchange(List("a", "b"), DSort(List("b", "c"), DLeaf()))),
+      DSort(List("b", "c"), DProject(DExchange(List("a", "b"), DLeaf()))),
+      DSort(List("b", "c"), DExchange(List("a", "b"), DProject(DLeaf()))),
+      DExchange(List("a", "b"), DSort(List("b", "c"), DProject(DLeaf()))),
+      DExchange(List("a", "b"), DProject(DSort(List("b", "c"), DLeaf())))
+    )
+
+    assert(alternatives.contains(out))
   }
 
   test("Aggregate - avoid re-exchange") {
@@ -212,42 +230,15 @@ object DistributedSuite {
     override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
   }
 
-  trait Distribution extends Property[TestNode]
-
-  case class HashDistribution(keys: Seq[String]) extends Distribution {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case HashDistribution(otherKeys) if keys.size > otherKeys.size => false
-      case HashDistribution(otherKeys) =>
-        // (a) satisfies (a, b)
-        keys.zipWithIndex.forall {
-          case (key, index) =>
-            key == otherKeys(index)
-        }
-      case AnyDistribution => true
-      case NoneDistribution => false
-      case _ => throw new UnsupportedOperationException()
-    }
+  trait Distribution extends Property[TestNode] {
     override def definition(): PropertyDef[TestNode, _ <: Property[TestNode]] = DistributionDef
   }
 
-  case object AnyDistribution extends Distribution {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case HashDistribution(_) => false
-      case AnyDistribution => true
-      case NoneDistribution => false
-      case _ => throw new UnsupportedOperationException()
-    }
-    override def definition(): PropertyDef[TestNode, _ <: Property[TestNode]] = DistributionDef
-  }
+  case class HashDistribution(keys: Seq[String]) extends Distribution
 
-  case object NoneDistribution extends Distribution {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case AnyDistribution => true
-      case _: Distribution => false
-      case _ => throw new UnsupportedOperationException()
-    }
-    override def definition(): PropertyDef[TestNode, _ <: Property[TestNode]] = DistributionDef
-  }
+  case object AnyDistribution extends Distribution
+
+  case object NoneDistribution extends Distribution
 
   private object DistributionDef extends PropertyDef[TestNode, Distribution] {
     override def getProperty(plan: TestNode): Distribution = plan match {
@@ -258,53 +249,52 @@ object DistributedSuite {
     }
 
     override def getChildrenConstraints(
-        constraint: Property[TestNode],
-        plan: TestNode): Seq[Distribution] = (constraint, plan) match {
+        plan: TestNode,
+        constraint: Property[TestNode]): Seq[Distribution] = (constraint, plan) match {
       case (NoneDistribution, p: DNode) => p.children().map(_ => NoneDistribution)
       case (d: Distribution, p: DNode) => p.getDistributionConstraints(d)
       case _ => throw new UnsupportedOperationException()
     }
 
     override def any(): Distribution = AnyDistribution
+
+    override def satisfies(
+        property: Property[TestNode],
+        constraint: Property[TestNode]): Boolean = {
+      (property, constraint) match {
+        case (_, NoneDistribution) => false
+        case (_, AnyDistribution) => true
+        case (HashDistribution(keys), HashDistribution(otherKeys)) if keys.size > otherKeys.size =>
+          false
+        case (HashDistribution(keys), HashDistribution(otherKeys)) =>
+          // (a) satisfies (a, b)
+          keys.zipWithIndex.forall {
+            case (key, index) =>
+              key == otherKeys(index)
+          }
+        case _ => false
+      }
+    }
+
+    override def assignToGroup(
+        group: GroupLeafBuilder[TestNode],
+        constraint: Property[TestNode]): GroupLeafBuilder[TestNode] = {
+      (group, constraint) match {
+        case (builder: Group.Builder, c: Distribution) =>
+          builder.withConstraint(c)
+      }
+    }
   }
 
-  trait Ordering extends Property[TestNode]
-
-  case class SimpleOrdering(keys: Seq[String]) extends Ordering {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case SimpleOrdering(otherKeys) if keys.size < otherKeys.size => false
-      case SimpleOrdering(otherKeys) =>
-        // (a, b) satisfies (a)
-        otherKeys.zipWithIndex.forall {
-          case (otherKey, index) =>
-            otherKey == keys(index)
-        }
-      case AnyOrdering => true
-      case NoneOrdering => false
-      case _ => throw new UnsupportedOperationException()
-    }
+  trait Ordering extends Property[TestNode] {
     override def definition(): PropertyDef[TestNode, _ <: Property[TestNode]] = OrderingDef
   }
 
-  case object AnyOrdering extends Ordering {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case SimpleOrdering(_) => false
-      case AnyOrdering => true
-      case NoneOrdering => false
-      case _ => throw new UnsupportedOperationException()
-    }
-    override def definition(): PropertyDef[TestNode, _ <: Property[TestNode]] = OrderingDef
-  }
+  case class SimpleOrdering(keys: Seq[String]) extends Ordering
 
-  case object NoneOrdering extends Ordering {
-    override def satisfies(other: Property[TestNode]): Boolean = other match {
-      case AnyOrdering => true
-      case _: Ordering => false
-      case _ => throw new UnsupportedOperationException()
-    }
-    override def definition(): PropertyDef[TestNode, _ <: Property[TestNode]] = OrderingDef
+  case object AnyOrdering extends Ordering
 
-  }
+  case object NoneOrdering extends Ordering
 
   // FIXME: Handle non-ordering as well as non-distribution
   private object OrderingDef extends PropertyDef[TestNode, Ordering] {
@@ -314,8 +304,8 @@ object DistributedSuite {
       case _ => throw new UnsupportedOperationException()
     }
     override def getChildrenConstraints(
-        constraint: Property[TestNode],
-        plan: TestNode): Seq[Ordering] =
+        plan: TestNode,
+        constraint: Property[TestNode]): Seq[Ordering] =
       (constraint, plan) match {
         case (NoneOrdering, p: DNode) => p.children().map(_ => NoneOrdering)
         case (o: Ordering, p: DNode) => p.getOrderingConstraints(o)
@@ -323,43 +313,77 @@ object DistributedSuite {
       }
 
     override def any(): Ordering = AnyOrdering
+
+    override def satisfies(
+        property: Property[TestNode],
+        constraint: Property[TestNode]): Boolean = {
+      (property, constraint) match {
+        case (_, NoneOrdering) => false
+        case (_, AnyOrdering) => true
+        case (SimpleOrdering(keys), SimpleOrdering(otherKeys)) if keys.size > otherKeys.size =>
+          false
+        case (SimpleOrdering(keys), SimpleOrdering(otherKeys)) =>
+          // (a, b) satisfies (a)
+          otherKeys.zipWithIndex.forall {
+            case (otherKey, index) =>
+              otherKey == keys(index)
+          }
+        case _ => false
+      }
+    }
+
+    override def assignToGroup(
+        group: GroupLeafBuilder[TestNode],
+        constraint: Property[TestNode]): GroupLeafBuilder[TestNode] = {
+      (group, constraint) match {
+        case (builder: Group.Builder, c: Ordering) =>
+          builder.withConstraint(c)
+      }
+    }
   }
 
-  private class EnforceDistribution(distribution: Distribution) extends RasRule[TestNode] {
-    override def shift(node: TestNode): Iterable[TestNode] = (node, distribution) match {
-      case (d: DNode, HashDistribution(keys)) => List(DExchange(keys, d))
-      case (d: DNode, AnyDistribution) => List(d)
-      case (d: DNode, NoneDistribution) => List.empty
-      case _ =>
-        throw new UnsupportedOperationException()
+  private class EnforceDistribution() extends EnforcerRuleFactory.SubRule[TestNode] {
+    override def enforce(node: TestNode, constraint: Property[TestNode]): Iterable[TestNode] = {
+      val distribution = constraint.asInstanceOf[Distribution]
+      (node, distribution) match {
+        case (d: DNode, HashDistribution(keys)) => List(DExchange(keys, d))
+        case (d: DNode, AnyDistribution) => List(d)
+        case (d: DNode, NoneDistribution) => List.empty
+        case _ =>
+          throw new UnsupportedOperationException()
+      }
     }
-    override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
   }
 
-  private class EnforceOrdering(ordering: Ordering) extends RasRule[TestNode] {
-    override def shift(node: TestNode): Iterable[TestNode] = (node, ordering) match {
-      case (d: DNode, SimpleOrdering(keys)) => List(DSort(keys, d))
-      case (d: DNode, AnyOrdering) => List(d)
-      case (d: DNode, NoneOrdering) => List.empty
-      case _ => throw new UnsupportedOperationException()
+  private class EnforceOrdering() extends EnforcerRuleFactory.SubRule[TestNode] {
+    override def enforce(node: TestNode, constraint: Property[TestNode]): Iterable[TestNode] = {
+      val ordering = constraint.asInstanceOf[Ordering]
+      (node, ordering) match {
+        case (d: DNode, SimpleOrdering(keys)) => List(DSort(keys, d))
+        case (d: DNode, AnyOrdering) => List(d)
+        case (d: DNode, NoneOrdering) => List.empty
+        case _ => throw new UnsupportedOperationException()
+      }
     }
-    override def shape(): Shape[TestNode] = Shapes.fixedHeight(1)
   }
 
   private object DistributedPropertyModel extends PropertyModel[TestNode] {
     override def propertyDefs: Seq[PropertyDef[TestNode, _ <: Property[TestNode]]] =
       List(DistributionDef, OrderingDef)
 
-    override def newEnforcerRuleFactory(propertyDef: PropertyDef[TestNode, _ <: Property[TestNode]])
-        : EnforcerRuleFactory[TestNode] = new EnforcerRuleFactory[TestNode] {
-      override def newEnforcerRules(constraint: Property[TestNode]): Seq[RasRule[TestNode]] = {
-        constraint match {
-          case distribution: Distribution => List(new EnforceDistribution(distribution))
-          case ordering: Ordering => List(new EnforceOrdering(ordering))
-          case _ => throw new UnsupportedOperationException()
+    override def newEnforcerRuleFactory(): EnforcerRuleFactory[TestNode] =
+      EnforcerRuleFactory.fromSubRules(Seq(new EnforcerRuleFactory.SubRuleFactory[TestNode] {
+        override def newSubRule(constraintDef: PropertyDef[TestNode, _ <: Property[TestNode]])
+            : EnforcerRuleFactory.SubRule[TestNode] = {
+          constraintDef match {
+            case DistributionDef => new EnforceDistribution()
+            case OrderingDef => new EnforceOrdering()
+            case _ => throw new UnsupportedOperationException()
+          }
         }
-      }
-    }
+
+        override def ruleShape: Shape[TestNode] = Shapes.fixedHeight(1)
+      }))
   }
 
   trait DNode extends TestNode {

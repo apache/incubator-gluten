@@ -48,7 +48,6 @@ void Spill::insertPayload(
     int64_t rawSize,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec) {
-  // TODO: Add compression threshold.
   switch (payloadType) {
     case Payload::Type::kUncompressed:
     case Payload::Type::kToBeCompressed:

@@ -39,6 +39,7 @@ export CPPFLAGS=$CFLAGS  # Used by LZO.
 CMAKE_BUILD_TYPE="${BUILD_TYPE:-Release}"
 VELOX_BUILD_SHARED=${VELOX_BUILD_SHARED:-"OFF"} #Build folly and gflags shared for use in libvelox.so.
 BUILD_DUCKDB="${BUILD_DUCKDB:-true}"
+BUILD_GEOS="${BUILD_GEOS:-true}"
 VERSION=$(cat /etc/os-release | grep VERSION_ID)
 export INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)/deps-download}
@@ -47,6 +48,7 @@ FB_OS_VERSION="v2024.07.01.00"
 FMT_VERSION="10.1.1"
 BOOST_VERSION="boost-1.84.0"
 DUCKDB_VERSION="v0.8.1"
+GEOS_VERSION="3.10.2"
 
 function dnf_install {
   dnf install -y -q --setopt=install_weak_deps=False "$@"
@@ -159,6 +161,12 @@ function install_duckdb {
   fi
 }
 
+function install_geos {
+  if [[ "$BUILD_GEOS" == "true" ]]; then
+    wget_and_untar https://github.com/libgeos/geos/archive/${GEOS_VERSION}.tar.gz geos
+    cmake_install_dir geos -DBUILD_TESTING=OFF
+  fi
+}
 function install_velox_deps {
   run_and_time install_velox_deps_from_dnf
   run_and_time install_gflags
@@ -174,6 +182,7 @@ function install_velox_deps {
   run_and_time install_mvfst
   run_and_time install_fbthrift
   run_and_time install_duckdb
+  run_and_time install_geos
 }
 
 (return 2> /dev/null) && return # If script was sourced, don't run commands.

@@ -50,7 +50,7 @@ abstract class RowToColumnarExecBase(child: SparkPlan)
   override def rowType0(): Convention.RowType = Convention.RowType.None
 
   override def requiredChildConvention(): Seq[ConventionReq] = {
-    Seq(ConventionReq.row)
+    Seq(ConventionReq.vanillaRow)
   }
 
   final override def doExecute(): RDD[InternalRow] = {

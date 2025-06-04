@@ -22,7 +22,7 @@
 #include <DataTypes/DataTypesDecimal.h>
 #include <IO/ReadBufferFromString.h>
 #include <Parser/SubstraitParserUtils.h>
-#include <Storages/SubstraitSource/Delta/DeltaParquetMeta.h>
+#include <Storages/SubstraitSource/Delta/DeltaMeta.h>
 #include <Storages/SubstraitSource/Delta/DeltaReader.h>
 #include <Storages/SubstraitSource/Iceberg/IcebergReader.h>
 #include <Storages/SubstraitSource/ParquetFormatFile.h>
@@ -295,7 +295,7 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
         return nullptr;
 
     // when there is a '__delta_internal_is_row_deleted' column, it needs to use DeltaReader to read data and add column
-    if (DeltaParquetVirtualMeta::hasMetaColumns(to_read_header_))
+    if (DeltaVirtualMeta::hasMetaColumns(to_read_header_))
     {
         String row_index_ids_encoded;
         String row_index_filter_type;
@@ -303,9 +303,9 @@ std::unique_ptr<NormalFileReader> createNormalFileReader(
         {
             for (const auto & column : file->getFileInfo().other_const_metadata_columns())
             {
-                if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_ID_ENCODED)
+                if (column.key() == DeltaVirtualMeta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_ID_ENCODED)
                     row_index_ids_encoded = toString(column.value());
-                if (column.key() == delta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_TYPE)
+                if (column.key() == DeltaVirtualMeta::DeltaDVBitmapConfig::DELTA_ROW_INDEX_FILTER_TYPE)
                     row_index_filter_type = toString(column.value());
             }
         }

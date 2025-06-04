@@ -17,9 +17,9 @@
 
 #include "VeloxRowToColumnarConverter.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/vector/FlatVector.h"
 #include "velox/vector/arrow/Bridge.h"
+#include "velox/row/UnsafeRowFast.h"
 
 using namespace facebook::velox;
 namespace gluten {
@@ -106,8 +106,8 @@ VectorPtr createFlatVector<TypeKind::HUGEINT>(
       int64_t offsetAndSize = *reinterpret_cast<int64_t*>(memoryAddress + offsets[pos] + fieldOffset);
       int32_t length = static_cast<int32_t>(offsetAndSize);
       int32_t wordoffset = static_cast<int32_t>(offsetAndSize >> 32);
-      uint8_t bytesValue[length];
-      memcpy(bytesValue, memoryAddress + offsets[pos] + wordoffset, length);
+      std::vector<uint8_t> bytesValue(length);
+      memcpy(bytesValue.data(), memoryAddress + offsets[pos] + wordoffset, length);
       uint8_t bytesValue2[16]{};
       GLUTEN_CHECK(length <= 16, "array out of bounds exception");
       for (int k = length - 1; k >= 0; k--) {
@@ -271,13 +271,13 @@ VeloxRowToColumnarConverter::convert(int64_t numRows, int64_t* rowLength, uint8_
   if (supporteType(asRowType(rowType_))) {
     return convertPrimitive(numRows, rowLength, memoryAddress);
   }
-  std::vector<std::optional<std::string_view>> data;
+  std::vector<char*> data;
   int64_t offset = 0;
   for (auto i = 0; i < numRows; i++) {
-    data.emplace_back(std::string_view(reinterpret_cast<const char*>(memoryAddress + offset), rowLength[i]));
+    data.emplace_back(reinterpret_cast<char*>(memoryAddress + offset));
     offset += rowLength[i];
   }
-  auto vp = row::UnsafeRowDeserializer::deserialize(data, rowType_, pool_.get());
+  auto vp = row::UnsafeRowFast::deserialize(data, asRowType(rowType_), pool_.get());
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<RowVector>(vp));
 }
 

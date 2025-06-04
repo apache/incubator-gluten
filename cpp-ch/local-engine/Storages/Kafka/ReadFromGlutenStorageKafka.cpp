@@ -17,9 +17,9 @@
 #include "GlutenKafkaSource.h"
 
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/Kafka/ReadFromGlutenStorageKafka.h>
-
 
 namespace DB
 {

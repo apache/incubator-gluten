@@ -381,6 +381,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite extends CreateMergeTreeSuite {
                  |""".stripMargin)
 
     spark.sql("insert into partition_escape select * from origin_table")
+    spark.sql("cache data select * from partition_escape")
     spark.sql("select * from partition_escape").show()
   }
 

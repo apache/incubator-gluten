@@ -133,7 +133,8 @@ object JoinUtils {
   private def getDirectJoinOutput(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
-      rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
+      rightOutput: Seq[Attribute],
+      callerClassName: String = null): (Seq[Attribute], Seq[Attribute]) = {
     joinType match {
       case _: InnerLike =>
         (leftOutput, rightOutput)
@@ -149,15 +150,17 @@ object JoinUtils {
         // LeftSemi | LeftAnti | ExistenceJoin.
         (leftOutput, Nil)
       case x =>
-        throw new IllegalArgumentException(s"${getClass.getSimpleName} not take $x as the JoinType")
+        val joinClass = Option(callerClassName).getOrElse(this.getClass.getSimpleName)
+        throw new IllegalArgumentException(s"$joinClass not take $x as the JoinType")
     }
   }
 
-  private def getDirectJoinOutputSeq(
+  def getDirectJoinOutputSeq(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
-      rightOutput: Seq[Attribute]): Seq[Attribute] = {
-    val (left, right) = getDirectJoinOutput(joinType, leftOutput, rightOutput)
+      rightOutput: Seq[Attribute],
+      joinClassName: String = null): Seq[Attribute] = {
+    val (left, right) = getDirectJoinOutput(joinType, leftOutput, rightOutput, joinClassName)
     left ++ right
   }
 
@@ -300,20 +303,6 @@ object JoinUtils {
       operatorId,
       directJoinOutputs.size
     )
-  }
-
-  def createTransformContext(
-      exchangeTable: Boolean,
-      output: Seq[Attribute],
-      rel: RelNode,
-      inputStreamedOutput: Seq[Attribute],
-      inputBuildOutput: Seq[Attribute]): TransformContext = {
-    val inputAttributes = if (exchangeTable) {
-      inputBuildOutput ++ inputStreamedOutput
-    } else {
-      inputStreamedOutput ++ inputBuildOutput
-    }
-    TransformContext(output, rel)
   }
 
   def createCrossRel(

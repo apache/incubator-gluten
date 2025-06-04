@@ -16,55 +16,32 @@
  */
 package org.apache.gluten.extension.columnar.enumerated.planner.property
 
+import org.apache.gluten.extension.columnar.enumerated.planner.plan.GroupLeafExec
+import org.apache.gluten.extension.columnar.enumerated.planner.property.Conv.{Prop, Req}
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq, Transition}
-import org.apache.gluten.ras.{Property, PropertyDef}
-import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
+import org.apache.gluten.ras.{GroupLeafBuilder, Property, PropertyDef}
+import org.apache.gluten.ras.rule.EnforcerRuleFactory
 
 import org.apache.spark.sql.execution._
 
 sealed trait Conv extends Property[SparkPlan] {
-  import Conv._
   override def definition(): PropertyDef[SparkPlan, _ <: Property[SparkPlan]] = {
     ConvDef
-  }
-
-  override def satisfies(other: Property[SparkPlan]): Boolean = {
-    // The following enforces strict type checking against `this` and `other`
-    // to make sure:
-    //
-    //  1. `this`, which came from user implementation of PropertyDef.getProperty, must be a `Prop`
-    //  2. `other` which came from user implementation of PropertyDef.getChildrenConstraints,
-    //     must be a `Req`
-    //
-    // If the user implementation doesn't follow the criteria, cast error will be thrown.
-    //
-    // This can be a common practice to implement a safe Property for RAS.
-    //
-    // TODO: Add a similar case to RAS UTs.
-    val req = other.asInstanceOf[Req]
-    if (req.isAny) {
-      return true
-    }
-    val prop = this.asInstanceOf[Prop]
-    val out = Transition.factory.satisfies(prop.prop, req.req)
-    out
   }
 }
 
 object Conv {
   val any: Conv = Req(ConventionReq.any)
 
-  def of(conv: Convention): Conv = Prop(conv)
-  def req(req: ConventionReq): Conv = Req(req)
+  def of(conv: Convention): Prop = Prop(conv)
+  def req(req: ConventionReq): Req = Req(req)
 
-  def get(plan: SparkPlan): Conv = {
+  def get(plan: SparkPlan): Prop = {
     Conv.of(Convention.get(plan))
   }
 
-  def findTransition(from: Conv, to: Conv): Transition = {
-    val prop = from.asInstanceOf[Prop]
-    val req = to.asInstanceOf[Req]
-    val out = Transition.factory.findTransition(prop.prop, req.req, new IllegalStateException())
+  def findTransition(from: Prop, to: Req): Transition = {
+    val out = Transition.factory.findTransition(from.prop, to.req, new IllegalStateException())
     out
   }
 
@@ -79,7 +56,7 @@ object Conv {
 
 object ConvDef extends PropertyDef[SparkPlan, Conv] {
   // TODO: Should the convention-transparent ops (e.g., aqe shuffle read) support
-  //  convention-propagation. Probably need to refactor getChildrenPropertyRequirements.
+  //  convention-propagation. Probably need to refactor getChildrenConstraints.
   override def getProperty(plan: SparkPlan): Conv = {
     conventionOf(plan)
   }
@@ -90,25 +67,57 @@ object ConvDef extends PropertyDef[SparkPlan, Conv] {
   }
 
   override def getChildrenConstraints(
-      constraint: Property[SparkPlan],
-      plan: SparkPlan): Seq[Conv] = {
+      plan: SparkPlan,
+      constraint: Property[SparkPlan]): Seq[Conv] = {
     val out = ConventionReq.get(plan).map(Conv.req)
     out
   }
 
   override def any(): Conv = Conv.any
+
+  override def satisfies(
+      property: Property[SparkPlan],
+      constraint: Property[SparkPlan]): Boolean = {
+    // The following enforces strict type checking against `property` and `constraint`
+    // to make sure:
+    //
+    //  1. `property`, which came from user implementation of PropertyDef.getProperty, must be a
+    //     `Prop`
+    //  2. `constraint` which came from user implementation of PropertyDef.getChildrenConstraints,
+    //     must be a `Req`
+    //
+    // If the user implementation doesn't follow the criteria, cast error will be thrown.
+    //
+    // This can be a common practice to implement a safe Property for RAS.
+    //
+    // TODO: Add a similar case to RAS UTs.
+    (property, constraint) match {
+      case (prop: Prop, req: Req) =>
+        if (req.isAny) {
+          return true
+        }
+        val out = Transition.factory.satisfies(prop.prop, req.req)
+        out
+    }
+  }
+
+  override def assignToGroup(
+      group: GroupLeafBuilder[SparkPlan],
+      constraint: Property[SparkPlan]): GroupLeafBuilder[SparkPlan] = (group, constraint) match {
+    case (builder: GroupLeafExec.Builder, req: Req) =>
+      builder.withConvReq(req)
+  }
 }
 
-case class ConvEnforcerRule(reqConv: Conv) extends RasRule[SparkPlan] {
-  override def shift(node: SparkPlan): Iterable[SparkPlan] = {
+case class ConvEnforcerRule() extends EnforcerRuleFactory.SubRule[SparkPlan] {
+  override def enforce(node: SparkPlan, constraint: Property[SparkPlan]): Iterable[SparkPlan] = {
+    val reqConv = constraint.asInstanceOf[Req]
     val conv = Conv.get(node)
-    if (conv.satisfies(reqConv)) {
+    if (ConvDef.satisfies(conv, reqConv)) {
       return List.empty
     }
     val transition = Conv.findTransition(conv, reqConv)
     val after = transition.apply(node)
     List(after)
   }
-
-  override def shape(): Shape[SparkPlan] = Shapes.fixedHeight(1)
 }

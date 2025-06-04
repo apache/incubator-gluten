@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated.planner.property
 
 import org.apache.gluten.ras._
+import org.apache.gluten.ras.rule.{EnforcerRuleFactory, Shape, Shapes}
 
 import org.apache.spark.sql.execution._
 
@@ -30,13 +31,16 @@ object GlutenPropertyModel {
     override def propertyDefs: Seq[PropertyDef[SparkPlan, _ <: Property[SparkPlan]]] =
       Seq(ConvDef)
 
-    override def newEnforcerRuleFactory(
-        propertyDef: PropertyDef[SparkPlan, _ <: Property[SparkPlan]])
-        : EnforcerRuleFactory[SparkPlan] = (reqProp: Property[SparkPlan]) => {
-      propertyDef match {
-        case ConvDef =>
-          Seq(ConvEnforcerRule(reqProp.asInstanceOf[Conv]))
-      }
-    }
+    override def newEnforcerRuleFactory(): EnforcerRuleFactory[SparkPlan] =
+      EnforcerRuleFactory.fromSubRules(Seq(new EnforcerRuleFactory.SubRuleFactory[SparkPlan] {
+        override def newSubRule(constraintDef: PropertyDef[SparkPlan, _ <: Property[SparkPlan]])
+            : EnforcerRuleFactory.SubRule[SparkPlan] = {
+          constraintDef match {
+            case ConvDef => ConvEnforcerRule()
+          }
+        }
+
+        override def ruleShape: Shape[SparkPlan] = Shapes.fixedHeight(1)
+      }))
   }
 }

@@ -223,10 +223,8 @@ abstract class SortMergeJoinExecTransformerBase(
     )
 
     context.registerJoinParam(operatorId, joinParams)
-
-    JoinUtils.createTransformContext(false, output, joinRel, inputStreamedOutput, inputBuildOutput)
+    TransformContext(output, joinRel)
   }
-
 }
 
 /** Performs a sort merge join of two child relations. */

@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar
 import org.apache.gluten.component.WithDummyBackend
 import org.apache.gluten.extension.columnar.MiscColumnarRules.PreventBatchTypeMismatchInTableCache
 import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.extension.columnar.transition.TransitionSuite.BatchToRow
+import org.apache.gluten.extension.columnar.transition.TransitionSuiteBase.BatchToRow
 
 import org.apache.spark.sql.test.SharedSparkSession
 
@@ -27,7 +27,10 @@ class MiscColumnarRulesSuite extends SharedSparkSession with WithDummyBackend {
 
   test("Fix ColumnarToRowRemovalGuard not able to be copied") {
     val dummyPlan =
-      BatchToRow(Convention.BatchType.VanillaBatch, spark.range(1).queryExecution.sparkPlan)
+      BatchToRow(
+        Convention.BatchType.VanillaBatchType,
+        Convention.RowType.VanillaRowType,
+        spark.range(1).queryExecution.sparkPlan)
     val cloned =
       PreventBatchTypeMismatchInTableCache(isCalledByTableCachePlaning = true, Set.empty)
         .apply(dummyPlan)

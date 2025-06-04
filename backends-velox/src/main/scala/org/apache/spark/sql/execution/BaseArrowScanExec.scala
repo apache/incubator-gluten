@@ -16,13 +16,13 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.columnarbatch.ArrowBatches
+import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes
 import org.apache.gluten.execution.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.Convention
 
 trait BaseArrowScanExec extends GlutenPlan {
   final override def batchType(): Convention.BatchType = {
-    ArrowBatches.ArrowJavaBatch
+    ArrowBatchTypes.ArrowJavaBatchType
   }
 
   final override def rowType0(): Convention.RowType = Convention.RowType.None

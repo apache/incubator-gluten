@@ -220,7 +220,7 @@ class VeloxColumnarWriteFilesRDD(
       })(
         catchBlock = {
           // If there is an error, abort the task
-          commitProtocol.abortTask()
+          commitProtocol.abortTask(writePath)
           logError(s"Job ${commitProtocol.getJobId} aborted.")
         }
       )

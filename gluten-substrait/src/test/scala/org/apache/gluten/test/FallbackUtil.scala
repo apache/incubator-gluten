@@ -30,7 +30,7 @@ import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
 
-  def skip(plan: SparkPlan): Boolean = {
+  def tolerate(plan: SparkPlan): Boolean = {
     plan match {
       case _: ColumnarToRowTransition =>
         true
@@ -67,9 +67,13 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
   }
 
   def hasFallback(plan: SparkPlan): Boolean = {
-    val fallbackOperator = collectWithSubqueries(plan) { case plan => plan }.filterNot(
-      plan => plan.isInstanceOf[GlutenPlan] || skip(plan))
+    val fallbackOperator =
+      collectWithSubqueries(plan) { case plan => plan }.filter(plan => nodeHasFallback(plan))
     fallbackOperator.foreach(operator => log.info(s"gluten fallback operator:{$operator}"))
     fallbackOperator.nonEmpty
+  }
+
+  def nodeHasFallback(plan: SparkPlan): Boolean = {
+    !plan.isInstanceOf[GlutenPlan] && !tolerate(plan)
   }
 }

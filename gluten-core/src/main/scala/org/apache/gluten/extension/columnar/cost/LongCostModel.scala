@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.cost
 
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.extension.columnar.enumerated.planner.plan.GlutenPlanModel.GroupLeafExec
+import org.apache.gluten.extension.columnar.enumerated.planner.plan.GroupLeafExec
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan

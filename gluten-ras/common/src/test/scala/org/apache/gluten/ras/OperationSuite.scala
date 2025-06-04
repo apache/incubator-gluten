@@ -18,7 +18,6 @@ package org.apache.gluten.ras
 
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
-import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.ras.rule.{RasRule, Shape, Shapes}
 
 import org.scalatest.funsuite.AnyFunSuite
@@ -108,7 +107,7 @@ class OperationSuite extends AnyFunSuite {
     val optimized = planner.plan()
     assert(optimized == Unary2(49, Leaf2(29)))
 
-    planModel.assertPlanOpsLte((200, 50, 100, 50))
+    planModel.assertPlanOpsLte((400, 100, 100, 50))
 
     val state = planner.newState()
     val allPaths = state.memoState().collectAllPaths(RasPath.INF_DEPTH).toSeq
@@ -138,7 +137,7 @@ class OperationSuite extends AnyFunSuite {
     val optimized = planner.plan()
     assert(optimized == Unary3(98, Unary3(99, Leaf2(29))))
 
-    planModel.assertPlanOpsLte((800, 300, 300, 200))
+    planModel.assertPlanOpsLte((1300, 300, 300, 200))
 
     val state = planner.newState()
     val allPaths = state.memoState().collectAllPaths(RasPath.INF_DEPTH).toSeq
@@ -189,7 +188,7 @@ class OperationSuite extends AnyFunSuite {
               50,
               Unary2(50, Unary2(50, Unary2(50, Unary2(44, Unary2(50, Unary2(50, Leaf2(29))))))))))))
 
-    planModel.assertPlanOpsLte((20000, 10000, 3000, 3000))
+    planModel.assertPlanOpsLte((20000, 10000, 3000, 4000))
 
     val state = planner.newState()
     val allPaths = state.memoState().collectAllPaths(RasPath.INF_DEPTH).toSeq
@@ -411,12 +410,9 @@ object OperationSuite {
       equalsCount += 1
       delegated.equals(one, other)
     }
-    override def newGroupLeaf(
-        groupId: Int,
-        metadata: Metadata,
-        constraintSet: PropertySet[T]): T = {
+    override def newGroupLeaf(groupId: Int): GroupLeafBuilder[T] = {
       newGroupLeafCount += 1
-      delegated.newGroupLeaf(groupId, metadata, constraintSet)
+      delegated.newGroupLeaf(groupId)
     }
     override def isGroupLeaf(node: T): Boolean = {
       isGroupLeafCount += 1

@@ -156,4 +156,5 @@ trait BackendSettingsApi {
 
   def supportIcebergEqualityDeleteRead(): Boolean = true
 
+  def reorderColumnsForPartitionWrite(): Boolean = false
 }
