@@ -34,11 +34,8 @@ namespace gluten {
 
 class VeloxColumnarBatchSerializerTest : public ::testing::Test, public test::VectorTestBase {
  protected:
-  static void SetupTestSuite() {
+  static void SetUpTestSuite() {
     VeloxBackend::create(AllocationListener::noop(), {});
-  }
-
-  static void SetUpTestCase() {
     memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
