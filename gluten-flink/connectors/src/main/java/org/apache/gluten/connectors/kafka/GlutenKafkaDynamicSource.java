@@ -44,13 +44,10 @@ import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.gluten.util.PlanNodeIdGenerator;
 import org.apache.flink.formats.raw.RawFormatDeserializationSchema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class GlutenKafkaDynamicSource extends KafkaDynamicSource{
-
-    private static final Logger LOG = LoggerFactory.getLogger(GlutenKafkaDynamicSource.class);
+public class GlutenKafkaDynamicSource extends KafkaDynamicSource {
 
     public GlutenKafkaDynamicSource(DataType physicalDataType,
                                     DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
@@ -225,7 +222,7 @@ public class GlutenKafkaDynamicSource extends KafkaDynamicSource{
                    watermarkStrategy = WatermarkStrategy.noWatermarks();
                 }
                 DataStreamSource<RowData> sourceStream = execEnv.fromSource(glutenKafkaSource, watermarkStrategy, "kafkasource-" + tableIdentifier);
-                glutenKafkaSource.setPlanNodeId(String.valueOf(sourceStream.getTransformation().getId()));
+                glutenKafkaSource.setPlanNodeId(PlanNodeIdGenerator.newId());
                 glutenKafkaSource.setEnableAutoCommitOffset(!execEnv.getCheckpointConfig().isCheckpointingEnabled());
                 glutenKafkaSource.setStartupMode(startupMode);
                 providerContext.generateUid("kafka").ifPresent(sourceStream::uid);

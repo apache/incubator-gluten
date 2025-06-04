@@ -64,37 +64,21 @@ import java.util.UUID;
  public class GlutenKafkaSourceReader<T> implements SourceReader<T, KafkaPartitionSplit> {
  
    private static final Logger LOG = LoggerFactory.getLogger(GlutenKafkaSourceReader.class);
- 
    private static final String CONNECTOR_ID = "connector-kafka";
- 
    private static final String KEY_ENABLE_AUTO_COMMIT = "enable.auto.commit";
- 
    private static final String KEY_AUTO_OFFSET_RESET = "auto.offset.reset";
- 
    private static final String KEY_STARTUP_MODE = "scan.startup.mode";
- 
    private final Properties props;
- 
    private final String planNodeId;
- 
    private final String format;
- 
    private final MemoryManager memoryManager;
-
    private final Session session;
-
    private final BufferAllocator allocator;
- 
    private final DataType outputType;
- 
    private final io.github.zhztheplayer.velox4j.type.Type veloxOutputType;
- 
    private final List<KafkaPartitionSplit> topicPartitions;
- 
    private Query query;
-
    private SerialTask task;
- 
    private boolean running = false;
  
    public GlutenKafkaSourceReader(

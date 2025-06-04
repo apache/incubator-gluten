@@ -47,19 +47,12 @@ import org.slf4j.LoggerFactory;
    private static final Logger LOG = LoggerFactory.getLogger(GlutenKafkaSource.class);
  
    private final Properties properties;
- 
    private final String format;
- 
    private final DataType outputType;
- 
    private final KafkaRecordDeserializationSchema<OUT> deserializationSchema;
- 
    private final KafkaSubscriber subscriber;
- 
    private final OffsetsInitializer startingOffsetsInitializer;
- 
    private final OffsetsInitializer stoppingOffsetsInitializer;
- 
    private String planNodeId;
  
    public GlutenKafkaSource(
