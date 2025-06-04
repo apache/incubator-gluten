@@ -101,6 +101,10 @@ jobs:
             sudo apt update && sudo apt install -y gcc-11 g++-11
             export CC=/usr/bin/gcc-11
             export CXX=/usr/bin/g++-11
+            wget https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.1.tar.gz
+            tar xf v0.8.1.tar.gz
+            cd xxHash-0.8.1/
+            make && make install
           fi
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
