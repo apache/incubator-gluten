@@ -21,11 +21,6 @@
 
 namespace gluten {
 
-std::shared_ptr<arrow::MemoryPool> defaultArrowMemoryPool() {
-  static auto staticPool = std::make_shared<ArrowMemoryPool>(defaultMemoryAllocator().get());
-  return staticPool;
-}
-
 arrow::Status ArrowMemoryPool::Allocate(int64_t size, int64_t alignment, uint8_t** out) {
   if (!allocator_->allocateAligned(alignment, size, reinterpret_cast<void**>(out))) {
     return arrow::Status::Invalid("WrappedMemoryPool: Error allocating " + std::to_string(size) + " bytes");
@@ -49,6 +44,10 @@ int64_t ArrowMemoryPool::bytes_allocated() const {
   return allocator_->getBytes();
 }
 
+int64_t ArrowMemoryPool::max_memory() const {
+  return allocator_->peakBytes();
+}
+
 int64_t ArrowMemoryPool::total_bytes_allocated() const {
   throw GlutenException("Not implement");
 }
@@ -59,6 +58,10 @@ int64_t ArrowMemoryPool::num_allocations() const {
 
 std::string ArrowMemoryPool::backend_name() const {
   return "gluten arrow allocator";
+}
+
+MemoryAllocator* ArrowMemoryPool::allocator() const {
+  return allocator_.get();
 }
 
 } // namespace gluten

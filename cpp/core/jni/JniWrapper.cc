@@ -144,8 +144,12 @@ class InternalMemoryManager : public MemoryManager {
  public:
   InternalMemoryManager(const std::string& kind) : MemoryManager(kind) {}
 
-  arrow::MemoryPool* getArrowMemoryPool() override {
+  arrow::MemoryPool* defaultArrowMemoryPool() override {
     throw GlutenException("Not implemented");
+  }
+
+  std::shared_ptr<arrow::MemoryPool> addArrowMemoryPool(const std::string& name) override {
+    throw GlutenException("Not yet implemented");
   }
 
   const MemoryUsageStats collectMemoryUsageStats() const override {

@@ -217,7 +217,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         kDefaultBatchSize,
         kDefaultReadBufferSize,
         kDefaultDeserializerBufferSize,
-        getDefaultMemoryManager()->getArrowMemoryPool(),
+        getDefaultMemoryManager()->defaultArrowMemoryPool(),
         pool_,
         GetParam().shuffleWriterType);
 
@@ -293,7 +293,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 class SinglePartitioningShuffleWriterTest : public VeloxShuffleWriterTest {
  protected:
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t) override {
-    auto* arrowPool = getDefaultMemoryManager()->getArrowMemoryPool();
+    auto* arrowPool = getDefaultMemoryManager()->defaultArrowMemoryPool();
     auto veloxPool = getDefaultMemoryManager()->getLeafMemoryPool();
 
     shuffleWriterOptions_.partitioning = Partitioning::kSingle;
@@ -323,7 +323,7 @@ class HashPartitioningShuffleWriterTest : public VeloxShuffleWriterTest {
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) override {
-    auto* arrowPool = getDefaultMemoryManager()->getArrowMemoryPool();
+    auto* arrowPool = getDefaultMemoryManager()->defaultArrowMemoryPool();
     auto veloxPool = getDefaultMemoryManager()->getLeafMemoryPool();
 
     shuffleWriterOptions_.partitioning = Partitioning::kHash;
@@ -368,7 +368,7 @@ class RangePartitioningShuffleWriterTest : public VeloxShuffleWriterTest {
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) override {
-    auto* arrowPool = getDefaultMemoryManager()->getArrowMemoryPool();
+    auto* arrowPool = getDefaultMemoryManager()->defaultArrowMemoryPool();
     auto veloxPool = getDefaultMemoryManager()->getLeafMemoryPool();
 
     shuffleWriterOptions_.partitioning = Partitioning::kRange;
@@ -397,7 +397,7 @@ class RangePartitioningShuffleWriterTest : public VeloxShuffleWriterTest {
 class RoundRobinPartitioningShuffleWriterTest : public VeloxShuffleWriterTest {
  protected:
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) override {
-    auto* arrowPool = getDefaultMemoryManager()->getArrowMemoryPool();
+    auto* arrowPool = getDefaultMemoryManager()->defaultArrowMemoryPool();
     auto veloxPool = getDefaultMemoryManager()->getLeafMemoryPool();
 
     shuffleWriterOptions_.partitioning = Partitioning::kRoundRobin;

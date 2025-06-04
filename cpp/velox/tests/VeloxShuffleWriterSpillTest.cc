@@ -50,7 +50,7 @@ class VeloxHashShuffleWriterSpillTest : public VeloxShuffleWriterTestBase, publi
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) override {
-    auto* arrowPool = getDefaultMemoryManager()->getArrowMemoryPool();
+    auto* arrowPool = getDefaultMemoryManager()->defaultArrowMemoryPool();
     auto veloxPool = getDefaultMemoryManager()->getLeafMemoryPool();
 
     auto partitionWriter = createPartitionWriter(
@@ -94,7 +94,7 @@ TEST_F(VeloxHashShuffleWriterSpillTest, memoryLeak) {
 
   ASSERT_NOT_OK(shuffleWriter->stop());
 
-  const auto* arrowPool = getDefaultMemoryManager()->getArrowMemoryPool();
+  const auto* arrowPool = getDefaultMemoryManager()->defaultArrowMemoryPool();
 
   ASSERT_EQ(arrowPool->bytes_allocated(), 0);
 

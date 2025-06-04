@@ -34,7 +34,7 @@ class PartitionWriter : public Reclaimable {
  public:
   PartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, MemoryManager* memoryManager)
       : numPartitions_(numPartitions), options_(std::move(options)), memoryManager_(memoryManager) {
-    payloadPool_ = std::make_unique<ShuffleMemoryPool>(memoryManager->getArrowMemoryPool());
+    payloadPool_ = memoryManager->addArrowMemoryPool("PartitionWriter.cached_payload");
     codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend, options_.compressionLevel);
   }
 
@@ -79,7 +79,7 @@ class PartitionWriter : public Reclaimable {
 
   // Memory Pool used to track memory allocation of partition payloads.
   // The actual allocation is delegated to options_.memoryPool.
-  std::unique_ptr<ShuffleMemoryPool> payloadPool_;
+  std::shared_ptr<arrow::MemoryPool> payloadPool_;
 
   std::unique_ptr<arrow::util::Codec> codec_;
 
