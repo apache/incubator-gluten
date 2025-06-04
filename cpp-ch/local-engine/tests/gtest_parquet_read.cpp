@@ -361,6 +361,7 @@ TEST(ParquetRead, ArrowRead)
     ArrowColumnToCHColumn converter(
         header,
         "Parquet",
+        format_settings,
         format_settings.parquet.allow_missing_columns,
         format_settings.null_as_default,
         format_settings.date_time_overflow_behavior,
