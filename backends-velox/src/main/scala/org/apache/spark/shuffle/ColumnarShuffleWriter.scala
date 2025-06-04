@@ -160,6 +160,7 @@ class ColumnarShuffleWriter[K, V](
             GlutenConfig.get.columnarShuffleCompressionMode,
             conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
             conf.get(SHUFFLE_SORT_USE_RADIXSORT),
+            GlutenConfig.get.columnarShuffleEnableDictionary,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
@@ -213,6 +214,8 @@ class ColumnarShuffleWriter[K, V](
           dep.metrics("shuffleWallTime").value - splitResult.getTotalSpillTime -
             splitResult.getTotalWriteTime -
             splitResult.getTotalCompressTime)
+      dep.metrics("avgDictionaryFields").set(splitResult.getAvgDictionaryFields)
+      dep.metrics("dictionarySize").add(splitResult.getDictionarySize)
     } else {
       dep.metrics("sortTime").add(splitResult.getSortTime)
       dep.metrics("c2rTime").add(splitResult.getC2RTime)

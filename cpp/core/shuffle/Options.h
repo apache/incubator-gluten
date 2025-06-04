@@ -41,6 +41,7 @@ static constexpr int32_t kDefaultSortBufferSize = 4096;
 static constexpr int64_t kDefaultReadBufferSize = 1 << 20;
 static constexpr int64_t kDefaultDeserializerBufferSize = 1 << 20;
 static constexpr int64_t kDefaultShuffleFileBufferSize = 32 << 10;
+static constexpr bool kDefaultEnableDictionary = false;
 
 enum class ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
 
@@ -97,6 +98,8 @@ struct PartitionWriterOptions {
   int64_t sortBufferMaxSize = kDefaultSortBufferThreshold;
 
   int64_t shuffleFileBufferSize = kDefaultShuffleFileBufferSize;
+
+  bool enableDictionary = kDefaultEnableDictionary;
 };
 
 struct ShuffleWriterMetrics {
@@ -106,6 +109,8 @@ struct ShuffleWriterMetrics {
   int64_t totalWriteTime{0};
   int64_t totalEvictTime{0};
   int64_t totalCompressTime{0};
+  double avgDictionaryFields{0};
+  int64_t dictionarySize{0};
   std::vector<int64_t> partitionLengths{};
   std::vector<int64_t> rawPartitionLengths{}; // Uncompressed size.
 };
