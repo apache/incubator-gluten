@@ -22,7 +22,7 @@
 #include "memory/VeloxMemoryManager.h"
 #include "utils/ObjectStore.h"
 #include "velox/exec/HashTable.h"
-#include "velox/exec/HashTableBuilder.h"
+#include "operators/hashjoin/HashTableBuilder.h"
 
 namespace gluten {
 
@@ -31,7 +31,7 @@ inline static JavaVM* vm = nullptr;
 static std::unique_ptr<ObjectStore> hashTableObjStore = ObjectStore::create();
 
 // Return the hash table builder address.
-std::shared_ptr<facebook::velox::exec::HashTableBuilder> nativeHashTableBuild(
+std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
     const std::string& joinKeys,
     std::vector<std::string> names,
     std::vector<facebook::velox::TypePtr> veloxTypeList,

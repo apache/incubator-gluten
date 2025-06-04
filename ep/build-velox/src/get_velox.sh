@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/JkSelf/velox.git
-VELOX_BRANCH=bhj-optimization-1
+VELOX_BRANCH=bhj-optimization-1-refactor
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 
