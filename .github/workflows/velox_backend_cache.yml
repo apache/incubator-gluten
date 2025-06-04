@@ -56,6 +56,7 @@ jobs:
 
   cache-native-lib-centos-8:
     runs-on: ${{ matrix.os }}
+    container: apache/gluten:vcpkg-centos-8
     strategy:
       matrix:
         os: [ ubuntu-22.04, ubuntu-24.04-arm ]
@@ -70,11 +71,9 @@ jobs:
             ccache-centos8-release-default-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
-          docker run -v $GITHUB_WORKSPACE:/work -w /work apache/gluten:vcpkg-centos-8 bash -c "
-            export CCACHE_DIR=/work/.ccache
-            mkdir -p /work/.ccache
-            bash dev/ci-velox-buildstatic-centos-8.sh
-          "
+          export CCACHE_DIR=$GITHUB_WORKSPACE/.ccache
+          mkdir -p $GITHUB_WORKSPACE/.ccache
+          bash dev/ci-velox-buildstatic-centos-8.sh
       - name: Save Ccache
         uses: actions/cache/save@v3
         id: ccache
