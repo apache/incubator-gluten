@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v4
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -84,7 +85,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: build
         run: |
           sed -i 's|http://archive|http://us.archive|g' /etc/apt/sources.list
