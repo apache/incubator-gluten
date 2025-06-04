@@ -192,6 +192,12 @@
               </relocations>
               <filters>
                 <filter>
+                  <artifact>com.google.code.findbugs:jsr305</artifact>
+                  <excludes>
+                    <exclude>**</exclude>
+                  </excludes>
+                </filter>
+                <filter>
                   <artifact>*:*</artifact>
                   <excludes>
                     <exclude>META-INF/*.SF</exclude>
