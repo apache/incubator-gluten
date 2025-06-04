@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi.velox
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.{ArrowJavaBatchType, ArrowNativeBatchType}
 import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.VeloxConfig
 import org.apache.gluten.config.VeloxConfig._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
@@ -27,6 +28,7 @@ import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
 import org.apache.gluten.memory.{MemoryUsageRecorder, SimpleMemoryUsageRecorder}
 import org.apache.gluten.memory.listener.ReservationListener
+import org.apache.gluten.monitor.VeloxMemoryProfiler
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
 
@@ -42,7 +44,7 @@ import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
-import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, SparkShutdownManagerUtil}
 
 import org.apache.commons.lang3.StringUtils
 
@@ -145,6 +147,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     SparkDirectoryUtil.init(conf)
     initialize(conf, isDriver = false)
+    addIfNeedMemoryDumpShutdownHook(conf)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
@@ -168,10 +171,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Do row / batch type initializations.
     Convention.ensureSparkRowAndBatchTypesRegistered()
-    VeloxCarrierRowType.ensureRegistered()
     ArrowJavaBatchType.ensureRegistered()
     ArrowNativeBatchType.ensureRegistered()
     VeloxBatchType.ensureRegistered()
+    VeloxCarrierRowType.ensureRegistered()
 
     // Register columnar shuffle so can be considered when
     // `org.apache.spark.shuffle.GlutenShuffleManager` is set as Spark shuffle manager.
@@ -210,21 +213,28 @@ class VeloxListenerApi extends ListenerApi with Logging {
     }
 
     // Initial native backend with configurations.
-    var parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
-
-    // Workaround for https://github.com/apache/incubator-gluten/issues/7837
-    if (isDriver && !inLocalMode(conf)) {
-      parsed += (COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
-    }
     NativeBackendInitializer
       .forBackend(VeloxBackend.BACKEND_NAME)
-      .initialize(newGlobalOffHeapMemoryListener(), parsed)
+      .initialize(newGlobalOffHeapMemoryListener(), parseConf(conf, isDriver))
 
     // Inject backend-specific implementations to override spark classes.
     GlutenFormatFactory.register(new VeloxParquetWriterInjects)
     GlutenFormatFactory.injectPostRuleFactory(
       session => GlutenWriterColumnarRules.NativeWritePostRule(session))
     GlutenFormatFactory.register(new VeloxRowSplitter())
+  }
+
+  private def addIfNeedMemoryDumpShutdownHook(conf: SparkConf): Unit = {
+    val memoryDumpOnExit =
+      conf.get(MEMORY_DUMP_ON_EXIT.key, MEMORY_DUMP_ON_EXIT.defaultValueString).toBoolean
+    if (memoryDumpOnExit) {
+      SparkShutdownManagerUtil.addHook(
+        () => {
+          logInfo("MemoryDumpOnExit triggered, dumping memory profile.")
+          VeloxMemoryProfiler.dump()
+          logInfo("MemoryDumpOnExit completed.")
+        })
+    }
   }
 
   private def shutdown(): Unit = {
@@ -273,5 +283,19 @@ object VeloxListenerApi {
         recorder.current()
       }
     }
+  }
+
+  def parseConf(conf: SparkConf, isDriver: Boolean): Map[String, String] = {
+    // Ensure velox conf registered.
+    VeloxConfig.get
+
+    var parsed: Map[String, String] = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
+
+    // Workaround for https://github.com/apache/incubator-gluten/issues/7837
+    if (isDriver && !inLocalMode(conf)) {
+      parsed += (COLUMNAR_VELOX_CACHE_ENABLED.key -> "false")
+    }
+
+    parsed
   }
 }

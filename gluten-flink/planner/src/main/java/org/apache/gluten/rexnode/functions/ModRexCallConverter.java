@@ -14,31 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gluten.rexnode.functions;
 
-package org.apache.gluten.rexnode;
+import org.apache.gluten.rexnode.RexConversionContext;
+import org.apache.gluten.rexnode.RexNodeConverter;
+import org.apache.gluten.rexnode.TypeUtils;
 
 import io.github.zhztheplayer.velox4j.expression.CallTypedExpr;
 import io.github.zhztheplayer.velox4j.expression.TypedExpr;
 import io.github.zhztheplayer.velox4j.type.Type;
 
 import org.apache.calcite.rex.RexCall;
-import org.apache.gluten.rexnode.RexConversionContext;
-import org.apache.gluten.rexnode.RexNodeConverter;
 
 import java.util.List;
 
- public class ModRexCallConverter extends BaseRexCallConverter {
-    private static final String FUNCTION_NAME = "remainder";
-    public ModRexCallConverter() {
-        super(FUNCTION_NAME);
-    }
+public class ModRexCallConverter extends BaseRexCallConverter {
+  private static final String FUNCTION_NAME = "remainder";
 
-    @Override
-    public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
-        List<TypedExpr> params = getParams(callNode, context);
-        List<TypedExpr> alignedParams = Utils.promoteTypeForArithmeticExpressions(params);
-        // Use the divisor's type as the result type
-        Type resultType = params.get(1).getReturnType();
-        return new CallTypedExpr(resultType, params, functionName);
-    }
+  public ModRexCallConverter() {
+    super(FUNCTION_NAME);
+  }
+
+  @Override
+  public boolean isSupported(RexCall callNode, RexConversionContext context) {
+    // Modulus operation is supported for numeric types.
+    return callNode.getOperands().size() == 2
+        && TypeUtils.isNumericType(RexNodeConverter.toType(callNode.getType()));
+  }
+
+  @Override
+  public TypedExpr toTypedExpr(RexCall callNode, RexConversionContext context) {
+    List<TypedExpr> params = getParams(callNode, context);
+    List<TypedExpr> alignedParams = TypeUtils.promoteTypeForArithmeticExpressions(params);
+    // Use the divisor's type as the result type
+    Type resultType = params.get(1).getReturnType();
+    return new CallTypedExpr(resultType, params, functionName);
+  }
 }

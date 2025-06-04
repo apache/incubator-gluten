@@ -40,83 +40,83 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
   disableFallbackCheck
   import testImplicits._
 
-  test("Test abs function") {
+  test("abs") {
     val df = runQueryAndCompare("SELECT abs(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test acos function") {
+  test("acos") {
     runQueryAndCompare("SELECT acos(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test asin function") {
+  test("asin") {
     runQueryAndCompare("SELECT asin(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test atan function") {
+  test("atan") {
     runQueryAndCompare("SELECT atan(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  ignore("Test atan2 function datatab") {
+  ignore("atan2") {
     runQueryAndCompare("SELECT atan2(double_field1, 0) from datatab limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test bin function") {
+  test("bin") {
     val df = runQueryAndCompare("SELECT bin(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test ceil function") {
+  test("ceil") {
     val df = runQueryAndCompare("SELECT ceil(cast(l_orderkey as long)) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test ceiling function") {
+  test("ceiling") {
     runQueryAndCompare("SELECT ceiling(cast(l_orderkey as long)) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test cos function") {
+  test("cos") {
     runQueryAndCompare("SELECT cos(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test cosh function") {
+  test("cosh") {
     runQueryAndCompare("SELECT cosh(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test degrees function") {
+  test("degrees") {
     runQueryAndCompare("SELECT degrees(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test exp function") {
+  test("exp") {
     val df = runQueryAndCompare("SELECT exp(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test factorial function") {
+  test("factorial") {
     withTable("factorial_input") {
       sql("CREATE TABLE factorial_input(id INT) USING parquet")
       sql("""
@@ -156,14 +156,14 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test floor function") {
+  test("floor") {
     val df = runQueryAndCompare("SELECT floor(cast(l_orderkey as long)) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test greatest function") {
+  test("greatest") {
     runQueryAndCompare(
       "SELECT greatest(l_orderkey, l_orderkey)" +
         "from lineitem limit 1") {
@@ -187,13 +187,13 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test hex function") {
+  test("hex") {
     runQueryAndCompare("SELECT hex(l_partkey), hex(l_shipmode) FROM lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test least function") {
+  test("least") {
     runQueryAndCompare(
       "SELECT least(l_orderkey, l_orderkey)" +
         "from lineitem limit 1") {
@@ -217,39 +217,39 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test log function") {
+  test("log") {
     runQueryAndCompare("SELECT log(10, l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test log10 function") {
+  test("log10") {
     runQueryAndCompare("SELECT log10(l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test negative function") {
+  test("negative") {
     runQueryAndCompare("select negative(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test pmod function") {
+  test("pmod") {
     val df = runQueryAndCompare("SELECT pmod(cast(l_orderkey as int), 3) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test power function") {
+  test("power") {
     val df = runQueryAndCompare("SELECT power(l_orderkey, 2) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     checkLengthAndPlan(df, 1)
   }
 
-  test("Test rand function") {
+  test("rand") {
     runQueryAndCompare(
       """SELECT rand() from lineitem limit 100""".stripMargin,
       compareResult = false) {
@@ -257,7 +257,7 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test rint function") {
+  test("rint") {
     withTempPath {
       path =>
         Seq(1.2, 1.5, 1.9).toDF("d").write.parquet(path.getCanonicalPath)
@@ -269,7 +269,7 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test round function") {
+  test("round") {
     runQueryAndCompare(
       "SELECT round(cast(l_orderkey as int), 2)" +
         "from lineitem limit 1") {
@@ -288,13 +288,13 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     compareResultsAgainstVanillaSpark("select round(44, -1)", true, { _ => })
   }
 
-  test("Test shiftleft function") {
+  test("shiftleft") {
     runQueryAndCompare("SELECT shiftleft(int_field1, 1) from datatab limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  test("Test try_add function") {
+  test("try_add") {
     runQueryAndCompare(
       "select try_add(cast(l_orderkey as int), 1), try_add(cast(l_orderkey as int), 2147483647)" +
         " from lineitem") {
@@ -302,7 +302,7 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test try_divide function") {
+  test("try_divide") {
     runQueryAndCompare(
       "select try_divide(cast(l_orderkey as int), 0) from lineitem",
       noFallBack = false) {
@@ -310,7 +310,7 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test try_multiply function", "3.3") {
+  testWithMinSparkVersion("try_multiply", "3.3") {
     runQueryAndCompare(
       "select try_multiply(2147483647, cast(l_orderkey as int)), " +
         "try_multiply(-2147483648, cast(l_orderkey as int)) from lineitem") {
@@ -318,7 +318,7 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  testWithMinSparkVersion("Test try_subtract function", "3.3") {
+  testWithMinSparkVersion("try_subtract", "3.3") {
     runQueryAndCompare(
       "select try_subtract(2147483647, cast(l_orderkey as int)), " +
         "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
@@ -326,13 +326,13 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
     }
   }
 
-  test("Test unhex function") {
+  test("unhex") {
     runQueryAndCompare("SELECT unhex(hex(l_shipmode)) FROM lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
-  testWithMinSparkVersion("Test width_bucket function", "3.4") {
+  testWithMinSparkVersion("width_bucket", "3.4") {
     withTempPath {
       path =>
         Seq[(Integer, Integer, Integer, Integer)](
@@ -348,5 +348,12 @@ abstract class MathFunctionsValidateSuite extends FunctionsValidateSuite {
           checkGlutenOperatorMatch[BatchScanExecTransformer]
         }
     }
+  }
+
+  test("sqrt") {
+    val df = runQueryAndCompare("SELECT sqrt(l_orderkey) from lineitem limit 1") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    checkLengthAndPlan(df, 1)
   }
 }

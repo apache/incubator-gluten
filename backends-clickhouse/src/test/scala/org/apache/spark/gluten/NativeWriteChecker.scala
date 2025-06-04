@@ -17,12 +17,11 @@
 package org.apache.spark.gluten
 
 import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
+import org.apache.gluten.execution.{CHColumnarToCarrierRowExec, GlutenClickHouseWholeStageTransformerSuite}
 
 import org.apache.spark.sql.{Dataset, Row}
 import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, QueryExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.FakeRowAdaptor
 import org.apache.spark.sql.util.QueryExecutionListener
 
 import java.io.File
@@ -53,7 +52,7 @@ trait NativeWriteChecker
           nativeUsed = if (isSparkVersionGE("3.5")) {
             executedPlan.find(_.isInstanceOf[ColumnarWriteFilesExec]).isDefined
           } else {
-            executedPlan.find(_.isInstanceOf[FakeRowAdaptor]).isDefined
+            executedPlan.find(_.isInstanceOf[CHColumnarToCarrierRowExec]).isDefined
           }
         }
       }

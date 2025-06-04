@@ -56,6 +56,7 @@ void BM_ColumnIndexRead_NoFilter(benchmark::State & state)
     for (auto _ : state)
     {
         local_engine::ParquetMetaBuilder metaBuilder{
+            .format_settings = format_settings,
             .collectPageIndex = true,
             .collectSkipRowGroup = false,
             .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
@@ -299,6 +300,7 @@ std::pair<size_t, int64_t> calculateRowsAndDeleteCount(benchmark::State & state,
     FormatSettings format_settings;
 
     ParquetMetaBuilder metaBuilder{
+        .format_settings = format_settings,
         .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
         .allow_missing_columns = format_settings.parquet.allow_missing_columns};
     ReadBufferFromFilePRead fileReader(file_path);

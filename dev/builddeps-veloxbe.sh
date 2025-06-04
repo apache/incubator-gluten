@@ -47,7 +47,7 @@ VELOX_HOME=""
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
 SPARK_VERSION=ALL
-INSTALL_PREFIX=${INSTALL_PREFIX:-}
+INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 
 # set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -273,6 +273,7 @@ DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
 mkdir -p ${DEPENDENCY_DIR}
 
 source $GLUTEN_DIR/dev/build_helper_functions.sh
+source ${VELOX_HOME}/scripts/setup-common.sh
 if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
   echo "Start to install dependencies"
   pushd $VELOX_HOME
@@ -285,14 +286,14 @@ if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     exit 1
   fi
   if [ $ENABLE_S3 == "ON" ]; then
-    ${VELOX_HOME}/scripts/setup-adapters.sh aws
+    install_aws_deps
   fi
   if [ $ENABLE_GCS == "ON" ]; then
-    ${VELOX_HOME}/scripts/setup-adapters.sh gcs
+    install_gcs-sdk-cpp
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
     export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
-    ${VELOX_HOME}/scripts/setup-adapters.sh abfs
+    install_azure-storage-sdk-cpp
   fi
   popd
 fi

@@ -19,7 +19,6 @@
 
 #include <arrow/array/array_binary.h>
 #include <arrow/io/buffered.h>
-#include <arrow/io/compressed.h>
 #include <velox/common/caching/AsyncDataCache.h>
 
 #include "memory/VeloxColumnarBatch.h"
@@ -27,7 +26,6 @@
 #include "shuffle/Payload.h"
 #include "shuffle/Utils.h"
 #include "utils/Common.h"
-#include "utils/Compression.h"
 #include "utils/Macros.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
@@ -135,7 +133,7 @@ VectorPtr readFlatVectorStringView(
   auto nulls = buffers[bufferIdx++];
   auto lengthBuffer = buffers[bufferIdx++];
   auto valueBuffer = buffers[bufferIdx++];
-  const auto* rawLength = lengthBuffer->as<BinaryArrayLengthBufferType>();
+  const auto* rawLength = lengthBuffer->as<StringLengthType>();
 
   std::vector<BufferPtr> stringBuffers;
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
@@ -341,16 +339,17 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
       break;
     }
     if (!merged_) {
-      merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, std::move(arrowBuffers));
+      merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, schema_, std::move(arrowBuffers));
       arrowBuffers.clear();
       continue;
     }
+
     auto mergedRows = merged_->numRows() + numRows;
     if (mergedRows > batchSize_) {
       break;
     }
 
-    auto append = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, std::move(arrowBuffers));
+    auto append = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, schema_, std::move(arrowBuffers));
     GLUTEN_ASSIGN_OR_THROW(merged_, InMemoryPayload::merge(std::move(merged_), std::move(append), memoryPool_));
     arrowBuffers.clear();
   }
@@ -364,8 +363,9 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
 
   // Save remaining rows.
   if (!arrowBuffers.empty()) {
-    merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, std::move(arrowBuffers));
+    merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, schema_, std::move(arrowBuffers));
   }
+
   return columnarBatch;
 }
 

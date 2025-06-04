@@ -16,8 +16,11 @@
  */
 package org.apache.gluten.backendsapi.velox
 
+import org.apache.gluten.execution.VeloxColumnarToCarrierRowExec
 import org.apache.gluten.extension.columnar.transition.Convention
 
 object VeloxCarrierRowType extends Convention.RowType {
-  override protected[this] def registerTransitions(): Unit = {}
+  override protected[this] def registerTransitions(): Unit = {
+    fromBatch(VeloxBatchType, VeloxColumnarToCarrierRowExec.apply)
+  }
 }

@@ -71,6 +71,7 @@ object VeloxRuleApi {
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
     injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
+    injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
     // Legacy: The legacy transform rule.
     val offloads = Seq(OffloadOthers(), OffloadExchange(), OffloadJoin()).map(_.toStrcitRule())
@@ -133,6 +134,7 @@ object VeloxRuleApi {
     injector.injectPreTransform(_ => RewriteSubqueryBroadcast())
     injector.injectPreTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.injectPreTransform(c => ArrowScanReplaceRule.apply(c.session))
+    injector.injectPreTransform(_ => EliminateRedundantGetTimestamp)
 
     // Gluten RAS: The RAS rule.
     val validatorBuilder: GlutenConfig => Validator = conf => Validators.newValidator(conf)
