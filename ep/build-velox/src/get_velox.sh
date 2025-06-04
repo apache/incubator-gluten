@@ -19,6 +19,7 @@ set -exu
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=2025_06_03
 VELOX_HOME=""
+RUN_SETUP_SCRIPT=ON
 
 OS=`uname -s`
 
@@ -34,6 +35,10 @@ for arg in "$@"; do
     ;;
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --run_setup_script=*)
+    RUN_SETUP_SCRIPT=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -234,13 +239,15 @@ function setup_linux {
   fi
 }
 
-if [ $OS == 'Linux' ]; then
-  setup_linux
-elif [ $OS == 'Darwin' ]; then
-  :
-else
-  echo "Unsupported kernel: $OS"
-  exit 1
+if [[ "$RUN_SETUP_SCRIPT" == "ON" ]]; then
+  if [ $OS == 'Linux' ]; then
+    setup_linux
+  elif [ $OS == 'Darwin' ]; then
+    :
+  else
+    echo "Unsupported kernel: $OS"
+    exit 1
+  fi
 fi
 
 apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
