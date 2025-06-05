@@ -114,7 +114,8 @@ jobs:
           git clone -b main --depth=1 https://github.com/apache/incubator-gluten.git && cd incubator-gluten/
           $SETUP install_maven
           export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin
+
           ./dev/package.sh
 
   build-on-ubuntu:
