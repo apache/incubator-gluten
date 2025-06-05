@@ -463,6 +463,38 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
+JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_start( // NOLINT
+    JNIEnv* env,
+    jclass) {
+  JNI_METHOD_START
+#ifdef ENABLE_JEMALLOC_STATS
+  bool active = true;
+  mallctl("prof.active", NULL, NULL, &active, sizeof(bool));
+#endif
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_dump( // NOLINT
+    JNIEnv* env,
+    jclass) {
+  JNI_METHOD_START
+#ifdef ENABLE_JEMALLOC_STATS
+  mallctl("prof.dump", NULL, NULL, NULL, 0);
+#endif
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_monitor_VeloxMemoryProfiler_stop( // NOLINT
+    JNIEnv* env,
+    jclass) {
+  JNI_METHOD_START
+#ifdef ENABLE_JEMALLOC_STATS
+  bool active = false;
+  mallctl("prof.active", NULL, NULL, &active, sizeof(bool));
+#endif
+  JNI_METHOD_END()
+}
+
 #ifdef __cplusplus
 }
 #endif

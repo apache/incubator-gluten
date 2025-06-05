@@ -181,10 +181,11 @@ VectorizedParquetRecordReader::VectorizedParquetRecordReader(const DB::Block & h
     , arrow_column_to_ch_column_(
           parquet_header_,
           "Parquet",
-          format_settings.parquet.allow_missing_columns,
-          format_settings.null_as_default,
-          format_settings.date_time_overflow_behavior,
-          format_settings.parquet.case_insensitive_column_matching)
+          format_settings_,
+          format_settings_.parquet.allow_missing_columns,
+          format_settings_.null_as_default,
+          format_settings_.date_time_overflow_behavior,
+          format_settings_.parquet.case_insensitive_column_matching)
 {
 }
 
