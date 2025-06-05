@@ -271,7 +271,7 @@ class VeloxParquetWriteForHiveSuite
     }
   }
 
-  test("bucket writer with non-dynamic partition should fallback") {
+  test("bucket writer with non-dynamic partition") {
     if (isSparkVersionGE("3.4")) {
       Seq("true", "false").foreach {
         enableConvertMetastore =>
@@ -293,7 +293,7 @@ class VeloxParquetWriteForHiveSuite
               // hive relation convert always use dynamic, so it will offload to native.
               checkNativeWrite(
                 s"INSERT INTO $target PARTITION(k='0') SELECT i, j FROM $source",
-                checkNative = enableConvertMetastore.toBoolean)
+                checkNative = true)
               val files = tableDir(target)
                 .listFiles()
                 .filterNot(f => f.getName.startsWith(".") || f.getName.startsWith("_"))
@@ -305,7 +305,7 @@ class VeloxParquetWriteForHiveSuite
     }
   }
 
-  test("bucket writer with non-partition table should fallback") {
+  test("bucket writer with non-partition table") {
     if (isSparkVersionGE("3.4")) {
       Seq("true", "false").foreach {
         enableConvertMetastore =>
@@ -323,7 +323,7 @@ class VeloxParquetWriteForHiveSuite
                 (0 until 50).map(i => (i % 13, i.toString)).toDF("i", "j")
               df.write.mode(SaveMode.Overwrite).saveAsTable(source)
 
-              checkNativeWrite(s"INSERT INTO $target SELECT i, j FROM $source", checkNative = false)
+              checkNativeWrite(s"INSERT INTO $target SELECT i, j FROM $source", checkNative = true)
 
               checkAnswer(spark.table(target), df)
             }

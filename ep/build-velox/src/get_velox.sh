@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2025_06_05
+VELOX_BRANCH=2025_06_05_fix
 VELOX_HOME=""
 RUN_SETUP_SCRIPT=ON
 
@@ -230,6 +230,14 @@ function setup_linux {
       3.2) process_setup_tencentos32 ;;
       *)
         echo "Unsupported tencentos version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
+  elif [[ "$LINUX_DISTRIBUTION" == "rhel" ]]; then
+    case "$LINUX_VERSION_ID" in
+      9.6) ;;
+      *)
+        echo "Unsupported openEuler version: $LINUX_VERSION_ID"
         exit 1
       ;;
     esac

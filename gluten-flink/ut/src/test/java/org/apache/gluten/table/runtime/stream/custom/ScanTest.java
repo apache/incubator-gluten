@@ -169,4 +169,12 @@ class ScanTest extends GlutenStreamingTestBase {
     runAndCheck(
         query, Arrays.asList("+I[1, null]", "+I[2, {null=3, a=null, b=2}]", "+I[3, {c=3, d=4}]"));
   }
+
+  @Test
+  void testCharScan() {
+    List<Row> rows = Arrays.asList(Row.of(1, "a1"), Row.of(2, "b2"), Row.of(3, "c2"));
+    createSimpleBoundedValuesTable("charTbl", "a int, b char(2)", rows);
+    String query = "select a, b from charTbl where a > 0";
+    runAndCheck(query, Arrays.asList("+I[1, a1]", "+I[2, b2]", "+I[3, c2]"));
+  }
 }
