@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include <memory>
+#include <ranges>
 #include <type_traits>
 #include <Columns/ColumnConst.h>
 #include <Columns/ColumnNullable.h>
@@ -32,7 +33,6 @@
 #include <Functions/IFunction.h>
 #include <Functions/IFunctionAdaptors.h>
 #include <Functions/Regexps.h>
-#include <base/map.h>
 #include <Common/Exception.h>
 #include <Common/OptimizedRegularExpression.h>
 
@@ -349,7 +349,9 @@ public:
         else
             function_ptr = SparkFunctionStrToMap<RegularSplitter, RegularSplitter>::create(context);
         return std::make_unique<DB::FunctionToFunctionBaseAdaptor>(
-            function_ptr, collections::map<DB::DataTypes>(arguments, [](const auto & elem) { return elem.type; }), return_type);
+            function_ptr,
+            DB::DataTypes{std::from_range_t{}, arguments | std::views::transform([](const auto & elem) { return elem.type; })},
+            return_type);
     }
 
     DB::DataTypePtr getReturnTypeImpl(const DB::ColumnsWithTypeAndName & arguments) const override
