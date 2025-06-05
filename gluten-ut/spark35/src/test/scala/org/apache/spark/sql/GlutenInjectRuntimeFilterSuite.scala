@@ -24,12 +24,15 @@ class GlutenInjectRuntimeFilterSuite extends InjectRuntimeFilterSuite with Glute
     withSQLConf(
       SQLConf.RUNTIME_BLOOM_FILTER_APPLICATION_SIDE_SCAN_SIZE_THRESHOLD.key -> "3000",
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "false",
+      "spark.gluten.sql.native.bloomFilter" -> "false",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "2000"
     ) {
       val query = "select * from bf5part join bf2 on bf5part.f5 = bf2.c2 where bf2.a2 = 67"
       val df = sql(query)
       df.collect()
-      logWarning(s"GlutenInjectRuntimeFilterSuite Plan:\n${df.queryExecution.executedPlan}\n")
+      val plan = df.queryExecution.executedPlan.toString()
+      logWarning(s"GlutenInjectRuntimeFilterSuite Plan:")
+      plan.split("\n").foreach(logWarning(_))
       assertRewroteWithBloomFilter(
         "select * from bf5part join bf2 on " +
           "bf5part.f5 = bf2.c2 where bf2.a2 = 67")
