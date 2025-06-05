@@ -60,8 +60,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // When the Velox cache is enabled, the Velox file handle cache should also be enabled.
     // Otherwise, a 'reference id not found' error may occur.
-    if (conf.get(COLUMNAR_VELOX_CACHE_ENABLED) &&
-        !conf.get(COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED)) {
+    if (
+      conf.get(COLUMNAR_VELOX_CACHE_ENABLED) &&
+      !conf.get(COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED)
+    ) {
       throw new IllegalArgumentException(
         s"${COLUMNAR_VELOX_CACHE_ENABLED.key} and " +
           s"${COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key} should be enabled together.")
@@ -101,9 +103,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Sql table cache serializer.
     if (conf.get(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED)) {
-      conf.set(
-        StaticSQLConf.SPARK_CACHE_SERIALIZER,
-        classOf[ColumnarCachedBatchSerializer].getName)
+      conf.set(StaticSQLConf.SPARK_CACHE_SERIALIZER, classOf[ColumnarCachedBatchSerializer].getName)
     }
 
     // Static initializers for driver.
