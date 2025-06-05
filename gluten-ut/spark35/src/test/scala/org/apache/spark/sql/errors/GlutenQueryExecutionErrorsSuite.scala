@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.errors
 
-import org.apache.gluten.config.VeloxConfig
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
@@ -29,7 +27,7 @@ class GlutenQueryExecutionErrorsSuite
     // Disables VeloxAppendBatches in which GeneralOutIterator wraps vanilla Spark's exceptions
     // with GlutenException.
     super.sparkConf
-      .set(VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key, "false")
+      .set("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput", "false")
   }
 
   override protected def getResourceParquetFilePath(name: String): String = {
