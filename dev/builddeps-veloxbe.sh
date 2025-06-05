@@ -179,6 +179,8 @@ function concat_velox_param {
     if [[ -n $VELOX_HOME ]]; then
         VELOX_PARAMETER+="--velox_home=$VELOX_HOME "
     fi
+
+    VELOX_PARAMETER+="--run_setup_script=$RUN_SETUP_SCRIPT "
 }
 
 if [ "$ENABLE_VCPKG" = "ON" ]; then
