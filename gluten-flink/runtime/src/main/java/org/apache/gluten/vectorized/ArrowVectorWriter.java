@@ -223,14 +223,22 @@ abstract class BaseVectorWriter<T extends FieldVector, V> extends ArrowVectorWri
 
   @Override
   public void write(int fieldIndex, RowData rowData) {
-    setValue(valueCount, getValue(rowData, fieldIndex));
+    if (rowData.isNullAt(fieldIndex)) {
+      this.typedVector.setNull(valueCount);
+    } else {
+      setValue(valueCount, getValue(rowData, fieldIndex));
+    }
     valueCount++;
   }
 
   @Override
   public void writeArray(ArrayData arrayData) {
     for (int i = 0; i < arrayData.size(); i++) {
-      setValue(valueCount, getValue(arrayData, i));
+      if (arrayData.isNullAt(i)) {
+        this.typedVector.setNull(valueCount);
+      } else {
+        setValue(valueCount, getValue(arrayData, i));
+      }
       valueCount++;
     }
   }
