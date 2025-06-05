@@ -31,6 +31,7 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.softaffinity.SoftAffinityListener
+import org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator
 import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusListener, GlutenUIUtils}
 import org.apache.spark.sql.internal.{SparkConfigUtil, SQLConf}
 import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
@@ -181,8 +182,9 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       GlutenConfig.COST_EVALUATOR_ENABLED.key,
       GlutenConfig.COST_EVALUATOR_ENABLED.defaultValue.get)
     if (enableGlutenCostEvaluator) {
-      val costEvaluator = "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator"
-      conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key, costEvaluator)
+      conf.set(
+        SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key,
+        classOf[GlutenCostEvaluator].getName)
     }
 
     // check memory off-heap enabled and size.
