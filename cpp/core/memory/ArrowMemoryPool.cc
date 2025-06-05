@@ -16,7 +16,6 @@
  */
 
 #include "ArrowMemoryPool.h"
-#include "arrow/type_fwd.h"
 #include "utils/Exception.h"
 
 namespace gluten {
@@ -40,7 +39,6 @@ void ArrowMemoryPool::Free(uint8_t* buffer, int64_t size, int64_t alignment) {
 }
 
 int64_t ArrowMemoryPool::bytes_allocated() const {
-  // fixme use self accountant
   return allocator_->getBytes();
 }
 

@@ -275,14 +275,15 @@ MemoryUsageStats collectGlutenAllocatorMemoryUsageStats(
     }
 
     MemoryUsageStats poolStats;
-    const auto* allocator = pool->allocator();
-    poolStats.set_current(allocator->getBytes());
-    poolStats.set_peak(allocator->peakBytes());
+    const auto allocated = pool->bytes_allocated();
+    const auto peak = pool->max_memory();
+    poolStats.set_current(allocated);
+    poolStats.set_peak(peak);
 
     stats.mutable_children()->emplace(name, poolStats);
 
-    totalBytes += allocator->getBytes();
-    peakBytes = std::max(peakBytes, allocator->peakBytes());
+    totalBytes += allocated;
+    peakBytes = std::max(peakBytes, peak);
   }
 
   stats.set_current(totalBytes);
