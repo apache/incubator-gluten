@@ -24,13 +24,21 @@ import org.apache.spark.internal.config.{ConfigEntry => SparkConfigEntry}
 object SparkConfigUtil {
 
   implicit class RichSparkConf(val conf: SparkConf) {
-    def get[T](entry: SparkConfigEntry[T]): T = SparkConfigUtil.get(conf, entry)
+    def get[T](entry: SparkConfigEntry[T]): T = {
+      SparkConfigUtil.get(conf, entry)
+    }
 
-    def get[T](entry: ConfigEntry[T]): T = SparkConfigUtil.get(conf, entry)
+    def get[T](entry: ConfigEntry[T]): T = {
+      SparkConfigUtil.get(conf, entry)
+    }
 
-    def set[T](entry: SparkConfigEntry[T], value: T): SparkConf = SparkConfigUtil.set(conf, entry, value)
+    def set[T](entry: SparkConfigEntry[T], value: T): SparkConf = {
+      SparkConfigUtil.set(conf, entry, value)
+    }
 
-    def set[T](entry: ConfigEntry[T], value: T): SparkConf = SparkConfigUtil.set(conf, entry, value)
+    def set[T](entry: ConfigEntry[T], value: T): SparkConf = {
+      SparkConfigUtil.set(conf, entry, value)
+    }
   }
 
 
