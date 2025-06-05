@@ -100,6 +100,8 @@ object SharedLibraryLoader {
       && systemVersion.startsWith("7")
     ) {
       new SharedLibraryLoaderCentos7
+    } else if (systemName.contains("openEuler") && systemVersion.startsWith("24.03")) {
+      new SharedLibraryLoaderOpenEuler2403
     } else if (systemName.contains("Alibaba Cloud Linux") && systemVersion.startsWith("3")) {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Alibaba Cloud Linux") && systemVersion.startsWith("2")) {
