@@ -38,7 +38,8 @@ case class GlutenCostEvaluator() extends CostEvaluator with SQLConfHelper {
       val clazz = Utils.classForName("org.apache.spark.sql.execution.adaptive.SimpleCostEvaluator$")
       clazz.getDeclaredField("MODULE$").get(null).asInstanceOf[CostEvaluator]
     } else {
-      val forceOptimizeSkewedJoin = conf.getConf(SQLConf.ADAPTIVE_FORCE_OPTIMIZE_SKEWED_JOIN)
+      val forceOptimizeSkewedJoin =
+        conf.getConfString("spark.sql.adaptive.forceOptimizeSkewedJoin").toBoolean
       val clazz = Utils.classForName("org.apache.spark.sql.execution.adaptive.SimpleCostEvaluator")
       val ctor = clazz.getConstructor(classOf[Boolean])
       ctor.newInstance(forceOptimizeSkewedJoin.asInstanceOf[Object]).asInstanceOf[CostEvaluator]
