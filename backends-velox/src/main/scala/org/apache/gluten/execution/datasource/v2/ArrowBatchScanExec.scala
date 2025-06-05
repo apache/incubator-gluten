@@ -16,8 +16,11 @@
  */
 package org.apache.gluten.execution.datasource.v2
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.BaseArrowScanExec
 import org.apache.spark.sql.execution.datasources.v2.{ArrowBatchScanExecShim, BatchScanExec}
+import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ArrowBatchScanExec(original: BatchScanExec)
   extends ArrowBatchScanExecShim(original)
@@ -26,4 +29,18 @@ case class ArrowBatchScanExec(original: BatchScanExec)
     this.copy(original = original.doCanonicalize())
 
   override def nodeName: String = "Arrow" + original.nodeName
+
+  override lazy val metrics = {
+    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows")) ++
+      customMetrics
+  }
+
+  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    val numOutputRows = longMetric("numOutputRows")
+    inputRDD.asInstanceOf[RDD[ColumnarBatch]].map {
+      b =>
+        numOutputRows += b.numRows()
+        b
+    }
+  }
 }
