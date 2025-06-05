@@ -21,7 +21,7 @@ import org.apache.gluten.config.GlutenConfig
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.util.SparkVersionUtil
+import org.apache.spark.util.{SparkVersionUtil, Utils}
 
 /**
  * This [[CostEvaluator]] is to force use the new physical plan when cost is equal.
@@ -35,11 +35,11 @@ case class GlutenCostEvaluator() extends CostEvaluator with SQLConfHelper {
 
   private val vanillaCostEvaluator: CostEvaluator = {
     if (ltSpark33) {
-      val clazz = Class.forName("org.apache.spark.sql.execution.adaptive.SimpleCostEvaluator$")
+      val clazz = Utils.classForName("org.apache.spark.sql.execution.adaptive.SimpleCostEvaluator$")
       clazz.getDeclaredField("MODULE$").get(null).asInstanceOf[CostEvaluator]
     } else {
       val forceOptimizeSkewedJoin = conf.getConf(SQLConf.ADAPTIVE_FORCE_OPTIMIZE_SKEWED_JOIN)
-      val clazz = Class.forName("org.apache.spark.sql.execution.adaptive.SimpleCostEvaluator")
+      val clazz = Utils.classForName("org.apache.spark.sql.execution.adaptive.SimpleCostEvaluator")
       val ctor = clazz.getConstructor(classOf[Boolean])
       ctor.newInstance(forceOptimizeSkewedJoin.asInstanceOf[Object]).asInstanceOf[CostEvaluator]
     }
