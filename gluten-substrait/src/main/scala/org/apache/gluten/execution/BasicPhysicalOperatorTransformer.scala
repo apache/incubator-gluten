@@ -56,10 +56,8 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   protected val notNullAttributes: Seq[ExprId] =
     notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
-  override def isNullIntolerant(expr: Expression): Boolean = expr match {
-    case e: NullIntolerant => e.children.forall(isNullIntolerant)
-    case _ => false
-  }
+  override def isNullIntolerant(expr: Expression): Boolean =
+    expr.nullIntolerant && expr.children.forall(isNullIntolerant)
 
   override def isNoop: Boolean = getRemainingCondition == null
 
@@ -192,10 +190,8 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
     }()
   }
 
-  override def isNullIntolerant(expr: Expression): Boolean = expr match {
-    case e: NullIntolerant => e.children.forall(isNullIntolerant)
-    case _ => false
-  }
+  override def isNullIntolerant(expr: Expression): Boolean =
+    expr.nullIntolerant && expr.children.forall(isNullIntolerant)
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)

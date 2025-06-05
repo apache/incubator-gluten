@@ -129,7 +129,7 @@ object MiscColumnarRules {
           aqe
         case other => other
       }
-      val out = ColumnarSubqueryBroadcastExec(from.name, from.index, from.buildKeys, newChild)
+      val out = ColumnarSubqueryBroadcastExec(from.name, from.indices, from.buildKeys, newChild)
       out
     }
   }
