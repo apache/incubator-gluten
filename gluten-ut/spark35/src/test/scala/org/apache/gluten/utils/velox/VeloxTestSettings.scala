@@ -949,6 +949,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Nested Python UDF: push down deterministic FilterExec predicates")
     .exclude("Python UDF: no push down on non-deterministic")
     .exclude("Python UDF: push down on deterministic predicates after the first non-deterministic")
+  enableSuite[GlutenExtractPythonUDFsSuite]
+    // Replaced with test that check for native operations
+    .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V1")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
