@@ -16,10 +16,9 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.cost.GlutenCostModel
-
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.mutable
@@ -94,7 +93,7 @@ object Transition {
       private val graphCache = mutable.Map[String, TransitionGraph]()
 
       private def graph(): TransitionGraph = synchronized {
-        val aliasOrClass = GlutenConfig.get.rasCostModel
+        val aliasOrClass = GlutenCoreConfig.get.rasCostModel
         graphCache.getOrElseUpdate(
           aliasOrClass, {
             val base = GlutenCostModel.find(aliasOrClass)

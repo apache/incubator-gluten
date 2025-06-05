@@ -17,7 +17,6 @@
 package org.apache.spark.softaffinity
 
 import org.apache.gluten.softaffinity.SoftAffinityManager
-
 import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._

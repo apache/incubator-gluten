@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.memory.memtarget;
 
-import org.apache.gluten.config.GlutenConfig;
+import org.apache.gluten.config.GlutenCoreConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
@@ -50,7 +50,7 @@ public final class MemoryTargets {
 
   @Experimental
   public static MemoryTarget dynamicOffHeapSizingIfEnabled(MemoryTarget memoryTarget) {
-    if (GlutenConfig.get().dynamicOffHeapSizingEnabled()) {
+    if (GlutenCoreConfig.get().dynamicOffHeapSizingEnabled()) {
       return new DynamicOffHeapSizingMemoryTarget();
     }
 
@@ -63,7 +63,7 @@ public final class MemoryTargets {
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.factory(tmm);
-    if (GlutenConfig.get().memoryIsolation()) {
+    if (GlutenCoreConfig.get().memoryIsolation()) {
       return TreeMemoryTargets.newChild(factory.isolatedRoot(), name, spiller, virtualChildren);
     }
     final TreeMemoryTarget root = factory.legacyRoot();

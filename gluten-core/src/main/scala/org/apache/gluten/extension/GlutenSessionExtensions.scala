@@ -17,9 +17,8 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.component.Component
-import org.apache.gluten.config.GlutenConfig
+import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.extension.injector.Injector
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 
@@ -32,7 +31,7 @@ private[gluten] class GlutenSessionExtensions
     injector.control.disableOn {
       session =>
         val glutenEnabledGlobally = session.conf
-          .get(GlutenConfig.GLUTEN_ENABLED.key, GlutenConfig.GLUTEN_ENABLED.defaultValueString)
+          .get(GlutenCoreConfig.GLUTEN_ENABLED.key, GlutenCoreConfig.GLUTEN_ENABLED.defaultValueString)
           .toBoolean
         val disabled = !glutenEnabledGlobally
         logDebug(s"Gluten is disabled by variable: glutenEnabledGlobally: $glutenEnabledGlobally")

@@ -28,7 +28,7 @@ import org.apache.spark.util.SparkVersionUtil
 
 package object transition {
   private val gteSpark33: Boolean = {
-    SparkVersionUtil.compareMajorMinorVersion(SparkVersionUtil.majorMinorVersion(), (3, 3)) >= 0
+    SparkVersionUtil.compareMajorMinorVersion((3, 3)) >= 0
   }
 
   type TransitionGraph = FloydWarshallGraph[TransitionGraph.Vertex, Transition]

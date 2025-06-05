@@ -19,7 +19,6 @@ package org.apache.spark.softaffinity
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.softaffinity.{AffinityManager, SoftAffinityManager}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
 import org.apache.spark.sql.connector.read.InputPartition
