@@ -20,7 +20,6 @@ import org.apache.gluten.config.GlutenConfig
 
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.{SparkVersionUtil, Utils}
 
 /**
