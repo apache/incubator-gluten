@@ -6,7 +6,7 @@
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution;
+package org.apache.spark.sql.execution
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{GlutenSQLTestsTrait, _}
@@ -23,14 +23,15 @@ import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.streaming._
 import org.apache.spark.sql.streaming.util.StreamManualClock
 import org.apache.spark.sql.types.StructType
+
 import org.scalactic.TolerantNumerics
 import org.scalatest.BeforeAndAfter
 
 class GlutenStreamingQuerySuite
   extends StreamTest
-  with BeforeAndAfter
-  with Logging
-  with GlutenSQLTestsTrait {
+    with BeforeAndAfter
+    with Logging
+    with GlutenSQLTestsTrait {
 
   // To make === between double tolerate inexact values
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.01)
@@ -46,7 +47,6 @@ class GlutenStreamingQuerySuite
     val progress = getStreamingQuery(selfJoin).recentProgress.head
     assert(progress.numInputRows === 20)
   }
-
 
   test("input row calculation with same V1 source used twice in self-union") {
     val streamingTriggerDF = spark.createDataset(1 to 10).toDF
@@ -64,7 +64,9 @@ class GlutenStreamingQuerySuite
       override def getOffset: Option[Offset] = Some(LongOffset(0))
       override def getBatch(start: Option[Offset], end: Offset): DataFrame = {
         sqlContext.internalCreateDataFrame(
-          triggerDF.queryExecution.toRdd, triggerDF.schema, isStreaming = true)
+          triggerDF.queryExecution.toRdd,
+          triggerDF.schema,
+          isStreaming = true)
       }
       override def stop(): Unit = {}
     }
@@ -87,9 +89,7 @@ class GlutenStreamingQuerySuite
     q.recentProgress.filter(_.numInputRows > 0).lastOption
   }
 
-
-  object TestAwaitTermination {
-  }
+  object TestAwaitTermination {}
 }
 
 object StreamingQuerySuite {
