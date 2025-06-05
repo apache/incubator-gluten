@@ -180,9 +180,9 @@ class VectorizedParquetRecordReader
     /// columns to read from Parquet file.
     std::vector<VectorizedColumnReader> column_readers_;
 
+public:
     static parquet::arrow::SchemaManifest createSchemaManifest(const parquet::FileMetaData & metadata);
 
-public:
     VectorizedParquetRecordReader(const DB::Block & header, const DB::FormatSettings & format_settings);
     ~VectorizedParquetRecordReader() = default;
 
