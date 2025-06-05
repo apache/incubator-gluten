@@ -41,7 +41,6 @@ object SparkConfigUtil {
     }
   }
 
-
   def get[T](conf: SparkConf, entry: SparkConfigEntry[T]): T = {
     conf.get(entry)
   }
