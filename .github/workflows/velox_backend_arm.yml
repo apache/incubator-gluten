@@ -34,7 +34,7 @@ on:
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
-      - 'cpp/*'
+      - 'cpp/**'
       - 'dev/**'
 
 env:
@@ -81,11 +81,8 @@ jobs:
             ccache-centos8-release-default-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
-          set -e
           yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           df -a
-          export CCACHE_DIR=$GITHUB_WORKSPACE/.ccache
-          mkdir -p $GITHUB_WORKSPACE/.ccache
           bash dev/ci-velox-buildstatic-centos-8.sh
           ccache -s
           mkdir -p $GITHUB_WORKSPACE/.m2/repository/org/apache/arrow/

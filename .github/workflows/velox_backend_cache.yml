@@ -71,8 +71,6 @@ jobs:
             ccache-centos8-release-default-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
-          export CCACHE_DIR=$GITHUB_WORKSPACE/.ccache
-          mkdir -p $GITHUB_WORKSPACE/.ccache
           bash dev/ci-velox-buildstatic-centos-8.sh
       - name: Save Ccache
         uses: actions/cache/save@v3

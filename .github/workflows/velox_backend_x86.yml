@@ -34,7 +34,7 @@ on:
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
-      - 'cpp/*'
+      - 'cpp/**'
       - 'dev/**'
 
 env:
