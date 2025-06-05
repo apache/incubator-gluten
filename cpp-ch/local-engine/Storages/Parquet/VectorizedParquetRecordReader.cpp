@@ -100,7 +100,7 @@ VectorizedColumnReader::VectorizedColumnReader(
     : arrow_field_(field.field)
     , input_(field.column_index, reader, row_groups)
     , record_reader_(parquet::internal::RecordReader::Make(
-          input_.descr(), computeLevelInfo(input_.descr()), defaultArrowPool(), arrow_field_->type()->id() == ::arrow::Type::DICTIONARY))
+          input_.descr(), field.level_info, defaultArrowPool(), arrow_field_->type()->id() == ::arrow::Type::DICTIONARY))
 {
     nextRowGroup();
 }
