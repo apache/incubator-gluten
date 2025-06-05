@@ -233,6 +233,14 @@ function setup_linux {
         exit 1
       ;;
     esac
+  elif [[ "$LINUX_DISTRIBUTION" == "rhel" ]]; then
+    case "$LINUX_VERSION_ID" in
+      9.6) ;;
+      *)
+        echo "Unsupported openEuler version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
   else
     echo "Unsupported linux distribution: $LINUX_DISTRIBUTION"
     exit 1
