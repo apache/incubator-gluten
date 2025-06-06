@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: rsync
-        uses: burnett01/rsync-deployments@3cccb6851148e6198ed9ed89eb0d1c17b5e58cc7
+        uses: burnett01/rsync-deployments@5.2
         with:
           switches: -avzr
           path: docs/*
