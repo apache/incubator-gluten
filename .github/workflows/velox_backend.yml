@@ -178,6 +178,7 @@ jobs:
           cd $GITHUB_WORKSPACE/
           export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
           echo "JAVA_HOME: $JAVA_HOME"
+          java -version
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
@@ -255,6 +256,7 @@ jobs:
       - name: Build gluten-it
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
+          java -version
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
