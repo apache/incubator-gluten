@@ -304,7 +304,7 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
 }
 } // namespace
 
-std::shared_ptr<arrow::MemoryPool> VeloxMemoryManager::addArrowMemoryPool(const std::string& name) {
+std::shared_ptr<arrow::MemoryPool> VeloxMemoryManager::createArrowMemoryPool(const std::string& name) {
   std::lock_guard<std::mutex> l(mutex_);
   VELOX_CHECK_EQ(arrowPools_.count(name), 0, "Arrow memory pool {} already exists", name);
   auto pool = std::make_shared<ArrowMemoryPool>(

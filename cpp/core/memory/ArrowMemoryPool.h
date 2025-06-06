@@ -32,11 +32,7 @@ class ArrowMemoryPool final : public arrow::MemoryPool {
       : allocator_(std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), listener)),
         releaser_(std::move(releaser)) {}
 
-  ~ArrowMemoryPool() override {
-    if (releaser_ != nullptr) {
-      releaser_(this);
-    }
-  }
+  ~ArrowMemoryPool() override;
 
   arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
 

@@ -41,7 +41,7 @@ class MemoryManager {
 
   virtual arrow::MemoryPool* defaultArrowMemoryPool() = 0;
 
-  virtual std::shared_ptr<arrow::MemoryPool> addArrowMemoryPool(const std::string& name) = 0;
+  virtual std::shared_ptr<arrow::MemoryPool> createArrowMemoryPool(const std::string& name) = 0;
 
   virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
 

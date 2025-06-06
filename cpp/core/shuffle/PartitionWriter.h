@@ -33,7 +33,7 @@ class PartitionWriter : public Reclaimable {
  public:
   PartitionWriter(uint32_t numPartitions, PartitionWriterOptions options, MemoryManager* memoryManager)
       : numPartitions_(numPartitions), options_(std::move(options)), memoryManager_(memoryManager) {
-    payloadPool_ = memoryManager->addArrowMemoryPool("PartitionWriter.cached_payload");
+    payloadPool_ = memoryManager->createArrowMemoryPool("PartitionWriter.cached_payload");
     codec_ = createArrowIpcCodec(options_.compressionType, options_.codecBackend, options_.compressionLevel);
   }
 

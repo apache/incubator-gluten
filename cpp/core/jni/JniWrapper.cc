@@ -148,7 +148,7 @@ class InternalMemoryManager : public MemoryManager {
     throw GlutenException("Not implemented");
   }
 
-  std::shared_ptr<arrow::MemoryPool> addArrowMemoryPool(const std::string& name) override {
+  std::shared_ptr<arrow::MemoryPool> createArrowMemoryPool(const std::string& name) override {
     throw GlutenException("Not yet implemented");
   }
 
