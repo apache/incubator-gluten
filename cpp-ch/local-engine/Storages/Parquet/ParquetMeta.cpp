@@ -57,6 +57,7 @@ Block ParquetMetaBuilder::collectFileSchema(const ContextPtr & context, ReadBuff
 
     FormatSettings format_settings = getFormatSettings(context);
     ParquetMetaBuilder metaBuilder{
+        .format_settings = format_settings,
         .case_insensitive = format_settings.parquet.case_insensitive_column_matching,
         .allow_missing_columns = false,
         .collectPageIndex = false,
@@ -110,7 +111,8 @@ ParquetMetaBuilder & ParquetMetaBuilder::buildSchema(const parquet::FileMetaData
         std::shared_ptr<arrow::Schema> schema;
         THROW_ARROW_NOT_OK(parquet::arrow::FromParquetSchema(file_meta.schema(), &schema));
 
-        fileHeader = ArrowColumnToCHColumn::arrowSchemaToCHHeader(*schema, file_meta.key_value_metadata(), "Parquet", false, true);
+        fileHeader = ArrowColumnToCHColumn::arrowSchemaToCHHeader(
+            *schema, file_meta.key_value_metadata(), "Parquet", format_settings, false, true);
     }
     return *this;
 }
