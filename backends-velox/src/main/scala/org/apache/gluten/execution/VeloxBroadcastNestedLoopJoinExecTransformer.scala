@@ -52,7 +52,7 @@ case class VeloxBroadcastNestedLoopJoinExecTransformer(
 
   override def outputOrdering: Seq[SortOrder] = (joinType, buildSide) match {
     case (_: InnerLike, _) | (LeftOuter, BuildRight) | (RightOuter, BuildLeft) |
-        (LeftSemi, BuildRight) | (LeftAnti, BuildRight) =>
+        (ExistenceJoin(_), BuildRight) =>
       streamedPlan.outputOrdering
     case _ => Nil
   }
