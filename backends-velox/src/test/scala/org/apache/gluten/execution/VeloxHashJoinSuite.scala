@@ -42,7 +42,8 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
     withSQLConf(
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
       ("spark.sql.adaptive.enabled", "false"),
-      (GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")) {
+      (GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
+    ) {
       createTPCHNotNullTables()
       val df = spark.sql("""select l_partkey from
                            | lineitem join part join partsupp

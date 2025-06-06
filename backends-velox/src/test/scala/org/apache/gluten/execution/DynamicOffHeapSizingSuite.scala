@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.benchmarks.RandomParquetDataGenerator
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.tags.SkipTest
+
 import org.apache.spark.SparkConf
 
 @SkipTest

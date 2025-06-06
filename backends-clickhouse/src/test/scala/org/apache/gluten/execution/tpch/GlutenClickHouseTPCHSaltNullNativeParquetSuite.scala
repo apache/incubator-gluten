@@ -19,6 +19,7 @@ package org.apache.gluten.execution.tpch
 import org.apache.gluten.backendsapi.clickhouse.CHConfig
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
+
 import org.apache.spark.SparkConf
 
 class GlutenClickHouseTPCHSaltNullNativeParquetSuite

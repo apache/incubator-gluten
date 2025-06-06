@@ -1873,8 +1873,7 @@ class GlutenClickHouseMergeTreeWriteSuite extends CreateMergeTreeSuite {
                  |""".stripMargin)
     Seq(("-1", 3), ("3", 3), ("6", 1)).foreach(
       conf => {
-        withSQLConf(
-          CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD -> conf._1) {
+        withSQLConf(CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD -> conf._1) {
           val sql =
             s"""
                |select count(1), min(l_returnflag) from lineitem_split
