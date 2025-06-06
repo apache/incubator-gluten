@@ -170,7 +170,9 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // adaptive custom cost evaluator class
     val enableGlutenCostEvaluator = conf.get(GlutenConfig.COST_EVALUATOR_ENABLED)
     if (enableGlutenCostEvaluator) {
-      conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS, Some(classOf[GlutenCostEvaluator].getName))
+      conf.set(
+        SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS,
+        Some(classOf[GlutenCostEvaluator].getName))
     }
 
     // check memory off-heap enabled and size.
