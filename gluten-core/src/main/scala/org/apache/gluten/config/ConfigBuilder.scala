@@ -16,8 +16,7 @@
  */
 package org.apache.gluten.config
 
-import org.apache.spark.network.util.ByteUnit
-import org.apache.spark.network.util.JavaUtils
+import org.apache.spark.network.util.{ByteUnit, JavaUtils}
 
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern;
