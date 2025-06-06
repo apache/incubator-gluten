@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.ColumnarRangeBaseExec
 import org.apache.gluten.utils.BackendTestUtils
 
@@ -32,10 +33,10 @@ class GlutenSQLRangeExecSuite extends GlutenQueryTest with SharedSparkSession {
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
-      .set("spark.gluten.ui.enabled", "false")
+      .set(GlutenConfig.GLUTEN_UI_ENABLED.key, "false")
     if (BackendTestUtils.isCHBackendLoaded()) {
       conf
-        .set("spark.gluten.sql.enable.native.validation", "false")
+        .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
     }
     conf
   }
