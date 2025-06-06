@@ -106,6 +106,7 @@ object SparkTaskUtil {
         partitionId,
         taskAttemptId,
         attemptNumber,
+        numPartitions,
         taskMemoryManager,
         localProperties,
         metricsSystem,
