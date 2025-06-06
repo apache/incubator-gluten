@@ -16,18 +16,23 @@
  */
 package org.apache.gluten.spark34;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.gluten.config.GlutenConfig;
+
+import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
 
 public class TestConfUtil {
   public static Map<String, Object> GLUTEN_CONF =
       ImmutableMap.of(
-          "spark.plugins", "org.apache.gluten.GlutenPlugin",
-          "spark.memory.offHeap.enabled", "true",
-          "spark.memory.offHeap.size", "1024MB",
-          "spark.ui.enabled", "false",
-          GlutenConfig.GLUTEN_UI_ENABLED.key, "false");
+          "spark.plugins",
+          "org.apache.gluten.GlutenPlugin",
+          "spark.memory.offHeap.enabled",
+          "true",
+          "spark.memory.offHeap.size",
+          "1024MB",
+          "spark.ui.enabled",
+          "false",
+          GlutenConfig.GLUTEN_UI_ENABLED.key,
+          "false");
 }
