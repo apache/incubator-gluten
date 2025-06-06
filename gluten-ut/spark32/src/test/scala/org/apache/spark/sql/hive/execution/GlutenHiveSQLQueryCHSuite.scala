@@ -31,7 +31,6 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
       .set(GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.default.parallelism", "1")
-      .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
   }

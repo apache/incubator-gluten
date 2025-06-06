@@ -52,7 +52,6 @@ class GlutenCoalesceShufflePartitionsSuite
         // Gluten config
         .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
         .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-        .set("spark.memory.offHeap.enabled", "true")
         .set("spark.memory.offHeap.size", "5g")
     minNumPostShufflePartitions match {
       case Some(numPartitions) =>
