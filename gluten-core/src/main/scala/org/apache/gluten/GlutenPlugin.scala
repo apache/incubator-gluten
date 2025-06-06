@@ -21,7 +21,6 @@ import org.apache.gluten.component.Component
 import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.config.GlutenConfig._
 import org.apache.gluten.events.GlutenBuildInfoEvent
-import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenSessionExtensions
 import org.apache.gluten.initializer.CodedInputStreamClassInitializer
 import org.apache.gluten.task.TaskListener
