@@ -148,6 +148,7 @@ function compile {
 
   export simdjson_SOURCE=AUTO
   export Arrow_SOURCE=AUTO
+  export GTest_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE $NUM_THREADS_OPTS EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
