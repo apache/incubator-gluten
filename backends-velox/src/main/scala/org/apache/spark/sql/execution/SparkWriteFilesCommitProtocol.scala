@@ -97,11 +97,14 @@ class SparkWriteFilesCommitProtocol(
     }
   }
 
-  def abortTask(writePath: String): Unit = {
+  def abortTask(writePath: String, fileNames: Seq[String]): Unit = {
     committer.abortTask(taskAttemptContext)
 
-    val tmpPath = new Path(writePath)
-    tmpPath.getFileSystem(taskAttemptContext.getConfiguration).delete(tmpPath, true)
+    // Only delete the files created by this task.
+    for (fileName <- fileNames) {
+      val tmpPath = new Path(writePath + "/" + fileName)
+      tmpPath.getFileSystem(taskAttemptContext.getConfiguration).delete(tmpPath, false)
+    }
   }
 
   // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
