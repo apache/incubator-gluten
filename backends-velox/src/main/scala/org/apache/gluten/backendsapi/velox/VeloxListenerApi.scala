@@ -18,8 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.backendsapi.arrow.ArrowBatchTypes.{ArrowJavaBatchType, ArrowNativeBatchType}
-import org.apache.gluten.config.GlutenConfig
-import org.apache.gluten.config.VeloxConfig
+import org.apache.gluten.config.{GlutenConfig, VeloxConfig}
 import org.apache.gluten.config.VeloxConfig._
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
@@ -44,18 +43,13 @@ import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.velox.{VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
-import org.apache.spark.sql.internal.GlutenConfigUtil
 import org.apache.spark.sql.internal.SparkConfigUtil._
-import org.apache.spark.sql.internal.StaticSQLConf
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, SparkShutdownManagerUtil}
 
 import org.apache.commons.lang3.StringUtils
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-
-<<<<<<<.HEAD(=======)
->>>>>>>.f6b42be0e(fixup)
 
 class VeloxListenerApi extends ListenerApi with Logging {
   import VeloxListenerApi._
