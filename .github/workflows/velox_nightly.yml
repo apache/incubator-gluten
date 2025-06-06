@@ -105,7 +105,7 @@ jobs:
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
       - name: rsync to apache nightly
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@7.0.2
         with:
           switches: -avzr
           path: package/target/gluten-velox-bundle-*.jar
