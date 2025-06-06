@@ -31,7 +31,7 @@ jobs:
         with:
           switches: -avzr
           path: docs/*
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/docs
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/docs/
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
