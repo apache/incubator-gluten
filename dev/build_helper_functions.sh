@@ -213,6 +213,15 @@ function setup_linux {
       exit 1
       ;;
     esac
+  elif [[ "$LINUX_DISTRIBUTION" == "rhel" ]]; then
+    case "$LINUX_VERSION_ID" in
+    9.6)
+       $GLUTEN_VELOX_SCRIPT_HOME/setup-rhel.sh ;;
+    *)
+      echo "Unsupported rhel version: $LINUX_VERSION_ID"
+      exit 1
+      ;;
+    esac
   else
     echo "Unsupported linux distribution: $LINUX_DISTRIBUTION"
     exit 1
