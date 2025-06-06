@@ -81,7 +81,6 @@ jobs:
             ccache-centos8-release-default-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
-          yum install https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/Packages/tzdata-2025a-1.el9.noarch.rpm -y
           df -a
           bash dev/ci-velox-buildstatic-centos-8.sh
           ccache -s
