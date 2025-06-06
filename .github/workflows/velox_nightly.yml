@@ -104,5 +104,14 @@ jobs:
           name: nightly-gluten-velox-bundle-package-spark35-${{ steps.date.outputs.date }}
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
-
+      - name: rsync to apache nightly
+        uses: burnett01/rsync-deployments@5.2
+        with:
+          switches: -avzr
+          path: package/target/gluten-velox-bundle-*.jar
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release-${{ steps.date.outputs.date }}
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
 
