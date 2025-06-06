@@ -633,7 +633,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.2.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -722,7 +722,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.3.1 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -821,7 +821,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.4.4 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -923,7 +923,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -979,7 +979,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1071,7 +1071,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1161,7 +1161,7 @@ jobs:
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools==77.0.3 && \
           pip3 install pyspark==3.5.2 cython && \
-          pip3 install pandas pyarrow
+          pip3 install pandas==2.2.3 pyarrow
       - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/

@@ -47,7 +47,7 @@ VELOX_HOME=""
 VELOX_PARAMETER=""
 BUILD_ARROW=ON
 SPARK_VERSION=ALL
-INSTALL_PREFIX=${INSTALL_PREFIX:-}
+INSTALL_PREFIX=${INSTALL_PREFIX:-"/usr/local"}
 
 # set default number of threads as cpu cores minus 2
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -179,6 +179,8 @@ function concat_velox_param {
     if [[ -n $VELOX_HOME ]]; then
         VELOX_PARAMETER+="--velox_home=$VELOX_HOME "
     fi
+
+    VELOX_PARAMETER+="--run_setup_script=$RUN_SETUP_SCRIPT "
 }
 
 if [ "$ENABLE_VCPKG" = "ON" ]; then

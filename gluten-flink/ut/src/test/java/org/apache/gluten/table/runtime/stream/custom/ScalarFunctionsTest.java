@@ -103,6 +103,9 @@ class ScalarFunctionsTest extends GlutenStreamingTestBase {
 
     String query4 = "select c < d as x from tblLess where a > 0";
     runAndCheck(query4, Arrays.asList("+I[false]", "+I[false]", "+I[false]"));
+
+    String query5 = "select c > '123' from tblLess where a > 0";
+    runAndCheck(query5, Arrays.asList("+I[true]", "+I[true]", "+I[true]"));
   }
 
   @Test

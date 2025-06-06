@@ -25,6 +25,7 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateDayVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
@@ -57,6 +58,7 @@ public abstract class ArrowVectorAccessor {
           Map.entry(VarCharVector.class, vector -> new VarCharVectorAccessor(vector)),
           Map.entry(StructVector.class, vector -> new StructVectorAccessor(vector)),
           Map.entry(ListVector.class, vector -> new ListVectorAccessor(vector)),
+          Map.entry(DateDayVector.class, vector -> new DateDayVectorAccessor(vector)),
           Map.entry(MapVector.class, vector -> new MapVectorAccessor(vector)));
 
   public static ArrowVectorAccessor create(FieldVector vector) {
@@ -145,8 +147,19 @@ class DoubleVectorAccessor extends BaseArrowVectorAccessor<Float8Vector> {
   }
 }
 
-class VarCharVectorAccessor extends BaseArrowVectorAccessor<VarCharVector> {
+class DateDayVectorAccessor extends BaseArrowVectorAccessor<DateDayVector> {
 
+  public DateDayVectorAccessor(FieldVector vector) {
+    super(vector);
+  }
+
+  @Override
+  protected Object getImpl(int rowIndex) {
+    return typedVector.get(rowIndex);
+  }
+}
+
+class VarCharVectorAccessor extends BaseArrowVectorAccessor<VarCharVector> {
   public VarCharVectorAccessor(FieldVector vector) {
     super(vector);
   }
