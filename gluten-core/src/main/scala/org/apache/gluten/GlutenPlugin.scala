@@ -151,8 +151,9 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       val defaultOffHeapSize = JavaUtils.byteStringAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_DEFAULT)
       val heapSize = conf.getSizeAsBytes(SPARK_ONHEAP_SIZE_KEY, defaultOffHeapSize)
       val advisoryOffHeapSize = math.min(heapSize, defaultOffHeapSize)
-      logWarning(s"$SPARK_ONHEAP_SIZE_KEY is not set, use $advisoryOffHeapSize as default " +
-        s"off-heap size. Please set $SPARK_OFFHEAP_SIZE_KEY to a proper value.")
+      logWarning(
+        s"$SPARK_ONHEAP_SIZE_KEY is not set, use $advisoryOffHeapSize as default " +
+          s"off-heap size. Please set $SPARK_OFFHEAP_SIZE_KEY to a proper value.")
     }
   }
 
