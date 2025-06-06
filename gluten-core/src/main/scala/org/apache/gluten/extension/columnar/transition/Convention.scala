@@ -193,8 +193,7 @@ object Convention {
 
   object KnownRowTypeForSpark33OrLater {
     private val lteSpark32: Boolean = {
-      val v = SparkVersionUtil.majorMinorVersion()
-      SparkVersionUtil.compareMajorMinorVersion(v, (3, 2)) <= 0
+      SparkVersionUtil.compareMajorMinorVersion((3, 2)) <= 0
     }
   }
 }

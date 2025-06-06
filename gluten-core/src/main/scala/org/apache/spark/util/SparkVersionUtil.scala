@@ -17,18 +17,11 @@
 package org.apache.spark.util
 
 object SparkVersionUtil {
-  def majorMinorVersion(version: String = org.apache.spark.SPARK_VERSION): (Int, Int) = {
-    VersionUtils.majorMinorVersion(version)
-  }
-
-  def majorMinorPatchVersion(version: String): Option[(Int, Int, Int)] = {
-    VersionUtils.majorMinorPatchVersion(version)
-  }
-
   // Returns X. X < 0 if one < other, x == 0 if one == other, x > 0 if one > other.
-  def compareMajorMinorVersion(one: (Int, Int), other: (Int, Int)): Int = {
+  def compareMajorMinorVersion(other: (Int, Int)): Int = {
+    val current = VersionUtils.majorMinorVersion(org.apache.spark.SPARK_VERSION)
     val base = 1000
-    assert(one._2 < base && other._2 < base)
-    one._1 * base + one._2 - (other._1 * base + other._2)
+    assert(current._2 < base && other._2 < base)
+    current._1 * base + current._2 - (other._1 * base + other._2)
   }
 }

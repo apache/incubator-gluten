@@ -18,12 +18,12 @@ package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.component.Component
 import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildConvention
-import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan, UnionExec}
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
+import org.apache.spark.util.SparkPlanUtil
 
 /** ConventionFunc is a utility to derive [[Convention]] or [[ConventionReq]] from a query plan. */
 sealed trait ConventionFunc {
@@ -98,7 +98,7 @@ object ConventionFunc {
       val out = plan match {
         case k: Convention.KnownRowType =>
           k.rowType()
-        case _ if SparkShimLoader.getSparkShims.supportsRowBased(plan) =>
+        case _ if SparkPlanUtil.supportsRowBased(plan) =>
           Convention.RowType.VanillaRowType
         case _ =>
           Convention.RowType.None
@@ -108,7 +108,7 @@ object ConventionFunc {
     }
 
     private def checkRowType(plan: SparkPlan, rowType: Convention.RowType): Unit = {
-      if (SparkShimLoader.getSparkShims.supportsRowBased(plan)) {
+      if (SparkPlanUtil.supportsRowBased(plan)) {
         assert(
           rowType != Convention.RowType.None,
           s"Plan ${plan.nodeName} supports row-based execution, " +
@@ -173,7 +173,7 @@ object ConventionFunc {
           ConventionReq.of(
             ConventionReq.RowType.Any,
             ConventionReq.BatchType.Is(Convention.BatchType.VanillaBatchType)))
-      case write: DataWritingCommandExec if SparkShimLoader.getSparkShims.isPlannedV1Write(write) =>
+      case write: DataWritingCommandExec if SparkPlanUtil.isPlannedV1Write(write) =>
         // To align with ApplyColumnarRulesAndInsertTransitions#insertTransitions
         Seq(ConventionReq.any)
       case u: UnionExec =>

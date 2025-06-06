@@ -189,7 +189,8 @@ private object FallbackStrategiesSuite {
         c => RemoveTopmostColumnarToRow(c.session, c.caller.isAqe()),
         _ => ColumnarCollapseTransformStages(GlutenConfig.get)
       ),
-      List(_ => RemoveFallbackTagRule())
+      List(_ => RemoveFallbackTagRule()),
+      Nil
     )
   }
 

@@ -35,13 +35,19 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 class EnumeratedApplier(
     session: SparkSession,
-    ruleBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]])
+    ruleBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
+    ruleWrappers: Seq[Rule[SparkPlan] => Rule[SparkPlan]])
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
+
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
     val call = new ColumnarRuleCall(session, CallerInfo.create(), outputsColumnar)
-    val finalPlan = apply0(ruleBuilders.map(b => b(call)), plan)
+    val finalPlan = apply0(
+      ruleBuilders
+        .map(b => b(call))
+        .map(r => ruleWrappers.foldLeft(r) { case (r, wrapper) => wrapper(r) }),
+      plan)
     finalPlan
   }
 

@@ -14,21 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.task
+package org.apache.spark.util
 
-import org.apache.spark.TaskContext
-import org.apache.spark.memory.TaskMemoryManager
-
-object SparkTaskUtil {
-  def setTaskContext(taskContext: TaskContext): Unit = {
-    TaskContext.setTaskContext(taskContext)
+object SparkShimVersionUtil {
+  def sparkMajorMinorVersion(version: String = org.apache.spark.SPARK_VERSION): (Int, Int) = {
+    VersionUtils.majorMinorVersion(version)
   }
 
-  def unsetTaskContext(): Unit = {
-    TaskContext.unset()
-  }
-
-  def getTaskMemoryManager(taskContext: TaskContext): TaskMemoryManager = {
-    taskContext.taskMemoryManager()
+  def sparkMajorMinorPatchVersion(version: String): Option[(Int, Int, Int)] = {
+    VersionUtils.majorMinorPatchVersion(version)
   }
 }
