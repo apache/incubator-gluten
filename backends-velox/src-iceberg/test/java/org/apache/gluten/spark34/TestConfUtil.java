@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.spark34;
 
-import org.apache.gluten.config.GlutenConfig;
-
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
@@ -33,6 +31,6 @@ public class TestConfUtil {
           "1024MB",
           "spark.ui.enabled",
           "false",
-          GlutenConfig.GLUTEN_UI_ENABLED.key,
+          "spark.gluten.ui.enabled",
           "false");
 }

@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.spark34.source;
 
-import org.apache.gluten.config.GlutenConfig;
 import org.apache.gluten.spark34.TestConfUtil;
 
 import org.apache.hadoop.conf.Configuration;
@@ -122,13 +121,13 @@ public class TestParquetScan extends AvroDataTest {
     configureVectorization(table);
     Dataset<Row> df = spark.read().format("iceberg").load(table.location());
     List<Row> rows = df.collectAsList();
-    spark.conf().set(GlutenConfig.GLUTEN_ENABLED.key, "false");
+    spark.conf().set("spark.gluten.enabled", "false");
     List<Row> rows2 = df.collectAsList();
 
     Assert.assertEquals("Should contain 100 rows", 100, rows.size());
     assertThat(rows).containsExactlyInAnyOrderElementsOf(Iterables.concat(rows2));
 
-    spark.conf().set(GlutenConfig.GLUTEN_ENABLED.key, "true");
+    spark.conf().set("spark.gluten.enabled", "true");
     // Cannot use this helper test function because the order is not same.
     //    for (int i = 0; i < expected.size(); i += 1) {
     //      TestHelpers.assertEqualsSafe(table.schema().asStruct(), expected.get(i), rows.get(i));
