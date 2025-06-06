@@ -16,19 +16,22 @@
  */
 package org.apache.gluten.softaffinity
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.hash.ConsistentHash
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.softaffinity.strategy.{ConsistentHashSoftAffinityStrategy, ExecutorNode}
 import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListenerStageCompleted, SparkListenerStageSubmitted, SparkListenerTaskEnd}
 import org.apache.spark.sql.execution.datasources.FilePartition
+
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
-import org.apache.gluten.config.GlutenConfig
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantReadWriteLock
+
 import scala.collection.mutable
 import scala.util.Random
 

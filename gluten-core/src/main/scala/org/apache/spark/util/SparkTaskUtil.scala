@@ -52,7 +52,8 @@ object SparkTaskUtil {
     val numPartitions = -1.asInstanceOf[Object] // Added in Spark 3.4.
     val taskMemoryManager = new TaskMemoryManager(memoryManager, -1L).asInstanceOf[Object]
     val localProperties = properties.asInstanceOf[Object]
-    val metricsSystem = MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf).asInstanceOf[Object]
+    val metricsSystem =
+      MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf).asInstanceOf[Object]
     val taskMetrics = TaskMetrics.empty.asInstanceOf[Object]
     val cpus = 1.asInstanceOf[Object] // Added in Spark 3.3.
     val resources = Map.empty.asInstanceOf[Object]

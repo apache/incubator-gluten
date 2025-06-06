@@ -61,9 +61,7 @@ trait Component {
   def onExecutorStart(pc: PluginContext): Unit = {}
   def onExecutorShutdown(): Unit = {}
 
-  /**
-   * Metrics register, only called on Driver.
-   */
+  /** Metrics register, only called on Driver. */
   def registerMetrics(appId: String, pluginContext: PluginContext): Unit = {}
 
   /**

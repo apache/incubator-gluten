@@ -18,6 +18,7 @@ package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.component.Component
 import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildConvention
+
 import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan, UnionExec}
 import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.command.DataWritingCommandExec

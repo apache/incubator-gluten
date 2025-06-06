@@ -19,6 +19,7 @@ package org.apache.gluten.extension.columnar.transition
 import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.columnar.cost.GlutenCostModel
+
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.mutable

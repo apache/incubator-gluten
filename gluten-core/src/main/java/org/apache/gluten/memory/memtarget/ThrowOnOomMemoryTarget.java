@@ -75,7 +75,9 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
                 reformatBytes(
                     SQLConf.get()
                         .getConfString(
-                            GlutenCoreConfig$.MODULE$.COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES().key()))))
+                            GlutenCoreConfig$.MODULE$
+                                .COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES()
+                                .key()))))
         .append(System.lineSeparator())
         .append(
             String.format(
@@ -99,7 +101,8 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
                 "\t%s=%s",
                 GlutenCoreConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key(),
                 SQLConf.get()
-                    .getConfString(GlutenCoreConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key())))
+                    .getConfString(
+                        GlutenCoreConfig$.MODULE$.DYNAMIC_OFFHEAP_SIZING_ENABLED().key())))
         .append(System.lineSeparator());
     // Dump all consumer usages to exception body
     errorBuilder.append(SparkMemoryUtil.dumpMemoryTargetStats(target));

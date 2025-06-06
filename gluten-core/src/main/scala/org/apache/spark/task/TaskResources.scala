@@ -19,6 +19,7 @@ package org.apache.spark.task
 import org.apache.gluten.config.GlutenCoreConfig
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder
 import org.apache.gluten.task.TaskListener
+
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException, UnknownReason}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
@@ -27,6 +28,7 @@ import org.apache.spark.util.{SparkTaskUtil, TaskCompletionListener, TaskFailure
 import java.util
 import java.util.{Collections, Properties, UUID}
 import java.util.concurrent.atomic.AtomicLong
+
 import scala.collection.JavaConverters._
 import scala.compat.Platform.ConcurrentModificationException
 

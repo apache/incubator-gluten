@@ -22,12 +22,15 @@ import org.apache.gluten.memory.listener.ReservationListeners
 import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.proto.MemoryUsageStats
 import org.apache.gluten.utils.ConfigUtil
+
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
 import org.apache.spark.task.{TaskResource, TaskResources}
+
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicBoolean
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 

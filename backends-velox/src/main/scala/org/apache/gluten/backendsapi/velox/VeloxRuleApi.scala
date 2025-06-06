@@ -86,7 +86,11 @@ object VeloxRuleApi {
         PullOutPostProject,
         ProjectColumnPruning)
     injector.injectTransform(
-      c => HeuristicTransform.WithRewrites(validatorBuilder(new GlutenConfig(c.sqlConf)), rewrites, offloads))
+      c =>
+        HeuristicTransform.WithRewrites(
+          validatorBuilder(new GlutenConfig(c.sqlConf)),
+          rewrites,
+          offloads))
 
     // Legacy: Post-transform rules.
     injector.injectPostTransform(_ => AppendBatchResizeForShuffleInputAndOutput())
@@ -120,7 +124,8 @@ object VeloxRuleApi {
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
     injector.injectFinal(
       c => PreventBatchTypeMismatchInTableCache(c.caller.isCache(), Set(VeloxBatchType)))
-    injector.injectFinal(c => GlutenAutoAdjustStageResourceProfile(new GlutenConfig(c.sqlConf), c.session))
+    injector.injectFinal(
+      c => GlutenAutoAdjustStageResourceProfile(new GlutenConfig(c.sqlConf), c.session))
     injector.injectFinal(c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
@@ -204,8 +209,10 @@ object VeloxRuleApi {
     injector.injectPostTransform(c => RemoveGlutenTableCacheColumnarToRow(c.session))
     injector.injectPostTransform(
       c => PreventBatchTypeMismatchInTableCache(c.caller.isCache(), Set(VeloxBatchType)))
-    injector.injectPostTransform(c => GlutenAutoAdjustStageResourceProfile(new GlutenConfig(c.sqlConf), c.session))
-    injector.injectPostTransform(c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
+    injector.injectPostTransform(
+      c => GlutenAutoAdjustStageResourceProfile(new GlutenConfig(c.sqlConf), c.session))
+    injector.injectPostTransform(
+      c => GlutenFallbackReporter(new GlutenConfig(c.sqlConf), c.session))
     injector.injectPostTransform(_ => RemoveFallbackTagRule())
   }
 }

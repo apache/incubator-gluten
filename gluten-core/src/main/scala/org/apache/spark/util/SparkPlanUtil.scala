@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.util
 
 import org.apache.spark.sql.execution.SparkPlan
@@ -39,7 +38,8 @@ object SparkPlanUtil {
       return false
     }
 
-    val v1WriteCommandClass = Utils.classForName("org.apache.spark.sql.execution.datasources.V1WriteCommand")
+    val v1WriteCommandClass =
+      Utils.classForName("org.apache.spark.sql.execution.datasources.V1WriteCommand")
     val plannedWriteEnabled =
       SQLConf.get.getConfString("spark.sql.optimizer.plannedWrite.enabled", "true").toBoolean
     v1WriteCommandClass.isAssignableFrom(plan.cmd.getClass) && plannedWriteEnabled
