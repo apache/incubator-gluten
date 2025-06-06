@@ -442,6 +442,7 @@ object GlutenConfig {
   val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
   val SPARK_OVERHEAD_FACTOR_KEY = "spark.executor.memoryOverheadFactor"
   val SPARK_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
+  val SPARK_OFFHEAP_SIZE_DEFAULT: String = "1g"
   val SPARK_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"
   val SPARK_SHUFFLE_FILE_BUFFER = "spark.shuffle.file.buffer"

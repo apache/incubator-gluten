@@ -46,7 +46,6 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       .config("spark.sql.adaptive.enabled", "true")
       .config("spark.sql.shuffle.partitions", "1")
       .config("spark.sql.files.maxPartitionBytes", "134217728")
-      .config("spark.memory.offHeap.enabled", "true")
       .config("spark.memory.offHeap.size", "1024MB")
       .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")

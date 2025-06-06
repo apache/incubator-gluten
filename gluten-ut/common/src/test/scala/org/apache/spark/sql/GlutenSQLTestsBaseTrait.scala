@@ -86,7 +86,6 @@ object GlutenSQLTestsBaseTrait {
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.sql.files.maxPartitionBytes", "134217728")
-      .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")

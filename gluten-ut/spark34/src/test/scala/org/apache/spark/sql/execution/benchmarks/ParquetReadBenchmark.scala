@@ -67,7 +67,6 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       .setIfMissing("spark.master", s"local[$thrdNum]")
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.memory.offHeap.enabled", "true")
       .setIfMissing("spark.memory.offHeap.size", offheapSize)
       .setIfMissing("spark.sql.columnVector.offheap.enabled", "true")
       .set("spark.sql.adaptive.enabled", "false")

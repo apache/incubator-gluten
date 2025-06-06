@@ -133,7 +133,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     }
   }
 
-  private def checkOffHeapSettings(conf: SparkConf): Unit = {
+  private def checkAndSetOffHeapSettings(conf: SparkConf): Unit = {
     if (conf.get(DYNAMIC_OFFHEAP_SIZING_ENABLED)) {
       // When dynamic off-heap sizing is enabled, off-heap mode is not strictly required to be
       // enabled. Skip the check.
@@ -146,15 +146,13 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       return
     }
 
-    val minOffHeapSize = "1MB"
-    if (
-      !conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, false) ||
-      conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
-        minOffHeapSize)
-    ) {
-      throw new GlutenException(
-        s"Must set '$SPARK_OFFHEAP_ENABLED' to true " +
-          s"and set '$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize")
+    conf.set(SPARK_OFFHEAP_ENABLED, "true")
+    if (conf.getOption(SPARK_OFFHEAP_SIZE_KEY).isEmpty) {
+      val defaultOffHeapSize = JavaUtils.byteStringAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_DEFAULT)
+      val heapSize = conf.getSizeAsBytes(SPARK_ONHEAP_SIZE_KEY, defaultOffHeapSize)
+      val advisoryOffHeapSize = math.min(heapSize, defaultOffHeapSize)
+      logWarning(s"$SPARK_ONHEAP_SIZE_KEY is not set, use $advisoryOffHeapSize as default " +
+        s"off-heap size. Please set $SPARK_OFFHEAP_SIZE_KEY to a proper value.")
     }
   }
 
@@ -176,7 +174,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     }
 
     // check memory off-heap enabled and size.
-    checkOffHeapSettings(conf)
+    checkAndSetOffHeapSettings(conf)
 
     // Get the off-heap size set by user.
     val offHeapSize = conf.getSizeAsBytes(SPARK_OFFHEAP_SIZE_KEY)
