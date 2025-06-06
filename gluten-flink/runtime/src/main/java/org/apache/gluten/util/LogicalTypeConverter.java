@@ -22,6 +22,7 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -75,6 +76,8 @@ public class LogicalTypeConverter {
           Map.entry(
               DayTimeIntervalType.class,
               logicalType -> new io.github.zhztheplayer.velox4j.type.BigIntType()),
+          Map.entry(
+              DateType.class, logicalType -> new io.github.zhztheplayer.velox4j.type.DateType()),
           Map.entry(
               RowType.class,
               logicalType -> {

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.execution.WholeStageCodegenExec
@@ -187,7 +188,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   // This test is applicable to velox backend. For CH backend, the replacement is disabled.
   testGluten("use gluten hash agg to replace vanilla spark sort agg") {
 
-    withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "false")) {
+    withSQLConf((GlutenConfig.COLUMNAR_FORCE_HASHAGG_ENABLED.key, "false")) {
       withTempView("t1") {
         Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
         // SortAggregateExec is expected to be used for string type input.
@@ -197,7 +198,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       }
     }
 
-    withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "true")) {
+    withSQLConf((GlutenConfig.COLUMNAR_FORCE_HASHAGG_ENABLED.key, "true")) {
       withTempView("t1") {
         Seq("A", "B", "C", "D").toDF("col1").createOrReplaceTempView("t1")
         val df = spark.sql("select max(col1) from t1")

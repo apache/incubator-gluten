@@ -78,7 +78,7 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
     val mapTaskIds =
       taskIdMapsForShuffle.computeIfAbsent(handle.shuffleId, _ => new OpenHashSet[Long](16))
     mapTaskIds.synchronized {
-      mapTaskIds.add(context.taskAttemptId())
+      mapTaskIds.add(mapId)
     }
     val env = SparkEnv.get
     handle match {
