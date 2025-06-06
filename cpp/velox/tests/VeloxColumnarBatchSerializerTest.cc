@@ -17,10 +17,12 @@
 
 #include <gtest/gtest.h>
 
+#include "compute/VeloxBackend.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "utils/VeloxArrowUtils.h"
+
 #include "velox/vector/arrow/Bridge.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
 
@@ -32,14 +34,19 @@ namespace gluten {
 
 class VeloxColumnarBatchSerializerTest : public ::testing::Test, public test::VectorTestBase {
  protected:
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
+    VeloxBackend::create(AllocationListener::noop(), {});
     memory::MemoryManager::testingSetInstance(memory::MemoryManager::Options{});
   }
 
-  std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
+  static void TearDownTestSuite() {
+    VeloxBackend::get()->tearDown();
+  }
 };
 
 TEST_F(VeloxColumnarBatchSerializerTest, serialize) {
+  auto* arrowPool = getDefaultMemoryManager()->defaultArrowMemoryPool();
+
   std::vector<VectorPtr> children = {
       makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt, 4}),
       makeNullableFlatVector<int8_t>({1, -1, std::nullopt, std::nullopt, -2}),
@@ -54,12 +61,12 @@ TEST_F(VeloxColumnarBatchSerializerTest, serialize) {
   };
   auto vector = makeRowVector(children);
   auto batch = std::make_shared<VeloxColumnarBatch>(vector);
-  auto serializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), pool_, nullptr);
+  auto serializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool, pool_, nullptr);
   auto buffer = serializer->serializeColumnarBatches({batch});
 
   ArrowSchema cSchema;
   exportToArrow(vector, cSchema, ArrowUtils::getBridgeOptions());
-  auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), pool_, &cSchema);
+  auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool, pool_, &cSchema);
   auto deserialized = deserializer->deserialize(const_cast<uint8_t*>(buffer->data()), buffer->size());
   auto deserializedVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(deserialized)->getRowVector();
   test::assertEqualVectors(vector, deserializedVector);

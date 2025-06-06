@@ -33,10 +33,9 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxRssSortShuffleWriter::cr
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* arrowPool) {
-  std::shared_ptr<VeloxRssSortShuffleWriter> res(new VeloxRssSortShuffleWriter(
-      numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
+    MemoryManager* memoryManager) {
+  std::shared_ptr<VeloxRssSortShuffleWriter> res(
+      new VeloxRssSortShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), memoryManager));
   RETURN_NOT_OK(res->init());
   return res;
 } // namespace gluten

@@ -23,12 +23,16 @@
 
 namespace gluten {
 
-/// This pool was not tracked by Spark, should only used in test.
-std::shared_ptr<arrow::MemoryPool> defaultArrowMemoryPool();
+using ArrowMemoryPoolReleaser = std::function<void(arrow::MemoryPool*)>;
 
+/// This pool was not tracked by Spark, should only used in test.
 class ArrowMemoryPool final : public arrow::MemoryPool {
  public:
-  explicit ArrowMemoryPool(MemoryAllocator* allocator) : allocator_(allocator) {}
+  explicit ArrowMemoryPool(AllocationListener* listener, ArrowMemoryPoolReleaser releaser = nullptr)
+      : allocator_(std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), listener)),
+        releaser_(std::move(releaser)) {}
+
+  ~ArrowMemoryPool() override;
 
   arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
 
@@ -38,14 +42,19 @@ class ArrowMemoryPool final : public arrow::MemoryPool {
 
   int64_t bytes_allocated() const override;
 
+  int64_t max_memory() const override;
+
   int64_t total_bytes_allocated() const override;
 
   int64_t num_allocations() const override;
 
   std::string backend_name() const override;
 
+  MemoryAllocator* allocator() const;
+
  private:
-  MemoryAllocator* allocator_;
+  std::unique_ptr<MemoryAllocator> allocator_;
+  ArrowMemoryPoolReleaser releaser_;
 };
 
 } // namespace gluten

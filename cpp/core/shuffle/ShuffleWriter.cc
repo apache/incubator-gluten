@@ -83,10 +83,6 @@ int64_t ShuffleWriter::totalCompressTime() const {
   return metrics_.totalCompressTime;
 }
 
-int64_t ShuffleWriter::peakBytesAllocated() const {
-  return pool_->max_memory();
-}
-
 int64_t ShuffleWriter::totalSortTime() const {
   return 0;
 }
@@ -103,6 +99,6 @@ const std::vector<int64_t>& ShuffleWriter::rawPartitionLengths() const {
   return metrics_.rawPartitionLengths;
 }
 
-ShuffleWriter::ShuffleWriter(int32_t numPartitions, ShuffleWriterOptions options, arrow::MemoryPool* pool)
-    : numPartitions_(numPartitions), options_(std::move(options)), pool_(pool) {}
+ShuffleWriter::ShuffleWriter(int32_t numPartitions, ShuffleWriterOptions options)
+    : numPartitions_(numPartitions), options_(std::move(options)) {}
 } // namespace gluten

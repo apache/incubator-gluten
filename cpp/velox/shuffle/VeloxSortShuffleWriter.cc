@@ -51,10 +51,9 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxSortShuffleWriter::creat
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* arrowPool) {
-  std::shared_ptr<VeloxSortShuffleWriter> writer(new VeloxSortShuffleWriter(
-      numPartitions, std::move(partitionWriter), std::move(options), std::move(veloxPool), arrowPool));
+    MemoryManager* memoryManager) {
+  std::shared_ptr<VeloxSortShuffleWriter> writer(
+      new VeloxSortShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), memoryManager));
   RETURN_NOT_OK(writer->init());
   return writer;
 }
@@ -63,9 +62,8 @@ VeloxSortShuffleWriter::VeloxSortShuffleWriter(
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* pool)
-    : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), std::move(veloxPool), pool) {}
+    MemoryManager* memoryManager)
+    : VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), memoryManager) {}
 
 arrow::Status VeloxSortShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
   ARROW_ASSIGN_OR_RAISE(auto rv, getPeeledRowVector(cb));

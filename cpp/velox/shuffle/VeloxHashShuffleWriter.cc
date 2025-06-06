@@ -157,10 +157,9 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxHashShuffleWriter::creat
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     ShuffleWriterOptions options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    arrow::MemoryPool* arrowPool) {
+    MemoryManager* memoryManager) {
   std::shared_ptr<VeloxHashShuffleWriter> res(
-      new VeloxHashShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
+      new VeloxHashShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), memoryManager));
   RETURN_NOT_OK(res->init());
   return res;
 } // namespace gluten

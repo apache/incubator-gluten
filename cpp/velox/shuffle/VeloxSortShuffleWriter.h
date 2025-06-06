@@ -35,8 +35,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* arrowPool);
+      MemoryManager* memoryManager);
 
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
 
@@ -55,8 +54,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-      arrow::MemoryPool* pool);
+      MemoryManager* memoryManager);
 
   arrow::Status init();
 
