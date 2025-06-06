@@ -259,7 +259,8 @@ class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.memory.offHeap.size", "50m")
-      .set(GlutenConfig.COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO.key, "0.9") // to trigger distinct spill early
+      // to trigger distinct spill early
+      .set(GlutenConfig.COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO.key, "0.9")
       .set(GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key, "8k")
   }
 
