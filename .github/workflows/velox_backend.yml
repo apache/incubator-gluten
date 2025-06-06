@@ -528,11 +528,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases/
-      - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Install Uniffle ${{ matrix.uniffle }}
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
@@ -578,11 +573,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases/
-      - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
@@ -626,10 +616,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
           dnf module -y install python39 && \
@@ -677,11 +663,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -714,11 +695,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
           dnf module -y install python39 && \
@@ -770,12 +746,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
-
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -813,11 +783,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare spark.test.home for Spark 3.4.4 (other tests)
         run: |
           dnf module -y install python39 && \
@@ -871,11 +836,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Build and Run unit test for Spark 3.4.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -915,11 +875,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
           dnf module -y install python39 && \
@@ -971,11 +926,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
           dnf module -y install python39 && \
@@ -1021,11 +971,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1063,11 +1008,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
           dnf module -y install python39 && \
@@ -1112,11 +1052,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
@@ -1153,11 +1088,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Prepare
         run: |
           dnf module -y install python39 && \
@@ -1202,11 +1132,6 @@ jobs:
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
           path: ./cpp/build/releases
-      - name: Download Arrow Jars
-        uses: actions/download-artifact@v4
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /root/.m2/repository/org/apache/arrow/
       - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
