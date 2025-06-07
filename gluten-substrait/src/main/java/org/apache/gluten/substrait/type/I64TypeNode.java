@@ -40,4 +40,9 @@ public class I64TypeNode implements TypeNode, Serializable {
     builder.setI64(i64Builder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

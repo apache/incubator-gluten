@@ -40,4 +40,9 @@ public class IntervalYearTypeNode implements TypeNode, Serializable {
     builder.setIntervalYear(intervalYearBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

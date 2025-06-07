@@ -39,4 +39,9 @@ public class DateTypeNode implements TypeNode, Serializable {
     builder.setDate(dateBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }

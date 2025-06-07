@@ -40,4 +40,9 @@ public class I32TypeNode implements TypeNode, Serializable {
     builder.setI32(i32Builder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }
