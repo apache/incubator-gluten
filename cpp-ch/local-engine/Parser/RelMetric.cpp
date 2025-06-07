@@ -165,7 +165,7 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
             }
             writer.EndArray();
 
-            if (auto read_mergetree = dynamic_cast<DB::ReadFromMergeTree *>(step))
+            if (auto read_mergetree = dynamic_cast<const DB::ReadFromMergeTree *>(step))
             {
                 auto selected_marks_pk = read_mergetree->getAnalysisResult().selected_marks_pk;
                 auto selected_marks = read_mergetree->getAnalysisResult().selected_marks;
