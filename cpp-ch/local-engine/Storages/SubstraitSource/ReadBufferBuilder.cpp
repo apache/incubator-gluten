@@ -653,7 +653,7 @@ private:
         const std::string config_prefix = "blob";
         const Poco::Util::AbstractConfiguration & config = context->getConfigRef();
         bool is_client_for_disk = false;
-        auto new_settings = DB::AzureBlobStorage::getRequestSettings(config, config_prefix, context);
+        auto new_settings = DB::AzureBlobStorage::getRequestSettings(config, config_prefix, context->getSettingsRef());
         DB::AzureBlobStorage::ConnectionParams params{
             .endpoint = DB::AzureBlobStorage::processEndpoint(config, config_prefix),
             .auth_method = DB::AzureBlobStorage::getAuthMethod(config, config_prefix),
@@ -814,7 +814,7 @@ ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     if (!file_cache)
     {
         DB::FileCacheSettings file_cache_settings;
-        file_cache_settings.loadFromConfig(config, GlutenCacheConfig::PREFIX);
+        file_cache_settings.loadFromConfig(config, GlutenCacheConfig::PREFIX, DB::getPathPrefixForRelativeCachePath(context), "");
 
         auto & base_path = file_cache_settings[FileCacheSetting::path].value;
         if (std::filesystem::path(base_path).is_relative())
