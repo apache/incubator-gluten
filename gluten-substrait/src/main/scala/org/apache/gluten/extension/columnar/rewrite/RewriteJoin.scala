@@ -27,7 +27,10 @@ import org.apache.spark.sql.execution.joins.{ShuffledHashJoinExec, SortMergeJoin
 /** If force ShuffledHashJoin, convert [[SortMergeJoinExec]] to [[ShuffledHashJoinExec]]. */
 object RewriteJoin extends RewriteSingleNode with JoinSelectionHelper {
   override def isRewritable(plan: SparkPlan): Boolean = {
-    RewriteEligibility.isRewritable(plan)
+    plan match {
+      case _: SortMergeJoinExec => true
+      case _ => false
+    }
   }
 
   private def getSmjBuildSide(join: SortMergeJoinExec): Option[BuildSide] = {

@@ -24,7 +24,10 @@ import org.apache.spark.sql.execution.{ProjectExec, SparkPlan, UnaryExecNode}
  */
 object ProjectColumnPruning extends RewriteSingleNode {
   override def isRewritable(plan: SparkPlan): Boolean = {
-    RewriteEligibility.isRewritable(plan)
+    plan match {
+      case parent: UnaryExecNode if parent.child.isInstanceOf[ProjectExec] => true
+      case _ => false
+    }
   }
 
   override def rewrite(plan: SparkPlan): SparkPlan = plan match {
