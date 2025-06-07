@@ -57,4 +57,9 @@ public class StructNode implements TypeNode, Serializable {
     builder.setStruct(structBuilder.build());
     return builder.build();
   }
+
+  @Override
+  public Boolean nullable() {
+    return nullable;
+  }
 }
