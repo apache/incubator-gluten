@@ -33,6 +33,6 @@ public class NothingNode implements TypeNode, Serializable {
 
   @Override
   public Boolean nullable() {
-    throw new UnsupportedOperationException();
+    return true;
   }
 }
