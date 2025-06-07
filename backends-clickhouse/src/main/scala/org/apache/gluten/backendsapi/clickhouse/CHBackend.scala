@@ -112,7 +112,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   private val GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
 
   // The algorithm for hash partition of the shuffle
-  private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
+  val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
     CHConfig.prefixOf("shuffle.hash.algorithm")
   // valid values are: cityHash64 or sparkMurmurHash3_32
   private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT = "sparkMurmurHash3_32"

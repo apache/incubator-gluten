@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{ColumnarPartialProjectExec, WholeStageTransformerSuite}
 
 import org.apache.spark.SparkConf
@@ -30,14 +31,14 @@ case class MyStruct(a: Long, b: Array[Long])
 class UDFPartialProjectSuiteRasOff extends UDFPartialProjectSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "false")
+      .set(GlutenConfig.RAS_ENABLED.key, "false")
   }
 }
 
 class UDFPartialProjectSuiteRasOn extends UDFPartialProjectSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.gluten.ras.enabled", "true")
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
   }
 }
 
@@ -223,8 +224,8 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     Seq("false", "true").foreach {
       enableNativeScanAndWriter =>
         withSQLConf(
-          "spark.gluten.sql.native.writer.enabled" -> enableNativeScanAndWriter,
-          "spark.gluten.sql.columnar.batchscan" -> enableNativeScanAndWriter
+          GlutenConfig.NATIVE_WRITER_ENABLED.key -> enableNativeScanAndWriter,
+          GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key -> enableNativeScanAndWriter
         ) {
           withTable("t1") {
             spark.sql("""

@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.clickhouse.CHConfig
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.expression.{FlattenedAnd, FlattenedOr}
 
 import org.apache.spark.SparkConf
@@ -55,13 +56,13 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.supported.scala.udfs", "compare_substrings:compare_substrings")
+      .set(GlutenConfig.GLUTEN_SUPPORTED_SCALA_UDFS.key, "compare_substrings:compare_substrings")
   }
 
   override def beforeAll(): Unit = {
@@ -300,7 +301,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       checkPlan(df.queryExecution.analyzed, path)
     }
 
-    withSQLConf(("spark.gluten.sql.collapseGetJsonObject.enabled", "true")) {
+    withSQLConf((GlutenConfig.ENABLE_COLLAPSE_GET_JSON_OBJECT.key, "true")) {
       runQueryAndCompare(
         "select get_json_object(get_json_object(string_field1, '$.a'), '$.y') " +
           " from json_test where int_field1 = 6") {
@@ -752,7 +753,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       }
     }
 
-    withSQLConf(("spark.gluten.sql.commonSubexpressionEliminate", "true")) {
+    withSQLConf((GlutenConfig.ENABLE_COMMON_SUBEXPRESSION_ELIMINATE.key, "true")) {
       // CSE in project
       runQueryAndCompare("select hash(id), hash(id)+1, hash(id)-1 from range(10)") {
         df => checkOperatorCount[ProjectExecTransformer](2)(df)
@@ -857,7 +858,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   test("avg(bigint) overflow") {
     withSQLConf(
-      "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false",
+      GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
       "spark.sql.autoBroadcastJoinThreshold" -> "-1") {
       withTable("myitem") {
         sql("create table big_int(id bigint) using parquet")

@@ -355,7 +355,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("window expression") {
     Seq(("sort", 0), ("streaming", 1)).foreach {
       case (windowType, localSortSize) =>
-        withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
+        withSQLConf(VeloxConfig.COLUMNAR_VELOX_WINDOW_TYPE.key -> windowType) {
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_commitdate" +
@@ -715,10 +715,9 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("combine small batches before shuffle") {
     val minBatchSize = 15
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
-      "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize" ->
-        s"$minBatchSize"
+      VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key -> "true",
+      GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key -> "2",
+      VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE.key -> s"$minBatchSize"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
@@ -736,8 +735,8 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
 
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
-      "spark.gluten.sql.columnar.maxBatchSize" -> "2"
+      VeloxConfig.COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key -> "true",
+      GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key -> "2"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
@@ -783,7 +782,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   test("Improve the local sort ensure requirements") {
     withSQLConf(
       "spark.sql.autoBroadcastJoinThreshold" -> "-1",
-      "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
       withTable("t1", "t2") {
         sql("""
               |create table t1 using parquet as
@@ -1255,7 +1254,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("Test sample op") {
-    withSQLConf("spark.gluten.sql.columnarSampleEnabled" -> "true") {
+    withSQLConf(GlutenConfig.COLUMNAR_SAMPLE_ENABLED.key -> "true") {
       withTable("t") {
         sql("create table t (id int, b boolean) using parquet")
         sql("insert into t values (1, true), (2, false), (3, null), (4, true), (5, false)")
@@ -1277,7 +1276,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
             |""".stripMargin)
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "true") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true") {
         runQueryAndCompare(
           """
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
@@ -1297,7 +1296,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
@@ -1307,7 +1306,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 left semi join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1355,7 +1354,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             |create table t2 using parquet as
             |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
             |""".stripMargin)
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 inner join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1365,7 +1364,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 left join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1375,7 +1374,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 left semi join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1385,7 +1384,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 right join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -1395,7 +1394,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
 
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 left anti join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
@@ -2083,7 +2082,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
   }
 
   test("Blacklist expression can be handled by ColumnarPartialProject") {
-    withSQLConf("spark.gluten.expression.blacklist" -> "regexp_replace") {
+    withSQLConf(GlutenConfig.EXPRESSION_BLACK_LIST.key -> "regexp_replace") {
       runQueryAndCompare(
         "SELECT c_custkey, c_name, regexp_replace(c_comment, '\\w', 'something') FROM customer") {
         df =>

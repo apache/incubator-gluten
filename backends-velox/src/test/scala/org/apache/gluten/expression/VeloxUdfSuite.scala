@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.execution.ProjectExecTransformer
 import org.apache.gluten.tags.{SkipTest, UDFTest}
 
@@ -240,7 +241,7 @@ class VeloxUdfSuiteLocal extends VeloxUdfSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.files", udfLibPath)
-      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibRelativePath)
+      .set(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, udfLibRelativePath)
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
   }
 }
@@ -277,8 +278,8 @@ class VeloxUdfSuiteCluster extends VeloxUdfSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.files", udfLibPath)
-      .set("spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths", driverUdfLibPath)
-      .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibRelativePath)
+      .set(VeloxBackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS, driverUdfLibPath)
+      .set(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, udfLibRelativePath)
       .set("spark.driver.extraClassPath", glutenJar)
       .set("spark.executor.extraClassPath", glutenJar)
   }

@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
@@ -38,7 +40,7 @@ trait CHSqlBasedBenchmark extends SqlBasedBenchmark {
       .set("spark.databricks.delta.snapshotPartitions", "1")
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
-      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set(GlutenConfig.NATIVE_VALIDATION_ENABLED.key, "false")
       .set("spark.sql.adaptive.enabled", "false")
       .setIfMissing("spark.memory.offHeap.size", offheapSize)
       .setIfMissing("spark.sql.columnVector.offheap.enabled", "true")

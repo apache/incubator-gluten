@@ -23,9 +23,14 @@ import java.util.Map;
 public class TestConfUtil {
   public static Map<String, Object> GLUTEN_CONF =
       ImmutableMap.of(
-          "spark.plugins", "org.apache.gluten.GlutenPlugin",
-          "spark.memory.offHeap.enabled", "true",
-          "spark.memory.offHeap.size", "1024MB",
-          "spark.ui.enabled", "false",
-          "spark.gluten.ui.enabled", "false");
+          "spark.plugins",
+          "org.apache.gluten.GlutenPlugin",
+          "spark.memory.offHeap.enabled",
+          "true",
+          "spark.memory.offHeap.size",
+          "1024MB",
+          "spark.ui.enabled",
+          "false",
+          "spark.gluten.ui.enabled",
+          "false");
 }

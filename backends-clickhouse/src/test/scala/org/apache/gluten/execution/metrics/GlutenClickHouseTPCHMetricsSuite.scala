@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.metrics
 
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.execution.GlutenPlan
 
@@ -116,7 +117,7 @@ class GlutenClickHouseTPCHMetricsSuite extends ParquetTPCHSuite {
   }
 
   test("Check the metrics values") {
-    withSQLConf(("spark.gluten.sql.columnar.sort", "false")) {
+    withSQLConf((GlutenConfig.COLUMNAR_SORT_ENABLED.key, "false")) {
       customCheck(1, native = false) {
         df =>
           val plans = df.queryExecution.executedPlan.collect {

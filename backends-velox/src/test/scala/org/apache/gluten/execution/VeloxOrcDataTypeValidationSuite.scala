@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 
 import java.io.File
@@ -288,7 +290,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
 
     // Validation: ShuffledHashJoin.
     withSQLConf(
-      "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "true",
+      GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true",
       "spark.sql.autoBroadcastJoinThreshold" -> "-1") {
       runQueryAndCompare(
         "select type1.date from type1," +
@@ -299,7 +301,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
 
     // Validation: SortMergeJoin.
     withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
-      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
         runQueryAndCompare(
           "select type1.date from type1," +
             " type2 where type1.date = type2.date") {
@@ -466,7 +468,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
   }
 
   ignore("Velox Parquet Write") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+    withSQLConf((GlutenConfig.NATIVE_WRITER_ENABLED.key, "true")) {
       withTempDir {
         dir =>
           val write_path = dir.toURI.getPath
