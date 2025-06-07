@@ -14,22 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql
+package org.apache.gluten.execution
 
-import org.apache.spark.sql.internal.SQLConf
+/**
+ * GlutenExpression is a marker trait for expressions that are specific to Gluten execution. It can
+ * be used to identify expressions that should only be evaluated in the context of a Spark task.
+ */
+trait GlutenExpression {
 
-class GlutenInjectRuntimeFilterSuite extends InjectRuntimeFilterSuite with GlutenSQLTestsBaseTrait {
+  def onlyInSparkTask(): Boolean = false
 
-  testGluten("GLUTEN-9849: bloom filter applied to partition filter") {
-    withSQLConf(
-      SQLConf.RUNTIME_BLOOM_FILTER_APPLICATION_SIDE_SCAN_SIZE_THRESHOLD.key -> "3000",
-      SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "false",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "2000"
-    ) {
-      assertRewroteWithBloomFilter(
-        "select * from bf5part join bf2 on " +
-          "bf5part.f5 = bf2.c2 where bf2.a2 = 67")
-    }
-  }
+}
+
+trait GlutenTaskOnlyExpression extends GlutenExpression {
+
+  override def onlyInSparkTask(): Boolean = true
 
 }
