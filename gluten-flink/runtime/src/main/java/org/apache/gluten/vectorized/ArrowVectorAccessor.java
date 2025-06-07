@@ -21,15 +21,10 @@ import io.github.zhztheplayer.velox4j.type.*;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.DateDayVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -59,6 +54,7 @@ public abstract class ArrowVectorAccessor {
           Map.entry(StructVector.class, vector -> new StructVectorAccessor(vector)),
           Map.entry(ListVector.class, vector -> new ListVectorAccessor(vector)),
           Map.entry(DateDayVector.class, vector -> new DateDayVectorAccessor(vector)),
+          Map.entry(TimeStampMicroVector.class, vector -> new TimeStampMicroVectorAccessor(vector)),
           Map.entry(MapVector.class, vector -> new MapVectorAccessor(vector)));
 
   public static ArrowVectorAccessor create(FieldVector vector) {
@@ -242,5 +238,19 @@ class MapVectorAccessor extends BaseArrowVectorAccessor<MapVector> {
       mapEntries.put(key, value);
     }
     return new GenericMapData(mapEntries);
+  }
+}
+
+class TimeStampMicroVectorAccessor extends BaseArrowVectorAccessor<TimeStampMicroVector> {
+
+  public TimeStampMicroVectorAccessor(FieldVector vector) {
+    super(vector);
+  }
+
+  @Override
+  public Object getImpl(int rowIndex) {
+    long microseconds = typedVector.get(rowIndex);
+    long milliseconds = microseconds / 1000;
+    return TimestampData.fromEpochMillis(milliseconds);
   }
 }
