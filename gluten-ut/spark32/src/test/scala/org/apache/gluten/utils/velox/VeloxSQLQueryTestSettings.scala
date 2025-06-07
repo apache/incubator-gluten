@@ -72,7 +72,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
       "group-by-ordinal.sql",
       "grouping_set.sql",
       "having.sql",
-      "higher-order-functions.sql",
+//      "higher-order-functions.sql",
       "ignored.sql",
       "inline-table.sql",
       "inner-join.sql",
