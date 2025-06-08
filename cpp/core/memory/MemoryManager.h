@@ -39,8 +39,12 @@ class MemoryManager {
     return kind_;
   }
 
+  // Get the default Arrow memory pool for this memory manager. This memory pool is held by the memory manager.
   virtual arrow::MemoryPool* defaultArrowMemoryPool() = 0;
 
+  // Create a new Arrow memory pool with the given name. The caller is responsible for managing the lifetime of the
+  // returned memory pool. Memory manager only holds the weak reference to the memory pool for collecting memory usage.
+  // If the name is already used by an existing memory pool, the creation will fail.
   virtual std::shared_ptr<arrow::MemoryPool> createArrowMemoryPool(const std::string& name) = 0;
 
   virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
