@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend Github Runner
+name: Velox backend Github Runner (x86)
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/velox_backend.yml'
+      - '.github/workflows/velox_backend_x86.yml'
       - 'pom.xml'
       - 'backends-velox/**'
       - 'gluten-uniffle/**'
@@ -34,10 +34,7 @@ on:
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'ep/build-velox/**'
-      - 'cpp/*'
-      - 'cpp/CMake/**'
-      - 'cpp/velox/**'
-      - 'cpp/core/**'
+      - 'cpp/**'
       - 'dev/**'
 
 env:
@@ -1241,20 +1238,14 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos8-release-default-${{github.sha}}
+          key: ccache-centos8-release-shared-${{runner.arch}}-${{github.sha}}
           restore-keys: |
-            ccache-centos8-release-default
+            ccache-centos8-release-shared-${{runner.arch}}
       - name: Build Gluten native libraries
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
-      # - name: "Save ccache"
-      #   uses: actions/cache/save@v4
-      #   id: ccache
-      #   with:
-      #     path: '${{ env.CCACHE_DIR }}'
-      #     key: ccache-centos8-release-default-${{github.sha}}
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V
