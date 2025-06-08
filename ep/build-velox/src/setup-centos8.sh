@@ -46,7 +46,7 @@ DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)/deps-download}
 FB_OS_VERSION="v2024.07.01.00"
 FMT_VERSION="10.1.1"
 BOOST_VERSION="boost-1.84.0"
-GEOS_VERSION="3.10.2"
+GEOS_VERSION="3.10.7"
 
 function dnf_install {
   dnf install -y -q --setopt=install_weak_deps=False "$@"
