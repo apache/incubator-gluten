@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution.python
 
 import org.apache.gluten.execution.FileSourceScanExecTransformer
 
-import org.apache.spark.api.python.ColumnarArrowEvalPythonExec
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.internal.SQLConf
@@ -32,7 +31,7 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
   }
 
   def collectArrowExec(plan: SparkPlan): Seq[EvalPythonExec] = plan.collect {
-    case b: ColumnarArrowEvalPythonExec => b
+    case b: EvalPythonExec => b
   }
 
   testGluten("Python UDF should not break column pruning/filter pushdown -- Parquet V1") {
