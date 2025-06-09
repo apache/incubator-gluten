@@ -38,7 +38,7 @@
 #include "velox/common/base/BloomFilter.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/exec/HashTable.h"
-#include "velox/exec/HashTableBuilder.h"
+#include "operators/hashjoin/HashTableBuilder.h"
 
 #include <iostream>
 
@@ -552,7 +552,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_native
       isNullAwareAntiJoin,
       cb,
       defaultLeafVeloxMemoryPool());
-  auto id = gluten::hashTableObjStore->save(hashTableHandler);
+  auto id = gluten::hashTableObjStore->save(hashTableHandler->hashTable());
   std::cout << "store the hashTableBuilder is " << hashTableHandler.get() << " and the store id is " << (jlong)id << "\n";
   std::cout.setf(std::ios::unitbuf);
   return id;
@@ -564,7 +564,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_cloneH
     jclass,
     jlong tableHandler) {
   JNI_METHOD_START
-  auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(tableHandler);
+  auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::BaseHashTable>(tableHandler);
   return gluten::hashTableObjStore->save(hashTableHandler);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -574,11 +574,11 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_HashJoinBuilder_clearHa
     jclass,
     jlong tableHandler) {
   JNI_METHOD_START
-  auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(tableHandler);
+  auto hashTableHandler = ObjectStore::retrieve<facebook::velox::exec::BaseHashTable>(tableHandler);
   std::cout << "releasing the hashTableBuilder is " << hashTableHandler.get() << " and the store id is " << tableHandler
             << "\n";
   std::cout.setf(std::ios::unitbuf);
-  hashTableHandler->clear();
+  hashTableHandler->clear(true);
   ObjectStore::release(tableHandler);
   JNI_METHOD_END()
 }
