@@ -84,7 +84,12 @@ object GlutenPlanModel {
         // In Gluten RAS, however, equality checks are heavily used to avoid inserting duplicates to
         // the plan enumeration search space. Using the ordinary equality check of RDDScanExec could
         // lead to replacement of two different RDD objects with the same RDD object when a single
-        // RDD is scanned multiple times (common in self-join, self-union, etc.).
+        // RDD is scanned multiple times (common in self-join, self-union, etc.). Consequently, the
+        // execution metrics might miscount (see https://github.com/apache/incubator-gluten/issues/9901).
+        // To overcome this issue, we explicitly add Spark plan's ID into equality check. The worst
+        // possible consequence for an over-strict equality check is acceptable (bigger search space),
+        // and since these are leaf operators, there would usually not be any true duplicates to begin
+        // with.
         RDDScanExecEqualityWrapper(scan, scan.id)
       case scan: DataSourceV2ScanExecBase =>
         // DataSourceV2ScanExec has the same problem as v1's RDDScanExec, as explained above.
