@@ -164,6 +164,7 @@ set(VELOX_SRCS
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
     operators/functions/SparkExprToSubfieldFilterParser.cc
+    operators/hashjoin/HashTableBuilder.cc
     operators/reader/FileReaderIterator.cc
     operators/reader/ParquetReaderIterator.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
