@@ -18,9 +18,8 @@ package org.apache.gluten.extension.columnar.enumerated.planner.plan
 
 import org.apache.gluten.ras.PlanModel
 import org.apache.gluten.sql.shims.SparkShimLoader
-
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.task.{SparkTaskUtil, TaskResources}
 
@@ -89,8 +88,22 @@ object GlutenPlanModel {
         // https://github.com/apache/spark/pull/23619
         // https://github.com/apache/spark/pull/23430
         ScanV2ExecEqualityWrapper(scan, scan.output)
+      case scan: RDDScanExec =>
+        // Override RDDScanExec operator's equality implementation to include the Spark plan id.
+        //
+        // In Spark, two RDDScanExec objects could be "equivalent" even though they serve different
+        // purposes - this might be a design oversight of Spark, but it seems not an issue for Spark.
+        // In Gluten RAS, however, equality checks are heavily used to avoid inserting duplicates to
+        // the plan enumeration search space. Using the ordinary equality check of RDDScanExec could
+        // lead to replacement of two different RDD objects with the same RDD object when a single
+        // RDD is scanned multiple times (common in self-join, self-union, etc.).
+        RDDScanExecEqualityWrapper(scan, scan.id)
       case other => other
     }
+
+    private case class RDDScanExecEqualityWrapper(
+        scan: RDDScanExec,
+        id: Int)
 
     private case class ScanV2ExecEqualityWrapper(
         scan: DataSourceV2ScanExecBase,

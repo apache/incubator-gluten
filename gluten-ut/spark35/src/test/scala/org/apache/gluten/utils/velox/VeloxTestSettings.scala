@@ -949,6 +949,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Nested Python UDF: push down deterministic FilterExec predicates")
     .exclude("Python UDF: no push down on non-deterministic")
     .exclude("Python UDF: push down on deterministic predicates after the first non-deterministic")
+  enableSuite[GlutenStreamingQuerySuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
