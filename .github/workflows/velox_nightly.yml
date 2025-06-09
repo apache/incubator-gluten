@@ -109,7 +109,7 @@ jobs:
         with:
           switches: -avzr
           path: package/target/gluten-velox-bundle-*.jar
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release-${{ steps.date.outputs.date }}
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/nightly-release
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
