@@ -1,6 +1,6 @@
 # Aggregate Functions Support Status
 
-**Out of 62 aggregate functions in Spark 3.5, Gluten currently fully supports 54 functions and partially supports 1 function.**
+**Out of 62 aggregate functions in Spark 3.5, Gluten currently fully supports 62 functions.**
 
 ## Aggregate Functions
 
@@ -15,8 +15,8 @@
 | bit_and               | BitAndAgg                          | S        |                |
 | bit_or                | BitOrAgg                           | S        |                |
 | bit_xor               | BitXorAgg                          | S        |                |
-| bitmap_construct_agg  | BitmapConstructAgg                 |          |                |
-| bitmap_or_agg         | BitmapOrAgg                        |          |                |
+| bitmap_construct_agg  | BitmapConstructAgg                 | S        |                |
+| bitmap_or_agg         | BitmapOrAgg                        | S        |                |
 | bool_and              | BoolAnd                            | S        |                |
 | bool_or               | BoolOr                             | S        |                |
 | collect_list          | CollectList                        | S        |                |
@@ -24,7 +24,7 @@
 | corr                  | Corr                               | S        |                |
 | count                 | Count                              | S        |                |
 | count_if              | CountIf                            | S        |                |
-| count_min_sketch      | CountMinSketchAggExpressionBuilder |          |                |
+| count_min_sketch      | CountMinSketchAggExpressionBuilder | S        |                |
 | covar_pop             | CovPopulation                      | S        |                |
 | covar_samp            | CovSample                          | S        |                |
 | every                 | BoolAnd                            | S        |                |
@@ -32,9 +32,9 @@
 | first_value           | First                              | S        |                |
 | grouping              | Grouping                           | S        |                |
 | grouping_id           | GroupingID                         | S        |                |
-| histogram_numeric     | HistogramNumeric                   |          |                |
-| hll_sketch_agg        | HllSketchAgg                       |          |                |
-| hll_union_agg         | HllUnionAgg                        |          |                |
+| histogram_numeric     | HistogramNumeric                   | S        |                |
+| hll_sketch_agg        | HllSketchAgg                       | S        |                |
+| hll_union_agg         | HllUnionAgg                        | S        |                |
 | kurtosis              | Kurtosis                           | S        |                |
 | last                  | Last                               | S        |                |
 | last_value            | Last                               | S        |                |
@@ -44,7 +44,7 @@
 | median                | Median                             | S        |                |
 | min                   | Min                                | S        |                |
 | min_by                | MinBy                              | S        |                |
-| mode                  | Mode                               |          |                |
+| mode                  | Mode                               | S        |                |
 | percentile            | Percentile                         | S        |                |
 | percentile_approx     | ApproximatePercentile              | S        |                |
 | regr_avgx             | RegrAvgX                           | S        |                |
@@ -64,7 +64,7 @@
 | stddev_samp           | StddevSamp                         | S        |                |
 | sum                   | Sum                                | S        |                |
 | try_avg               | TryAverageExpressionBuilder        | S        |                |
-| try_sum               | TrySumExpressionBuilder            | PS       |                |
+| try_sum               | TrySumExpressionBuilder            | S        |                |
 | var_pop               | VariancePop                        | S        |                |
 | var_samp              | VarianceSamp                       | S        |                |
 | variance              | VarianceSamp                       | S        |                |
