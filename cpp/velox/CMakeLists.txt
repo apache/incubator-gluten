@@ -135,12 +135,14 @@ set(VELOX_SRCS
     jni/JniFileSystem.cc
     jni/JniUdf.cc
     jni/VeloxJniWrapper.cc
+    jni/JniHashTable.cc
     memory/BufferOutputStream.cc
     memory/VeloxColumnarBatch.cc
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
     operators/functions/SparkExprToSubfieldFilterParser.cc
+    operators/hashjoin/HashTableBuilder.cc
     operators/reader/FileReaderIterator.cc
     operators/reader/ParquetReaderIterator.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
