@@ -30,8 +30,11 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
     case b: BatchEvalPythonExec => b
   }
 
-  def collectArrowExec(plan: SparkPlan): Seq[EvalPythonExec] = plan.collect {
-    case b: EvalPythonExec => b
+  def collectArrowExec(plan: SparkPlan): Seq[EvalPythonExec] = {
+    print(plan.toString())
+    plan.collect {
+      case b: EvalPythonExec => b
+    }
   }
 
   testGluten("Python UDF should not break column pruning/filter pushdown -- Parquet V1") {
