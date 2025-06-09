@@ -38,6 +38,7 @@ import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v1.Write
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
+import org.apache.spark.sql.internal.SparkConfigUtil
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
@@ -45,7 +46,6 @@ import org.apache.spark.util.collection.BitSet
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, Message}
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.internal.SparkConfigUtil
 
 import java.util
 
@@ -99,7 +99,8 @@ class CHTransformerApi extends TransformerApi with Logging {
 
     require(backendPrefix == CHConfig.CONF_PREFIX)
     if (nativeConfMap.getOrDefault(GlutenConfig.SPARK_OFFHEAP_ENABLED, "false").toBoolean) {
-      val offHeapSize = SparkConfigUtil.get(nativeConfMap, GlutenConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
+      val offHeapSize =
+        SparkConfigUtil.get(nativeConfMap, GlutenConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
       if (offHeapSize > 0) {
         // Only set default max_bytes_before_external_group_by for CH when it is not set explicitly.
         val groupBySpillKey = CHConfig.runtimeSettings("max_bytes_before_external_group_by")
