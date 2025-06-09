@@ -37,6 +37,9 @@ trait GlutenTestsBaseTrait extends AnyFunSuiteLike {
   def testNameBlackList: Seq[String] = Seq()
 
   protected def shouldRun(testName: String): Boolean = {
+    if (testName.contains("used twice in self")) {
+      return true
+    }
     if (testNameBlackList.exists(_.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL))) {
       return false
     }
