@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.TransformerApi
+import org.apache.gluten.config.GlutenConfig
 import org.apache.gluten.execution.{CHHashAggregateExecTransformer, WriteFilesExecTransformer}
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.SubstraitContext
@@ -44,6 +45,7 @@ import org.apache.spark.util.collection.BitSet
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, Message}
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.internal.SparkConfigUtil
 
 import java.util
 
@@ -96,11 +98,9 @@ class CHTransformerApi extends TransformerApi with Logging {
       backendPrefix: String): Unit = {
 
     require(backendPrefix == CHConfig.CONF_PREFIX)
-    if (nativeConfMap.getOrDefault("spark.memory.offHeap.enabled", "false").toBoolean) {
-      val offHeapSize =
-        nativeConfMap.getOrDefault("spark.gluten.memory.offHeap.size.in.bytes", "0").toLong
+    if (nativeConfMap.getOrDefault(GlutenConfig.SPARK_OFFHEAP_ENABLED, "false").toBoolean) {
+      val offHeapSize = SparkConfigUtil.get(nativeConfMap, GlutenConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
       if (offHeapSize > 0) {
-
         // Only set default max_bytes_before_external_group_by for CH when it is not set explicitly.
         val groupBySpillKey = CHConfig.runtimeSettings("max_bytes_before_external_group_by")
         if (!nativeConfMap.containsKey(groupBySpillKey)) {

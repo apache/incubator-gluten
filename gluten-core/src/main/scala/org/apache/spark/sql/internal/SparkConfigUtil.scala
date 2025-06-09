@@ -49,6 +49,14 @@ object SparkConfigUtil {
     entry.valueConverter(conf.get(entry.key, entry.defaultValueString))
   }
 
+  def get[T](conf: java.util.Map[String, String], entry: SparkConfigEntry[T]): T = {
+    entry.valueConverter(conf.getOrDefault(entry.key, entry.defaultValueString))
+  }
+
+  def get[T](conf: java.util.Map[String, String], entry: ConfigEntry[T]): T = {
+    entry.valueConverter(conf.getOrDefault(entry.key, entry.defaultValueString))
+  }
+
   def set[T](conf: SparkConf, entry: SparkConfigEntry[T], value: T): SparkConf = {
     conf.set(entry, value)
   }
