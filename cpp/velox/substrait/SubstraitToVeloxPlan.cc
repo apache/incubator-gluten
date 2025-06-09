@@ -349,11 +349,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       sJoin.has_advanced_extension() &&
       SubstraitParser::configSetInOptimization(sJoin.advanced_extension(), "isBHJ=")) {
     std::string hashTableId = sJoin.hashtableid();
-    void* hashJoinBuilder = nullptr;
+    void* hashTableAddress = nullptr;
     try {
-      hashJoinBuilder = ObjectStore::retrieve<facebook::velox::exec::HashTableBuilder>(getJoin(hashTableId)).get();
+      hashTableAddress = ObjectStore::retrieve<facebook::velox::exec::BaseHashTable>(getJoin(hashTableId)).get();
     } catch (gluten::GlutenException& err) {
-      hashJoinBuilder = nullptr;
+      hashTableAddress = nullptr;
     }
 
     // Create HashJoinNode node
@@ -367,7 +367,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         leftNode,
         rightNode,
         getJoinOutputType(leftNode, rightNode, joinType),
-        hashJoinBuilder);
+        hashTableAddress);
   } else {
     // Create HashJoinNode node
     return std::make_shared<core::HashJoinNode>(
