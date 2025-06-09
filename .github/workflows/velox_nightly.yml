@@ -101,7 +101,7 @@ jobs:
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-gluten-velox-bundle-package-${{ steps.date.outputs.date }}
+          name: nightly-gluten-velox-bundle-package-jdk8-${{ steps.date.outputs.date }}
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
       - name: rsync to apache nightly
@@ -152,7 +152,7 @@ jobs:
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-gluten-velox-bundle-package-${{ steps.date.outputs.date }}
+          name: nightly-gluten-velox-bundle-package-jdk17-${{ steps.date.outputs.date }}
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
       - name: rsync to apache nightly
