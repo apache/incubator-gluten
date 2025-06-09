@@ -19,7 +19,7 @@ package org.apache.gluten.sql.shims
 import org.apache.gluten.GlutenBuildInfo.SPARK_COMPILE_VERSION
 import org.apache.gluten.expression.Sig
 
-import org.apache.spark.{SparkContext, TaskContext}
+import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.scheduler.TaskInfo
@@ -37,8 +37,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
-import org.apache.spark.sql.execution.{CollectLimitExec, FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
-import org.apache.spark.sql.execution.command.DataWritingCommandExec
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
@@ -48,13 +47,13 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
-import org.apache.spark.util.SparkVersionUtil
+import org.apache.spark.util.SparkShimVersionUtil
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, LocatedFileStatus, Path}
 import org.apache.parquet.schema.MessageType
 
-import java.util.{Map => JMap, Properties}
+import java.util.{Map => JMap}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -69,10 +68,10 @@ case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) {
 
 object SparkShimDescriptor {
   def apply(version: String): SparkShimDescriptor = {
-    SparkVersionUtil.majorMinorPatchVersion(version) match {
+    SparkShimVersionUtil.sparkMajorMinorPatchVersion(version) match {
       case Some((major, minor, patch)) => SparkShimDescriptor(major, minor, patch)
       case None =>
-        val (major, minor) = SparkVersionUtil.majorMinorVersion(version)
+        val (major, minor) = SparkShimVersionUtil.sparkMajorMinorVersion(version)
         SparkShimDescriptor(major, minor, 0)
     }
   }
@@ -175,8 +174,6 @@ trait SparkShims {
 
   def enableNativeWriteFilesByDefault(): Boolean = false
 
-  def createTestTaskContext(properties: Properties): TaskContext
-
   def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
     // Since Spark 3.4, the `sc.broadcast` has been optimized to use `sc.broadcastInternal`.
     // More details see SPARK-39983.
@@ -258,15 +255,11 @@ trait SparkShims {
   def extractExpressionTimestampAddUnit(timestampAdd: Expression): Option[Seq[String]] =
     Option.empty
 
-  def supportsRowBased(plan: SparkPlan): Boolean = !plan.supportsColumnar
-
   def withTryEvalMode(expr: Expression): Boolean = false
 
   def withAnsiEvalMode(expr: Expression): Boolean = false
 
   def dateTimestampFormatInReadIsDefaultValue(csvOptions: CSVOptions, timeZone: String): Boolean
-
-  def isPlannedV1Write(write: DataWritingCommandExec): Boolean = false
 
   def createParquetFilters(
       conf: SQLConf,

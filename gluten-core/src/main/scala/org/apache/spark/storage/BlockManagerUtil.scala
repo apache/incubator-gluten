@@ -26,7 +26,7 @@ import org.apache.spark.util.io.ChunkedByteBuffer
 
 import scala.reflect.ClassTag
 
-object BlockManagerUtils {
+object BlockManagerUtil {
   def setTestMemoryStore(conf: SparkConf, memoryManager: MemoryManager, isDriver: Boolean): Unit = {
     val store = new MemoryStore(
       conf,
