@@ -875,6 +875,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenExtractPythonUDFsSuite]
     // Replaced with test that check for native operations
     .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V1")
+    .exclude("Chained Scalar Pandas UDFs should be combined to a single physical node")
+    .exclude("Mixed Batched Python UDFs and Pandas UDF should be separate physical node")
+    .exclude("Independent Batched Python UDFs and Scalar Pandas UDFs should be combined separately")
+    .exclude("Dependent Batched Python UDFs and Scalar Pandas UDFs should not be combined")
+    .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V2")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

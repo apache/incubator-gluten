@@ -20,6 +20,9 @@ import org.apache.gluten.execution.FileSourceScanExecTransformer
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQLTestsBaseTrait {
@@ -31,7 +34,96 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
   }
 
   def collectArrowExec(plan: SparkPlan): Seq[EvalPythonExec] = plan.collect {
-    case b: EvalPythonExec => b
+    // To cgeck for ColumnarArrowEvalPythonExec
+    case b: EvalPythonExec if !b.isInstanceOf[ArrowEvalPythonExec] => b
+  }
+
+  testGluten("Chained Scalar Pandas UDFs should be combined to a single physical node") {
+    val df = Seq(("Hello", 4)).toDF("a", "b")
+    val df2 = df
+      .withColumn("c", scalarPandasUDF(col("a")))
+      .withColumn("d", scalarPandasUDF(col("c")))
+    val arrowEvalNodes = collectArrowExec(df2.queryExecution.executedPlan)
+    assert(arrowEvalNodes.size == 1)
+  }
+
+  testGluten("Mixed Batched Python UDFs and Pandas UDF should be separate physical node") {
+    val df = Seq(("Hello", 4)).toDF("a", "b")
+    val df2 = df
+      .withColumn("c", batchedPythonUDF(col("a")))
+      .withColumn("d", scalarPandasUDF(col("b")))
+
+    val pythonEvalNodes = collectBatchExec(df2.queryExecution.executedPlan)
+    val arrowEvalNodes = collectArrowExec(df2.queryExecution.executedPlan)
+    assert(pythonEvalNodes.size == 1)
+    assert(arrowEvalNodes.size == 1)
+  }
+
+  testGluten(
+    "Independent Batched Python UDFs and Scalar Pandas UDFs should be combined separately") {
+    val df = Seq(("Hello", 4)).toDF("a", "b")
+    val df2 = df
+      .withColumn("c1", batchedPythonUDF(col("a")))
+      .withColumn("c2", batchedPythonUDF(col("c1")))
+      .withColumn("d1", scalarPandasUDF(col("a")))
+      .withColumn("d2", scalarPandasUDF(col("d1")))
+
+    val pythonEvalNodes = collectBatchExec(df2.queryExecution.executedPlan)
+    val arrowEvalNodes = collectArrowExec(df2.queryExecution.executedPlan)
+    assert(pythonEvalNodes.size == 1)
+    assert(arrowEvalNodes.size == 1)
+  }
+
+  testGluten("Dependent Batched Python UDFs and Scalar Pandas UDFs should not be combined") {
+    val df = Seq(("Hello", 4)).toDF("a", "b")
+    val df2 = df
+      .withColumn("c1", batchedPythonUDF(col("a")))
+      .withColumn("d1", scalarPandasUDF(col("c1")))
+      .withColumn("c2", batchedPythonUDF(col("d1")))
+      .withColumn("d2", scalarPandasUDF(col("c2")))
+
+    val pythonEvalNodes = collectBatchExec(df2.queryExecution.executedPlan)
+    val arrowEvalNodes = collectArrowExec(df2.queryExecution.executedPlan)
+    assert(pythonEvalNodes.size == 2)
+    assert(arrowEvalNodes.size == 2)
+  }
+
+  testGluten("Python UDF should not break column pruning/filter pushdown -- Parquet V2") {
+    withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "") {
+      withTempPath {
+        f =>
+          spark.range(10).select($"id".as("a"), $"id".as("b")).write.parquet(f.getCanonicalPath)
+          val df = spark.read.parquet(f.getCanonicalPath)
+
+          withClue("column pruning") {
+            val query = df.filter(batchedPythonUDF($"a")).select($"a")
+
+            val pythonEvalNodes = collectBatchExec(query.queryExecution.executedPlan)
+            assert(pythonEvalNodes.length == 1)
+
+            val scanNodes = query.queryExecution.executedPlan.collect {
+              case scan: BatchScanExec => scan
+            }
+            assert(scanNodes.length == 1)
+            assert(scanNodes.head.output.map(_.name) == Seq("a"))
+          }
+
+          withClue("filter pushdown") {
+            val query = df.filter($"a" > 1 && batchedPythonUDF($"a"))
+            val pythonEvalNodes = collectBatchExec(query.queryExecution.executedPlan)
+            assert(pythonEvalNodes.length == 1)
+
+            val scanNodes = query.queryExecution.executedPlan.collect {
+              case scan: BatchScanExec => scan
+            }
+            assert(scanNodes.length == 1)
+            // $"a" is not null and $"a" > 1
+            val filters = scanNodes.head.scan.asInstanceOf[ParquetScan].pushedFilters
+            assert(filters.length == 2)
+            assert(filters.flatMap(_.references).distinct === Array("a"))
+          }
+      }
+    }
   }
 
   testGluten("Python UDF should not break column pruning/filter pushdown -- Parquet V1") {
