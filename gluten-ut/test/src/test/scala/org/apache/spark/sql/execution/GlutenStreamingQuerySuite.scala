@@ -25,5 +25,5 @@ import org.apache.spark.sql.streaming._
 class GlutenStreamingQuerySuite extends StreamingQuerySuite with GlutenSQLTestsTrait {
   override def sparkConf: SparkConf =
     super.sparkConf
-      .set(GlutenConfig.RAS_ENABLED, true)
+      .set(GlutenConfig.RAS_ENABLED.key, "true")
 }
