@@ -95,7 +95,8 @@ object GlutenPlanModel {
         RDDScanExecEqualityWrapper(scan, scan.id)
       case scan: DataSourceV2ScanExecBase =>
         // DataSourceV2ScanExec has the same problem as v1's RDDScanExec, as explained above.
-        // In addition, override V2 scan operators' equality implementation to include output attributes.
+        // In addition, override V2 scan operators' equality implementation to include output
+        // attributes.
         //
         // Spark's V2 scans don't incorporate out attributes in equality so E.g.,
         // BatchScan[date#1] can be considered equal to BatchScan[date#2], which is unexpected
