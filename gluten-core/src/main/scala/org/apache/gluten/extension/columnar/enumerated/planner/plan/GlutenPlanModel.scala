@@ -76,19 +76,6 @@ object GlutenPlanModel {
     }
 
     private def withEqualityWrapper(node: SparkPlan): AnyRef = node match {
-      case scan: DataSourceV2ScanExecBase =>
-        // Override V2 scan operators' equality implementation to include output attributes.
-        //
-        // Spark's V2 scans don't incorporate out attributes in equality so E.g.,
-        // BatchScan[date#1] can be considered equal to BatchScan[date#2], which is unexpected
-        // in RAS planner because it strictly relies on plan equalities for sanity.
-        //
-        // Related UT: `VeloxOrcDataTypeValidationSuite#Date type`
-        // Related Spark PRs:
-        // https://github.com/apache/spark/pull/23086
-        // https://github.com/apache/spark/pull/23619
-        // https://github.com/apache/spark/pull/23430
-        ScanV2ExecEqualityWrapper(scan, scan.output)
       case scan: RDDScanExec =>
         // Override RDDScanExec operator's equality implementation to include the Spark plan id.
         //
@@ -99,13 +86,22 @@ object GlutenPlanModel {
         // lead to replacement of two different RDD objects with the same RDD object when a single
         // RDD is scanned multiple times (common in self-join, self-union, etc.).
         RDDScanExecEqualityWrapper(scan, scan.id)
+      case scan: DataSourceV2ScanExecBase =>
+        // DataSourceV2ScanExec has the same problem as v1's RDDScanExec, as explained above.
+        // In addition, override V2 scan operators' equality implementation to include output attributes.
+        //
+        // Spark's V2 scans don't incorporate out attributes in equality so E.g.,
+        // BatchScan[date#1] can be considered equal to BatchScan[date#2], which is unexpected
+        // https://github.com/apache/spark/pull/23086
+        // https://github.com/apache/spark/pull/23619
+        // https://github.com/apache/spark/pull/23430
+        ScanV2ExecEqualityWrapper(scan, scan.output, scan.id)
       case other => other
     }
-
-    private case class RDDScanExecEqualityWrapper(scan: RDDScanExec, id: Int)
-
+    private case class RDDScanExecEqualityWrapper(scan: SparkPlan, id: Int)
     private case class ScanV2ExecEqualityWrapper(
         scan: DataSourceV2ScanExecBase,
-        output: Seq[Attribute])
+        output: Seq[Attribute],
+        id: Int)
   }
 }
