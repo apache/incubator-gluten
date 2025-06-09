@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.config.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.streaming._
