@@ -62,6 +62,6 @@ object SparkConfigUtil {
   }
 
   def set[T](conf: SparkConf, entry: ConfigEntry[T], value: T): SparkConf = {
-    conf.set(entry.key, entry.stringConverter(value))
+    conf.set(entry.key, value.toString)
   }
 }
