@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,26 +15,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Upload docs to apache nightly
+set -e
 
-on:
-  push:
-    paths:
-      - 'docs/**'
-      - '.github/workflows/nightly_sync.yml'
-jobs:
-  upload_to_nightlies:
-    runs-on: ubuntu-latest
+source /opt/rh/gcc-toolset-11/enable
+export NUM_THREADS=2
+if [ "$(uname -m)" = "aarch64" ]; then
+    export CPU_TARGET="aarch64";
+    export VCPKG_FORCE_SYSTEM_BINARIES=1;
+fi
 
-    steps:
-      - uses: actions/checkout@master
-      - name: rsync
-        uses: burnett01/rsync-deployments@5.2
-        with:
-          switches: -avzr
-          path: docs/*
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/gluten/docs/
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_arrow=OFF --build_tests=OFF --build_benchmarks=OFF \
+                           --build_examples=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON

@@ -137,7 +137,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     shuffle/rss/RssPartitionWriter.cc
     shuffle/RandomPartitioner.cc
     shuffle/RoundRobinPartitioner.cc
-    shuffle/ShuffleMemoryPool.cc
     shuffle/ShuffleWriter.cc
     shuffle/SinglePartitioner.cc
     shuffle/Spill.cc

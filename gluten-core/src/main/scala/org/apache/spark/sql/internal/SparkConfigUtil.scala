@@ -14,35 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.internal
 
-#include <arrow/memory_pool.h>
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.config.ConfigEntry
 
-#pragma once
-
-namespace gluten {
-class ShuffleMemoryPool : public arrow::MemoryPool {
- public:
-  ShuffleMemoryPool(arrow::MemoryPool* pool);
-
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
-
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override;
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
-
-  int64_t bytes_allocated() const override;
-
-  int64_t max_memory() const override;
-
-  std::string backend_name() const override;
-
-  int64_t total_bytes_allocated() const override;
-
-  int64_t num_allocations() const override;
-
- private:
-  arrow::MemoryPool* pool_;
-  uint64_t bytesAllocated_ = 0;
-  uint64_t peakBytesAllocated_ = 0;
-};
-} // namespace gluten
+object SparkConfigUtil {
+  def getEntryValue[T](conf: SparkConf, entry: ConfigEntry[T]): T = {
+    conf.get(entry)
+  }
+}

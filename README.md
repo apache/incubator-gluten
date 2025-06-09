@@ -4,8 +4,6 @@
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/8452/badge)](https://www.bestpractices.dev/projects/8452)
 
-*<b>This project is still under active development now, and doesn't have a stable release. Welcome to evaluate it.</b>*
-
 # 1. Introduction
 ## Problem Statement
 Apache Spark is a stable, mature project that has been developed for many years. It is one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address
