@@ -99,7 +99,7 @@ class CHTransformerApi extends TransformerApi with Logging {
 
     require(backendPrefix == CHConfig.CONF_PREFIX)
     if (nativeConfMap.getOrDefault(GlutenConfig.SPARK_OFFHEAP_ENABLED, "false").toBoolean) {
-      val offHeapSize =
+      val offHeapSize: Long =
         SparkConfigUtil.get(nativeConfMap, GlutenConfig.COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
       if (offHeapSize > 0) {
         // Only set default max_bytes_before_external_group_by for CH when it is not set explicitly.
