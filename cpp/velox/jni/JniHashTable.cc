@@ -46,7 +46,7 @@ jlong callJavaGet(const std::string& id) {
 }
 
 // Return the velox's hash table.
-std::shared_ptr<facebook::velox::exec::HashTableBuilder> nativeHashTableBuild(
+std::shared_ptr<HashTableBuilder> nativeHashTableBuild(
     const std::string& joinKeys,
     std::vector<std::string> names,
     std::vector<facebook::velox::TypePtr> veloxTypeList,
@@ -108,7 +108,7 @@ std::shared_ptr<facebook::velox::exec::HashTableBuilder> nativeHashTableBuild(
         std::make_shared<facebook::velox::core::FieldAccessTypedExpr>(rowType->findChild(name), name));
   }
 
-  auto hashTableBuilder = std::make_shared<facebook::velox::exec::HashTableBuilder>(
+  auto hashTableBuilder = std::make_shared<HashTableBuilder>(
       vJoin, isNullAwareAntiJoin, hasMixedJoinCondition, joinKeyTypes, rowType, memoryPool.get());
 
   for (auto i = 0; i < batches.size(); i++) {
