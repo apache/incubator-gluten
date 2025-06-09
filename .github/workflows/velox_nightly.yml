@@ -92,16 +92,16 @@ jobs:
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
-      - name: Build for Spark 3.5
+      - name: Build package for Spark
         run: |
           cd $GITHUB_WORKSPACE/ && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
+          mvn clean install -Pbackends-velox -Pceleborn -Puniffle -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-gluten-velox-bundle-package-spark35-${{ steps.date.outputs.date }}
+          name: nightly-gluten-velox-bundle-package-${{ steps.date.outputs.date }}
           path: package/target/gluten-velox-bundle-*.jar
           retention-days: 7
       - name: rsync to apache nightly
