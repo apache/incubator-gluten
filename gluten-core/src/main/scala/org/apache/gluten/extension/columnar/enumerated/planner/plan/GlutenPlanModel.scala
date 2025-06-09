@@ -18,6 +18,7 @@ package org.apache.gluten.extension.columnar.enumerated.planner.plan
 
 import org.apache.gluten.ras.PlanModel
 import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
@@ -101,9 +102,7 @@ object GlutenPlanModel {
       case other => other
     }
 
-    private case class RDDScanExecEqualityWrapper(
-        scan: RDDScanExec,
-        id: Int)
+    private case class RDDScanExecEqualityWrapper(scan: RDDScanExec, id: Int)
 
     private case class ScanV2ExecEqualityWrapper(
         scan: DataSourceV2ScanExecBase,
