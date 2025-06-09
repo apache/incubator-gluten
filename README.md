@@ -78,6 +78,7 @@ There are two ways to acquire Gluten jar for the above configuration.
 
 ### Use Released Jar
 Please download a tar package [here](https://downloads.apache.org/incubator/gluten/), then extract out Gluten jar from it.
+Gluten also provides the nightly builds based on the main branch for early testing. The release jars are hosted [here](https://nightlies.apache.org/gluten/)
 It was verified on Centos-7, Centos-8, Ubuntu-20.04 and Ubuntu-22.04.
 
 ### Build From Source
