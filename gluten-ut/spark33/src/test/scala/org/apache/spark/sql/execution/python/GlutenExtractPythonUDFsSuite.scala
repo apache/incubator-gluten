@@ -33,9 +33,11 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
     case b: BatchEvalPythonExec => b
   }
 
-  def collectArrowExec(plan: SparkPlan): Seq[EvalPythonExec] = plan.collect {
-    // To cgeck for ColumnarArrowEvalPythonExec
-    case b: EvalPythonExec if !b.isInstanceOf[ArrowEvalPythonExec] => b
+  def collectColumnarArrowExec(plan: SparkPlan): Seq[EvalPythonExec] = plan.collect {
+    // To check for ColumnarArrowEvalPythonExec
+    case b: EvalPythonExec
+      if !b.isInstanceOf[ArrowEvalPythonExec] && !b.isInstanceOf[BatchEvalPythonExec] =>
+      b
   }
 
   testGluten("Chained Scalar Pandas UDFs should be combined to a single physical node") {
@@ -43,7 +45,7 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
     val df2 = df
       .withColumn("c", scalarPandasUDF(col("a")))
       .withColumn("d", scalarPandasUDF(col("c")))
-    val arrowEvalNodes = collectArrowExec(df2.queryExecution.executedPlan)
+    val arrowEvalNodes = collectColumnarArrowExec(df2.queryExecution.executedPlan)
     assert(arrowEvalNodes.size == 1)
   }
 
@@ -54,7 +56,7 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
       .withColumn("d", scalarPandasUDF(col("b")))
 
     val pythonEvalNodes = collectBatchExec(df2.queryExecution.executedPlan)
-    val arrowEvalNodes = collectArrowExec(df2.queryExecution.executedPlan)
+    val arrowEvalNodes = collectColumnarArrowExec(df2.queryExecution.executedPlan)
     assert(pythonEvalNodes.size == 1)
     assert(arrowEvalNodes.size == 1)
   }
@@ -69,7 +71,7 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
       .withColumn("d2", scalarPandasUDF(col("d1")))
 
     val pythonEvalNodes = collectBatchExec(df2.queryExecution.executedPlan)
-    val arrowEvalNodes = collectArrowExec(df2.queryExecution.executedPlan)
+    val arrowEvalNodes = collectColumnarArrowExec(df2.queryExecution.executedPlan)
     assert(pythonEvalNodes.size == 1)
     assert(arrowEvalNodes.size == 1)
   }
@@ -83,7 +85,7 @@ class GlutenExtractPythonUDFsSuite extends ExtractPythonUDFsSuite with GlutenSQL
       .withColumn("d2", scalarPandasUDF(col("c2")))
 
     val pythonEvalNodes = collectBatchExec(df2.queryExecution.executedPlan)
-    val arrowEvalNodes = collectArrowExec(df2.queryExecution.executedPlan)
+    val arrowEvalNodes = collectColumnarArrowExec(df2.queryExecution.executedPlan)
     assert(pythonEvalNodes.size == 2)
     assert(arrowEvalNodes.size == 2)
   }

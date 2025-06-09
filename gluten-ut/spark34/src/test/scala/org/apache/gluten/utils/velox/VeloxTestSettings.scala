@@ -917,7 +917,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Independent Batched Python UDFs and Scalar Pandas UDFs should be combined separately")
     .exclude("Dependent Batched Python UDFs and Scalar Pandas UDFs should not be combined")
     .exclude("Python UDF should not break column pruning/filter pushdown -- Parquet V2")
-  
+
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
 // scalastyle:on line.size.limit
