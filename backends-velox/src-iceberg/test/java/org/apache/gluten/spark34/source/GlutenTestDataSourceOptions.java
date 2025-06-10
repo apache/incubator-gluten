@@ -20,8 +20,8 @@ import org.apache.iceberg.spark.source.TestDataSourceOptions;
 import org.junit.Test;
 
 public class GlutenTestDataSourceOptions extends TestDataSourceOptions {
-    @Test
-    public void testDeleteWithConcurrentTableRefresh() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+  @Test
+  public void testDeleteWithConcurrentTableRefresh() {
+    throw new UnsupportedOperationException("Not supported yet.");
+  }
 }
